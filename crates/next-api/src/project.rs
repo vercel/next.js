@@ -111,6 +111,9 @@ pub struct ProjectOptions {
 
     /// Options for draft mode.
     pub preview_props: DraftModeOptions,
+
+    /// The browserslist query to use for targeting browsers.
+    pub browserslist_query: RcStr,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
@@ -308,6 +311,7 @@ impl ProjectContainer {
         let encryption_key;
         let build_id;
         let preview_props;
+        let browserslist_query;
         {
             let options = this.options_state.get();
             let options = options
@@ -329,6 +333,7 @@ impl ProjectContainer {
             encryption_key = options.encryption_key.clone();
             build_id = options.build_id.clone();
             preview_props = options.preview_props.clone();
+            browserslist_query = options.browserslist_query.clone();
         }
 
         let dist_dir = next_config
@@ -346,9 +351,7 @@ impl ProjectContainer {
             dist_dir,
             env: Vc::upcast(env_map),
             define_env,
-            browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
-                                 versions, last 1 Edge versions"
-                .into(),
+            browserslist_query,
             mode: if dev {
                 NextMode::Development.cell()
             } else {
@@ -418,6 +421,7 @@ pub struct Project {
     /// time.
     define_env: Vc<ProjectDefineEnv>,
 
+    /// The browserslist query to use for targeting browsers.
     browserslist_query: RcStr,
 
     mode: Vc<NextMode>,
