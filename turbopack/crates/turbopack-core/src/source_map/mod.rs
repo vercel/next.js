@@ -399,7 +399,7 @@ impl SourceMap {
         line: usize,
         column: usize,
     ) -> Result<Vc<TokenWithSource>> {
-        let mut content = None;
+        let mut content: Option<RcStr> = None;
 
         let token: Token = match &*self.await? {
             SourceMap::Decoded(map) => {
@@ -430,7 +430,7 @@ impl SourceMap {
                 if let Some(map) = map.map.as_regular_source_map() {
                     if map.get_source_count() == 1 {
                         let c = map.source_contents().next().unwrap();
-                        content = c.map(|c| c.to_string());
+                        content = c.map(|c| c.into());
                     }
                 }
 

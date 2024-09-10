@@ -19,11 +19,8 @@ use turbopack_core::{
         Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
     },
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
-    resolve::{
-        find_context_file, find_context_file_or_package_key, options::ImportMapping,
-        FindContextFileResult,
-    },
-    source::{OptionSource, Source},
+    resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
+    source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
