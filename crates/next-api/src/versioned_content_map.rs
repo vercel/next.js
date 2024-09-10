@@ -26,6 +26,7 @@ pub struct OutputAssetsOperation(Vc<OutputAssets>);
 struct MapEntry {
     assets_operation: Vc<OutputAssets>,
     side_effects: Vc<Completion>,
+    /// Precomputed map for quick access to output asset by filepath
     path_to_asset: HashMap<Vc<FileSystemPath>, Vc<Box<dyn OutputAsset>>>,
 }
 
@@ -33,6 +34,7 @@ struct MapEntry {
 struct OptionMapEntry(Option<MapEntry>);
 
 type PathToOutputOperation = HashMap<Vc<FileSystemPath>, IndexSet<Vc<OutputAssets>>>;
+// A precomputed map for quick access to output asset by filepath
 type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, Vc<OptionMapEntry>>;
 
 #[turbo_tasks::value]
@@ -67,6 +69,7 @@ impl VersionedContentMap {
     #[turbo_tasks::function]
     pub async fn insert_output_assets(
         self: Vc<Self>,
+        // Output assets to emit
         assets_operation: Vc<OutputAssetsOperation>,
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
@@ -88,6 +91,8 @@ impl VersionedContentMap {
         Ok(entry.side_effects)
     }
 
+    /// Creates a ComputEntry (a pre-computed map for optimized lookup) for an output assets
+    /// operation. When assets change, map_path_to_op is updated.
     #[turbo_tasks::function]
     async fn compute_entry(
         self: Vc<Self>,
