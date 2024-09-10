@@ -11,9 +11,9 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
-    output::{OutputAsset, OutputAssets},
+    output::{OptionOutputAsset, OutputAsset, OutputAssets},
     source_map::{GenerateSourceMap, OptionSourceMap},
-    version::VersionedContent,
+    version::OptionVersionedContent,
 };
 
 /// An unresolved output assets operation. We need to pass an operation here as
@@ -143,8 +143,13 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    pub fn get(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<Box<dyn VersionedContent>> {
-        self.get_asset(path).versioned_content()
+    pub async fn get(
+        self: Vc<Self>,
+        path: Vc<FileSystemPath>,
+    ) -> Result<Vc<OptionVersionedContent>> {
+        Ok(Vc::cell(
+            (*self.get_asset(path).await?).map(|a| a.versioned_content()),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -153,8 +158,12 @@ impl VersionedContentMap {
         path: Vc<FileSystemPath>,
         section: Option<RcStr>,
     ) -> Result<Vc<OptionSourceMap>> {
+        let Some(asset) = &*self.get_asset(path).await? else {
+            return Ok(Vc::cell(None));
+        };
+
         if let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.get_asset(path)).await?
+            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
         {
             Ok(if let Some(section) = section {
                 generate_source_map.by_section(section)
@@ -171,7 +180,7 @@ impl VersionedContentMap {
     pub async fn get_asset(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
-    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+    ) -> Result<Vc<OptionOutputAsset>> {
         let result = self.raw_get(path).await?;
         if let Some(MapEntry {
             assets_operation: _,
@@ -182,17 +191,17 @@ impl VersionedContentMap {
             side_effects.await?;
 
             if let Some(asset) = path_to_asset.get(&path) {
-                return Ok(*asset);
+                return Ok(Vc::cell(Some(*asset)));
             } else {
                 let path = path.to_string().await?;
                 bail!(
                     "could not find asset for path {} (asset has been removed)",
-                    path
+                    path,
                 );
             }
         }
-        let path = path.to_string().await?;
-        bail!("could not find asset for path {}", path);
+
+        Ok(Vc::cell(None))
     }
 
     #[turbo_tasks::function]
