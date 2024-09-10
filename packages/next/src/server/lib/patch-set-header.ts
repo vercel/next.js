@@ -6,7 +6,9 @@ type PatchableResponse = {
 
 /**
  * Ensure cookies set in middleware are merged and not overridden by API
- * routes/getServerSideProps.
+ * routes/getServerSideProps. Since middleware always runs before API routes
+ * and actions, any duplicate cookie set downstream are given priority
+ * and overlapping cookie names set by middleware are be removed.
  *
  * @param req Incoming request
  * @param res Outgoing response
@@ -28,22 +30,35 @@ export function patchSetHeaderWithCookieSupport(
 
     if (name.toLowerCase() === 'set-cookie') {
       const middlewareValue = getRequestMeta(req, 'middlewareCookie')
-
       if (
         !middlewareValue ||
         !Array.isArray(value) ||
         !value.every((item, idx) => item === middlewareValue[idx])
       ) {
+        const valueAsArray: string[] =
+          typeof value === 'string'
+            ? [value]
+            : Array.isArray(value)
+              ? value
+              : []
+
+        const cookieNamesToSet = new Set<string>()
+        for (const cookie of valueAsArray) {
+          const [cookieName] = cookie.split('=')
+          cookieNamesToSet.add(cookieName.trim())
+        }
+
+        const middlewareCookiesToSet = []
+        for (const mwCookie of middlewareValue || []) {
+          const [cookieName] = mwCookie.split('=')
+          if (!cookieNamesToSet.has(cookieName.trim())) {
+            middlewareCookiesToSet.push(mwCookie)
+          }
+        }
+
         value = [
           // TODO: (wyattjoh) find out why this is called multiple times resulting in duplicate cookies being added
-          ...new Set([
-            ...(middlewareValue || []),
-            ...(typeof value === 'string'
-              ? [value]
-              : Array.isArray(value)
-                ? value
-                : []),
-          ]),
+          ...new Set([...middlewareCookiesToSet, ...valueAsArray]),
         ]
       }
     }
