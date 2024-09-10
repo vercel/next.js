@@ -27,6 +27,7 @@ const baseCacheEntry = {
 
   isStale: false,
   isMiss: false,
+  isFallback: false,
 } as const
 
 const getPreviousCacheEntry = async (
