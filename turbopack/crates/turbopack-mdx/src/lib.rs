@@ -187,7 +187,7 @@ impl MdxTransformedAsset {
             }
             .cell()),
             Err(err) => {
-                let loc = Vc::cell(err.place.map(|p| {
+                let loc = err.place.map(|p| {
                     let (start, end) = match *p {
                         // markdown's positions are 1-indexed, SourcePos is 0-indexed.
                         // Both end positions point to the first character after the range
@@ -211,7 +211,7 @@ impl MdxTransformedAsset {
                     };
 
                     IssueSource::from_line_col(this.source, start, end)
-                }));
+                });
 
                 MdxIssue {
                     path: this.source.ident().path(),
@@ -241,7 +241,7 @@ struct MdxTransformResult {
 struct MdxIssue {
     /// Place of message.
     path: Vc<FileSystemPath>,
-    loc: Vc<OptionIssueSource>,
+    loc: Option<Vc<IssueSource>>,
     /// Reason for message (should use markdown).
     reason: String,
     /// Category of message.
@@ -259,7 +259,7 @@ impl Issue for MdxIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        self.loc
+        Vc::cell(self.loc.map(|s| s.resolve_source_map(self.path)))
     }
 
     #[turbo_tasks::function]

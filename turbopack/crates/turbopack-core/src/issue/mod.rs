@@ -467,7 +467,10 @@ impl IssueSource {
     }
 
     #[turbo_tasks::function]
-    async fn resolve_source_map(self: Vc<Self>, origin: Vc<FileSystemPath>) -> Result<Vc<Self>> {
+    pub async fn resolve_source_map(
+        self: Vc<Self>,
+        origin: Vc<FileSystemPath>,
+    ) -> Result<Vc<Self>> {
         let this = self.await?;
 
         if let Some(range) = this.range {
