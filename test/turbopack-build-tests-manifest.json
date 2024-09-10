@@ -7326,11 +7326,11 @@
         "Build warnings production mode should not warn about missing cache on supported platforms",
         "Build warnings production mode should warn about missing cache in CI"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Build warnings production mode should shown warning about minification for minimize",
         "Build warnings production mode should shown warning about minification for minimizer"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
