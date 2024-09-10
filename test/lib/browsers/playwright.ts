@@ -317,6 +317,10 @@ export class Playwright extends BrowserInterface {
     return this.chain(async () => context.clearCookies())
   }
 
+  getCookies(): BrowserInterface<any[]> & Promise<any[]> {
+    return this.chain(async () => context.cookies())
+  }
+
   focusPage() {
     return this.chain(() => page.bringToFront())
   }

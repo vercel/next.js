@@ -77,6 +77,7 @@ export abstract class BrowserInterface<TCurrent = any> {
     height: number
     width: number
   }): BrowserInterface<any> & Promise<any>
+  abstract getCookies(): BrowserInterface<any[]> & Promise<any[]>
   abstract addCookie(opts: {
     name: string
     value: string
