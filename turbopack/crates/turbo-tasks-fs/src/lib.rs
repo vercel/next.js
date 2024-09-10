@@ -72,8 +72,6 @@ use crate::{
     rope::{Rope, RopeReader},
 };
 
-pub const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
-
 /// Validate the path, returning either the valid path, or a modified-but-now-valid path,
 /// or bailing with an error.
 ///
@@ -118,6 +116,7 @@ fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
     /// cheaper.
     #[cfg(not(target_family = "windows"))]
     fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
+        const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
         // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
         // so we subtract a bit to be safe. on most linux distros this is likely a lot larger than
         // 1024, but macOS is *special*
