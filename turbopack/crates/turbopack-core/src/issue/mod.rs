@@ -161,26 +161,22 @@ pub trait Issue {
             Some(detail) => Some((*detail.await?).clone()),
             None => None,
         };
-        let (original_file_path, source) = if let Some(s) = *self.source().await? {
-            let s = s.resolve_source_map(self.file_path());
-
-            let file_path = s.await?.source.ident().path();
-
-            (Some(file_path), Some(s.into_plain().await?))
-        } else {
-            (None, None)
-        };
-        let file_path = original_file_path.unwrap_or_else(|| self.file_path());
 
         Ok(PlainIssue {
             severity: *self.severity().await?,
-            file_path: file_path.to_string().await?.clone_value(),
+            file_path: self.file_path().to_string().await?.clone_value(),
             stage: self.stage().await?.clone_value(),
             title: self.title().await?.clone_value(),
             description,
             detail,
             documentation_link: self.documentation_link().await?.clone_value(),
-            source,
+            source: {
+                if let Some(s) = *self.source().await? {
+                    Some(s.into_plain().await?)
+                } else {
+                    None
+                }
+            },
             sub_issues: self
                 .sub_issues()
                 .await?
