@@ -1,4 +1,58 @@
-import type { API, FileInfo } from 'jscodeshift'
+import type { API, Collection, FileInfo } from 'jscodeshift'
+
+function insertReactUseImport(
+  root: Collection<any>,
+  j: API['j']
+) {
+  const hasReactUseImport =
+    root
+      .find(j.ImportSpecifier, {
+        imported: {
+          type: 'Identifier',
+          name: 'use',
+        },
+      })
+      .size() > 0
+
+  if (!hasReactUseImport) {
+    const reactImportDeclaration = root.find(j.ImportDeclaration, {
+      source: {
+        type: 'Literal',
+        value: 'react',
+      },
+    })
+
+    if (reactImportDeclaration.size() > 0) {
+      // Add 'use' to existing 'react' import declaration
+      reactImportDeclaration
+        .get()
+        .node.specifiers.push(j.importSpecifier(j.identifier('use')))
+    } else {
+      // Create new import declaration for 'use' from 'react'
+      const newImport = j.importDeclaration(
+        [j.importSpecifier(j.identifier('use'))],
+        j.literal('react')
+      )
+
+      // append after "use client" directive if there's any
+      const clientDirectives = root.find(j.Literal, { value: 'use client' })
+      if (clientDirectives.size() > 0) {
+        const parent = clientDirectives.get().parentPath
+        if (parent) {
+          parent.insertAfter(newImport)
+        } else {
+          if (root.length > 0) {
+            root.at(0).insertAfter(newImport)
+          } else {
+            root.get().node.program.body.unshift(newImport)
+          }
+        }
+      } else {
+        root.get().node.program.body.unshift(newImport)
+      }
+    }
+  }
+}
 
 export default function transform(file: FileInfo, api: API) {
   const j = api.jscodeshift
@@ -51,54 +105,7 @@ export default function transform(file: FileInfo, api: API) {
 
   // Add import { use } from 'react' if needed and not already imported
   if (needsReactUseImport) {
-    const hasReactUseImport =
-      root
-        .find(j.ImportSpecifier, {
-          imported: {
-            type: 'Identifier',
-            name: 'use',
-          },
-        })
-        .size() > 0
-
-    if (!hasReactUseImport) {
-      const reactImportDeclaration = root.find(j.ImportDeclaration, {
-        source: {
-          type: 'Literal',
-          value: 'react',
-        },
-      })
-
-      if (reactImportDeclaration.size() > 0) {
-        // Add 'use' to existing 'react' import declaration
-        reactImportDeclaration
-          .get()
-          .node.specifiers.push(j.importSpecifier(j.identifier('use')))
-      } else {
-        // Create new import declaration for 'use' from 'react'
-        const newImport = j.importDeclaration(
-          [j.importSpecifier(j.identifier('use'))],
-          j.literal('react')
-        )
-
-        // append after "use client" directive if there's any
-        const clientDirectives = root.find(j.Literal, { value: 'use client' })
-        if (clientDirectives.size() > 0) {
-          const parent = clientDirectives.get().parentPath
-          if (parent) {
-            parent.insertAfter(newImport)
-          } else {
-            if (root.length > 0) {
-              root.at(0).insertAfter(newImport)
-            } else {
-              root.get().node.program.body.unshift(newImport)
-            }
-          }
-        } else {
-          root.get().node.program.body.unshift(newImport)
-        }
-      }
-    }
+    insertReactUseImport(root, j)
   }
 
   return root.toSource()
