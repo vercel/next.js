@@ -13675,10 +13675,10 @@
       "runtimeError": false
     },
     "test/integration/next-image-new/invalid-image-import/test/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Missing Import Image Tests production mode should show error"
       ],
+      "failed": [],
       "pending": [
         "Missing Import Image Tests development mode should show error"
       ],
@@ -16424,13 +16424,11 @@
         "Production Usage should remove placeholder for next/image correctly",
         "Production Usage should replace static pages with HTML files",
         "Production Usage should respond with 405 for POST to static page",
-        "Production Usage should warn when prefetch is true"
-      ],
-      "failed": [
+        "Production Usage should warn when prefetch is true",
         "Production Usage process.browser should eliminate client only code on the server",
-        "Production Usage process.browser should eliminate server only code on the client",
-        "Production Usage should output traces"
+        "Production Usage process.browser should eliminate server only code on the client"
       ],
+      "failed": ["Production Usage should output traces"],
       "pending": [
         "Production Usage With Security Related Issues should handle invalid URL properly",
         "Production Usage With basic usage should allow etag header support with getServerSideProps",
