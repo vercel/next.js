@@ -142,7 +142,12 @@ fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
         Ok(path.into())
     }
 
-    validate_path_length_inner(path)
+    validate_path_length_inner(path).with_context(|| {
+        format!(
+            "path length for file {} exceeds max length of filesystem",
+            path.to_string_lossy()
+        )
+    })
 }
 
 #[turbo_tasks::value_trait]
@@ -569,13 +574,7 @@ impl FileSystem for DiskFileSystem {
         content: Vc<FileContent>,
     ) -> Result<Vc<Completion>> {
         let full_path = self.to_sys_path(fs_path).await?;
-
-        let full_path = validate_path_length(&full_path).with_context(|| {
-            format!(
-                "path length for file {} exceeds max length of filesystem",
-                full_path.to_string_lossy()
-            )
-        })?;
+        let full_path = validate_path_length(&full_path)?;
 
         let content = content.await?;
 
