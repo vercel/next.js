@@ -3,18 +3,22 @@ import {
   getPreviouslyCachedImageOrNull,
   getImageEtag,
 } from 'next/dist/server/image-optimizer'
-import { CachedRouteKind } from 'next/dist/server/response-cache/types'
+import {
+  CachedRouteKind,
+  IncrementalCacheItem,
+} from 'next/dist/server/response-cache/types'
 import { readFile } from 'fs-extra'
 import { join } from 'path'
 
 const getImageUpstream = async (filepath, contentType = 'image/jpeg') => {
   const buffer = await readFile(join(__dirname, filepath))
-  return {
+  const result: Parameters<typeof getPreviouslyCachedImageOrNull>[0] = {
     buffer,
     contentType,
     cacheControl: 'max-age=31536000',
     etag: getImageEtag(buffer),
-  } satisfies Parameters<typeof getPreviouslyCachedImageOrNull>[0]
+  }
+  return result
 }
 const baseCacheEntry = {
   revalidateAfter: Date.now() + 1000,
@@ -32,7 +36,7 @@ const getPreviousCacheEntry = async (
 ) => {
   const buffer = await readFile(join(__dirname, filepath))
   const upstreamEtag = getImageEtag(buffer)
-  return {
+  const result: IncrementalCacheItem = {
     ...baseCacheEntry,
     value: {
       kind: CachedRouteKind.IMAGE,
@@ -41,7 +45,8 @@ const getPreviousCacheEntry = async (
       buffer,
       extension,
     },
-  } satisfies Parameters<typeof getPreviouslyCachedImageOrNull>[1]
+  }
+  return result
 }
 
 describe('shouldUsePreviouslyCachedEntry', () => {
@@ -56,10 +61,10 @@ describe('shouldUsePreviouslyCachedEntry', () => {
   })
 
   it('should return null if previous cache entry value is not of kind IMAGE', async () => {
-    const nonImageCacheEntry = {
+    const nonImageCacheEntry: IncrementalCacheItem = {
       ...baseCacheEntry,
       value: { kind: CachedRouteKind.REDIRECT, props: {} },
-    } satisfies Parameters<typeof getPreviouslyCachedImageOrNull>[1]
+    }
     expect(
       getPreviouslyCachedImageOrNull(
         await getImageUpstream('./images/test.jpg'),
