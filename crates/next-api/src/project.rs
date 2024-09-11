@@ -1204,7 +1204,12 @@ impl Project {
                 // INVALIDATION: This is intentionally untracked to avoid invalidating this
                 // function completely. We want to initialize the VersionState with the
                 // first seen version of the session.
-                let state = VersionState::new(version.into_trait_ref_untracked().await?).await?;
+                let state = VersionState::new(
+                    version
+                        .into_trait_ref_strongly_consistent_untracked()
+                        .await?,
+                )
+                .await?;
                 Ok(Vc::cell(Some(state)))
             }
             None => Ok(Vc::cell(None)),
