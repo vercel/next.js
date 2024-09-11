@@ -201,6 +201,7 @@ smallvec = { version = "1.13.1", features = [
   "const_new",
 ] }
 sourcemap = "9.0.0"
+strsim = "0.11.1"
 syn = "1.0.107"
 tempfile = "3.3.0"
 thiserror = "1.0.48"

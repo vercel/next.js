@@ -510,6 +510,12 @@ impl IssueSource {
             },
         }))
     }
+
+    /// Returns the file path for the source file.
+    #[turbo_tasks::function]
+    pub fn file_path(&self) -> Vc<FileSystemPath> {
+        self.source.ident().path()
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -532,6 +538,7 @@ pub enum IssueStage {
     Transform,
     Analysis,
     Resolve,
+    Bindings,
     CodeGen,
     Unsupported,
     Misc,
@@ -549,6 +556,7 @@ impl Display for IssueStage {
             IssueStage::Parse => write!(f, "parse"),
             IssueStage::Transform => write!(f, "transform"),
             IssueStage::Analysis => write!(f, "analysis"),
+            IssueStage::Bindings => write!(f, "bindings"),
             IssueStage::CodeGen => write!(f, "code gen"),
             IssueStage::Unsupported => write!(f, "unsupported"),
             IssueStage::AppStructure => write!(f, "app structure"),

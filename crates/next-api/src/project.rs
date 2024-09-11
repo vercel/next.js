@@ -31,7 +31,9 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
-use turbopack::{evaluate_context::node_build_environment, ModuleAssetContext};
+use turbopack::{
+    evaluate_context::node_build_environment, transition::TransitionOptions, ModuleAssetContext,
+};
 use turbopack_core::{
     changed::content_changed,
     chunk::{
@@ -944,7 +946,11 @@ impl Project {
         }
 
         Ok(Vc::upcast(ModuleAssetContext::new(
-            Vc::cell(transitions.into_iter().collect()),
+            TransitionOptions {
+                named_transitions: transitions.into_iter().collect(),
+                ..Default::default()
+            }
+            .cell(),
             self.edge_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -1011,7 +1017,11 @@ impl Project {
         }
 
         Ok(Vc::upcast(ModuleAssetContext::new(
-            Vc::cell(transitions.into_iter().collect()),
+            TransitionOptions {
+                named_transitions: transitions.into_iter().collect(),
+                ..Default::default()
+            }
+            .cell(),
             self.server_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -1057,7 +1067,11 @@ impl Project {
         }
 
         Ok(Vc::upcast(ModuleAssetContext::new(
-            Vc::cell(transitions.into_iter().collect()),
+            TransitionOptions {
+                named_transitions: transitions.into_iter().collect(),
+                ..Default::default()
+            }
+            .cell(),
             self.edge_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),

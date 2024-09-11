@@ -189,6 +189,7 @@ describe('app dir - basic', () => {
     { pathname: '/blog/old-post' },
     { pathname: '/redirect-3/some' },
     { pathname: '/redirect-4' },
+    { pathname: '/redirect-4/?q=1&=' },
   ])(
     'should match redirects in pages correctly $path',
     async ({ pathname }) => {

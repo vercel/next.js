@@ -626,7 +626,10 @@ export default function HotReload({
         )
       } catch (err: any) {
         console.warn(
-          '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+          '[HMR] Invalid message: ' +
+            JSON.stringify(event.data) +
+            '\n' +
+            (err?.stack ?? '')
         )
       }
     }
