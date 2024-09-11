@@ -315,8 +315,9 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
 
             let status = func.call(
                 result.map_err(|e| {
-                    log_internal_error_and_inform(&e);
-                    napi::Error::from_reason(PrettyPrintError(&e).to_string())
+                    let error = PrettyPrintError(&e).to_string();
+                    log_internal_error_and_inform(&error);
+                    napi::Error::from_reason(error)
                 }),
                 ThreadsafeFunctionCallMode::NonBlocking,
             );
