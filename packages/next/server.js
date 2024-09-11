@@ -12,6 +12,7 @@ const serverExports = {
   URLPattern: require('next/dist/server/web/spec-extension/url-pattern')
     .URLPattern,
   unstable_after: require('next/dist/server/after').unstable_after,
+  connection: require('next/dist/server/request/connection').connection,
 }
 
 // https://nodejs.org/api/esm.html#commonjs-namespaces
@@ -26,3 +27,4 @@ exports.userAgentFromString = serverExports.userAgentFromString
 exports.userAgent = serverExports.userAgent
 exports.URLPattern = serverExports.URLPattern
 exports.unstable_after = serverExports.unstable_after
+exports.connection = serverExports.connection
