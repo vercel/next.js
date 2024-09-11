@@ -54,7 +54,10 @@ use turbopack_core::{
 };
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
-use turbopack_ecmascript::references::external_module::{CachedExternalModule, CachedExternalType};
+use turbopack_ecmascript::{
+    references::external_module::{CachedExternalModule, CachedExternalType},
+    tree_shake::asset::EcmascriptModulePartAsset,
+};
 use turbopack_json::JsonModuleAsset;
 pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
 use turbopack_resolve::{resolve_options_context::ResolveOptionsContext, typescript::type_resolve};
@@ -163,46 +166,44 @@ async fn apply_module_type(
             if runtime_code {
                 Vc::upcast(builder.build())
             } else {
+                let module = builder.build();
+                let part_ref = if let Some(part) = part {
+                    Some((part.await?, part))
+                } else {
+                    None
+                };
+                if let Some((part, _)) = part_ref {
+                    if let ModulePart::Evaluation = &*part {
+                        // Skip the evaluation part if the module is marked as side effect free.
+                        let side_effect_free_packages =
+                            module_asset_context.side_effect_free_packages();
+
+                        if *module
+                            .is_marked_as_side_effect_free(side_effect_free_packages)
+                            .await?
+                        {
+                            return Ok(ProcessResult::Ignore.cell());
+                        }
+                    }
+                }
+
                 let options = options.await?;
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
-                        let side_effect_free_packages =
-                            module_asset_context.side_effect_free_packages();
-
-                        let module = builder.clone().build();
-
-                        Vc::upcast(
-                            if let Some(part) = part {
-                                if let ModulePart::Evaluation = *part.await? {
-                                    if *module
-                                        .is_marked_as_side_effect_free(side_effect_free_packages)
-                                        .await?
-                                    {
-                                        return Ok(ProcessResult::Ignore.cell());
-                                    }
-                                }
-
-                                builder.build_part(part)
-                            } else {
-                                builder.build_part(ModulePart::facade())
-                            }
-                            .await?,
-                        )
+                        Vc::upcast(if let Some(part) = part {
+                            EcmascriptModulePartAsset::new(module, part, options.import_externals)
+                        } else {
+                            EcmascriptModulePartAsset::new(
+                                module,
+                                ModulePart::facade(),
+                                options.import_externals,
+                            )
+                        })
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
-                        let side_effect_free_packages =
-                            module_asset_context.side_effect_free_packages();
-
-                        let module = builder.build();
                         if let Some(part) = part {
                             match *part.await? {
                                 ModulePart::Evaluation => {
-                                    if *module
-                                        .is_marked_as_side_effect_free(side_effect_free_packages)
-                                        .await?
-                                    {
-                                        return Ok(ProcessResult::Ignore.cell());
-                                    }
                                     if *module.get_exports().needs_facade().await? {
                                         Vc::upcast(EcmascriptModuleFacadeModule::new(
                                             Vc::upcast(module),
@@ -213,6 +214,9 @@ async fn apply_module_type(
                                     }
                                 }
                                 ModulePart::Export(_) => {
+                                    let side_effect_free_packages =
+                                        module_asset_context.side_effect_free_packages();
+
                                     if *module.get_exports().needs_facade().await? {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(EcmascriptModuleFacadeModule::new(
@@ -243,7 +247,7 @@ async fn apply_module_type(
                             Vc::upcast(module)
                         }
                     }
-                    None => Vc::upcast(builder.build()),
+                    None => Vc::upcast(module),
                 }
             }
         }
