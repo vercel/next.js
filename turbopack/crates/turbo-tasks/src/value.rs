@@ -44,8 +44,12 @@ impl<T: Default> Default for Value<T> {
 
 impl<T: ValueDebugFormat> Value<T> {
     pub async fn dbg(&self) -> Result<ReadRef<ValueDebugString>> {
+        self.dbg_depth(usize::MAX).await
+    }
+
+    pub async fn dbg_depth(&self, depth: usize) -> Result<ReadRef<ValueDebugString>> {
         self.inner
-            .value_debug_format(usize::MAX)
+            .value_debug_format(depth)
             .try_to_value_debug_string()
             .await?
             .await
