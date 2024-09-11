@@ -2,7 +2,7 @@ import React from 'react'
 import { cookies, draftMode } from 'next/headers'
 
 export default async function Page() {
-  const { isEnabled } = draftMode()
+  const { isEnabled } = await draftMode()
   let data: string | undefined
   if (isEnabled) {
     data = (await cookies()).get('data')?.value
