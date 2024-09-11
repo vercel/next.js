@@ -1,49 +1,49 @@
 // tslint:disable:no-console
-import type { ComponentType } from 'react'
-import type { DomainLocale } from '../../../server/config'
-import type { MittEmitter } from '../mitt'
 import type { ParsedUrlQuery } from 'querystring'
-import type { RouterEvent } from '../../../client/router'
-import type { StyleSheetTuple } from '../../../client/page-loader'
+import type { ComponentType } from 'react'
 import type { UrlObject } from 'url'
+import { addBasePath } from '../../../client/add-base-path'
+import { addLocale } from '../../../client/add-locale'
+import type { Params } from '../../../client/components/params'
+import { detectDomainLocale } from '../../../client/detect-domain-locale'
+import { hasBasePath } from '../../../client/has-base-path'
 import type PageLoader from '../../../client/page-loader'
-import type { AppContextType, NextPageContext, NEXT_DATA } from '../utils'
-import { removeTrailingSlash } from './utils/remove-trailing-slash'
+import type { StyleSheetTuple } from '../../../client/page-loader'
+import { removeBasePath } from '../../../client/remove-base-path'
+import { removeLocale } from '../../../client/remove-locale'
+import { resolveHref } from '../../../client/resolve-href'
 import {
   getClientBuildManifest,
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
+import type { RouterEvent } from '../../../client/router'
 import { handleClientScriptLoad } from '../../../client/script'
+import { isAPIRoute } from '../../../lib/is-api-route'
 import isError, { getProperError } from '../../../lib/is-error'
-import { denormalizePagePath } from '../page-path/denormalize-page-path'
+import type { DomainLocale } from '../../../server/config'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
+import type { MittEmitter } from '../mitt'
 import mitt from '../mitt'
+import { denormalizePagePath } from '../page-path/denormalize-page-path'
+import type { AppContextType, NEXT_DATA, NextPageContext } from '../utils'
 import { getLocationOrigin, getURL, loadGetInitialProps, ST } from '../utils'
+import { compareRouterStates } from './utils/compare-states'
+import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
+import { formatWithValidation } from './utils/format-url'
+import { getNextPathnameInfo } from './utils/get-next-pathname-info'
+import { handleSmoothScroll } from './utils/handle-smooth-scroll'
+import { interpolateAs } from './utils/interpolate-as'
+import { isBot } from './utils/is-bot'
 import { isDynamicRoute } from './utils/is-dynamic'
+import { isLocalURL } from './utils/is-local-url'
+import { omit } from './utils/omit'
+import { parsePath } from './utils/parse-path'
 import { parseRelativeUrl } from './utils/parse-relative-url'
+import { removeTrailingSlash } from './utils/remove-trailing-slash'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { formatWithValidation } from './utils/format-url'
-import { detectDomainLocale } from '../../../client/detect-domain-locale'
-import { parsePath } from './utils/parse-path'
-import { addLocale } from '../../../client/add-locale'
-import { removeLocale } from '../../../client/remove-locale'
-import { removeBasePath } from '../../../client/remove-base-path'
-import { addBasePath } from '../../../client/add-base-path'
-import { hasBasePath } from '../../../client/has-base-path'
-import { resolveHref } from '../../../client/resolve-href'
-import { isAPIRoute } from '../../../lib/is-api-route'
-import { getNextPathnameInfo } from './utils/get-next-pathname-info'
-import { formatNextPathnameInfo } from './utils/format-next-pathname-info'
-import { compareRouterStates } from './utils/compare-states'
-import { isLocalURL } from './utils/is-local-url'
-import { isBot } from './utils/is-bot'
-import { omit } from './utils/omit'
-import { interpolateAs } from './utils/interpolate-as'
-import { handleSmoothScroll } from './utils/handle-smooth-scroll'
-import type { Params } from '../../../client/components/params'
 
 declare global {
   interface Window {
@@ -178,10 +178,11 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
   if (
     matchedPath &&
-    !rewriteTarget &&
-    !matchedPath.includes('__next_data_catchall') &&
-    !matchedPath.includes('/_error') &&
-    !matchedPath.includes('/404')
+    ((!rewriteTarget &&
+      !matchedPath.includes('__next_data_catchall') &&
+      !matchedPath.includes('/_error') &&
+      !matchedPath.includes('/404')) ||
+      process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE)
   ) {
     // leverage x-matched-path to detect next.config.js rewrites
     rewriteTarget = matchedPath
