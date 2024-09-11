@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
@@ -15,6 +15,7 @@
   "devDependencies": {
     "@types/node": "^22.5.4",
     "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
     "typescript": "^5.6.2"
   }
 }
