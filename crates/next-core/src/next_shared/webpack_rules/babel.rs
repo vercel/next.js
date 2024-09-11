@@ -1,17 +1,13 @@
 use anyhow::Result;
 use turbo_tasks::{Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{FileSystemEntryType, FileSystemPath},
-    turbopack::{
-        core::{
-            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-            reference_type::{CommonJsReferenceSubType, ReferenceType},
-            resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
-        },
-        node::transforms::webpack::WebpackLoaderItem,
-        turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules},
-    },
+use turbo_tasks_fs::{self, FileSystemEntryType, FileSystemPath};
+use turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules};
+use turbopack_core::{
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    reference_type::{CommonJsReferenceSubType, ReferenceType},
+    resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
 };
+use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 const BABEL_CONFIG_FILES: &[&str] = &[
     ".babelrc",

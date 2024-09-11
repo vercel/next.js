@@ -1,5 +1,5 @@
 use serde_json::Value;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{errors::HANDLER, Spanned, DUMMY_SP},
     ecma::{
         ast::*,

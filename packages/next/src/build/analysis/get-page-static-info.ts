@@ -444,6 +444,7 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
   apiRouteWarnings.set(apiRoute, 1)
 }
 
+export let hadUnsupportedValue = false
 const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
 
 function warnAboutUnsupportedValue(
@@ -451,22 +452,35 @@ function warnAboutUnsupportedValue(
   page: string | undefined,
   error: UnsupportedValueError
 ) {
-  if (warnedUnsupportedValueMap.has(pageFilePath)) {
+  hadUnsupportedValue = true
+  const isProductionBuild = process.env.NODE_ENV === 'production'
+  if (
+    // we only log for the server compilation so it's not
+    // duplicated due to webpack build worker having fresh
+    // module scope for each compiler
+    process.env.NEXT_COMPILER_NAME !== 'server' ||
+    (isProductionBuild && warnedUnsupportedValueMap.has(pageFilePath))
+  ) {
     return
   }
-
-  Log.warn(
-    `Next.js can't recognize the exported \`config\` field in ` +
-      (page ? `route "${page}"` : `"${pageFilePath}"`) +
-      ':\n' +
-      error.message +
-      (error.path ? ` at "${error.path}"` : '') +
-      '.\n' +
-      'The default config will be used instead.\n' +
-      'Read More - https://nextjs.org/docs/messages/invalid-page-config'
-  )
-
   warnedUnsupportedValueMap.set(pageFilePath, true)
+
+  const message =
+    `Next.js can't recognize the exported \`config\` field in ` +
+    (page ? `route "${page}"` : `"${pageFilePath}"`) +
+    ':\n' +
+    error.message +
+    (error.path ? ` at "${error.path}"` : '') +
+    '.\n' +
+    'Read More - https://nextjs.org/docs/messages/invalid-page-config'
+
+  // for a build we use `Log.error` instead of throwing
+  // so that all errors can be logged before exiting the process
+  if (isProductionBuild) {
+    Log.error(message)
+  } else {
+    throw new Error(message)
+  }
 }
 
 /**

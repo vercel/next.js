@@ -335,6 +335,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       for (const listener of turbopackMessageListeners) {
         listener({
           type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+          data: obj.data,
         })
       }
       break

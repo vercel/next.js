@@ -1,22 +1,28 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { BrowserInterface } from 'next-webdriver'
 
 describe('prerender indicator', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
+  async function hasStaticIndicator(browser: BrowserInterface) {
+    const staticIndicatorPresent = await browser.eval(() =>
+      Boolean(
+        document
+          .querySelector('nextjs-portal')
+          .shadowRoot.querySelector('.nextjs-static-indicator-toast-wrapper')
+      )
+    )
+    return staticIndicatorPresent
+  }
+
   it('should have prerender-indicator by default for static page', async () => {
     const browser = await next.browser('/')
 
     await retry(async () => {
-      const classNames = await browser.eval(() => [
-        ...document
-          .querySelector('#__next-prerender-indicator')
-          .shadowRoot.querySelector('#container')
-          .classList.values(),
-      ])
-      expect(classNames).toEqual(['visible'])
+      expect(await hasStaticIndicator(browser)).toBe(true)
     })
   })
 
@@ -31,14 +37,7 @@ describe('prerender indicator', () => {
 
     try {
       await retry(async () => {
-        const classNames = await browser.eval(() => [
-          ...document
-            .querySelector('#__next-prerender-indicator')
-            .shadowRoot.querySelector('#container')
-            .classList.values(),
-        ])
-
-        expect(classNames).toEqual([])
+        expect(await hasStaticIndicator(browser)).toBe(false)
       })
     } finally {
       await next.patchFile('app/page.tsx', origContent)
@@ -57,13 +56,7 @@ describe('prerender indicator', () => {
 
     try {
       await retry(async () => {
-        const classNames = await browser.eval(() => [
-          ...document
-            .querySelector('#__next-prerender-indicator')
-            .shadowRoot.querySelector('#container')
-            .classList.values(),
-        ])
-        expect(classNames).toEqual([])
+        expect(await hasStaticIndicator(browser)).toBe(false)
       })
     } finally {
       await next.patchFile('app/page.tsx', origContent)
@@ -87,14 +80,7 @@ describe('prerender indicator', () => {
     try {
       await next.start()
       const browser = await next.browser('/')
-
-      const classNames = await browser.eval(() => [
-        ...document
-          .querySelector('#__next-prerender-indicator')
-          .shadowRoot.querySelector('#container')
-          .classList.values(),
-      ])
-      expect(classNames).toEqual([])
+      expect(await hasStaticIndicator(browser)).toBe(false)
     } finally {
       await next.deleteFile('app/page.tsx')
     }

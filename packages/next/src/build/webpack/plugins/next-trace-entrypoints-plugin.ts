@@ -4,6 +4,7 @@ import type { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
+import type { SWCLoaderOptions } from '../loaders/next-swc-loader'
 import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
@@ -22,6 +23,7 @@ import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
+import swcLoader from '../loaders/next-swc-loader'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -149,6 +151,10 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private traceHashes: Map<string, string>
   private flyingShuttle?: boolean
   private compilerType: CompilerNameValues
+  private swcLoaderConfig: {
+    loader: string
+    options: SWCLoaderOptions
+  }
 
   constructor({
     rootDir,
@@ -162,6 +168,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     outputFileTracingRoot,
     turbotrace,
     flyingShuttle,
+    swcLoaderConfig,
   }: {
     rootDir: string
     compilerType: CompilerNameValues
@@ -174,6 +181,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
     turbotrace?: NextConfigComplete['experimental']['turbotrace']
+    swcLoaderConfig: TraceEntryPointsPlugin['swcLoaderConfig']
   }) {
     this.rootDir = rootDir
     this.appDir = appDir
@@ -188,6 +196,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.flyingShuttle = flyingShuttle
     this.traceHashes = new Map()
     this.compilerType = compilerType
+    this.swcLoaderConfig = swcLoaderConfig
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -500,6 +509,18 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 }
               })
 
+            const readOriginalSource = (path: string) => {
+              return new Promise<string | Buffer>((resolve) => {
+                compilation.inputFileSystem.readFile(path, (err, result) => {
+                  if (err) {
+                    // we can't throw here as that crashes build un-necessarily
+                    return resolve('')
+                  }
+                  resolve(result || '')
+                })
+              })
+            }
+
             const readFile = async (
               path: string
             ): Promise<Buffer | string | null> => {
@@ -507,14 +528,62 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
               // map the transpiled source when available to avoid
               // parse errors in node-file-trace
-              const source = mod?.originalSource?.()
+              let source: Buffer | string = mod?.originalSource?.()?.buffer()
 
-              if (source) {
-                return source.buffer()
+              if (this.flyingShuttle) {
+                // fallback to reading raw source file, this may fail
+                // due to unsupported syntax but best effort attempt
+                let usingOriginalSource = false
+                if (
+                  !source ||
+                  source.toString().includes('next-flight-loader/module-proxy')
+                ) {
+                  source = await readOriginalSource(path)
+                  usingOriginalSource = true
+                }
+                const sourceString = source.toString()
+
+                // If this is a client component we need to trace the
+                // original transpiled source not the client proxy which is
+                // applied before this plugin is run due to the
+                // client-module-loader
+                if (
+                  usingOriginalSource &&
+                  // don't attempt transpiling CSS or image imports
+                  path.match(/\.(tsx|ts|js|cjs|mjs|jsx)$/)
+                ) {
+                  let transformResolve: (result: string) => void
+                  let transformReject: (error: unknown) => void
+                  const transformPromise = new Promise<string>(
+                    (resolve, reject) => {
+                      transformResolve = resolve
+                      transformReject = reject
+                    }
+                  )
+
+                  // TODO: should we apply all loaders except the
+                  // client-module-loader?
+                  swcLoader.apply(
+                    {
+                      resourcePath: path,
+                      getOptions: () => {
+                        return this.swcLoaderConfig.options
+                      },
+                      async: () => {
+                        return (err: unknown, result: string) => {
+                          if (err) {
+                            return transformReject(err)
+                          }
+                          return transformResolve(result)
+                        }
+                      },
+                    },
+                    [sourceString, undefined]
+                  )
+                  source = await transformPromise
+                }
               }
-              // we don't want to analyze non-transpiled
-              // files here, that is done against webpack output
-              return ''
+              return source || ''
             }
 
             const entryPaths = Array.from(entryModMap.keys())

@@ -2,10 +2,8 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
-use turbopack_binding::{
-    turbo::tasks_hash::hash_xxh3_hash64,
-    turbopack::core::issue::{IssueExt, IssueSeverity, StyledString},
-};
+use turbo_tasks_hash::hash_xxh3_hash64;
+use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
 use super::issue::NextFontIssue;
 
@@ -45,8 +43,8 @@ pub(crate) enum FontFamilyType {
 }
 
 /// Returns a uniquely scoped version of the font family, e.g.`__Roboto_c123b8`
-/// * `ty` - Whether to generate a scoped classname for the main font or its
-///   fallback equivalent, e.g. `__Roboto_Fallback_c123b8`
+/// * `ty` - Whether to generate a scoped classname for the main font or its fallback equivalent,
+///   e.g. `__Roboto_Fallback_c123b8`
 /// * `font_family_name` - The font name to scope, e.g. `Roboto`
 /// * `request_hash` - The hash value of the font request
 #[turbo_tasks::function]

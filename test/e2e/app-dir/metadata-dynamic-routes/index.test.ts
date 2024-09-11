@@ -103,6 +103,18 @@ describe('app dir - metadata dynamic routes', () => {
         `<xhtml:link rel="alternate" hreflang="de" href="https://example.com/de/about" />`
       )
     })
+
+    it('should support images in sitemap', async () => {
+      const xml = await (await next.fetch('/sitemap-image/sitemap.xml')).text()
+
+      expect(xml).toContain(
+        `<image:image>\n<image:loc>https://example.com/image1.jpg</image:loc>\n</image:image>`
+      )
+      expect(xml).toContain(
+        `<image:image>\n<image:loc>https://example.com/image2.jpg</image:loc>\n</image:image>`
+      )
+    })
+
     if (isNextStart) {
       it('should optimize routes without multiple generation API as static routes', async () => {
         const appPathsManifest = JSON.parse(

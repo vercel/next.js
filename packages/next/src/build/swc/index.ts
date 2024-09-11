@@ -459,6 +459,11 @@ export interface ProjectOptions {
    * Options for draft mode.
    */
   previewProps: __ApiPreviewProps
+
+  /**
+   * The browserslist query to use for targeting browsers.
+   */
+  browserslistQuery: string
 }
 
 type RustifiedEnv = { name: string; value: string }[]
@@ -679,6 +684,8 @@ export interface Project {
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
 
+  shutdown(): Promise<void>
+
   onExit(): Promise<void>
 }
 
@@ -770,6 +777,12 @@ export type WrittenEndpoint =
       serverPaths: ServerPath[]
       config: EndpointConfig
     }
+  | {
+      type: 'none'
+      clientPaths: []
+      serverPaths: []
+      config: EndpointConfig
+    }
 
 function rustifyEnv(env: Record<string, string>): RustifiedEnv {
   return Object.entries(env)
@@ -805,9 +818,7 @@ function bindingToApi(
     try {
       return await fn()
     } catch (nativeError: any) {
-      throw new TurbopackInternalError(nativeError.message, {
-        cause: nativeError,
-      })
+      throw new TurbopackInternalError(nativeError)
     }
   }
 
@@ -870,6 +881,9 @@ function bindingToApi(
         }
       } catch (e) {
         if (e === cancel) return
+        if (e instanceof Error) {
+          throw new TurbopackInternalError(e)
+        }
         throw e
       } finally {
         binding.rootTaskDispose(task)
@@ -1092,6 +1106,10 @@ function bindingToApi(
           )
       )
       return subscription
+    }
+
+    shutdown(): Promise<void> {
+      return binding.projectShutdown(this._nativeProject)
     }
 
     onExit(): Promise<void> {
