@@ -95,17 +95,28 @@ impl VersionedContentMap {
         client_output_path: Vc<FileSystemPath>,
     ) -> Result<Vc<OptionMapEntry>> {
         let assets = *assets_operation.await?;
-        let entries: Vec<_> = assets
-            .await?
-            .iter()
-            .map(|&asset| async move { Ok((asset.ident().path().resolve().await?, asset, assets)) })
-            .try_join()
-            .await?;
-
+        async fn get_entries(
+            assets: Vc<OutputAssets>,
+        ) -> Result<Vec<(Vc<FileSystemPath>, Vc<Box<dyn OutputAsset>>)>> {
+            let assets_ref = assets.await?;
+            let entries = assets_ref
+                .iter()
+                .map(|&asset| async move {
+                    let path = asset.ident().path().resolve().await?;
+                    Ok((path, asset))
+                })
+                .try_join()
+                .await?;
+            Ok(entries)
+        }
+        let entries = match get_entries(assets).await {
+            Ok(entries) => entries,
+            Err(_) => vec![],
+        };
         self.await?.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
-            for &(k, _, v) in entries.iter() {
-                if map.insert(k, v) != Some(v) {
+            for &(k, _) in entries.iter() {
+                if map.insert(k, assets) != Some(assets) {
                     changed = true;
                 }
             }
@@ -116,7 +127,7 @@ impl VersionedContentMap {
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation: assets,
             side_effects,
-            path_to_asset: entries.into_iter().map(|(k, v, _)| (k, v)).collect(),
+            path_to_asset: entries.into_iter().collect(),
         }));
         Ok(map_entry)
     }
