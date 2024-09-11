@@ -515,6 +515,9 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
+            custom_source_transform_rules
+                .push(get_middleware_dynamic_assert_rule(enable_mdx_rs.is_some()));
+
             if let ServerContextType::Pages { .. } = ty {
                 custom_source_transform_rules.push(
                     get_next_react_server_components_transform_rule(next_config, false, None)
