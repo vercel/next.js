@@ -27,8 +27,6 @@ use crate::{
     RcStr, VcRead, VcTransparentRead, VcValueType,
 };
 
-#[derive(Serialize, Deserialize)]
-#[serde(transparent)]
 pub struct ResolvedVc<T>
 where
     T: ?Sized + Send,
@@ -139,6 +137,26 @@ where
 {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         TraceRawVcs::trace_raw_vcs(&self.node, trace_context);
+    }
+}
+
+impl<T> Serialize for ResolvedVc<T>
+where
+    T: ?Sized + Send,
+{
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.node.serialize(serializer)
+    }
+}
+
+impl<'de, T> Deserialize<'de> for ResolvedVc<T>
+where
+    T: ?Sized + Send,
+{
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Ok(ResolvedVc {
+            node: Vc::deserialize(deserializer)?,
+        })
     }
 }
 
