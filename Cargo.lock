@@ -3562,9 +3562,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss-napi"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6517fd00c4d56ef4ab207d346614715c472db7a144d6aaf522dc9eaabfa47b05"
+checksum = "a82ad688d068cca159908db83e9f48ba53f96470546560e1ae2469c784656cb6"
 dependencies = [
  "cssparser",
  "lightningcss",
