@@ -166,7 +166,7 @@ nohash-hasher = "0.2.0"
 notify = "6.1.1"
 once_cell = "1.17.1"
 owo-colors = "3.5.0"
-parcel_selectors = "0.26.0"
+parcel_selectors = "0.27.0"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
 # Temporary: Reference the latest git minor version of pathfinder_simd until it's published.
