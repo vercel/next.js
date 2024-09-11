@@ -9,8 +9,9 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
-        self, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr, MemberProp,
-        ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Stmt, Str,
+        self, AssignTarget, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr,
+        MemberProp, ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script,
+        SimpleAssignTarget, Stmt, Str,
     },
     quote, quote_expr,
 };
@@ -523,9 +524,13 @@ impl CodeGenerateable for EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset.get_ident().await?.map(|ident| {
-                        let expr = Expr::Member(MemberExpr {
+                        let expr = MemberExpr {
                             span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(Ident::new(ident.into(), DUMMY_SP, Default::default()))),
+                            obj: Box::new(Expr::Ident(Ident::new(
+                                ident.into(),
+                                DUMMY_SP,
+                                Default::default(),
+                            ))),
                             prop: MemberProp::Computed(ComputedPropName {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Lit(Lit::Str(Str {
@@ -534,17 +539,22 @@ impl CodeGenerateable for EsmExports {
                                     raw: None,
                                 }))),
                             }),
-                        });
+                        };
                         if *mutable {
                             quote!(
-                                "([() => $expr, ($new) => $expr = $new])" as Expr,
-                                expr: Expr = expr,
-                                new = Ident::new(format!("{name}_new_value").into(), DUMMY_SP, Default::default()),
+                                "([() => $expr, ($new) => $lhs = $new])" as Expr,
+                                expr: Expr = Expr::Member(expr.clone()),
+                                lhs: AssignTarget = AssignTarget::Simple(SimpleAssignTarget::Member(expr)),
+                                new = Ident::new(
+                                    format!("{name}_new_value").into(),
+                                    DUMMY_SP,
+                                    Default::default()
+                                ),
                             )
                         } else {
                             quote!(
                                 "(() => $expr)" as Expr,
-                                expr: Expr = expr,
+                                expr: Expr = Expr::Member(expr),
                             )
                         }
                     })
