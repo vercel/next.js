@@ -1,5 +1,5 @@
 {
-  "name": "next",
+  "name": "@fern-api/next",
   "version": "15.0.0-canary.150",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
