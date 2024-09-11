@@ -636,6 +636,9 @@ export class NextTypesPlugin {
         return
       }
       if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
+      // const filePathSegments: string[] = mod.resource.split(path.sep)
+      // If any segment starts with underscore `_`, we skip the type generation for that file
+      // if (filePathSegments.some((segment) => segment.startsWith('_'))) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
