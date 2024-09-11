@@ -418,7 +418,7 @@ impl ModuleAssetContext {
             if let Some(transition) = this
                 .transitions
                 .await?
-                .get_by_rules(source, &*reference_type)
+                .get_by_rules(source, &reference_type)
                 .await?
             {
                 transition.process(source, self, reference_type)

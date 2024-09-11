@@ -133,7 +133,7 @@ impl TransitionOptions {
         }
         let path = &*source.ident().path().await?;
         for rule in &self.transition_rules {
-            if rule.matches(source, path, &reference_type).await? {
+            if rule.matches(source, path, reference_type).await? {
                 return Ok(Some(rule.transition()));
             }
         }
