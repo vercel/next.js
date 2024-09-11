@@ -200,7 +200,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
     fn add_guards(&mut self, test: &Expr) {
         let old = self.should_add_guards;
         self.should_add_guards = true;
-        test.visit_children_with(self);
+        test.visit_with(self);
         self.should_add_guards = old;
     }
 
@@ -250,7 +250,7 @@ impl Visit for WarnForEdgeRuntime {
         match node.op {
             op!("&&") | op!("||") | op!("??") => {
                 self.add_guards(&node.left);
-                self.add_guards(&node.right);
+                node.right.visit_with(self);
             }
             _ => {
                 node.visit_children_with(self);
