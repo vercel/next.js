@@ -956,7 +956,12 @@ fn directory_tree_to_loader_tree_internal(
     }
 
     // make sure we don't have a match for other slots if there's an intercepting route match
-    if tree.is_intercepting() {
+    // we only check subtrees as the current level could trigger `is_intercepting`
+    if tree
+        .parallel_routes
+        .iter()
+        .any(|(_, parallel_tree)| parallel_tree.is_intercepting())
+    {
         let mut keys_to_replace = Vec::new();
 
         for (key, parallel_tree) in &tree.parallel_routes {
