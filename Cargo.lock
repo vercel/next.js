@@ -3538,7 +3538,7 @@ dependencies = [
  "itertools 0.10.5",
  "lazy_static",
  "lightningcss-derive",
- "parcel_selectors 0.27.0",
+ "parcel_selectors",
  "parcel_sourcemap",
  "paste",
  "pathdiff",
@@ -4610,22 +4610,6 @@ dependencies = [
  "bytecount",
  "fnv",
  "unicode-width",
-]
-
-[[package]]
-name = "parcel_selectors"
-version = "0.26.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "512215cb1d3814e276ace4ec2dbc2cac16726ea3fcac20c22ae1197e16fdd72d"
-dependencies = [
- "bitflags 2.5.0",
- "cssparser",
- "fxhash",
- "log",
- "phf 0.10.1",
- "phf_codegen",
- "precomputed-hash",
- "smallvec",
 ]
 
 [[package]]
@@ -6451,13 +6435,13 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.73.33"
+version = "0.73.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c5086faeb1ee982b0f2bebcbde73c8cfb009b1adafc7f9c6644d13fec77d407"
+checksum = "a62ac47cfa03c8c78fa89f5169cbe4c26faaaf4c9d721df2fc9c0d09070c4311"
 dependencies = [
  "anyhow",
  "lightningcss",
- "parcel_selectors 0.26.6",
+ "parcel_selectors",
  "preset_env_base",
  "serde",
  "swc_common",
@@ -8989,7 +8973,7 @@ dependencies = [
  "indoc",
  "lightningcss",
  "once_cell",
- "parcel_selectors 0.27.0",
+ "parcel_selectors",
  "parcel_sourcemap",
  "regex",
  "serde",
