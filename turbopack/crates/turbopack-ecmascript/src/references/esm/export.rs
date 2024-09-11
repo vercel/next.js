@@ -48,6 +48,63 @@ pub enum EsmExport {
     Error,
 }
 
+#[turbo_tasks::function]
+pub async fn is_export_missing(
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    export_name: RcStr,
+) -> Result<Vc<bool>> {
+    let exports = module.get_exports().await?;
+    let exports = match &*exports {
+        EcmascriptExports::None => return Ok(Vc::cell(true)),
+        EcmascriptExports::Value => return Ok(Vc::cell(false)),
+        EcmascriptExports::CommonJs => return Ok(Vc::cell(false)),
+        EcmascriptExports::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
+        EcmascriptExports::DynamicNamespace => return Ok(Vc::cell(false)),
+        EcmascriptExports::EsmExports(exports) => *exports,
+    };
+
+    let exports = exports.await?;
+    if exports.exports.contains_key(&export_name) {
+        return Ok(Vc::cell(false));
+    }
+    if export_name == "default" {
+        return Ok(Vc::cell(true));
+    }
+
+    if exports.star_exports.is_empty() {
+        return Ok(Vc::cell(true));
+    }
+
+    let all_export_names = get_all_export_names(module).await?;
+    if all_export_names.esm_exports.contains_key(&export_name) {
+        return Ok(Vc::cell(false));
+    }
+
+    for &dynamic_module in &all_export_names.dynamic_exporting_modules {
+        let exports = dynamic_module.get_exports().await?;
+        match &*exports {
+            EcmascriptExports::Value
+            | EcmascriptExports::CommonJs
+            | EcmascriptExports::DynamicNamespace => {
+                return Ok(Vc::cell(false));
+            }
+            EcmascriptExports::None
+            | EcmascriptExports::EmptyCommonJs
+            | EcmascriptExports::EsmExports(_) => {}
+        }
+    }
+
+    Ok(Vc::cell(true))
+}
+
+#[turbo_tasks::function]
+pub async fn all_known_export_names(
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+) -> Result<Vc<Vec<RcStr>>> {
+    let export_names = get_all_export_names(module).await?;
+    Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub enum FoundExportType {
     Found,

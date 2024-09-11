@@ -632,7 +632,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         let r = EsmAssetReference::new(
             origin,
             Request::parse(Value::new(RcStr::from(&*r.module_path).into())),
-            r.issue_source,
+            r.issue_source
+                .unwrap_or_else(|| IssueSource::from_source_only(source)),
             Value::new(r.annotations.clone()),
             match options.tree_shaking_mode {
                 Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
@@ -2190,11 +2191,7 @@ async fn handle_free_var_reference(
                     ))
                 }),
                 Request::parse(Value::new(request.clone().into())),
-                Some(IssueSource::from_swc_offsets(
-                    state.source,
-                    span.lo.to_usize(),
-                    span.hi.to_usize(),
-                )),
+                IssueSource::from_swc_offsets(state.source, span.lo.to_usize(), span.hi.to_usize()),
                 Default::default(),
                 match state.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments)
