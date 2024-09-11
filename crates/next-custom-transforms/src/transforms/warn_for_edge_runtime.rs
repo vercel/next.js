@@ -246,6 +246,17 @@ impl Visit for WarnForEdgeRuntime {
         }
     }
 
+    fn visit_bin_expr(&mut self, node: &BinExpr) {
+        match node.op {
+            op!("&&") | op!("||") | op!("??") => {
+                self.add_guards(&node.left);
+                self.add_guards(&node.right);
+            }
+            _ => {
+                node.visit_children_with(self);
+            }
+        }
+    }
     fn visit_cond_expr(&mut self, node: &CondExpr) {
         self.add_guards(&node.test);
 
