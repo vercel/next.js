@@ -60,6 +60,7 @@ export interface SWCLoaderOptions {
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
   serverComponents?: boolean
+  serverHashSalt?: string
   bundleLayer?: WebpackLayerName
   esm?: boolean
   transpilePackages?: string[]
@@ -106,6 +107,7 @@ async function loaderTransform(
     swcCacheDir,
     serverComponents,
     bundleLayer,
+    serverHashSalt,
     esm,
   } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
@@ -132,6 +134,7 @@ async function loaderTransform(
     relativeFilePathFromRoot,
     serverComponents,
     bundleLayer,
+    serverHashSalt,
     esm,
   })
 

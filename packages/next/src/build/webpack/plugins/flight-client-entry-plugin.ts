@@ -976,6 +976,7 @@ export class FlightClientEntryPlugin {
     }
 
     const actionsArray = Array.from(actions.entries())
+    const hashSalt = this.encryptionKey
 
     for (const [dep, actionNames] of actions) {
       for (const actionName of actionNames) {
@@ -989,6 +990,7 @@ export class FlightClientEntryPlugin {
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
+      hashSalt,
       __client_imported__: fromClient,
     })}!`
 
@@ -998,7 +1000,7 @@ export class FlightClientEntryPlugin {
 
     for (const [actionFilePath, actionNames] of actionsArray) {
       for (const name of actionNames) {
-        const id = generateActionId(actionFilePath, name)
+        const id = generateActionId(hashSalt, actionFilePath, name)
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
