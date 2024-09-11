@@ -515,14 +515,28 @@ async fn process_default_internal(
                         current_source = transforms.transform(current_source);
                         if current_source.ident().resolve().await? != ident {
                             // The ident has been changed, so we need to apply new rules.
-                            let mut processed_rules = processed_rules.clone();
-                            processed_rules.push(i);
-                            return Ok(process_default(
-                                module_asset_context,
-                                current_source,
-                                Value::new(reference_type),
-                                processed_rules,
-                            ));
+                            if let Some(transition) = module_asset_context
+                                .await?
+                                .transitions
+                                .await?
+                                .get_by_rules(current_source, &reference_type)
+                                .await?
+                            {
+                                return Ok(transition.process(
+                                    current_source,
+                                    module_asset_context,
+                                    Value::new(reference_type),
+                                ));
+                            } else {
+                                let mut processed_rules = processed_rules.clone();
+                                processed_rules.push(i);
+                                return Ok(process_default(
+                                    module_asset_context,
+                                    current_source,
+                                    Value::new(reference_type),
+                                    processed_rules,
+                                ));
+                            }
                         }
                     }
                     ModuleRuleEffect::ModuleType(module) => {
