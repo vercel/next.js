@@ -42,7 +42,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     module_options::ModuleOptionsContext,
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, FullContextTransition, Transition},
+    transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -303,7 +303,11 @@ impl AppProject {
         .into_iter()
         .collect();
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
@@ -333,7 +337,11 @@ impl AppProject {
         .into_iter()
         .collect();
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
@@ -361,7 +369,11 @@ impl AppProject {
         .collect();
 
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
@@ -391,7 +403,11 @@ impl AppProject {
         .into_iter()
         .collect();
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
@@ -402,7 +418,7 @@ impl AppProject {
     #[turbo_tasks::function]
     fn client_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         ModuleAssetContext::new(
-            Vc::cell(Default::default()),
+            Default::default(),
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
