@@ -1,6 +1,6 @@
-import type { API, Collection, FileInfo, Core, ASTPath, ExportDefaultDeclaration } from 'jscodeshift'
+import type { API, Collection, FileInfo, ASTPath, ExportDefaultDeclaration } from 'jscodeshift'
 
-function isPageOrLayoutFile(filename: string) {
+function _isPageOrLayoutFile(filename: string) {
   return /[\\/](page|layout)\.j|tsx?/.test(filename)
 }
 
@@ -70,32 +70,26 @@ export default function transform(fileInfo: FileInfo, api: API) {
     const asyncPropName =
       'async' + propName[0].toUpperCase() + propName.slice(1)
 
-    console.log('propName:', propName, '->', asyncPropName, 'isClientComponent:', isClientComponent)
-
     // find `params` and `searchParams` in file, and transform the access to them
     function renameParamsToAsyncParams(path: ASTPath<ExportDefaultDeclaration>) {
-      if (!('params' in path.value)) {
-        return
-      }
-      const params = path.value.params
-      // @ts-ignore
-      if (params && params.length === 1 && j.ObjectPattern.check(params[0])) {
-        const properties = params[0].properties
+      const objPatterns = j(path).find(j.ObjectPattern)
+
+      objPatterns.forEach(objPattern => {
+        const paramsNode = objPattern.value.properties
         if (
-          properties.length === 1 &&
-          'key' in properties[0] &&
-          j.Identifier.check(properties[0].key) &&
-          properties[0].key.name === propName
+          objPattern.value.type === 'ObjectPattern'
         ) {
           // Rename property
-          // e.g. `params` to `asyncParams`
-          // e.g. `searchParams` to `asyncSearchParams`
-          properties[0] = j.objectProperty(
-            j.identifier(propName),
-            j.identifier(asyncPropName)
-          )
+          paramsNode.forEach((prop) => {
+            if (prop.type === 'Property') {
+              const key = prop.key
+              if (key.type === 'Identifier' && key.name === propName && prop.value.type === 'Identifier') {
+                prop.value.name = asyncPropName
+              }
+            }
+          })
         }
-      }
+      })
     }
 
     // Helper function to insert `const params = await asyncParams;` at the beginning of the function body
@@ -121,8 +115,8 @@ export default function transform(fileInfo: FileInfo, api: API) {
             type: 'FunctionDeclaration',
           },
         })
+
       
-      console.log('functionDeclarations:', functionDeclarations.size())
       functionDeclarations.forEach((path) => {
           renameParamsToAsyncParams(path)
           insertAwaitAsyncParams(path)
@@ -136,7 +130,6 @@ export default function transform(fileInfo: FileInfo, api: API) {
         },
       })
         
-      console.log('arrowFunctions:', arrowFunctions.size())
       arrowFunctions.forEach((path) => {
           renameParamsToAsyncParams(path)
           insertAwaitAsyncParams(path)
