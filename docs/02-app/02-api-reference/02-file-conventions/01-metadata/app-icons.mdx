@@ -65,7 +65,6 @@ Add an `apple-icon.(jpg|jpeg|png)` image file.
 > - Favicons can only be set in the root `/app` segment. If you need more granularity, you can use [`icon`](#icon).
 > - The appropriate `<link>` tags and attributes such as `rel`, `href`, `type`, and `sizes` are determined by the icon type and metadata of the evaluated file.
 >   - For example, a 32 by 32px `.png` file will have `type="image/png"` and `sizes="32x32"` attributes.
-> - `sizes="any"` is added to `favicon.ico` output to [avoid a browser bug](https://evilmartians.com/chronicles/how-to-favicon-in-2021-six-files-that-fit-most-needs) where an `.ico` icon is favored over `.svg`.
 
 ## Generate icons using code (.js, .ts, .tsx)
 
