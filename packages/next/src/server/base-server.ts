@@ -2385,10 +2385,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
         return {
           ...result,
-          revalidate:
-            result.revalidate !== undefined
-              ? result.revalidate
-              : /* default to minimum revalidate (this should be an invariant) */ 1,
+          revalidate: result.revalidate,
         }
       },
       {
