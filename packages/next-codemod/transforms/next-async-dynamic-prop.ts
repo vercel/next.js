@@ -1,4 +1,10 @@
-import type { API, Collection, FileInfo, ASTPath, ExportDefaultDeclaration } from 'jscodeshift'
+import type {
+  API,
+  Collection,
+  FileInfo,
+  ASTPath,
+  ExportDefaultDeclaration,
+} from 'jscodeshift'
 
 function _isPageOrLayoutFile(filename: string) {
   return /[\\/](page|layout)\.j|tsx?/.test(filename)
@@ -55,6 +61,16 @@ function insertReactUseImport(root: Collection<any>, j: API['j']) {
   }
 }
 
+function isAsyncFunctionDeclaration(path: ASTPath<ExportDefaultDeclaration>) {
+  const decl = path.value.declaration
+  const isAsyncFunction =
+    (decl.type === 'FunctionDeclaration' ||
+      decl.type === 'FunctionExpression' ||
+      decl.type === 'ArrowFunctionExpression') &&
+    decl.async
+  return isAsyncFunction
+}
+
 export default function transform(fileInfo: FileInfo, api: API) {
   const j = api.jscodeshift
   const root = j(fileInfo.source)
@@ -71,69 +87,107 @@ export default function transform(fileInfo: FileInfo, api: API) {
       'async' + propName[0].toUpperCase() + propName.slice(1)
 
     // find `params` and `searchParams` in file, and transform the access to them
-    function renameParamsToAsyncParams(path: ASTPath<ExportDefaultDeclaration>) {
+    function renameAsyncPropIfExisted(
+      path: ASTPath<ExportDefaultDeclaration>
+    ) {
+      let found = false
       const objPatterns = j(path).find(j.ObjectPattern)
 
-      objPatterns.forEach(objPattern => {
+      objPatterns.forEach((objPattern) => {
         const paramsNode = objPattern.value.properties
-        if (
-          objPattern.value.type === 'ObjectPattern'
-        ) {
+        if (objPattern.value.type === 'ObjectPattern') {
           // Rename property
           paramsNode.forEach((prop) => {
             if (prop.type === 'Property') {
               const key = prop.key
-              if (key.type === 'Identifier' && key.name === propName && prop.value.type === 'Identifier') {
+              if (
+                key.type === 'Identifier' &&
+                key.name === propName &&
+                prop.value.type === 'Identifier'
+              ) {
                 prop.value.name = asyncPropName
+                found = true
               }
             }
           })
         }
       })
+
+      return found
     }
 
     // Helper function to insert `const params = await asyncParams;` at the beginning of the function body
-    function insertAwaitAsyncParams(path) {
-      if (!path.value.body) {
-        return
+    function resolveAsyncProp(path: ASTPath<ExportDefaultDeclaration>) {
+      const isAsyncFunc = isAsyncFunctionDeclaration(path)
+      const decl = path.value.declaration
+
+      let functionBody
+      if (
+        decl.type === 'FunctionDeclaration' ||
+        decl.type === 'FunctionExpression' ||
+        decl.type === 'ArrowFunctionExpression'
+      ) {
+        if (decl.body && decl.body.type === 'BlockStatement') {
+          functionBody = decl.body.body
+        }
       }
-      const body = path.value.body.body
-      const newStatement = j.variableDeclaration('const', [
-        j.variableDeclarator(
-          j.identifier(propName),
-          j.awaitExpression(j.identifier(asyncPropName))
-        ),
-      ])
-      body.unshift(newStatement)
+
+      if (isAsyncFunc) {
+        // If it's async function, add await to the async prop
+        if (functionBody) {
+          const newStatement = j.variableDeclaration('const', [
+            j.variableDeclarator(
+              j.identifier(propName),
+              j.awaitExpression(j.identifier(asyncPropName))
+            ),
+          ])
+          functionBody.unshift(newStatement)
+        }
+      } else {
+        // If it's sync function, wrap the async prop with `use` from 'react'
+        if (functionBody) {
+          const newStatement = j.variableDeclaration('const', [
+            j.variableDeclarator(
+              j.identifier(propName),
+              j.callExpression(j.identifier('use'), [
+                j.identifier(asyncPropName),
+              ])
+            ),
+          ])
+          functionBody.unshift(newStatement)
+          needsReactUseImport = true
+        }
+      }
     }
 
     if (!isClientComponent) {
       // Process Function Declarations
-      const functionDeclarations = root
-        .find(j.ExportDefaultDeclaration, {
-          declaration: {
-            type: 'FunctionDeclaration',
-          },
-        })
+      const functionDeclarations = root.find(j.ExportDefaultDeclaration, {
+        declaration: {
+          type: 'FunctionDeclaration',
+        },
+      })
 
-      
       functionDeclarations.forEach((path) => {
-          renameParamsToAsyncParams(path)
-          insertAwaitAsyncParams(path)
-        })
+        const found = renameAsyncPropIfExisted(path)
+        if (found) {
+          resolveAsyncProp(path)
+        }
+      })
 
       // Process Arrow Function Expressions
-      const arrowFunctions = root
-      .find(j.ExportDefaultDeclaration, {
+      const arrowFunctions = root.find(j.ExportDefaultDeclaration, {
         declaration: {
           type: 'ArrowFunctionExpression',
         },
       })
-        
+
       arrowFunctions.forEach((path) => {
-          renameParamsToAsyncParams(path)
-          insertAwaitAsyncParams(path)
-        })
+        const found = renameAsyncPropIfExisted(path)
+        if (found) {
+          resolveAsyncProp(path)
+        }
+      })
     }
   }
 
