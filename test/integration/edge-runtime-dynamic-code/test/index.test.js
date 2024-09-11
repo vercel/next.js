@@ -174,7 +174,11 @@ describe.each([
         })
 
         it('should have middleware warning during build', () => {
-          expect(buildResult.stderr).toContain(`Failed to compile`)
+          if (process.env.TURBOPACK) {
+            expect(buildResult.stderr).toContain(`Ecmascript file had an error`)
+          } else {
+            expect(buildResult.stderr).toContain(`Failed to compile`)
+          }
           expect(buildResult.stderr).toContain(
             `Used by usingEval, usingEvalSync`
           )
