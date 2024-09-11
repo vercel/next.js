@@ -1,14 +1,9 @@
 import type {
   API,
   Collection,
-  FileInfo,
   ASTPath,
   ExportDefaultDeclaration,
 } from 'jscodeshift'
-
-function _isPageOrLayoutFile(filename: string) {
-  return /[\\/](page|layout)\.j|tsx?/.test(filename)
-}
 
 function insertReactUseImport(root: Collection<any>, j: API['j']) {
   const hasReactUseImport =
@@ -71,10 +66,9 @@ function isAsyncFunctionDeclaration(path: ASTPath<ExportDefaultDeclaration>) {
   return isAsyncFunction
 }
 
-export default function transform(fileInfo: FileInfo, api: API) {
+export function transformDynamicProps(source: string, api: API) {
   const j = api.jscodeshift
-  const root = j(fileInfo.source)
-  const filename = fileInfo.path
+  const root = j(source)
 
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
@@ -87,9 +81,7 @@ export default function transform(fileInfo: FileInfo, api: API) {
       'async' + propName[0].toUpperCase() + propName.slice(1)
 
     // find `params` and `searchParams` in file, and transform the access to them
-    function renameAsyncPropIfExisted(
-      path: ASTPath<ExportDefaultDeclaration>
-    ) {
+    function renameAsyncPropIfExisted(path: ASTPath<ExportDefaultDeclaration>) {
       let found = false
       const objPatterns = j(path).find(j.ObjectPattern)
 

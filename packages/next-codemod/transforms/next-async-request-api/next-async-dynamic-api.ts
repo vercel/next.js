@@ -54,9 +54,9 @@ function insertReactUseImport(
   }
 }
 
-export default function transform(file: FileInfo, api: API) {
+export function transformDynamicAPI(source: string, api: API) {
   const j = api.jscodeshift
-  const root = j(file.source)
+  const root = j(source)
 
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
