@@ -3523,9 +3523,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.58"
+version = "1.0.0-alpha.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec380ca49dc7f6a1cafbdd2de5e587958eac0f67ab26b1e56727fcc60a0c3d4d"
+checksum = "53e225b3fa0a8bd5562c8833b1a32afa88761c4e661d3177b8cdc4e13cbf078e"
 dependencies = [
  "ahash 0.8.11",
  "bitflags 2.5.0",
@@ -3538,7 +3538,7 @@ dependencies = [
  "itertools 0.10.5",
  "lazy_static",
  "lightningcss-derive",
- "parcel_selectors",
+ "parcel_selectors 0.27.0",
  "parcel_sourcemap",
  "paste",
  "pathdiff",
@@ -4617,6 +4617,22 @@ name = "parcel_selectors"
 version = "0.26.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "512215cb1d3814e276ace4ec2dbc2cac16726ea3fcac20c22ae1197e16fdd72d"
+dependencies = [
+ "bitflags 2.5.0",
+ "cssparser",
+ "fxhash",
+ "log",
+ "phf 0.10.1",
+ "phf_codegen",
+ "precomputed-hash",
+ "smallvec",
+]
+
+[[package]]
+name = "parcel_selectors"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f4d26c18a8377a64728c04bf3b2e48ec43b0c77e687a18e03eb837d65e08a14"
 dependencies = [
  "bitflags 2.5.0",
  "cssparser",
@@ -6441,7 +6457,7 @@ checksum = "7c5086faeb1ee982b0f2bebcbde73c8cfb009b1adafc7f9c6644d13fec77d407"
 dependencies = [
  "anyhow",
  "lightningcss",
- "parcel_selectors",
+ "parcel_selectors 0.26.6",
  "preset_env_base",
  "serde",
  "swc_common",
@@ -8973,7 +8989,7 @@ dependencies = [
  "indoc",
  "lightningcss",
  "once_cell",
- "parcel_selectors",
+ "parcel_selectors 0.26.6",
  "parcel_sourcemap",
  "regex",
  "serde",
