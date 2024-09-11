@@ -24,7 +24,7 @@ impl TransitionRule {
         }
     }
 
-    /// Creates a new transition rule. Will only matches internal references.
+    /// Creates a new transition rule. Will only match internal references.
     pub fn new_internal(condition: RuleCondition, transition: Vc<Box<dyn Transition>>) -> Self {
         TransitionRule {
             condition,

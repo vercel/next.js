@@ -28,7 +28,7 @@ impl ModuleRule {
         }
     }
 
-    /// Creates a new module rule. Will only matches internal references.
+    /// Creates a new module rule. Will only match internal references.
     pub fn new_internal(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
         ModuleRule {
             condition,
