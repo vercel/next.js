@@ -2732,7 +2732,7 @@ export default abstract class Server<
           headers,
           status: isAppPath ? res.statusCode : undefined,
         } satisfies CachedPageValue,
-        revalidate: metadata.revalidate ?? 1,
+        revalidate: metadata.revalidate,
         isFallback: query.__nextFallback === 'true',
       }
     }
@@ -2975,7 +2975,7 @@ export default abstract class Server<
 
       return {
         ...result,
-        revalidate: result.revalidate ?? 1,
+        revalidate: result.revalidate,
       }
     }
 
