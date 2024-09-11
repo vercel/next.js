@@ -508,7 +508,7 @@ impl CodeGenerateable for EsmExports {
                             "([() => $local, ($new) => $local = $new])" as Expr,
                             local = Ident::new(local.as_str().into(), DUMMY_SP, Default::default()),
                             new = Ident::new(
-                                format!("{name}_new_value").into(),
+                                format!("new_{name}").into(),
                                 DUMMY_SP,
                                 Default::default()
                             ),
@@ -546,7 +546,7 @@ impl CodeGenerateable for EsmExports {
                                 expr: Expr = Expr::Member(expr.clone()),
                                 lhs: AssignTarget = AssignTarget::Simple(SimpleAssignTarget::Member(expr)),
                                 new = Ident::new(
-                                    format!("{name}_new_value").into(),
+                                    format!("new_{name}").into(),
                                     DUMMY_SP,
                                     Default::default()
                                 ),
