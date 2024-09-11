@@ -358,7 +358,6 @@ describe('required server files i18n', () => {
         },
       }
     )
-    require('console').error(html3)
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 
