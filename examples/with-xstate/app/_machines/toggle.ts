@@ -8,8 +8,11 @@ type ToggleEvents = {
   type: "TOGGLE";
 };
 
-export const toggleMachine = createMachine<ToggleContext, ToggleEvents>({
-  predictableActionArguments: true,
+export const toggleMachine = createMachine({
+  types: {} as {
+    context: ToggleContext;
+    events: ToggleEvents;
+  },
   id: "toggle",
   initial: "inactive",
   states: {
@@ -19,5 +22,8 @@ export const toggleMachine = createMachine<ToggleContext, ToggleEvents>({
     active: {
       on: { TOGGLE: "inactive" },
     },
+  },
+  context: {
+    value: "inactive",
   },
 });

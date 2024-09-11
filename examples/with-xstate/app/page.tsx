@@ -1,5 +1,5 @@
-import Counter from "../components/Counter";
-import Toggle from "../components/Toggle";
+import Counter from "./_components/Counter";
+import Toggle from "./_components/Toggle";
 
 export default function IndexPage() {
   return (
