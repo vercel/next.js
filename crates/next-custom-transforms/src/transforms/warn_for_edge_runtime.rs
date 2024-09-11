@@ -18,6 +18,7 @@ pub fn warn_for_edge_runtime(
     cm: Arc<SourceMap>,
     ctx: ExprCtx,
     should_error_for_node_apis: bool,
+    is_production: bool,
 ) -> impl Visit {
     WarnForEdgeRuntime {
         cm,
@@ -26,6 +27,7 @@ pub fn warn_for_edge_runtime(
         should_add_guards: false,
         guarded_symbols: Default::default(),
         guarded_process_props: Default::default(),
+        is_production,
     }
 }
 
@@ -39,6 +41,7 @@ struct WarnForEdgeRuntime {
     /// `if(typeof clearImmediate !== "function") clearImmediate();`
     guarded_symbols: FxHashSet<Atom>,
     guarded_process_props: FxHashSet<Atom>,
+    is_production: bool,
 }
 
 const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
@@ -234,13 +237,15 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
     }
 
     fn emit_dynamic_not_allowed_error(&self, span: Span) {
-        let msg = "Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') \
-                   not allowed in Edge Runtime"
-            .to_string();
+        if self.is_production {
+            let msg = "Dynamic Code Evaluation (e. g. 'eval', 'new Function', \
+                       'WebAssembly.compile') not allowed in Edge Runtime"
+                .to_string();
 
-        HANDLER.with(|h| {
-            h.struct_span_err(span, &msg).emit();
-        });
+            HANDLER.with(|h| {
+                h.struct_span_err(span, &msg).emit();
+            });
+        }
     }
 }
 

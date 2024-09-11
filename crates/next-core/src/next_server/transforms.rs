@@ -139,6 +139,7 @@ pub async fn get_next_server_transforms_rules(
                 mdx_rs,
                 matches!(context_ty, ServerContextType::Middleware { .. })
                     && matches!(*mode.await?, NextMode::Build),
+                matches!(*mode.await?, NextMode::Build),
             ));
         }
     }
