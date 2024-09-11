@@ -33,7 +33,7 @@ impl TransitionRule {
         }
     }
 
-    /// Creates a new transition rule. Will only matches internal references.
+    /// Creates a new transition rule. Will match all references.
     pub fn new_all(condition: RuleCondition, transition: Vc<Box<dyn Transition>>) -> Self {
         TransitionRule {
             condition,
