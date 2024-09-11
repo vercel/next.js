@@ -238,21 +238,20 @@ export class ImageOptimizerCache {
       }
     }
 
-    const parsedUrl = parseUrl(url)
-    if (parsedUrl) {
-      const decodedPathname = decodeURIComponent(parsedUrl.pathname)
-      if (/\/_next\/image($|\/)/.test(decodedPathname)) {
-        return {
-          errorMessage: '"url" parameter cannot be recursive',
-        }
-      }
-    }
-
     let isAbsolute: boolean
 
     if (url.startsWith('/')) {
       href = url
       isAbsolute = false
+      if (
+        /\/_next\/image($|\/)/.test(
+          decodeURIComponent(parseUrl(url)?.pathname ?? '')
+        )
+      ) {
+        return {
+          errorMessage: '"url" parameter cannot be recursive',
+        }
+      }
     } else {
       let hrefParsed: URL
 
@@ -395,6 +394,7 @@ export class ImageOptimizerCache {
             Date.now(),
           curRevalidate: maxAge,
           isStale: now > expireAt,
+          isFallback: false,
         }
       }
     } catch (_) {

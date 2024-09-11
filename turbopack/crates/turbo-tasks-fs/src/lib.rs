@@ -43,6 +43,7 @@ use auto_hash_map::AutoMap;
 use bitflags::bitflags;
 use dunce::simplified;
 use glob::Glob;
+use invalidation::InvalidateFilesystem;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
@@ -57,8 +58,8 @@ use tokio::{
 };
 use tracing::Instrument;
 use turbo_tasks::{
-    mark_stateful, trace::TraceRawVcs, Completion, InvalidationReason, Invalidator, RcStr, ReadRef,
-    ValueToString, Vc,
+    mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef,
+    SerializationInvalidator, ValueToString, Vc,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash, DeterministicHasher};
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
@@ -71,6 +72,84 @@ use crate::{
     retry::{retry_blocking, retry_future},
     rope::{Rope, RopeReader},
 };
+
+/// Validate the path, returning either the valid path, or a modified-but-now-valid path,
+/// or bailing with an error.
+///
+/// The behaviour of the file system changes depending on the OS, and indeed sometimes the FS
+/// implementation of the OS itself.
+///
+/// - On windows the limit for normal file paths is 260 characters, a holdover from the DOS days,
+///   but rust will opportunistically rewrite paths to 'UNC' paths for supported path operations
+///   which can be up to 32767 characters long.
+/// - On macOS, the limit is traditionally 255 characters for the file name and a second limit of
+///   1024 for the entire path (verified by running `getconf PATH_MAX /`).
+/// - On linux, the limit differs between kernel (and by extension, distro) and filesystem. Individual files can be up to 255 bytes, while
+///   paths can be up to 4096 _on EXT4_. However, despite advertising these in `limits.h`, some filesystems actually support larger lengths.
+///   Fedora for example explicitly says not to program against the limit on linux (https://docs.fedoraproject.org/en-US/defensive-coding/tasks/Tasks-File_System/#sect-Defensive_Coding-Tasks-File_System-Limits)
+///
+/// Realistically, the output path lengths will be the same across all platforms, so we need to set
+/// a conservative limit and be particular about when we decide to bump it. Here we have opted for
+/// 255 characters, because it is the shortest of the three options.
+fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
+    /// Here we check if the path is too long for windows, and if so, attempt to canonicalize it
+    /// to a UNC path.
+    #[cfg(target_family = "windows")]
+    fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
+        const MAX_PATH_LENGTH_WINDOWS: usize = 260;
+        const UNC_PREFIX: &str = "\\\\?\\";
+
+        if path.starts_with(UNC_PREFIX) {
+            return Ok(path.into());
+        }
+
+        if path.as_os_str().len() > MAX_PATH_LENGTH_WINDOWS {
+            let new_path = std::fs::canonicalize(path)
+                .map_err(|_| anyhow!("file is too long, and could not be normalized"))?;
+            return Ok(new_path.into());
+        }
+
+        Ok(path.into())
+    }
+
+    /// Here we are only going to check if the total length exceeds, or the last segment exceeds.
+    /// This heuristic is primarily to avoid long file names, and it makes the operation much
+    /// cheaper.
+    #[cfg(not(target_family = "windows"))]
+    fn validate_path_length_inner(path: &Path) -> Result<Cow<'_, Path>> {
+        const MAX_FILE_NAME_LENGTH_UNIX: usize = 255;
+        // macOS reports a limit of 1024, but I (@arlyon) have had issues with paths above 1016
+        // so we subtract a bit to be safe. on most linux distros this is likely a lot larger than
+        // 1024, but macOS is *special*
+        const MAX_PATH_LENGTH: usize = 1024 - 8;
+
+        // check the last segment (file name)
+        if path
+            .file_name()
+            .map(|n| n.as_encoded_bytes().len())
+            .unwrap_or(0)
+            > MAX_FILE_NAME_LENGTH_UNIX
+        {
+            anyhow::bail!(
+                "file name is too long (exceeds {} bytes)",
+                MAX_FILE_NAME_LENGTH_UNIX
+            );
+        }
+
+        if path.as_os_str().len() > MAX_PATH_LENGTH {
+            anyhow::bail!("path is too long (exceeds {} bytes)", MAX_PATH_LENGTH);
+        }
+
+        Ok(path.into())
+    }
+
+    validate_path_length_inner(path).with_context(|| {
+        format!(
+            "path length for file {} exceeds max length of filesystem",
+            path.to_string_lossy()
+        )
+    })
+}
 
 #[turbo_tasks::value_trait]
 pub trait FileSystem: ValueToString {
@@ -106,6 +185,8 @@ pub struct DiskFileSystem {
     invalidator_map: Arc<InvalidatorMap>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     dir_invalidator_map: Arc<InvalidatorMap>,
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    serialization_invalidator: SerializationInvalidator,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
     #[turbo_tasks(debug_ignore, trace_ignore)]
@@ -126,6 +207,7 @@ impl DiskFileSystem {
     fn register_invalidator(&self, path: &Path) -> Result<()> {
         let invalidator = turbo_tasks::get_invalidator();
         self.invalidator_map.insert(path_to_key(path), invalidator);
+        self.serialization_invalidator.invalidate();
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
             self.watcher.ensure_watching(dir, self.root_path())?;
@@ -140,6 +222,8 @@ impl DiskFileSystem {
         let invalidator = turbo_tasks::get_invalidator();
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
         let old_invalidators = invalidator_map.insert(path_to_key(path), [invalidator].into());
+        drop(invalidator_map);
+        self.serialization_invalidator.invalidate();
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
             self.watcher.ensure_watching(dir, self.root_path())?;
@@ -153,6 +237,7 @@ impl DiskFileSystem {
         let invalidator = turbo_tasks::get_invalidator();
         self.dir_invalidator_map
             .insert(path_to_key(path), invalidator);
+        self.serialization_invalidator.invalidate();
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         self.watcher.ensure_watching(path, self.root_path())?;
         Ok(())
@@ -165,25 +250,32 @@ impl DiskFileSystem {
     }
 
     pub fn invalidate(&self) {
+        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
         for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
             invalidators.into_iter().for_each(|i| i.invalidate());
         }
         for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
             invalidators.into_iter().for_each(|i| i.invalidate());
         }
+        self.serialization_invalidator.invalidate();
     }
 
-    pub fn invalidate_with_reason<T: InvalidationReason + Clone>(&self, reason: T) {
-        for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
+    pub fn invalidate_with_reason(&self) {
+        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
+        for (path, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
+            let reason = InvalidateFilesystem { path: path.into() };
             invalidators
                 .into_iter()
                 .for_each(|i| i.invalidate_with_reason(reason.clone()));
         }
-        for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
+        for (path, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter()
+        {
+            let reason = InvalidateFilesystem { path: path.into() };
             invalidators
                 .into_iter()
                 .for_each(|i| i.invalidate_with_reason(reason.clone()));
         }
+        self.serialization_invalidator.invalidate();
     }
 
     pub fn start_watching(&self) -> Result<()> {
@@ -195,6 +287,7 @@ impl DiskFileSystem {
     }
 
     fn start_watching_internal(&self, report_invalidation_reason: bool) -> Result<()> {
+        let _span = tracing::info_span!("start filesystem watching", path = &*self.root).entered();
         let invalidator_map = self.invalidator_map.clone();
         let dir_invalidator_map = self.dir_invalidator_map.clone();
         let root_path = self.root_path().to_path_buf();
@@ -211,6 +304,7 @@ impl DiskFileSystem {
             invalidator_map,
             dir_invalidator_map,
         )?;
+        self.serialization_invalidator.invalidate();
 
         Ok(())
     }
@@ -287,7 +381,7 @@ impl DiskFileSystem {
     ///   ignore specific subpaths from each.
     #[turbo_tasks::function]
     pub async fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
-        mark_stateful();
+        let serialization_invalidator = mark_stateful();
         // create the directory for the filesystem on disk, if it doesn't exist
         fs::create_dir_all(&root).await?;
 
@@ -298,12 +392,74 @@ impl DiskFileSystem {
             invalidation_lock: Default::default(),
             invalidator_map: Arc::new(InvalidatorMap::new()),
             dir_invalidator_map: Arc::new(InvalidatorMap::new()),
+            serialization_invalidator,
             watcher: Arc::new(DiskWatcher::new(
                 ignored_subpaths.into_iter().map(PathBuf::from).collect(),
             )),
         };
 
         Ok(Self::cell(instance))
+    }
+
+    #[turbo_tasks::function(fs)]
+    async fn read_dir_internal(
+        &self,
+        fs_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<InternalDirectoryContent>> {
+        let full_path = self.to_sys_path(fs_path).await?;
+        self.register_dir_invalidator(&full_path)?;
+
+        // we use the sync std function here as it's a lot faster (600%) in
+        // node-file-trace
+        let read_dir = match retry_blocking(
+            &full_path,
+            tracing::info_span!("read directory", path = display(full_path.display())),
+            |path| std::fs::read_dir(path),
+        )
+        .await
+        {
+            Ok(dir) => dir,
+            Err(e)
+                if e.kind() == ErrorKind::NotFound
+                    || e.kind() == ErrorKind::NotADirectory
+                    || e.kind() == ErrorKind::InvalidFilename =>
+            {
+                return Ok(InternalDirectoryContent::not_found());
+            }
+            Err(e) => {
+                bail!(anyhow!(e).context(format!("reading dir {}", full_path.display())))
+            }
+        };
+
+        let entries = read_dir
+            .filter_map(|r| {
+                let e = match r {
+                    Ok(e) => e,
+                    Err(err) => return Some(Err(err.into())),
+                };
+
+                let path = e.path();
+
+                // we filter out any non unicode names and paths without the same root here
+                let file_name: RcStr = path.file_name()?.to_str()?.into();
+                let path_to_root = sys_to_unix(path.strip_prefix(&self.root).ok()?.to_str()?);
+
+                let path = path_to_root.into();
+
+                let entry = match e.file_type() {
+                    Ok(t) if t.is_file() => InternalDirectoryEntry::File(path),
+                    Ok(t) if t.is_dir() => InternalDirectoryEntry::Directory(path),
+                    Ok(t) if t.is_symlink() => InternalDirectoryEntry::Symlink(path),
+                    Ok(_) => InternalDirectoryEntry::Other(path),
+                    Err(err) => return Some(Err(err.into())),
+                };
+
+                Some(anyhow::Ok((file_name, entry)))
+            })
+            .collect::<Result<_>>()
+            .with_context(|| format!("reading directory item in {}", full_path.display()))?;
+
+        Ok(InternalDirectoryContent::new(entries))
     }
 }
 
@@ -339,63 +495,36 @@ impl FileSystem for DiskFileSystem {
         Ok(content.cell())
     }
 
-    #[turbo_tasks::function(fs)]
-    async fn read_dir(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
-        let full_path = self.to_sys_path(fs_path).await?;
-        self.register_dir_invalidator(&full_path)?;
-        let fs_path = fs_path.await?;
-
-        // we use the sync std function here as it's a lot faster (600%) in
-        // node-file-trace
-        let read_dir = match retry_blocking(
-            &full_path,
-            tracing::info_span!("read directory", path = display(full_path.display())),
-            |path| std::fs::read_dir(path),
-        )
-        .await
-        {
-            Ok(dir) => dir,
-            Err(e)
-                if e.kind() == ErrorKind::NotFound
-                    || e.kind() == ErrorKind::NotADirectory
-                    || e.kind() == ErrorKind::InvalidFilename =>
-            {
-                return Ok(DirectoryContent::not_found());
+    #[turbo_tasks::function]
+    async fn read_dir(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
+        match &*self.read_dir_internal(fs_path).await? {
+            InternalDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
+            InternalDirectoryContent::Entries(entries) => {
+                let fs = fs_path.await?.fs;
+                let entries = entries
+                    .iter()
+                    .map(|(name, entry)| {
+                        let entry = match entry {
+                            InternalDirectoryEntry::File(path) => DirectoryEntry::File(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Directory(path) => DirectoryEntry::Directory(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Symlink(path) => DirectoryEntry::Symlink(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Other(path) => DirectoryEntry::Other(
+                                FileSystemPath::new_normalized(fs, path.clone()),
+                            ),
+                            InternalDirectoryEntry::Error => DirectoryEntry::Error,
+                        };
+                        (name.clone(), entry)
+                    })
+                    .collect();
+                Ok(DirectoryContent::new(entries))
             }
-            Err(e) => {
-                bail!(anyhow!(e).context(format!("reading dir {}", full_path.display())))
-            }
-        };
-
-        let entries = read_dir
-            .filter_map(|r| {
-                let e = match r {
-                    Ok(e) => e,
-                    Err(err) => return Some(Err(err.into())),
-                };
-
-                let path = e.path();
-
-                // we filter out any non unicode names and paths without the same root here
-                let file_name: RcStr = path.file_name()?.to_str()?.into();
-                let path_to_root = sys_to_unix(path.strip_prefix(&self.root).ok()?.to_str()?);
-
-                let fs_path = FileSystemPath::new_normalized(fs_path.fs, path_to_root.into());
-
-                let entry = match e.file_type() {
-                    Ok(t) if t.is_file() => DirectoryEntry::File(fs_path),
-                    Ok(t) if t.is_dir() => DirectoryEntry::Directory(fs_path),
-                    Ok(t) if t.is_symlink() => DirectoryEntry::Symlink(fs_path),
-                    Ok(_) => DirectoryEntry::Other(fs_path),
-                    Err(err) => return Some(Err(err.into())),
-                };
-
-                Some(anyhow::Ok((file_name, entry)))
-            })
-            .collect::<Result<_>>()
-            .with_context(|| format!("reading directory item in {}", full_path.display()))?;
-
-        Ok(DirectoryContent::new(entries))
+        }
     }
 
     #[turbo_tasks::function(fs)]
@@ -496,6 +625,8 @@ impl FileSystem for DiskFileSystem {
         content: Vc<FileContent>,
     ) -> Result<Vc<Completion>> {
         let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = validate_path_length(&full_path)?;
+
         let content = content.await?;
 
         let _lock = self.lock_path(&full_path).await;
@@ -509,7 +640,7 @@ impl FileSystem for DiskFileSystem {
         // code will need to read the file from disk into a Vc<FileContent>, so we're
         // not wasting cycles.
         let compare = content
-            .streaming_compare(full_path.clone())
+            .streaming_compare(&full_path)
             .instrument(tracing::info_span!(
                 "read file before write",
                 path = display(full_path.display())
@@ -521,6 +652,7 @@ impl FileSystem for DiskFileSystem {
                 for i in old_invalidators {
                     self.invalidator_map.insert(key.clone(), i);
                 }
+                self.serialization_invalidator.invalidate();
             }
             return Ok(Completion::unchanged());
         }
@@ -1112,6 +1244,10 @@ impl FileSystemPath {
         self.fs().read(self).parse_json()
     }
 
+    pub fn read_json5(self: Vc<Self>) -> Vc<FileJsonContent> {
+        self.fs().read(self).parse_json5()
+    }
+
     /// Reads content of a directory.
     ///
     /// DETERMINISM: Result is in random order. Either sort result or do not
@@ -1343,8 +1479,8 @@ enum FileComparison {
 impl FileContent {
     /// Performs a comparison of self's data against a disk file's streamed
     /// read.
-    async fn streaming_compare(&self, path: PathBuf) -> Result<FileComparison> {
-        let old_file = extract_disk_access(retry_future(|| fs::File::open(&path)).await, &path)?;
+    async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
+        let old_file = extract_disk_access(retry_future(|| fs::File::open(path)).await, path)?;
         let Some(mut old_file) = old_file else {
             return Ok(match self {
                 FileContent::NotFound => FileComparison::Equal,
@@ -1356,7 +1492,7 @@ impl FileContent {
             return Ok(FileComparison::NotEqual);
         };
 
-        let old_meta = extract_disk_access(retry_future(|| old_file.metadata()).await, &path)?;
+        let old_meta = extract_disk_access(retry_future(|| old_file.metadata()).await, path)?;
         let Some(old_meta) = old_meta else {
             // If we failed to get meta, then the old file has been deleted between the
             // handle open. In which case, we just pretend the file never
@@ -1686,6 +1822,33 @@ impl FileContent {
         }
     }
 
+    pub fn parse_json5_ref(&self) -> FileJsonContent {
+        match self {
+            FileContent::Content(file) => match file.content.to_str() {
+                Ok(string) => match parse_to_serde_value(
+                    &string,
+                    &ParseOptions {
+                        allow_comments: true,
+                        allow_trailing_commas: true,
+                        allow_loose_object_property_names: true,
+                    },
+                ) {
+                    Ok(data) => match data {
+                        Some(value) => FileJsonContent::Content(value),
+                        None => FileJsonContent::unparseable(
+                            "text content doesn't contain any json data",
+                        ),
+                    },
+                    Err(e) => FileJsonContent::Unparseable(Box::new(
+                        UnparseableJson::from_jsonc_error(e, string.as_ref()),
+                    )),
+                },
+                Err(_) => FileJsonContent::unparseable("binary is not valid utf-8 text"),
+            },
+            FileContent::NotFound => FileJsonContent::NotFound,
+        }
+    }
+
     pub fn lines_ref(&self) -> FileLinesContent {
         match self {
             FileContent::Content(file) => match file.content.to_str() {
@@ -1727,6 +1890,12 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
+    pub async fn parse_json5(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
+        let this = self.await?;
+        Ok(this.parse_json5_ref().into())
+    }
+
+    #[turbo_tasks::function]
     pub async fn lines(self: Vc<Self>) -> Result<Vc<FileLinesContent>> {
         let this = self.await?;
         Ok(this.lines_ref().into())
@@ -1762,6 +1931,17 @@ impl ValueToString for FileJsonContent {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl FileJsonContent {
+    #[turbo_tasks::function]
+    pub async fn content(self: Vc<Self>) -> Result<Vc<Value>> {
+        match &*self.await? {
+            FileJsonContent::Content(json) => Ok(Vc::cell(json.clone())),
+            FileJsonContent::Unparseable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
+            FileJsonContent::NotFound => Err(anyhow!("File not found")),
+        }
+    }
+}
 impl FileJsonContent {
     pub fn unparseable(message: &'static str) -> Self {
         FileJsonContent::Unparseable(Box::new(UnparseableJson {
@@ -1793,6 +1973,15 @@ pub enum FileLinesContent {
     Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),
     Unparseable,
     NotFound,
+}
+
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+pub enum InternalDirectoryEntry {
+    File(RcStr),
+    Directory(RcStr),
+    Symlink(RcStr),
+    Other(RcStr),
+    Error,
 }
 
 #[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
@@ -1859,6 +2048,23 @@ impl From<&DirectoryEntry> for FileSystemEntryType {
             DirectoryEntry::Other(_) => FileSystemEntryType::Other,
             DirectoryEntry::Error => FileSystemEntryType::Error,
         }
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Debug)]
+pub enum InternalDirectoryContent {
+    Entries(Vec<(RcStr, InternalDirectoryEntry)>),
+    NotFound,
+}
+
+impl InternalDirectoryContent {
+    pub fn new(entries: Vec<(RcStr, InternalDirectoryEntry)>) -> Vc<Self> {
+        Self::cell(InternalDirectoryContent::Entries(entries))
+    }
+
+    pub fn not_found() -> Vc<Self> {
+        Self::cell(InternalDirectoryContent::NotFound)
     }
 }
 

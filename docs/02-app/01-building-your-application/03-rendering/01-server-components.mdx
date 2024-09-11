@@ -64,7 +64,7 @@ There are three subsets of server rendering: Static, Dynamic, and Streaming.
 
 {/* Static Rendering Diagram */}
 
-With Static Rendering, routes are rendered at **build time**, or in the background after [data revalidation](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data). The result is cached and can be pushed to a [Content Delivery Network (CDN)](https://developer.mozilla.org/docs/Glossary/CDN). This optimization allows you to share the result of the rendering work between users and server requests.
+With Static Rendering, routes are rendered at **build time**, or in the background after [data revalidation](/docs/app/building-your-application/data-fetching/incremental-static-regeneration). The result is cached and can be pushed to a [Content Delivery Network (CDN)](https://developer.mozilla.org/docs/Glossary/CDN). This optimization allows you to share the result of the rendering work between users and server requests.
 
 Static rendering is useful when a route has data that is not personalized to the user and can be known at build time, such as a static blog post or a product page.
 
@@ -86,7 +86,7 @@ Dynamic rendering is useful when a route has data that is personalized to the us
 
 #### Switching to Dynamic Rendering
 
-During rendering, if a [dynamic function](#dynamic-functions) or [uncached data request](/docs/app/building-your-application/data-fetching/caching-and-revalidating) is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
+During rendering, if a [dynamic function](#dynamic-functions) or uncached data request is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
 
 | Dynamic Functions | Data       | Route                |
 | ----------------- | ---------- | -------------------- |
@@ -97,7 +97,7 @@ During rendering, if a [dynamic function](#dynamic-functions) or [uncached data 
 
 In the table above, for a route to be fully static, all data must be cached. However, you can have a dynamically rendered route that uses both cached and uncached data fetches.
 
-As a developer, you do not need to choose between static and dynamic rendering as Next.js will automatically choose the best rendering strategy for each route based on the features and APIs used. Instead, you choose when to [cache or revalidate specific data](/docs/app/building-your-application/data-fetching/caching-and-revalidating), and you may choose to [stream](#streaming) parts of your UI.
+As a developer, you do not need to choose between static and dynamic rendering as Next.js will automatically choose the best rendering strategy for each route based on the features and APIs used. Instead, you choose when to [cache](/docs/app/building-your-application/data-fetching/fetching) or [revalidate specific data](/docs/app/building-your-application/data-fetching/incremental-static-regeneration), and you may choose to [stream](#streaming) parts of your UI.
 
 #### Dynamic Functions
 

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { type JSX } from 'react'
-import { usePathname } from './navigation'
+import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
@@ -39,13 +39,13 @@ export interface ErrorBoundaryProps {
 }
 
 interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
-  pathname: string
+  pathname: string | null
   errorComponent: ErrorComponent
 }
 
 interface ErrorBoundaryHandlerState {
   error: Error | null
-  previousPathname: string
+  previousPathname: string | null
 }
 
 // if we are revalidating we want to re-throw the error so the
@@ -122,7 +122,7 @@ export class ErrorBoundaryHandler extends React.Component<
     this.setState({ error: null })
   }
 
-  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific the the `@types/react` version.
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
     if (this.state.error) {
       return (
@@ -187,7 +187,11 @@ export function ErrorBoundary({
 }: ErrorBoundaryProps & {
   children: React.ReactNode
 }): JSX.Element {
-  const pathname = usePathname()
+  // When we're rendering the missing params shell, this will return null. This
+  // is because we won't be rendering any not found boundaries or error
+  // boundaries for the missing params shell. When this runs on the client
+  // (where these errors can occur), we will get the correct pathname.
+  const pathname = useUntrackedPathname()
   if (errorComponent) {
     return (
       <ErrorBoundaryHandler

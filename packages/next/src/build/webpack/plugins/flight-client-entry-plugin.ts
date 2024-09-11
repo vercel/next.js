@@ -1,7 +1,6 @@
 import type {
   CssImports,
   ClientComponentImports,
-  FlightClientEntryModuleItem,
 } from '../loaders/next-flight-client-entry-loader'
 
 import { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -841,38 +840,32 @@ export class FlightClientEntryPlugin {
   ] {
     let shouldInvalidate = false
 
-    const loaderOptions: {
-      modules: FlightClientEntryModuleItem[]
-      server: boolean
-    } = {
-      modules: Object.keys(clientImports)
-        .sort((a, b) => (regexCSS.test(b) ? 1 : a.localeCompare(b)))
-        .map((clientImportPath) => ({
-          request: clientImportPath,
-          ids: [...clientImports[clientImportPath]],
-        })),
-      server: false,
-    }
+    const modules = Object.keys(clientImports)
+      .sort((a, b) => (regexCSS.test(b) ? 1 : a.localeCompare(b)))
+      .map((clientImportPath) => ({
+        request: clientImportPath,
+        ids: [...clientImports[clientImportPath]],
+      }))
 
     // For the client entry, we always use the CJS build of Next.js. If the
     // server is using the ESM build (when using the Edge runtime), we need to
     // replace them.
     const clientBrowserLoader = `next-flight-client-entry-loader?${stringify({
       modules: (this.isEdgeServer
-        ? loaderOptions.modules.map(({ request, ids }) => ({
+        ? modules.map(({ request, ids }) => ({
             request: request.replace(
               /[\\/]next[\\/]dist[\\/]esm[\\/]/,
               '/next/dist/'.replace(/\//g, path.sep)
             ),
             ids,
           }))
-        : loaderOptions.modules
+        : modules
       ).map((x) => JSON.stringify(x)),
       server: false,
     })}!`
 
     const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
-      modules: loaderOptions.modules.map((x) => JSON.stringify(x)),
+      modules: modules.map((x) => JSON.stringify(x)),
       server: true,
     })}!`
 

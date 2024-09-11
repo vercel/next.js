@@ -1,6 +1,5 @@
 use std::{
     borrow::Cow,
-    cell::RefCell,
     fmt::{self, Debug, Display, Formatter},
     future::Future,
     hash::{BuildHasherDefault, Hash},
@@ -17,14 +16,13 @@ use either::Either;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
-use tokio::task_local;
 use tracing::Span;
 use turbo_prehash::PreHashed;
 use turbo_tasks::{
     backend::{CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec},
     event::{Event, EventListener},
     get_invalidator, registry, CellId, Invalidator, RawVc, ReadConsistency, TaskId, TaskIdSet,
-    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    TraitTypeId, TurboTasksBackendApi, TurboTasksBackendApiExt, ValueTypeId,
 };
 
 use crate::{
@@ -34,7 +32,7 @@ use crate::{
     cell::{Cell, ReadContentError},
     edges_set::{TaskEdge, TaskEdgesList, TaskEdgesSet},
     gc::{GcQueue, GcTaskState},
-    output::{Output, OutputContent},
+    output::Output,
     task::aggregation::{TaskAggregationContext, TaskChange},
     MemoryBackend,
 };
@@ -44,12 +42,6 @@ pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 mod aggregation;
 mod meta_state;
-
-task_local! {
-    /// Cells/Outputs/Collectibles that are read during task execution
-    /// These will be stored as dependencies when the execution has finished
-    pub(crate) static DEPENDENCIES_TO_TRACK: RefCell<TaskEdgesSet>;
-}
 
 type OnceTaskFn = Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
 
@@ -606,39 +598,7 @@ impl Task {
         match ty {
             TaskTypeForDescription::Root => format!("[{}] root", id),
             TaskTypeForDescription::Once => format!("[{}] once", id),
-            TaskTypeForDescription::Persistent(ty) => match &***ty {
-                CachedTaskType::Native {
-                    fn_type: native_fn,
-                    this: _,
-                    arg: _,
-                } => {
-                    format!("[{}] {}", id, registry::get_function(*native_fn).name)
-                }
-                CachedTaskType::ResolveNative {
-                    fn_type: native_fn,
-                    this: _,
-                    arg: _,
-                } => {
-                    format!(
-                        "[{}] [resolve] {}",
-                        id,
-                        registry::get_function(*native_fn).name
-                    )
-                }
-                CachedTaskType::ResolveTrait {
-                    trait_type,
-                    method_name: fn_name,
-                    this: _,
-                    arg: _,
-                } => {
-                    format!(
-                        "[{}] [resolve trait] {} in trait {}",
-                        id,
-                        fn_name,
-                        registry::get_trait(*trait_type).name
-                    )
-                }
-            },
+            TaskTypeForDescription::Persistent(ty) => format!("[{id}] {ty}"),
         }
     }
 
@@ -784,11 +744,11 @@ impl Task {
             ),
             TaskType::Persistent { ty, .. } | TaskType::Transient { ty, .. } => match &***ty {
                 CachedTaskType::Native {
-                    fn_type: native_fn,
+                    fn_type: native_fn_id,
                     this,
                     arg,
                 } => {
-                    let func = registry::get_function(*native_fn);
+                    let func = registry::get_function(*native_fn_id);
                     let span = func.span();
                     let entered = span.enter();
                     let future = func.execute(*this, &**arg);
@@ -796,21 +756,19 @@ impl Task {
                     (future, span)
                 }
                 CachedTaskType::ResolveNative {
-                    fn_type: ref native_fn_id,
+                    fn_type: native_fn_id,
                     this,
                     arg,
                 } => {
-                    let native_fn_id = *native_fn_id;
-                    let func = registry::get_function(native_fn_id);
+                    let func = registry::get_function(*native_fn_id);
                     let span = func.resolve_span();
                     let entered = span.enter();
-                    let turbo_tasks = turbo_tasks.pin();
                     let future = Box::pin(CachedTaskType::run_resolve_native(
-                        native_fn_id,
+                        *native_fn_id,
                         *this,
                         &**arg,
                         self.id.persistence(),
-                        turbo_tasks,
+                        turbo_tasks.pin(),
                     ));
                     drop(entered);
                     (future, span)
@@ -821,19 +779,16 @@ impl Task {
                     this,
                     arg,
                 } => {
-                    let trait_type_id = *trait_type_id;
-                    let trait_type = registry::get_trait(trait_type_id);
+                    let trait_type = registry::get_trait(*trait_type_id);
                     let span = trait_type.resolve_span(name);
                     let entered = span.enter();
-                    let name = name.clone();
-                    let turbo_tasks = turbo_tasks.pin();
                     let future = Box::pin(CachedTaskType::run_resolve_trait(
-                        trait_type_id,
-                        name,
+                        *trait_type_id,
+                        name.clone(),
                         *this,
                         &**arg,
                         self.id.persistence(),
-                        turbo_tasks,
+                        turbo_tasks.pin(),
                     ));
                     drop(entered);
                     (future, span)
@@ -916,7 +871,7 @@ impl Task {
                 Ok(Ok(result)) => {
                     if state.output != result {
                         if cfg!(feature = "print_task_invalidation")
-                            && !matches!(state.output.content, OutputContent::Empty)
+                            && state.output.content.is_some()
                         {
                             println!(
                                 "Task {{ id: {}, name: {} }} invalidates:",
@@ -966,7 +921,8 @@ impl Task {
             let mut change_job = None;
             let mut remove_job = None;
             let mut drained_cells = SmallVec::<[Cell; 8]>::new();
-            let dependencies = DEPENDENCIES_TO_TRACK.with(|deps| deps.take());
+            let dependencies = turbo_tasks
+                .write_task_state(|deps| std::mem::take(&mut deps.dependencies_to_track));
             {
                 let mut state = self.full_state_mut();
 
@@ -1343,11 +1299,13 @@ impl Task {
         }
     }
 
-    pub(crate) fn add_dependency_to_current(dep: TaskEdge) {
-        DEPENDENCIES_TO_TRACK.with(|list| {
-            let mut list = list.borrow_mut();
-            list.insert(dep);
-        })
+    pub(crate) fn add_dependency_to_current(
+        dep: TaskEdge,
+        turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
+    ) {
+        turbo_tasks.write_task_state(|ts| {
+            ts.dependencies_to_track.insert(dep);
+        });
     }
 
     /// Get an [Invalidator] that can be used to invalidate the current [Task]
