@@ -137,7 +137,7 @@ export function onRequestError(
 - `request`: Read-only request information associated with the error.
 - `context`: The context in which the error occurred. This can be the type of router (App or Pages Router), and/or (Server Components (`'render'`), Route Handlers (`'route'`), Server Actions (`'action'`), or Middleware (`'middleware'`)).
 
-### Multi Runtime
+### Specifying the runtime
 
 The `instrumentation.js` file will be built into both Node.js and Edge runtime, if you need separate runtime, using `process.env.NEXT_RUNTIME` to target different runtime.
 
