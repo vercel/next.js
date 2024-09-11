@@ -336,10 +336,13 @@ impl DepGraph {
                 }
             }
 
+            let mut use_export_instead_of_declarator = false;
+
             for item in group {
                 match item {
                     ItemId::Group(ItemIdGroupKind::Export(..)) => {
                         if let Some(export) = &data[item].export {
+                            use_export_instead_of_declarator = true;
                             exports.insert(Key::Export(export.as_str().into()), ix as u32);
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
@@ -392,6 +395,52 @@ impl DepGraph {
                     })));
             }
 
+            let mut done = FxHashSet::default();
+
+            if use_export_instead_of_declarator {
+                // Depend on exports.
+                //
+                // We preserve the export if the content is preserved.
+                // It's for server actions, where we need to preserve the export if the content is
+                // used.
+                for &var in &required_vars {
+                    let Some(&dep) = exporter.get(&var.0) else {
+                        continue;
+                    };
+
+                    if dep == ix as u32 {
+                        continue;
+                    }
+
+                    done.insert(var.clone());
+
+                    let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: var.clone().into(),
+                        imported: None,
+                        is_type_only: false,
+                    })];
+
+                    part_deps
+                        .entry(ix as u32)
+                        .or_default()
+                        .push(PartId::Export(var.0.as_str().into()));
+
+                    chunk
+                        .body
+                        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                            span: DUMMY_SP,
+                            specifiers,
+                            src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                            type_only: false,
+                            with: Some(Box::new(create_turbopack_part_id_assert(PartId::Export(
+                                var.0.as_str().into(),
+                            )))),
+                            phase: Default::default(),
+                        })));
+                }
+            }
+
             // Import variables
             for &var in &required_vars {
                 let Some(&dep) = declarator.get(var) else {
@@ -399,6 +448,10 @@ impl DepGraph {
                 };
 
                 if dep == ix as u32 {
+                    continue;
+                }
+
+                if done.contains(&var.clone()) {
                     continue;
                 }
 
@@ -426,38 +479,6 @@ impl DepGraph {
                         type_only: false,
                         with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
                             dep,
-                        )))),
-                        phase: Default::default(),
-                    })));
-            }
-
-            // Depend on exports.
-            //
-            // We preserve the export if the content is preserved.
-            // It's for server actions, where we need to preserve the export if the content is used.
-            for &var in &required_vars {
-                let Some(&dep) = exporter.get(&var.0) else {
-                    continue;
-                };
-
-                if dep == ix as u32 {
-                    continue;
-                }
-
-                part_deps
-                    .entry(ix as u32)
-                    .or_default()
-                    .push(PartId::Export(var.0.as_str().into()));
-
-                chunk
-                    .body
-                    .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                        span: DUMMY_SP,
-                        specifiers: vec![],
-                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                        type_only: false,
-                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Export(
-                            var.0.as_str().into(),
                         )))),
                         phase: Default::default(),
                     })));
