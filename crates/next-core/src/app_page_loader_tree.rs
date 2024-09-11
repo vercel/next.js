@@ -36,10 +36,15 @@ impl AppPageLoaderTreeBuilder {
     fn new(
         module_asset_context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
+        project_root: Vc<FileSystemPath>,
         base_path: Option<RcStr>,
     ) -> Self {
         AppPageLoaderTreeBuilder {
-            base: BaseLoaderTreeBuilder::new(module_asset_context, server_component_transition),
+            base: BaseLoaderTreeBuilder::new(
+                module_asset_context,
+                server_component_transition,
+                project_root,
+            ),
             loader_tree_code: String::new(),
             pages: Vec::new(),
             base_path,
@@ -319,6 +324,7 @@ impl AppPageLoaderTreeBuilder {
             not_found,
             metadata,
             route: _,
+            interceptor,
         } = &modules;
 
         // Ensure global metadata being written only once at the root level
@@ -344,6 +350,8 @@ impl AppPageLoaderTreeBuilder {
         self.write_modules_entry(AppDirModuleType::Page, *page)
             .await?;
         self.write_modules_entry(AppDirModuleType::DefaultPage, *default)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::Interceptor, *interceptor)
             .await?;
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
@@ -398,11 +406,17 @@ impl AppPageLoaderTreeModule {
         loader_tree: Vc<AppPageLoaderTree>,
         module_asset_context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
+        project_root: Vc<FileSystemPath>,
         base_path: Option<RcStr>,
     ) -> Result<Self> {
-        AppPageLoaderTreeBuilder::new(module_asset_context, server_component_transition, base_path)
-            .build(loader_tree)
-            .await
+        AppPageLoaderTreeBuilder::new(
+            module_asset_context,
+            server_component_transition,
+            project_root,
+            base_path,
+        )
+        .build(loader_tree)
+        .await
     }
 }
 

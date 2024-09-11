@@ -52,6 +52,7 @@ pub async fn get_app_page_entry(
         loader_tree,
         module_asset_context,
         server_component_transition,
+        project_root,
         base_path,
     )
     .await?;

@@ -5,7 +5,7 @@ import { retry } from 'next-test-utils'
 const timeStampRegExp = /[ ]*\d{2}:\d{2}:\d{2}\.\d{3}[ ]*/gm
 
 describe('interceptors', () => {
-  const { next, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
@@ -14,10 +14,6 @@ describe('interceptors', () => {
   beforeEach(() => {
     cliOutputLength = next.cliOutput.length
   })
-
-  if (isTurbopack) {
-    return it.skip('TODO(interceptors): support turbopack', () => {})
-  }
 
   if (isNextStart) {
     if (process.env.__NEXT_EXPERIMENTAL_PPR) {

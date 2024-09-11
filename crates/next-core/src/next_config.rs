@@ -529,6 +529,7 @@ pub struct ExperimentalConfig {
     amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
     case_sensitive_routes: Option<bool>,
+    client_trace_metadata: Option<Vec<String>>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
     disable_optimized_loading: Option<bool>,
@@ -543,9 +544,8 @@ pub struct ExperimentalConfig {
     force_swc_transforms: Option<bool>,
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
-
     instrumentation_hook: Option<bool>,
-    client_trace_metadata: Option<Vec<String>>,
+    interceptors: Option<bool>,
     large_page_data_bytes: Option<f64>,
     logging: Option<serde_json::Value>,
     memory_based_workers_count: Option<bool>,
@@ -1091,6 +1091,13 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_taint(&self) -> Vc<bool> {
         Vc::cell(self.experimental.taint.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn enable_interceptors(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.experimental.interceptors.unwrap_or(false),
+        ))
     }
 
     #[turbo_tasks::function]

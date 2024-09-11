@@ -1,3 +1,5 @@
+use std::path::MAIN_SEPARATOR;
+
 use anyhow::Result;
 use indexmap::IndexMap;
 use indoc::formatdoc;
@@ -18,6 +20,7 @@ pub struct BaseLoaderTreeBuilder {
     pub imports: Vec<RcStr>,
     pub module_asset_context: Vc<ModuleAssetContext>,
     pub server_component_transition: Vc<Box<dyn Transition>>,
+    project_root: Vc<FileSystemPath>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -29,6 +32,7 @@ pub enum AppDirModuleType {
     Loading,
     Template,
     NotFound,
+    Interceptor,
 }
 
 impl AppDirModuleType {
@@ -41,6 +45,7 @@ impl AppDirModuleType {
             AppDirModuleType::Loading => "loading",
             AppDirModuleType::Template => "template",
             AppDirModuleType::NotFound => "not-found",
+            AppDirModuleType::Interceptor => "interceptor",
         }
     }
 }
@@ -49,6 +54,7 @@ impl BaseLoaderTreeBuilder {
     pub fn new(
         module_asset_context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
+        project_root: Vc<FileSystemPath>,
     ) -> Self {
         BaseLoaderTreeBuilder {
             inner_assets: IndexMap::new(),
@@ -56,6 +62,7 @@ impl BaseLoaderTreeBuilder {
             imports: Vec::new(),
             module_asset_context,
             server_component_transition,
+            project_root,
         }
     }
 
@@ -107,9 +114,17 @@ impl BaseLoaderTreeBuilder {
 
         let module_path = module.ident().path().to_string().await?;
 
+        let project_root_with_trailing_sep =
+            format!("{}{}", self.project_root.to_string().await?, MAIN_SEPARATOR);
+
+        let relative_path = module_path
+            .strip_prefix(&project_root_with_trailing_sep)
+            .unwrap_or(module_path.as_str());
+
         Ok(format!(
-            "[() => {identifier}, {path}]",
+            "[() => {identifier}, {path}, {relative_path}]",
             path = StringifyJs(&module_path),
+            relative_path = StringifyJs(&relative_path),
         ))
     }
 }

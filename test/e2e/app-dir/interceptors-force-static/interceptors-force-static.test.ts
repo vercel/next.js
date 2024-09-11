@@ -3,14 +3,10 @@ import { outdent } from 'outdent'
 import { assertHasRedbox, getRedboxDescription } from 'next-test-utils'
 
 describe('interceptors-force-static', () => {
-  const { next, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
-
-  if (isTurbopack) {
-    return it.skip('TODO(interceptors): support turbopack', () => {})
-  }
 
   describe('with `dynamic = "force-static"`', () => {
     if (isNextStart) {
