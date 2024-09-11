@@ -223,7 +223,8 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
             Expr::Bin(BinExpr {
                 left,
                 right,
-                op: op!("===") | op!("==") | op!("!==") | op!("!="),
+                op:
+                    op!("===") | op!("==") | op!("!==") | op!("!=") | op!("||") | op!("&&") | op!("??"),
                 ..
             }) => {
                 self.add_guard_for_test(left);
