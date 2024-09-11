@@ -206,10 +206,10 @@
     "pretty-bytes": "5.3.0",
     "pretty-ms": "7.0.0",
     "random-seed": "0.3.0",
-    "react": "19.0.0-rc-7771d3a7-20240827",
+    "react": "18.3.1",
     "react-17": "npm:react@17.0.2",
     "react-builtin": "npm:react@19.0.0-rc-7771d3a7-20240827",
-    "react-dom": "19.0.0-rc-7771d3a7-20240827",
+    "react-dom": "18.3.1",
     "react-dom-17": "npm:react-dom@17.0.2",
     "react-dom-builtin": "npm:react-dom@19.0.0-rc-7771d3a7-20240827",
     "react-dom-experimental-builtin": "npm:react-dom@0.0.0-experimental-7771d3a7-20240827",
@@ -269,10 +269,10 @@
       "@babel/traverse": "7.22.5",
       "@types/react": "npm:types-react@19.0.0-rc.0",
       "@types/react-dom": "npm:types-react-dom@19.0.0-rc.0",
-      "react": "19.0.0-rc-7771d3a7-20240827",
-      "react-dom": "19.0.0-rc-7771d3a7-20240827",
-      "react-is": "19.0.0-rc-7771d3a7-20240827",
-      "scheduler": "0.25.0-rc-7771d3a7-20240827"
+      "react": "18.3.1",
+      "react-dom": "18.3.1",
+      "react-is": "18.3.1",
+      "scheduler": "0.23.2"
     },
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch"
