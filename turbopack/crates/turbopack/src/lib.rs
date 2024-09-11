@@ -191,13 +191,9 @@ async fn apply_module_type(
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
                         Vc::upcast(if let Some(part) = part {
-                            EcmascriptModulePartAsset::new(module, part, options.import_externals)
+                            EcmascriptModulePartAsset::new(module, part)
                         } else {
-                            EcmascriptModulePartAsset::new(
-                                module,
-                                ModulePart::facade(),
-                                options.import_externals,
-                            )
+                            EcmascriptModulePartAsset::new(module, ModulePart::facade())
                         })
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {

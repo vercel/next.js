@@ -169,8 +169,7 @@ impl ModuleReference for EsmAssetReference {
                             .await?
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
-                    let module =
-                        EcmascriptModulePartAsset::new(full_module, part, self.import_externals);
+                    let module = EcmascriptModulePartAsset::new(full_module, part);
 
                     return Ok(ModuleResolveResult::module(Vc::upcast(module)).cell());
                 }
