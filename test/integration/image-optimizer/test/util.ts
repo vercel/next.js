@@ -33,9 +33,6 @@ type RunTestsCtx = SetupTestsCtx & {
 }
 
 const largeSize = 1080 // defaults defined in server/config.ts
-const animatedWarnText =
-  'is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.'
-
 export async function serveSlowImage() {
   const port = await findPort()
   const server = http.createServer(async (req, res) => {
@@ -235,72 +232,72 @@ export function runTests(ctx: RunTestsCtx) {
     expect(actual).toMatch(expected)
   })
 
-  it('should maintain animated gif', async () => {
+  it('should optimize animated gif', async () => {
     const query = { w: ctx.w, q: 90, url: '/animated.gif' }
-    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toContain('image/gif')
-    expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
-    )
-    expect(res.headers.get('Vary')).toBe('Accept')
-    expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toBe(
-      `${contentDispositionType}; filename="animated.gif"`
-    )
-    await expectWidth(res, 50, { expectAnimated: true })
-    expect(ctx.nextOutput).toContain(animatedWarnText)
-  })
-
-  it('should maintain animated png', async () => {
-    const query = { w: ctx.w, q: 90, url: '/animated.png' }
-    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toContain('image/png')
-    expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
-    )
-    expect(res.headers.get('Vary')).toBe('Accept')
-    expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toBe(
-      `${contentDispositionType}; filename="animated.png"`
-    )
-    await expectWidth(res, 100, { expectAnimated: true })
-    expect(ctx.nextOutput).toContain(animatedWarnText)
-  })
-
-  it('should maintain animated png 2', async () => {
-    const query = { w: ctx.w, q: 90, url: '/animated2.png' }
-    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toContain('image/png')
-    expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
-    )
-    expect(res.headers.get('Vary')).toBe('Accept')
-    expect(res.headers.get('etag')).toBeTruthy()
-    expect(res.headers.get('Content-Disposition')).toBe(
-      `${contentDispositionType}; filename="animated2.png"`
-    )
-    await expectWidth(res, 1105, { expectAnimated: true })
-    expect(ctx.nextOutput).toContain(animatedWarnText)
-  })
-
-  it('should maintain animated webp', async () => {
-    const query = { w: ctx.w, q: 90, url: '/animated.webp' }
-    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
     expect(res.headers.get('Content-Disposition')).toBe(
       `${contentDispositionType}; filename="animated.webp"`
     )
-    await expectWidth(res, 400, { expectAnimated: true })
-    expect(ctx.nextOutput).toContain(animatedWarnText)
+    await expectWidth(res, 50, { expectAnimated: true })
+  })
+
+  it('should optimize animated png', async () => {
+    const query = { w: ctx.w, q: 90, url: '/animated.png' }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/webp')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="animated.webp"`
+    )
+    await expectWidth(res, 100, { expectAnimated: true })
+  })
+
+  it('should optimize animated png 2', async () => {
+    const query = { w: ctx.w, q: 90, url: '/animated2.png' }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/webp')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="animated2.webp"`
+    )
+    await expectWidth(res, ctx.w, { expectAnimated: true })
+  })
+
+  it('should optimize animated webp', async () => {
+    const query = { w: ctx.w, q: 90, url: '/animated.webp' }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/webp')
+    expect(res.headers.get('Cache-Control')).toBe(
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+    )
+    expect(res.headers.get('Vary')).toBe('Accept')
+    expect(res.headers.get('etag')).toBeTruthy()
+    expect(res.headers.get('Content-Disposition')).toBe(
+      `${contentDispositionType}; filename="animated.webp"`
+    )
+    await expectWidth(res, ctx.w, { expectAnimated: true })
   })
 
   if (ctx.nextConfigImages?.dangerouslyAllowSVG) {
@@ -1251,9 +1248,9 @@ export function runTests(ctx: RunTestsCtx) {
     const res1 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res1.status).toBe(200)
     expect(res1.headers.get('X-Nextjs-Cache')).toBe('MISS')
-    expect(res1.headers.get('Content-Type')).toBe('image/gif')
+    expect(res1.headers.get('Content-Type')).toBe('image/webp')
     expect(res1.headers.get('Content-Disposition')).toBe(
-      `${contentDispositionType}; filename="animated.gif"`
+      `${contentDispositionType}; filename="animated.webp"`
     )
 
     let json1
@@ -1265,9 +1262,9 @@ export function runTests(ctx: RunTestsCtx) {
     const res2 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
     expect(res2.headers.get('X-Nextjs-Cache')).toBe('HIT')
-    expect(res2.headers.get('Content-Type')).toBe('image/gif')
+    expect(res2.headers.get('Content-Type')).toBe('image/webp')
     expect(res2.headers.get('Content-Disposition')).toBe(
-      `${contentDispositionType}; filename="animated.gif"`
+      `${contentDispositionType}; filename="animated.webp"`
     )
     const json2 = await fsToJson(ctx.imagesDir)
     expect(json2).toStrictEqual(json1)
