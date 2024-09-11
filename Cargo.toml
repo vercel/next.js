@@ -157,7 +157,7 @@ lightningcss = { version = "1.0.0-alpha.59", features = [
   "visitor",
   "into_owned",
 ] }
-lightningcss-napi = { version = "0.2.0", default-features = false, features = [
+lightningcss-napi = { version = "0.3.0", default-features = false, features = [
   "visitor"
 ]}
 markdown = "1.0.0-alpha.18"
