@@ -395,49 +395,64 @@ impl DepGraph {
                     })));
             }
 
-            let mut done = FxHashSet::default();
-
+            // Workaround for implcit export issue of server actions.
+            //
+            // Inline server actions require the generated `$$ACTION_0` to be **exported**.
+            //
+            // But tree shaking works by removing unused code, and the **export** of $$ACTION_0 is
+            // cleary not used from the external module as it does not exist at all in the user
+            // code.
+            //
+            // So we need to add an import for $$ACTION_0 to the module, so that the export is
+            // preserved.
             if use_export_instead_of_declarator {
-                // Depend on exports.
-                //
-                // We preserve the export if the content is preserved.
-                // It's for server actions, where we need to preserve the export if the content is
-                // used.
-                for &var in &required_vars {
-                    let Some(&dep) = exporter.get(&var.0) else {
-                        continue;
-                    };
-
-                    if dep == ix as u32 {
+                for (other_ix, other_group) in groups.graph_ix.iter().enumerate() {
+                    if other_ix == ix {
                         continue;
                     }
 
-                    done.insert(var.clone());
+                    let deps = part_deps.entry(ix as u32).or_default();
 
-                    let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
-                        span: DUMMY_SP,
-                        local: var.clone().into(),
-                        imported: None,
-                        is_type_only: false,
-                    })];
+                    for other_item in other_group {
+                        if let ItemId::Group(ItemIdGroupKind::Export(export, _)) = other_item {
+                            let Some(&declarator) = declarator.get(export) else {
+                                continue;
+                            };
 
-                    part_deps
-                        .entry(ix as u32)
-                        .or_default()
-                        .push(PartId::Export(var.0.as_str().into()));
+                            if declarator == ix as u32 {
+                                continue;
+                            }
 
-                    chunk
-                        .body
-                        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                            span: DUMMY_SP,
-                            specifiers,
-                            src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                            type_only: false,
-                            with: Some(Box::new(create_turbopack_part_id_assert(PartId::Export(
-                                var.0.as_str().into(),
-                            )))),
-                            phase: Default::default(),
-                        })));
+                            if !has_path_connecting(&groups.idx_graph, ix as u32, declarator, None)
+                            {
+                                continue;
+                            }
+
+                            let s = ImportSpecifier::Named(ImportNamedSpecifier {
+                                span: DUMMY_SP,
+                                local: export.clone().into(),
+                                imported: None,
+                                is_type_only: false,
+                            });
+
+                            required_vars.remove(export);
+
+                            deps.push(PartId::Export(export.0.as_str().into()));
+
+                            chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                ImportDecl {
+                                    span: DUMMY_SP,
+                                    specifiers: vec![s],
+                                    src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                                    type_only: false,
+                                    with: Some(Box::new(create_turbopack_part_id_assert(
+                                        PartId::Export(export.0.as_str().into()),
+                                    ))),
+                                    phase: Default::default(),
+                                },
+                            )));
+                        }
+                    }
                 }
             }
 
@@ -448,10 +463,6 @@ impl DepGraph {
                 };
 
                 if dep == ix as u32 {
-                    continue;
-                }
-
-                if done.contains(&var.clone()) {
                     continue;
                 }
 
