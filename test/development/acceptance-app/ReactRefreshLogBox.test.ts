@@ -1111,4 +1111,101 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       await cleanup()
     })
   }
+
+  test('Should show error location for server actions in client component', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/actions.ts',
+          `"use server";
+
+export async function serverAction(a) {
+  throw new Error("server action was here");
+}`,
+        ],
+        [
+          'app/page.tsx',
+          `"use client";
+import { serverAction } from "./actions";
+
+export default function Home() {
+  return (
+    <>
+      <form action={serverAction}>
+        <button id="trigger-action">Submit</button>
+      </form>
+    </>
+  );
+}`,
+        ],
+      ])
+    )
+
+    await browser.elementByCss('#trigger-action').click()
+
+    // Wait for patch to apply and new error to show.
+    await session.assertHasRedbox()
+    await retry(async () => {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "app/actions.ts (4:9) @ serverAction
+
+          2 |
+          3 | export async function serverAction(a) {
+        > 4 |   throw new Error("server action was here");
+            |         ^
+          5 | }"
+      `)
+    })
+
+    await cleanup()
+  })
+
+  test('Should show error location for server actions in server component', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/actions.ts',
+          `"use server";
+
+export async function serverAction(a) {
+  throw new Error("server action was here");
+}`,
+        ],
+        [
+          'app/page.tsx',
+          `import { serverAction } from "./actions";
+
+export default function Home() {
+  return (
+    <>
+      <form action={serverAction}>
+        <button id="trigger-action">Submit</button>
+      </form>
+    </>
+  );
+}`,
+        ],
+      ])
+    )
+
+    await browser.elementByCss('#trigger-action').click()
+
+    // Wait for patch to apply and new error to show.
+    await session.assertHasRedbox()
+    await retry(async () => {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "app/actions.ts (4:9) @ serverAction
+
+          2 |
+          3 | export async function serverAction(a) {
+        > 4 |   throw new Error("server action was here");
+            |         ^
+          5 | }"
+      `)
+    })
+
+    await cleanup()
+  })
 })

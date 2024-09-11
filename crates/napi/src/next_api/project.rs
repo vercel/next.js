@@ -48,7 +48,7 @@ use super::{
         TurbopackResult, VcArc,
     },
 };
-use crate::register;
+use crate::{register, util::log_panic_and_inform};
 
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
@@ -735,7 +735,8 @@ pub fn project_hmr_events(
                     let state = project.hmr_version_state(identifier.clone(), session);
                     let update = hmr_update(project, identifier, state)
                         .strongly_consistent()
-                        .await?;
+                        .await
+                        .inspect_err(|e| log_panic_and_inform(e))?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,

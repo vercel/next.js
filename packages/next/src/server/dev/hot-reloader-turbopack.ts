@@ -869,6 +869,7 @@ export async function createHotReloaderTurbopack(
         let finishBuilding = startBuilding(pathname, requestUrl, false)
         try {
           await handlePagesErrorRoute({
+            dev: true,
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,

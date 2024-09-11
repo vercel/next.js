@@ -101,6 +101,7 @@ export interface CachedRouteValue {
 export interface CachedImageValue {
   kind: CachedRouteKind.IMAGE
   etag: string
+  upstreamEtag: string
   buffer: Buffer
   extension: string
   isMiss?: boolean

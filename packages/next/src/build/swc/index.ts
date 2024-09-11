@@ -818,9 +818,7 @@ function bindingToApi(
     try {
       return await fn()
     } catch (nativeError: any) {
-      throw new TurbopackInternalError(nativeError.message, {
-        cause: nativeError,
-      })
+      throw new TurbopackInternalError(nativeError)
     }
   }
 
@@ -883,6 +881,9 @@ function bindingToApi(
         }
       } catch (e) {
         if (e === cancel) return
+        if (e instanceof Error) {
+          throw new TurbopackInternalError(e)
+        }
         throw e
       } finally {
         binding.rootTaskDispose(task)

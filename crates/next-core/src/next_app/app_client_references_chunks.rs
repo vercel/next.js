@@ -202,6 +202,7 @@ pub async fn get_app_client_references_chunks(
                             ssr_modules,
                         );
                         ssr_chunking_context.chunk_group(
+                            ssr_entry_module.ident(),
                             Vc::upcast(ssr_entry_module),
                             Value::new(current_ssr_availability_info),
                         )
@@ -241,6 +242,7 @@ pub async fn get_app_client_references_chunks(
                         client_modules,
                     );
                     Some(client_chunking_context.chunk_group(
+                        client_entry_module.ident(),
                         Vc::upcast(client_entry_module),
                         Value::new(current_client_availability_info),
                     ))
