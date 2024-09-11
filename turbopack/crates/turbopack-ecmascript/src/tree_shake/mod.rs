@@ -442,6 +442,16 @@ pub(super) async fn split(
         .cell());
     }
 
+    // Turbopack has a bug related to parsing of CJS files where the package.json has
+    // a `"type": "module"` and the file is a CJS file.
+    let name = ident.to_string().await?;
+    if name.contains("@swc/helpers/cjs") {
+        return Ok(SplitResult::Failed {
+            parse_result: parsed,
+        }
+        .cell());
+    }
+
     let parse_result = parsed.await?;
 
     match &*parse_result {
