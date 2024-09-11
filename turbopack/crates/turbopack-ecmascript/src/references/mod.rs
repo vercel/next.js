@@ -3059,6 +3059,10 @@ pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     annotations.get(&TURBOPACK_HELPER).is_some()
 }
 
+pub fn is_swc_helper_import(import: &ImportDecl) -> bool {
+    import.src.value.starts_with("@swc/helpers/")
+}
+
 #[derive(Debug)]
 enum DetectedDynamicExportType {
     CommonJs,
@@ -3075,9 +3079,9 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
         // Check for imports/exports
         if m.body.iter().any(|item| {
             item.as_module_decl().map_or(false, |module_decl| {
-                module_decl
-                    .as_import()
-                    .map_or(true, |import| !is_turbopack_helper_import(import))
+                module_decl.as_import().map_or(true, |import| {
+                    !is_turbopack_helper_import(import) && !is_swc_helper_import(import)
+                })
             })
         }) {
             return DetectedDynamicExportType::UsingModuleDeclarations;
