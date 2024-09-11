@@ -28,16 +28,14 @@ use turbopack_core::{
     module::Module,
     output::OutputAsset,
     reference::primary_referenced_modules,
-    reference_type::{
-        EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
-    },
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
     virtual_output::VirtualOutputAsset,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
     chunk::EcmascriptChunkPlaceable, parse::ParseResult,
-    tree_shake::asset::EcmascriptModulePartAsset, EcmascriptModuleAssetType, EcmascriptParsable,
+    tree_shake::asset::EcmascriptModulePartAsset, EcmascriptParsable,
 };
 
 /// Scans the RSC entry point's full module graph looking for exported Server
