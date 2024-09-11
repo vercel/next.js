@@ -40,7 +40,7 @@ use turbo_tasks::{trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, Value, 
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
-    module_options::ModuleOptionsContext,
+    module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
     resolve_options_context::ResolveOptionsContext,
     transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
@@ -117,6 +117,14 @@ impl AppProject {
 }
 
 pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+
+fn styles_rule_condition() -> RuleCondition {
+    RuleCondition::any(vec![
+        RuleCondition::ResourcePathEndsWith(".css".into()),
+        RuleCondition::ResourcePathEndsWith(".scss".into()),
+        RuleCondition::ResourcePathEndsWith(".sass".into()),
+    ])
+}
 
 #[turbo_tasks::value_impl]
 impl AppProject {
@@ -305,6 +313,10 @@ impl AppProject {
         ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
+                transition_rules: vec![TransitionRule::new(
+                    styles_rule_condition(),
+                    Vc::upcast(self.client_transition()),
+                )],
                 ..Default::default()
             }
             .cell(),
@@ -339,6 +351,10 @@ impl AppProject {
         ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
+                transition_rules: vec![TransitionRule::new(
+                    styles_rule_condition(),
+                    Vc::upcast(self.client_transition()),
+                )],
                 ..Default::default()
             }
             .cell(),
