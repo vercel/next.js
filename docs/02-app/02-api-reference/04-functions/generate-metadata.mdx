@@ -490,6 +490,18 @@ export const metadata = {
         alt: 'My custom alt',
       },
     ],
+    videos: [
+      {
+        url: 'https://nextjs.org/video.mp4', // Must be an absolute URL
+        width: 800,
+        height: 600,
+      },
+    ],
+    audio: [
+      {
+        url: 'https://nextjs.org/audio.mp3', // Must be an absolute URL
+      },
+    ],
     locale: 'en_US',
     type: 'website',
   },
@@ -509,6 +521,10 @@ export const metadata = {
 <meta property="og:image:width" content="1800" />
 <meta property="og:image:height" content="1600" />
 <meta property="og:image:alt" content="My custom alt" />
+<meta property="og:video" content="https://nextjs.org/video.mp4" />
+<meta property="og:video:width" content="800" />
+<meta property="og:video:height" content="600" />
+<meta property="og:audio" content="https://nextjs.org/audio.mp3" />
 <meta property="og:type" content="website" />
 ```
 
