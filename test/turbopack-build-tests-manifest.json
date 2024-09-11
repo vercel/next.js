@@ -7285,15 +7285,14 @@
         "Build Output production mode Basic Application Output (experimental: {}) should not emit extracted comments",
         "Build Output production mode Basic Application Output (experimental: {}) should print duration when rendering or get static props takes long",
         "Build Output production mode Custom Static Error Output should not specify /404 as lambda when static",
-        "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route"
-      ],
-      "failed": [
+        "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route",
         "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not include internal pages",
         "Build Output production mode Basic Application Output (experimental: {}) should not include internal pages",
         "Build Output production mode Custom App Output should not include custom error",
         "Build Output production mode Custom Error Output should not include custom app",
         "Build Output production mode With AMP Output should not include custom error"
       ],
+      "failed": [],
       "pending": [
         "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not deviate from snapshot",
         "Build Output production mode Basic Application Output (experimental: {}) should not deviate from snapshot"
