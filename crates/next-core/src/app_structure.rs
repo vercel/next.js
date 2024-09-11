@@ -973,68 +973,21 @@ fn directory_tree_to_loader_tree_internal(
         for key in keys_to_replace {
             tree.parallel_routes.insert(
                 key,
-                LoaderTree {
-                    page: app_page.clone(),
-                    segment: "__DEFAULT__".into(),
-                    parallel_routes: IndexMap::new(),
-                    components:
-                        // default fallback component
-                        Components {
-                            default: Some(
-                                get_next_package(app_dir)
-                                    .join("dist/client/components/parallel-route-default.js".into()),
-                            ),
-                            ..Default::default()
-                        },
-                    global_metadata,
-                },
+                default_route_tree(app_dir, global_metadata, app_page.clone(), None),
             );
         }
     }
 
     if tree.parallel_routes.is_empty() {
-        tree.segment = "__DEFAULT__".into();
-        if let Some(default) = components.default {
-            tree.components = Components {
-                default: Some(default),
-                ..Default::default()
-            };
-        } else if current_level_is_parallel_route {
-            // default fallback component
-            tree.components = Components {
-                default: Some(
-                    get_next_package(app_dir)
-                        .join("dist/client/components/parallel-route-default.js".into()),
-                ),
-                ..Default::default()
-            };
+        if components.default.is_some() || current_level_is_parallel_route {
+            tree = default_route_tree(app_dir, global_metadata, app_page, components.default);
         } else {
             return Ok(None);
         }
     } else if tree.parallel_routes.get("children").is_none() {
         tree.parallel_routes.insert(
             "children".into(),
-            LoaderTree {
-                page: app_page.clone(),
-                segment: "__DEFAULT__".into(),
-                parallel_routes: IndexMap::new(),
-                components: if let Some(default) = components.default {
-                    Components {
-                        default: Some(default),
-                        ..Default::default()
-                    }
-                } else {
-                    // default fallback component
-                    Components {
-                        default: Some(
-                            get_next_package(app_dir)
-                                .join("dist/client/components/parallel-route-default.js".into()),
-                        ),
-                        ..Default::default()
-                    }
-                },
-                global_metadata,
-            },
+            default_route_tree(app_dir, global_metadata, app_page, components.default),
         );
     }
 
@@ -1047,6 +1000,35 @@ fn directory_tree_to_loader_tree_internal(
     }
 
     Ok(Some(tree))
+}
+
+fn default_route_tree(
+    app_dir: Vc<FileSystemPath>,
+    global_metadata: Vc<GlobalMetadata>,
+    app_page: AppPage,
+    default_component: Option<Vc<FileSystemPath>>,
+) -> LoaderTree {
+    LoaderTree {
+        page: app_page.clone(),
+        segment: "__DEFAULT__".into(),
+        parallel_routes: IndexMap::new(),
+        components: if let Some(default) = default_component {
+            Components {
+                default: Some(default),
+                ..Default::default()
+            }
+        } else {
+            // default fallback component
+            Components {
+                default: Some(
+                    get_next_package(app_dir)
+                        .join("dist/client/components/parallel-route-default.js".into()),
+                ),
+                ..Default::default()
+            }
+        },
+        global_metadata,
+    }
 }
 
 #[turbo_tasks::function]
