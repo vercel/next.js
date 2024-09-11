@@ -4483,7 +4483,6 @@
     }
     function noop() {}
     function RequestInstance(
-      children,
       resumableState,
       renderState,
       rootFormatContext,
@@ -4496,8 +4495,7 @@
       onPostpone,
       formState
     ) {
-      var pingedTasks = [],
-        abortSet = new Set();
+      var abortSet = new Set();
       this.destination = null;
       this.flushScheduled = !1;
       this.resumableState = resumableState;
@@ -4510,7 +4508,7 @@
       this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
       this.completedRootSegment = null;
       this.abortableTasks = abortSet;
-      this.pingedTasks = pingedTasks;
+      this.pingedTasks = [];
       this.clientRenderedBoundaries = [];
       this.completedBoundaries = [];
       this.partialBoundaries = [];
@@ -4523,35 +4521,6 @@
       this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
       this.formState = void 0 === formState ? null : formState;
       this.didWarnForKey = null;
-      resumableState = createPendingSegment(
-        this,
-        0,
-        null,
-        rootFormatContext,
-        !1,
-        !1
-      );
-      resumableState.parentFlushed = !0;
-      children = createRenderTask(
-        this,
-        null,
-        children,
-        -1,
-        null,
-        resumableState,
-        null,
-        abortSet,
-        null,
-        rootFormatContext,
-        null,
-        emptyTreeContext,
-        null,
-        !1,
-        emptyContextObject,
-        null
-      );
-      pushComponentStack(children);
-      pingedTasks.push(children);
     }
     function createRequest(
       children,
@@ -4567,8 +4536,7 @@
       onPostpone,
       formState
     ) {
-      return new RequestInstance(
-        children,
+      resumableState = new RequestInstance(
         resumableState,
         renderState,
         rootFormatContext,
@@ -4581,6 +4549,36 @@
         onPostpone,
         formState
       );
+      renderState = createPendingSegment(
+        resumableState,
+        0,
+        null,
+        rootFormatContext,
+        !1,
+        !1
+      );
+      renderState.parentFlushed = !0;
+      children = createRenderTask(
+        resumableState,
+        null,
+        children,
+        -1,
+        null,
+        renderState,
+        null,
+        resumableState.abortableTasks,
+        null,
+        rootFormatContext,
+        null,
+        emptyTreeContext,
+        null,
+        !1,
+        emptyContextObject,
+        null
+      );
+      pushComponentStack(children);
+      resumableState.pingedTasks.push(children);
+      return resumableState;
     }
     function createPrerenderRequest(
       children,
@@ -4627,35 +4625,20 @@
       onFatalError,
       onPostpone
     ) {
-      var pingedTasks = [],
-        abortSet = new Set();
-      renderState = {
-        destination: null,
-        flushScheduled: !1,
-        resumableState: postponedState.resumableState,
-        renderState: renderState,
-        rootFormatContext: postponedState.rootFormatContext,
-        progressiveChunkSize: postponedState.progressiveChunkSize,
-        status: 0,
-        fatalError: null,
-        nextSegmentId: postponedState.nextSegmentId,
-        allPendingTasks: 0,
-        pendingRootTasks: 0,
-        completedRootSegment: null,
-        abortableTasks: abortSet,
-        pingedTasks: pingedTasks,
-        clientRenderedBoundaries: [],
-        completedBoundaries: [],
-        partialBoundaries: [],
-        trackedPostpones: null,
-        onError: void 0 === onError ? defaultErrorHandler : onError,
-        onPostpone: void 0 === onPostpone ? noop : onPostpone,
-        onAllReady: void 0 === onAllReady ? noop : onAllReady,
-        onShellReady: void 0 === onShellReady ? noop : onShellReady,
-        onShellError: void 0 === onShellError ? noop : onShellError,
-        onFatalError: void 0 === onFatalError ? noop : onFatalError,
-        formState: null
-      };
+      renderState = new RequestInstance(
+        postponedState.resumableState,
+        renderState,
+        postponedState.rootFormatContext,
+        postponedState.progressiveChunkSize,
+        onError,
+        onAllReady,
+        onShellReady,
+        onShellError,
+        onFatalError,
+        onPostpone,
+        null
+      );
+      renderState.nextSegmentId = postponedState.nextSegmentId;
       if ("number" === typeof postponedState.replaySlots)
         return (
           (onError = postponedState.replaySlots),
@@ -4677,7 +4660,7 @@
             null,
             onAllReady,
             null,
-            abortSet,
+            renderState.abortableTasks,
             null,
             postponedState.rootFormatContext,
             null,
@@ -4688,7 +4671,7 @@
             null
           )),
           pushComponentStack(children),
-          pingedTasks.push(children),
+          renderState.pingedTasks.push(children),
           renderState
         );
       children = createReplayTask(
@@ -4703,7 +4686,7 @@
         -1,
         null,
         null,
-        abortSet,
+        renderState.abortableTasks,
         null,
         postponedState.rootFormatContext,
         null,
@@ -4714,7 +4697,7 @@
         null
       );
       pushComponentStack(children);
-      pingedTasks.push(children);
+      renderState.pingedTasks.push(children);
       return renderState;
     }
     function resolveRequest() {
@@ -8200,11 +8183,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-experimental-7771d3a7-20240827" !== isomorphicReactPackageVersion)
+      if ("19.0.0-experimental-d6cb4e77-20240911" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-experimental-7771d3a7-20240827\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-experimental-d6cb4e77-20240911\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -9941,5 +9924,5 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-    exports.version = "19.0.0-experimental-7771d3a7-20240827";
+    exports.version = "19.0.0-experimental-d6cb4e77-20240911";
   })();

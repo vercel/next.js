@@ -4375,6 +4375,46 @@
     }
     function noop() {}
     function RequestInstance(
+      resumableState,
+      renderState,
+      rootFormatContext,
+      progressiveChunkSize,
+      onError,
+      onAllReady,
+      onShellReady,
+      onShellError,
+      onFatalError,
+      onPostpone,
+      formState
+    ) {
+      var abortSet = new Set();
+      this.destination = null;
+      this.flushScheduled = !1;
+      this.resumableState = resumableState;
+      this.renderState = renderState;
+      this.rootFormatContext = rootFormatContext;
+      this.progressiveChunkSize =
+        void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize;
+      this.status = 0;
+      this.fatalError = null;
+      this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
+      this.completedRootSegment = null;
+      this.abortableTasks = abortSet;
+      this.pingedTasks = [];
+      this.clientRenderedBoundaries = [];
+      this.completedBoundaries = [];
+      this.partialBoundaries = [];
+      this.trackedPostpones = null;
+      this.onError = void 0 === onError ? defaultErrorHandler : onError;
+      this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
+      this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
+      this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
+      this.onShellError = void 0 === onShellError ? noop : onShellError;
+      this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
+      this.formState = void 0 === formState ? null : formState;
+      this.didWarnForKey = null;
+    }
+    function createRequest(
       children,
       resumableState,
       renderState,
@@ -4388,51 +4428,37 @@
       onPostpone,
       formState
     ) {
-      var pingedTasks = [],
-        abortSet = new Set();
-      this.destination = null;
-      this.flushScheduled = !1;
-      this.resumableState = resumableState;
-      this.renderState = renderState;
-      this.rootFormatContext = rootFormatContext;
-      this.progressiveChunkSize =
-        void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize;
-      this.status = 0;
-      this.fatalError = null;
-      this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
-      this.completedRootSegment = null;
-      this.abortableTasks = abortSet;
-      this.pingedTasks = pingedTasks;
-      this.clientRenderedBoundaries = [];
-      this.completedBoundaries = [];
-      this.partialBoundaries = [];
-      this.trackedPostpones = null;
-      this.onError = void 0 === onError ? defaultErrorHandler : onError;
-      this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
-      this.onAllReady = void 0 === onAllReady ? noop : onAllReady;
-      this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
-      this.onShellError = void 0 === onShellError ? noop : onShellError;
-      this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
-      this.formState = void 0 === formState ? null : formState;
-      this.didWarnForKey = null;
-      resumableState = createPendingSegment(
-        this,
+      resumableState = new RequestInstance(
+        resumableState,
+        renderState,
+        rootFormatContext,
+        progressiveChunkSize,
+        onError,
+        onAllReady,
+        onShellReady,
+        onShellError,
+        onFatalError,
+        onPostpone,
+        formState
+      );
+      renderState = createPendingSegment(
+        resumableState,
         0,
         null,
         rootFormatContext,
         !1,
         !1
       );
-      resumableState.parentFlushed = !0;
+      renderState.parentFlushed = !0;
       children = createRenderTask(
-        this,
+        resumableState,
         null,
         children,
         -1,
         null,
-        resumableState,
+        renderState,
         null,
-        abortSet,
+        resumableState.abortableTasks,
         null,
         rootFormatContext,
         null,
@@ -4443,7 +4469,8 @@
         null
       );
       pushComponentStack(children);
-      pingedTasks.push(children);
+      resumableState.pingedTasks.push(children);
+      return resumableState;
     }
     function createPrerenderRequest(
       children,
@@ -4458,7 +4485,7 @@
       onFatalError,
       onPostpone
     ) {
-      children = new RequestInstance(
+      children = createRequest(
         children,
         resumableState,
         renderState,
@@ -7928,11 +7955,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-experimental-7771d3a7-20240827" !== isomorphicReactPackageVersion)
+      if ("19.0.0-experimental-d6cb4e77-20240911" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-experimental-7771d3a7-20240827\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-experimental-d6cb4e77-20240911\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -7948,13 +7975,16 @@
     }
     function createRequestImpl(children, options) {
       var resumableState = createResumableState(
-          options ? options.identifierPrefix : void 0,
-          options ? options.unstable_externalRuntimeSrc : void 0,
-          options ? options.bootstrapScriptContent : void 0,
-          options ? options.bootstrapScripts : void 0,
-          options ? options.bootstrapModules : void 0
-        ),
-        renderState = createRenderState(
+        options ? options.identifierPrefix : void 0,
+        options ? options.unstable_externalRuntimeSrc : void 0,
+        options ? options.bootstrapScriptContent : void 0,
+        options ? options.bootstrapScripts : void 0,
+        options ? options.bootstrapModules : void 0
+      );
+      return createRequest(
+        children,
+        resumableState,
+        createRenderState(
           resumableState,
           options ? options.nonce : void 0,
           options ? options.unstable_externalRuntimeSrc : void 0,
@@ -7962,14 +7992,7 @@
           options ? options.onHeaders : void 0,
           options ? options.maxHeadersLength : void 0
         ),
-        rootFormatContext = createRootFormatContext(
-          options ? options.namespaceURI : void 0
-        );
-      return new RequestInstance(
-        children,
-        resumableState,
-        renderState,
-        rootFormatContext,
+        createRootFormatContext(options ? options.namespaceURI : void 0),
         options ? options.progressiveChunkSize : void 0,
         options ? options.onError : void 0,
         options ? options.onAllReady : void 0,
@@ -7982,104 +8005,85 @@
     }
     function resumeRequestImpl(children, postponedState, options) {
       var renderState = createRenderState(
-          postponedState.resumableState,
-          options ? options.nonce : void 0,
-          void 0,
-          void 0,
-          void 0,
-          void 0
-        ),
-        onError = options ? options.onError : void 0,
-        onAllReady = options ? options.onAllReady : void 0,
-        onShellReady = options ? options.onShellReady : void 0,
-        onShellError = options ? options.onShellError : void 0,
-        onPostpone = options ? options.onPostpone : void 0;
-      options = [];
-      var abortSet = new Set();
-      renderState = {
-        destination: null,
-        flushScheduled: !1,
-        resumableState: postponedState.resumableState,
-        renderState: renderState,
-        rootFormatContext: postponedState.rootFormatContext,
-        progressiveChunkSize: postponedState.progressiveChunkSize,
-        status: 0,
-        fatalError: null,
-        nextSegmentId: postponedState.nextSegmentId,
-        allPendingTasks: 0,
-        pendingRootTasks: 0,
-        completedRootSegment: null,
-        abortableTasks: abortSet,
-        pingedTasks: options,
-        clientRenderedBoundaries: [],
-        completedBoundaries: [],
-        partialBoundaries: [],
-        trackedPostpones: null,
-        onError: void 0 === onError ? defaultErrorHandler : onError,
-        onPostpone: void 0 === onPostpone ? noop : onPostpone,
-        onAllReady: void 0 === onAllReady ? noop : onAllReady,
-        onShellReady: void 0 === onShellReady ? noop : onShellReady,
-        onShellError: void 0 === onShellError ? noop : onShellError,
-        onFatalError: noop,
-        formState: null
-      };
-      "number" === typeof postponedState.replaySlots
-        ? ((onError = postponedState.replaySlots),
-          (onAllReady = createPendingSegment(
-            renderState,
-            0,
-            null,
-            postponedState.rootFormatContext,
-            !1,
-            !1
-          )),
-          (onAllReady.id = onError),
-          (onAllReady.parentFlushed = !0),
-          (children = createRenderTask(
-            renderState,
-            null,
-            children,
-            -1,
-            null,
-            onAllReady,
-            null,
-            abortSet,
-            null,
-            postponedState.rootFormatContext,
-            null,
-            emptyTreeContext,
-            null,
-            !1,
-            emptyContextObject,
-            null
-          )),
+        postponedState.resumableState,
+        options ? options.nonce : void 0,
+        void 0,
+        void 0,
+        void 0,
+        void 0
+      );
+      options = new RequestInstance(
+        postponedState.resumableState,
+        renderState,
+        postponedState.rootFormatContext,
+        postponedState.progressiveChunkSize,
+        options ? options.onError : void 0,
+        options ? options.onAllReady : void 0,
+        options ? options.onShellReady : void 0,
+        options ? options.onShellError : void 0,
+        void 0,
+        options ? options.onPostpone : void 0,
+        null
+      );
+      options.nextSegmentId = postponedState.nextSegmentId;
+      if ("number" === typeof postponedState.replaySlots) {
+        renderState = postponedState.replaySlots;
+        var rootSegment = createPendingSegment(
+          options,
+          0,
+          null,
+          postponedState.rootFormatContext,
+          !1,
+          !1
+        );
+        rootSegment.id = renderState;
+        rootSegment.parentFlushed = !0;
+        children = createRenderTask(
+          options,
+          null,
+          children,
+          -1,
+          null,
+          rootSegment,
+          null,
+          options.abortableTasks,
+          null,
+          postponedState.rootFormatContext,
+          null,
+          emptyTreeContext,
+          null,
+          !1,
+          emptyContextObject,
+          null
+        );
+        pushComponentStack(children);
+        options.pingedTasks.push(children);
+      } else
+        (children = createReplayTask(
+          options,
+          null,
+          {
+            nodes: postponedState.replayNodes,
+            slots: postponedState.replaySlots,
+            pendingTasks: 0
+          },
+          children,
+          -1,
+          null,
+          null,
+          options.abortableTasks,
+          null,
+          postponedState.rootFormatContext,
+          null,
+          emptyTreeContext,
+          null,
+          !1,
+          emptyContextObject,
+          null
+        )),
           pushComponentStack(children),
-          options.push(children))
-        : ((children = createReplayTask(
-            renderState,
-            null,
-            {
-              nodes: postponedState.replayNodes,
-              slots: postponedState.replaySlots,
-              pendingTasks: 0
-            },
-            children,
-            -1,
-            null,
-            null,
-            abortSet,
-            null,
-            postponedState.rootFormatContext,
-            null,
-            emptyTreeContext,
-            null,
-            !1,
-            emptyContextObject,
-            null
-          )),
-          pushComponentStack(children),
-          options.push(children));
-      return renderState;
+          options.pingedTasks.push(children);
+      return options;
     }
     function createFakeWritable(readable) {
       return {
@@ -9740,5 +9744,5 @@
         }
       };
     };
-    exports.version = "19.0.0-experimental-7771d3a7-20240827";
+    exports.version = "19.0.0-experimental-d6cb4e77-20240911";
   })();
