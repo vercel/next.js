@@ -63,10 +63,8 @@ export async function tryNextDev({
 
   try {
     const res = await fetchViaHTTP(port, '/')
-    if (isEmpty) {
+    if (isEmpty || isApi) {
       expect(await res.text()).toContain('Hello world!')
-    } else if (isApi) {
-      expect(await res.text()).toContain("who's that pokemon?")
     } else {
       expect(await res.text()).toContain('Get started by editing')
     }
