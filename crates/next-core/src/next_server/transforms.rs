@@ -1,11 +1,10 @@
 use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::turbopack::module_options::ModuleRule;
+use turbopack::module_options::ModuleRule;
 
 use crate::{
     mode::NextMode,
-    next_client_reference::css_client_reference::css_client_reference_rule::get_next_css_client_reference_transforms_rule,
     next_config::NextConfig,
     next_server::context::ServerContextType,
     next_shared::transforms::{
@@ -14,6 +13,7 @@ use crate::{
         get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
+        next_edge_node_api_assert::next_edge_node_api_assert,
         next_middleware_dynamic_assert::get_middleware_dynamic_assert_rule,
         next_page_static_info::get_next_page_static_info_assert_rule,
         next_pure::get_next_pure_rule, server_actions::ActionsTransform,
@@ -90,19 +90,12 @@ pub async fn get_next_server_transforms_rules(
 
             false
         }
-        ServerContextType::AppRSC {
-            client_transition, ..
-        } => {
+        ServerContextType::AppRSC { .. } => {
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
                 mdx_rs,
             ));
 
-            if let Some(client_transition) = client_transition {
-                rules.push(get_next_css_client_reference_transforms_rule(
-                    client_transition,
-                ));
-            }
             is_app_dir = true;
 
             true
@@ -133,6 +126,12 @@ pub async fn get_next_server_transforms_rules(
 
         if let NextRuntime::Edge = next_runtime {
             rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+
+            rules.push(next_edge_node_api_assert(
+                mdx_rs,
+                matches!(context_ty, ServerContextType::Middleware { .. })
+                    && matches!(*mode.await?, NextMode::Build),
+            ));
         }
     }
 
@@ -157,16 +156,8 @@ pub async fn get_next_server_internal_transforms_rules(
         ServerContextType::AppSSR { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs));
         }
-        ServerContextType::AppRSC {
-            client_transition, ..
-        } => {
+        ServerContextType::AppRSC { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs));
-            if let Some(client_transition) = client_transition {
-                rules.push(get_next_css_client_reference_transforms_rule(
-                    client_transition,
-                ));
-            }
-            {}
         }
         ServerContextType::AppRoute { .. } => {}
         ServerContextType::Middleware { .. } => {}

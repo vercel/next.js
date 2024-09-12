@@ -4,8 +4,10 @@
 
 mod app;
 mod dynamic_imports;
+mod empty;
 pub mod entrypoints;
 mod font;
+pub mod global_module_id_strategy;
 mod instrumentation;
 mod loadable_manifest;
 mod middleware;
@@ -21,6 +23,6 @@ shadow_rs::shadow!(build);
 
 pub fn register() {
     next_core::register();
-    turbopack_binding::turbopack::nodejs::register();
+    turbopack_nodejs::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

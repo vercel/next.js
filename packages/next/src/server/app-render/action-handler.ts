@@ -539,7 +539,7 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await generateFlight(ctx, {
+          result: await generateFlight(req, ctx, {
             actionResult: promise,
             // if the page was not revalidated, we can skip the rendering the flight tree
             skipFlight: !staticGenerationStore.pathWasRevalidated,
@@ -817,7 +817,7 @@ export async function handleAction({
           requestStore,
         })
 
-        actionResult = await generateFlight(ctx, {
+        actionResult = await generateFlight(req, ctx, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight:
@@ -895,10 +895,9 @@ export async function handleAction({
         }
         return {
           type: 'done',
-          result: await generateFlight(ctx, {
+          result: await generateFlight(req, ctx, {
             skipFlight: false,
             actionResult: promise,
-            asNotFound: true,
           }),
         }
       }
@@ -928,7 +927,7 @@ export async function handleAction({
 
       return {
         type: 'done',
-        result: await generateFlight(ctx, {
+        result: await generateFlight(req, ctx, {
           actionResult: promise,
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight:

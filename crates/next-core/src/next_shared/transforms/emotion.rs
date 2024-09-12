@@ -1,9 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    ecmascript_plugin::transform::emotion::EmotionTransformer,
-    turbopack::module_options::ModuleRule,
-};
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript_plugins::transform::emotion::EmotionTransformer;
 
 use super::get_ecma_transform_rule;
 use crate::next_config::{EmotionTransformOptionsOrBoolean, NextConfig};

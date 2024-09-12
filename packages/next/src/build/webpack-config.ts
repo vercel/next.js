@@ -81,7 +81,6 @@ import {
   createRSCAliases,
   createNextApiEsmAliases,
   createAppRouterApiAliases,
-  createRSCRendererAliases,
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
 import { CssChunkingPlugin } from './webpack/plugins/css-chunking-plugin'
@@ -305,7 +304,6 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan,
     appDir,
     middlewareMatchers,
-    noMangling = false,
     jsConfig,
     resolvedBaseUrl,
     supportedBrowsers,
@@ -729,43 +727,10 @@ export default async function getBaseWebpackConfig(
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
   }
-
-  const terserOptions: any = {
-    parse: {
-      ecma: 8,
-    },
-    compress: {
-      ecma: 5,
-      warnings: false,
-      // The following two options are known to break valid JavaScript code
-      comparisons: false,
-      inline: 2, // https://github.com/vercel/next.js/issues/7178#issuecomment-493048965
-    },
-    mangle: {
-      safari10: true,
-      reserved: ['AbortSignal'],
-      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
-        ? {
-            toplevel: true,
-            module: true,
-            keep_classnames: true,
-            keep_fnames: true,
-          }
-        : {}),
-    },
-    output: {
-      ecma: 5,
-      safari10: true,
-      comments: false,
-      // Fixes usage of Emoji and certain Regex
-      ascii_only: true,
-      ...(process.env.__NEXT_MANGLING_DEBUG || noMangling
-        ? {
-            beautify: true,
-          }
-        : {}),
-    },
-  }
+  // we don't want to modify the outputs naming if we're
+  // in store-only mode
+  const { flyingShuttle } = config.experimental
+  const isFullFlyingShuttle = flyingShuttle?.mode === 'full'
 
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
@@ -1006,7 +971,7 @@ export default async function getBaseWebpackConfig(
 
         if (isNodeServer || isEdgeServer) {
           return {
-            filename: `${isEdgeServer ? `edge-chunks${config.experimental.flyingShuttle ? `-${buildId}` : ''}/` : ''}[name].js`,
+            filename: `${isEdgeServer ? `edge-chunks${isFullFlyingShuttle ? `-${buildId}` : ''}/` : ''}[name].js`,
             chunks: 'all',
             minChunks: 2,
           }
@@ -1104,20 +1069,9 @@ export default async function getBaseWebpackConfig(
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
           // @ts-ignore No typings yet
-          const {
-            TerserPlugin,
-          } = require('./webpack/plugins/terser-webpack-plugin/src/index.js')
-          new TerserPlugin({
-            terserOptions: {
-              ...terserOptions,
-              compress: {
-                ...terserOptions.compress,
-              },
-              mangle: {
-                ...terserOptions.mangle,
-              },
-            },
-          }).apply(compiler)
+          const { MinifyPlugin } =
+            require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
+          new MinifyPlugin().apply(compiler)
         },
         // Minify CSS
         (compiler: webpack.Compiler) => {
@@ -1184,7 +1138,7 @@ export default async function getBaseWebpackConfig(
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
 
-      ...(config.experimental.flyingShuttle
+      ...(isFullFlyingShuttle
         ? {
             // ensure we only use contenthash as it's more deterministic
             filename: (p) => {
@@ -1200,9 +1154,10 @@ export default async function getBaseWebpackConfig(
               return `static/chunks/[name]-[contenthash].js`
             },
 
-            path: isNodeServer
-              ? path.join(outputPath, `chunks-${buildId}`)
-              : outputPath,
+            path:
+              !dev && isNodeServer
+                ? path.join(outputPath, `chunks-${buildId}`)
+                : outputPath,
 
             chunkFilename: isNodeOrEdgeCompilation
               ? `[name].js`
@@ -1519,8 +1474,11 @@ export default async function getBaseWebpackConfig(
               resolve: {
                 mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
-                // Always use default channels when use installed react
-                alias: createRSCRendererAliases(''),
+                alias: createRSCAliases(bundledReactChannel, {
+                  reactProductionProfiling,
+                  layer: WEBPACK_LAYERS.middleware,
+                  isEdgeServer,
+                }),
               },
             },
             {
@@ -1530,8 +1488,11 @@ export default async function getBaseWebpackConfig(
               resolve: {
                 mainFields: getMainField(compilerType, true),
                 conditionNames: reactServerCondition,
-                // Always use default channels when use installed react
-                alias: createRSCRendererAliases(''),
+                alias: createRSCAliases(bundledReactChannel, {
+                  reactProductionProfiling,
+                  layer: WEBPACK_LAYERS.instrument,
+                  isEdgeServer,
+                }),
               },
             },
             ...(hasAppDir
@@ -1649,7 +1610,7 @@ export default async function getBaseWebpackConfig(
                               'next/dist/compiled/assert'
                             ),
                             buffer: require.resolve(
-                              'next/dist/compiled/buffer/'
+                              'next/dist/compiled/buffer'
                             ),
                             constants: require.resolve(
                               'next/dist/compiled/constants-browserify'
@@ -1686,7 +1647,7 @@ export default async function getBaseWebpackConfig(
                             string_decoder: require.resolve(
                               'next/dist/compiled/string_decoder'
                             ),
-                            sys: require.resolve('next/dist/compiled/util/'),
+                            sys: require.resolve('next/dist/compiled/util'),
                             timers: require.resolve(
                               'next/dist/compiled/timers-browserify'
                             ),
@@ -1694,8 +1655,8 @@ export default async function getBaseWebpackConfig(
                               'next/dist/compiled/tty-browserify'
                             ),
                             // Handled in separate alias
-                            // url: require.resolve('url/'),
-                            util: require.resolve('next/dist/compiled/util/'),
+                            // url: require.resolve('url'),
+                            util: require.resolve('next/dist/compiled/util'),
                             vm: require.resolve(
                               'next/dist/compiled/vm-browserify'
                             ),
@@ -1703,7 +1664,7 @@ export default async function getBaseWebpackConfig(
                               'next/dist/compiled/browserify-zlib'
                             ),
                             events: require.resolve(
-                              'next/dist/compiled/events/'
+                              'next/dist/compiled/events'
                             ),
                             setImmediate: require.resolve(
                               'next/dist/compiled/setimmediate'
@@ -1819,7 +1780,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      (isNodeServer || (config.experimental.flyingShuttle && isEdgeServer)) &&
+      (isNodeServer || (flyingShuttle && isEdgeServer)) &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
@@ -1828,13 +1789,14 @@ export default async function getBaseWebpackConfig(
             appDir: appDir,
             pagesDir: pagesDir,
             esmExternals: config.experimental.esmExternals,
-            outputFileTracingRoot: config.experimental.outputFileTracingRoot,
+            outputFileTracingRoot: config.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
             turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
-            traceIgnores: config.experimental.outputFileTracingIgnores || [],
-            flyingShuttle: !!config.experimental.flyingShuttle,
+            traceIgnores: [],
+            flyingShuttle: Boolean(flyingShuttle),
             compilerType,
+            swcLoaderConfig: swcDefaultLoader,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -1899,20 +1861,6 @@ export default async function getBaseWebpackConfig(
           clientRouterFilters,
         }),
       new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
-      config.optimizeFonts &&
-        !dev &&
-        isNodeServer &&
-        (function () {
-          const { FontStylesheetGatheringPlugin } =
-            require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
-              FontStylesheetGatheringPlugin: typeof import('./webpack/plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
-            }
-          return new FontStylesheetGatheringPlugin({
-            adjustFontFallbacks: config.experimental.adjustFontFallbacks,
-            adjustFontFallbacksWithSizeAdjust:
-              config.experimental.adjustFontFallbacksWithSizeAdjust,
-          })
-        })(),
       new WellKnownErrorsPlugin(),
       isClient &&
         new CopyFilePlugin({
@@ -2114,7 +2062,6 @@ export default async function getBaseWebpackConfig(
     buildActivityPosition: config.devIndicators.buildActivityPosition,
     productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
     reactStrictMode: config.reactStrictMode,
-    optimizeFonts: config.optimizeFonts,
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,
@@ -2137,6 +2084,7 @@ export default async function getBaseWebpackConfig(
     imageLoaderFile: config.images.loaderFile,
     clientTraceMetadata: config.experimental.clientTraceMetadata,
     serverSourceMaps: config.experimental.serverSourceMaps,
+    flyingShuttle: config.experimental.flyingShuttle,
   })
 
   const cache: any = {

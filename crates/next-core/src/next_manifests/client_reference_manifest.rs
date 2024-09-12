@@ -2,18 +2,16 @@ use anyhow::Result;
 use indoc::formatdoc;
 use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
-use turbopack_binding::turbopack::{
-    core::{
-        asset::AssetContent,
-        chunk::{
-            availability_info::AvailabilityInfo, ChunkItem, ChunkItemExt, ChunkableModule,
-            ChunkingContext, ModuleId as TurbopackModuleId,
-        },
-        output::OutputAsset,
-        virtual_output::VirtualOutputAsset,
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkItem, ChunkItemExt, ChunkableModule,
+        ChunkingContext, ModuleId as TurbopackModuleId,
     },
-    ecmascript::utils::StringifyJs,
+    output::OutputAsset,
+    virtual_output::VirtualOutputAsset,
 };
+use turbopack_ecmascript::utils::StringifyJs;
 
 use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
 use crate::{

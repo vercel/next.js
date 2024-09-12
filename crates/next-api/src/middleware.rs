@@ -3,33 +3,29 @@ use next_core::{
     all_assets_from_entries,
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
-    next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2},
+    next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
     next_server::{get_server_runtime_entries, ServerContextType},
     util::{parse_config_from_source, MiddlewareMatcherKind},
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, RcStr, Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{File, FileContent, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
-            context::AssetContext,
-            module::Module,
-            output::OutputAssets,
-            reference_type::{EntryReferenceSubType, ReferenceType},
-            source::Source,
-            virtual_output::VirtualOutputAsset,
-        },
-        ecmascript::chunk::EcmascriptChunkPlaceable,
-    },
+use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
+    context::AssetContext,
+    module::{Module, Modules},
+    output::OutputAssets,
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
+    virtual_output::VirtualOutputAsset,
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
-        wasm_paths_to_bindings,
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
     route::{Endpoint, WrittenEndpoint},
@@ -38,7 +34,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct MiddlewareEndpoint {
     project: Vc<Project>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     app_dir: Option<Vc<FileSystemPath>>,
     ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
@@ -49,14 +45,14 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     pub fn new(
         project: Vc<Project>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
         app_dir: Option<Vc<FileSystemPath>>,
         ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
-            context,
+            asset_context,
             source,
             app_dir,
             ecmascript_client_reference_transition_name,
@@ -67,18 +63,21 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn edge_files(&self) -> Result<Vc<OutputAssets>> {
         let userland_module = self
-            .context
+            .asset_context
             .process(
                 self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
             .module();
 
-        let module =
-            get_middleware_module(self.context, self.project.project_path(), userland_module);
+        let module = get_middleware_module(
+            self.asset_context,
+            self.project.project_path(),
+            userland_module,
+        );
 
         let module = wrap_edge_entry(
-            self.context,
+            self.asset_context,
             self.project.project_path(),
             module,
             "middleware".into(),
@@ -92,7 +91,7 @@ impl MiddlewareEndpoint {
             }),
             self.project.next_mode(),
         )
-        .resolve_entries(self.context)
+        .resolve_entries(self.asset_context)
         .await?
         .clone_value();
 
@@ -122,13 +121,7 @@ impl MiddlewareEndpoint {
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
 
-        let userland_module = this
-            .context
-            .process(
-                this.source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
-            )
-            .module();
+        let userland_module = self.userland_module();
 
         let config = parse_config_from_source(userland_module);
 
@@ -145,15 +138,82 @@ impl MiddlewareEndpoint {
         let wasm_paths_from_root =
             get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
 
-        let matchers = if let Some(matchers) = config.await?.matcher.as_ref() {
+        let all_assets =
+            get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true).await?;
+
+        // Awaited later for parallelism
+        let config = config.await?;
+
+        let regions = if let Some(regions) = config.regions.as_ref() {
+            if regions.len() == 1 {
+                regions
+                    .first()
+                    .map(|region| Regions::Single(region.clone()))
+            } else {
+                Some(Regions::Multiple(regions.clone()))
+            }
+        } else {
+            None
+        };
+
+        let next_config = this.project.next_config().await?;
+        let has_i18n = next_config.i18n.is_some();
+        let has_i18n_locales = next_config
+            .i18n
+            .as_ref()
+            .map(|i18n| i18n.locales.len() > 1)
+            .unwrap_or(false);
+        let base_path = next_config.base_path.as_ref();
+
+        let matchers = if let Some(matchers) = config.matcher.as_ref() {
             matchers
                 .iter()
-                .map(|matcher| match matcher {
-                    MiddlewareMatcherKind::Str(matchers) => MiddlewareMatcher {
-                        original_source: matchers.as_str().into(),
-                        ..Default::default()
-                    },
-                    MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
+                .map(|matcher| {
+                    let mut matcher = match matcher {
+                        MiddlewareMatcherKind::Str(matcher) => MiddlewareMatcher {
+                            original_source: matcher.as_str().into(),
+                            ..Default::default()
+                        },
+                        MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
+                    };
+
+                    // Mirrors implementation in get-page-static-info.ts getMiddlewareMatchers
+                    let mut source = matcher.original_source.to_string();
+                    let is_root = source == "/";
+                    let has_locale = matcher.locale;
+
+                    if has_i18n_locales && has_locale {
+                        source = format!(
+                            "/:nextInternalLocale((?!_next/)[^/.]{{1,}}){}",
+                            if is_root {
+                                "".to_string()
+                            } else {
+                                source.to_string()
+                            }
+                        );
+                    }
+
+                    let last_part = if is_root {
+                        format!(
+                            "({}/?index|/?index\\\\.json)?",
+                            if has_i18n { "|\\\\.json|" } else { "" }
+                        )
+                    } else {
+                        "(.json)?".into()
+                    };
+
+                    source = format!("/:nextData(_next/data/[^/]{{1,}})?{}{}", source, last_part);
+
+                    if let Some(base_path) = base_path {
+                        source = format!("{}{}", base_path, source);
+                    }
+
+                    // TODO: The implementation of getMiddlewareMatchers outputs a regex here using
+                    // path-to-regexp. Currently there is no equivalent of that so it post-processes
+                    // this value to the relevant regex in manifest-loader.ts
+                    matcher.regexp = Some(RcStr::from(source));
+
+                    matcher
                 })
                 .collect()
         } else {
@@ -167,12 +227,12 @@ impl MiddlewareEndpoint {
         let edge_function_definition = EdgeFunctionDefinition {
             files: file_paths_from_root,
             wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+            assets: paths_to_bindings(all_assets),
             name: "middleware".into(),
             page: "/".into(),
-            regions: None,
+            regions,
             matchers,
             env: this.project.edge_env().await?.clone_value(),
-            ..Default::default()
         };
         let middleware_manifest_v2 = MiddlewaresManifestV2 {
             middleware: [("/".into(), edge_function_definition)]
@@ -192,6 +252,19 @@ impl MiddlewareEndpoint {
         output_assets.push(middleware_manifest_v2);
 
         Ok(Vc::cell(output_assets))
+    }
+
+    #[turbo_tasks::function]
+    async fn userland_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let this = self.await?;
+
+        Ok(this
+            .asset_context
+            .process(
+                this.source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
+            )
+            .module())
     }
 }
 
@@ -237,5 +310,10 @@ impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
     fn client_changed(self: Vc<Self>) -> Vc<Completion> {
         Completion::immutable()
+    }
+
+    #[turbo_tasks::function]
+    fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        Ok(Vc::cell(vec![self.userland_module()]))
     }
 }

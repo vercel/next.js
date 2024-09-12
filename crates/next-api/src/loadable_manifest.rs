@@ -3,14 +3,12 @@ use std::collections::HashMap;
 use anyhow::Result;
 use next_core::next_manifests::LoadableManifest;
 use turbo_tasks::{RcStr, TryFlatJoinIterExt, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{File, FileContent, FileSystemPath},
-    turbopack::core::{
-        asset::AssetContent,
-        module::Module,
-        output::{OutputAsset, OutputAssets},
-        virtual_output::VirtualOutputAsset,
-    },
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbopack_core::{
+    asset::AssetContent,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+    virtual_output::VirtualOutputAsset,
 };
 
 use crate::dynamic_imports::DynamicImportedChunks;
