@@ -214,7 +214,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         },
         {
           path: '/non-existent/path',
-          content: 'top-level not found page',
+          content: 'This page could not be found',
           type: 'app',
           status: 404,
         },
