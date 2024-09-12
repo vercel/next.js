@@ -3,7 +3,7 @@
 
 mod util;
 
-use std::{collections::HashMap, path::PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
@@ -277,7 +277,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     );
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
-        Vc::cell(HashMap::new()),
+        Default::default(),
         compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {

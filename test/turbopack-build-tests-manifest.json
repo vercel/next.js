@@ -7285,15 +7285,14 @@
         "Build Output production mode Basic Application Output (experimental: {}) should not emit extracted comments",
         "Build Output production mode Basic Application Output (experimental: {}) should print duration when rendering or get static props takes long",
         "Build Output production mode Custom Static Error Output should not specify /404 as lambda when static",
-        "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route"
-      ],
-      "failed": [
+        "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route",
         "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not include internal pages",
         "Build Output production mode Basic Application Output (experimental: {}) should not include internal pages",
         "Build Output production mode Custom App Output should not include custom error",
         "Build Output production mode Custom Error Output should not include custom app",
         "Build Output production mode With AMP Output should not include custom error"
       ],
+      "failed": [],
       "pending": [
         "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not deviate from snapshot",
         "Build Output production mode Basic Application Output (experimental: {}) should not deviate from snapshot"
@@ -7326,11 +7325,11 @@
         "Build warnings production mode should not warn about missing cache on supported platforms",
         "Build warnings production mode should warn about missing cache in CI"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Build warnings production mode should shown warning about minification for minimize",
         "Build warnings production mode should shown warning about minification for minimizer"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -11026,10 +11025,10 @@
         "GSP build errors production mode should handle non-serializable error in getStaticPaths",
         "GSP build errors production mode should handle non-serializable error in getStaticProps"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "GSP build errors production mode should fail build from module not found"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -13675,10 +13674,10 @@
       "runtimeError": false
     },
     "test/integration/next-image-new/invalid-image-import/test/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Missing Import Image Tests production mode should show error"
       ],
+      "failed": [],
       "pending": [
         "Missing Import Image Tests development mode should show error"
       ],
@@ -14807,11 +14806,10 @@
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive on navigate",
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script",
         "Next.js Script - Primary Strategies - Strict Mode priority beforeInteractive with inline script should execute",
-        "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload"
-      ],
-      "failed": [
+        "Next.js Script - Primary Strategies - Strict Mode priority lazyOnload",
         "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive with inline script"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15304,12 +15302,12 @@
       "runtimeError": false
     },
     "test/integration/typeof-window-replace/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "typeof window replace production mode Does not replace `typeof window` for `node_modules` code",
         "typeof window replace production mode Replaces `typeof window` with object for client code",
         "typeof window replace production mode Replaces `typeof window` with undefined for server code"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16044,11 +16042,10 @@
     "test/production/edge-runtime-is-addressable/index.test.ts": {
       "passed": [
         "Edge Runtime can be set to the production provider EdgeRuntime evaluates to a string",
-        "Edge Runtime is addressable EdgeRuntime evaluates to a string"
-      ],
-      "failed": [
+        "Edge Runtime is addressable EdgeRuntime evaluates to a string",
         "Edge Runtime is addressable removes the undefined branch with dead code elimination"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16426,13 +16423,11 @@
         "Production Usage should remove placeholder for next/image correctly",
         "Production Usage should replace static pages with HTML files",
         "Production Usage should respond with 405 for POST to static page",
-        "Production Usage should warn when prefetch is true"
-      ],
-      "failed": [
+        "Production Usage should warn when prefetch is true",
         "Production Usage process.browser should eliminate client only code on the server",
-        "Production Usage process.browser should eliminate server only code on the client",
-        "Production Usage should output traces"
+        "Production Usage process.browser should eliminate server only code on the client"
       ],
+      "failed": ["Production Usage should output traces"],
       "pending": [
         "Production Usage With Security Related Issues should handle invalid URL properly",
         "Production Usage With basic usage should allow etag header support with getServerSideProps",
