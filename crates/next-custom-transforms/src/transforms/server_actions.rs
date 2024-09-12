@@ -51,6 +51,7 @@ pub fn server_actions<C: Comments>(
         in_default_export_decl: false,
         in_callee: false,
         has_action: false,
+        has_cache: false,
 
         reference_index: 0,
         in_module_level: true,
@@ -94,6 +95,7 @@ struct ServerActions<C: Comments> {
     in_default_export_decl: bool,
     in_callee: bool,
     has_action: bool,
+    has_cache: bool,
 
     reference_index: u32,
     in_module_level: bool,
@@ -1056,7 +1058,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         remove_server_directive_index_in_module(
             stmts,
             &mut self.in_action_file,
+            &mut self.in_cache_file,
             &mut self.has_action,
+            &mut self.has_cache,
             self.config.enabled,
         );
 
@@ -1428,6 +1432,37 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 },
             );
 
+            if !self.config.is_react_server_layer {
+                // Make it the first item
+                new.rotate_right(1);
+            }
+        }
+
+        // import { cache as $cache } from "private-next-rsc-cache-wrapper";
+        if self.has_cache {
+            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                span: DUMMY_SP,
+                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                    span: DUMMY_SP,
+                    local: quote_ident!("cache").into(),
+                    imported: Some(quote_ident!("cache").into()),
+                    is_type_only: false,
+                })],
+                src: Box::new(Str {
+                    span: DUMMY_SP,
+                    value: "private-next-rsc-cache-wrapper".into(),
+                    raw: None,
+                }),
+                type_only: false,
+                with: None,
+                phase: Default::default(),
+            })));
+
+            // Make it the first item
+            new.rotate_right(1);
+        }
+
+        if self.has_action || self.has_cache {
             if self.config.is_react_server_layer {
                 // Inlined actions are only allowed on the server layer.
                 // import { registerServerReference } from 'private-next-rsc-server-reference'
@@ -1481,9 +1516,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                 // Make it the first item
                 new.rotate_right(2);
-            } else {
-                // Make it the first item
-                new.rotate_right(1);
             }
         }
 
@@ -1733,7 +1765,9 @@ fn detect_similar_strings(a: &str, b: &str) -> bool {
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
+    in_cache_file: &mut bool,
     has_action: &mut bool,
+    has_cache: &mut bool,
     enabled: bool,
 ) {
     let mut is_directive = true;
@@ -1758,7 +1792,6 @@ fn remove_server_directive_index_in_module(
                                     .emit()
                             });
                         }
-                        return false;
                     } else {
                         HANDLER.with(|handler| {
                             handler
@@ -1769,15 +1802,29 @@ fn remove_server_directive_index_in_module(
                                 .emit();
                         });
                     }
+                } else if value == "use cache" {
+                    if is_directive {
+                        *in_cache_file = true;
+                        *has_cache = true;
+                    } else {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    "The \"use cache\" directive must be at the top of the file.",
+                                )
+                                .emit();
+                        });
+                    }
                 } else {
-                    // Detect typo of "use server"
-                    if detect_similar_strings(value, "use server") {
+                    // Detect typo of "use cache"
+                    if detect_similar_strings(value, "use cache") {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
                                     *span,
                                     format!(
-                                        "Did you mean \"use server\"? \"{value}\" is not a supported \
+                                        "Did you mean \"use cache\"? \"{value}\" is not a supported \
                                          directive name."
                                     )
                                     .as_str(),
@@ -1814,6 +1861,28 @@ fn remove_server_directive_index_in_module(
                                 .struct_span_err(
                                     *span,
                                     "The \"use server\" directive must be at the top of the file, \
+                                     and cannot be wrapped in parentheses.",
+                                )
+                                .emit();
+                        })
+                    }
+                } else if value == "use cache" || detect_similar_strings(value, "use cache") {
+                    if is_directive {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    "The \"use cache\" directive cannot be wrapped in \
+                                     parentheses.",
+                                )
+                                .emit();
+                        })
+                    } else {
+                        HANDLER.with(|handler| {
+                            handler
+                                .struct_span_err(
+                                    *span,
+                                    "The \"use cache\" directive must be at the top of the file, \
                                      and cannot be wrapped in parentheses.",
                                 )
                                 .emit();

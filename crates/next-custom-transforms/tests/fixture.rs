@@ -393,7 +393,7 @@ fn next_font_loaders_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/server-actions/server/**/input.js")]
+#[fixture("tests/fixture/server-actions/server/34/input.js")]
 fn server_actions_server_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(

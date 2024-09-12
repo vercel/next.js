@@ -1,10 +1,11 @@
-/* __next_internal_action_entry_do_not_use__ {"6d53ce510b2e36499b8f56038817b9bad86cabb4":"$$ACTION_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
-var fn = registerServerReference("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0);
-export async function $$ACTION_0() {
-    return 'hello';
-}
-export async function Component() {
-    const data = await fn();
-    return <div>{data}</div>;
-}
+import { cache as $cache } from "private-next-rsc-cache-wrapper";
+
+export { foo }
+
+const foo = $cache("default", "id", async function () {
+  return 'bar'
+})
+
+registerServerReference("id", foo)
