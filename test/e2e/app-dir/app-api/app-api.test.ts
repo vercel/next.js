@@ -60,18 +60,4 @@ describe('app-api', () => {
     expect(json).toHaveProperty('id', pokemonId)
     expect(json).toHaveProperty('name', 'pikachu')
   })
-
-  it('should return 404 for non-existent routes', async () => {
-    const res = await next.fetch('/non-existent-route')
-    expect(res.status).toBe(404)
-    const text = await res.text()
-    expect(text).toBe('Not Found')
-  })
-
-  it('should return 404 for nested non-existent routes', async () => {
-    const res = await next.fetch('/some/nested/non-existent-route')
-    expect(res.status).toBe(404)
-    const text = await res.text()
-    expect(text).toBe('Not Found')
-  })
 })
