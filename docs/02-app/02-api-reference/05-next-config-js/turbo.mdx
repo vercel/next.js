@@ -6,14 +6,70 @@ version: experimental
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-Turbopack can be customized to transform different files and change how modules are resolved.
+The `turbo` option allows you customize [Turbopack](/docs/architecture/turbopack) to transform different files and change how modules are resolved.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    turbo: {
+      // ...
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    turbo: {
+      // ...
+    },
+  },
+}
+
+module.exports = nextConfig
+```
 
 > **Good to know**:
 >
-> - These features are experimental and will only work with `next --turbo`.
 > - Turbopack for Next.js does not require loaders nor loader configuration for built-in functionality. Turbopack has built-in support for css and compiling modern JavaScript, so there's no need for `css-loader`, `postcss-loader`, or `babel-loader` if you're using `@babel/preset-env`.
 
-## webpack loaders
+## Reference
+
+### Options
+
+The following options are available for the `turbo` configuration:
+
+| Option              | Description                                                               |
+| ------------------- | ------------------------------------------------------------------------- |
+| `rules`             | List of unsupported webpack loaders to apply when running with Turbopack. |
+| `resolveAlias`      | Map aliased imports to modules to load in their place.                    |
+| `resolveExtensions` | List of extensions to resolve when importing files.                       |
+| `moduleIdStrategy`  | Assign module IDs                                                         |
+| `useSwcCss`         | Use `swc_css` instead of `lightningcss` for Turbopack                     |
+| `treeshaking`       | Enable tree shaking for the turbopack dev server and build.               |
+| `memoryLimit`       | A target memory limit for turbo, in bytes.                                |
+
+### Supported loaders
+
+The following loaders have been tested to work with Turbopack's webpack loader implementation:
+
+- [`babel-loader`](https://www.npmjs.com/package/babel-loader)
+- [`@svgr/webpack`](https://www.npmjs.com/package/@svgr/webpack)
+- [`svg-inline-loader`](https://www.npmjs.com/package/svg-inline-loader)
+- [`yaml-loader`](https://www.npmjs.com/package/yaml-loader)
+- [`string-replace-loader`](https://www.npmjs.com/package/string-replace-loader)
+- [`raw-loader`](https://www.npmjs.com/package/raw-loader)
+- [`sass-loader`](https://www.npmjs.com/package/sass-loader)
+
+## Examples
+
+### Configuring webpack loaders
 
 If you need loader support beyond what's built in, many webpack loaders already work with Turbopack. There are currently some limitations:
 
@@ -40,21 +96,9 @@ module.exports = {
 
 > **Good to know**: Prior to Next.js version 13.4.4, `experimental.turbo.rules` was named `experimental.turbo.loaders` and only accepted file extensions like `.mdx` instead of `*.mdx`.
 
-### Supported loaders
+### Resolving aliases
 
-The following loaders have been tested to work with Turbopack's webpack loader implementation:
-
-- [`babel-loader`](https://www.npmjs.com/package/babel-loader)
-- [`@svgr/webpack`](https://www.npmjs.com/package/@svgr/webpack)
-- [`svg-inline-loader`](https://www.npmjs.com/package/svg-inline-loader)
-- [`yaml-loader`](https://www.npmjs.com/package/yaml-loader)
-- [`string-replace-loader`](https://www.npmjs.com/package/string-replace-loader)
-- [`raw-loader`](https://www.npmjs.com/package/raw-loader)
-- [`sass-loader`](https://www.npmjs.com/package/sass-loader)
-
-## Resolve aliases
-
-Through `next.config.js`, Turbopack can be configured to modify module resolution through aliases, similar to webpack's [`resolve.alias`](https://webpack.js.org/configuration/resolve/#resolvealias) configuration.
+Turbopack can be configured to modify module resolution through aliases, similar to webpack's [`resolve.alias`](https://webpack.js.org/configuration/resolve/#resolvealias) configuration.
 
 To configure resolve aliases, map imported patterns to their new destination in `next.config.js`:
 
@@ -75,9 +119,9 @@ This aliases imports of the `underscore` package to the `lodash` package. In oth
 
 Turbopack also supports conditional aliasing through this field, similar to Node.js's [conditional exports](https://nodejs.org/docs/latest-v18.x/api/packages.html#conditional-exports). At the moment only the `browser` condition is supported. In the case above, imports of the `mocha` module will be aliased to `mocha/browser-entry.js` when Turbopack targets browser environments.
 
-## Resolve extensions
+### Resolving custom extensions
 
-Through `next.config.js`, Turbopack can be configured to resolve modules with custom extensions, similar to webpack's [`resolve.extensions`](https://webpack.js.org/configuration/resolve/#resolveextensions) configuration.
+Turbopack can be configured to resolve modules with custom extensions, similar to webpack's [`resolve.extensions`](https://webpack.js.org/configuration/resolve/#resolveextensions) configuration.
 
 To configure resolve extensions, use the `resolveExtensions` field in `next.config.js`:
 
@@ -103,13 +147,12 @@ This overwrites the original resolve extensions with the provided list. Make sur
 
 For more information and guidance for how to migrate your app to Turbopack from webpack, see [Turbopack's documentation on webpack compatibility](https://turbo.build/pack/docs/migrating-from-webpack).
 
-## Module ID strategy
+### Assigning module IDs
 
-Turbopack currently supports two strategies for assigning module IDs: `'named'` and `'deterministic'`.
+Turbopack currently supports two strategies for assigning module IDs:
 
-`'named'` assigns readable module IDs based on the module's path and functionality.
-
-`'deterministic'` assigns small hashed numeric module IDs, which are mostly consistent between builds and therefore help with long-term caching.
+- `'named'` assigns readable module IDs based on the module's path and functionality.
+- `'deterministic'` assigns small hashed numeric module IDs, which are mostly consistent between builds and therefore help with long-term caching.
 
 If not set, Turbopack will use `'named'` for development builds and `'deterministic'` for production builds.
 
