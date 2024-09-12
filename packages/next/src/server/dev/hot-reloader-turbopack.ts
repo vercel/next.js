@@ -834,6 +834,9 @@ export async function createHotReloaderTurbopack(
         return
       }
 
+      await currentEntriesHandling
+
+      // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
       let routeDef: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'> =
         definition ??
         (await findPagePathData(
@@ -891,8 +894,6 @@ export async function createHotReloaderTurbopack(
         }
         return
       }
-
-      await currentEntriesHandling
 
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
       const normalizedAppPage = normalizedPageToTurbopackStructureRoute(
