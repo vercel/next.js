@@ -46,7 +46,7 @@ In addition to supporting the native [Request](https://developer.mozilla.org/doc
 
 ### Caching
 
-Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. To do so, use a [route config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) such as `export const dynamic = 'force-static'` in your Route Handler file.
+Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. Other support HTTP methods are **not** cached. To do so, use a [route config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) such as `export const dynamic = 'force-static'` in your Route Handler file.
 
 ```ts filename="app/items/route.ts" switcher
 export const dynamic = 'force-static'
@@ -80,7 +80,7 @@ export async function GET() {
 }
 ```
 
-> **Good to know**: Other supported HTTP methods cannot be **not** cached. This remains true if they are placed alongside a `GET` method that is cached, in the same file.
+> **Good to know**: Other supported HTTP methods are **not** cached, even if they are placed alongside a `GET` method that is cached, in the same file.
 
 ### Special Route Handlers
 
