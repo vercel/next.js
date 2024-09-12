@@ -9,8 +9,9 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
-        self, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr, MemberProp,
-        ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Stmt, Str,
+        self, AssignTarget, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr,
+        MemberProp, ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script,
+        SimpleAssignTarget, Stmt, Str,
     },
     quote, quote_expr,
 };
@@ -28,7 +29,7 @@ use super::base::ReferencedAsset;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor,
+    create_visitor, magic_identifier,
     references::esm::base::insert_hoisted_stmt,
 };
 
@@ -497,12 +498,17 @@ impl CodeGenerateable for EsmExports {
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
                 )),
                 EsmExport::LocalBinding(name, mutable) => {
+                    let local = if name == "default" {
+                        magic_identifier::mangle("default export").into()
+                    } else {
+                        name.clone()
+                    };
                     if *mutable {
                         Some(quote!(
                             "([() => $local, ($new) => $local = $new])" as Expr,
-                            local = Ident::new((name as &str).into(), DUMMY_SP, Default::default()),
+                            local = Ident::new(local.as_str().into(), DUMMY_SP, Default::default()),
                             new = Ident::new(
-                                format!("{name}_new_value").into(),
+                                format!("new_{name}").into(),
                                 DUMMY_SP,
                                 Default::default()
                             ),
@@ -518,9 +524,13 @@ impl CodeGenerateable for EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset.get_ident().await?.map(|ident| {
-                        let expr = Expr::Member(MemberExpr {
+                        let expr = MemberExpr {
                             span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(Ident::new(ident.into(), DUMMY_SP, Default::default()))),
+                            obj: Box::new(Expr::Ident(Ident::new(
+                                ident.into(),
+                                DUMMY_SP,
+                                Default::default(),
+                            ))),
                             prop: MemberProp::Computed(ComputedPropName {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Lit(Lit::Str(Str {
@@ -529,17 +539,22 @@ impl CodeGenerateable for EsmExports {
                                     raw: None,
                                 }))),
                             }),
-                        });
+                        };
                         if *mutable {
                             quote!(
-                                "([() => $expr, ($new) => $expr = $new])" as Expr,
-                                expr: Expr = expr,
-                                new = Ident::new(format!("{name}_new_value").into(), DUMMY_SP, Default::default()),
+                                "([() => $expr, ($new) => $lhs = $new])" as Expr,
+                                expr: Expr = Expr::Member(expr.clone()),
+                                lhs: AssignTarget = AssignTarget::Simple(SimpleAssignTarget::Member(expr)),
+                                new = Ident::new(
+                                    format!("new_{name}").into(),
+                                    DUMMY_SP,
+                                    Default::default()
+                                ),
                             )
                         } else {
                             quote!(
                                 "(() => $expr)" as Expr,
-                                expr: Expr = expr,
+                                expr: Expr = Expr::Member(expr),
                             )
                         }
                     })
