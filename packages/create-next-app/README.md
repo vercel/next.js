@@ -1,131 +1,116 @@
-# Create Next App
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tailoring Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .material-animation {
+            animation: rotate 4s linear infinite;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <header class="bg-blue-500 text-white p-4">
+        <h1 class="text-3xl font-bold">Tailoring Dashboard</h1>
+    </header>
+    
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="w-1/5 bg-gray-800 text-white p-4">
+            <ul>
+                <li class="mb-4"><a href="#" class="text-lg font-semibold">Customers</a></li>
+                <li class="mb-4"><a href="#" class="text-lg font-semibold">Due Dates</a></li>
+                <li><a href="#" class="text-lg font-semibold">Sewing Materials</a></li>
+            </ul>
+        </aside>
 
-The easiest way to get started with Next.js is by using `create-next-app`. This CLI tool enables you to quickly start building a new Next.js application, with everything set up for you. You can create a new app using the default Next.js template, or by using one of the [official Next.js examples](https://github.com/vercel/next.js/tree/canary/examples). To get started, use the following command:
+        <!-- Main content -->
+        <main class="w-4/5 p-6">
+            <!-- Customers Section -->
+            <section id="customers" class="mb-8">
+                <h2 class="text-2xl font-bold mb-4">Customer Measurements</h2>
+                <table class="w-full bg-white shadow-md rounded-md">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th class="p-3 text-left">Name</th>
+                            <th class="p-3 text-left">Height</th>
+                            <th class="p-3 text-left">Waist</th>
+                            <th class="p-3 text-left">Bust</th>
+                            <th class="p-3 text-left">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="customerList">
+                        <!-- Dynamic Customer Rows -->
+                    </tbody>
+                </table>
+            </section>
 
-### Interactive
+            <!-- Due Dates Section -->
+            <section id="dueDates" class="mb-8">
+                <h2 class="text-2xl font-bold mb-4">Due Dates</h2>
+                <ul id="dueDatesList" class="bg-white p-4 shadow-md rounded-md">
+                    <!-- Dynamic Due Dates -->
+                </ul>
+            </section>
 
-You can create a new project interactively by running:
+            <!-- Sewing Materials Animation -->
+            <section id="sewingMaterials">
+                <h2 class="text-2xl font-bold mb-4">Sewing Materials</h2>
+                <div class="flex space-x-8">
+                    <img src="https://source.unsplash.com/random/100x100?scissors" alt="Scissors" class="material-animation w-24 h-24">
+                    <img src="https://source.unsplash.com/random/100x100?thread" alt="Thread" class="material-animation w-24 h-24">
+                    <img src="https://source.unsplash.com/random/100x100?fabric" alt="Fabric" class="material-animation w-24 h-24">
+                </div>
+            </section>
+        </main>
+    </div>
 
-```bash
-npx create-next-app@latest
-# or
-yarn create next-app
-# or
-pnpm create next-app
-# or
-bunx create-next-app
-```
+    <script src="script.js"></script>
+</body>
+</html>
+<index>
+document.addEventListener("DOMContentLoaded", () => {
+    const customers = [
+        { name: 'John Doe', height: '6ft', waist: '32in', bust: '40in' },
+        { name: 'Jane Smith', height: '5.6ft', waist: '28in', bust: '36in' }
+    ];
 
-You will be asked for the name of your project, and then whether you want to
-create a TypeScript project:
+    const dueDates = [
+        { customer: 'John Doe', due: '2024-10-12' },
+        { customer: 'Jane Smith', due: '2024-10-20' }
+    ];
 
-```bash
-✔ Would you like to use TypeScript? … No / Yes
-```
+    // Populate Customer Measurements
+    const customerList = document.getElementById('customerList');
+    customers.forEach(customer => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="p-3">${customer.name}</td>
+            <td class="p-3">${customer.height}</td>
+            <td class="p-3">${customer.waist}</td>
+            <td class="p-3">${customer.bust}</td>
+            <td class="p-3">
+                <button class="bg-blue-500 text-white px-3 py-1 rounded-md">Edit</button>
+                <button class="bg-red-500 text-white px-3 py-1 rounded-md">Delete</button>
+            </td>
+        `;
+        customerList.appendChild(row);
+    });
 
-Select **Yes** to install the necessary types/dependencies and create a new TS project.
-
-### Non-interactive
-
-You can also pass command line arguments to set up a new project
-non-interactively. See `create-next-app --help`:
-
-```bash
-Usage: create-next-app [project-directory] [options]
-
-Options:
-  -V, --version                        output the version number
-  --ts, --typescript
-
-    Initialize as a TypeScript project. (default)
-
-  --js, --javascript
-
-    Initialize as a JavaScript project.
-
-  --tailwind
-
-    Initialize with Tailwind CSS config. (default)
-
-  --eslint
-
-    Initialize with ESLint config.
-
-  --app
-
-    Initialize as an App Router project.
-
-  --src-dir
-
-    Initialize inside a `src/` directory.
-
-  --turbo
-
-    Enable Turbopack by default for development.
-
-  --import-alias <alias-to-configure>
-
-    Specify import alias to use (default "@/*").
-
-  --empty
-
-    Initialize an empty project.
-
-  --use-npm
-
-    Explicitly tell the CLI to bootstrap the application using npm
-
-  --use-pnpm
-
-    Explicitly tell the CLI to bootstrap the application using pnpm
-
-  --use-yarn
-
-    Explicitly tell the CLI to bootstrap the application using Yarn
-
-  --use-bun
-
-    Explicitly tell the CLI to bootstrap the application using Bun
-
-  -e, --example [name]|[github-url]
-
-    An example to bootstrap the app with. You can use an example name
-    from the official Next.js repo or a GitHub URL. The URL can use
-    any branch and/or subdirectory
-
-  --example-path <path-to-example>
-
-    In a rare case, your GitHub URL might contain a branch name with
-    a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
-    In this case, you must specify the path to the example separately:
-    --example-path foo/bar
-
-  --reset-preferences
-
-    Explicitly tell the CLI to reset any stored preferences
-
-  --skip-install
-
-    Explicitly tell the CLI to skip installing packages
-
-  --disable-git
-
-    Explicitly tell the CLI to skip initializing a git repository.
-
-  --yes
-
-    Use previous preferences or defaults for all options that were not
-    explicitly specified, without prompting.
-
-  -h, --help                           display help for command
-```
-
-### Why use Create Next App?
-
-`create-next-app` allows you to create a new Next.js app within seconds. It is officially maintained by the creators of Next.js, and includes a number of benefits:
-
-- **Interactive Experience**: Running `npx create-next-app@latest` (with no arguments) launches an interactive experience that guides you through setting up a project.
-- **Zero Dependencies**: Initializing a project is as quick as one second. Create Next App has zero dependencies.
-- **Offline Support**: Create Next App will automatically detect if you're offline and bootstrap your project using your local package cache.
-- **Support for Examples**: Create Next App can bootstrap your application using an example from the Next.js examples collection (e.g. `npx create-next-app --example api-routes`).
-- **Tested**: The package is part of the Next.js monorepo and tested using the same integration test suite as Next.js itself, ensuring it works as expected with every release.
+    // Populate Due Dates
+    const dueDatesList = document.getElementById('dueDatesList');
+    dueDates.forEach(due => {
+        const li = document.createElement('li');
+        li.className = 'mb-2';
+        li.innerHTML = `<strong>${due.customer}</strong> - Due on: ${due.due}`;
+        dueDatesList.appendChild(li);
+    });
+});
