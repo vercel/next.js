@@ -2,18 +2,14 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, FileContent},
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            ident::AssetIdent,
-            source::Source,
-        },
-        ecmascript::utils::StringifyJs,
-        image::process::{get_meta_data, BlurPlaceholderOptions},
-    },
+use turbo_tasks_fs::{rope::RopeBuilder, FileContent};
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    ident::AssetIdent,
+    source::Source,
 };
+use turbopack_ecmascript::utils::StringifyJs;
+use turbopack_image::process::{get_meta_data, BlurPlaceholderOptions};
 
 use super::module::BlurPlaceholderMode;
 

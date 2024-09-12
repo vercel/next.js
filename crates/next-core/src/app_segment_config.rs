@@ -3,29 +3,25 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use swc_core::{
+    common::{source_map::SmallPos, Span, Spanned, GLOBALS},
+    ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
+};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::{
-    swc::core::{
-        common::{source_map::Pos, Span, Spanned, GLOBALS},
-        ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
+use turbopack_core::{
+    file_source::FileSource,
+    ident::AssetIdent,
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
     },
-    turbopack::{
-        core::{
-            file_source::FileSource,
-            ident::AssetIdent,
-            issue::{
-                Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-                OptionStyledString, StyledString,
-            },
-            source::Source,
-        },
-        ecmascript::{
-            analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-            parse::{parse, ParseResult},
-            EcmascriptInputTransforms, EcmascriptModuleAssetType,
-        },
-    },
+    source::Source,
+};
+use turbopack_ecmascript::{
+    analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
+    parse::{parse, ParseResult},
+    EcmascriptInputTransforms, EcmascriptModuleAssetType,
 };
 
 use crate::{app_structure::LoaderTree, util::NextRuntime};
@@ -73,7 +69,7 @@ pub struct NextSegmentConfig {
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
     pub experimental_ppr: Option<bool>,
-    /// Wether these metadata exports are defined in the source file.
+    /// Whether these metadata exports are defined in the source file.
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
 }
@@ -109,7 +105,7 @@ impl NextSegmentConfig {
         *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
-    /// Applies a config from a paralllel route to this config, returning an
+    /// Applies a config from a parallel route to this config, returning an
     /// error if there are conflicting values.
     pub fn apply_parallel_config(&mut self, parallel_config: &Self) -> Result<()> {
         fn merge_parallel<T: PartialEq + Clone>(
@@ -200,7 +196,7 @@ impl Issue for NextSegmentConfigParsingIssue {
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
             StyledString::Text(
-                "The exported configuration object in a source file need to have a very specific \
+                "The exported configuration object in a source file needs to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
                     .into(),
             )
@@ -315,7 +311,7 @@ pub async fn parse_segment_config_from_source(
 }
 
 fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
-    IssueSource::from_byte_offset(source, span.lo.to_usize(), span.hi.to_usize())
+    IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
 fn parse_config_value(
@@ -474,20 +470,32 @@ fn parse_config_value(
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<LoaderTree>,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let loader_tree = loader_tree.await?;
-    let components = loader_tree.components.await?;
+    let loader_tree = &*loader_tree.await?;
+
+    Ok(parse_segment_config_from_loader_tree_internal(loader_tree)
+        .await?
+        .cell())
+}
+
+pub async fn parse_segment_config_from_loader_tree_internal(
+    loader_tree: &LoaderTree,
+) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
+
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
-        .copied()
-        .map(parse_segment_config_from_loader_tree)
+        .map(|loader_tree| async move {
+            Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)).await
+        })
         .try_join()
         .await?;
+
     for tree in parallel_configs {
         config.apply_parallel_config(&tree)?;
     }
 
+    let components = &loader_tree.components;
     for component in [components.page, components.default, components.layout]
         .into_iter()
         .flatten()
@@ -496,5 +504,5 @@ pub async fn parse_segment_config_from_loader_tree(
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 
-    Ok(config.cell())
+    Ok(config)
 }

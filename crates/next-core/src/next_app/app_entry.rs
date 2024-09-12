@@ -1,5 +1,5 @@
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbopack::core::module::Module;
+use turbopack_core::module::Module;
 
 use crate::app_segment_config::NextSegmentConfig;
 

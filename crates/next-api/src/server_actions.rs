@@ -6,33 +6,27 @@ use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::NextRuntime,
 };
+use swc_core::{common::comments::Comments, ecma::ast::Program};
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
     RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
-use turbopack_binding::{
-    swc::core::{common::comments::Comments, ecma::ast::Program},
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
-            context::AssetContext,
-            module::Module,
-            output::OutputAsset,
-            reference::primary_referenced_modules,
-            reference_type::{
-                EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
-            },
-            virtual_output::VirtualOutputAsset,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::{
-            chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAsset,
-            EcmascriptModuleAssetType,
-        },
-    },
+use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    context::AssetContext,
+    file_source::FileSource,
+    module::Module,
+    output::OutputAsset,
+    reference::primary_referenced_modules,
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    virtual_output::VirtualOutputAsset,
+    virtual_source::VirtualSource,
+};
+use turbopack_ecmascript::{
+    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptParsable,
 };
 
 /// Scans the RSC entry point's full module graph looking for exported Server
@@ -162,11 +156,6 @@ async fn build_manifest(
     )))
 }
 
-#[turbo_tasks::function]
-fn action_modifier() -> Vc<RcStr> {
-    Vc::cell("action".into())
-}
-
 /// Traverses the entire module graph starting from [Module], looking for magic
 /// comment which identifies server actions. Every found server action will be
 /// returned along with the module which exports that action.
@@ -234,23 +223,14 @@ async fn to_rsc_context(
     module: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    let source = VirtualSource::new_with_ident(
-        module.ident().with_modifier(action_modifier()),
-        module.content(),
-    );
-    let ty = if let Some(module) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
-    {
-        if module.await?.ty == EcmascriptModuleAssetType::Ecmascript {
-            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
-        } else {
-            ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
-        }
-    } else {
-        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
-    };
+    let source = FileSource::new_with_query(module.ident().path(), module.ident().query());
     let module = asset_context
-        .process(Vc::upcast(source), Value::new(ty))
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::EcmaScriptModules(
+                EcmaScriptModulesReferenceSubType::Undefined,
+            )),
+        )
         .module();
     Ok(module)
 }
@@ -294,14 +274,17 @@ pub fn parse_server_actions<C: Comments>(
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
 async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
-    let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
-    else {
+    let parsed = if let Some(ecmascript_asset) =
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+    {
+        ecmascript_asset.parse_original()
+    } else {
         return Ok(OptionActionMap::none());
     };
+
     let ParseResult::Ok {
         comments, program, ..
-    } = &*ecmascript_asset.failsafe_parse().await?
+    } = &*parsed.await?
     else {
         // The file might be be parse-able, but this is reported separately.
         return Ok(OptionActionMap::none());

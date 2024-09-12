@@ -1,20 +1,19 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Result};
+use indexmap::IndexSet;
 use next_core::emit_assets;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, State, TryFlatJoinIterExt,
     TryJoinIterExt, ValueDefault, ValueToString, Vc,
 };
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::core::{
-        asset::Asset,
-        output::{OutputAsset, OutputAssets},
-        source_map::{GenerateSourceMap, OptionSourceMap},
-        version::VersionedContent,
-    },
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::{
+    asset::Asset,
+    output::{OutputAsset, OutputAssets},
+    source_map::{GenerateSourceMap, OptionSourceMap},
+    version::VersionedContent,
 };
 
 /// An unresolved output assets operation. We need to pass an operation here as
@@ -33,11 +32,12 @@ struct MapEntry {
 #[turbo_tasks::value(transparent)]
 struct OptionMapEntry(Option<MapEntry>);
 
-type PathToOutputOperation = HashMap<Vc<FileSystemPath>, Vc<OutputAssets>>;
+type PathToOutputOperation = HashMap<Vc<FileSystemPath>, IndexSet<Vc<OutputAssets>>>;
 type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, Vc<OptionMapEntry>>;
 
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
+    // TODO: turn into a bi-directional multimap, OutputAssets -> IndexSet<FileSystemPath>
     map_path_to_op: State<PathToOutputOperation>,
     map_op_to_compute_entry: State<OutputOperationToComputeEntry>,
 }
@@ -62,6 +62,8 @@ impl VersionedContentMap {
 
 #[turbo_tasks::value_impl]
 impl VersionedContentMap {
+    /// Inserts output assets into the map and returns a completion that when
+    /// awaited will emit the assets that were inserted.
     #[turbo_tasks::function]
     pub async fn insert_output_assets(
         self: Vc<Self>,
@@ -95,28 +97,52 @@ impl VersionedContentMap {
         client_output_path: Vc<FileSystemPath>,
     ) -> Result<Vc<OptionMapEntry>> {
         let assets = *assets_operation.await?;
-        let entries: Vec<_> = assets
-            .await?
-            .iter()
-            .map(|&asset| async move { Ok((asset.ident().path().resolve().await?, asset, assets)) })
-            .try_join()
-            .await?;
+        async fn get_entries(
+            assets: Vc<OutputAssets>,
+        ) -> Result<Vec<(Vc<FileSystemPath>, Vc<Box<dyn OutputAsset>>)>> {
+            let assets_ref = assets.await?;
+            let entries = assets_ref
+                .iter()
+                .map(|&asset| async move {
+                    let path = asset.ident().path().resolve().await?;
+                    Ok((path, asset))
+                })
+                .try_join()
+                .await?;
+            Ok(entries)
+        }
+        let entries = get_entries(assets).await.unwrap_or_default();
 
         self.await?.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
-            for &(k, _, v) in entries.iter() {
-                if map.insert(k, v) != Some(v) {
-                    changed = true;
-                }
+
+            // get current map's keys, subtract keys that don't exist in operation
+            let mut stale_assets = map.keys().copied().collect::<HashSet<_>>();
+
+            for (k, _) in entries.iter() {
+                let res = map.entry(*k).or_default().insert(assets);
+                stale_assets.remove(k);
+                changed = changed || res;
+            }
+
+            // Make more efficient with reverse map
+            for k in &stale_assets {
+                let res = map
+                    .get_mut(k)
+                    // guaranteed
+                    .unwrap()
+                    .remove(&assets);
+                changed = changed || res
             }
             changed
         });
+
         // Make sure all written client assets are up-to-date
         let side_effects = emit_assets(assets, node_root, client_relative_path, client_output_path);
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation: assets,
             side_effects,
-            path_to_asset: entries.into_iter().map(|(k, v, _)| (k, v)).collect(),
+            path_to_asset: entries.into_iter().collect(),
         }));
         Ok(map_entry)
     }
@@ -193,7 +219,7 @@ impl VersionedContentMap {
     async fn raw_get(&self, path: Vc<FileSystemPath>) -> Result<Vc<OptionMapEntry>> {
         let assets = {
             let map = self.map_path_to_op.get();
-            map.get(&path).copied()
+            map.get(&path).and_then(|m| m.iter().last().copied())
         };
         let Some(assets) = assets else {
             return Ok(Vc::cell(None));

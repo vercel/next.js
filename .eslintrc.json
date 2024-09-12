@@ -12,7 +12,8 @@
     "commonjs": true,
     "es6": true,
     "node": true,
-    "jest": true
+    "jest": true,
+    "es2020": true
   },
   "parserOptions": {
     "requireConfigFile": false,
@@ -101,7 +102,11 @@
           "error",
           {
             "args": "none",
-            "ignoreRestSiblings": true
+            "ignoreRestSiblings": true,
+            "argsIgnorePattern": "^_",
+            "caughtErrorsIgnorePattern": "^_",
+            "destructuredArrayIgnorePattern": "^_",
+            "varsIgnorePattern": "^_"
           }
         ],
         "no-use-before-define": "off",

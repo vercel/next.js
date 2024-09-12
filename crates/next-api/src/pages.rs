@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
+    hmr_entry::HmrEntryModule,
     mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -28,39 +29,34 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{trace::TraceRawVcs, Completion, RcStr, TaskInput, TryJoinIterExt, Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{
-        File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
-    },
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EntryChunkGroupResult, EvaluatableAssets,
-            },
-            context::AssetContext,
-            file_source::FileSource,
-            issue::IssueSeverity,
-            module::Module,
-            output::{OutputAsset, OutputAssets},
-            reference_type::{
-                EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType,
-            },
-            resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
-            source::Source,
-            virtual_output::VirtualOutputAsset,
-        },
-        ecmascript::{resolve::esm_resolve, EcmascriptModuleAsset},
-        nodejs::NodeJsChunkingContext,
-        turbopack::{
-            module_options::ModuleOptionsContext,
-            resolve_options_context::ResolveOptionsContext,
-            transition::{ContextTransition, TransitionsByName},
-            ModuleAssetContext,
-        },
-    },
+use turbo_tasks_fs::{
+    self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
+use turbopack::{
+    module_options::ModuleOptionsContext,
+    resolve_options_context::ResolveOptionsContext,
+    transition::{ContextTransition, TransitionOptions},
+    ModuleAssetContext,
+};
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+    },
+    context::AssetContext,
+    file_source::FileSource,
+    ident::AssetIdent,
+    issue::IssueSeverity,
+    module::{Module, Modules},
+    output::{OutputAsset, OutputAssets},
+    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
+    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    source::Source,
+    virtual_output::VirtualOutputAsset,
+};
+use turbopack_ecmascript::resolve::esm_resolve;
+use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     dynamic_imports::{
@@ -70,8 +66,8 @@ use crate::{
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
-        wasm_paths_to_bindings,
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
@@ -257,9 +253,9 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    fn transitions(self: Vc<Self>) -> Vc<TransitionsByName> {
-        Vc::cell(
-            [(
+    fn transitions(self: Vc<Self>) -> Vc<TransitionOptions> {
+        TransitionOptions {
+            named_transitions: [(
                 "next-dynamic".into(),
                 Vc::upcast(NextDynamicTransition::new(Vc::upcast(
                     self.client_transition(),
@@ -267,7 +263,9 @@ impl PagesProject {
             )]
             .into_iter()
             .collect(),
-        )
+            ..Default::default()
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -561,6 +559,33 @@ impl PagesProject {
         let ssr_data_runtime_entries = self.data_runtime_entries();
         ssr_data_runtime_entries.resolve_entries(Vc::upcast(self.edge_ssr_module_context()))
     }
+
+    #[turbo_tasks::function]
+    pub async fn client_main_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let client_module_context = self.client_module_context();
+
+        let client_main_module = esm_resolve(
+            Vc::upcast(PlainResolveOrigin::new(
+                client_module_context,
+                self.project().project_path().join("_".into()),
+            )),
+            Request::parse(Value::new(Pattern::Constant(
+                match *self.project().next_mode().await? {
+                    NextMode::Development => "next/dist/client/next-dev-turbopack.js",
+                    NextMode::Build => "next/dist/client/next-turbopack.js",
+                }
+                .into(),
+            ))),
+            Value::new(EcmaScriptModulesReferenceSubType::Undefined),
+            IssueSeverity::Error.cell(),
+            None,
+        )
+        .first_module()
+        .await?
+        .context("expected Next.js client runtime to resolve to a module")?;
+
+        Ok(client_main_module)
+    }
 }
 
 #[turbo_tasks::value]
@@ -621,57 +646,55 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
+    async fn client_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        let this = self.await?;
+        let page_loader = create_page_loader_entry_module(
+            this.pages_project.client_module_context(),
+            self.source(),
+            this.pathname,
+        );
+        if matches!(
+            *this.pages_project.project().next_mode().await?,
+            NextMode::Development
+        ) {
+            if let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await? {
+                return Ok(Vc::upcast(HmrEntryModule::new(
+                    AssetIdent::from_path(this.page.await?.base_path),
+                    chunkable,
+                )));
+            }
+        }
+        Ok(page_loader)
+    }
+
+    #[turbo_tasks::function]
     async fn client_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         async move {
             let this = self.await?;
 
-            let client_module_context = this.pages_project.client_module_context();
-            let client_module = create_page_loader_entry_module(
-                client_module_context,
-                self.source(),
-                this.pathname,
-            );
+            let client_module = self.client_module();
+            let client_main_module = this.pages_project.client_main_module();
 
             let Some(client_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
             else {
-                bail!("expected an ECMAScript module asset");
+                bail!("expected an evaluateable asset");
             };
 
-            let client_main_module = esm_resolve(
-                Vc::upcast(PlainResolveOrigin::new(
-                    client_module_context,
-                    this.pages_project.project().project_path().join("_".into()),
-                )),
-                Request::parse(Value::new(Pattern::Constant(
-                    match *this.pages_project.project().next_mode().await? {
-                        NextMode::Development => "next/dist/client/next-dev-turbopack.js",
-                        NextMode::Build => "next/dist/client/next-turbopack.js",
-                    }
-                    .into(),
-                ))),
-                Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-                IssueSeverity::Error.cell(),
-                None,
-            )
-            .first_module()
-            .await?
-            .context("expected Next.js client runtime to resolve to a module")?;
-
             let Some(client_main_module) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_main_module).await?
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
             else {
-                bail!("expected an ECMAScript module asset");
+                bail!("expected an evaluateable asset");
             };
 
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
             let client_chunks = client_chunking_context.evaluated_chunk_group_assets(
-                client_module.ident(),
+                AssetIdent::from_path(this.page.await?.base_path),
                 this.pages_project
                     .client_runtime_entries()
-                    .with_entry(Vc::upcast(client_main_module))
-                    .with_entry(Vc::upcast(client_module)),
+                    .with_entry(client_main_module)
+                    .with_entry(client_module),
                 Value::new(AvailabilityInfo::Root),
             );
 
@@ -700,14 +723,83 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
+    async fn internal_ssr_chunk_module(self: Vc<Self>) -> Result<Vc<InternalSsrChunkModule>> {
+        let this = self.await?;
+
+        let (reference_type, project_root, module_context, edge_module_context) = match this.ty {
+            PageEndpointType::Html | PageEndpointType::SsrOnly => (
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                this.pages_project.project().project_path(),
+                this.pages_project.ssr_module_context(),
+                this.pages_project.edge_ssr_module_context(),
+            ),
+            PageEndpointType::Data => (
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                this.pages_project.project().project_path(),
+                this.pages_project.ssr_data_module_context(),
+                this.pages_project.edge_ssr_data_module_context(),
+            ),
+            PageEndpointType::Api => (
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
+                this.pages_project.project().project_path(),
+                this.pages_project.api_module_context(),
+                this.pages_project.edge_api_module_context(),
+            ),
+        };
+
+        let ssr_module = module_context
+            .process(self.source(), reference_type.clone())
+            .module();
+
+        let config = parse_config_from_source(ssr_module).await?;
+        let is_edge = matches!(config.runtime, NextRuntime::Edge);
+
+        let ssr_module = if is_edge {
+            create_page_ssr_entry_module(
+                this.pathname,
+                reference_type,
+                project_root,
+                Vc::upcast(edge_module_context),
+                self.source(),
+                this.original_name,
+                this.pages_structure,
+                config.runtime,
+                this.pages_project.project().next_config(),
+            )
+        } else {
+            let pathname = &**this.pathname.await?;
+
+            // `/_app` and `/_document` never get rendered directly so they don't need to be
+            // wrapped in the route module.
+            if pathname == "/_app" || pathname == "/_document" {
+                ssr_module
+            } else {
+                create_page_ssr_entry_module(
+                    this.pathname,
+                    reference_type,
+                    project_root,
+                    Vc::upcast(module_context),
+                    self.source(),
+                    this.original_name,
+                    this.pages_structure,
+                    config.runtime,
+                    this.pages_project.project().next_config(),
+                )
+            }
+        };
+
+        Ok(InternalSsrChunkModule {
+            ssr_module,
+            runtime: config.runtime,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
     async fn internal_ssr_chunk(
         self: Vc<Self>,
         ty: SsrChunkType,
-        reference_type: Value<ReferenceType>,
         node_path: Vc<FileSystemPath>,
-        project_root: Vc<FileSystemPath>,
-        module_context: Vc<ModuleAssetContext>,
-        edge_module_context: Vc<ModuleAssetContext>,
         chunking_context: Vc<NodeJsChunkingContext>,
         edge_chunking_context: Vc<Box<dyn ChunkingContext>>,
         runtime_entries: Vc<EvaluatableAssets>,
@@ -716,26 +808,14 @@ impl PageEndpoint {
         async move {
             let this = self.await?;
 
-            let ssr_module = module_context
-                .process(self.source(), reference_type.clone())
-                .module();
+            let InternalSsrChunkModule {
+                ssr_module,
+                runtime,
+            } = *self.internal_ssr_chunk_module().await?;
 
-            let config = parse_config_from_source(ssr_module).await?;
-            let is_edge = matches!(config.runtime, NextRuntime::Edge);
+            let is_edge = matches!(runtime, NextRuntime::Edge);
 
             if is_edge {
-                let ssr_module = create_page_ssr_entry_module(
-                    this.pathname,
-                    reference_type,
-                    project_root,
-                    Vc::upcast(edge_module_context),
-                    self.source(),
-                    this.original_name,
-                    this.pages_structure,
-                    config.runtime,
-                    this.pages_project.project().next_config(),
-                );
-
                 let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
                 let evaluatable = Vc::try_resolve_sidecast(ssr_module)
                     .await?
@@ -768,24 +848,6 @@ impl PageEndpoint {
                 .cell())
             } else {
                 let pathname = &**this.pathname.await?;
-
-                // `/_app` and `/_document` never get rendered directly so they don't need to be
-                // wrapped in the route module.
-                let ssr_module = if pathname == "/_app" || pathname == "/_document" {
-                    ssr_module
-                } else {
-                    create_page_ssr_entry_module(
-                        this.pathname,
-                        reference_type,
-                        project_root,
-                        Vc::upcast(module_context),
-                        self.source(),
-                        this.original_name,
-                        this.pages_structure,
-                        config.runtime,
-                        this.pages_project.project().next_config(),
-                    )
-                };
 
                 let asset_path = get_asset_path_from_pathname(pathname, ".js");
 
@@ -838,14 +900,10 @@ impl PageEndpoint {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
             SsrChunkType::Page,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
             this.pages_project
                 .project()
                 .node_root()
                 .join("server".into()),
-            this.pages_project.project().project_path(),
-            this.pages_project.ssr_module_context(),
-            this.pages_project.edge_ssr_module_context(),
             this.pages_project.project().server_chunking_context(true),
             this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_runtime_entries(),
@@ -858,14 +916,10 @@ impl PageEndpoint {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
             SsrChunkType::Data,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
             this.pages_project
                 .project()
                 .node_root()
                 .join("server/data".into()),
-            this.pages_project.project().project_path(),
-            this.pages_project.ssr_data_module_context(),
-            this.pages_project.edge_ssr_data_module_context(),
             this.pages_project.project().server_chunking_context(true),
             this.pages_project.project().edge_chunking_context(true),
             this.pages_project.ssr_data_runtime_entries(),
@@ -878,14 +932,10 @@ impl PageEndpoint {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
             SsrChunkType::Api,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
             this.pages_project
                 .project()
                 .node_root()
                 .join("server".into()),
-            this.pages_project.project().project_path(),
-            this.pages_project.api_module_context(),
-            this.pages_project.edge_api_module_context(),
             this.pages_project.project().server_chunking_context(false),
             this.pages_project.project().edge_chunking_context(false),
             this.pages_project.ssr_runtime_entries(),
@@ -1076,6 +1126,10 @@ impl PageEndpoint {
                 wasm_paths_from_root
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
+                let all_assets =
+                    get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true)
+                        .await?;
+
                 let named_regex = get_named_middleware_regex(&pathname).into();
                 let matchers = MiddlewareMatcher {
                     regexp: Some(named_regex),
@@ -1086,12 +1140,12 @@ impl PageEndpoint {
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: file_paths_from_root,
                     wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                    assets: paths_to_bindings(all_assets),
                     name: pathname.clone_value(),
                     page: original_name.clone_value(),
                     regions: None,
                     matchers: vec![matchers],
                     env: this.pages_project.project().edge_env().await?.clone_value(),
-                    ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
                     sorted_middleware: vec![pathname.clone_value()],
@@ -1133,6 +1187,18 @@ impl PageEndpoint {
     fn client_relative_path(&self) -> Vc<FileSystemPathOption> {
         Vc::cell(Some(self.pages_project.project().client_relative_path()))
     }
+}
+
+#[turbo_tasks::value]
+pub struct InternalSsrChunkModule {
+    pub ssr_module: Vc<Box<dyn Module>>,
+    pub runtime: NextRuntime,
+}
+
+#[turbo_tasks::value]
+pub struct ClientChunksModules {
+    pub client_module: Vc<Box<dyn Module>>,
+    pub client_main_module: Vc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -1217,6 +1283,21 @@ impl Endpoint for PageEndpoint {
             .pages_project
             .project()
             .client_changed(self.output().client_assets()))
+    }
+
+    #[turbo_tasks::function]
+    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let this = self.await?;
+        let mut modules = vec![];
+
+        let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
+        modules.push(ssr_chunk_module.ssr_module);
+
+        if let PageEndpointType::Html = this.ty {
+            modules.push(self.client_module());
+        }
+
+        Ok(Vc::cell(modules))
     }
 }
 

@@ -79,6 +79,7 @@ import type { HMR_ACTION_TYPES } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
+import { getNodeDebugType } from '../lib/utils'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 const isTestMode = !!(
@@ -249,10 +250,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private pagesMapping: { [key: string]: string } = {}
   private appDir?: string
   private telemetry: Telemetry
+  private resetFetch: () => void
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
   }
+  private devtoolsFrontendUrl: string | undefined
   private reloadAfterInvalidation: boolean = false
 
   public serverStats: webpack.Stats | null
@@ -274,6 +277,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       rewrites,
       appDir,
       telemetry,
+      resetFetch,
     }: {
       config: NextConfigComplete
       pagesDir?: string
@@ -284,6 +288,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       rewrites: CustomRoutes['rewrites']
       appDir?: string
       telemetry: Telemetry
+      resetFetch: () => void
     }
   ) {
     this.hasAmpEntrypoints = false
@@ -301,6 +306,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.edgeServerStats = null
     this.serverPrevDocumentHash = null
     this.telemetry = telemetry
+    this.resetFetch = resetFetch
 
     this.config = config
     this.previewProps = previewProps
@@ -746,6 +752,23 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       startSpan,
       isTestMode || this.telemetry.isEnabled
     )
+
+    const nodeDebugType = getNodeDebugType()
+    if (nodeDebugType && !this.devtoolsFrontendUrl) {
+      const debugPort = process.debugPort
+      let debugInfo
+      try {
+        // It requires to use 127.0.0.1 instead of localhost for server-side fetching.
+        const debugInfoList = await fetch(
+          `http://127.0.0.1:${debugPort}/json/list`
+        ).then((res) => res.json())
+        // There will be only one item for current process, so always get the first item.
+        debugInfo = debugInfoList[0]
+      } catch {}
+      if (debugInfo) {
+        this.devtoolsFrontendUrl = debugInfo.devtoolsFrontendUrl
+      }
+    }
 
     await this.clean(startSpan)
     // Ensure distDir exists before writing package.json
@@ -1365,6 +1388,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         changedCSSImportPages.size ||
         reloadAfterInvalidation
       ) {
+        this.resetFetch()
         this.refreshServerComponents()
       }
 
@@ -1428,7 +1452,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
       this.multiCompiler.compilers,
-      this.versionInfo
+      this.versionInfo,
+      this.devtoolsFrontendUrl
     )
 
     let booted = false

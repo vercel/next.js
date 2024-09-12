@@ -1,0 +1,3 @@
+|_name, _initial | {
+  turbo_tasks::TurboTasks::new(turbo_tasks_memory::MemoryBackend::new(usize::MAX))
+}

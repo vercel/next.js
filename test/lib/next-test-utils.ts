@@ -158,6 +158,15 @@ export function withQuery(
   return `${pathname}?${querystring}`
 }
 
+export function getFetchUrl(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string | null | undefined
+) {
+  const url = query ? withQuery(pathname, query) : pathname
+  return getFullUrl(appPort, url)
+}
+
 export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
@@ -866,7 +875,7 @@ export async function assertNoRedbox(browser: BrowserInterface) {
         `description: ${redboxDescription}\n` +
         `source: ${redboxSource}`
     )
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, assertNoRedbox)
     throw error
   }
 }
@@ -994,12 +1003,29 @@ export function getBuildManifest(dir: string) {
   return readJson(path.join(dir, '.next/build-manifest.json'))
 }
 
-export function getPageFileFromBuildManifest(dir: string, page: string) {
+export function getPageFilesFromBuildManifest(dir: string, page: string) {
   const buildManifest = getBuildManifest(dir)
   const pageFiles = buildManifest.pages[page]
   if (!pageFiles) {
     throw new Error(`No files for page ${page}`)
   }
+
+  return pageFiles
+}
+
+export function getContentOfPageFilesFromBuildManifest(
+  dir: string,
+  page: string
+): string {
+  const pageFiles = getPageFilesFromBuildManifest(dir, page)
+
+  return pageFiles
+    .map((file) => readFileSync(path.join(dir, '.next', file), 'utf8'))
+    .join('\n')
+}
+
+export function getPageFileFromBuildManifest(dir: string, page: string) {
+  const pageFiles = getPageFilesFromBuildManifest(dir, page)
 
   const pageFile = pageFiles[pageFiles.length - 1]
   expect(pageFile).toEndWith('.js')

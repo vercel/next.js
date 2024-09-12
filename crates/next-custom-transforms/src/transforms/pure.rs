@@ -1,4 +1,4 @@
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{comments::Comments, errors::HANDLER, util::take::Take, Span, Spanned, DUMMY_SP},
     ecma::{
         ast::{CallExpr, Callee, EmptyStmt, Expr, Module, ModuleDecl, ModuleItem, Stmt},

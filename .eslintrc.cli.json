@@ -7,7 +7,12 @@
       "files": ["**/*.ts", "**/*.tsx"],
       // Linting with type-checked rules is very slow and needs a lot of memory,
       // so we exclude non-essential files.
-      "excludedFiles": ["examples/**/*", "test/**/*", "**/*.d.ts"],
+      "excludedFiles": [
+        "examples/**/*",
+        "test/**/*",
+        "**/*.d.ts",
+        "turbopack/**/*"
+      ],
       "parserOptions": {
         "project": true
       },

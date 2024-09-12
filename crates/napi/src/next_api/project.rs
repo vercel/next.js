@@ -23,27 +23,21 @@ use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
-use turbopack_binding::{
-    turbo::{
-        tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath},
-        tasks_memory::MemoryBackend,
-    },
-    turbopack::{
-        core::{
-            diagnostics::PlainDiagnostic,
-            error::PrettyPrintError,
-            issue::PlainIssue,
-            source_map::Token,
-            version::{PartialUpdate, TotalUpdate, Update, VersionState},
-            SOURCE_MAP_PREFIX,
-        },
-        ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
-        trace_utils::{
-            exit::{ExitHandler, ExitReceiver},
-            raw_trace::RawTraceLayer,
-            trace_writer::TraceWriter,
-        },
-    },
+use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
+use turbo_tasks_memory::MemoryBackend;
+use turbopack_core::{
+    diagnostics::PlainDiagnostic,
+    error::PrettyPrintError,
+    issue::PlainIssue,
+    source_map::Token,
+    version::{PartialUpdate, TotalUpdate, Update, VersionState},
+    SOURCE_MAP_PREFIX,
+};
+use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
+use turbopack_trace_utils::{
+    exit::{ExitHandler, ExitReceiver},
+    raw_trace::RawTraceLayer,
+    trace_writer::TraceWriter,
 };
 use url::Url;
 
@@ -54,7 +48,7 @@ use super::{
         TurbopackResult, VcArc,
     },
 };
-use crate::register;
+use crate::{register, util::log_panic_and_inform};
 
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
@@ -124,6 +118,9 @@ pub struct NapiProjectOptions {
 
     /// Options for draft mode.
     pub preview_props: NapiDraftModeOptions,
+
+    /// The browserslist query to use for targeting browsers.
+    pub browserslist_query: String,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -167,6 +164,9 @@ pub struct NapiPartialProjectOptions {
 
     /// Options for draft mode.
     pub preview_props: Option<NapiDraftModeOptions>,
+
+    /// The browserslist query to use for targeting browsers.
+    pub browserslist_query: Option<String>,
 }
 
 #[napi(object)]
@@ -201,6 +201,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             encryption_key: val.encryption_key.into(),
             build_id: val.build_id.into(),
             preview_props: val.preview_props.into(),
+            browserslist_query: val.browserslist_query.into(),
         }
     }
 }
@@ -295,7 +296,7 @@ pub async fn project_new(
         std::fs::create_dir_all(&internal_dir)
             .context("Unable to create .next directory")
             .unwrap();
-        let trace_file = internal_dir.join("trace.log");
+        let trace_file = internal_dir.join("trace-turbopack");
         let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
         let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
@@ -307,9 +308,7 @@ pub async fn project_new(
         let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
         if trace_server.is_some() {
             thread::spawn(move || {
-                turbopack_binding::turbopack::trace_server::start_turbopack_trace_server(
-                    trace_file,
-                );
+                turbopack_trace_server::start_turbopack_trace_server(trace_file);
             });
             println!("Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/");
         }
@@ -339,11 +338,12 @@ pub async fn project_new(
             .unwrap();
         });
     }
-    let options = options.into();
+    let options: ProjectOptions = options.into();
     let container = turbo_tasks
         .run_once(async move {
-            let project = ProjectContainer::new(options);
+            let project = ProjectContainer::new("next.js".into(), options.dev);
             let project = project.resolve().await?;
+            project.initialize(options).await?;
             Ok(project)
         })
         .await
@@ -373,9 +373,6 @@ pub async fn project_new(
 /// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
 #[tracing::instrument]
 async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
-    let temp_path =
-        directory.join(format!("tmp_file_io_benchmark_{:x}", rand::random::<u128>()).into());
-
     // try to get the real file path on disk so that we can use it with tokio
     let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
         .await?
@@ -383,7 +380,12 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
             "expected node_root to be a DiskFileSystem, cannot benchmark"
         ))?
         .await?;
-    let temp_path = fs.to_sys_path(temp_path).await?;
+
+    let directory = fs.to_sys_path(directory).await?;
+    let temp_path = directory.join(format!(
+        "tmp_file_io_benchmark_{:x}",
+        rand::random::<u128>()
+    ));
 
     let mut random_buffer = [0u8; 512];
     rand::thread_rng().fill(&mut random_buffer[..]);
@@ -412,7 +414,7 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
         println!(
             "Slow filesystem detected. If {} is a network drive, consider moving it to a local \
              folder. If you have an antivirus enabled, consider excluding your project directory.",
-            fs.to_sys_path(directory).await?.to_string_lossy(),
+            directory.to_string_lossy(),
         );
     }
 
@@ -435,6 +437,13 @@ pub async fn project_update(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(())
+}
+
+#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+pub async fn project_shutdown(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) {
+    project.turbo_tasks.stop_and_wait().await;
 }
 
 #[napi(object)]
@@ -726,7 +735,8 @@ pub fn project_hmr_events(
                     let state = project.hmr_version_state(identifier.clone(), session);
                     let update = hmr_update(project, identifier, state)
                         .strongly_consistent()
-                        .await?;
+                        .await
+                        .inspect_err(|e| log_panic_and_inform(e))?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,

@@ -43,8 +43,6 @@ export type ManifestChunks = Array<string>
 const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
-  // Use an object to simulate Set lookup
-  ASYNC_CLIENT_MODULES: {} as Record<string, boolean>,
 })
 
 export interface ManifestNode {
@@ -304,8 +302,6 @@ export class ClientReferenceManifestPlugin {
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
-        const isAsyncModule = !!pluginState.ASYNC_CLIENT_MODULES[mod.resource]
-
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
         const esmResource = /[\\/]next[\\/]dist[\\/]/.test(resource)
@@ -333,7 +329,7 @@ export class ClientReferenceManifestPlugin {
             id: modId,
             name: '*',
             chunks: requiredChunks,
-            async: isAsyncModule,
+            async: false,
           }
           if (esmResource) {
             const edgeExportName = esmResource
@@ -501,7 +497,5 @@ export class ClientReferenceManifestPlugin {
         )}]=${json}`
       ) as unknown as webpack.sources.RawSource
     }
-
-    pluginState.ASYNC_CLIENT_MODULES = {}
   }
 }

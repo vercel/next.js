@@ -11,6 +11,10 @@ import pkg from "../package.json";
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "19.0.0-rc-94e652d5-20240912";
+
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
  */
@@ -99,7 +103,16 @@ export const installTemplate = async ({
       stats: false,
       // We don't want to modify compiler options in [ts/js]config.json
       // and none of the files in the .git folder
-      ignore: ["tsconfig.json", "jsconfig.json", ".git/**/*"],
+      // TODO: Refactor this to be an allowlist, rather than a denylist,
+      // to avoid corrupting files that weren't intended to be replaced
+
+      ignore: [
+        "tsconfig.json",
+        "jsconfig.json",
+        ".git/**/*",
+        "**/fonts/**",
+        "**/favicon.ico",
+      ],
     });
     const writeSema = new Sema(8, { capacity: files.length });
     await Promise.all(
@@ -184,8 +197,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "19.0.0-rc-3208e73e-20240730",
-      "react-dom": "19.0.0-rc-3208e73e-20240730",
+      react: nextjsReactPeerVersion,
+      "react-dom": nextjsReactPeerVersion,
       next: version,
     },
     devDependencies: {},

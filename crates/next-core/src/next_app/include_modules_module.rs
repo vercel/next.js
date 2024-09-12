@@ -1,19 +1,17 @@
 use anyhow::Result;
 use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
-use turbopack_binding::turbopack::{
-    core::{
-        asset::{Asset, AssetContent},
-        chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext},
-        ident::AssetIdent,
-        module::Module,
-        reference::{ModuleReference, ModuleReferences},
-        resolve::ModuleResolveResult,
-    },
-    ecmascript::chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
-    },
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext},
+    ident::AssetIdent,
+    module::Module,
+    reference::{ModuleReference, ModuleReferences},
+    resolve::ModuleResolveResult,
+};
+use turbopack_ecmascript::chunk::{
+    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptChunkType,
+    EcmascriptExports,
 };
 
 /// A virtual module that references other modules, but doesn't do anything at

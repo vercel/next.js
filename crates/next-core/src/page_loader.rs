@@ -3,25 +3,22 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indexmap::indexmap;
 use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
-use turbo_tasks_fs::FileSystemPathOption;
-use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::{Asset, AssetContent},
-            chunk::{ChunkData, ChunksData},
-            context::AssetContext,
-            ident::AssetIdent,
-            module::Module,
-            output::{OutputAsset, OutputAssets},
-            proxied_asset::ProxiedAsset,
-            reference_type::{EntryReferenceSubType, ReferenceType},
-            source::Source,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::{chunk::EcmascriptChunkData, utils::StringifyJs},
-    },
+use turbo_tasks_fs::{
+    self, rope::RopeBuilder, File, FileContent, FileSystemPath, FileSystemPathOption,
 };
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    chunk::{ChunkData, ChunksData},
+    context::AssetContext,
+    ident::AssetIdent,
+    module::Module,
+    output::{OutputAsset, OutputAssets},
+    proxied_asset::ProxiedAsset,
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
+    virtual_source::VirtualSource,
+};
+use turbopack_ecmascript::{chunk::EcmascriptChunkData, utils::StringifyJs};
 
 use crate::{embed_js::next_js_file_path, util::get_asset_path_from_pathname};
 

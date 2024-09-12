@@ -8,12 +8,9 @@ use next_core::tracing_presets::{
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::TurboTasks;
-use turbopack_binding::{
-    turbo::{malloc::TurboMalloc, tasks_memory::MemoryBackend},
-    turbopack::trace_utils::{
-        exit::ExitGuard, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
-    },
-};
+use turbo_tasks_malloc::TurboMalloc;
+use turbo_tasks_memory::MemoryBackend;
+use turbopack_trace_utils::{exit::ExitGuard, raw_trace::RawTraceLayer, trace_writer::TraceWriter};
 
 #[global_allocator]
 static ALLOC: TurboMalloc = TurboMalloc;
@@ -157,6 +154,9 @@ fn main() {
                 project_path: canonical_path.to_string_lossy().into(),
                 root_path: "/".into(),
                 watch: false,
+                browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 \
+                                     Safari versions, last 1 Edge versions"
+                    .into(),
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();
