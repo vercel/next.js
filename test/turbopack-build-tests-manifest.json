@@ -8720,11 +8720,10 @@
         "Dynamic Routing production mode should serve file with space from static folder",
         "Dynamic Routing production mode should support long URLs for dynamic routes",
         "Dynamic Routing production mode should update dynamic values on mount",
-        "Dynamic Routing production mode should update with a hash in the URL"
-      ],
-      "failed": [
+        "Dynamic Routing production mode should update with a hash in the URL",
         "Dynamic Routing production mode should output a pages-manifest correctly"
       ],
+      "failed": [],
       "pending": [
         "Dynamic Routing development mode [catch all] should not decode slashes (end)",
         "Dynamic Routing development mode [catch all] should not decode slashes (middle)",
