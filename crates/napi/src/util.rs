@@ -53,8 +53,15 @@ static PANIC_LOG: Lazy<PathBuf> = Lazy::new(|| {
 });
 
 pub fn log_panic_and_inform(err_info: impl Debug) {
-    if cfg!(debug_assertions) || env::var("SWC_DEBUG") == Ok("1".to_string()) {
-        eprintln!("{:?}", err_info);
+    if cfg!(debug_assertions)
+        || env::var("SWC_DEBUG") == Ok("1".to_string())
+        || env::var("CI").is_ok_and(|v| !v.is_empty())
+    {
+        eprintln!(
+            "{}: An unexpected Turbopack error occurred:\n{:?}",
+            "FATAL".red().bold(),
+            err_info
+        );
         return;
     }
 
