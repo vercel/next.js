@@ -7,7 +7,7 @@ describe('pages-dir-css-module-next-dynamic-client-navigation', () => {
 
   describe('nodejs', () => {
     it('should not remove style when navigating from static imported component to next/dynamic', async () => {
-      const browser = await next.browser('/next-dynamic')
+      const browser = await next.browser('/next-dynamic/nodejs')
       expect(
         await browser
           .elementByCss('a[href="/next-dynamic/basic"]')
@@ -26,7 +26,7 @@ describe('pages-dir-css-module-next-dynamic-client-navigation', () => {
     })
 
     it('should not remove style when navigating from static imported component to next/dynamic ssr: false', async () => {
-      const browser = await next.browser('/next-dynamic')
+      const browser = await next.browser('/next-dynamic/nodejs')
       expect(
         await browser
           .elementByCss('a[href="/next-dynamic/ssr-false"]')

@@ -7,7 +7,7 @@ describe('pages-dir-css-module-next-dynamic-client-navigation', () => {
 
   describe('nodejs', () => {
     it('should not remove style when navigating from static imported component to dynamic import', async () => {
-      const browser = await next.browser('/dynamic-import')
+      const browser = await next.browser('/dynamic-import/nodejs')
       expect(
         await browser
           .elementByCss('a[href="/dynamic-import/basic"]')
