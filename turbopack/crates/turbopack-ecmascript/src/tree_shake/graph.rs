@@ -1078,13 +1078,14 @@ impl DepGraph {
                         vars.read.retain(|id| !decl_ids.contains(id));
                         eventual_vars.read.retain(|id| !decl_ids.contains(id));
 
-                        let side_effects = vars.found_unresolved
-                            || decl.init.as_deref().map_or(false, |e| {
-                                e.may_have_side_effects(&ExprCtx {
-                                    unresolved_ctxt,
-                                    is_unresolved_ref_safe: false,
-                                })
-                            });
+                        let side_effects = !pure
+                            && (vars.found_unresolved
+                                || decl.init.as_deref().map_or(false, |e| {
+                                    e.may_have_side_effects(&ExprCtx {
+                                        unresolved_ctxt,
+                                        is_unresolved_ref_safe: false,
+                                    })
+                                }));
 
                         let var_decl = Box::new(VarDecl {
                             decls: vec![decl.clone()],
@@ -1099,7 +1100,6 @@ impl DepGraph {
                                 var_decls: decl_ids.clone().into_iter().collect(),
                                 read_vars: vars.read,
                                 eventual_read_vars: eventual_vars.read,
-                                write_vars: vars.write,
                                 eventual_write_vars: eventual_vars.write,
                                 content,
                                 side_effects,
