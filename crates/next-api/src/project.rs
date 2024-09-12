@@ -26,8 +26,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, RcStr, ReadRef, State, TaskInput, TraitRef,
-    TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, IntoTraitRef, RcStr, ReadRef, State, TaskInput, TransientInstance,
+    TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -48,7 +48,6 @@ use turbopack_core::{
     module::Modules,
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
-    source::Source,
     source_map::OptionSourceMap,
     version::{Update, Version, VersionState, VersionedContent},
     PROJECT_FILESYSTEM_NAME,
@@ -860,57 +859,24 @@ impl Project {
             }
         }
 
-        let pages_document_endpoint = TraitRef::cell(
-            self.pages_project()
-                .document_endpoint()
-                .into_trait_ref()
-                .await?,
-        );
-        let pages_app_endpoint =
-            TraitRef::cell(self.pages_project().app_endpoint().into_trait_ref().await?);
-        let pages_error_endpoint = TraitRef::cell(
-            self.pages_project()
-                .error_endpoint()
-                .into_trait_ref()
-                .await?,
-        );
+        let pages_document_endpoint = self.pages_project().document_endpoint();
+        let pages_app_endpoint = self.pages_project().app_endpoint();
+        let pages_error_endpoint = self.pages_project().error_endpoint();
 
-        let middleware = find_context_file(
-            self.project_path(),
-            middleware_files(self.next_config().page_extensions()),
-        );
-        let middleware = if let FindContextFileResult::Found(fs_path, _) = *middleware.await? {
-            let source = Vc::upcast(FileSource::new(fs_path));
+        let middleware = self.find_middleware();
+        let middleware = if let FindContextFileResult::Found(..) = *middleware.await? {
             Some(Middleware {
-                endpoint: TraitRef::cell(
-                    Vc::upcast::<Box<dyn Endpoint>>(self.middleware_endpoint(source))
-                        .into_trait_ref()
-                        .await?,
-                ),
+                endpoint: Vc::upcast::<Box<dyn Endpoint>>(self.middleware_endpoint()),
             })
         } else {
             None
         };
 
-        let instrumentation = find_context_file(
-            self.project_path(),
-            instrumentation_files(self.next_config().page_extensions()),
-        );
-        let instrumentation = if let FindContextFileResult::Found(fs_path, _) =
-            *instrumentation.await?
-        {
-            let source = Vc::upcast(FileSource::new(fs_path));
+        let instrumentation = self.find_instrumentation();
+        let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
             Some(Instrumentation {
-                node_js: TraitRef::cell(
-                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, false))
-                        .into_trait_ref()
-                        .await?,
-                ),
-                edge: TraitRef::cell(
-                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, true))
-                        .into_trait_ref()
-                        .await?,
-                ),
+                node_js: Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(false)),
+                edge: Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(true)),
             })
         } else {
             None
@@ -978,10 +944,20 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn middleware_endpoint(
-        self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
-    ) -> Result<Vc<MiddlewareEndpoint>> {
+    fn find_middleware(self: Vc<Self>) -> Vc<FindContextFileResult> {
+        find_context_file(
+            self.project_path(),
+            middleware_files(self.next_config().page_extensions()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<MiddlewareEndpoint>> {
+        let middleware = self.find_middleware();
+        let FindContextFileResult::Found(fs_path, _) = *middleware.await? else {
+            bail!("No middleware found");
+        };
+        let source = Vc::upcast(FileSource::new(fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -1099,11 +1075,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    fn find_instrumentation(self: Vc<Self>) -> Vc<FindContextFileResult> {
+        find_context_file(
+            self.project_path(),
+            instrumentation_files(self.next_config().page_extensions()),
+        )
+    }
+
+    #[turbo_tasks::function]
     async fn instrumentation_endpoint(
         self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
         is_edge: bool,
     ) -> Result<Vc<InstrumentationEndpoint>> {
+        let instrumentation = self.find_instrumentation();
+        let FindContextFileResult::Found(fs_path, _) = *instrumentation.await? else {
+            bail!("No instrumentation found");
+        };
+        let source = Vc::upcast(FileSource::new(fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -1327,4 +1315,9 @@ fn all_assets_from_entries_operation(
     operation: Vc<OutputAssetsOperation>,
 ) -> Vc<OutputAssetsOperation> {
     Vc::cell(all_assets_from_entries_operation_inner(operation))
+}
+
+#[turbo_tasks::function]
+async fn stable_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<Box<dyn Endpoint>>> {
+    Ok(endpoint)
 }
