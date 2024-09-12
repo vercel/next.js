@@ -1155,7 +1155,7 @@ export async function ncc_cli_select(task, opts) {
     .ncc({ packageName: 'cli-select', externals })
     .target('src/compiled/cli-select')
 }
-externals['commmander'] = 'next/dist/compiled/commander'
+externals['commander'] = 'next/dist/compiled/commander'
 export async function ncc_commander(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('commander')))
@@ -1566,6 +1566,22 @@ export async function copy_vendor_react(task_) {
       )
     }
 
+    function aliasVendoredReactPackages(source) {
+      return source
+        .replace(
+          /require\(["']react["']\)/g,
+          `require("next/dist/compiled/react${packageSuffix}")`
+        )
+        .replace(
+          /require\(["']react-dom["']\)/g,
+          `require("next/dist/compiled/react-dom${packageSuffix}")`
+        )
+        .replace(
+          /require\(["']scheduler["']\)/g,
+          `require("next/dist/compiled/scheduler${packageSuffix}")`
+        )
+    }
+
     const schedulerDir = dirname(
       relative(__dirname, require.resolve(`scheduler-${channel}/package.json`))
     )
@@ -1610,10 +1626,7 @@ export async function copy_vendor_react(task_) {
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        file.data = source.replace(
-          /require\(["']react["']\)/g,
-          `require("next/dist/compiled/react${packageSuffix}")`
-        )
+        file.data = aliasVendoredReactPackages(source)
       })
       .target(`src/compiled/react${packageSuffix}/cjs`)
 
@@ -1635,15 +1648,7 @@ export async function copy_vendor_react(task_) {
       .run({ every: true }, function* (file) {
         const source = file.data.toString()
         // We replace the module/chunk loading code with our own implementation in Next.js.
-        let newSource = source
-          .replace(
-            /require\(["']scheduler["']\)/g,
-            `require("next/dist/compiled/scheduler${packageSuffix}")`
-          )
-          .replace(
-            /require\(["']react["']\)/g,
-            `require("next/dist/compiled/react${packageSuffix}")`
-          )
+        let newSource = aliasVendoredReactPackages(source)
 
         const filepath = file.dir + '/' + file.base
         if (

@@ -161,7 +161,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 2
 ```js
 const runtime = "edge";
-export { runtime } from "__TURBOPACK_VAR__" assert {
+export { runtime as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -171,7 +171,7 @@ export { runtime } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { runtime } from "__TURBOPACK_PART__" assert {
+import { a as runtime } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 export { runtime };
@@ -180,7 +180,7 @@ export { runtime };
 ## Part 4
 ```js
 import { NextResponse } from "next/server";
-export { NextResponse } from "__TURBOPACK_VAR__" assert {
+export { NextResponse as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -190,7 +190,7 @@ export { NextResponse } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
-import { NextResponse } from "__TURBOPACK_PART__" assert {
+import { b as NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 const GET = (req)=>{
@@ -198,7 +198,7 @@ const GET = (req)=>{
         pathname: req.nextUrl.pathname
     });
 };
-export { GET } from "__TURBOPACK_VAR__" assert {
+export { GET as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -208,7 +208,7 @@ export { GET } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
-import { GET } from "__TURBOPACK_PART__" assert {
+import { c as GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
 export { GET };
@@ -265,7 +265,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 2
 ```js
 const runtime = "edge";
-export { runtime } from "__TURBOPACK_VAR__" assert {
+export { runtime as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -275,7 +275,7 @@ export { runtime } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { runtime } from "__TURBOPACK_PART__" assert {
+import { a as runtime } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 export { runtime };
@@ -284,7 +284,7 @@ export { runtime };
 ## Part 4
 ```js
 import { NextResponse } from "next/server";
-export { NextResponse } from "__TURBOPACK_VAR__" assert {
+export { NextResponse as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -294,7 +294,7 @@ export { NextResponse } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
-import { NextResponse } from "__TURBOPACK_PART__" assert {
+import { b as NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 const GET = (req)=>{
@@ -302,7 +302,7 @@ const GET = (req)=>{
         pathname: req.nextUrl.pathname
     });
 };
-export { GET } from "__TURBOPACK_VAR__" assert {
+export { GET as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -312,7 +312,7 @@ export { GET } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
-import { GET } from "__TURBOPACK_PART__" assert {
+import { c as GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
 export { GET };

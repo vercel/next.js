@@ -26,6 +26,7 @@ import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
+import { dset } from '../shared/lib/dset'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -618,7 +619,19 @@ function assignDefaults(
     result.outputFileTracingRoot = resolve(result.outputFileTracingRoot)
     if (!silent) {
       Log.warn(
-        `experimental.outputFileTracingRoot should be absolute, using: ${result.outputFileTracingRoot}`
+        `outputFileTracingRoot should be absolute, using: ${result.outputFileTracingRoot}`
+      )
+    }
+  }
+
+  if (
+    result?.experimental?.turbo?.root &&
+    !isAbsolute(result.experimental.turbo.root)
+  ) {
+    result.experimental.turbo.root = resolve(result.experimental.turbo.root)
+    if (!silent) {
+      Log.warn(
+        `experimental.turbo.root should be absolute, using: ${result.experimental.turbo.root}`
       )
     }
   }
@@ -628,19 +641,28 @@ function assignDefaults(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
+  if (result?.outputFileTracingRoot && !result?.experimental?.turbo?.root) {
+    dset(
+      result,
+      ['experimental', 'turbo', 'root'],
+      result.outputFileTracingRoot
+    )
+  }
+
   // use the closest lockfile as tracing root
-  if (!result?.outputFileTracingRoot) {
+  if (!result?.outputFileTracingRoot || !result?.experimental?.turbo?.root) {
     let rootDir = findRootDir(dir)
 
     if (rootDir) {
-      if (!result.experimental) {
-        result.experimental = {}
+      if (!result?.outputFileTracingRoot) {
+        result.outputFileTracingRoot = rootDir
+        defaultConfig.outputFileTracingRoot = result.outputFileTracingRoot
       }
-      if (!defaultConfig.experimental) {
-        defaultConfig.experimental = {}
+
+      if (!result?.experimental?.turbo?.root) {
+        dset(result, ['experimental', 'turbo', 'root'], rootDir)
+        dset(defaultConfig, ['experimental', 'turbo', 'root'], rootDir)
       }
-      result.outputFileTracingRoot = rootDir
-      defaultConfig.outputFileTracingRoot = result.outputFileTracingRoot
     }
   }
 

@@ -1,6 +1,6 @@
 use std::path::MAIN_SEPARATOR;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::{indexmap, map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
@@ -26,12 +26,14 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, RcStr, State, TaskInput, TraitRef, TransientInstance,
+    Completion, Completions, IntoTraitRef, RcStr, ReadRef, State, TaskInput, TransientInstance,
     TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
-use turbopack::{evaluate_context::node_build_environment, ModuleAssetContext};
+use turbopack::{
+    evaluate_context::node_build_environment, transition::TransitionOptions, ModuleAssetContext,
+};
 use turbopack_core::{
     changed::content_changed,
     chunk::{
@@ -46,7 +48,6 @@ use turbopack_core::{
     module::Modules,
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
-    source::Source,
     source_map::OptionSourceMap,
     version::{Update, Version, VersionState, VersionedContent},
     PROJECT_FILESYSTEM_NAME,
@@ -57,6 +58,7 @@ use turbopack_nodejs::NodeJsChunkingContext;
 use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
+    empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
@@ -111,6 +113,9 @@ pub struct ProjectOptions {
 
     /// Options for draft mode.
     pub preview_props: DraftModeOptions,
+
+    /// The browserslist query to use for targeting browsers.
+    pub browserslist_query: RcStr,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
@@ -173,25 +178,46 @@ pub struct Instrumentation {
 
 #[turbo_tasks::value]
 pub struct ProjectContainer {
-    options_state: State<ProjectOptions>,
+    name: RcStr,
+    options_state: State<Option<ProjectOptions>>,
     versioned_content_map: Option<Vc<VersionedContentMap>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function]
-    pub fn new(options: ProjectOptions) -> Vc<Self> {
+    pub fn new(name: RcStr, dev: bool) -> Vc<Self> {
         ProjectContainer {
+            name,
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
-            versioned_content_map: options.dev.then(VersionedContentMap::new),
-            options_state: State::new(options),
+            versioned_content_map: dev.then(VersionedContentMap::new),
+            options_state: State::new(None),
         }
         .cell()
     }
+}
 
-    #[turbo_tasks::function]
-    pub fn update(&self, options: PartialProjectOptions) -> Vc<()> {
+impl ProjectContainer {
+    #[tracing::instrument(level = "info", name = "initialize project", skip_all)]
+    pub async fn initialize(self: Vc<Self>, options: ProjectOptions) -> Result<()> {
+        self.await?.options_state.set(Some(options));
+        let project = self.project();
+        project
+            .project_fs()
+            .strongly_consistent()
+            .await?
+            .start_watching_with_invalidation_reason()?;
+        project
+            .output_fs()
+            .strongly_consistent()
+            .await?
+            .invalidate_with_reason();
+        Ok(())
+    }
+
+    #[tracing::instrument(level = "info", name = "update project", skip_all)]
+    pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
         let PartialProjectOptions {
             root_path,
             project_path,
@@ -206,7 +232,13 @@ impl ProjectContainer {
             preview_props,
         } = options;
 
-        let mut new_options = self.options_state.get().clone();
+        let this = self.await?;
+
+        let mut new_options = this
+            .options_state
+            .get()
+            .clone()
+            .context("ProjectContainer need to be initialized with initialize()")?;
 
         if let Some(root_path) = root_path {
             new_options.root_path = root_path;
@@ -244,11 +276,28 @@ impl ProjectContainer {
 
         // TODO: Handle mode switch, should prevent mode being switched.
 
-        self.options_state.set(new_options);
+        let project = self.project();
+        let prev_project_fs = project.project_fs().strongly_consistent().await?;
+        let prev_output_fs = project.output_fs().strongly_consistent().await?;
 
-        Default::default()
+        this.options_state.set(Some(new_options));
+        let project_fs = project.project_fs().strongly_consistent().await?;
+        let output_fs = project.output_fs().strongly_consistent().await?;
+
+        if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
+            // TODO stop watching: prev_project_fs.stop_watching()?;
+            project_fs.start_watching_with_invalidation_reason()?;
+        }
+        if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
+            prev_output_fs.invalidate_with_reason();
+        }
+
+        Ok(())
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ProjectContainer {
     #[turbo_tasks::function]
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
@@ -264,8 +313,12 @@ impl ProjectContainer {
         let encryption_key;
         let build_id;
         let preview_props;
+        let browserslist_query;
         {
             let options = this.options_state.get();
+            let options = options
+                .as_ref()
+                .context("ProjectContainer need to be initialized with initialize()")?;
             env_map = Vc::cell(options.env.iter().cloned().collect());
             define_env = ProjectDefineEnv {
                 client: Vc::cell(options.define_env.client.iter().cloned().collect()),
@@ -282,6 +335,7 @@ impl ProjectContainer {
             encryption_key = options.encryption_key.clone();
             build_id = options.build_id.clone();
             preview_props = options.preview_props.clone();
+            browserslist_query = options.browserslist_query.clone();
         }
 
         let dist_dir = next_config
@@ -299,9 +353,7 @@ impl ProjectContainer {
             dist_dir,
             env: Vc::upcast(env_map),
             define_env,
-            browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
-                                 versions, last 1 Edge versions"
-                .into(),
+            browserslist_query,
             mode: if dev {
                 NextMode::Development.cell()
             } else {
@@ -371,6 +423,7 @@ pub struct Project {
     /// time.
     define_env: Vc<ProjectDefineEnv>,
 
+    /// The browserslist query to use for targeting browsers.
     browserslist_query: RcStr,
 
     mode: Vc<NextMode>,
@@ -462,7 +515,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn project_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    async fn project_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
@@ -472,7 +525,7 @@ impl Project {
         if this.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
         }
-        Ok(Vc::upcast(disk_fs))
+        Ok(disk_fs)
     }
 
     #[turbo_tasks::function]
@@ -482,10 +535,10 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
         let this = self.await?;
         let disk_fs = DiskFileSystem::new("output".into(), this.project_path.clone(), vec![]);
-        Ok(Vc::upcast(disk_fs))
+        Ok(disk_fs)
     }
 
     #[turbo_tasks::function]
@@ -807,57 +860,24 @@ impl Project {
             }
         }
 
-        let pages_document_endpoint = TraitRef::cell(
-            self.pages_project()
-                .document_endpoint()
-                .into_trait_ref()
-                .await?,
-        );
-        let pages_app_endpoint =
-            TraitRef::cell(self.pages_project().app_endpoint().into_trait_ref().await?);
-        let pages_error_endpoint = TraitRef::cell(
-            self.pages_project()
-                .error_endpoint()
-                .into_trait_ref()
-                .await?,
-        );
+        let pages_document_endpoint = self.pages_project().document_endpoint();
+        let pages_app_endpoint = self.pages_project().app_endpoint();
+        let pages_error_endpoint = self.pages_project().error_endpoint();
 
-        let middleware = find_context_file(
-            self.project_path(),
-            middleware_files(self.next_config().page_extensions()),
-        );
-        let middleware = if let FindContextFileResult::Found(fs_path, _) = *middleware.await? {
-            let source = Vc::upcast(FileSource::new(fs_path));
+        let middleware = self.find_middleware();
+        let middleware = if let FindContextFileResult::Found(..) = *middleware.await? {
             Some(Middleware {
-                endpoint: TraitRef::cell(
-                    Vc::upcast::<Box<dyn Endpoint>>(self.middleware_endpoint(source))
-                        .into_trait_ref()
-                        .await?,
-                ),
+                endpoint: self.middleware_endpoint(),
             })
         } else {
             None
         };
 
-        let instrumentation = find_context_file(
-            self.project_path(),
-            instrumentation_files(self.next_config().page_extensions()),
-        );
-        let instrumentation = if let FindContextFileResult::Found(fs_path, _) =
-            *instrumentation.await?
-        {
-            let source = Vc::upcast(FileSource::new(fs_path));
+        let instrumentation = self.find_instrumentation();
+        let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
             Some(Instrumentation {
-                node_js: TraitRef::cell(
-                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, false))
-                        .into_trait_ref()
-                        .await?,
-                ),
-                edge: TraitRef::cell(
-                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, true))
-                        .into_trait_ref()
-                        .await?,
-                ),
+                node_js: self.instrumentation_endpoint(false),
+                edge: self.instrumentation_endpoint(true),
             })
         } else {
             None
@@ -893,7 +913,11 @@ impl Project {
         }
 
         Ok(Vc::upcast(ModuleAssetContext::new(
-            Vc::cell(transitions.into_iter().collect()),
+            TransitionOptions {
+                named_transitions: transitions.into_iter().collect(),
+                ..Default::default()
+            }
+            .cell(),
             self.edge_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -921,10 +945,20 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn middleware_endpoint(
-        self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
-    ) -> Result<Vc<MiddlewareEndpoint>> {
+    fn find_middleware(self: Vc<Self>) -> Vc<FindContextFileResult> {
+        find_context_file(
+            self.project_path(),
+            middleware_files(self.next_config().page_extensions()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
+        let middleware = self.find_middleware();
+        let FindContextFileResult::Found(fs_path, _) = *middleware.await? else {
+            return Ok(Vc::upcast(EmptyEndpoint::new()));
+        };
+        let source = Vc::upcast(FileSource::new(fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -932,13 +966,13 @@ impl Project {
 
         let middleware_asset_context = self.middleware_context();
 
-        Ok(MiddlewareEndpoint::new(
+        Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
             middleware_asset_context,
             source,
             app_dir,
             ecmascript_client_reference_transition_name,
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
@@ -960,7 +994,11 @@ impl Project {
         }
 
         Ok(Vc::upcast(ModuleAssetContext::new(
-            Vc::cell(transitions.into_iter().collect()),
+            TransitionOptions {
+                named_transitions: transitions.into_iter().collect(),
+                ..Default::default()
+            }
+            .cell(),
             self.server_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -1006,7 +1044,11 @@ impl Project {
         }
 
         Ok(Vc::upcast(ModuleAssetContext::new(
-            Vc::cell(transitions.into_iter().collect()),
+            TransitionOptions {
+                named_transitions: transitions.into_iter().collect(),
+                ..Default::default()
+            }
+            .cell(),
             self.edge_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -1034,11 +1076,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    fn find_instrumentation(self: Vc<Self>) -> Vc<FindContextFileResult> {
+        find_context_file(
+            self.project_path(),
+            instrumentation_files(self.next_config().page_extensions()),
+        )
+    }
+
+    #[turbo_tasks::function]
     async fn instrumentation_endpoint(
         self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
         is_edge: bool,
-    ) -> Result<Vc<InstrumentationEndpoint>> {
+    ) -> Result<Vc<Box<dyn Endpoint>>> {
+        let instrumentation = self.find_instrumentation();
+        let FindContextFileResult::Found(fs_path, _) = *instrumentation.await? else {
+            return Ok(Vc::upcast(EmptyEndpoint::new()));
+        };
+        let source = Vc::upcast(FileSource::new(fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -1050,21 +1104,21 @@ impl Project {
             self.node_instrumentation_context()
         };
 
-        Ok(InstrumentationEndpoint::new(
+        Ok(Vc::upcast(InstrumentationEndpoint::new(
             self,
             instrumentation_asset_context,
             source,
             is_edge,
             app_dir,
             ecmascript_client_reference_transition_name,
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
-    ) -> Result<Vc<Completion>> {
+    ) -> Result<Vc<()>> {
         let span = tracing::info_span!("emitting");
         async move {
             let all_output_assets = all_assets_from_entries_operation(output_assets);
@@ -1073,21 +1127,27 @@ impl Project {
             let node_root = self.node_root();
 
             if let Some(map) = self.await?.versioned_content_map {
-                let completion = map.insert_output_assets(
-                    all_output_assets,
-                    node_root,
-                    client_relative_path,
-                    node_root,
-                );
+                let _ = map
+                    .insert_output_assets(
+                        all_output_assets,
+                        node_root,
+                        client_relative_path,
+                        node_root,
+                    )
+                    .resolve()
+                    .await?;
 
-                Ok(completion)
+                Ok(Vc::cell(()))
             } else {
-                Ok(emit_assets(
+                let _ = emit_assets(
                     *all_output_assets.await?,
                     node_root,
                     client_relative_path,
                     node_root,
-                ))
+                )
+                .resolve()
+                .await?;
+                Ok(Vc::cell(()))
             }
         }
         .instrument(span)
@@ -1130,7 +1190,12 @@ impl Project {
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
         // first seen version of the session.
-        VersionState::new(version.into_trait_ref_untracked().await?).await
+        VersionState::new(
+            version
+                .into_trait_ref_strongly_consistent_untracked()
+                .await?,
+        )
+        .await
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group
@@ -1251,4 +1316,9 @@ fn all_assets_from_entries_operation(
     operation: Vc<OutputAssetsOperation>,
 ) -> Vc<OutputAssetsOperation> {
     Vc::cell(all_assets_from_entries_operation_inner(operation))
+}
+
+#[turbo_tasks::function]
+async fn stable_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<Box<dyn Endpoint>>> {
+    Ok(endpoint)
 }

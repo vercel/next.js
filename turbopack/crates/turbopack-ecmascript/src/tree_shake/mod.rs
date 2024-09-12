@@ -10,7 +10,7 @@ use swc_core::{
             ExportAll, ExportNamedSpecifier, Id, Ident, ImportDecl, Module, ModuleDecl,
             ModuleExportName, ModuleItem, NamedExport, Program,
         },
-        codegen::{text_writer::JsWriter, Emitter},
+        codegen::to_code,
     },
 };
 use turbo_tasks::{RcStr, ValueToString, Vc};
@@ -366,31 +366,12 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
     let mut dump = String::new();
 
     for (idx, m) in modules.iter().enumerate() {
-        let ParseResult::Ok {
-            program,
-            source_map,
-            ..
-        } = &*m.await?
-        else {
+        let ParseResult::Ok { program, .. } = &*m.await? else {
             bail!("failed to get module")
         };
 
         {
-            let mut buf = vec![];
-
-            {
-                let wr = JsWriter::new(Default::default(), "\n", &mut buf, None);
-
-                let mut emitter = Emitter {
-                    cfg: Default::default(),
-                    comments: None,
-                    cm: source_map.clone(),
-                    wr,
-                };
-
-                emitter.emit_program(program).unwrap();
-            }
-            let code = String::from_utf8(buf).unwrap();
+            let code = to_code(&program);
 
             writeln!(dump, "# Module #{idx}:\n{code}\n\n\n")?;
         }
