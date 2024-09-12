@@ -4013,7 +4013,6 @@ function defaultErrorHandler(error) {
 }
 function noop() {}
 function RequestInstance(
-  children,
   resumableState,
   renderState,
   rootFormatContext,
@@ -4026,8 +4025,7 @@ function RequestInstance(
   onPostpone,
   formState
 ) {
-  var pingedTasks = [],
-    abortSet = new Set();
+  var abortSet = new Set();
   this.destination = null;
   this.flushScheduled = !1;
   this.resumableState = resumableState;
@@ -4040,7 +4038,7 @@ function RequestInstance(
   this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
   this.completedRootSegment = null;
   this.abortableTasks = abortSet;
-  this.pingedTasks = pingedTasks;
+  this.pingedTasks = [];
   this.clientRenderedBoundaries = [];
   this.completedBoundaries = [];
   this.partialBoundaries = [];
@@ -4052,33 +4050,6 @@ function RequestInstance(
   this.onShellError = void 0 === onShellError ? noop : onShellError;
   this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
   this.formState = void 0 === formState ? null : formState;
-  resumableState = createPendingSegment(
-    this,
-    0,
-    null,
-    rootFormatContext,
-    !1,
-    !1
-  );
-  resumableState.parentFlushed = !0;
-  children = createRenderTask(
-    this,
-    null,
-    children,
-    -1,
-    null,
-    resumableState,
-    null,
-    abortSet,
-    null,
-    rootFormatContext,
-    null,
-    emptyTreeContext,
-    null,
-    !1
-  );
-  pushComponentStack(children);
-  pingedTasks.push(children);
 }
 function createRequest(
   children,
@@ -4094,8 +4065,7 @@ function createRequest(
   onPostpone,
   formState
 ) {
-  return new RequestInstance(
-    children,
+  resumableState = new RequestInstance(
     resumableState,
     renderState,
     rootFormatContext,
@@ -4108,6 +4078,34 @@ function createRequest(
     onPostpone,
     formState
   );
+  renderState = createPendingSegment(
+    resumableState,
+    0,
+    null,
+    rootFormatContext,
+    !1,
+    !1
+  );
+  renderState.parentFlushed = !0;
+  children = createRenderTask(
+    resumableState,
+    null,
+    children,
+    -1,
+    null,
+    renderState,
+    null,
+    resumableState.abortableTasks,
+    null,
+    rootFormatContext,
+    null,
+    emptyTreeContext,
+    null,
+    !1
+  );
+  pushComponentStack(children);
+  resumableState.pingedTasks.push(children);
+  return resumableState;
 }
 function createPrerenderRequest(
   children,
@@ -4154,35 +4152,20 @@ function resumeRequest(
   onFatalError,
   onPostpone
 ) {
-  var pingedTasks = [],
-    abortSet = new Set();
-  renderState = {
-    destination: null,
-    flushScheduled: !1,
-    resumableState: postponedState.resumableState,
-    renderState: renderState,
-    rootFormatContext: postponedState.rootFormatContext,
-    progressiveChunkSize: postponedState.progressiveChunkSize,
-    status: 0,
-    fatalError: null,
-    nextSegmentId: postponedState.nextSegmentId,
-    allPendingTasks: 0,
-    pendingRootTasks: 0,
-    completedRootSegment: null,
-    abortableTasks: abortSet,
-    pingedTasks: pingedTasks,
-    clientRenderedBoundaries: [],
-    completedBoundaries: [],
-    partialBoundaries: [],
-    trackedPostpones: null,
-    onError: void 0 === onError ? defaultErrorHandler : onError,
-    onPostpone: void 0 === onPostpone ? noop : onPostpone,
-    onAllReady: void 0 === onAllReady ? noop : onAllReady,
-    onShellReady: void 0 === onShellReady ? noop : onShellReady,
-    onShellError: void 0 === onShellError ? noop : onShellError,
-    onFatalError: void 0 === onFatalError ? noop : onFatalError,
-    formState: null
-  };
+  renderState = new RequestInstance(
+    postponedState.resumableState,
+    renderState,
+    postponedState.rootFormatContext,
+    postponedState.progressiveChunkSize,
+    onError,
+    onAllReady,
+    onShellReady,
+    onShellError,
+    onFatalError,
+    onPostpone,
+    null
+  );
+  renderState.nextSegmentId = postponedState.nextSegmentId;
   if ("number" === typeof postponedState.replaySlots)
     return (
       (onError = postponedState.replaySlots),
@@ -4204,7 +4187,7 @@ function resumeRequest(
         null,
         onAllReady,
         null,
-        abortSet,
+        renderState.abortableTasks,
         null,
         postponedState.rootFormatContext,
         null,
@@ -4213,7 +4196,7 @@ function resumeRequest(
         !1
       )),
       pushComponentStack(children),
-      pingedTasks.push(children),
+      renderState.pingedTasks.push(children),
       renderState
     );
   children = createReplayTask(
@@ -4228,7 +4211,7 @@ function resumeRequest(
     -1,
     null,
     null,
-    abortSet,
+    renderState.abortableTasks,
     null,
     postponedState.rootFormatContext,
     null,
@@ -4237,8 +4220,37 @@ function resumeRequest(
     !1
   );
   pushComponentStack(children);
-  pingedTasks.push(children);
+  renderState.pingedTasks.push(children);
   return renderState;
+}
+function resumeAndPrerenderRequest(
+  children,
+  postponedState,
+  renderState,
+  onError,
+  onAllReady,
+  onShellReady,
+  onShellError,
+  onFatalError,
+  onPostpone
+) {
+  children = resumeRequest(
+    children,
+    postponedState,
+    renderState,
+    onError,
+    onAllReady,
+    onShellReady,
+    onShellError,
+    onFatalError,
+    onPostpone
+  );
+  children.trackedPostpones = {
+    workingMap: new Map(),
+    rootNodes: [],
+    rootSlots: null
+  };
+  return children;
 }
 var currentRequest = null;
 function resolveRequest() {
@@ -5059,6 +5071,7 @@ function retryNode(request, task) {
                       resumedBoundary.rootSegmentID = ref;
                       task.blockedBoundary = resumedBoundary;
                       task.hoistableState = resumedBoundary.contentState;
+                      task.keyPath = key;
                       task.replay = {
                         nodes: replay,
                         slots: name,
@@ -6680,11 +6693,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.0.0-experimental-7771d3a7-20240827" !== isomorphicReactPackageVersion)
+  if ("19.0.0-experimental-47352209-20240912" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.0.0-experimental-7771d3a7-20240827\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.0.0-experimental-47352209-20240912\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6888,6 +6901,56 @@ exports.resume = function (children, postponedState, options) {
     startWork(request);
   });
 };
+exports.resumeAndPrerender = function (children, postponedState, options) {
+  return new Promise(function (resolve, reject) {
+    var request = resumeAndPrerenderRequest(
+      children,
+      postponedState,
+      createRenderState(
+        postponedState.resumableState,
+        options ? options.nonce : void 0,
+        void 0,
+        void 0,
+        void 0,
+        void 0
+      ),
+      options ? options.onError : void 0,
+      function () {
+        var stream = new ReadableStream(
+          {
+            type: "bytes",
+            pull: function (controller) {
+              startFlowing(request, controller);
+            },
+            cancel: function (reason) {
+              request.destination = null;
+              abort(request, reason);
+            }
+          },
+          { highWaterMark: 0 }
+        );
+        stream = { postponed: getPostponedState(request), prelude: stream };
+        resolve(stream);
+      },
+      void 0,
+      void 0,
+      reject,
+      options ? options.onPostpone : void 0
+    );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
+};
 
 // This is a patch added by Next.js
 const setTimeoutOrImmediate =
@@ -6899,4 +6962,4 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-exports.version = "19.0.0-experimental-7771d3a7-20240827";
+exports.version = "19.0.0-experimental-47352209-20240912";
