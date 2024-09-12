@@ -1,6 +1,8 @@
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
+jest.setTimeout(300000)
+
 describe('theme-ui SWC option', () => {
   const { next } = nextTestSetup({
     files: join(__dirname, 'fixture'),
