@@ -1199,6 +1199,9 @@ importers:
       cookie:
         specifier: 0.4.1
         version: 0.4.1
+      cross-env:
+        specifier: 6.0.3
+        version: 6.0.3
       cross-spawn:
         specifier: 7.0.3
         version: 7.0.3
