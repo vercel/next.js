@@ -11,6 +11,7 @@ export default async function Page({
     <>
       <h1 id="params">{JSON.stringify(searchParams)}</h1>
       <Link href="/">Back</Link>
+      <Link href="/?id=1">/id=1</Link>
     </>
   )
 }

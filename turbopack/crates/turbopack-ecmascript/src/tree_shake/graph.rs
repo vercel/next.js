@@ -14,11 +14,11 @@ use swc_core::{
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            op, ClassDecl, Decl, DefaultDecl, ExportAll, ExportDecl, ExportNamedSpecifier,
-            ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, ImportDecl, ImportNamedSpecifier,
-            ImportSpecifier, ImportStarAsSpecifier, KeyValueProp, Lit, Module, ModuleDecl,
-            ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop, PropName, PropOrSpread,
-            Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
+            ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
+            ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
+            Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
+            PropName, PropOrSpread, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident},
@@ -276,6 +276,15 @@ impl DepGraph {
             }
         }
 
+        let mut mangle_count = 0;
+        let mut mangled_vars = FxHashMap::default();
+        let mut mangle = |var: &Id| {
+            mangled_vars
+                .entry(var.clone())
+                .or_insert_with(|| encode_base54(&mut mangle_count, true))
+                .clone()
+        };
+
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             let mut chunk = Module {
                 span: DUMMY_SP,
@@ -318,7 +327,11 @@ impl DepGraph {
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
                                 span: DUMMY_SP,
-                                orig: ModuleExportName::Ident(Ident::new(export.clone(), DUMMY_SP)),
+                                orig: ModuleExportName::Ident(Ident::new(
+                                    export.clone(),
+                                    DUMMY_SP,
+                                    Default::default(),
+                                )),
                                 exported: None,
                                 is_type_only: false,
                             });
@@ -375,7 +388,10 @@ impl DepGraph {
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
                     local: var.clone().into(),
-                    imported: None,
+                    imported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(
+                        mangle(var),
+                        DUMMY_SP,
+                    ))),
                     is_type_only: false,
                 })];
 
@@ -418,7 +434,10 @@ impl DepGraph {
                                 specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
                                     span: DUMMY_SP,
                                     orig: ModuleExportName::Ident(var.clone().into()),
-                                    exported: None,
+                                    exported: Some(ModuleExportName::Ident(Ident::new_no_ctxt(
+                                        mangle(var),
+                                        DUMMY_SP,
+                                    ))),
                                     is_type_only: false,
                                 })],
                                 src: if cfg!(test) {
@@ -566,7 +585,7 @@ impl DepGraph {
                                     Some(s.orig.clone()),
                                     match &s.orig {
                                         ModuleExportName::Ident(i) => i.clone(),
-                                        ModuleExportName::Str(..) => quote_ident!("_tmp"),
+                                        ModuleExportName::Str(..) => quote_ident!("_tmp").into(),
                                     },
                                     Some(s.exported.clone().unwrap_or_else(|| s.orig.clone())),
                                 ),
@@ -574,15 +593,16 @@ impl DepGraph {
                                     Some(ModuleExportName::Ident(Ident::new(
                                         "default".into(),
                                         DUMMY_SP,
+                                        Default::default(),
                                     ))),
-                                    quote_ident!("default"),
+                                    quote_ident!("default").into(),
                                     Some(ModuleExportName::Ident(s.exported.clone())),
                                 ),
                                 ExportSpecifier::Namespace(s) => (
                                     None,
                                     match &s.name {
                                         ModuleExportName::Ident(i) => i.clone(),
-                                        ModuleExportName::Str(..) => quote_ident!("_tmp"),
+                                        ModuleExportName::Str(..) => quote_ident!("_tmp").into(),
                                     },
                                     Some(s.name.clone()),
                                 ),
@@ -702,7 +722,7 @@ impl DepGraph {
 
                         exports.push((
                             default_var.to_id(),
-                            Some(ModuleExportName::Ident(quote_ident!("default"))),
+                            Some(ModuleExportName::Ident(quote_ident!("default").into())),
                         ));
                     }
                     ModuleDecl::ExportDefaultExpr(export) => {
@@ -739,13 +759,13 @@ impl DepGraph {
                                     VarDecl {
                                         span: DUMMY_SP,
                                         kind: VarDeclKind::Const,
-                                        declare: false,
                                         decls: vec![VarDeclarator {
                                             span: DUMMY_SP,
                                             name: default_var.clone().into(),
                                             init: Some(export.expr.clone()),
                                             definite: false,
                                         }],
+                                        ..Default::default()
                                     },
                                 )))),
                                 ..Default::default()
@@ -764,7 +784,7 @@ impl DepGraph {
 
                             exports.push((
                                 default_var.to_id(),
-                                Some(ModuleExportName::Ident(quote_ident!("default"))),
+                                Some(ModuleExportName::Ident(quote_ident!("default").into())),
                             ));
                         }
                     }
@@ -1155,7 +1175,7 @@ pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
     ObjectLit {
         span: DUMMY_SP,
         props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-            key: PropName::Ident(Ident::new(ASSERT_CHUNK_KEY.into(), DUMMY_SP)),
+            key: PropName::Ident(IdentName::new(ASSERT_CHUNK_KEY.into(), DUMMY_SP)),
             value: match dep {
                 PartId::ModuleEvaluation => "module evaluation".into(),
                 PartId::Exports => "exports".into(),
@@ -1179,8 +1199,55 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
         })) if &*key.sym == ASSERT_CHUNK_KEY => match &*s.value {
             "module evaluation" => Some(PartId::ModuleEvaluation),
             "exports" => Some(PartId::Exports),
+            _ if s.value.starts_with("export ") => Some(PartId::Export(s.value[7..].into())),
             _ => None,
         },
         _ => None,
     })
+}
+/// givin a number, return a base54 encoded string
+/// `usize -> [a-zA-Z$_][a-zA-Z$_0-9]*`
+pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> JsWord {
+    static BASE54_CHARS: &[u8; 64] =
+        b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$_";
+
+    let mut n = *init;
+
+    *init += 1;
+
+    let mut base = 54;
+
+    while n >= base {
+        n -= base;
+        base <<= 6;
+    }
+
+    // Not sure if this is ideal, but it's safe
+    let mut ret = Vec::with_capacity(14);
+
+    base /= 54;
+    let mut c = BASE54_CHARS[n / base];
+    ret.push(c);
+
+    while base > 1 {
+        n %= base;
+        base >>= 6;
+        c = BASE54_CHARS[n / base];
+
+        ret.push(c);
+    }
+
+    let s = unsafe {
+        // Safety: We are only using ascii characters
+        // Safety: The stack memory for ret is alive while creating JsWord
+        JsWord::from(std::str::from_utf8_unchecked(&ret))
+    };
+
+    if skip_reserved
+        && (s.is_reserved() || s.is_reserved_in_strict_bind() || s.is_reserved_in_strict_mode(true))
+    {
+        return encode_base54(init, skip_reserved);
+    }
+
+    s
 }

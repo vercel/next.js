@@ -1,14 +1,10 @@
 use anyhow::{bail, Context, Result};
-use swc_core::{
-    common::DUMMY_SP,
-    ecma::ast::{Expr, Ident},
-    quote,
-};
+use swc_core::{common::DUMMY_SP, ecma::ast::Ident, quote};
 use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption, ModuleId,
+        ChunkingTypeOption,
     },
     reference::ModuleReference,
     resolve::{ModulePart, ModuleResolveResult},
@@ -22,6 +18,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::esm::base::{insert_hoisted_stmt, ReferencedAsset},
+    utils::module_id_to_lit,
 };
 
 /// A reference to the [EcmascriptModuleLocalsModule] variant of an original
@@ -132,11 +129,8 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
             let stmt = quote!(
                 "var $name = __turbopack_import__($id);" as Stmt,
-                name = Ident::new(ident.clone().into(), DUMMY_SP),
-                id: Expr = Expr::Lit(match &*id {
-                    ModuleId::String(s) => s.as_str().into(),
-                    ModuleId::Number(n) => (*n as f64).into(),
-                })
+                name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                id: Expr = module_id_to_lit(&id),
             );
             insert_hoisted_stmt(program, stmt);
         }));

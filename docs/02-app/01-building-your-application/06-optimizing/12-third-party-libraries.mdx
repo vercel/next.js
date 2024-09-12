@@ -148,7 +148,7 @@ export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGTMEvent('event', 'buttonClicked', { value: 'xyz' })}
+        onClick={() => sendGTMEvent({ event: 'buttonClicked', value: 'xyz' })}
       >
         Send Event
       </button>
@@ -346,6 +346,7 @@ Options to pass to the `<GoogleAnalytics>` component.
 | --------------- | -------- | ------------------------------------------------------------------------------------------------------ |
 | `gaId`          | Required | Your [measurement ID](https://support.google.com/analytics/answer/12270356). Usually starts with `G-`. |
 | `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`.                                                       |
+| `nonce`         | Optional | A [nonce](/docs/app/building-your-application/configuring/content-security-policy#nonces).             |
 
 ### Google Maps Embed
 

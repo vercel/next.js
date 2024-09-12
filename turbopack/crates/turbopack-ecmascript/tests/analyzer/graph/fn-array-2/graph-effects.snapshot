@@ -53,8 +53,9 @@
                 Call,
             ),
         ],
-        span: 72..83#0,
+        span: 72..83,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

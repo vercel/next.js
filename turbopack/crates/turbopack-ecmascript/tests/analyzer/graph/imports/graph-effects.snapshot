@@ -34,7 +34,7 @@
                 Ident,
             ),
         ],
-        span: 158..159#2,
+        span: 158..159,
         in_try: false,
     },
     ImportedBinding {
@@ -72,7 +72,7 @@
                 Ident,
             ),
         ],
-        span: 170..171#2,
+        span: 170..171,
         in_try: false,
     },
     ImportedBinding {
@@ -108,7 +108,7 @@
                 Ident,
             ),
         ],
-        span: 182..183#2,
+        span: 182..183,
         in_try: false,
     },
 ]

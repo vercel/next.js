@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Search } from './search'
 
 export default async function Page({ searchParams }: { searchParams: any }) {
@@ -7,6 +8,9 @@ export default async function Page({ searchParams }: { searchParams: any }) {
     <main id="page-content">
       <Search />
       <p id="search-value">Search Value: {searchParams.q ?? 'None'}</p>
+      <Link href="/search" prefetch>
+        Home
+      </Link>
     </main>
   )
 }

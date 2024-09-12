@@ -1,8 +1,6 @@
 import '../build/polyfills/polyfill-module'
-// @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
-// @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
@@ -13,7 +11,6 @@ import {
   type AppRouterActionQueue,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import { isNextRouterError } from './components/is-next-router-error'
 import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 import AppRouter from './components/app-router'
@@ -174,7 +171,7 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
             createInitialRouterState({
               buildId: initialRSCPayload.b,
               initialFlightData: initialRSCPayload.f,
-              initialCanonicalUrl: initialRSCPayload.c,
+              initialCanonicalUrlParts: initialRSCPayload.c,
               initialParallelRoutes: new Map(),
               location: window.location,
               couldBeIntercepted: initialRSCPayload.i,
@@ -251,58 +248,9 @@ export function hydrate() {
 
   if (isError) {
     if (process.env.NODE_ENV !== 'production') {
-      // if an error is thrown while rendering an RSC stream, this will catch it in dev
-      // and show the error overlay
-      const ReactDevOverlay: typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default =
-        require('./components/react-dev-overlay/app/ReactDevOverlay')
-          .default as typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default
-
-      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE =
-        require('./components/react-dev-overlay/shared').INITIAL_OVERLAY_STATE
-
-      const getSocketUrl: typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl =
-        require('./components/react-dev-overlay/internal/helpers/get-socket-url')
-          .getSocketUrl as typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl
-
-      const FallbackLayout = hasMissingTags
-        ? ({ children }: { children: React.ReactNode }) => (
-            <html id="__next_error__">
-              <body>{children}</body>
-            </html>
-          )
-        : React.Fragment
-      const errorTree = (
-        <FallbackLayout>
-          <ReactDevOverlay
-            state={{ ...INITIAL_OVERLAY_STATE, rootLayoutMissingTags }}
-            onReactError={() => {}}
-          >
-            {reactEl}
-          </ReactDevOverlay>
-        </FallbackLayout>
-      )
-      const socketUrl = getSocketUrl(process.env.__NEXT_ASSET_PREFIX || '')
-      const socket = new window.WebSocket(`${socketUrl}/_next/webpack-hmr`)
-
-      // add minimal "hot reload" support for RSC errors
-      const handler = (event: MessageEvent) => {
-        let obj
-        try {
-          obj = JSON.parse(event.data)
-        } catch {}
-
-        if (!obj || !('action' in obj)) {
-          return
-        }
-
-        if (
-          obj.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
-        ) {
-          window.location.reload()
-        }
-      }
-
-      socket.addEventListener('message', handler)
+      const createDevOverlayElement =
+        require('./components/react-dev-overlay/client-entry').createDevOverlayElement
+      const errorTree = createDevOverlayElement(reactEl)
       ReactDOMClient.createRoot(appElement as any, options).render(errorTree)
     } else {
       ReactDOMClient.createRoot(appElement as any, options).render(reactEl)
