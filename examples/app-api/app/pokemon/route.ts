@@ -1,7 +1,28 @@
 import { NextResponse } from "next/server";
-import { withMiddleware } from "@/app/with-middleware";
+import { requestHandler } from "@/app/request-handler";
 
-export const GET = withMiddleware(async (request) => {
+const POKEMON_TYPES = [
+  "normal",
+  "fire",
+  "water",
+  "electric",
+  "grass",
+  "ice",
+  "fighting",
+  "poison",
+  "ground",
+  "flying",
+  "psychic",
+  "bug",
+  "rock",
+  "ghost",
+  "dragon",
+  "dark",
+  "steel",
+  "fairy",
+];
+
+export const GET = requestHandler(async (request) => {
   const url = request.nextUrl.toString();
 
   const { searchParams } = request.nextUrl;
@@ -28,24 +49,3 @@ export const GET = withMiddleware(async (request) => {
 
   return NextResponse.json(pokedex);
 });
-
-const POKEMON_TYPES = [
-  "normal",
-  "fire",
-  "water",
-  "electric",
-  "grass",
-  "ice",
-  "fighting",
-  "poison",
-  "ground",
-  "flying",
-  "psychic",
-  "bug",
-  "rock",
-  "ghost",
-  "dragon",
-  "dark",
-  "steel",
-  "fairy",
-];

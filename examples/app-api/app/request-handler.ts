@@ -1,11 +1,36 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 type RouteHandler<T = Record<string, string | string[]>> = (
   req: NextRequest,
   ctx: { params: T },
 ) => Promise<Response> | Response;
 
-export function withMiddleware<T = Record<string, string | string[]>>(
+function isAllowedOrigin(req: NextRequest): boolean {
+  const referer = req.headers.get("referer");
+  const host = req.headers.get("host");
+
+  // Allow requests from the same origin
+  if (referer && host) {
+    const refererUrl = new URL(referer);
+    return refererUrl.host === host;
+  }
+
+  if (process.env.NODE_ENV === "development" && host?.includes("localhost")) {
+    return true;
+  }
+
+  return false;
+}
+
+async function checkAuth(req: NextRequest): Promise<boolean> {
+  // Placeholder authentication logic
+  // You can implement your actual auth check here
+  const authToken = req.headers.get("authorization");
+  console.log({ authToken });
+  return true; // For now, always return true
+}
+
+export function requestHandler<T = Record<string, string | string[]>>(
   handler: RouteHandler<T>,
 ): RouteHandler<T> {
   return async (req: NextRequest, ctx: { params: T }) => {
@@ -41,28 +66,4 @@ export function withMiddleware<T = Record<string, string | string[]>>(
       );
     }
   };
-}
-
-function isAllowedOrigin(req: NextRequest): boolean {
-  const referer = req.headers.get("referer");
-  const host = req.headers.get("host");
-
-  // Allow requests from the same origin
-  if (referer && host) {
-    const refererUrl = new URL(referer);
-    return refererUrl.host === host;
-  }
-
-  if (process.env.NODE_ENV === "development" && host?.includes("localhost")) {
-    return true;
-  }
-
-  return false;
-}
-
-async function checkAuth(req: NextRequest): Promise<boolean> {
-  // Placeholder authentication logic
-  // You can implement your actual auth check here
-  const authToken = req.headers.get("authorization");
-  return true; // For now, always return true
 }
