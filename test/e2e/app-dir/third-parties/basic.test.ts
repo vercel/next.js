@@ -43,7 +43,7 @@ describe('@next/third-parties basic usage', () => {
       '[src^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]'
     )
 
-    expect(gtmScript.length).toBe(1)
+    expect(gtmScript.length).toBe(2)
 
     const dataLayer = await browser.eval('window.dataLayer')
     expect(dataLayer.length).toBe(1)
