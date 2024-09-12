@@ -58,6 +58,7 @@ use turbopack_nodejs::NodeJsChunkingContext;
 use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
+    empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
@@ -866,7 +867,7 @@ impl Project {
         let middleware = self.find_middleware();
         let middleware = if let FindContextFileResult::Found(..) = *middleware.await? {
             Some(Middleware {
-                endpoint: Vc::upcast::<Box<dyn Endpoint>>(self.middleware_endpoint()),
+                endpoint: self.middleware_endpoint(),
             })
         } else {
             None
@@ -875,8 +876,8 @@ impl Project {
         let instrumentation = self.find_instrumentation();
         let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
             Some(Instrumentation {
-                node_js: Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(false)),
-                edge: Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(true)),
+                node_js: self.instrumentation_endpoint(false),
+                edge: self.instrumentation_endpoint(true),
             })
         } else {
             None
@@ -952,10 +953,10 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<MiddlewareEndpoint>> {
+    async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = *middleware.await? else {
-            bail!("No middleware found");
+            return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
         let source = Vc::upcast(FileSource::new(fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
@@ -965,13 +966,13 @@ impl Project {
 
         let middleware_asset_context = self.middleware_context();
 
-        Ok(MiddlewareEndpoint::new(
+        Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
             middleware_asset_context,
             source,
             app_dir,
             ecmascript_client_reference_transition_name,
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
@@ -1086,10 +1087,10 @@ impl Project {
     async fn instrumentation_endpoint(
         self: Vc<Self>,
         is_edge: bool,
-    ) -> Result<Vc<InstrumentationEndpoint>> {
+    ) -> Result<Vc<Box<dyn Endpoint>>> {
         let instrumentation = self.find_instrumentation();
         let FindContextFileResult::Found(fs_path, _) = *instrumentation.await? else {
-            bail!("No instrumentation found");
+            return Ok(Vc::upcast(EmptyEndpoint::new()));
         };
         let source = Vc::upcast(FileSource::new(fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
@@ -1103,14 +1104,14 @@ impl Project {
             self.node_instrumentation_context()
         };
 
-        Ok(InstrumentationEndpoint::new(
+        Ok(Vc::upcast(InstrumentationEndpoint::new(
             self,
             instrumentation_asset_context,
             source,
             is_edge,
             app_dir,
             ecmascript_client_reference_transition_name,
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
