@@ -508,10 +508,15 @@ See the [`cookies`](/docs/app/api-reference/functions/cookies) API reference.
 
 The Route Segment Config options can be used to override the route segment defaults or when you're not able to use the `fetch` API (e.g. database client or 3rd party libraries).
 
-The following Route Segment Config options will opt out of the Data Cache and Full Route Cache:
+The following Route Segment Config options will opt out of the Full Route Cache:
 
 - `const dynamic = 'force-dynamic'`
-- `const revalidate = 0`
+
+This config option will opt all fetches out of the Data Cache (i.e. `no-store`):
+
+- `const fetchCache = 'default-no-store'`
+
+See the [`fetchCache`](/docs/app/api-reference/file-conventions/route-segment-config#fetchcache) to see more advanced options.
 
 See the [Route Segment Config](/docs/app/api-reference/file-conventions/route-segment-config) documentation for more options.
 

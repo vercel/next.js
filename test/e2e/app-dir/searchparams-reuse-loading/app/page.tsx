@@ -25,8 +25,13 @@ export default function Page({ searchParams }) {
           </Link>
         </li>
         <li>
-          <Link href="/other-page" prefetch={false}>
-            /other-page
+          <Link href="/params-first" prefetch={false}>
+            /params-first
+          </Link>
+        </li>
+        <li>
+          <Link href="/root-page-first" prefetch={false}>
+            /root-page-first
           </Link>
         </li>
       </ul>
