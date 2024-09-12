@@ -1056,7 +1056,7 @@ impl DepGraph {
                         };
                         ids.push(id.clone());
 
-                        let pure = match &decl.init {
+                        let has_explicit_pure = match &decl.init {
                             Some(e) => comments.has_flag(e.span().lo, "PURE"),
                             _ => false,
                         };
@@ -1078,7 +1078,7 @@ impl DepGraph {
                         vars.read.retain(|id| !decl_ids.contains(id));
                         eventual_vars.read.retain(|id| !decl_ids.contains(id));
 
-                        let side_effects = !pure
+                        let side_effects = !has_explicit_pure
                             && (vars.found_unresolved
                                 || decl.init.as_deref().map_or(false, |e| {
                                     e.may_have_side_effects(&ExprCtx {
@@ -1096,9 +1096,14 @@ impl DepGraph {
                         items.insert(
                             id,
                             ItemData {
-                                pure,
+                                pure: has_explicit_pure,
                                 var_decls: decl_ids.clone().into_iter().collect(),
                                 read_vars: vars.read,
+                                write_vars: if has_explicit_pure {
+                                    Default::default()
+                                } else {
+                                    vars.write
+                                },
                                 eventual_read_vars: eventual_vars.read,
                                 eventual_write_vars: eventual_vars.write,
                                 content,
