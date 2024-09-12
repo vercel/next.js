@@ -38,7 +38,7 @@
                 Member,
             ),
         ],
-        span: 1622..1636#0,
+        span: 1622..1636,
         in_try: false,
     },
     FreeVar {
@@ -79,7 +79,7 @@
                 Ident,
             ),
         ],
-        span: 1622..1628#1,
+        span: 1622..1628,
         in_try: false,
     },
     FreeVar {
@@ -111,7 +111,7 @@
                 Ident,
             ),
         ],
-        span: 1639..1642#1,
+        span: 1639..1642,
         in_try: false,
     },
     Member {
@@ -171,7 +171,7 @@
                 Member,
             ),
         ],
-        span: 138..149#0,
+        span: 138..149,
         in_try: false,
     },
     Member {
@@ -243,7 +243,7 @@
                 Member,
             ),
         ],
-        span: 173..206#0,
+        span: 173..206,
         in_try: false,
     },
     Member {
@@ -302,7 +302,7 @@
                 Member,
             ),
         ],
-        span: 380..388#0,
+        span: 380..388,
         in_try: false,
     },
     Member {
@@ -385,7 +385,7 @@
                 Member,
             ),
         ],
-        span: 484..488#0,
+        span: 484..488,
         in_try: false,
     },
     Call {
@@ -518,8 +518,9 @@
                 Call,
             ),
         ],
-        span: 466..504#0,
+        span: 466..504,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -613,7 +614,7 @@
                 Member,
             ),
         ],
-        span: 532..540#0,
+        span: 532..540,
         in_try: false,
     },
     Call {
@@ -758,8 +759,9 @@
                 Call,
             ),
         ],
-        span: 514..557#0,
+        span: 514..557,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -853,7 +855,7 @@
                 Member,
             ),
         ],
-        span: 585..593#0,
+        span: 585..593,
         in_try: false,
     },
     Call {
@@ -1000,8 +1002,9 @@
                 Call,
             ),
         ],
-        span: 567..609#0,
+        span: 567..609,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1095,7 +1098,7 @@
                 Member,
             ),
         ],
-        span: 637..645#0,
+        span: 637..645,
         in_try: false,
     },
     Call {
@@ -1240,8 +1243,9 @@
                 Call,
             ),
         ],
-        span: 619..663#0,
+        span: 619..663,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1335,7 +1339,7 @@
                 Member,
             ),
         ],
-        span: 691..699#0,
+        span: 691..699,
         in_try: false,
     },
     Call {
@@ -1480,8 +1484,9 @@
                 Call,
             ),
         ],
-        span: 673..715#0,
+        span: 673..715,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1575,7 +1580,7 @@
                 Member,
             ),
         ],
-        span: 743..751#0,
+        span: 743..751,
         in_try: false,
     },
     Call {
@@ -1722,8 +1727,9 @@
                 Call,
             ),
         ],
-        span: 725..768#0,
+        span: 725..768,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1817,7 +1823,7 @@
                 Member,
             ),
         ],
-        span: 796..804#0,
+        span: 796..804,
         in_try: false,
     },
     Call {
@@ -1962,8 +1968,9 @@
                 Call,
             ),
         ],
-        span: 778..822#0,
+        span: 778..822,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2057,7 +2064,7 @@
                 Member,
             ),
         ],
-        span: 850..858#0,
+        span: 850..858,
         in_try: false,
     },
     Call {
@@ -2202,8 +2209,9 @@
                 Call,
             ),
         ],
-        span: 832..874#0,
+        span: 832..874,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2297,7 +2305,7 @@
                 Member,
             ),
         ],
-        span: 902..910#0,
+        span: 902..910,
         in_try: false,
     },
     Call {
@@ -2444,8 +2452,9 @@
                 Call,
             ),
         ],
-        span: 884..926#0,
+        span: 884..926,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2539,7 +2548,7 @@
                 Member,
             ),
         ],
-        span: 954..962#0,
+        span: 954..962,
         in_try: false,
     },
     Call {
@@ -2684,8 +2693,9 @@
                 Call,
             ),
         ],
-        span: 936..980#0,
+        span: 936..980,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2779,7 +2789,7 @@
                 Member,
             ),
         ],
-        span: 1008..1017#0,
+        span: 1008..1017,
         in_try: false,
     },
     Call {
@@ -2924,8 +2934,9 @@
                 Call,
             ),
         ],
-        span: 990..1030#0,
+        span: 990..1030,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -3019,7 +3030,7 @@
                 Member,
             ),
         ],
-        span: 1058..1067#0,
+        span: 1058..1067,
         in_try: false,
     },
     Call {
@@ -3164,8 +3175,9 @@
                 Call,
             ),
         ],
-        span: 1040..1085#0,
+        span: 1040..1085,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -3259,7 +3271,7 @@
                 Member,
             ),
         ],
-        span: 1113..1122#0,
+        span: 1113..1122,
         in_try: false,
     },
     Call {
@@ -3406,8 +3418,9 @@
                 Call,
             ),
         ],
-        span: 1095..1138#0,
+        span: 1095..1138,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -3501,7 +3514,7 @@
                 Member,
             ),
         ],
-        span: 1166..1175#0,
+        span: 1166..1175,
         in_try: false,
     },
     Call {
@@ -3646,8 +3659,9 @@
                 Call,
             ),
         ],
-        span: 1148..1191#0,
+        span: 1148..1191,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -3741,7 +3755,7 @@
                 Member,
             ),
         ],
-        span: 1219..1228#0,
+        span: 1219..1228,
         in_try: false,
     },
     Call {
@@ -3886,8 +3900,9 @@
                 Call,
             ),
         ],
-        span: 1201..1246#0,
+        span: 1201..1246,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -3981,7 +3996,7 @@
                 Member,
             ),
         ],
-        span: 1274..1283#0,
+        span: 1274..1283,
         in_try: false,
     },
     Call {
@@ -4128,8 +4143,9 @@
                 Call,
             ),
         ],
-        span: 1256..1300#0,
+        span: 1256..1300,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -4212,7 +4228,7 @@
                 Ident,
             ),
         ],
-        span: 1459..1466#1,
+        span: 1459..1466,
         in_try: false,
     },
     FreeVar {
@@ -4275,7 +4291,7 @@
                 Ident,
             ),
         ],
-        span: 1467..1480#1,
+        span: 1467..1480,
         in_try: false,
     },
     FreeVar {
@@ -4349,7 +4365,7 @@
                 Ident,
             ),
         ],
-        span: 1481..1488#1,
+        span: 1481..1488,
         in_try: false,
     },
     FreeVar {
@@ -4434,7 +4450,7 @@
                 Ident,
             ),
         ],
-        span: 1489..1496#1,
+        span: 1489..1496,
         in_try: false,
     },
     Call {
@@ -4528,8 +4544,9 @@
                 Call,
             ),
         ],
-        span: 1489..1502#0,
+        span: 1489..1502,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -4613,7 +4630,7 @@
                 Ident,
             ),
         ],
-        span: 1504..1511#1,
+        span: 1504..1511,
         in_try: false,
     },
     Call {
@@ -4707,8 +4724,9 @@
                 Call,
             ),
         ],
-        span: 1504..1517#0,
+        span: 1504..1517,
         in_try: false,
+        new: false,
     },
     Call {
         func: FreeVar(
@@ -4818,8 +4836,9 @@
                 Call,
             ),
         ],
-        span: 1481..1518#0,
+        span: 1481..1518,
         in_try: false,
+        new: false,
     },
     Call {
         func: FreeVar(
@@ -4932,8 +4951,9 @@
                 Call,
             ),
         ],
-        span: 1467..1522#0,
+        span: 1467..1522,
         in_try: false,
+        new: false,
     },
     Call {
         func: FreeVar(
@@ -5049,8 +5069,9 @@
                 Call,
             ),
         ],
-        span: 1459..1526#0,
+        span: 1459..1526,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -5176,8 +5197,9 @@
                 Call,
             ),
         ],
-        span: 1577..1618#0,
+        span: 1577..1618,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

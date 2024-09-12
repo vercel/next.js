@@ -14,7 +14,19 @@ npm install babel-plugin-react-compiler
 
 Then, add `experimental.reactCompiler` option in `next.config.js`:
 
-```js filename="next.config.js"
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    reactCompiler: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
@@ -27,7 +39,22 @@ module.exports = nextConfig
 
 Optionally, you can configure the compiler to run in "opt-in" mode as follows:
 
-```tsx filename="next.config.ts"
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    reactCompiler: {
+      compilationMode: 'annotation',
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
     reactCompiler: {

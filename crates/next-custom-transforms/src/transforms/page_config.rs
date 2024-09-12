@@ -49,8 +49,7 @@ impl Fold for PageConfig {
                         name: Pat::Ident(BindingIdent {
                             id: Ident {
                                 sym: STRING_LITERAL_DROP_BUNDLE.into(),
-                                span: DUMMY_SP,
-                                optional: false,
+                                ..Default::default()
                             },
                             type_ann: None,
                         }),
@@ -64,7 +63,7 @@ impl Fold for PageConfig {
                     }],
                     span: DUMMY_SP,
                     kind: VarDeclKind::Const,
-                    declare: false,
+                    ..Default::default()
                 }))))];
             }
         }

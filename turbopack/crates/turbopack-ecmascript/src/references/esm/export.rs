@@ -48,6 +48,63 @@ pub enum EsmExport {
     Error,
 }
 
+#[turbo_tasks::function]
+pub async fn is_export_missing(
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    export_name: RcStr,
+) -> Result<Vc<bool>> {
+    let exports = module.get_exports().await?;
+    let exports = match &*exports {
+        EcmascriptExports::None => return Ok(Vc::cell(true)),
+        EcmascriptExports::Value => return Ok(Vc::cell(false)),
+        EcmascriptExports::CommonJs => return Ok(Vc::cell(false)),
+        EcmascriptExports::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
+        EcmascriptExports::DynamicNamespace => return Ok(Vc::cell(false)),
+        EcmascriptExports::EsmExports(exports) => *exports,
+    };
+
+    let exports = exports.await?;
+    if exports.exports.contains_key(&export_name) {
+        return Ok(Vc::cell(false));
+    }
+    if export_name == "default" {
+        return Ok(Vc::cell(true));
+    }
+
+    if exports.star_exports.is_empty() {
+        return Ok(Vc::cell(true));
+    }
+
+    let all_export_names = get_all_export_names(module).await?;
+    if all_export_names.esm_exports.contains_key(&export_name) {
+        return Ok(Vc::cell(false));
+    }
+
+    for &dynamic_module in &all_export_names.dynamic_exporting_modules {
+        let exports = dynamic_module.get_exports().await?;
+        match &*exports {
+            EcmascriptExports::Value
+            | EcmascriptExports::CommonJs
+            | EcmascriptExports::DynamicNamespace => {
+                return Ok(Vc::cell(false));
+            }
+            EcmascriptExports::None
+            | EcmascriptExports::EmptyCommonJs
+            | EcmascriptExports::EsmExports(_) => {}
+        }
+    }
+
+    Ok(Vc::cell(true))
+}
+
+#[turbo_tasks::function]
+pub async fn all_known_export_names(
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+) -> Result<Vc<Vec<RcStr>>> {
+    let export_names = get_all_export_names(module).await?;
+    Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub enum FoundExportType {
     Found,
@@ -291,7 +348,7 @@ pub async fn expand_star_exports(
                     }
                 }
             }
-            EcmascriptExports::None => emit_star_exports_issue(
+            EcmascriptExports::None | EcmascriptExports::EmptyCommonJs => emit_star_exports_issue(
                 asset.ident(),
                 format!(
                     "export * used with module {} which has no exports\nTypescript only: Did you \
@@ -429,7 +486,7 @@ impl CodeGenerateable for EsmExports {
 
             dynamic_exports.push(quote_expr!(
                 "__turbopack_dynamic__($arg)",
-                arg: Expr = Ident::new(ident.into(), DUMMY_SP).into()
+                arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into()
             ));
         }
 
@@ -443,13 +500,17 @@ impl CodeGenerateable for EsmExports {
                     if *mutable {
                         Some(quote!(
                             "([() => $local, ($new) => $local = $new])" as Expr,
-                            local = Ident::new((name as &str).into(), DUMMY_SP),
-                            new = Ident::new(format!("{name}_new_value").into(), DUMMY_SP),
+                            local = Ident::new((name as &str).into(), DUMMY_SP, Default::default()),
+                            new = Ident::new(
+                                format!("{name}_new_value").into(),
+                                DUMMY_SP,
+                                Default::default()
+                            ),
                         ))
                     } else {
                         Some(quote!(
                             "(() => $local)" as Expr,
-                            local = Ident::new((name as &str).into(), DUMMY_SP)
+                            local = Ident::new((name as &str).into(), DUMMY_SP, Default::default())
                         ))
                     }
                 }
@@ -459,7 +520,7 @@ impl CodeGenerateable for EsmExports {
                     referenced_asset.get_ident().await?.map(|ident| {
                         let expr = Expr::Member(MemberExpr {
                             span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(Ident::new(ident.into(), DUMMY_SP))),
+                            obj: Box::new(Expr::Ident(Ident::new(ident.into(), DUMMY_SP, Default::default()))),
                             prop: MemberProp::Computed(ComputedPropName {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Lit(Lit::Str(Str {
@@ -473,7 +534,7 @@ impl CodeGenerateable for EsmExports {
                             quote!(
                                 "([() => $expr, ($new) => $expr = $new])" as Expr,
                                 expr: Expr = expr,
-                                new = Ident::new(format!("{name}_new_value").into(), DUMMY_SP),
+                                new = Ident::new(format!("{name}_new_value").into(), DUMMY_SP, Default::default()),
                             )
                         } else {
                             quote!(
@@ -489,7 +550,7 @@ impl CodeGenerateable for EsmExports {
                     referenced_asset.get_ident().await?.map(|ident| {
                         quote!(
                             "(() => $imported)" as Expr,
-                            imported = Ident::new(ident.into(), DUMMY_SP)
+                            imported = Ident::new(ident.into(), DUMMY_SP, Default::default())
                         )
                     })
                 }

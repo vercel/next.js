@@ -53,6 +53,13 @@ pub async fn read_tsconfigs(
     let mut configs = Vec::new();
     let resolve_options = json_only(resolve_options);
     loop {
+        // tsc ignores empty config files.
+        if let FileContent::Content(file) = &*data.await? {
+            if file.content().is_empty() {
+                break;
+            }
+        }
+
         let parsed_data = data.parse_json_with_comments();
         match &*parsed_data.await? {
             FileJsonContent::Unparseable(e) => {

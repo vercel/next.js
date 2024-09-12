@@ -1,5 +1,3 @@
-declare module 'react-dom/server.browser'
-
 declare module 'react-dom/server.edge' {
   import type { JSX } from 'react'
   /**

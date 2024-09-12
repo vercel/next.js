@@ -36,7 +36,7 @@
                 Ident,
             ),
         ],
-        span: 132..138#1,
+        span: 132..138,
         in_try: false,
     },
     FreeVar {
@@ -94,7 +94,7 @@
                 Ident,
             ),
         ],
-        span: 164..170#1,
+        span: 164..170,
         in_try: false,
     },
     FreeVar {
@@ -146,7 +146,7 @@
                 Ident,
             ),
         ],
-        span: 208..214#1,
+        span: 208..214,
         in_try: false,
     },
     FreeVar {
@@ -192,7 +192,7 @@
                 Ident,
             ),
         ],
-        span: 256..262#1,
+        span: 256..262,
         in_try: false,
     },
     FreeVar {
@@ -232,7 +232,7 @@
                 Ident,
             ),
         ],
-        span: 284..290#1,
+        span: 284..290,
         in_try: false,
     },
     FreeVar {
@@ -272,7 +272,7 @@
                 Ident,
             ),
         ],
-        span: 323..329#1,
+        span: 323..329,
         in_try: false,
     },
     FreeVar {
@@ -312,7 +312,7 @@
                 Ident,
             ),
         ],
-        span: 346..352#1,
+        span: 346..352,
         in_try: false,
     },
     FreeVar {
@@ -352,7 +352,7 @@
                 Ident,
             ),
         ],
-        span: 387..393#1,
+        span: 387..393,
         in_try: false,
     },
 ]

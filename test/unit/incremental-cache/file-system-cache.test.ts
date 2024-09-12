@@ -40,6 +40,7 @@ describe('FileSystemCache', () => {
       (
         await fsCache.get('icon.png', {
           kind: IncrementalCacheKind.APP_ROUTE,
+          isFallback: undefined,
         })
       )?.value
     ).toEqual({
@@ -88,6 +89,7 @@ describe('FileSystemCache (isrMemory 0)', () => {
     const res = await fsCache.get('fetch-cache', {
       tags: ['server-time'],
       kind: IncrementalCacheKind.FETCH,
+      isFallback: undefined,
     })
 
     expect(res?.value).toEqual({
@@ -117,6 +119,7 @@ describe('FileSystemCache (isrMemory 0)', () => {
     const res = await fsCache.get('unstable-cache', {
       tags: ['server-time'],
       kind: IncrementalCacheKind.FETCH,
+      isFallback: undefined,
     })
 
     expect(res?.value).toEqual({

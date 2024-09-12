@@ -1,0 +1,51 @@
+# Avoid running the full CI on mid-stack PRs: https://graphite.dev/docs/stacking-and-ci
+#
+# We still run some high-signal low-cost jobs (e.g. lint, unit tests) on these mid-stack PRs, just
+# not anything slow (e.g. integration tests).
+#
+# Because we don't use Graphite's CI batching, full CI will still run on every PR individually
+# before it merges. The goal is just to avoid wasting CI capacity when frequently rebasing large
+# stacks.
+#
+# This can by bypassed by labeling a PR with 'CI Bypass Graphite Optimization', and manually
+# re-running CI.
+
+name: Graphite CI Optimizer
+on:
+  workflow_call:
+    outputs:
+      skip:
+        description: "'true' if expensive CI checks should be skipped, 'false' otherwise."
+        value: ${{ jobs.optimize-ci.outputs.skip }}
+    secrets:
+      GRAPHITE_TOKEN:
+        description: 'The Graphite CI optimization secret'
+        # secrets are not available in forks, check-skip will just fail-open with a warning
+        required: false
+env:
+  # FYI, if you add this label, you must *push* to the repository again to trigger a new event. Just
+  # re-running in the GitHub actions UI won't work, as it will re-use the old event with the old
+  # labels.
+  HAS_BYPASS_LABEL: |-
+    ${{
+      github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'CI Bypass Graphite Optimization')
+    }}
+jobs:
+  optimize-ci:
+    name: Graphite CI Optimizer
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ env.HAS_BYPASS_LABEL == 'false' && steps.check-skip.outputs.skip == 'true' }}
+    steps:
+      - name: Optimize CI
+        id: check-skip
+        uses: withgraphite/graphite-ci-action@main
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_TOKEN }}
+      - name: Debug Output
+        run: |
+          echo 'github.event_name: ${{ github.event_name }}'
+          echo "secrets.GRAPHITE_TOKEN != '': ${{ secrets.GRAPHITE_TOKEN != '' }}"
+          echo 'env.HAS_BYPASS_LABEL: ${{ env.HAS_BYPASS_LABEL }}'
+          echo 'steps.check-skip.outputs.skip: ${{ steps.check-skip.outputs.skip }}'

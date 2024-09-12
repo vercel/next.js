@@ -40,7 +40,7 @@
                 Member,
             ),
         ],
-        span: 35..43#0,
+        span: 35..43,
         in_try: false,
     },
     Member {
@@ -93,7 +93,7 @@
                 Member,
             ),
         ],
-        span: 70..82#0,
+        span: 70..82,
         in_try: false,
     },
     MemberCall {
@@ -215,8 +215,9 @@
                 Call,
             ),
         ],
-        span: 70..119#0,
+        span: 70..119,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Member(
@@ -305,7 +306,7 @@
                 Member,
             ),
         ],
-        span: 139..160#0,
+        span: 139..160,
         in_try: false,
     },
     Member {
@@ -391,7 +392,7 @@
                 Member,
             ),
         ],
-        span: 139..153#0,
+        span: 139..153,
         in_try: false,
     },
     FreeVar {
@@ -447,7 +448,7 @@
                 Ident,
             ),
         ],
-        span: 171..178#1,
+        span: 171..178,
         in_try: false,
     },
     MemberCall {
@@ -562,8 +563,9 @@
                 Call,
             ),
         ],
-        span: 139..180#0,
+        span: 139..180,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Member(
@@ -652,7 +654,7 @@
                 Member,
             ),
         ],
-        span: 200..221#0,
+        span: 200..221,
         in_try: false,
     },
     Member {
@@ -738,7 +740,7 @@
                 Member,
             ),
         ],
-        span: 200..214#0,
+        span: 200..214,
         in_try: false,
     },
     FreeVar {
@@ -783,7 +785,7 @@
                 Ident,
             ),
         ],
-        span: 231..238#1,
+        span: 231..238,
         in_try: false,
     },
     MemberCall {
@@ -898,8 +900,9 @@
                 Call,
             ),
         ],
-        span: 200..239#0,
+        span: 200..239,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -942,7 +945,7 @@
                 Member,
             ),
         ],
-        span: 304..313#0,
+        span: 304..313,
         in_try: false,
     },
     Member {
@@ -995,7 +998,7 @@
                 Member,
             ),
         ],
-        span: 348..360#0,
+        span: 348..360,
         in_try: false,
     },
     MemberCall {
@@ -1070,7 +1073,8 @@
                 Call,
             ),
         ],
-        span: 348..371#0,
+        span: 348..371,
         in_try: false,
+        new: false,
     },
 ]

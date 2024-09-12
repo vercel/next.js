@@ -15,13 +15,14 @@ use thiserror::Error;
 use crate::{
     backend::{CellContent, TypedCellContent},
     event::EventListener,
-    id::{ExecutionId, LocalCellId},
+    id::{ExecutionId, LocalCellId, LocalTaskId},
     manager::{
-        assert_execution_id, current_task, read_local_cell, read_task_cell, read_task_output,
-        TurboTasksApi,
+        assert_execution_id, current_task, read_local_cell, read_local_output, read_task_cell,
+        read_task_output, TurboTasksApi,
     },
     registry::{self, get_value_type},
-    turbo_tasks, CollectiblesSource, TaskId, TraitTypeId, ValueType, ValueTypeId, Vc, VcValueTrait,
+    turbo_tasks, CollectiblesSource, ReadConsistency, TaskId, TraitTypeId, ValueType, ValueTypeId,
+    Vc, VcValueTrait,
 };
 
 #[derive(Error, Debug)]
@@ -57,6 +58,7 @@ impl Display for CellId {
 pub enum RawVc {
     TaskOutput(TaskId),
     TaskCell(TaskId, CellId),
+    LocalOutput(TaskId, LocalTaskId),
     #[serde(skip)]
     LocalCell(ExecutionId, LocalCellId),
 }
@@ -66,6 +68,7 @@ impl RawVc {
         match self {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => true,
+            RawVc::LocalOutput(_, _) => false,
             RawVc::LocalCell(_, _) => false,
         }
     }
@@ -74,7 +77,15 @@ impl RawVc {
         match self {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => false,
+            RawVc::LocalOutput(_, _) => true,
             RawVc::LocalCell(_, _) => true,
+        }
+    }
+
+    pub fn is_transient(&self) -> bool {
+        match self {
+            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) => task.is_transient(),
+            RawVc::LocalOutput(_, _) | RawVc::LocalCell(_, _) => true,
         }
     }
 
@@ -143,7 +154,7 @@ impl RawVc {
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    current = read_task_output(&*tt, task, false)
+                    current = read_task_output(&*tt, task, ReadConsistency::Eventual)
                         .await
                         .map_err(|source| ResolveTypeError::TaskError { source })?;
                 }
@@ -160,6 +171,12 @@ impl RawVc {
                     } else {
                         return Err(ResolveTypeError::NoContent);
                     }
+                }
+                RawVc::LocalOutput(task_id, local_cell_id) => {
+                    current =
+                        read_local_output(&*tt, task_id, local_cell_id, ReadConsistency::Eventual)
+                            .await
+                            .map_err(|source| ResolveTypeError::TaskError { source })?;
                 }
                 RawVc::LocalCell(execution_id, local_cell_id) => {
                     let shared_reference = read_local_cell(execution_id, local_cell_id);
@@ -180,28 +197,35 @@ impl RawVc {
 
     /// See [`crate::Vc::resolve`].
     pub(crate) async fn resolve(self) -> Result<RawVc> {
-        self.resolve_inner(/* strongly_consistent */ false).await
+        self.resolve_inner(ReadConsistency::Eventual).await
     }
 
     /// See [`crate::Vc::resolve_strongly_consistent`].
     pub(crate) async fn resolve_strongly_consistent(self) -> Result<RawVc> {
-        self.resolve_inner(/* strongly_consistent */ true).await
+        self.resolve_inner(ReadConsistency::Strong).await
     }
 
-    async fn resolve_inner(self, strongly_consistent: bool) -> Result<RawVc> {
+    async fn resolve_inner(self, consistency: ReadConsistency) -> Result<RawVc> {
         let tt = turbo_tasks();
         let mut current = self;
         let mut notified = false;
+        let mut lazily_notify = || {
+            if !notified {
+                tt.notify_scheduled_tasks();
+                notified = true;
+            }
+        };
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    if !notified {
-                        tt.notify_scheduled_tasks();
-                        notified = true;
-                    }
-                    current = read_task_output(&*tt, task, strongly_consistent).await?;
+                    lazily_notify();
+                    current = read_task_output(&*tt, task, consistency).await?;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
+                RawVc::LocalOutput(task_id, local_cell_id) => {
+                    lazily_notify();
+                    current = read_local_output(&*tt, task_id, local_cell_id, consistency).await?;
+                }
                 RawVc::LocalCell(execution_id, local_cell_id) => {
                     let shared_reference = read_local_cell(execution_id, local_cell_id);
                     let value_type = get_value_type(shared_reference.0);
@@ -218,7 +242,7 @@ impl RawVc {
 
     pub fn get_task_id(&self) -> TaskId {
         match self {
-            RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) => *t,
+            RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) | RawVc::LocalOutput(t, _) => *t,
             RawVc::LocalCell(execution_id, _) => {
                 assert_execution_id(*execution_id);
                 current_task("RawVc::get_task_id")
@@ -250,7 +274,7 @@ impl CollectiblesSource for RawVc {
 
 pub struct ReadRawVcFuture {
     turbo_tasks: Arc<dyn TurboTasksApi>,
-    strongly_consistent: bool,
+    consistency: ReadConsistency,
     current: RawVc,
     untracked: bool,
     listener: Option<EventListener>,
@@ -261,7 +285,7 @@ impl ReadRawVcFuture {
         let tt = turbo_tasks();
         ReadRawVcFuture {
             turbo_tasks: tt,
-            strongly_consistent: false,
+            consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: false,
             listener: None,
@@ -272,7 +296,7 @@ impl ReadRawVcFuture {
         let tt = turbo_tasks.pin();
         ReadRawVcFuture {
             turbo_tasks: tt,
-            strongly_consistent: false,
+            consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: true,
             listener: None,
@@ -283,7 +307,7 @@ impl ReadRawVcFuture {
         let tt = turbo_tasks();
         ReadRawVcFuture {
             turbo_tasks: tt,
-            strongly_consistent: false,
+            consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: true,
             listener: None,
@@ -294,7 +318,7 @@ impl ReadRawVcFuture {
         let tt = turbo_tasks();
         ReadRawVcFuture {
             turbo_tasks: tt,
-            strongly_consistent: true,
+            consistency: ReadConsistency::Strong,
             current: vc,
             untracked: false,
             listener: None,
@@ -305,7 +329,7 @@ impl ReadRawVcFuture {
         let tt = turbo_tasks();
         ReadRawVcFuture {
             turbo_tasks: tt,
-            strongly_consistent: true,
+            consistency: ReadConsistency::Strong,
             current: vc,
             untracked: true,
             listener: None,
@@ -333,17 +357,17 @@ impl Future for ReadRawVcFuture {
                 RawVc::TaskOutput(task) => {
                     let read_result = if this.untracked {
                         this.turbo_tasks
-                            .try_read_task_output_untracked(task, this.strongly_consistent)
+                            .try_read_task_output_untracked(task, this.consistency)
                     } else {
                         this.turbo_tasks
-                            .try_read_task_output(task, this.strongly_consistent)
+                            .try_read_task_output(task, this.consistency)
                     };
                     match read_result {
                         Ok(Ok(vc)) => {
                             // We no longer need to read strongly consistent, as any Vc returned
                             // from the first task will be inside of the scope of the first task. So
                             // it's already strongly consistent.
-                            this.strongly_consistent = false;
+                            this.consistency = ReadConsistency::Eventual;
                             this.current = vc;
                             continue 'outer;
                         }
@@ -361,6 +385,30 @@ impl Future for ReadRawVcFuture {
                         Ok(Ok(content)) => {
                             // SAFETY: Constructor ensures that T and U are binary identical
                             return Poll::Ready(Ok(content));
+                        }
+                        Ok(Err(listener)) => listener,
+                        Err(err) => return Poll::Ready(Err(err)),
+                    }
+                }
+                RawVc::LocalOutput(task_id, local_output_id) => {
+                    let read_result = if this.untracked {
+                        this.turbo_tasks.try_read_local_output_untracked(
+                            task_id,
+                            local_output_id,
+                            this.consistency,
+                        )
+                    } else {
+                        this.turbo_tasks.try_read_local_output(
+                            task_id,
+                            local_output_id,
+                            this.consistency,
+                        )
+                    };
+                    match read_result {
+                        Ok(Ok(vc)) => {
+                            this.consistency = ReadConsistency::Eventual;
+                            this.current = vc;
+                            continue 'outer;
                         }
                         Ok(Err(listener)) => listener,
                         Err(err) => return Poll::Ready(Err(err)),

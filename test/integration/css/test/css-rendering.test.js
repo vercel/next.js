@@ -228,14 +228,17 @@ module.exports = {
     )
   })
 
-  describe('CSS Cleanup on Render Failure', () => {
-    const appDir = join(fixturesDir, 'transition-cleanup')
-    const nextConfig = new File(join(appDir, 'next.config.js'))
+  // Turbopack keeps styles which mirrors development with webpack. This test only checks a behavior for webpack.
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'CSS Cleanup on Render Failure',
+    () => {
+      const appDir = join(fixturesDir, 'transition-cleanup')
+      const nextConfig = new File(join(appDir, 'next.config.js'))
 
-    describe.each([true, false])(`useLightnincsss(%s)`, (useLightningcss) => {
-      beforeAll(async () => {
-        nextConfig.write(
-          `
+      describe.each([true, false])(`useLightnincsss(%s)`, (useLightningcss) => {
+        beforeAll(async () => {
+          nextConfig.write(
+            `
 const config = require('../next.config.js');
 module.exports = {
   ...config,
@@ -243,73 +246,74 @@ module.exports = {
     useLightningcss: ${useLightningcss}
   }
 }`
+          )
+        })
+
+        let app, appPort
+
+        function tests() {
+          async function checkBlackTitle(browser) {
+            await browser.waitForElementByCss('#black-title')
+            const titleColor = await browser.eval(
+              `window.getComputedStyle(document.querySelector('#black-title')).color`
+            )
+            expect(titleColor).toBe('rgb(17, 17, 17)')
+          }
+
+          it('not have intermediary page styles on error rendering', async () => {
+            const browser = await webdriver(appPort, '/')
+            try {
+              await checkBlackTitle(browser)
+
+              const currentPageStyles = await browser.eval(
+                `document.querySelector('link[rel=stylesheet][data-n-p]')`
+              )
+              expect(currentPageStyles).toBeDefined()
+
+              // Navigate to other:
+              await browser.waitForElementByCss('#link-other').click()
+              await check(
+                () => browser.eval(`document.body.innerText`),
+                'Application error: a client-side exception has occurred (see the browser console for more information).',
+                true
+              )
+
+              const newPageStyles = await browser.eval(
+                `document.querySelector('link[rel=stylesheet][data-n-p]')`
+              )
+              expect(newPageStyles).toBeFalsy()
+
+              const allPageStyles = await browser.eval(
+                `document.querySelector('link[rel=stylesheet]')`
+              )
+              expect(allPageStyles).toBeFalsy()
+            } finally {
+              await browser.close()
+            }
+          })
+        }
+
+        ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+          'production mode',
+          () => {
+            beforeAll(async () => {
+              await remove(join(appDir, '.next'))
+            })
+            beforeAll(async () => {
+              await nextBuild(appDir, [], {})
+              appPort = await findPort()
+              app = await nextStart(appDir, appPort)
+            })
+            afterAll(async () => {
+              await killApp(app)
+            })
+
+            tests()
+          }
         )
       })
-
-      let app, appPort
-
-      function tests() {
-        async function checkBlackTitle(browser) {
-          await browser.waitForElementByCss('#black-title')
-          const titleColor = await browser.eval(
-            `window.getComputedStyle(document.querySelector('#black-title')).color`
-          )
-          expect(titleColor).toBe('rgb(17, 17, 17)')
-        }
-
-        it('not have intermediary page styles on error rendering', async () => {
-          const browser = await webdriver(appPort, '/')
-          try {
-            await checkBlackTitle(browser)
-
-            const currentPageStyles = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]')`
-            )
-            expect(currentPageStyles).toBeDefined()
-
-            // Navigate to other:
-            await browser.waitForElementByCss('#link-other').click()
-            await check(
-              () => browser.eval(`document.body.innerText`),
-              'Application error: a client-side exception has occurred (see the browser console for more information).',
-              true
-            )
-
-            const newPageStyles = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]')`
-            )
-            expect(newPageStyles).toBeFalsy()
-
-            const allPageStyles = await browser.eval(
-              `document.querySelector('link[rel=stylesheet]')`
-            )
-            expect(allPageStyles).toBeFalsy()
-          } finally {
-            await browser.close()
-          }
-        })
-      }
-
-      ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-        'production mode',
-        () => {
-          beforeAll(async () => {
-            await remove(join(appDir, '.next'))
-          })
-          beforeAll(async () => {
-            await nextBuild(appDir, [], {})
-            appPort = await findPort()
-            app = await nextStart(appDir, appPort)
-          })
-          afterAll(async () => {
-            await killApp(app)
-          })
-
-          tests()
-        }
-      )
-    })
-  })
+    }
+  )
 
   describe('Page reload on CSS missing', () => {
     const appDir = join(fixturesDir, 'transition-reload')

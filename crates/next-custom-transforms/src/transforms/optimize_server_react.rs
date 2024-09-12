@@ -170,8 +170,7 @@ impl Fold for OptimizeServerReact {
                                                             is_async: false,
                                                             is_generator: false,
                                                             params: vec![],
-                                                            return_type: None,
-                                                            type_params: None,
+                                                            ..Default::default()
                                                         })
                                                         .into(),
                                                     ),

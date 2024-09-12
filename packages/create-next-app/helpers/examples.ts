@@ -1,6 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { Readable } from 'node:stream'
-import { sep } from 'node:path'
+import { sep, posix } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { x } from 'tar'
 
@@ -109,16 +109,21 @@ export async function downloadAndExtractRepo(
       cwd: root,
       strip: filePath ? filePath.split('/').length + 1 : 1,
       filter: (p: string) => {
+        // Convert Windows path separators to POSIX style
+        const posixPath = p.split(sep).join(posix.sep)
+
         // Determine the unpacked root path dynamically instead of hardcoding to the fetched repo's name / branch.
         // This avoids the condition when the repository has been renamed, and the old repository name is used to fetch the example.
         // The tar download will work as it is redirected automatically, but the root directory of the extracted
         // example will be the new, renamed name instead of the name used to fetch the example, breaking the filter.
         if (rootPath === null) {
-          const pathSegments = p.split(sep)
+          const pathSegments = posixPath.split(posix.sep)
           rootPath = pathSegments.length ? pathSegments[0] : null
         }
 
-        return p.startsWith(`${rootPath}${filePath ? `/${filePath}/` : '/'}`)
+        return posixPath.startsWith(
+          `${rootPath}${filePath ? `/${filePath}/` : '/'}`
+        )
       },
     })
   )
