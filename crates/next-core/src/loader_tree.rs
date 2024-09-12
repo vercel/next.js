@@ -4,7 +4,6 @@ use std::{
 };
 
 use anyhow::Result;
-use async_recursion::async_recursion;
 use indexmap::IndexMap;
 use indoc::formatdoc;
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
@@ -355,7 +354,6 @@ impl LoaderTreeBuilder {
         Ok(())
     }
 
-    #[async_recursion]
     async fn walk_tree(&mut self, loader_tree: &LoaderTree, root: bool) -> Result<()> {
         use std::fmt::Write;
 
@@ -404,7 +402,7 @@ impl LoaderTreeBuilder {
         // add parallel_routes
         for (key, parallel_route) in parallel_routes.iter() {
             write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
-            self.walk_tree(parallel_route, false).await?;
+            Box::pin(self.walk_tree(parallel_route, false)).await?;
             writeln!(self.loader_tree_code, ",")?;
         }
         writeln!(self.loader_tree_code, "}}, {{")?;

@@ -4,14 +4,14 @@ use turbopack_core::{
     issue::{IssueSeverity, IssueSource},
     reference_type::{CommonJsReferenceSubType, EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
-        handle_resolve_error,
+        handle_resolve_error, handle_resolve_source_error,
         options::{
             ConditionValue, ResolutionConditions, ResolveInPackage, ResolveIntoPackage,
             ResolveOptions,
         },
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ModuleResolveResult,
+        resolve, ModuleResolveResult, ResolveResult,
     },
 };
 /// Retrieves the [ResolutionConditions] of both the "into" package (allowing a
@@ -101,6 +101,37 @@ pub async fn cjs_resolve(
         .resolve()
         .await?;
     specific_resolve(origin, request, options, ty, issue_severity, issue_source).await
+}
+
+#[turbo_tasks::function]
+pub async fn cjs_resolve_source(
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
+    issue_source: Option<Vc<IssueSource>>,
+    issue_severity: Vc<IssueSeverity>,
+) -> Result<Vc<ResolveResult>> {
+    // TODO pass CommonJsReferenceSubType
+    let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
+    let options = apply_cjs_specific_options(origin.resolve_options(ty.clone()))
+        .resolve()
+        .await?;
+    let result = resolve(
+        origin.origin_path().parent().resolve().await?,
+        ty.clone(),
+        request,
+        options,
+    );
+
+    handle_resolve_source_error(
+        result,
+        ty,
+        origin.origin_path(),
+        request,
+        options,
+        issue_severity,
+        issue_source,
+    )
+    .await
 }
 
 async fn specific_resolve(

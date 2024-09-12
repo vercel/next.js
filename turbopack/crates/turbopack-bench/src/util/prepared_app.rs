@@ -1,7 +1,6 @@
 use std::{
     future::Future,
     path::{Path, PathBuf},
-    pin::Pin,
     process::Child,
 };
 
@@ -19,11 +18,10 @@ use url::Url;
 
 use crate::{bundlers::Bundler, util::PageGuard, BINDING_NAME};
 
-fn copy_dir_boxed(
-    from: PathBuf,
-    to: PathBuf,
-) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Sync + Send>> {
-    Box::pin(copy_dir(from, to))
+// HACK: Needed so that `copy_dir`'s `Future` can be inferred as `Send`:
+// https://github.com/rust-lang/rust/issues/123072
+fn copy_dir_send(from: PathBuf, to: PathBuf) -> impl Future<Output = anyhow::Result<()>> + Send {
+    copy_dir(from, to)
 }
 
 async fn copy_dir(from: PathBuf, to: PathBuf) -> anyhow::Result<()> {
@@ -37,7 +35,7 @@ async fn copy_dir(from: PathBuf, to: PathBuf) -> anyhow::Result<()> {
         if ty.is_dir() {
             jobs.push(tokio::spawn(async move {
                 tokio::fs::create_dir(&to).await?;
-                copy_dir_boxed(entry.path(), to).await
+                copy_dir_send(entry.path(), to).await
             }));
         } else if ty.is_file() {
             file_futures.push(async move {

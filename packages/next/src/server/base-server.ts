@@ -132,7 +132,11 @@ import {
   normalizeNextQueryParam,
   toNodeOutgoingHttpHeaders,
 } from './web/utils'
-import { CACHE_ONE_YEAR, NEXT_CACHE_TAGS_HEADER } from '../lib/constants'
+import {
+  CACHE_ONE_YEAR,
+  NEXT_CACHE_TAGS_HEADER,
+  NEXT_RESUME_HEADER,
+} from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
   NextRequestAdapter,
@@ -439,6 +443,9 @@ export default abstract class Server<
   protected readonly localeNormalizer?: LocaleRouteNormalizer
 
   protected readonly normalizers: {
+    /**
+     * @deprecated
+     */
     readonly postponed: PostponedPathnameNormalizer | undefined
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
@@ -1081,6 +1088,25 @@ export default abstract class Server<
                 true
               )
             }
+          }
+          // In minimal mode, if PPR is enabled, then we should check to see if
+          // the request should be a resume request.
+          else if (
+            this.isAppPPREnabled &&
+            this.minimalMode &&
+            req.headers[NEXT_RESUME_HEADER] === '1' &&
+            req.method === 'POST'
+          ) {
+            // Decode the postponed state from the request body, it will come as
+            // an array of buffers, so collect them and then concat them to form
+            // the string.
+            const body: Array<Buffer> = []
+            for await (const chunk of req.body) {
+              body.push(chunk)
+            }
+            const postponed = Buffer.concat(body).toString('utf8')
+
+            addRequestMeta(req, 'postponed', postponed)
           }
 
           matchedPath = this.normalize(matchedPath)
@@ -2052,16 +2078,14 @@ export default abstract class Server<
       typeof query.__nextppronly !== 'undefined' &&
       couldSupportPPR
 
-    // This page supports PPR if it has `experimentalPPR` set to `true` in the
+    // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
       couldSupportPPR &&
-      // In production, we'd expect to see the `experimentalPPR` flag set in the
-      // prerender manifest.
       ((
         prerenderManifest.routes[pathname] ??
         prerenderManifest.dynamicRoutes[pathname]
-      )?.experimentalPPR === true ||
+      )?.renderingMode === 'PARTIALLY_STATIC' ||
         // Ideally we'd want to check the appConfig to see if this page has PPR
         // enabled or not, but that would require plumbing the appConfig through
         // to the server during development. We assume that the page supports it
@@ -2708,7 +2732,7 @@ export default abstract class Server<
           headers,
           status: isAppPath ? res.statusCode : undefined,
         } satisfies CachedPageValue,
-        revalidate: metadata.revalidate ?? 1,
+        revalidate: metadata.revalidate,
         isFallback: query.__nextFallback === 'true',
       }
     }
@@ -2951,7 +2975,7 @@ export default abstract class Server<
 
       return {
         ...result,
-        revalidate: result.revalidate ?? 1,
+        revalidate: result.revalidate,
       }
     }
 
@@ -2970,6 +2994,13 @@ export default abstract class Server<
         isRoutePPREnabled,
       }
     )
+
+    if (isPreviewMode) {
+      res.setHeader(
+        'Cache-Control',
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
 
     if (!cacheEntry) {
       if (ssgCacheKey && !(isOnDemandRevalidate && revalidateOnlyGenerated)) {
@@ -3157,7 +3188,9 @@ export default abstract class Server<
       // for the revalidate value
       addRequestMeta(req, 'notFoundRevalidate', cacheEntry.revalidate)
 
-      if (cacheEntry.revalidate) {
+      // If cache control is already set on the response we don't
+      // override it to allow users to customize it via next.config
+      if (cacheEntry.revalidate && !res.getHeader('Cache-Control')) {
         res.setHeader(
           'Cache-Control',
           formatRevalidate({
@@ -3178,7 +3211,9 @@ export default abstract class Server<
       await this.render404(req, res, { pathname, query }, false)
       return null
     } else if (cachedData.kind === CachedRouteKind.REDIRECT) {
-      if (cacheEntry.revalidate) {
+      // If cache control is already set on the response we don't
+      // override it to allow users to customize it via next.config
+      if (cacheEntry.revalidate && !res.getHeader('Cache-Control')) {
         res.setHeader(
           'Cache-Control',
           formatRevalidate({
@@ -3669,7 +3704,7 @@ export default abstract class Server<
     if (setHeaders) {
       res.setHeader(
         'Cache-Control',
-        'no-cache, no-store, max-age=0, must-revalidate'
+        'private, no-cache, no-store, max-age=0, must-revalidate'
       )
     }
 

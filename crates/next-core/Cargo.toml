@@ -13,7 +13,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-async-recursion = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
 lazy-regex = "3.0.1"

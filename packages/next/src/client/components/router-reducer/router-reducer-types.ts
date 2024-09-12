@@ -207,7 +207,7 @@ export type PrefetchCacheEntry = {
   lastUsedTime: number | null
   key: string
   status: PrefetchCacheEntryStatus
-  pathname: string
+  url: URL
 }
 
 export enum PrefetchCacheEntryStatus {
