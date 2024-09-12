@@ -101,6 +101,20 @@ impl EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
+    pub async fn select_part(
+        module: Vc<EcmascriptModuleAsset>,
+        part: Vc<ModulePart>,
+    ) -> Result<Vc<Box<dyn Module>>> {
+        let split_result = split_module(module).await?;
+
+        Ok(if matches!(&*split_result, SplitResult::Failed { .. }) {
+            Vc::upcast(module)
+        } else {
+            Vc::upcast(EcmascriptModulePartAsset::new(module, part))
+        })
+    }
+
+    #[turbo_tasks::function]
     pub async fn is_async_module(self: Vc<Self>) -> Result<Vc<bool>> {
         let this = self.await?;
         let result = this.full_module.analyze();

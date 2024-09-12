@@ -35,9 +35,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor, magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
-    tree_shake::{
-        asset::EcmascriptModulePartAsset, split_module, SplitResult, TURBOPACK_PART_IMPORT_SOURCE,
-    },
+    tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
     utils::module_id_to_lit,
 };
 
@@ -172,21 +170,15 @@ impl ModuleReference for EsmAssetReference {
         if let Request::Module { module, .. } = &*self.request.await? {
             if module == TURBOPACK_PART_IMPORT_SOURCE {
                 if let Some(part) = self.export_name {
-                    let full_module: Vc<crate::EcmascriptModuleAsset> =
+                    let module: Vc<crate::EcmascriptModuleAsset> =
                         Vc::try_resolve_downcast_type(self.origin)
                             .await?
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
-                    let split_result = split_module(full_module).await?;
-
-                    let module: Vc<Box<dyn Module>> =
-                        if matches!(&*split_result, SplitResult::Failed { .. }) {
-                            Vc::upcast(full_module)
-                        } else {
-                            Vc::upcast(EcmascriptModulePartAsset::new(full_module, part))
-                        };
-
-                    return Ok(ModuleResolveResult::module(module).cell());
+                    return Ok(ModuleResolveResult::module(
+                        EcmascriptModulePartAsset::select_part(module, part),
+                    )
+                    .cell());
                 }
 
                 bail!("export_name is required for part import")
