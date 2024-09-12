@@ -1,6 +1,5 @@
-declare module 'react-dom/server.browser'
-
 declare module 'react-dom/server.edge' {
+  import type { JSX } from 'react'
   /**
    * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L329-L333
    */
@@ -26,9 +25,7 @@ declare module 'react-dom/server.edge' {
   export function resume(
     children: JSX.Element,
     postponedState: object,
-    options?: {
-      onError?: (error: Error, errorInfo: unknown) => void
-    }
+    options?: ResumeOptions
   ): Promise<ReadableStream<Uint8Array>>
 
   /**
@@ -74,6 +71,7 @@ declare module 'react-dom/server.edge' {
 }
 
 declare module 'react-dom/static.edge' {
+  import type { JSX } from 'react'
   /**
    * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L329-L333
    */
@@ -115,10 +113,7 @@ declare module 'react-dom/static.edge' {
 
   export function prerender(
     children: JSX.Element,
-    options?: {
-      onError?: (error: Error, errorInfo: unknown) => void
-      onHeaders?: (headers: Headers) => void
-    }
+    options?: Options
   ): Promise<{
     prelude: ReadableStream<Uint8Array>
     postponed: object | null

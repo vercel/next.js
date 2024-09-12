@@ -1,6 +1,6 @@
 import type { ExportRouteResult, FileWriter } from '../types'
-import type AppRouteRouteModule from '../../server/future/route-modules/app-route/module'
-import type { AppRouteRouteHandlerContext } from '../../server/future/route-modules/app-route/module'
+import type AppRouteRouteModule from '../../server/route-modules/app-route/module'
+import type { AppRouteRouteHandlerContext } from '../../server/route-modules/app-route/module'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 
 import { join } from 'path'
@@ -10,7 +10,7 @@ import {
   NEXT_META_SUFFIX,
 } from '../../lib/constants'
 import { NodeNextRequest } from '../../server/base-http/node'
-import { RouteModuleLoader } from '../../server/future/helpers/module-loader/route-module-loader'
+import { RouteModuleLoader } from '../../server/lib/module-loader/route-module-loader'
 import {
   NextRequestAdapter,
   signalFromNodeResponse,
@@ -23,13 +23,11 @@ import type {
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { SERVER_DIRECTORY } from '../../shared/lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
-import { isStaticGenEnabled } from '../../server/future/route-modules/app-route/helpers/is-static-gen-enabled'
+import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers/is-static-gen-enabled'
 import type { ExperimentalConfig } from '../../server/config-shared'
-import {
-  isMetadataRouteFile,
-  isStaticMetadataRoute,
-} from '../../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import type { Params } from '../../client/components/params'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -39,13 +37,13 @@ export const enum ExportedAppRouteFiles {
 export async function exportAppRoute(
   req: MockedRequest,
   res: MockedResponse,
-  params: { [key: string]: string | string[] } | undefined,
+  params: Params | undefined,
   page: string,
   incrementalCache: IncrementalCache | undefined,
   distDir: string,
   htmlFilepath: string,
   fileWriter: FileWriter,
-  experimental: Required<Pick<ExperimentalConfig, 'after'>>
+  experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -72,10 +70,9 @@ export async function exportAppRoute(
       notFoundRoutes: [],
     },
     renderOpts: {
-      experimental: experimental,
-      originalPathname: page,
+      experimental,
       nextExport: true,
-      supportsDynamicHTML: false,
+      supportsDynamicResponse: false,
       incrementalCache,
       waitUntil: undefined,
       onClose: undefined,
@@ -97,9 +94,7 @@ export async function exportAppRoute(
     // we don't bail from the static optimization for
     // metadata routes
     const normalizedPage = normalizeAppPath(page)
-    const isMetadataRoute =
-      isStaticMetadataRoute(normalizedPage) ||
-      isMetadataRouteFile(`${normalizedPage}.ts`, ['ts'], true)
+    const isMetadataRoute = isMetadataRouteFile(normalizedPage, [], false)
 
     if (!isStaticGenEnabled(userland) && !isMetadataRoute) {
       return { revalidate: 0 }

@@ -29,6 +29,11 @@ export function runTests(
       const srcFiles = await fs.readdir(srcDir)
 
       const packageJson = await fs.readJson(join(srcDir, 'package.json'))
+      // Use the default versions that are usually used in tests.
+      // Since we replace `next` in the install, we also need to fulfill the peerDependencies.
+      // However, the example specified latest next which may have different peerDependencies that the next that we test here i.e. the next on this commit.
+      delete packageJson.dependencies['react']
+      delete packageJson.dependencies['react-dom']
 
       next = await createNext({
         files: srcFiles.reduce(
@@ -43,8 +48,6 @@ export function runTests(
         dependencies: {
           ...packageJson.dependencies,
           ...packageJson.devDependencies,
-          react: '19.0.0-rc-f994737d14-20240522',
-          'react-dom': '19.0.0-rc-f994737d14-20240522',
         },
         installCommand: ({ dependencies }) => {
           const pkgs = Object.keys(dependencies).reduce((prev, cur) => {

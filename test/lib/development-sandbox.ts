@@ -5,7 +5,8 @@ import {
   getRedboxHeader,
   getRedboxSource,
   getVersionCheckerText,
-  hasRedbox,
+  assertHasRedbox,
+  assertNoRedbox,
   waitFor,
   waitForAndOpenRuntimeError,
   getRedboxDescriptionWarning,
@@ -32,7 +33,7 @@ export function waitForHydration(browser: BrowserInterface): Promise<void> {
 
 export async function sandbox(
   next: NextInstance,
-  initialFiles?: Map<string, string>,
+  initialFiles?: Map<string, string | ((contents: string) => string)>,
   initialUrl: string = '/',
   webDriverOptions: any = undefined
 ) {
@@ -112,8 +113,11 @@ export async function sandbox(
           )
         }
       },
-      async hasRedbox() {
-        return hasRedbox(browser)
+      async assertHasRedbox() {
+        return assertHasRedbox(browser)
+      },
+      async assertNoRedbox() {
+        return assertNoRedbox(browser)
       },
       async waitForAndOpenRuntimeError() {
         return waitForAndOpenRuntimeError(browser)

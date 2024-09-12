@@ -5,6 +5,7 @@ import {
   type UnhandledErrorAction,
   type UnhandledRejectionAction,
 } from '../../shared'
+import type { DebugInfo } from '../../types'
 import {
   Dialog,
   DialogBody,
@@ -28,6 +29,8 @@ import {
   type HydrationErrorState,
   getHydrationWarningType,
 } from '../helpers/hydration-error-info'
+import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
+import { CopyButton } from '../components/copy-button'
 
 export type SupportedErrorEvent = {
   id: number
@@ -38,6 +41,8 @@ export type ErrorsProps = {
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
   versionInfo?: VersionInfo
+  hasStaticIndicator?: boolean
+  debugInfo?: DebugInfo
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -69,6 +74,8 @@ export function Errors({
   errors,
   initialDisplayState,
   versionInfo,
+  hasStaticIndicator,
+  debugInfo,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -184,7 +191,11 @@ export function Errors({
 
   if (displayState === 'minimized') {
     return (
-      <Toast className="nextjs-toast-errors-parent" onClick={fullscreen}>
+      <Toast
+        data-nextjs-toast
+        className={`nextjs-toast-errors-parent${hasStaticIndicator ? ' nextjs-error-with-static' : ''}`}
+        onClick={fullscreen}
+      >
         <div className="nextjs-toast-errors">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -206,7 +217,7 @@ export function Errors({
           </span>
           <button
             data-nextjs-toast-errors-hide-button
-            className="nextjs-toast-errors-hide-button"
+            className="nextjs-toast-hide-button"
             type="button"
             onClick={(e) => {
               e.stopPropagation()
@@ -265,11 +276,30 @@ export function Errors({
                 {' error'}
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
-              {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
+              <VersionStalenessInfo versionInfo={versionInfo} />
             </LeftRightDialogHeader>
-            <h1 id="nextjs__container_errors_label">
-              {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
-            </h1>
+
+            <div className="nextjs__container_errors__error_title">
+              <h1
+                id="nextjs__container_errors_label"
+                className="nextjs__container_errors_label"
+              >
+                {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
+              </h1>
+              <span>
+                <CopyButton
+                  data-nextjs-data-runtime-error-copy-stack
+                  actionLabel="Copy error stack"
+                  successLabel="Copied"
+                  content={error.stack || ''}
+                  disabled={!error.stack}
+                />
+
+                <NodejsInspectorCopyButton
+                  devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
+                />
+              </span>
+            </div>
             <p
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
@@ -323,6 +353,12 @@ export function Errors({
 }
 
 export const styles = css`
+  .nextjs-error-with-static {
+    bottom: calc(var(--size-gap-double) * 4.5);
+  }
+  .nextjs-container-errors-header {
+    position: relative;
+  }
   .nextjs-container-errors-header > h1 {
     font-size: var(--size-font-big);
     line-height: var(--size-font-bigger);
@@ -394,7 +430,7 @@ export const styles = css`
   .nextjs-toast-errors > svg {
     margin-right: var(--size-gap);
   }
-  .nextjs-toast-errors-hide-button {
+  .nextjs-toast-hide-button {
     margin-left: var(--size-gap-triple);
     border: none;
     background: none;
@@ -403,7 +439,34 @@ export const styles = css`
     transition: opacity 0.25s ease;
     opacity: 0.7;
   }
-  .nextjs-toast-errors-hide-button:hover {
+  .nextjs-toast-hide-button:hover {
     opacity: 1;
+  }
+  .nextjs-container-errors-header
+    > .nextjs-container-build-error-version-status {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+  .nextjs__container_errors_inspect_copy_button {
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--color-ansi-bright-white);
+    font-size: 1.5rem;
+    padding: 0;
+    margin: 0;
+    margin-left: var(--size-gap);
+    transition: opacity 0.25s ease;
+  }
+  .nextjs__container_errors__error_title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nextjs-data-runtime-error-inspect-link,
+  .nextjs-data-runtime-error-inspect-link:hover {
+    margin: 0 8px;
+    color: inherit;
   }
 `

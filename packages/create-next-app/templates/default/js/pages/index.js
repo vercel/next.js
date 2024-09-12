@@ -6,10 +6,12 @@ import styles from "@/styles/Home.module.css";
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
+  weight: "100 900",
 });
 const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
+  weight: "100 900",
 });
 
 export default function Home() {
@@ -35,7 +37,7 @@ export default function Home() {
           />
           <ol>
             <li>
-              Get started by editing <code>pages/index.js</code>
+              Get started by editing <code>pages/index.js</code>.
             </li>
             <li>Save and see your changes instantly.</li>
           </ol>
@@ -74,7 +76,7 @@ export default function Home() {
           >
             <Image
               aria-hidden
-              src="/file-text.svg"
+              src="/file.svg"
               alt="File icon"
               width={16}
               height={16}

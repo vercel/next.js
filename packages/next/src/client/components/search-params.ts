@@ -41,17 +41,17 @@ export function createDynamicallyTrackedSearchParams(
     // If we forced static we omit searchParams entirely. This is true both during SSR
     // and browser render because we need there to be parity between these environments
     return {}
-  } else if (!store.isStaticGeneration && !store.dynamicShouldError) {
-    // during dynamic renders we don't actually have to track anything so we just return
-    // the searchParams directly. However if dynamic data access should error then we
-    // still want to track access. This covers the case in Dev where all renders are dynamic
-    // but we still want to error if you use a dynamic data source because it will fail the build
-    // or revalidate if you do.
-    return searchParams
   } else {
-    // We need to track dynamic access with a Proxy. We implement get, has, and ownKeys because
+    // We need to track dynamic access with a Proxy. If `dynamic = "error"`, we use this information
+    // to fail the build. This also signals to the patched fetch that it's inside
+    // of a dynamic render and should bail from data cache. We implement get, has, and ownKeys because
     // these can all be used to exfiltrate information about searchParams.
-    return new Proxy({} as ParsedUrlQuery, {
+
+    const trackedSearchParams: ParsedUrlQuery = store.isStaticGeneration
+      ? {}
+      : searchParams
+
+    return new Proxy(trackedSearchParams, {
       get(target, prop, receiver) {
         if (typeof prop === 'string') {
           trackDynamicDataAccessed(store, `searchParams.${prop}`)

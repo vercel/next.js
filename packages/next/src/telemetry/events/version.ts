@@ -35,6 +35,9 @@ type EventCliSessionStarted = {
   pagesDir: boolean | null
   staticStaleTime: number | null
   dynamicStaleTime: number | null
+  reactCompiler: boolean
+  reactCompilerCompilationMode: string | null
+  reactCompilerPanicThreshold: string | null
 }
 
 function hasBabelConfig(dir: string): boolean {
@@ -83,6 +86,9 @@ export function eventCliSession(
     | 'reactStrictMode'
     | 'staticStaleTime'
     | 'dynamicStaleTime'
+    | 'reactCompiler'
+    | 'reactCompilerCompilationMode'
+    | 'reactCompilerPanicThreshold'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
   // This should be an invariant, if it fails our build tooling is broken.
@@ -126,6 +132,15 @@ export function eventCliSession(
     pagesDir: event.pagesDir,
     staticStaleTime: nextConfig.experimental.staleTimes?.static ?? null,
     dynamicStaleTime: nextConfig.experimental.staleTimes?.dynamic ?? null,
+    reactCompiler: Boolean(nextConfig.experimental.reactCompiler),
+    reactCompilerCompilationMode:
+      typeof nextConfig.experimental.reactCompiler !== 'boolean'
+        ? nextConfig.experimental.reactCompiler?.compilationMode ?? null
+        : null,
+    reactCompilerPanicThreshold:
+      typeof nextConfig.experimental.reactCompiler !== 'boolean'
+        ? nextConfig.experimental.reactCompiler?.panicThreshold ?? null
+        : null,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

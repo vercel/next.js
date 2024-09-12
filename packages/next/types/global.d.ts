@@ -58,3 +58,5 @@ interface NextFetchRequestConfig {
 interface RequestInit {
   next?: NextFetchRequestConfig | undefined
 }
+
+declare var _N_E_STYLE_LOAD: (href: string) => Promise<void>

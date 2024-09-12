@@ -1,7 +1,7 @@
 'use client'
 
 import ReactDOM from 'react-dom'
-import React, { useEffect, useContext, useRef } from 'react'
+import React, { useEffect, useContext, useRef, type JSX } from 'react'
 import type { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { setAttributesFromProps } from './set-attributes-from-props'
@@ -332,8 +332,13 @@ function Script(props: ScriptProps): JSX.Element | null {
         ReactDOM.preload(
           src,
           restProps.integrity
-            ? { as: 'script', integrity: restProps.integrity, nonce }
-            : { as: 'script', nonce }
+            ? {
+                as: 'script',
+                integrity: restProps.integrity,
+                nonce,
+                crossOrigin: restProps.crossOrigin,
+              }
+            : { as: 'script', nonce, crossOrigin: restProps.crossOrigin }
         )
         return (
           <script
@@ -353,8 +358,13 @@ function Script(props: ScriptProps): JSX.Element | null {
         ReactDOM.preload(
           src,
           restProps.integrity
-            ? { as: 'script', integrity: restProps.integrity, nonce }
-            : { as: 'script', nonce }
+            ? {
+                as: 'script',
+                integrity: restProps.integrity,
+                nonce,
+                crossOrigin: restProps.crossOrigin,
+              }
+            : { as: 'script', nonce, crossOrigin: restProps.crossOrigin }
         )
       }
     }

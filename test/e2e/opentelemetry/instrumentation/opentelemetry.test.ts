@@ -61,7 +61,7 @@ describe('opentelemetry', () => {
       },
     },
   ]) {
-    // turbopack does not support experimental.instrumentationHook
+    // turbopack does not support instrumentation.js
     ;(process.env.TURBOPACK || process.env.__NEXT_EXPERIMENTAL_PPR
       ? describe.skip
       : describe)(env.name, () => {
@@ -168,7 +168,9 @@ describe('opentelemetry', () => {
                     },
                     {
                       attributes: {
-                        'next.clientComponentLoadCount': 4,
+                        'next.clientComponentLoadCount': 3,
+                        'next.span_type':
+                          'NextNodeServer.clientComponentLoading',
                       },
                       kind: 0,
                       name: 'NextNodeServer.clientComponentLoading',
@@ -836,7 +838,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
     await collector.shutdown()
   })
 
-  // turbopack does not support experimental.instrumentationHook
+  // turbopack does not support instrumentation.js
   ;(process.env.TURBOPACK || process.env.__NEXT_EXPERIMENTAL_PPR
     ? describe.skip
     : describe)('root context', () => {

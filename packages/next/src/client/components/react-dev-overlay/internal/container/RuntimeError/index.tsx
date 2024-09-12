@@ -10,13 +10,11 @@ export type RuntimeErrorProps = { error: ReadyRuntimeError }
 export function RuntimeError({ error }: RuntimeErrorProps) {
   const { firstFrame, allLeadingFrames, allCallStackFrames } =
     React.useMemo(() => {
-      const filteredFrames = error.frames.filter(
-        (f) =>
-          !(
-            f.sourceStackFrame.file === '<anonymous>' &&
-            ['stringify', '<unknown>'].includes(f.sourceStackFrame.methodName)
-          ) && !f.sourceStackFrame.file?.startsWith('node:internal')
-      )
+      const filteredFrames = error.frames
+        // Filter out nodejs internal frames since you can't do anything about them.
+        // e.g. node:internal/timers shows up pretty often due to timers, but not helpful to users.
+        // Only present the last line before nodejs internal trace.
+        .filter((f) => !f.sourceStackFrame.file?.startsWith('node:'))
 
       const firstFirstPartyFrameIndex = filteredFrames.findIndex(
         (entry) =>
@@ -67,7 +65,6 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           <h2>Source</h2>
           <GroupedStackFrames
             groupedStackFrames={leadingFramesGroupedByFramework}
-            show={all}
           />
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame!}
@@ -79,9 +76,9 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
           <h2>Call Stack</h2>
+
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
-            show={all}
           />
         </React.Fragment>
       ) : undefined}
@@ -116,6 +113,36 @@ export const styles = css`
     margin-bottom: var(--size-gap-double);
   }
 
+  [data-nextjs-data-runtime-error-copy-button],
+  [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
+    position: relative;
+    margin-left: var(--size-gap);
+    padding: 0;
+    border: none;
+    background: none;
+    outline: none;
+  }
+  [data-nextjs-data-runtime-error-copy-button] > svg {
+    vertical-align: middle;
+  }
+  .nextjs-data-runtime-error-copy-button {
+    color: inherit;
+  }
+  .nextjs-data-runtime-error-copy-button--initial:hover {
+    cursor: pointer;
+  }
+  .nextjs-data-runtime-error-copy-button[aria-disabled='true'] {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .nextjs-data-runtime-error-copy-button--error,
+  .nextjs-data-runtime-error-copy-button--error:hover {
+    color: var(--color-ansi-red);
+  }
+  .nextjs-data-runtime-error-copy-button--success {
+    color: var(--color-ansi-green);
+  }
+
   [data-nextjs-call-stack-frame] > h3,
   [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
@@ -141,7 +168,6 @@ export const styles = css`
     height: var(--size-font-small);
     margin-left: var(--size-gap);
     flex-shrink: 0;
-
     display: none;
   }
 

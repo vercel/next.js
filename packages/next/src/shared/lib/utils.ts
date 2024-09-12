@@ -1,5 +1,5 @@
 import type { HtmlProps } from './html-context.shared-runtime'
-import type { ComponentType } from 'react'
+import type { ComponentType, JSX } from 'react'
 import type { DomainLocale } from '../../server/config'
 import type { Env } from '@next/env'
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -191,7 +191,7 @@ export type DocumentContext = NextPageContext & {
 }
 
 export type DocumentInitialProps = RenderPageResult & {
-  styles?: React.ReactElement[] | React.ReactFragment | JSX.Element
+  styles?: React.ReactElement[] | Iterable<React.ReactNode> | JSX.Element
 }
 
 export type DocumentProps = DocumentInitialProps & HtmlProps

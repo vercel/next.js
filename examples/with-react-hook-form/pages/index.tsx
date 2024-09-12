@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import * as React from "react";
+import Head from "next/head";
+import { useForm, SubmitHandler } from "react-hook-form";
+import styles from "../styles/login.module.css";
 
 interface User {
   name: string;
@@ -11,75 +13,81 @@ interface LoginFormValues {
   remember: boolean;
 }
 
-const IndexPage = () => {
-  const [user, setUser] = useState<User>();
+export default function Page() {
+  const [user, setUser] = React.useState<User | null>(null);
   const {
     register,
-    formState: { errors },
     handleSubmit,
+    formState: { errors },
   } = useForm<LoginFormValues>();
-  const onSubmit = handleSubmit(({ username, password, remember }) => {
-    // You should handle login logic with username, password and remember form data
+
+  const onSubmit: SubmitHandler<LoginFormValues> = ({
+    username,
+    password,
+    remember,
+  }) => {
     setUser({ name: username });
-  });
+  };
 
   return (
-    <div className="container">
+    <div className={styles.container}>
+      <Head>
+        <title>Login</title>
+        <meta name="description" content="Login to your account" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
       {user ? (
-        <span className="hello-user">Hello, {user.name}!</span>
+        <div className={styles.greeting}>
+          <h2>Welcome back, {user.name}!</h2>
+        </div>
       ) : (
-        <form onSubmit={onSubmit}>
-          <div className="row">
-            <h3 className="form-header">LOGIN</h3>
-          </div>
-          <div className="row">
+        <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
+          <h2 className={styles.header}>Login</h2>
+          <div className={styles.field}>
+            <label htmlFor="username">Username</label>
             <input
+              id="username"
               type="text"
-              placeholder="user name"
               {...register("username", {
-                required: { value: true, message: "User name is required" },
+                required: "Username is required",
                 minLength: {
                   value: 3,
-                  message: "User name cannot be less than 3 character",
+                  message: "Username must be at least 3 characters",
                 },
               })}
-              className={"form-field" + (errors.username ? " has-error" : "")}
+              className={`${styles.input} ${errors.username ? styles.errorInput : ""}`}
+              placeholder="Enter your username"
             />
             {errors.username && (
-              <span className="error-label">{errors.username.message}</span>
+              <span className={styles.errorMessage}>
+                {errors.username.message}
+              </span>
             )}
           </div>
-          <div className="row">
+          <div className={styles.field}>
+            <label htmlFor="password">Password</label>
             <input
+              id="password"
               type="password"
-              placeholder="password"
-              {...register("password", {
-                required: {
-                  value: true,
-                  message: "Please enter your password",
-                },
-              })}
-              className={"form-field" + (errors.password ? " has-error" : "")}
+              {...register("password", { required: "Password is required" })}
+              className={`${styles.input} ${errors.password ? styles.errorInput : ""}`}
+              placeholder="Enter your password"
             />
             {errors.password && (
-              <span className="error-label">{errors.password.message}</span>
+              <span className={styles.errorMessage}>
+                {errors.password.message}
+              </span>
             )}
           </div>
-          <div className="row row-remember">
-            <input type="checkbox" id="remember" {...register("remember")} />
-            <label htmlFor="remember" className="remember-label">
-              Remember me
-            </label>
+          <div className={styles.rememberMe}>
+            <input id="remember" type="checkbox" {...register("remember")} />
+            <label htmlFor="remember">Remember me</label>
           </div>
-          <div className="row">
-            <button type="submit" className="btn login-btn">
-              Login
-            </button>
-          </div>
+          <button type="submit" className={styles.submitButton}>
+            Login
+          </button>
         </form>
       )}
     </div>
   );
-};
-
-export default IndexPage;
+}

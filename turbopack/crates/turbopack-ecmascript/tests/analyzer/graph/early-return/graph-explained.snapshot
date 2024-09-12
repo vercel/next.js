@@ -1,0 +1,23 @@
+a = (...) => (undefined | FreeVar(undefined))
+
+b = (...) => (undefined | FreeVar(undefined))
+
+c = (...) => (undefined | FreeVar(undefined))
+
+d = (...) => (undefined | FreeVar(undefined))
+
+e = (...) => (undefined | FreeVar(undefined))
+
+f = (...) => (undefined | FreeVar(undefined))
+
+g = (...) => (undefined | FreeVar(undefined))
+
+h = (...) => (undefined | FreeVar(undefined))
+
+i = (...) => (FreeVar(i1)() | FreeVar(i2)())
+
+j#2 = (...) => (FreeVar(i1)() | FreeVar(i2)())
+
+j#25 = arguments[0]
+
+j#26 = arguments[0]

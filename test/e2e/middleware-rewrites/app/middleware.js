@@ -109,6 +109,19 @@ export async function middleware(request) {
     return NextResponse.rewrite(url)
   }
 
+  if (url.pathname === '/dynamic-no-cache/1') {
+    const rewriteUrl =
+      request.headers.get('purpose') === 'prefetch'
+        ? '/dynamic-no-cache/1'
+        : '/dynamic-no-cache/2'
+
+    url.pathname = rewriteUrl
+
+    return NextResponse.rewrite(url, {
+      headers: { 'x-middleware-cache': 'no-cache' },
+    })
+  }
+
   if (
     url.pathname === '/rewrite-me-without-hard-navigation' ||
     url.searchParams.get('path') === 'rewrite-me-without-hard-navigation'
