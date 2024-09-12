@@ -1,3 +1,5 @@
+import type { ScriptProps } from 'next/script'
+
 declare global {
   interface Window {
     dataLayer?: Object[]
@@ -18,11 +20,13 @@ export type GTMParams = {
   dataLayerName?: string
   auth?: string
   preview?: string
+  strategy?: ScriptProps['strategy']
 }
 
 export type GAParams = {
   gaId: string
   dataLayerName?: string
+  strategy?: ScriptProps['strategy']
 }
 
 export type GoogleMapsEmbed = {
