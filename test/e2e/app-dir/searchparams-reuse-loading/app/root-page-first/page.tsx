@@ -12,23 +12,13 @@ export default async function Home({ searchParams }) {
       </h1>
 
       <div>
-        <Link href="/other-page?page=2" replace>
-          page 2
-        </Link>
-      </div>
-      <div>
-        <Link href="/other-page?page=3" replace>
-          page 3
-        </Link>
-      </div>
-      <div>
-        <Link href="/other-page?page=4" replace>
-          page 4
-        </Link>
-      </div>
-      <div>
-        <Link href="/other-page" replace>
+        <Link href="/root-page-first" replace>
           No Params
+        </Link>
+      </div>
+      <div>
+        <Link href="/root-page-first?page=2" replace>
+          page 2
         </Link>
       </div>
     </div>

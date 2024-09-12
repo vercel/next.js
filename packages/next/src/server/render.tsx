@@ -1081,6 +1081,7 @@ export async function renderToHTMLImpl(
           })
       )
       canAccessRes = false
+      metadata.revalidate = 0
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering

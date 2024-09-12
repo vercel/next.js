@@ -66,7 +66,7 @@ use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySo
 
 use self::{
     module_options::CustomModuleType,
-    transition::{Transition, TransitionsByName},
+    transition::{Transition, TransitionOptions},
 };
 
 #[turbo_tasks::value]
@@ -321,7 +321,7 @@ async fn apply_reexport_tree_shaking(
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct ModuleAssetContext {
-    pub transitions: Vc<TransitionsByName>,
+    pub transitions: Vc<TransitionOptions>,
     pub compile_time_info: Vc<CompileTimeInfo>,
     pub module_options_context: Vc<ModuleOptionsContext>,
     pub resolve_options_context: Vc<ResolveOptionsContext>,
@@ -333,7 +333,7 @@ pub struct ModuleAssetContext {
 impl ModuleAssetContext {
     #[turbo_tasks::function]
     pub fn new(
-        transitions: Vc<TransitionsByName>,
+        transitions: Vc<TransitionOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
@@ -351,7 +351,7 @@ impl ModuleAssetContext {
 
     #[turbo_tasks::function]
     pub fn new_transition(
-        transitions: Vc<TransitionsByName>,
+        transitions: Vc<TransitionOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
@@ -408,6 +408,28 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
+    async fn process_with_transition_rules(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        reference_type: Value<ReferenceType>,
+    ) -> Result<Vc<ProcessResult>> {
+        let this = self.await?;
+        Ok(
+            if let Some(transition) = this
+                .transitions
+                .await?
+                .get_by_rules(source, &reference_type)
+                .await?
+            {
+                transition.process(source, self, reference_type)
+            } else {
+                self.process_default(source, reference_type)
+            },
+        )
+    }
+}
+
+impl ModuleAssetContext {
     fn process_default(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
@@ -493,14 +515,28 @@ async fn process_default_internal(
                         current_source = transforms.transform(current_source);
                         if current_source.ident().resolve().await? != ident {
                             // The ident has been changed, so we need to apply new rules.
-                            let mut processed_rules = processed_rules.clone();
-                            processed_rules.push(i);
-                            return Ok(process_default(
-                                module_asset_context,
-                                current_source,
-                                Value::new(reference_type),
-                                processed_rules,
-                            ));
+                            if let Some(transition) = module_asset_context
+                                .await?
+                                .transitions
+                                .await?
+                                .get_by_rules(current_source, &reference_type)
+                                .await?
+                            {
+                                return Ok(transition.process(
+                                    current_source,
+                                    module_asset_context,
+                                    Value::new(reference_type),
+                                ));
+                            } else {
+                                let mut processed_rules = processed_rules.clone();
+                                processed_rules.push(i);
+                                return Ok(process_default(
+                                    module_asset_context,
+                                    current_source,
+                                    Value::new(reference_type),
+                                    processed_rules,
+                                ));
+                            }
                         }
                     }
                     ModuleRuleEffect::ModuleType(module) => {
@@ -672,7 +708,7 @@ impl AssetContext for ModuleAssetContext {
                     let process_result = if let Some(transition) = transition {
                         transition.process(source, self, reference_type)
                     } else {
-                        self.process_default(source, reference_type)
+                        self.process_with_transition_rules(source, reference_type)
                     };
                     Ok(match *process_result.await? {
                         ProcessResult::Module(m) => ModuleResolveResultItem::Module(Vc::upcast(m)),
@@ -704,21 +740,21 @@ impl AssetContext for ModuleAssetContext {
         if let Some(transition) = this.transition {
             Ok(transition.process(asset, self, reference_type))
         } else {
-            Ok(self.process_default(asset, reference_type))
+            Ok(self.process_with_transition_rules(asset, reference_type))
         }
     }
 
     #[turbo_tasks::function]
     async fn with_transition(&self, transition: RcStr) -> Result<Vc<Box<dyn AssetContext>>> {
         Ok(
-            if let Some(transition) = self.transitions.await?.get(&transition) {
+            if let Some(transition) = self.transitions.await?.get_named(transition) {
                 Vc::upcast(ModuleAssetContext::new_transition(
                     self.transitions,
                     self.compile_time_info,
                     self.module_options_context,
                     self.resolve_options_context,
                     self.layer,
-                    *transition,
+                    transition,
                 ))
             } else {
                 // TODO report issue

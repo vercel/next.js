@@ -5,7 +5,6 @@ use turbopack::module_options::ModuleRule;
 
 use crate::{
     mode::NextMode,
-    next_client_reference::css_client_reference::css_client_reference_rule::get_next_css_client_reference_transforms_rule,
     next_config::NextConfig,
     next_server::context::ServerContextType,
     next_shared::transforms::{
@@ -91,19 +90,12 @@ pub async fn get_next_server_transforms_rules(
 
             false
         }
-        ServerContextType::AppRSC {
-            client_transition, ..
-        } => {
+        ServerContextType::AppRSC { .. } => {
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
                 mdx_rs,
             ));
 
-            if let Some(client_transition) = client_transition {
-                rules.push(get_next_css_client_reference_transforms_rule(
-                    client_transition,
-                ));
-            }
             is_app_dir = true;
 
             true
@@ -164,16 +156,8 @@ pub async fn get_next_server_internal_transforms_rules(
         ServerContextType::AppSSR { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs));
         }
-        ServerContextType::AppRSC {
-            client_transition, ..
-        } => {
+        ServerContextType::AppRSC { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs));
-            if let Some(client_transition) = client_transition {
-                rules.push(get_next_css_client_reference_transforms_rule(
-                    client_transition,
-                ));
-            }
-            {}
         }
         ServerContextType::AppRoute { .. } => {}
         ServerContextType::Middleware { .. } => {}
