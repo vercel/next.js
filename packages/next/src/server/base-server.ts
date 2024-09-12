@@ -179,7 +179,8 @@ import {
 
 import diagnostics_channel from 'node:diagnostics_channel'
 
-let channels: any = diagnostics_channel.tracingChannel('next:request')
+let channels: diagnostics_channel.TracingChannel<unknown, object> =
+  diagnostics_channel.tracingChannel('next:request')
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
