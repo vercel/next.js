@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "14.2.9"
+    "next": "latest"
   },
   "devDependencies": {
     "@types/node": "20.16.5",
