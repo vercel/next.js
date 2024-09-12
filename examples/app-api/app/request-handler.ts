@@ -15,7 +15,7 @@ function isAllowedOrigin(req: NextRequest): boolean {
     return refererUrl.host === host;
   }
 
-  if (process.env.NODE_ENV === "development" && host?.includes("localhost")) {
+  if (host?.includes("localhost")) {
     return true;
   }
 
