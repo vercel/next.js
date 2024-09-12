@@ -474,6 +474,9 @@ export function getResolveRoutes(
               throw new Error(`Failed to initialize render server "middleware"`)
             }
 
+            addRequestMeta(req, 'invokePath', '')
+            addRequestMeta(req, 'invokeOutput', '')
+            addRequestMeta(req, 'invokeQuery', {})
             addRequestMeta(req, 'middlewareInvoke', true)
             debug('invoking middleware', req.url, req.headers)
 

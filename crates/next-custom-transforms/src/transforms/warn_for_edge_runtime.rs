@@ -60,7 +60,7 @@ const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
     "WritableStreamDefaultController",
 ];
 
-/// Get this value from `require('module').builtinModules`
+/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
 const NODEJS_MODULE_NAMES: &[&str] = &[
     "_http_agent",
     "_http_client",
@@ -84,9 +84,9 @@ const NODEJS_MODULE_NAMES: &[&str] = &[
     "cluster",
     "console",
     "constants",
-    // "crypto",
+    "crypto",
     "dgram",
-    // "diagnostics_channel",
+    "diagnostics_channel",
     "dns",
     "dns/promises",
     "domain",
@@ -100,21 +100,21 @@ const NODEJS_MODULE_NAMES: &[&str] = &[
     "module",
     "net",
     "os",
-    // "path",
-    // "path/posix",
-    // "path/win32",
+    "path",
+    "path/posix",
+    "path/win32",
     "perf_hooks",
-    // "process",
+    "process",
     "punycode",
     "querystring",
     "readline",
     "readline/promises",
     "repl",
-    // "stream",
-    // "stream/consumers",
-    // "stream/promises",
-    // "stream/web",
-    // "string_decoder",
+    "stream",
+    "stream/consumers",
+    "stream/promises",
+    "stream/web",
+    "string_decoder",
     "sys",
     "timers",
     "timers/promises",
@@ -200,7 +200,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
     fn add_guards(&mut self, test: &Expr) {
         let old = self.should_add_guards;
         self.should_add_guards = true;
-        test.visit_children_with(self);
+        test.visit_with(self);
         self.should_add_guards = old;
     }
 
@@ -245,6 +245,17 @@ impl Visit for WarnForEdgeRuntime {
         }
     }
 
+    fn visit_bin_expr(&mut self, node: &BinExpr) {
+        match node.op {
+            op!("&&") | op!("||") | op!("??") => {
+                self.add_guards(&node.left);
+                node.right.visit_with(self);
+            }
+            _ => {
+                node.visit_children_with(self);
+            }
+        }
+    }
     fn visit_cond_expr(&mut self, node: &CondExpr) {
         self.add_guards(&node.test);
 

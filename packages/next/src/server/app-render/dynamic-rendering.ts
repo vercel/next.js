@@ -280,7 +280,6 @@ function createPostponeReason(route: string, expression: string) {
 }
 
 export function isDynamicPostpone(err: unknown) {
-  console.log(err)
   if (
     typeof err === 'object' &&
     err !== null &&

@@ -20,7 +20,10 @@ import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
-import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
+import {
+  addSearchParamsIfPageSegment,
+  DEFAULT_SEGMENT_KEY,
+} from '../../../../shared/lib/segment'
 import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
@@ -169,15 +172,27 @@ export function navigateReducer(
       let scrollableSegments: FlightSegmentPath[] = []
       for (const normalizedFlightData of flightData) {
         const {
-          tree: treePatch,
           pathToSegment: flightSegmentPath,
           seedData,
           head,
           isRootRender,
         } = normalizedFlightData
+        let treePatch = normalizedFlightData.tree
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
+
+        // Segments are keyed by searchParams (e.g. __PAGE__?{"foo":"bar"}). We might return a less specific, param-less entry,
+        // so we ensure that the final tree contains the correct searchParams (reflected in the URL) are provided in the updated FlightRouterState tree.
+        if (prefetchValues.aliased) {
+          const [segment, ...rest] = treePatch
+          const finalSegment = addSearchParamsIfPageSegment(
+            segment,
+            Object.fromEntries(url.searchParams)
+          )
+
+          treePatch = [finalSegment, ...rest]
+        }
 
         // Create new tree based on the flightSegmentPath and router state patch
         let newTree = applyRouterStatePatchToTree(
