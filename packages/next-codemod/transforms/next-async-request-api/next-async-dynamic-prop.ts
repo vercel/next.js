@@ -3,8 +3,9 @@ import type {
   Collection,
   ASTPath,
   ExportDefaultDeclaration,
-  JSCodeshift,
 } from 'jscodeshift'
+
+const PAGE_PROPS = 'props'
 
 function insertReactUseImport(root: Collection<any>, j: API['j']) {
   const hasReactUseImport =
@@ -67,34 +68,16 @@ function isAsyncFunctionDeclaration(path: ASTPath<ExportDefaultDeclaration>) {
   return isAsyncFunction
 }
 
-// Reuse identifier to avoid duplication
-const idMaps = new Map<string, any>()
-function getIdentifier(j: JSCodeshift, propName: string) {
-  if (idMaps.has(propName)) {
-    return idMaps.get(propName)
-  } else {
-    const id = j.identifier(propName)
-    idMaps.set(propName, id)
-    return id
-  }
-}
-
 export function transformDynamicProps(source: string, api: API) {
   const j = api.jscodeshift.withParser('tsx')
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
 
-  function processAsyncPropOfEntryFile(
-    propName: 'params' | 'searchParams',
-    isClientComponent: boolean
-  ) {
-    const asyncPropName =
-      'async' + propName[0].toUpperCase() + propName.slice(1)
-
+  function processAsyncPropOfEntryFile(isClientComponent: boolean) {
     // find `params` and `searchParams` in file, and transform the access to them
     function renameAsyncPropIfExisted(path: ASTPath<ExportDefaultDeclaration>) {
-      let found = null
+      let found = false
 
       const decl = path.value.declaration
       if (
@@ -106,30 +89,27 @@ export function transformDynamicProps(source: string, api: API) {
       }
 
       const params = decl.params
-
       const firstParam = params[0]
-      if (firstParam.type === 'ObjectPattern') {
-        // rename the first param to asyncParams
-        const properties = firstParam.properties
-        const paramTypeAnnotation = firstParam.typeAnnotation
-        properties.forEach((prop, index) => {
-          if (
-            prop.type === 'ObjectProperty' &&
-            prop.key.type === 'Identifier' &&
-            prop.key.name === propName &&
-            prop.value.type === 'Identifier'
-          ) {
-            // prop.key = getIdentifier(j, propName)
-            // prop.value = getIdentifier(j, asyncPropName)
-            properties[index] = j.objectProperty(
-              prop.key,
-              getIdentifier(j, asyncPropName)
-            )
+      const propNames = []
 
-            found = properties[index]
+      if (firstParam.type === 'ObjectPattern') {
+        // change pageProps to pageProps.<propName>
+        const propsIdentifier = j.identifier(PAGE_PROPS)
+
+        firstParam.properties.forEach((prop) => {
+          if (
+            // prop
+            'key' in prop &&
+            prop.key.type === 'Identifier'
+          ) {
+            propNames.push(prop.key.name)
           }
         })
 
+        params[0] = propsIdentifier
+        found = true
+
+        const paramTypeAnnotation = firstParam.typeAnnotation
         if (
           found &&
           paramTypeAnnotation &&
@@ -142,8 +122,21 @@ export function transformDynamicProps(source: string, api: API) {
             if (
               member.type === 'TSPropertySignature' &&
               member.key.type === 'Identifier' &&
-              member.key.name === propName
+              propNames.includes(member.key.name)
             ) {
+              // if it's already a Promise, don't wrap it again, return
+              if (
+                member.typeAnnotation &&
+                member.typeAnnotation.typeAnnotation &&
+                member.typeAnnotation.typeAnnotation.type ===
+                  'TSTypeReference' &&
+                member.typeAnnotation.typeAnnotation.typeName.type ===
+                  'Identifier' &&
+                member.typeAnnotation.typeAnnotation.typeName.name === 'Promise'
+              ) {
+                return
+              }
+
               // Wrap the `params` type in Promise<>
               if (
                 member.typeAnnotation &&
@@ -159,15 +152,22 @@ export function transformDynamicProps(source: string, api: API) {
               }
             }
           })
+
+          params[0].typeAnnotation = paramTypeAnnotation
         }
+      }
+
+      if (found) {
+        needsReactUseImport = !isAsyncFunctionDeclaration(path)
+        resolveAsyncProp(path, propNames)
       }
 
       return found
     }
 
-    // Helper function to insert `const params = await asyncParams;` at the beginning of the function body
-    function resolveAsyncProp(path: ASTPath<ExportDefaultDeclaration>) {
-      const isAsyncFunc = isAsyncFunctionDeclaration(path)
+    function getBodyOfFunctionDeclaration(
+      path: ASTPath<ExportDefaultDeclaration>
+    ) {
       const decl = path.value.declaration
 
       let functionBody
@@ -181,32 +181,80 @@ export function transformDynamicProps(source: string, api: API) {
         }
       }
 
-      if (isAsyncFunc) {
-        // If it's async function, add await to the async prop
-        if (functionBody) {
-          const newStatement = j.variableDeclaration('const', [
+      return functionBody
+    }
+
+    // Helper function to insert `const params = await asyncParams;` at the beginning of the function body
+    function resolveAsyncProp(
+      path: ASTPath<ExportDefaultDeclaration>,
+      propNames: string[]
+    ) {
+      const isAsyncFunc = isAsyncFunctionDeclaration(path)
+      const functionBody = getBodyOfFunctionDeclaration(path)
+
+      const propsIdentifier = j.identifier(PAGE_PROPS)
+
+      for (const propName of propNames) {
+        const accessedPropId = j.memberExpression(
+          propsIdentifier,
+          j.identifier(propName)
+        )
+
+        if (isAsyncFunc) {
+          // If it's async function, add await to the async props.<propName>
+          const paramAssignment = j.variableDeclaration('const', [
             j.variableDeclarator(
-              getIdentifier(j, propName),
-              j.awaitExpression(getIdentifier(j, asyncPropName))
+              j.identifier(propName),
+              j.awaitExpression(accessedPropId)
             ),
           ])
-          functionBody.unshift(newStatement)
-        }
-      } else {
-        // If it's sync function, wrap the async prop with `use` from 'react'
-        if (functionBody) {
-          const newStatement = j.variableDeclaration('const', [
+          if (functionBody) {
+            functionBody.unshift(paramAssignment)
+          }
+        } else {
+          const paramAssignment = j.variableDeclaration('const', [
             j.variableDeclarator(
-              getIdentifier(j, propName),
+              j.identifier(propName),
+              // TODO: if it's async function, await it
+              // if it's sync function, wrap it with `use` from 'react'
               j.callExpression(j.identifier('use'), [
-                getIdentifier(j, asyncPropName),
+                // j.memberExpression(propsIdentifier, j.identifier(propName)),
+                accessedPropId,
               ])
             ),
           ])
-          functionBody.unshift(newStatement)
-          needsReactUseImport = true
+          if (functionBody) {
+            functionBody.unshift(paramAssignment)
+          }
         }
       }
+
+      // if (isAsyncFunc) {
+      //   // If it's async function, add await to the async prop
+      //   if (functionBody) {
+      //     const newStatement = j.variableDeclaration('const', [
+      //       j.variableDeclarator(
+      //         getIdentifier(j, propName),
+      //         j.awaitExpression(getIdentifier(j, asyncPropName))
+      //       ),
+      //     ])
+      //     functionBody.unshift(newStatement)
+      //   }
+      // } else {
+      //   // If it's sync function, wrap the async prop with `use` from 'react'
+      //   if (functionBody) {
+      //     const newStatement = j.variableDeclaration('const', [
+      //       j.variableDeclarator(
+      //         getIdentifier(j, propName),
+      //         j.callExpression(j.identifier('use'), [
+      //           getIdentifier(j, asyncPropName),
+      //         ])
+      //       ),
+      //     ])
+      //     functionBody.unshift(newStatement)
+      //     needsReactUseImport = true
+      //   }
+      // }
     }
 
     if (!isClientComponent) {
@@ -221,10 +269,7 @@ export function transformDynamicProps(source: string, api: API) {
       })
 
       functionDeclarations.forEach((path) => {
-        const found = renameAsyncPropIfExisted(path)
-        if (found) {
-          resolveAsyncProp(path)
-        }
+        renameAsyncPropIfExisted(path)
       })
     }
   }
@@ -233,8 +278,8 @@ export function transformDynamicProps(source: string, api: API) {
     root.find(j.Literal, { value: 'use client' }).size() > 0
 
   // Apply to `params` and `searchParams`
-  processAsyncPropOfEntryFile('params', isClientComponentFile)
-  processAsyncPropOfEntryFile('searchParams', isClientComponentFile)
+  processAsyncPropOfEntryFile(isClientComponentFile)
+  // processAsyncPropOfEntryFile('searchParams', isClientComponentFile)
 
   // Add import { use } from 'react' if needed and not already imported
   if (needsReactUseImport) {
