@@ -1,5 +1,5 @@
 import ImageKit from "imagekit";
-import { FilterType } from "./types";
+import { FilterType, SortDirectionType, SortType } from "./types";
 import { FilterEnum } from "./enum";
 import { FileObject } from "imagekit/dist/libs/interfaces";
 
@@ -24,6 +24,8 @@ export const listFiles = async (
   limit = 10,
   skip = 0,
   filterState: FilterType,
+  sort?: string | string[],
+  sortDirection?: string | string[],
 ) => {
   const imagekit = new ImageKit(CONFIG_OPTIONS);
 
@@ -33,6 +35,7 @@ export const listFiles = async (
     fileType: "all",
     searchQuery: createSearchQuery(filterState),
     path: process.env.IMAGEKIT_FOLDER,
+    sort: sortDirection && sort ? `${sortDirection}_${sort}` : "DESC_CREATED",
   });
   return response;
 };

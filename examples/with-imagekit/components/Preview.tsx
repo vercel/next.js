@@ -14,7 +14,7 @@ const Preview = ({
   return (
     <div className="absolute flex bottom-10 gap-8">
       {images.map((data) => (
-        <div style={{ width: "100px", height: "100px", position: "relative" }}>
+        <div className="w-[100px] h-[100px] relative">
           <IKImage
             key={data.fileId}
             urlEndpoint={process.env.NEXT_PUBLIC_URL_ENDPOINT}

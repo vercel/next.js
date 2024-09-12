@@ -12,10 +12,7 @@ const NavigateLeftButton = ({
     <>
       {currentIndex !== 0 && (
         <button
-          className={`absolute left-10 rounded-full bg-black/50 p-3 text-white/75 backdrop-blur-lg transition hover:bg-black/75 hover:text-white focus:outline-none z-1`}
-          style={{
-            zIndex: "1",
-          }}
+          className={`absolute left-10 rounded-full bg-black/50 p-3 text-white/75 backdrop-blur-lg transition hover:bg-black/75 hover:text-white focus:outline-none z-[1]`}
           onClick={() => {
             setCurrentIndex((prev) => prev - 1);
           }}
