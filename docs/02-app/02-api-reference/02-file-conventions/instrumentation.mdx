@@ -11,33 +11,6 @@ The `instrumentation.js|ts` file is used to integrate observability tools into y
 
 To use it, place the file in the **root** of your application or inside a [`src` folder](/docs/app/building-your-application/configuring/src-directory) if using one.
 
-## Enabling Instrumentation
-
-Instrumentation is currently an experimental feature, to use the `instrumentation.js` file, you must explicitly opt-in by defining [`experimental.instrumentationHook = true;`](/docs/app/api-reference/next-config-js/instrumentationHook) in your `next.config.js`:
-
-```ts filename="next.config.ts" switcher
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  experimental: {
-    instrumentationHook: true,
-  },
-}
-
-export default nextConfig
-```
-
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    instrumentationHook: true,
-  },
-}
-
-module.exports = nextConfig
-```
-
 ## Exports
 
 ### `register` (optional)
@@ -161,8 +134,8 @@ export function onRequestError() {
 
 ## Version History
 
-| Version   | Changes                                                 |
-| --------- | ------------------------------------------------------- |
-| `v15.0.0` | `onRequestError` introduced                             |
-| `v14.0.4` | Turbopack support for `instrumentation`                 |
-| `v13.2.0` | `instrumentation` introduced as an experimental feature |
+| Version      | Changes                                                 |
+| ------------ | ------------------------------------------------------- |
+| `v15.0.0-RC` | `onRequestError` introduced, `instrumentation` stable   |
+| `v14.0.4`    | Turbopack support for `instrumentation`                 |
+| `v13.2.0`    | `instrumentation` introduced as an experimental feature |
