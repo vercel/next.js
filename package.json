@@ -262,7 +262,7 @@
       "webpack": "5.90.0",
       "browserslist": "4.22.2",
       "caniuse-lite": "1.0.30001579",
-      "@types/node": "20.12.3",
+      "@types/node": "22.5.4",
       "@babel/core": "7.22.5",
       "@babel/parser": "7.22.5",
       "@babel/types": "7.22.5",
