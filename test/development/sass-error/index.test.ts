@@ -24,18 +24,18 @@ describe('app dir - css', () => {
           const source = await getRedboxSource(browser)
 
           expect(source).toMatchInlineSnapshot(`
-          "./app/global.scss.css:45:1
-          Parsing css source code failed
-            43 | }
-            44 |
-          > 45 | input.defaultCheckbox::before path {
-               | ^
-            46 |   fill: currentColor;
-            47 | }
-            48 |
+            "./app/global.scss.css:45:1
+            Parsing css source code failed
+              43 | }
+              44 |
+            > 45 | input.defaultCheckbox::before path {
+                 | ^
+              46 |   fill: currentColor;
+              47 | }
+              48 |
 
-          Unexpected token Ident("path") at [project]/app/global.scss.css:0:884"
-        `)
+            Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")' at [project]/app/global.scss.css:0:884"
+          `)
         })
       }
     )
