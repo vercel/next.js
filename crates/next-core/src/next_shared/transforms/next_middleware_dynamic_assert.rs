@@ -8,9 +8,11 @@ use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, Transfor
 
 use super::module_rule_match_js_no_url;
 
-pub fn get_middleware_dynamic_assert_rule(enable_mdx_rs: bool) -> ModuleRule {
+pub fn get_middleware_dynamic_assert_rule(enable_mdx_rs: bool, is_production: bool) -> ModuleRule {
     let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextMiddlewareDynamicAssert {}) as _));
+        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextMiddlewareDynamicAssert {
+            is_production,
+        }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
@@ -21,14 +23,19 @@ pub fn get_middleware_dynamic_assert_rule(enable_mdx_rs: bool) -> ModuleRule {
 }
 
 #[derive(Debug)]
-struct NextMiddlewareDynamicAssert {}
+struct NextMiddlewareDynamicAssert {
+    is_production: bool,
+}
 
 #[async_trait]
 impl CustomTransformer for NextMiddlewareDynamicAssert {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "next_middleware_dynamic_assert", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
-        let mut visitor = next_middleware_dynamic();
-        program.visit_mut_with(&mut visitor);
+        if self.is_production {
+            let mut visitor = next_middleware_dynamic();
+            program.visit_mut_with(&mut visitor);
+        }
+
         Ok(())
     }
 }
