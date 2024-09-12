@@ -3,6 +3,7 @@ import type {
   Collection,
   ASTPath,
   ExportDefaultDeclaration,
+  JSCodeshift,
 } from 'jscodeshift'
 
 function insertReactUseImport(root: Collection<any>, j: API['j']) {
@@ -66,10 +67,21 @@ function isAsyncFunctionDeclaration(path: ASTPath<ExportDefaultDeclaration>) {
   return isAsyncFunction
 }
 
-export function transformDynamicProps(source: string, api: API) {
-  const j = api.jscodeshift
-  const root = j(source)
+// Reuse identifier to avoid duplication
+const idMaps = new Map<string, any>()
+function getIdentifier(j: JSCodeshift, propName: string) {
+  if (idMaps.has(propName)) {
+    return idMaps.get(propName)
+  } else {
+    const id = j.identifier(propName)
+    idMaps.set(propName, id)
+    return id
+  }
+}
 
+export function transformDynamicProps(source: string, api: API) {
+  const j = api.jscodeshift.withParser('tsx')
+  const root = j(source)
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
 
@@ -82,28 +94,73 @@ export function transformDynamicProps(source: string, api: API) {
 
     // find `params` and `searchParams` in file, and transform the access to them
     function renameAsyncPropIfExisted(path: ASTPath<ExportDefaultDeclaration>) {
-      let found = false
-      const objPatterns = j(path).find(j.ObjectPattern)
+      let found = null
 
-      objPatterns.forEach((objPattern) => {
-        const paramsNode = objPattern.value.properties
-        if (objPattern.value.type === 'ObjectPattern') {
-          // Rename property
-          paramsNode.forEach((prop) => {
-            if (prop.type === 'Property') {
-              const key = prop.key
+      const decl = path.value.declaration
+      if (
+        decl.type !== 'FunctionDeclaration' &&
+        decl.type !== 'FunctionExpression' &&
+        decl.type !== 'ArrowFunctionExpression'
+      ) {
+        return found
+      }
+
+      const params = decl.params
+
+      const firstParam = params[0]
+      if (firstParam.type === 'ObjectPattern') {
+        // rename the first param to asyncParams
+        const properties = firstParam.properties
+        const paramTypeAnnotation = firstParam.typeAnnotation
+        properties.forEach((prop, index) => {
+          if (
+            prop.type === 'ObjectProperty' &&
+            prop.key.type === 'Identifier' &&
+            prop.key.name === propName &&
+            prop.value.type === 'Identifier'
+          ) {
+            // prop.key = getIdentifier(j, propName)
+            // prop.value = getIdentifier(j, asyncPropName)
+            properties[index] = j.objectProperty(
+              prop.key,
+              getIdentifier(j, asyncPropName)
+            )
+
+            found = properties[index]
+          }
+        })
+
+        if (
+          found &&
+          paramTypeAnnotation &&
+          paramTypeAnnotation.typeAnnotation?.type === 'TSTypeLiteral'
+        ) {
+          const typeLiteral = paramTypeAnnotation.typeAnnotation
+
+          // Find the type property for `params`
+          typeLiteral.members.forEach((member) => {
+            if (
+              member.type === 'TSPropertySignature' &&
+              member.key.type === 'Identifier' &&
+              member.key.name === propName
+            ) {
+              // Wrap the `params` type in Promise<>
               if (
-                key.type === 'Identifier' &&
-                key.name === propName &&
-                prop.value.type === 'Identifier'
+                member.typeAnnotation &&
+                member.typeAnnotation.typeAnnotation &&
+                member.typeAnnotation.typeAnnotation.type === 'TSTypeLiteral'
               ) {
-                prop.value.name = asyncPropName
-                found = true
+                member.typeAnnotation.typeAnnotation = j.tsTypeReference(
+                  j.identifier('Promise'),
+                  j.tsTypeParameterInstantiation([
+                    member.typeAnnotation.typeAnnotation,
+                  ])
+                )
               }
             }
           })
         }
-      })
+      }
 
       return found
     }
@@ -129,8 +186,8 @@ export function transformDynamicProps(source: string, api: API) {
         if (functionBody) {
           const newStatement = j.variableDeclaration('const', [
             j.variableDeclarator(
-              j.identifier(propName),
-              j.awaitExpression(j.identifier(asyncPropName))
+              getIdentifier(j, propName),
+              j.awaitExpression(getIdentifier(j, asyncPropName))
             ),
           ])
           functionBody.unshift(newStatement)
@@ -140,9 +197,9 @@ export function transformDynamicProps(source: string, api: API) {
         if (functionBody) {
           const newStatement = j.variableDeclaration('const', [
             j.variableDeclarator(
-              j.identifier(propName),
+              getIdentifier(j, propName),
               j.callExpression(j.identifier('use'), [
-                j.identifier(asyncPropName),
+                getIdentifier(j, asyncPropName),
               ])
             ),
           ])
@@ -156,25 +213,14 @@ export function transformDynamicProps(source: string, api: API) {
       // Process Function Declarations
       const functionDeclarations = root.find(j.ExportDefaultDeclaration, {
         declaration: {
-          type: 'FunctionDeclaration',
+          type: (type) =>
+            type === 'FunctionDeclaration' ||
+            type === 'FunctionExpression' ||
+            type === 'ArrowFunctionExpression',
         },
       })
 
       functionDeclarations.forEach((path) => {
-        const found = renameAsyncPropIfExisted(path)
-        if (found) {
-          resolveAsyncProp(path)
-        }
-      })
-
-      // Process Arrow Function Expressions
-      const arrowFunctions = root.find(j.ExportDefaultDeclaration, {
-        declaration: {
-          type: 'ArrowFunctionExpression',
-        },
-      })
-
-      arrowFunctions.forEach((path) => {
         const found = renameAsyncPropIfExisted(path)
         if (found) {
           resolveAsyncProp(path)
@@ -186,10 +232,7 @@ export function transformDynamicProps(source: string, api: API) {
   const isClientComponentFile =
     root.find(j.Literal, { value: 'use client' }).size() > 0
 
-  // Only apply to layout or page files
-  // if (!isPageOrLayoutFile(filename)) {
-  //   return fileInfo.source
-  // }
+  // Apply to `params` and `searchParams`
   processAsyncPropOfEntryFile('params', isClientComponentFile)
   processAsyncPropOfEntryFile('searchParams', isClientComponentFile)
 

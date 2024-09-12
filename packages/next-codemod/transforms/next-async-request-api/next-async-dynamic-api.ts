@@ -1,9 +1,6 @@
-import type { API, Collection, FileInfo } from 'jscodeshift'
+import type { API, Collection } from 'jscodeshift'
 
-function insertReactUseImport(
-  root: Collection<any>,
-  j: API['j']
-) {
+function insertReactUseImport(root: Collection<any>, j: API['j']) {
   const hasReactUseImport =
     root
       .find(j.ImportSpecifier, {
@@ -55,7 +52,7 @@ function insertReactUseImport(
 }
 
 export function transformDynamicAPI(source: string, api: API) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(source)
 
   // Check if 'use' from 'react' needs to be imported
