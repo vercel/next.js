@@ -55,9 +55,10 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
             let program = match parser.parse_program() {
                 Ok(program) => program,
                 Err(err) => {
+                    err.into_diagnostic(handler).emit();
                     // TODO should emit an issue
                     bail!(
-                        "failed to parse source code\n{err:?}\n{}",
+                        "failed to parse source code\n{}",
                         code.source_code().to_str()?
                     )
                 }
