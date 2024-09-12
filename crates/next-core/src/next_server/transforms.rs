@@ -133,10 +133,7 @@ pub async fn get_next_server_transforms_rules(
         rules.push(get_next_image_rule());
 
         if let NextRuntime::Edge = next_runtime {
-            rules.push(get_middleware_dynamic_assert_rule(
-                mdx_rs,
-                matches!(&*mode.await?, NextMode::Build),
-            ));
+            rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
 
             rules.push(next_edge_node_api_assert(
                 mdx_rs,

@@ -515,10 +515,8 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            custom_source_transform_rules.push(get_middleware_dynamic_assert_rule(
-                enable_mdx_rs.is_some(),
-                matches!(&*mode.await?, NextMode::Build),
-            ));
+            custom_source_transform_rules
+                .push(get_middleware_dynamic_assert_rule(enable_mdx_rs.is_some()));
 
             if let ServerContextType::Pages { .. } = ty {
                 custom_source_transform_rules.push(
@@ -821,10 +819,8 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            custom_source_transform_rules.push(get_middleware_dynamic_assert_rule(
-                enable_mdx_rs.is_some(),
-                matches!(&*mode.await?, NextMode::Build),
-            ));
+            custom_source_transform_rules
+                .push(get_middleware_dynamic_assert_rule(enable_mdx_rs.is_some()));
 
             if let Some(ecmascript_client_reference_transition_name) =
                 ecmascript_client_reference_transition_name
