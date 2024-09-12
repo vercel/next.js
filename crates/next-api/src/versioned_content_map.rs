@@ -109,10 +109,7 @@ impl VersionedContentMap {
                 .await?;
             Ok(entries)
         }
-        let entries = match get_entries(assets).await {
-            Ok(entries) => entries,
-            Err(_) => vec![],
-        };
+        let entries = get_entries(assets).await.unwrap_or_default();
         self.await?.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
             for &(k, _) in entries.iter() {
