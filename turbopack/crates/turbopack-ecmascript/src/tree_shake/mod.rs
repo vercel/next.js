@@ -418,7 +418,12 @@ impl PartialEq for SplitResult {
 
 #[turbo_tasks::function]
 pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
+    Ok(split(
+        asset.source().ident(),
+        asset.source(),
+        asset.parse(),
+        asset.options().await?.special_exports,
+    ))
 }
 
 #[turbo_tasks::function]
@@ -426,6 +431,7 @@ pub(super) async fn split(
     ident: Vc<AssetIdent>,
     source: Vc<Box<dyn Source>>,
     parsed: Vc<ParseResult>,
+    special_exports: Vc<Vec<RcStr>>,
 ) -> Result<Vc<SplitResult>> {
     let parse_result = parsed.await?;
 
@@ -439,7 +445,7 @@ pub(super) async fn split(
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
-            if util::should_skip_tree_shaking(program) {
+            if util::should_skip_tree_shaking(program, &special_exports.await?) {
                 return Ok(SplitResult::Failed {
                     parse_result: parsed,
                 }
