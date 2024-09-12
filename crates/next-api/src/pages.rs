@@ -35,7 +35,7 @@ use turbo_tasks_fs::{
 use turbopack::{
     module_options::ModuleOptionsContext,
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, TransitionsByName},
+    transition::{ContextTransition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -253,9 +253,9 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    fn transitions(self: Vc<Self>) -> Vc<TransitionsByName> {
-        Vc::cell(
-            [(
+    fn transitions(self: Vc<Self>) -> Vc<TransitionOptions> {
+        TransitionOptions {
+            named_transitions: [(
                 "next-dynamic".into(),
                 Vc::upcast(NextDynamicTransition::new(Vc::upcast(
                     self.client_transition(),
@@ -263,7 +263,9 @@ impl PagesProject {
             )]
             .into_iter()
             .collect(),
-        )
+            ..Default::default()
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]

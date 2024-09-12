@@ -632,7 +632,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         let r = EsmAssetReference::new(
             origin,
             Request::parse(Value::new(RcStr::from(&*r.module_path).into())),
-            r.issue_source,
+            r.issue_source
+                .unwrap_or_else(|| IssueSource::from_source_only(source)),
             Value::new(r.annotations.clone()),
             match options.tree_shaking_mode {
                 Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
@@ -846,7 +847,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
                 .cell(),
             ),
-            DetectedDynamicExportType::None => EcmascriptExports::None,
+            DetectedDynamicExportType::None => EcmascriptExports::EmptyCommonJs,
         }
     };
 
@@ -2190,11 +2191,7 @@ async fn handle_free_var_reference(
                     ))
                 }),
                 Request::parse(Value::new(request.clone().into())),
-                Some(IssueSource::from_swc_offsets(
-                    state.source,
-                    span.lo.to_usize(),
-                    span.hi.to_usize(),
-                )),
+                IssueSource::from_swc_offsets(state.source, span.lo.to_usize(), span.hi.to_usize()),
                 Default::default(),
                 match state.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments)
@@ -3062,6 +3059,10 @@ pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     annotations.get(&TURBOPACK_HELPER).is_some()
 }
 
+pub fn is_swc_helper_import(import: &ImportDecl) -> bool {
+    import.src.value.starts_with("@swc/helpers/")
+}
+
 #[derive(Debug)]
 enum DetectedDynamicExportType {
     CommonJs,
@@ -3078,9 +3079,9 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
         // Check for imports/exports
         if m.body.iter().any(|item| {
             item.as_module_decl().map_or(false, |module_decl| {
-                module_decl
-                    .as_import()
-                    .map_or(true, |import| !is_turbopack_helper_import(import))
+                module_decl.as_import().map_or(true, |import| {
+                    !is_turbopack_helper_import(import) && !is_swc_helper_import(import)
+                })
             })
         }) {
             return DetectedDynamicExportType::UsingModuleDeclarations;

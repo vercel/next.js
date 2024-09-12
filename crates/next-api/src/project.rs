@@ -31,7 +31,9 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
-use turbopack::{evaluate_context::node_build_environment, ModuleAssetContext};
+use turbopack::{
+    evaluate_context::node_build_environment, transition::TransitionOptions, ModuleAssetContext,
+};
 use turbopack_core::{
     changed::content_changed,
     chunk::{
@@ -944,7 +946,11 @@ impl Project {
         }
 
         Ok(Vc::upcast(ModuleAssetContext::new(
-            Vc::cell(transitions.into_iter().collect()),
+            TransitionOptions {
+                named_transitions: transitions.into_iter().collect(),
+                ..Default::default()
+            }
+            .cell(),
             self.edge_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -1011,7 +1017,11 @@ impl Project {
         }
 
         Ok(Vc::upcast(ModuleAssetContext::new(
-            Vc::cell(transitions.into_iter().collect()),
+            TransitionOptions {
+                named_transitions: transitions.into_iter().collect(),
+                ..Default::default()
+            }
+            .cell(),
             self.server_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -1057,7 +1067,11 @@ impl Project {
         }
 
         Ok(Vc::upcast(ModuleAssetContext::new(
-            Vc::cell(transitions.into_iter().collect()),
+            TransitionOptions {
+                named_transitions: transitions.into_iter().collect(),
+                ..Default::default()
+            }
+            .cell(),
             self.edge_compile_time_info(),
             get_server_module_options_context(
                 self.project_path(),
@@ -1187,7 +1201,12 @@ impl Project {
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
         // first seen version of the session.
-        VersionState::new(version.into_trait_ref_untracked().await?).await
+        VersionState::new(
+            version
+                .into_trait_ref_strongly_consistent_untracked()
+                .await?,
+        )
+        .await
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group

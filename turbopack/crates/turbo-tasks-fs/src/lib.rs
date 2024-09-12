@@ -27,7 +27,7 @@ use std::{
     cmp::min,
     collections::HashSet,
     fmt::{
-        Debug, Display, Formatter, {self},
+        Debug, Display, Formatter, Write as _, {self},
     },
     fs::FileType,
     io::{
@@ -61,7 +61,9 @@ use turbo_tasks::{
     mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef,
     SerializationInvalidator, ValueToString, Vc,
 };
-use turbo_tasks_hash::{hash_xxh3_hash64, DeterministicHash, DeterministicHasher};
+use turbo_tasks_hash::{
+    hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
+};
 use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
 pub use virtual_fs::VirtualFileSystem;
 use watcher::DiskWatcher;
@@ -73,25 +75,44 @@ use crate::{
     rope::{Rope, RopeReader},
 };
 
-/// Validate the path, returning either the valid path, or a modified-but-now-valid path,
-/// or bailing with an error.
+/// A (somewhat arbitrary) filename limit that we should try to keep output file names below.
+///
+/// For the sake of consistency, this is a fixed constant that is likely to be safe across all
+/// platforms.
+///
+/// Different operating systems have different limits on file name and file path. See
+/// [`validate_path_length`] for details. Because this only accounts for a single path segment, and
+/// not the total path length, this cannot not guarantee a full file path is safe.
+///
+/// To ensure file names are kept within this limit, call
+/// [`FileSystemPath::truncate_file_name_with_hash`].
+pub const MAX_SAFE_FILE_NAME_LENGTH: usize = 200;
+
+/// Validate the path, returning the valid path, a modified-but-now-valid path, or bailing with an
+/// error.
 ///
 /// The behaviour of the file system changes depending on the OS, and indeed sometimes the FS
 /// implementation of the OS itself.
 ///
-/// - On windows the limit for normal file paths is 260 characters, a holdover from the DOS days,
-///   but rust will opportunistically rewrite paths to 'UNC' paths for supported path operations
+/// - On Windows the limit for normal file paths is 260 characters, a holdover from the DOS days,
+///   but Rust will opportunistically rewrite paths to 'UNC' paths for supported path operations
 ///   which can be up to 32767 characters long.
 /// - On macOS, the limit is traditionally 255 characters for the file name and a second limit of
 ///   1024 for the entire path (verified by running `getconf PATH_MAX /`).
-/// - On linux, the limit differs between kernel (and by extension, distro) and filesystem. Individual files can be up to 255 bytes, while
-///   paths can be up to 4096 _on EXT4_. However, despite advertising these in `limits.h`, some filesystems actually support larger lengths.
-///   Fedora for example explicitly says not to program against the limit on linux (https://docs.fedoraproject.org/en-US/defensive-coding/tasks/Tasks-File_System/#sect-Defensive_Coding-Tasks-File_System-Limits)
+/// - On Linux, the limit differs between kernel (and by extension, distro) and filesystem. On most
+///   common file systems (e.g. ext4, btrfs, and xfs), individual file names can be up to 255 bytes
+///   with no hard limit on total path length. [Some legacy POSIX APIs are restricted to the
+///   `PATH_MAX` value of 4096 bytes in `limits.h`, but most applications support longer
+///   paths][PATH_MAX].
+///
+/// For more details, refer to <https://en.wikipedia.org/wiki/Comparison_of_file_systems#Limits>.
 ///
 /// Realistically, the output path lengths will be the same across all platforms, so we need to set
 /// a conservative limit and be particular about when we decide to bump it. Here we have opted for
 /// 255 characters, because it is the shortest of the three options.
-fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
+///
+/// [PATH_MAX]: https://eklitzke.org/path-max-is-tricky
+pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
     /// Here we check if the path is too long for windows, and if so, attempt to canonicalize it
     /// to a UNC path.
     #[cfg(target_family = "windows")]
@@ -993,6 +1014,65 @@ impl FileSystemPath {
             (None, path_before_extension, extension)
         }
     }
+
+    /// Ensure the given filename (just the name, not the full path) is less than
+    /// [`MAX_SAFE_FILE_NAME_LENGTH`], truncating and suffixing with a hash as needed.
+    ///
+    /// If given a file extension, we will attempt to preserve that extension, failing with an error
+    /// if the extension is too long.
+    ///
+    /// A high-quality non-cryptographic 128-bit hash is used, which guarantees that there are no
+    /// collisions in the absence of malicious input. Given two unique input file paths, we
+    /// guarantee two unique output file paths.
+    ///
+    /// Note: We are hashing the _file name stem_, not the _contents_.
+    ///
+    /// If you have a [`Vc<FileSystemPath>`], call
+    /// [`FileSystemPath::truncate_file_name_with_hash_vc`] instead.
+    pub fn truncate_file_name_with_hash(&self) -> Result<Cow<'_, FileSystemPath>> {
+        let (parent, stem, extension) = self.split_file_stem_extension();
+        // length of the extension plus the dot ('.')
+        let extension_with_dot_len = extension.map(|ext| ext.len() + 1).unwrap_or(0);
+
+        // common case: file name is a safe length
+        if (stem.len() + extension_with_dot_len) <= MAX_SAFE_FILE_NAME_LENGTH {
+            return Ok(Cow::Borrowed(self));
+        }
+
+        // generate a 32-character hex-encoded hash
+        let hash = hash_xxh3_hash128(stem);
+        let hash_str = format!("{:01$x}", hash, std::mem::size_of::<u128>() * 2);
+
+        let remaining_len = MAX_SAFE_FILE_NAME_LENGTH
+            .checked_sub(
+                // +1 byte here for the underscore ('_') separator
+                hash_str.len() + extension_with_dot_len + 1,
+            )
+            .with_context(|| {
+                format!(
+                    "Unable to truncate {} because the file extension exceeds {} bytes",
+                    self.path,
+                    MAX_SAFE_FILE_NAME_LENGTH - 2
+                )
+            })?;
+
+        let mut path_str = String::with_capacity(
+            parent.map(|p| p.len() + 1).unwrap_or(0) + MAX_SAFE_FILE_NAME_LENGTH,
+        );
+        if let Some(parent) = parent {
+            // unwrap: write!() on a string should never fail
+            write!(path_str, "{parent}/").unwrap();
+        }
+        write!(path_str, "{}_{}", &stem[..remaining_len], hash_str).unwrap();
+        if let Some(extension) = extension {
+            write!(path_str, ".{extension}").unwrap();
+        }
+
+        Ok(Cow::Owned(FileSystemPath {
+            fs: self.fs,
+            path: RcStr::from(path_str),
+        }))
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -1184,6 +1264,16 @@ impl FileSystemPath {
             return Ok(Vc::cell(None));
         }
         Ok(Vc::cell(Some(file_stem.into())))
+    }
+
+    /// See [`truncate_file_name_with_hash`]. Preserves the input [`Vc`] if no truncation was
+    /// performed.
+    #[turbo_tasks::function]
+    pub async fn truncate_file_name_with_hash_vc(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(match self.await?.truncate_file_name_with_hash()? {
+            Cow::Borrowed(_) => self,
+            Cow::Owned(path) => path.cell(),
+        })
     }
 }
 
@@ -2218,6 +2308,48 @@ mod tests {
 
             let path = FileSystemPath::new_normalized(fs, "foo/.bar".into());
             assert_eq!(path.file_stem().await.unwrap().as_deref(), Some(".bar"));
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_truncate_file_name_with_hash() {
+        crate::register();
+
+        turbo_tasks_testing::VcStorage::with(async {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new());
+
+            let mut long_str = String::new();
+            for _i in 0..1000 {
+                long_str.push_str("long")
+            }
+
+            // does not change the path (returns exact same Vc) if the file name is short
+            let path = FileSystemPath::new_normalized(fs, format!("{long_str}/short.ext").into())
+                .resolve()
+                .await?;
+            assert_eq!(
+                path.truncate_file_name_with_hash_vc().resolve().await?,
+                path,
+            );
+
+            // truncates and adds hash so that the file name length equals MAX_SAFE_FILE_NAME_LENGTH
+            let path = FileSystemPath::new_normalized(fs, format!("path/{long_str}.ext").into());
+            let truncated_path = path.truncate_file_name_with_hash_vc().await?;
+            assert_eq!(
+                truncated_path.path,
+                "path/longlonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglong\
+                longlonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglong\
+                longlon_235b5eceeef9efad5b37fd5057ab8317.ext",
+            );
+            assert_eq!(truncated_path.file_name().len(), MAX_SAFE_FILE_NAME_LENGTH);
+
+            // an extension that's too long should fail
+            let path = FileSystemPath::new_normalized(fs, format!("path/foo.{long_str}").into());
+            assert!(path.truncate_file_name_with_hash_vc().await.is_err());
 
             anyhow::Ok(())
         })
