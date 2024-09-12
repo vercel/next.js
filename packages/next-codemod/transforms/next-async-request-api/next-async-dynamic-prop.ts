@@ -32,27 +32,29 @@ function insertReactUseImport(root: Collection<any>, j: API['j']) {
         .get()
         .node.specifiers.push(j.importSpecifier(j.identifier('use')))
     } else {
-      // Create new import declaration for 'use' from 'react'
-      const newImport = j.importDeclaration(
-        [j.importSpecifier(j.identifier('use'))],
-        j.literal('react')
-      )
+      // Final all type imports to 'react'
 
-      // append after "use client" directive if there's any
-      const clientDirectives = root.find(j.Literal, { value: 'use client' })
-      if (clientDirectives.size() > 0) {
-        const parent = clientDirectives.get().parentPath
-        if (parent) {
-          parent.insertAfter(newImport)
-        } else {
-          if (root.length > 0) {
-            root.at(0).insertAfter(newImport)
-          } else {
-            root.get().node.program.body.unshift(newImport)
-          }
-        }
+      const reactImport = root.find(j.ImportDeclaration, {
+        source: {
+          type: 'Literal',
+          value: 'react',
+        },
+      })
+
+      if (reactImport.size() > 0) {
+        reactImport
+          .get()
+          .node.specifiers.push(j.importSpecifier(j.identifier('use')))
       } else {
-        root.get().node.program.body.unshift(newImport)
+        // Add new import declaration for 'react' and 'use'
+        root
+          .get()
+          .node.program.body.unshift(
+            j.importDeclaration(
+              [j.importSpecifier(j.identifier('use'))],
+              j.literal('react')
+            )
+          )
       }
     }
   }
@@ -228,33 +230,6 @@ export function transformDynamicProps(source: string, api: API) {
           }
         }
       }
-
-      // if (isAsyncFunc) {
-      //   // If it's async function, add await to the async prop
-      //   if (functionBody) {
-      //     const newStatement = j.variableDeclaration('const', [
-      //       j.variableDeclarator(
-      //         getIdentifier(j, propName),
-      //         j.awaitExpression(getIdentifier(j, asyncPropName))
-      //       ),
-      //     ])
-      //     functionBody.unshift(newStatement)
-      //   }
-      // } else {
-      //   // If it's sync function, wrap the async prop with `use` from 'react'
-      //   if (functionBody) {
-      //     const newStatement = j.variableDeclaration('const', [
-      //       j.variableDeclarator(
-      //         getIdentifier(j, propName),
-      //         j.callExpression(j.identifier('use'), [
-      //           getIdentifier(j, asyncPropName),
-      //         ])
-      //       ),
-      //     ])
-      //     functionBody.unshift(newStatement)
-      //     needsReactUseImport = true
-      //   }
-      // }
     }
 
     if (!isClientComponent) {
