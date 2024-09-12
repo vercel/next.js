@@ -54,7 +54,6 @@ use crate::{
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
-            next_middleware_dynamic_assert::get_middleware_dynamic_assert_rule,
             next_react_server_components::get_next_react_server_components_transform_rule,
             react_remove_properties::get_react_remove_properties_transform_rule,
             relay::get_relay_transform_rule, remove_console::get_remove_console_transform_rule,
@@ -515,9 +514,6 @@ pub async fn get_server_module_options_context(
                     .flatten()
                     .collect();
 
-            custom_source_transform_rules
-                .push(get_middleware_dynamic_assert_rule(enable_mdx_rs.is_some()));
-
             if let ServerContextType::Pages { .. } = ty {
                 custom_source_transform_rules.push(
                     get_next_react_server_components_transform_rule(next_config, false, None)
@@ -818,9 +814,6 @@ pub async fn get_server_module_options_context(
                     .into_iter()
                     .flatten()
                     .collect();
-
-            custom_source_transform_rules
-                .push(get_middleware_dynamic_assert_rule(enable_mdx_rs.is_some()));
 
             if let Some(ecmascript_client_reference_transition_name) =
                 ecmascript_client_reference_transition_name

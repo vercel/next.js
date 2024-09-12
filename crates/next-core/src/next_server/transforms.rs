@@ -131,10 +131,12 @@ pub async fn get_next_server_transforms_rules(
         // optimize_use_state))
 
         rules.push(get_next_image_rule());
+    }
 
-        if let NextRuntime::Edge = next_runtime {
-            rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+    if let NextRuntime::Edge = next_runtime {
+        rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
 
+        if !foreign_code {
             rules.push(next_edge_node_api_assert(
                 mdx_rs,
                 matches!(context_ty, ServerContextType::Middleware { .. })
