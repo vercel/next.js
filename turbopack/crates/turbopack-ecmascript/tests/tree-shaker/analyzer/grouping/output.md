@@ -337,7 +337,7 @@ graph TD
 ## Part 0
 ```js
 let x = 1;
-export { x } from "__TURBOPACK_VAR__" assert {
+export { x as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -347,7 +347,7 @@ export { x } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x = 3;
@@ -361,7 +361,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 console.log(x);
@@ -383,7 +383,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x = 5;
@@ -403,7 +403,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x += 6;
@@ -420,7 +420,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x += 7;
@@ -437,7 +437,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x += 8;
@@ -454,7 +454,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x += 9;
@@ -468,7 +468,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 export { x as x };
@@ -482,11 +482,11 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 const y = x;
-export { y } from "__TURBOPACK_VAR__" assert {
+export { y as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -496,7 +496,7 @@ export { y } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
 };
-import { y } from "__TURBOPACK_PART__" assert {
+import { b as y } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
 };
 export { y };
@@ -510,7 +510,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x = 4;
@@ -521,7 +521,7 @@ x = 4;
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x = 2;
@@ -565,7 +565,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 let x = 1;
-export { x } from "__TURBOPACK_VAR__" assert {
+export { x as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -575,7 +575,7 @@ export { x } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x = 5;
@@ -586,7 +586,7 @@ x = 5;
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x = 4;
@@ -597,7 +597,7 @@ x = 4;
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x = 3;
@@ -614,7 +614,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x += 6;
@@ -628,7 +628,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x += 7;
@@ -642,7 +642,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x += 8;
@@ -656,7 +656,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x += 9;
@@ -670,11 +670,11 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 const y = x;
-export { y } from "__TURBOPACK_VAR__" assert {
+export { y as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -684,7 +684,7 @@ export { y } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
-import { y } from "__TURBOPACK_PART__" assert {
+import { b as y } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 export { y };
@@ -698,7 +698,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 export { x as x };
@@ -712,7 +712,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 console.log(x);
@@ -731,7 +731,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { x } from "__TURBOPACK_PART__" assert {
+import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 x = 2;

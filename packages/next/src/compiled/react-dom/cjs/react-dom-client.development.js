@@ -20599,7 +20599,7 @@
       __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
     var Scheduler = require("next/dist/compiled/scheduler"),
       React = require("next/dist/compiled/react"),
-      ReactDOM = require("react-dom"),
+      ReactDOM = require("next/dist/compiled/react-dom"),
       REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),

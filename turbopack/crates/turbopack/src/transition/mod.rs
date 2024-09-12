@@ -13,7 +13,10 @@ use turbopack_core::{
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
-use crate::{module_options::ModuleOptionsContext, ModuleAssetContext};
+use crate::{
+    module_options::{transition_rule::TransitionRule, ModuleOptionsContext},
+    ModuleAssetContext,
+};
 
 /// Some kind of operation that is executed during reference processing. e. g.
 /// you can transition to a different environment on a specific import
@@ -99,13 +102,41 @@ pub trait Transition {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct TransitionsByName(HashMap<RcStr, Vc<Box<dyn Transition>>>);
+#[turbo_tasks::value(shared)]
+#[derive(Default)]
+pub struct TransitionOptions {
+    pub named_transitions: HashMap<RcStr, Vc<Box<dyn Transition>>>,
+    pub transition_rules: Vec<TransitionRule>,
+    pub placeholder_for_future_extensions: (),
+}
 
 #[turbo_tasks::value_impl]
-impl ValueDefault for TransitionsByName {
+impl ValueDefault for TransitionOptions {
     #[turbo_tasks::function]
     fn value_default() -> Vc<Self> {
-        Vc::cell(Default::default())
+        Self::default().cell()
+    }
+}
+
+impl TransitionOptions {
+    pub fn get_named(&self, name: RcStr) -> Option<Vc<Box<dyn Transition>>> {
+        self.named_transitions.get(&name).copied()
+    }
+
+    pub async fn get_by_rules(
+        &self,
+        source: Vc<Box<dyn Source>>,
+        reference_type: &ReferenceType,
+    ) -> Result<Option<Vc<Box<dyn Transition>>>> {
+        if self.transition_rules.is_empty() {
+            return Ok(None);
+        }
+        let path = &*source.ident().path().await?;
+        for rule in &self.transition_rules {
+            if rule.matches(source, path, reference_type).await? {
+                return Ok(Some(rule.transition()));
+            }
+        }
+        Ok(None)
     }
 }

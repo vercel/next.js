@@ -21,6 +21,11 @@ on:
         required: false
         description: 'whether to skip building native modules'
         type: string
+      skipNativeInstall:
+        required: false
+        description: 'whether to skip native postinstall script'
+        type: string
+        default: 'yes'
       uploadAnalyzerArtifacts:
         required: false
         description: 'whether to upload analyzer artifacts'
@@ -71,9 +76,8 @@ env:
   TURBO_TEAM: 'vercel'
   TURBO_REMOTE_ONLY: 'true'
   NEXT_TELEMETRY_DISABLED: 1
-  # we build a dev binary for use in CI so skip downloading
-  # canary next-swc binaries in the monorepo
-  NEXT_SKIP_NATIVE_POSTINSTALL: 1
+  # allow not skipping install-native postinstall script if we don't have a binary available already
+  NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '' }}
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   NEXT_JUNIT_TEST_REPORT: 'true'
   DD_ENV: 'ci'

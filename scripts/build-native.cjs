@@ -26,7 +26,7 @@ module.exports = (async () => {
         {
           shell: process.platform === 'win32' ? 'powershell.exe' : false,
           env: {
-            COLOR: 'always',
+            CARGO_TERM_COLOR: 'always',
             TTY: '1',
             ...process.env,
           },
