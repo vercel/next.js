@@ -32,7 +32,7 @@ use crate::{
     cell::{Cell, ReadContentError},
     edges_set::{TaskEdge, TaskEdgesList, TaskEdgesSet},
     gc::{GcQueue, GcTaskState},
-    output::{Output, OutputContent},
+    output::Output,
     task::aggregation::{TaskAggregationContext, TaskChange},
     MemoryBackend,
 };
@@ -598,39 +598,7 @@ impl Task {
         match ty {
             TaskTypeForDescription::Root => format!("[{}] root", id),
             TaskTypeForDescription::Once => format!("[{}] once", id),
-            TaskTypeForDescription::Persistent(ty) => match &***ty {
-                CachedTaskType::Native {
-                    fn_type: native_fn,
-                    this: _,
-                    arg: _,
-                } => {
-                    format!("[{}] {}", id, registry::get_function(*native_fn).name)
-                }
-                CachedTaskType::ResolveNative {
-                    fn_type: native_fn,
-                    this: _,
-                    arg: _,
-                } => {
-                    format!(
-                        "[{}] [resolve] {}",
-                        id,
-                        registry::get_function(*native_fn).name
-                    )
-                }
-                CachedTaskType::ResolveTrait {
-                    trait_type,
-                    method_name: fn_name,
-                    this: _,
-                    arg: _,
-                } => {
-                    format!(
-                        "[{}] [resolve trait] {} in trait {}",
-                        id,
-                        fn_name,
-                        registry::get_trait(*trait_type).name
-                    )
-                }
-            },
+            TaskTypeForDescription::Persistent(ty) => format!("[{id}] {ty}"),
         }
     }
 
@@ -908,7 +876,7 @@ impl Task {
                 Ok(Ok(result)) => {
                     if state.output != result {
                         if cfg!(feature = "print_task_invalidation")
-                            && !matches!(state.output.content, OutputContent::Empty)
+                            && state.output.content.is_some()
                         {
                             println!(
                                 "Task {{ id: {}, name: {} }} invalidates:",
