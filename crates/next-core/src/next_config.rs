@@ -1123,7 +1123,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn tree_shaking_mode_for_foreign_code(
         self: Vc<Self>,
-        _is_development: bool,
+        is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
         let tree_shaking = self
             .await?
@@ -1135,7 +1135,13 @@ impl NextConfig {
         Ok(OptionTreeShaking(match tree_shaking {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
             Some(true) => Some(TreeShakingMode::ModuleFragments),
-            None => Some(TreeShakingMode::ModuleFragments),
+            None => {
+                if is_development {
+                    Some(TreeShakingMode::ReexportsOnly)
+                } else {
+                    Some(TreeShakingMode::ModuleFragments)
+                }
+            }
         })
         .cell())
     }
@@ -1143,9 +1149,13 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn tree_shaking_mode_for_user_code(
         self: Vc<Self>,
-        _is_development: bool,
+        is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
-        Ok(Vc::cell(Some(TreeShakingMode::ModuleFragments)))
+        Ok(Vc::cell(Some(if is_development {
+            TreeShakingMode::ReexportsOnly
+        } else {
+            TreeShakingMode::ModuleFragments
+        })))
     }
 
     #[turbo_tasks::function]
