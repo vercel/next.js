@@ -29,7 +29,6 @@ DEALINGS IN THE SOFTWARE.
 use std::{
     cell::RefCell,
     env,
-    fmt::{Debug, Display},
     fs::OpenOptions,
     io::{self, BufRead, Write},
     path::PathBuf,
