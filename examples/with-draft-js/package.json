@@ -6,9 +6,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "draft-js": "^0.11.5",
+    "draft-js": "^0.11.7",
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "typescript": "^5.6.2"
   }
 }
