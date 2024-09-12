@@ -23,6 +23,7 @@ describe('app dir - css', () => {
 
           const source = await getRedboxSource(browser)
 
+          // css-loader does not report an error for this case
           expect(source).toMatchInlineSnapshot(`
             "./app/global.scss.css:45:1
             Parsing css source code failed
