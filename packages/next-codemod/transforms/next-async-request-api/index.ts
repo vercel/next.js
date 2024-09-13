@@ -3,10 +3,10 @@ import { transformDynamicProps } from './next-async-dynamic-prop'
 import { transformDynamicAPI } from './next-async-dynamic-api'
 
 export default function transform(file: FileInfo, api: API) {
-  const transforms = [
-    transformDynamicProps,
-    transformDynamicAPI,
-  ]
+  const transforms = [transformDynamicProps, transformDynamicAPI]
 
-  return transforms.reduce<string>((source, transform) => transform(source, api), file.source)
+  return transforms.reduce<string>(
+    (source, transformFn) => transformFn(source, api),
+    file.source
+  )
 }
