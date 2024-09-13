@@ -271,7 +271,7 @@ graph TD
 ## Part 0
 ```js
 const order = [];
-export { order } from "__TURBOPACK_VAR__" assert {
+export { order as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -281,7 +281,7 @@ export { order } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { order } from "__TURBOPACK_PART__" assert {
+import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 order.push("a");
@@ -293,7 +293,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
 const random = Math.random();
-export { random } from "__TURBOPACK_VAR__" assert {
+export { random as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -309,17 +309,17 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { random } from "__TURBOPACK_PART__" assert {
+import { b as random } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { order } from "__TURBOPACK_PART__" assert {
+import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 const shared = {
     random,
     effect: order.push("b")
 };
-export { shared } from "__TURBOPACK_VAR__" assert {
+export { shared as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -329,14 +329,14 @@ export { shared } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { shared } from "__TURBOPACK_PART__" assert {
+import { c as shared } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
 const a = {
     shared,
     a: "aaaaaaaaaaa"
 };
-export { a } from "__TURBOPACK_VAR__" assert {
+export { a as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -346,7 +346,7 @@ export { a } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
-import { a } from "__TURBOPACK_PART__" assert {
+import { d as a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 export { a };
@@ -360,14 +360,14 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { shared } from "__TURBOPACK_PART__" assert {
+import { c as shared } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
 const b = {
     shared,
     b: "bbbbbbbbbbb"
 };
-export { b } from "__TURBOPACK_VAR__" assert {
+export { b as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -377,7 +377,7 @@ export { b } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
-import { b } from "__TURBOPACK_PART__" assert {
+import { e as b } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 export { b };
@@ -397,7 +397,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { order } from "__TURBOPACK_PART__" assert {
+import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 order.push("c");
@@ -425,7 +425,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { order } from "__TURBOPACK_PART__" assert {
+import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 export { order };
@@ -481,7 +481,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 const order = [];
-export { order } from "__TURBOPACK_VAR__" assert {
+export { order as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -491,7 +491,7 @@ export { order } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { order } from "__TURBOPACK_PART__" assert {
+import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 order.push("a");
@@ -503,7 +503,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
 const random = Math.random();
-export { random } from "__TURBOPACK_VAR__" assert {
+export { random as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -519,17 +519,17 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { random } from "__TURBOPACK_PART__" assert {
+import { b as random } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { order } from "__TURBOPACK_PART__" assert {
+import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 const shared = {
     random,
     effect: order.push("b")
 };
-export { shared } from "__TURBOPACK_VAR__" assert {
+export { shared as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -539,14 +539,14 @@ export { shared } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { shared } from "__TURBOPACK_PART__" assert {
+import { c as shared } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
 const a = {
     shared,
     a: "aaaaaaaaaaa"
 };
-export { a } from "__TURBOPACK_VAR__" assert {
+export { a as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -556,7 +556,7 @@ export { a } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
-import { a } from "__TURBOPACK_PART__" assert {
+import { d as a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 export { a };
@@ -570,14 +570,14 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { shared } from "__TURBOPACK_PART__" assert {
+import { c as shared } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
 const b = {
     shared,
     b: "bbbbbbbbbbb"
 };
-export { b } from "__TURBOPACK_VAR__" assert {
+export { b as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -587,7 +587,7 @@ export { b } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
-import { b } from "__TURBOPACK_PART__" assert {
+import { e as b } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 export { b };
@@ -607,7 +607,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
-import { order } from "__TURBOPACK_PART__" assert {
+import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 order.push("c");
@@ -635,7 +635,7 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { order } from "__TURBOPACK_PART__" assert {
+import { a as order } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 export { order };

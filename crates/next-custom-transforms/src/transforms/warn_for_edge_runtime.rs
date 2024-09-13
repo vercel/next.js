@@ -1,10 +1,13 @@
 use std::sync::Arc;
 
+use rustc_hash::FxHashSet;
 use swc_core::{
+    atoms::Atom,
     common::{errors::HANDLER, SourceMap, Span},
     ecma::{
         ast::{
-            CallExpr, Callee, Expr, IdentName, ImportDecl, Lit, MemberExpr, MemberProp, NamedExport,
+            op, BinExpr, CallExpr, Callee, CondExpr, Expr, IdentName, IfStmt, ImportDecl, Lit,
+            MemberExpr, MemberProp, NamedExport, UnaryExpr,
         },
         utils::{ExprCtx, ExprExt},
         visit::{Visit, VisitWith},
@@ -15,11 +18,16 @@ pub fn warn_for_edge_runtime(
     cm: Arc<SourceMap>,
     ctx: ExprCtx,
     should_error_for_node_apis: bool,
+    is_production: bool,
 ) -> impl Visit {
     WarnForEdgeRuntime {
         cm,
         ctx,
         should_error_for_node_apis,
+        should_add_guards: false,
+        guarded_symbols: Default::default(),
+        guarded_process_props: Default::default(),
+        is_production,
     }
 }
 
@@ -27,6 +35,13 @@ struct WarnForEdgeRuntime {
     cm: Arc<SourceMap>,
     ctx: ExprCtx,
     should_error_for_node_apis: bool,
+
+    should_add_guards: bool,
+    /// We don't drop guards because a user may write a code like
+    /// `if(typeof clearImmediate !== "function") clearImmediate();`
+    guarded_symbols: FxHashSet<Atom>,
+    guarded_process_props: FxHashSet<Atom>,
+    is_production: bool,
 }
 
 const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
@@ -48,7 +63,7 @@ const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
     "WritableStreamDefaultController",
 ];
 
-/// Get this value from `require('module').builtinModules`
+/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
 const NODEJS_MODULE_NAMES: &[&str] = &[
     "_http_agent",
     "_http_client",
@@ -64,10 +79,10 @@ const NODEJS_MODULE_NAMES: &[&str] = &[
     "_stream_writable",
     "_tls_common",
     "_tls_wrap",
-    "assert",
-    "assert/strict",
-    "async_hooks",
-    "buffer",
+    // "assert",
+    // "assert/strict",
+    // "async_hooks",
+    // "buffer",
     "child_process",
     "cluster",
     "console",
@@ -78,7 +93,7 @@ const NODEJS_MODULE_NAMES: &[&str] = &[
     "dns",
     "dns/promises",
     "domain",
-    "events",
+    // "events",
     "fs",
     "fs/promises",
     "http",
@@ -110,8 +125,8 @@ const NODEJS_MODULE_NAMES: &[&str] = &[
     "trace_events",
     "tty",
     "url",
-    "util",
-    "util/types",
+    // "util",
+    // "util/types",
     "v8",
     "vm",
     "wasi",
@@ -142,6 +157,14 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
     }
 
     fn emit_unsupported_api_error(&self, span: Span, api_name: &str) -> Option<()> {
+        if self
+            .guarded_symbols
+            .iter()
+            .any(|guarded| guarded == api_name)
+        {
+            return None;
+        }
+
         let loc = self.cm.lookup_line(span.lo).ok()?;
 
         let msg = format!(
@@ -170,8 +193,59 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
         if !self.is_in_middleware_layer() || prop.sym == "env" {
             return;
         }
+        if self.guarded_process_props.contains(&prop.sym) {
+            return;
+        }
 
         self.emit_unsupported_api_error(span, &format!("process.{}", prop.sym));
+    }
+
+    fn add_guards(&mut self, test: &Expr) {
+        let old = self.should_add_guards;
+        self.should_add_guards = true;
+        test.visit_with(self);
+        self.should_add_guards = old;
+    }
+
+    fn add_guard_for_test(&mut self, test: &Expr) {
+        if !self.should_add_guards {
+            return;
+        }
+
+        match test {
+            Expr::Ident(ident) => {
+                self.guarded_symbols.insert(ident.sym.clone());
+            }
+            Expr::Member(member) => {
+                if member.obj.is_global_ref_to(&self.ctx, "process") {
+                    if let MemberProp::Ident(prop) = &member.prop {
+                        self.guarded_process_props.insert(prop.sym.clone());
+                    }
+                }
+            }
+            Expr::Bin(BinExpr {
+                left,
+                right,
+                op: op!("===") | op!("==") | op!("!==") | op!("!="),
+                ..
+            }) => {
+                self.add_guard_for_test(left);
+                self.add_guard_for_test(right);
+            }
+            _ => (),
+        }
+    }
+
+    fn emit_dynamic_not_allowed_error(&self, span: Span) {
+        if self.is_production {
+            let msg = "Dynamic Code Evaluation (e. g. 'eval', 'new Function', \
+                       'WebAssembly.compile') not allowed in Edge Runtime"
+                .to_string();
+
+            HANDLER.with(|h| {
+                h.struct_span_err(span, &msg).emit();
+            });
+        }
     }
 }
 
@@ -186,9 +260,32 @@ impl Visit for WarnForEdgeRuntime {
         }
     }
 
+    fn visit_bin_expr(&mut self, node: &BinExpr) {
+        match node.op {
+            op!("&&") | op!("||") | op!("??") => {
+                self.add_guards(&node.left);
+                node.right.visit_with(self);
+            }
+            _ => {
+                node.visit_children_with(self);
+            }
+        }
+    }
+    fn visit_cond_expr(&mut self, node: &CondExpr) {
+        self.add_guards(&node.test);
+
+        node.cons.visit_with(self);
+        node.alt.visit_with(self);
+    }
+
     fn visit_expr(&mut self, n: &Expr) {
         if let Expr::Ident(ident) = n {
             if ident.ctxt == self.ctx.unresolved_ctxt {
+                if ident.sym == "eval" {
+                    self.emit_dynamic_not_allowed_error(ident.span);
+                    return;
+                }
+
                 for api in EDGE_UNSUPPORTED_NODE_APIS {
                     if self.is_in_middleware_layer() && ident.sym == *api {
                         self.emit_unsupported_api_error(ident.span, api);
@@ -199,6 +296,13 @@ impl Visit for WarnForEdgeRuntime {
         }
 
         n.visit_children_with(self);
+    }
+
+    fn visit_if_stmt(&mut self, node: &IfStmt) {
+        self.add_guards(&node.test);
+
+        node.cons.visit_with(self);
+        node.alt.visit_with(self);
     }
 
     fn visit_import_decl(&mut self, n: &ImportDecl) {
@@ -224,5 +328,14 @@ impl Visit for WarnForEdgeRuntime {
         if let Some(module_specifier) = &n.src {
             self.warn_if_nodejs_module(n.span, &module_specifier.value);
         }
+    }
+
+    fn visit_unary_expr(&mut self, node: &UnaryExpr) {
+        if node.op == op!("typeof") {
+            self.add_guard_for_test(&node.arg);
+            return;
+        }
+
+        node.visit_children_with(self);
     }
 }
