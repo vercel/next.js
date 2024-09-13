@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 
-function MyComponent() {
-  if (globalThis.condition) {
+async function MyComponent() {
+  function asyncFunction() {
     callSomething(cookies());
   }
 }

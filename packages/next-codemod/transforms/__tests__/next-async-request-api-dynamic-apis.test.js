@@ -18,7 +18,7 @@ for (const file of fixtures) {
   const fixture = file.replace(testFileRegex, '')
 
   const prefix = `${fixtureDir}/${fixture}`;
-  defineTest(__dirname, transformName,  null, prefix, {
+  defineTest(__dirname, transformName, null, prefix, {
     parser: isTsx ? 'tsx' : 'babel',
   });
 }

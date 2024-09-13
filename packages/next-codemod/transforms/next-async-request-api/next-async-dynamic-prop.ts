@@ -94,6 +94,10 @@ export function transformDynamicProps(source: string, api: API) {
       const firstParam = params[0]
       const propNames = []
 
+      if (!firstParam) {
+        return found
+      }
+
       if (firstParam.type === 'ObjectPattern') {
         // change pageProps to pageProps.<propName>
         const propsIdentifier = j.identifier(PAGE_PROPS)
@@ -249,12 +253,21 @@ export function transformDynamicProps(source: string, api: API) {
     }
   }
 
-  const isClientComponentFile =
-    root.find(j.Literal, { value: 'use client' }).size() > 0
+  const isClientComponent =
+    root
+      .find(j.ExpressionStatement)
+      .filter((path) => {
+        const expr = path.node.expression
+        return (
+          expr.type === 'Literal' &&
+          expr.value === 'use client' &&
+          path.parentPath.node.type === 'Program'
+        )
+      })
+      .size() > 0
 
   // Apply to `params` and `searchParams`
-  processAsyncPropOfEntryFile(isClientComponentFile)
-  // processAsyncPropOfEntryFile('searchParams', isClientComponentFile)
+  processAsyncPropOfEntryFile(isClientComponent)
 
   // Add import { use } from 'react' if needed and not already imported
   if (needsReactUseImport) {
