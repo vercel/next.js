@@ -46,7 +46,7 @@ export default function Page() {
 
 ### Client Components
 
-To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
+To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All exported functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
