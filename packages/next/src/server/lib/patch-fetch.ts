@@ -735,7 +735,14 @@ function createPatchedFetcher(
 
           if (pendingRevalidate) {
             const res: Response = await pendingRevalidate
-            return res.clone()
+            const clonedResponse = res.clone()
+
+            return {
+              body: await clonedResponse.arrayBuffer(),
+              headers: clonedResponse.headers,
+              status: clonedResponse.status,
+              statusText: clonedResponse.statusText,
+            }
           }
           return (staticGenerationStore.pendingRevalidates[cacheKey] =
             doOriginalFetch(true, cacheReasonOverride).finally(async () => {
@@ -757,7 +764,7 @@ function createPatchedFetcher(
   patched.__nextGetStaticStore = () => staticGenerationAsyncStorage
   patched._nextOriginalFetch = originFetch
 
-  return patched
+  return patched as PatchedFetcher
 }
 
 // we patch fetch to collect cache information used for
