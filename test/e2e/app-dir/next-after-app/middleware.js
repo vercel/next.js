@@ -6,7 +6,12 @@ export function middleware(
   /** @type {import ('next/server').NextRequest} */ request
 ) {
   const url = new URL(request.url)
-  if (url.pathname.startsWith('/middleware/redirect-source')) {
+
+  const match = url.pathname.match(
+    /^(?<prefix>\/[^/]+?)\/middleware\/redirect-source/
+  )
+  if (match) {
+    const prefix = match.groups.prefix
     const requestId = url.searchParams.get('requestId')
     after(() => {
       cliLog({
@@ -15,10 +20,12 @@ export function middleware(
         cookies: { testCookie: cookies().get('testCookie')?.value },
       })
     })
-    return NextResponse.redirect(new URL('/middleware/redirect', request.url))
+    return NextResponse.redirect(
+      new URL(prefix + '/middleware/redirect', request.url)
+    )
   }
 }
 
 export const config = {
-  matcher: '/middleware/:path*',
+  matcher: ['/:prefix/middleware/:path*'],
 }

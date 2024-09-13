@@ -338,7 +338,7 @@ async fn import_mapping_to_result(
         }
         ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()
-                .map(|mapping| import_mapping_to_result_boxed(*mapping, lookup_path, request))
+                .map(|mapping| Box::pin(import_mapping_to_result(*mapping, lookup_path, request)))
                 .try_join()
                 .await?,
         ),
@@ -382,18 +382,6 @@ impl ValueToString for ImportMapResult {
             ImportMapResult::NoEntry => Ok(Vc::cell("No import map entry".into())),
         }
     }
-}
-
-// This cannot be inlined within `import_mapping_to_result`, otherwise we run
-// into the following error:
-//     cycle detected when computing type of
-//     `resolve::options::import_mapping_to_result::{opaque#0}`
-fn import_mapping_to_result_boxed(
-    mapping: Vc<ReplacedImportMapping>,
-    lookup_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
-) -> Pin<Box<dyn Future<Output = Result<ImportMapResult>> + Send>> {
-    Box::pin(async move { import_mapping_to_result(mapping, lookup_path, request).await })
 }
 
 impl ImportMap {

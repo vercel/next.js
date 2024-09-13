@@ -28,7 +28,7 @@ if (process.env.NEXT_E2E_TEST_TIMEOUT) {
 
 jest.setTimeout(testTimeout)
 
-const testsFolder = path.join(__dirname, '..')
+const testsFolder = path.join(__dirname, '..', '..')
 
 let testFile
 const testFileRegex = /\.test\.(js|tsx?)/

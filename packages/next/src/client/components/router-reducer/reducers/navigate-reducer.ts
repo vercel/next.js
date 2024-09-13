@@ -20,7 +20,10 @@ import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
-import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
+import {
+  addSearchParamsIfPageSegment,
+  DEFAULT_SEGMENT_KEY,
+} from '../../../../shared/lib/segment'
 import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
@@ -167,16 +170,29 @@ export function navigateReducer(
       let currentTree = state.tree
       let currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
-      for (const flightDataPath of flightData) {
-        const flightSegmentPath = flightDataPath.slice(
-          0,
-          -4
-        ) as unknown as FlightSegmentPath
-        // The one before last item is the router state tree patch
-        const treePatch = flightDataPath.slice(-3)[0] as FlightRouterState
+      for (const normalizedFlightData of flightData) {
+        const {
+          pathToSegment: flightSegmentPath,
+          seedData,
+          head,
+          isRootRender,
+        } = normalizedFlightData
+        let treePatch = normalizedFlightData.tree
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
+
+        // Segments are keyed by searchParams (e.g. __PAGE__?{"foo":"bar"}). We might return a less specific, param-less entry,
+        // so we ensure that the final tree contains the correct searchParams (reflected in the URL) are provided in the updated FlightRouterState tree.
+        if (prefetchValues.aliased) {
+          const [segment, ...rest] = treePatch
+          const finalSegment = addSearchParamsIfPageSegment(
+            segment,
+            Object.fromEntries(url.searchParams)
+          )
+
+          treePatch = [finalSegment, ...rest]
+        }
 
         // Create new tree based on the flightSegmentPath and router state patch
         let newTree = applyRouterStatePatchToTree(
@@ -212,18 +228,14 @@ export function navigateReducer(
             // TODO: We should get rid of the else branch and do all navigations
             // via updateCacheNodeOnNavigation. The current structure is just
             // an incremental step.
-            flightDataPath.length === 3 &&
-            !prefetchValues.aliased &&
+            seedData &&
+            isRootRender &&
             postponed
           ) {
-            const prefetchedTree: FlightRouterState = flightDataPath[0]
-            const seedData = flightDataPath[1]
-            const head = flightDataPath[2]
-
             const task = updateCacheNodeOnNavigation(
               currentCache,
               currentTree,
-              prefetchedTree,
+              treePatch,
               seedData,
               head,
               mutable.onlyHashChange
@@ -278,7 +290,7 @@ export function navigateReducer(
               // TODO: What if the head changed but not any of the segment data?
               // Is that possible? If so, we should clone the whole tree and
               // update the head.
-              newTree = prefetchedTree
+              newTree = treePatch
             }
           } else {
             // The static response does not include any dynamic holes, so
@@ -293,13 +305,11 @@ export function navigateReducer(
 
             // The prefetch cache entry was aliased -- this signals that we only fill in the cache with the
             // loading state and not the actual parallel route seed data.
-            if (prefetchValues.aliased) {
-              // Root render
-              if (flightDataPath.length === 3) {
+            if (prefetchValues.aliased && seedData) {
+              if (isRootRender) {
                 // Fill in the cache with the new loading / rsc data
-                const cacheNodeSeedData = flightDataPath[1]
-                const rsc = cacheNodeSeedData[1]
-                const loading = cacheNodeSeedData[3]
+                const rsc = seedData[1]
+                const loading = seedData[3]
                 cache.loading = loading
                 cache.rsc = rsc
               } else {
@@ -313,7 +323,7 @@ export function navigateReducer(
                 fillCacheWithNewSubTreeDataButOnlyLoading(
                   cache,
                   currentCache,
-                  flightDataPath,
+                  normalizedFlightData,
                   prefetchValues
                 )
               }
@@ -343,7 +353,7 @@ export function navigateReducer(
               applied = applyFlightData(
                 currentCache,
                 cache,
-                flightDataPath,
+                normalizedFlightData,
                 prefetchValues
               )
             }

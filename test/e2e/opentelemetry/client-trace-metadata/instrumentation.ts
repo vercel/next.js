@@ -14,7 +14,7 @@ export async function register() {
           setter.set(
             carrier,
             'my-parent-span-id',
-            trace.getSpanContext(context).spanId
+            trace.getSpanContext(context)?.spanId ?? 'invariant'
           )
         },
         extract(context) {

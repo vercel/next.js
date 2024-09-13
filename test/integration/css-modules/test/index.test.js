@@ -440,24 +440,22 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
       let appPort
       let app
-      let stdout
-      let code
       beforeAll(async () => {
         await remove(join(appDir, '.next'))
-        ;({ code, stdout } = await nextBuild(appDir, [], {
+        const { code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
-        }))
+        })
+
+        if (code !== 0) {
+          console.error(stdout)
+          throw new Error('Build failed')
+        }
 
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
       })
       afterAll(async () => {
         await killApp(app)
-      })
-
-      it('should have compiled successfully', () => {
-        expect(code).toBe(0)
-        expect(stdout).toMatch(/Compiled successfully/)
       })
 
       it(`should've prerendered with relevant data`, async () => {
@@ -573,23 +571,21 @@ describe('CSS Module Composes Usage (External)', () => {
 
       let appPort
       let app
-      let stdout
-      let code
       beforeAll(async () => {
         await remove(join(appDir, '.next'))
-        ;({ code, stdout } = await nextBuild(appDir, [], {
+        console.log({ appDir })
+        const { code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
-        }))
+        })
+        if (code !== 0) {
+          console.error(stdout)
+          throw new Error('Build failed')
+        }
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
       })
       afterAll(async () => {
         await killApp(app)
-      })
-
-      it('should have compiled successfully', () => {
-        expect(code).toBe(0)
-        expect(stdout).toMatch(/Compiled successfully/)
       })
 
       it(`should've emitted a single CSS file`, async () => {

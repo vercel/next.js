@@ -37,6 +37,11 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       initialConfig = manifest.config
     })
 
+    function checkErrorLogs() {
+      expect(next.cliOutput).not.toContain('ENOENT')
+      expect(next.cliOutput).not.toContain('Failed to detect change')
+    }
+
     async function checkShuttleManifest() {
       const manifest = await next.readJSON(
         '.next/cache/shuttle/shuttle-manifest.json'
@@ -45,7 +50,27 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       expect(manifest).toEqual({
         nextVersion,
         config: initialConfig,
+        gitSha: expect.toBeString(),
       })
+
+      const diagnostics = await next.readJSON(
+        '.next/diagnostics/incremental-build-diagnostics.json'
+      )
+
+      expect(Array.isArray(diagnostics.changedAppPaths)).toBe(true)
+      expect(Array.isArray(diagnostics.unchangedAppPaths)).toBe(true)
+      expect(Array.isArray(diagnostics.changedPagePaths)).toBe(true)
+      expect(Array.isArray(diagnostics.unchangedPagePaths)).toBe(true)
+      expect(typeof diagnostics.currentGitSha).toBe('string')
+      expect(typeof diagnostics.shuttleGitSha).toBe('string')
+    }
+
+    async function nextStart() {
+      // our initial build was built in store-only mode so
+      // enable full version in successive builds
+      delete next.env['NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY']
+      next.env['NEXT_PRIVATE_FLYING_SHUTTLE'] = '1'
+      await next.start()
     }
 
     it('should have file hashes in trace files', async () => {
@@ -199,14 +224,20 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
           content: 'hello from app/dashboard/deployments/[id]',
           type: 'app',
         },
+        {
+          path: '/non-existent/path',
+          content: 'This page could not be found',
+          type: 'app',
+          status: 404,
+        },
       ]
 
       for (const testPath of testPaths) {
-        const { path, content } = testPath
+        const { path, content, status } = testPath
         require('console').error('checking', path)
 
         const res = await next.fetch(path)
-        expect(res.status).toBe(200)
+        expect(res.status).toBe(status || 200)
 
         const browser = await next.browser(path)
 
@@ -252,11 +283,6 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
     }
 
     it('should only rebuild just a changed app route correctly', async () => {
-      // our initial build was built in store-only mode so
-      // enable full version in successive builds
-      delete next.env['NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY']
-      next.env['NEXT_PRIVATE_FLYING_SHUTTLE'] = '1'
-
       await next.stop()
 
       const dataPath = 'app/dashboard/deployments/[id]/data.json'
@@ -264,8 +290,10 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 
       try {
         await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
-        await next.start()
+        await nextStart()
+        checkErrorLogs()
 
+        expect(next.cliOutput).not.toContain('/not-found')
         expect(next.cliOutput).not.toContain('/catch-all')
         expect(next.cliOutput).not.toContain('/blog/[slug]')
         expect(next.cliOutput).toContain('/dashboard/deployments/[id]')
@@ -291,9 +319,12 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
             'hello from pages/index!!'
           )
         )
-        await next.start()
+        await nextStart()
+
+        checkErrorLogs()
 
         expect(next.cliOutput).toContain('/')
+        expect(next.cliOutput).not.toContain('/not-found')
         expect(next.cliOutput).not.toContain('/catch-all')
         expect(next.cliOutput).not.toContain('/blog/[slug]')
 
@@ -321,10 +352,13 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
           )
         )
         await next.patchFile(dataPath, JSON.stringify({ hello: 'again' }))
-        await next.start()
+        await nextStart()
+
+        checkErrorLogs()
 
         expect(next.cliOutput).toContain('/')
         expect(next.cliOutput).toContain('/dashboard/deployments/[id]')
+        expect(next.cliOutput).not.toContain('/not-found')
         expect(next.cliOutput).not.toContain('/catch-all')
         expect(next.cliOutput).not.toContain('/blog/[slug]')
 
@@ -332,6 +366,39 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         await checkAppPagesNavigation()
       } finally {
         await next.patchFile(pagePath, originalPageContent)
+        await next.patchFile(dataPath, originalDataContent)
+      }
+    })
+
+    it('should rebuild not-found when it changed', async () => {
+      await next.stop()
+
+      const dataPath = 'app/not-found.module.css'
+      const originalDataContent = await next.readFile(dataPath)
+
+      try {
+        await next.patchFile(
+          dataPath,
+          originalDataContent.replace('cyan', 'pink')
+        )
+        await nextStart()
+
+        checkErrorLogs()
+
+        expect(next.cliOutput).toContain('/not-found')
+
+        const browser = await next.browser('/non-existent/path')
+        await retry(async () => {
+          expect(
+            await browser.eval(
+              'getComputedStyle(document.querySelector("p")).color'
+            )
+          ).toBe('rgb(255, 192, 203)')
+        })
+
+        await checkShuttleManifest()
+        await checkAppPagesNavigation()
+      } finally {
         await next.patchFile(dataPath, originalDataContent)
       }
     })

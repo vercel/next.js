@@ -200,10 +200,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           z.boolean().optional(),
           z.object({
             displayName: z.boolean().optional(),
-            topLevelImportPaths: z.array(z.string()).min(1).optional(),
+            topLevelImportPaths: z.array(z.string()).optional(),
             ssr: z.boolean().optional(),
             fileName: z.boolean().optional(),
-            meaninglessFileNames: z.array(z.string()).min(1).optional(),
+            meaninglessFileNames: z.array(z.string()).optional(),
             minify: z.boolean().optional(),
             transpileTemplateLiterals: z.boolean().optional(),
             namespace: z.string().min(1).optional(),
@@ -279,6 +279,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         caseSensitiveRoutes: z.boolean().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
+        dynamicIO: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
         serverActions: z
           .object({
@@ -390,6 +391,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             useSwcCss: z.boolean().optional(),
             treeShaking: z.boolean().optional(),
             memoryLimit: z.number().optional(),
+            moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),

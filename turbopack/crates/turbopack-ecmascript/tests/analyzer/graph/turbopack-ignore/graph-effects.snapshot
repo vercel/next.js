@@ -43,6 +43,7 @@
         ],
         span: 13..52,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -131,6 +132,7 @@
         ],
         span: 65..108,
         in_try: false,
+        new: false,
     },
     Call {
         func: FreeVar(
@@ -176,6 +178,7 @@
         ],
         span: 121..162,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -264,6 +267,7 @@
         ],
         span: 175..220,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -352,6 +356,7 @@
         ],
         span: 233..275,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -440,6 +445,7 @@
         ],
         span: 288..331,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -528,6 +534,7 @@
         ],
         span: 344..388,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -616,5 +623,6 @@
         ],
         span: 401..446,
         in_try: false,
+        new: false,
     },
 ]

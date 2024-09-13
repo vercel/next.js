@@ -1,11 +1,9 @@
 use std::{
     borrow::Cow,
     mem::{replace, take},
-    pin::Pin,
 };
 
 use anyhow::Result;
-use futures::Future;
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -92,12 +90,21 @@ pub async fn make_chunks(
             empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
         };
 
-        app_vendors_split(
-            chunk_items,
-            format!("{key_prefix}{ty_name}"),
-            &mut split_context,
-        )
-        .await?;
+        if !*ty.must_keep_item_order().await? {
+            app_vendors_split(
+                chunk_items,
+                format!("{key_prefix}{ty_name}"),
+                &mut split_context,
+            )
+            .await?;
+        } else {
+            make_chunk(
+                chunk_items,
+                &mut format!("{key_prefix}{ty_name}"),
+                &mut split_context,
+            )
+            .await?;
+        }
     }
 
     Ok(Vc::cell(chunks))
@@ -246,16 +253,6 @@ async fn package_name_split(
     Ok(())
 }
 
-/// A boxed version of [folder_split] for recursion.
-fn folder_split_boxed<'a, 'b>(
-    chunk_items: Vec<ChunkItemWithInfo>,
-    location: usize,
-    name: Cow<'a, str>,
-    split_context: &'a mut SplitContext<'b>,
-) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
-    Box::pin(folder_split(chunk_items, location, name, split_context))
-}
-
 /// Split chunk items by folder structure.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name), location))]
 async fn folder_split(
@@ -297,7 +294,13 @@ async fn folder_split(
         let mut key = format!("{}-{}", name, folder_name);
         if !handle_split_group(&mut list, &mut key, split_context, Some(&mut remaining)).await? {
             if let Some(new_location) = new_location {
-                folder_split_boxed(list, new_location, Cow::Borrowed(&name), split_context).await?;
+                Box::pin(folder_split(
+                    list,
+                    new_location,
+                    Cow::Borrowed(&name),
+                    split_context,
+                ))
+                .await?;
             } else {
                 make_chunk(list, &mut key, split_context).await?;
             }
