@@ -204,8 +204,9 @@ impl Module for EcmascriptModulePartAsset {
                         match part_id {
                             PartId::Internal(part_id) => ModulePart::internal(*part_id),
                             PartId::Export(name) => ModulePart::export(name.clone()),
-                            PartId::ModuleEvaluation => ModulePart::evaluation(),
-                            PartId::Exports => ModulePart::exports(),
+                            _ => unreachable!(
+                                "PartId other than Internal and Export should not be used here"
+                            ),
                         },
                     )),
                     Vc::cell("ecmascript module part".into()),
