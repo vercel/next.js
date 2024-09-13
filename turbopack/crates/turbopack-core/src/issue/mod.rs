@@ -15,7 +15,7 @@ use turbo_tasks::{
     emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
-use turbo_tasks_fs::{File, FileContent, FileLine, FileLinesContent, FileSystemPath};
+use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 
 use crate::{
@@ -23,7 +23,6 @@ use crate::{
     source::Source,
     source_map::{convert_to_turbopack_source_map, GenerateSourceMap, TokenWithSource},
     source_pos::SourcePos,
-    virtual_source::VirtualSource,
 };
 
 #[turbo_tasks::value(shared)]
@@ -605,18 +604,13 @@ async fn source_pos(
         return Ok(None);
     };
 
+    let (content_1, content_2) = (content_1.resolve().await?, content_2.resolve().await?);
+
     if content_1 != content_2 {
         return Ok(None);
     }
 
-    let file = File::from(content_1.clone_value());
-
-    let content = FileContent::new(file).cell();
-    let content = AssetContent::file(content);
-
-    let source = Vc::upcast(VirtualSource::new(source.ident().path(), content));
-
-    Ok(Some((source, start, end)))
+    Ok(Some((content_1, start, end)))
 }
 
 #[turbo_tasks::value(transparent)]

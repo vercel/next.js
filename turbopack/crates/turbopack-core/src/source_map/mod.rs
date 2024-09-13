@@ -13,7 +13,7 @@ use turbo_tasks_fs::{
     FileContent, FileSystemPath,
 };
 
-use crate::{source_pos::SourcePos, SOURCE_MAP_PREFIX};
+use crate::{source::Source, source_pos::SourcePos, SOURCE_MAP_PREFIX};
 
 pub(crate) mod source_map_asset;
 
@@ -84,7 +84,7 @@ pub enum Token {
 #[derive(Clone, Debug)]
 pub struct TokenWithSource {
     pub token: Vc<Token>,
-    pub source_content: Option<Vc<RcStr>>,
+    pub source_content: Option<Vc<Box<dyn Source>>>,
 }
 
 /// A SyntheticToken represents a region of the generated file that was created
@@ -331,7 +331,7 @@ impl SourceMap {
         line: usize,
         column: usize,
     ) -> Result<Vc<TokenWithSource>> {
-        let mut content: Option<RcStr> = None;
+        let mut content: Option<Vc<Box<dyn Source>>> = None;
 
         let token: Token = match &*self.await? {
             SourceMap::Decoded(map) => {
