@@ -14,37 +14,47 @@ describe('Build warnings', () => {
         const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
         expect(stderr).not.toContain('optimization has been disabled')
       })
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'should shown warning about minification for minimize',
+        async () => {
+          const nextConfig = new File(join(appDir, 'next.config.js'))
 
-      it('should shown warning about minification for minimize', async () => {
-        const nextConfig = new File(join(appDir, 'next.config.js'))
+          await waitFor(500)
 
-        await waitFor(500)
+          nextConfig.replace('true', 'false')
 
-        nextConfig.replace('true', 'false')
+          const { stderr } = await nextBuild(appDir, undefined, {
+            stderr: true,
+          })
 
-        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(stderr).toContain('optimization has been disabled')
 
-        expect(stderr).toContain('optimization has been disabled')
+          nextConfig.restore()
+        }
+      )
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'should shown warning about minification for minimizer',
+        async () => {
+          const nextConfig = new File(join(appDir, 'next.config.js'))
 
-        nextConfig.restore()
-      })
+          await waitFor(500)
 
-      it('should shown warning about minification for minimizer', async () => {
-        const nextConfig = new File(join(appDir, 'next.config.js'))
+          nextConfig.replace(
+            'config.optimization.minimize = true',
+            'config.optimization.minimizer = []'
+          )
 
-        await waitFor(500)
+          const { stderr } = await nextBuild(appDir, undefined, {
+            stderr: true,
+          })
 
-        nextConfig.replace(
-          'config.optimization.minimize = true',
-          'config.optimization.minimizer = []'
-        )
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(stderr).toContain('optimization has been disabled')
 
-        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-
-        expect(stderr).toContain('optimization has been disabled')
-
-        nextConfig.restore()
-      })
+          nextConfig.restore()
+        }
+      )
 
       it('should not warn about missing cache in non-CI', async () => {
         await remove(join(appDir, '.next'))

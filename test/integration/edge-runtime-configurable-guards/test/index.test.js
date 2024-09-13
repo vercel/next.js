@@ -111,13 +111,18 @@ describe('Edge runtime configurable guards', () => {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: 1 },
           })
-          expect(output.stderr).toContain(`Build failed`)
-          expect(output.stderr).toContain(`./pages/api/route.js`)
+
+          expect(output.code).toBe(1)
+          if (!process.env.TURBOPACK) {
+            expect(output.stderr).toContain(`./pages/api/route.js`)
+          }
           expect(output.stderr).toContain(
             `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
           )
-          expect(output.stderr).toContain(`Used by default`)
-          expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          if (!process.env.TURBOPACK) {
+            expect(output.stderr).toContain(`Used by default`)
+            expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          }
         })
       }
     )

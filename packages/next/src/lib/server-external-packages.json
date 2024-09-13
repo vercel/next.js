@@ -26,6 +26,7 @@
   "eslint",
   "express",
   "firebase-admin",
+  "import-in-the-middle",
   "isolated-vm",
   "jest",
   "jsdom",

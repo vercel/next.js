@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, io::Write, iter::once};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap};
 use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
@@ -14,21 +14,19 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::AssetContent,
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
+    file_source::FileSource,
     module::Module,
     output::OutputAsset,
     reference::primary_referenced_modules,
-    reference_type::{
-        EcmaScriptModulesReferenceSubType, ReferenceType, TypeScriptReferenceSubType,
-    },
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     virtual_output::VirtualOutputAsset,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptModuleAssetType,
-    EcmascriptParsable,
+    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptParsable,
 };
 
 /// Scans the RSC entry point's full module graph looking for exported Server
@@ -40,22 +38,27 @@ use turbopack_ecmascript::{
 /// loader.
 pub(crate) async fn create_server_actions_manifest(
     rsc_entry: Vc<Box<dyn Module>>,
-    loader: Vc<Box<dyn EvaluatableAsset>>,
     server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
+    project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     page_name: &str,
     runtime: NextRuntime,
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
+) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
+    let loader =
+        build_server_actions_loader(project_path, page_name.into(), actions, asset_context);
+    let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
+        .await?
+        .context("loader module must be evaluatable")?;
 
     let loader_id = loader
         .as_chunk_item(Vc::upcast(chunking_context))
         .id()
         .to_string();
     let manifest = build_manifest(node_root, page_name, runtime, actions, loader_id).await?;
-    Ok(manifest)
+    Ok((evaluable, manifest))
 }
 
 /// Builds the "action loader" entry point, which reexports every found action
@@ -65,7 +68,7 @@ pub(crate) async fn create_server_actions_manifest(
 /// file's name and the action name). This hash matches the id sent to the
 /// client and present inside the paired manifest.
 #[turbo_tasks::function]
-pub async fn build_server_actions_loader(
+async fn build_server_actions_loader(
     project_path: Vc<FileSystemPath>,
     page_name: RcStr,
     actions: Vc<AllActions>,
@@ -153,16 +156,11 @@ async fn build_manifest(
     )))
 }
 
-#[turbo_tasks::function]
-fn action_modifier() -> Vc<RcStr> {
-    Vc::cell("action".into())
-}
-
 /// Traverses the entire module graph starting from [Module], looking for magic
 /// comment which identifies server actions. Every found server action will be
 /// returned along with the module which exports that action.
 #[turbo_tasks::function]
-pub async fn get_actions(
+async fn get_actions(
     rsc_entry: Vc<Box<dyn Module>>,
     server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -225,23 +223,14 @@ async fn to_rsc_context(
     module: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    let source = VirtualSource::new_with_ident(
-        module.ident().with_modifier(action_modifier()),
-        module.content(),
-    );
-    let ty = if let Some(module) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
-    {
-        if *module.ty().await? == EcmascriptModuleAssetType::Ecmascript {
-            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
-        } else {
-            ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
-        }
-    } else {
-        ReferenceType::TypeScript(TypeScriptReferenceSubType::Undefined)
-    };
+    let source = FileSource::new_with_query(module.ident().path(), module.ident().query());
     let module = asset_context
-        .process(Vc::upcast(source), Value::new(ty))
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::EcmaScriptModules(
+                EcmaScriptModulesReferenceSubType::Undefined,
+            )),
+        )
         .module();
     Ok(module)
 }
@@ -327,7 +316,7 @@ type HashToLayerNameModule = IndexMap<String, (ActionLayer, String, Vc<Box<dyn M
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
 #[turbo_tasks::value(transparent)]
-pub struct AllActions(HashToLayerNameModule);
+struct AllActions(HashToLayerNameModule);
 
 #[turbo_tasks::value_impl]
 impl AllActions {

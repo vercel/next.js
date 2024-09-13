@@ -285,6 +285,9 @@ export type RenderOptsPartial = {
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
   swrDelta?: SwrDelta
+  experimental: {
+    clientTraceMetadata?: string[]
+  }
 }
 
 export type RenderOpts = LoadComponentsReturnType<PagesModule> &
@@ -1078,6 +1081,7 @@ export async function renderToHTMLImpl(
           })
       )
       canAccessRes = false
+      metadata.revalidate = 0
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
@@ -1493,6 +1497,8 @@ export async function renderToHTMLImpl(
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
     nextFontManifest: renderOpts.nextFontManifest,
+    experimentalClientTraceMetadata:
+      renderOpts.experimental.clientTraceMetadata,
   }
 
   const document = (

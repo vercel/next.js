@@ -52,7 +52,7 @@ use crate::{
 #[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash)]
 #[serde(untagged)]
 pub enum ModuleId {
-    Number(u32),
+    Number(u64),
     String(RcStr),
 }
 
@@ -75,7 +75,7 @@ impl ValueToString for ModuleId {
 
 impl ModuleId {
     pub fn parse(id: &str) -> Result<ModuleId> {
-        Ok(match id.parse::<u32>() {
+        Ok(match id.parse::<u64>() {
             Ok(i) => ModuleId::Number(i),
             Err(_) => ModuleId::String(id.into()),
         })
@@ -694,6 +694,9 @@ pub trait ChunkItem {
 
 #[turbo_tasks::value_trait]
 pub trait ChunkType: ValueToString {
+    /// Whether the source (reference) order of items needs to be retained during chunking.
+    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool>;
+
     /// Create a new chunk for the given chunk items
     fn chunk(
         &self,
