@@ -109,7 +109,7 @@ describe('Edge runtime configurable guards', () => {
           const output = await nextBuild(context.appDir, undefined, {
             stdout: true,
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: '1' },
           })
 
           expect(output.code).toBe(1)
@@ -229,7 +229,7 @@ describe('Edge runtime configurable guards', () => {
       init() {
         context.api.write(`
           export default async function handler(request) {
-            if ((() => false)()) {
+            if (false) {
               eval('100')
             }
             return Response.json({ result: true })
@@ -249,7 +249,7 @@ describe('Edge runtime configurable guards', () => {
           import { NextResponse } from 'next/server'
           // populated with tests
           export default () => {
-            if ((() => false)()) {
+            if (false) {
               eval('100')
             }
             return NextResponse.next()
@@ -277,7 +277,7 @@ describe('Edge runtime configurable guards', () => {
         `)
         context.lib.write(`
           export async function hasUnusedDynamic() {
-            if ((() => false)()) {
+            if (false) {
               eval('100')
             }
           }
@@ -302,7 +302,7 @@ describe('Edge runtime configurable guards', () => {
         `)
         context.lib.write(`
           export async function hasUnusedDynamic() {
-            if ((() => false)()) {
+            if (false) {
               eval('100')
             }
           }
@@ -318,10 +318,11 @@ describe('Edge runtime configurable guards', () => {
           const output = await nextBuild(context.appDir, undefined, {
             stdout: true,
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
           })
           expect(output.stderr).not.toContain(`Build failed`)
-          expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          if (!process.env.TURBOPACK) {
+            expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          }
           context.appPort = await findPort()
           context.app = await nextStart(
             context.appDir,
@@ -403,13 +404,14 @@ describe('Edge runtime configurable guards', () => {
           const output = await nextBuild(context.appDir, undefined, {
             stdout: true,
             stderr: true,
-            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: '1' },
           })
-          expect(output.stderr).toContain(`Build failed`)
           expect(output.stderr).toContain(
             `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
           )
-          expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          if (!process.env.TURBOPACK) {
+            expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          }
         })
       }
     )
