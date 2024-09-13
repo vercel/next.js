@@ -474,16 +474,28 @@ impl IssueSource {
         let this = self.await?;
 
         if let Some(range) = this.range {
-            if let SourceRange::LineColumn(start, end) = &*range.await? {
-                // If we have a source map, map the line/column to the original source.
-                let mapped = source_pos(this.source, origin, *start, *end).await?;
+            let (start, end) = match &*range.await? {
+                SourceRange::LineColumn(start, end) => (*start, *end),
 
-                if let Some((source, start, end)) = mapped {
-                    return Ok(Self::cell(IssueSource {
-                        source,
-                        range: Some(SourceRange::LineColumn(start, end).cell()),
-                    }));
+                SourceRange::ByteOffset(start, end) => {
+                    if let FileLinesContent::Lines(lines) = &*this.source.content().lines().await? {
+                        let start = find_line_and_column(lines.as_ref(), *start);
+                        let end = find_line_and_column(lines.as_ref(), *end);
+                        (start, end)
+                    } else {
+                        return Ok(self);
+                    }
                 }
+            };
+
+            // If we have a source map, map the line/column to the original source.
+            let mapped = source_pos(this.source, origin, start, end).await?;
+
+            if let Some((source, start, end)) = mapped {
+                return Ok(Self::cell(IssueSource {
+                    source,
+                    range: Some(SourceRange::LineColumn(start, end).cell()),
+                }));
             }
         }
 
