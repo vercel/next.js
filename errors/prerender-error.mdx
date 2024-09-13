@@ -56,35 +56,15 @@ For the Pages Router, use conditional checks and return appropriate props or a 4
 
 ```jsx
 export async function getStaticProps(context) {
-  try {
-    const data = await fetchData(context.params.id)
-    if (!data) {
-      return {
-        notFound: true,
-      }
-    }
-    return {
-      props: { data },
-    }
-  } catch (error) {
-    console.error('Error fetching data:', error)
-    return {
-      props: { data: null },
-    }
-  }
-}
-
-function BlogPost({ data }) {
+  const data = await fetchData(context.params.id)
   if (!data) {
-    return <Error statusCode={404} />
+    return {
+      notFound: true,
+    }
   }
-
-  return (
-    <article>
-      <h1>{data.title}</h1>
-      <p>{data.content}</p>
-    </article>
-  )
+  return {
+    props: { data },
+  }
 }
 ```
 
