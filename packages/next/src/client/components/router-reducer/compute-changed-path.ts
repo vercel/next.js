@@ -3,7 +3,7 @@ import type {
   Segment,
 } from '../../../server/app-render/types'
 import { INTERCEPTION_ROUTE_MARKERS } from '../../../server/lib/interception-routes'
-import type { Params } from '../../../shared/lib/router/utils/route-matcher'
+import type { Params } from '../params'
 import {
   isGroupSegment,
   DEFAULT_SEGMENT_KEY,

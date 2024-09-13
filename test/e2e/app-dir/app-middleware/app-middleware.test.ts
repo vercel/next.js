@@ -161,6 +161,33 @@ describe('app-dir with middleware', () => {
         /Cookie 2: \d+\.\d+/
       )
     })
+
+    // Cleanup
+    await browser.deleteCookies()
+  })
+
+  it('should respect cookie options of merged middleware cookies', async () => {
+    const browser = await next.browser('/rsc-cookies/cookie-options')
+
+    const totalCookies = await browser.elementById('total-cookies').text()
+
+    // a secure cookie was set in middleware
+    expect(totalCookies).toBe('Total Cookie Length: 1')
+
+    // we don't expect to be able to read it
+    expect(await browser.eval('document.cookie')).toBeFalsy()
+
+    await browser.elementById('submit-server-action').click()
+
+    await retry(() => {
+      expect(next.cliOutput).toMatch(/\[Cookie From Action\]: \d+\.\d+/)
+    })
+
+    // ensure that we still can't read the secure cookie
+    expect(await browser.eval('document.cookie')).toBeFalsy()
+
+    // Cleanup
+    await browser.deleteCookies()
   })
 
   it('should be possible to read cookies that are set during the middleware handling of a server action', async () => {
@@ -186,6 +213,8 @@ describe('app-dir with middleware', () => {
     await retry(() => {
       expect(next.cliOutput).toMatch(/\[Cookie From Action\]: \d+\.\d+/)
     })
+
+    await browser.deleteCookies()
   })
 })
 

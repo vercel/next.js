@@ -10,6 +10,9 @@ describe('useReportWebVitals hook', () => {
       files: __dirname,
       skipStart: true,
       env: {},
+      dependencies: {
+        nanoid: '4.0.1',
+      },
     })
 
     await next.start()

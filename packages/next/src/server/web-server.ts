@@ -1,7 +1,7 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from '../client/components/params'
 import type { LoadComponentsReturnType } from './load-components'
 import type {
   LoadedRenderOpts,
@@ -81,8 +81,6 @@ export default class NextWebServer extends BaseServer<
       dev,
       requestHeaders,
       requestProtocol: 'https',
-      pagesDir: this.enabledDirectories.pages,
-      appDir: this.enabledDirectories.app,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -250,6 +248,9 @@ export default class NextWebServer extends BaseServer<
       res as any,
       pathname,
       query,
+      // Edge runtime does not support ISR/PPR, so we don't need to pass in
+      // the unknown params.
+      null,
       Object.assign(renderOpts, {
         disableOptimizedLoading: true,
         runtime: 'experimental-edge',
@@ -355,10 +356,6 @@ export default class NextWebServer extends BaseServer<
 
   protected getHasStaticDir() {
     return false
-  }
-
-  protected async getFallback() {
-    return ''
   }
 
   protected getFontManifest() {

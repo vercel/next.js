@@ -1,24 +1,114 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
+import { execSync } from 'child_process'
 import { getPageFromPath } from '../entries'
+import originalDebug from 'next/dist/compiled/debug'
 import { Sema } from 'next/dist/compiled/async-sema'
+import { generateShuttleManifest, type ShuttleManifest } from './store-shuttle'
+import type { NextConfigComplete } from '../../server/config-shared'
+import { updateIncrementalBuildMetrics } from '../../diagnostics/build-diagnostics'
+
+const debug = originalDebug('next:build:flying-shuttle')
 
 export interface DetectedEntriesResult {
   app: string[]
   pages: string[]
 }
 
+function deepEqual(obj1: any, obj2: any) {
+  if (obj1 === obj2) return true
+
+  if (
+    typeof obj1 !== 'object' ||
+    obj1 === null ||
+    typeof obj2 !== 'object' ||
+    obj2 === null
+  ) {
+    return false
+  }
+
+  let keys1 = Object.keys(obj1)
+  let keys2 = Object.keys(obj2)
+
+  if (keys1.length !== keys2.length) return false
+
+  for (let key of keys1) {
+    if (!keys2.includes(key) || !deepEqual(obj1[key], obj2[key])) {
+      return false
+    }
+  }
+
+  return true
+}
+
 let _hasShuttle: undefined | boolean = undefined
-export async function hasShuttle(shuttleDir: string) {
+export async function hasShuttle(
+  config: NextConfigComplete,
+  shuttleDir: string
+) {
   if (typeof _hasShuttle === 'boolean') {
     return _hasShuttle
   }
-  _hasShuttle = await fs.promises
-    .access(path.join(shuttleDir, 'server'))
-    .then(() => true)
-    .catch(() => false)
+  let foundShuttleManifest: ShuttleManifest
 
+  async function pruneCache() {
+    await fs.promises.rm(shuttleDir, { force: true, recursive: true })
+    await fs.promises.mkdir(shuttleDir, { recursive: true })
+  }
+
+  try {
+    foundShuttleManifest = JSON.parse(
+      await fs.promises.readFile(
+        path.join(shuttleDir, 'shuttle-manifest.json'),
+        'utf8'
+      )
+    )
+    _hasShuttle = true
+  } catch (err: unknown) {
+    _hasShuttle = false
+    console.log(`Failed to read shuttle manifest`)
+    // prune potentially corrupted cache
+    await pruneCache()
+    return _hasShuttle
+  }
+  const currentShuttleManifest = JSON.parse(
+    generateShuttleManifest(config)
+  ) as ShuttleManifest
+
+  if (currentShuttleManifest.nextVersion !== foundShuttleManifest.nextVersion) {
+    // we don't allow using shuttle from differing Next.js version
+    // as it could have internal changes
+    console.log(
+      `shuttle has differing Next.js version ${foundShuttleManifest.nextVersion} versus current ${currentShuttleManifest.nextVersion}, skipping.`
+    )
+    _hasShuttle = false
+  }
+
+  if (!deepEqual(currentShuttleManifest.config, foundShuttleManifest.config)) {
+    _hasShuttle = false
+    console.log(
+      `Mismatching shuttle configs`,
+      currentShuttleManifest.config,
+      foundShuttleManifest.config
+    )
+  }
+
+  if (_hasShuttle) {
+    let currentGitSha = ''
+
+    try {
+      currentGitSha = execSync('git rev-parse HEAD').toString().trim()
+    } catch (_) {}
+
+    await updateIncrementalBuildMetrics({
+      currentGitSha,
+      shuttleGitSha: currentShuttleManifest.gitSha,
+    })
+  } else {
+    // prune mis-matching cache
+    await pruneCache()
+  }
   return _hasShuttle
 }
 
@@ -28,12 +118,14 @@ export async function detectChangedEntries({
   pageExtensions,
   distDir,
   shuttleDir,
+  config,
 }: {
   appPaths?: string[]
   pagesPaths?: string[]
   pageExtensions: string[]
   distDir: string
   shuttleDir: string
+  config: NextConfigComplete
 }): Promise<{
   changed: DetectedEntriesResult
   unchanged: DetectedEntriesResult
@@ -50,7 +142,7 @@ export async function detectChangedEntries({
     pages: [],
   }
 
-  if (!(await hasShuttle(shuttleDir))) {
+  if (!(await hasShuttle(config, shuttleDir))) {
     // no shuttle so consider everything changed
     console.log(`no shuttle. can't detect changes`)
     return {
@@ -87,6 +179,7 @@ export async function detectChangedEntries({
 
   const hashSema = new Sema(16)
   let globalEntryChanged = false
+  const changedDependencies: Record<string, string> = {}
 
   async function detectChange({
     normalizedEntry,
@@ -143,7 +236,8 @@ export async function detectChangedEntries({
                 const curHash = await computeHash(absoluteFile)
 
                 if (prevHash !== curHash) {
-                  console.log('detected change on', {
+                  changedDependencies[normalizedEntry] = file
+                  debug('detected change on', {
                     prevHash,
                     curHash,
                     file,
@@ -164,7 +258,10 @@ export async function detectChangedEntries({
           console.error('missing trace data', traceFile, normalizedEntry)
         }
       } catch (err) {
-        console.error(`Failed to detect change for ${entry}`, err)
+        console.error(
+          `Failed to detect change for ${entry} ${normalizedEntry}`,
+          err
+        )
       }
     }
 
@@ -174,7 +271,7 @@ export async function detectChangedEntries({
 
     if (changed || isGlobalEntry) {
       // if a global entry changed all entries are changed
-      if (!globalEntryChanged && isGlobalEntry) {
+      if (changed && !globalEntryChanged && isGlobalEntry) {
         console.log(`global entry ${entry} changed invalidating all entries`)
         globalEntryChanged = true
         // move unchanged to changed
@@ -198,21 +295,14 @@ export async function detectChangedEntries({
   }
 
   for (const entry of appPaths || []) {
-    const normalizedEntry = getPageFromPath(entry, pageExtensions)
+    let normalizedEntry = getPageFromPath(entry, pageExtensions)
+
+    if (normalizedEntry === '/not-found') {
+      normalizedEntry = '/_not-found/page'
+    }
     await detectChange({ entry, normalizedEntry, type: 'app' })
   }
-
-  console.log(
-    'changed entries',
-    JSON.stringify(
-      {
-        changedEntries,
-        unchangedEntries,
-      },
-      null,
-      2
-    )
-  )
+  await updateIncrementalBuildMetrics({ changedDependencies })
 
   return {
     changed: changedEntries,

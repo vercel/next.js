@@ -162,6 +162,7 @@ export function getRender({
 
     handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()
+    request.fetchMetrics = extendedReq.fetchMetrics
 
     if (event?.waitUntil) {
       // TODO(after):

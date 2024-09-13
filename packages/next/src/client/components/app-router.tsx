@@ -55,6 +55,7 @@ import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
 import type { FlightRouterState } from '../../server/app-render/types'
+import { useNavFailureHandler } from './nav-failure-handler'
 import { useServerActionDispatcher } from '../app-call-server'
 import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
 
@@ -74,6 +75,12 @@ function HistoryUpdater({
   sync: ReduxDevtoolsSyncFn
 }) {
   useInsertionEffect(() => {
+    if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
+      // clear pending URL as navigation is no longer
+      // in flight
+      window.next.__pendingUrl = undefined
+    }
+
     const { tree, pushRef, canonicalUrl } = appRouterState
     const historyState = {
       ...(pushRef.preserveCustomHistoryState ? window.history.state : {}),
@@ -137,6 +144,10 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
     (href, navigateType, shouldScroll) => {
       const url = new URL(addBasePath(href), location.href)
+
+      if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
+        window.next.__pendingUrl = url
+      }
 
       return dispatch({
         type: ACTION_NAVIGATE,
@@ -592,6 +603,8 @@ export default function AppRouter({
   globalErrorComponent: ErrorComponent
   assetPrefix: string
 }) {
+  useNavFailureHandler()
+
   return (
     <ErrorBoundary errorComponent={globalErrorComponent}>
       <Router actionQueue={actionQueue} assetPrefix={assetPrefix} />
