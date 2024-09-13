@@ -3,7 +3,7 @@ title: cookies
 description: API Reference for the cookies function.
 ---
 
-`cookies` is an **async** function that allows you to read the HTTP incoming request cookies in components, and read/write outgoing request cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+`cookies` is an **async** function that allows you to read the HTTP incoming request cookies in [Server Component](/docs/app/building-your-application/rendering/server-components), and read/write outgoing request cookies in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handlers](/docs/app/building-your-application/routing/route-handlers).
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
@@ -268,7 +268,7 @@ export async function delete(data) {
 
 ### Cookies in synchronous components
 
-To use `cookies` in a synchronous component, such as a Client Component, you can use React's [`use`](https://react.dev/reference/react/use) function to read the promise:
+To use `cookies` in a synchronous Server Component, you can use React's [`use`](https://react.dev/reference/react/use) function to read the promise:
 
 ```tsx filename="app/ui/component.tsx" switcher
 'use client'
