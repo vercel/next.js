@@ -3,17 +3,13 @@ title: headers
 description: API reference for the headers function.
 ---
 
-The `headers` function allows you to read the HTTP incoming request headers from a [Server Component](/docs/app/building-your-application/rendering/server-components).
-
-## `headers()`
-
-This API extends the [Web Headers API](https://developer.mozilla.org/docs/Web/API/Headers). It is **read-only**, meaning you cannot `set` / `delete` the outgoing request headers.
+`headers` is an **async** function that allows you to **read** the HTTP incoming request headers from a [Server Component](/docs/app/building-your-application/rendering/server-components).
 
 ```tsx filename="app/page.tsx" switcher
 import { headers } from 'next/headers'
 
-export default function Page() {
-  const headersList = headers()
+export default async function Page() {
+  const headersList = await headers()
   const referer = headersList.get('referer')
 
   return <div>Referer: {referer}</div>
@@ -23,29 +19,21 @@ export default function Page() {
 ```jsx filename="app/page.js" switcher
 import { headers } from 'next/headers'
 
-export default function Page() {
-  const headersList = headers()
+export default async function Page() {
+  const headersList = await headers()
   const referer = headersList.get('referer')
 
   return <div>Referer: {referer}</div>
 }
 ```
 
-> **Good to know**:
->
-> - `headers()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)** at request time.
+## Reference
 
-### API Reference
-
-```tsx
-const headersList = headers()
-```
-
-#### Parameters
+### Parameters
 
 `headers` does not take any parameters.
 
-#### Returns
+### Returns
 
 `headers` returns a **read-only** [Web Headers](https://developer.mozilla.org/docs/Web/API/Headers) object.
 
@@ -56,18 +44,20 @@ const headersList = headers()
 - [`Headers.keys()`](https://developer.mozilla.org/docs/Web/API/Headers/keys): Returns an [`iterator`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Iteration_protocols) allowing you to go through all keys of the key/value pairs contained in this object.
 - [`Headers.values()`](https://developer.mozilla.org/docs/Web/API/Headers/values): Returns an [`iterator`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Iteration_protocols) allowing you to go through all values of the key/value pairs contained in this object.
 
-### Examples
+## Good to know
 
-#### Usage with Data Fetching
+- Since `headers()` is read-only, you cannot `set` or `delete` the outgoing request headers.
+- `headers()` is a [Dynamic Function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) whose returned values cannot be known ahead of time. Using it in will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)**.
 
-`headers()` can be used in combination with React `Suspense`:
+## Examples
 
-```jsx filename="app/page.js"
-import { Suspense } from 'react'
+### Using the Authorization header
+
+````jsx filename="app/page.js"
 import { headers } from 'next/headers'
 
-async function User() {
-  const authorization = headers().get('authorization')
+export default async function Page() {
+  const authorization = await headers().get('authorization')
   const res = await fetch('...', {
     headers: { authorization }, // Forward the authorization header
   })
@@ -75,16 +65,6 @@ async function User() {
 
   return <h1>{user.name}</h1>
 }
-
-export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <User />
-    </Suspense>
-  )
-}
-```
-
 #### IP Address
 
 `headers()` can be used to get the IP address of the client.
@@ -111,7 +91,7 @@ export default function Page() {
     </Suspense>
   )
 }
-```
+````
 
 In addition to `x-forwarded-for`, `headers()` can also read:
 
@@ -122,6 +102,7 @@ In addition to `x-forwarded-for`, `headers()` can also read:
 
 ## Version History
 
-| Version   | Changes               |
-| --------- | --------------------- |
-| `v13.0.0` | `headers` introduced. |
+| Version      | Changes                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `v15.0.0-RC` | `headers` is now an async function. A [codemod](/docs/app/building-your-application/upgrading/codemods#150) is available. |
+| `v13.0.0`    | `headers` introduced.                                                                                                     |
