@@ -229,7 +229,7 @@ describe('Edge runtime configurable guards', () => {
       init() {
         context.api.write(`
           export default async function handler(request) {
-            if (false) {
+            if ((() => false)()) {
               eval('100')
             }
             return Response.json({ result: true })
@@ -249,7 +249,7 @@ describe('Edge runtime configurable guards', () => {
           import { NextResponse } from 'next/server'
           // populated with tests
           export default () => {
-            if (false) {
+            if ((() => false)()) {
               eval('100')
             }
             return NextResponse.next()
@@ -277,7 +277,7 @@ describe('Edge runtime configurable guards', () => {
         `)
         context.lib.write(`
           export async function hasUnusedDynamic() {
-            if (false) {
+            if ((() => false)()) {
               eval('100')
             }
           }
@@ -302,7 +302,7 @@ describe('Edge runtime configurable guards', () => {
         `)
         context.lib.write(`
           export async function hasUnusedDynamic() {
-            if (false) {
+            if ((() => false)()) {
               eval('100')
             }
           }
