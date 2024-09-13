@@ -1125,7 +1125,7 @@ export async function serverAction(a) {
 }`,
         ],
         [
-          'app/page.tsx',
+          'app/page.js',
           `"use client";
 import { serverAction } from "./actions";
 
@@ -1174,7 +1174,7 @@ export async function serverAction(a) {
 }`,
         ],
         [
-          'app/page.tsx',
+          'app/page.js',
           `import { serverAction } from "./actions";
 
 export default function Home() {

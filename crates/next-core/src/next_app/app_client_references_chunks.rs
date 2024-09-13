@@ -93,12 +93,9 @@ pub async fn get_app_client_references_chunks(
                                     },
                                 )
                             }
-                            ClientReferenceType::CssClientReference(css_client_reference) => {
-                                let css_client_reference_ref = css_client_reference.await?;
+                            ClientReferenceType::CssClientReference(css_module) => {
                                 let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(Vc::upcast(
-                                        css_client_reference_ref.client_module,
-                                    ))
+                                    .root_chunk_group(Vc::upcast(css_module))
                                     .await?;
 
                                 (
@@ -222,9 +219,8 @@ pub async fn get_app_client_references_chunks(
                                     ecmascript_client_reference.await?;
                                 Vc::upcast(ecmascript_client_reference_ref.client_module)
                             }
-                            ClientReferenceType::CssClientReference(css_client_reference) => {
-                                let css_client_reference_ref = css_client_reference.await?;
-                                Vc::upcast(css_client_reference_ref.client_module)
+                            ClientReferenceType::CssClientReference(css_module) => {
+                                Vc::upcast(*css_module)
                             }
                         })
                     })
