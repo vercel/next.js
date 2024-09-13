@@ -118,9 +118,6 @@ impl VersionedContentExt for AssetContent {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionVersion(Option<Vc<Box<dyn Version>>>);
-
 /// Describes the current version of an object, and how to update them from an
 /// earlier version.
 #[turbo_tasks::value_trait]
@@ -243,9 +240,6 @@ impl Version for FileHashVersion {
         Ok(Vc::cell(self.hash.clone()))
     }
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionVersionState(Option<Vc<VersionState>>);
 
 #[turbo_tasks::value]
 pub struct VersionState {

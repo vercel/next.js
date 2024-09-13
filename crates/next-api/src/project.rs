@@ -50,8 +50,7 @@ use turbopack_core::{
     resolve::{find_context_file, FindContextFileResult},
     source_map::OptionSourceMap,
     version::{
-        OptionVersion, OptionVersionState, OptionVersionedContent, Update, VersionState,
-        VersionedContent,
+        NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
     PROJECT_FILESYSTEM_NAME,
 };
@@ -1160,7 +1159,7 @@ impl Project {
     #[turbo_tasks::function]
     async fn hmr_content(self: Vc<Self>, identifier: RcStr) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
-            let content = map.get(self.client_relative_path().join(identifier));
+            let content = map.get(self.client_relative_path().join(identifier.clone()));
             Ok(content)
         } else {
             bail!("must be in dev mode to hmr")
@@ -1168,10 +1167,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<OptionVersion>> {
-        let content = self.hmr_content(identifier);
-
-        Ok(Vc::cell(content.await?.map(|c| c.version())))
+    async fn hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
+        let content = self.hmr_content(identifier).await?;
+        if let Some(content) = &*content {
+            Ok(content.version())
+        } else {
+            Ok(Vc::upcast(NotFoundVersion::new()))
+        }
     }
 
     /// Get the version state for a session. Initialized with the first seen
@@ -1181,28 +1183,23 @@ impl Project {
         self: Vc<Self>,
         identifier: RcStr,
         session: TransientInstance<()>,
-    ) -> Result<Vc<OptionVersionState>> {
+    ) -> Result<Vc<VersionState>> {
         let version = self.hmr_version(identifier);
 
-        match &*version.await? {
-            Some(version) => {
-                // The session argument is important to avoid caching this function between
-                // sessions.
-                let _ = session;
+        // The session argument is important to avoid caching this function between
+        // sessions.
+        let _ = session;
 
-                // INVALIDATION: This is intentionally untracked to avoid invalidating this
-                // function completely. We want to initialize the VersionState with the
-                // first seen version of the session.
-                let state = VersionState::new(
-                    version
-                        .into_trait_ref_strongly_consistent_untracked()
-                        .await?,
-                )
-                .await?;
-                Ok(Vc::cell(Some(state)))
-            }
-            None => Ok(Vc::cell(None)),
-        }
+        // INVALIDATION: This is intentionally untracked to avoid invalidating this
+        // function completely. We want to initialize the VersionState with the
+        // first seen version of the session.
+        let state = VersionState::new(
+            version
+                .into_trait_ref_strongly_consistent_untracked()
+                .await?,
+        )
+        .await?;
+        Ok(state)
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group
