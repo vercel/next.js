@@ -38,9 +38,8 @@ describe('revalidate-reason', () => {
 
     expect(res.status).toBe(200)
 
-    expect(next.cliOutput).toContain(
-      'revalidate-reason/pages/index.tsx revalidateReason: on-demand'
-    )
+    const $ = await next.render$('/')
+    expect($('#reason').text()).toBe('revalidate reason: on-demand')
   })
 
   it('should support revalidateReason: "stale"', async () => {
@@ -51,11 +50,8 @@ describe('revalidate-reason', () => {
     await waitFor(5000)
 
     await retry(async () => {
-      await next.fetch('/stale')
-
-      expect(next.cliOutput).toContain(
-        'revalidate-reason/pages/stale.tsx revalidateReason: stale'
-      )
+      const $ = await next.render$('/stale')
+      expect($('#reason').text()).toBe('revalidate reason: stale')
     })
   })
 })

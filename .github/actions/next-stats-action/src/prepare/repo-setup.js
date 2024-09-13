@@ -65,7 +65,11 @@ module.exports = (actionInfo) => {
      * @param {{ repoDir: string, nextSwcVersion: null | string }} options Required options
      * @returns {Promise<Map<string, string>>} List packages key is the package name, value is the path to the packed tar file.'
      */
-    async linkPackages({ repoDir, nextSwcVersion, parentSpan }) {
+    async linkPackages({
+      repoDir,
+      nextSwcVersion: nextSwcVersionSpecified,
+      parentSpan,
+    }) {
       if (!parentSpan) {
         // Not all callers provide a parent span
         parentSpan = mockSpan()
@@ -117,6 +121,11 @@ module.exports = (actionInfo) => {
           pkgPaths.set(packageName, packedPackageTarPath)
         }
       })
+
+      const nextSwcVersion =
+        nextSwcVersionSpecified ??
+        pkgDatas.get('@next/swc')?.packedPackageTarPath ??
+        null
 
       await parentSpan
         .traceChild('write-packagejson')
@@ -171,9 +180,11 @@ module.exports = (actionInfo) => {
               })
               if (nextSwcVersion) {
                 Object.assign(packageJson.dependencies, {
+                  // CI
                   '@next/swc-linux-x64-gnu': nextSwcVersion,
+                  // Vercel issued laptops
+                  '@next/swc-darwin-arm64': nextSwcVersion,
                 })
-              } else {
               }
             }
 

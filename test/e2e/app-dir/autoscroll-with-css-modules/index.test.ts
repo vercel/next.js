@@ -36,7 +36,7 @@ describe('router autoscrolling on navigation with css modules', () => {
 
   describe('vertical scroll when page imports css modules', () => {
     it('should scroll to top of document when navigating between to pages without layout when', async () => {
-      const browser: BrowserInterface = await next.browser('/1')
+      const browser = await next.browser('/1')
 
       await scrollTo(browser, { x: 0, y: 1000 })
       expect(await getTopScroll(browser)).toBe(1000)
@@ -46,7 +46,7 @@ describe('router autoscrolling on navigation with css modules', () => {
     })
 
     it('should scroll when clicking in JS', async () => {
-      const browser: BrowserInterface = await next.browser('/1')
+      const browser = await next.browser('/1')
 
       await scrollTo(browser, { x: 0, y: 1000 })
       expect(await getTopScroll(browser)).toBe(1000)

@@ -27,6 +27,7 @@ const dirNoConfig = join(__dirname, '../no-config')
 const dirFileLinting = join(__dirname, '../file-linting')
 const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
+const formatterAsync = join(__dirname, '../formatter-async/format.js')
 
 describe('Next Lint', () => {
   describe('First Time Setup ', () => {
@@ -120,7 +121,9 @@ describe('Next Lint', () => {
         'We created the .eslintrc.json file for you and included your selected configuration'
       )
       expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+    })
 
+    test('creates .eslintrc.json file with a default app router configuration', async () => {
       // App Router
       const { stdout: appStdout, eslintrcJson: appEslintrcJson } =
         await nextLintTemp(null, true)
@@ -439,6 +442,21 @@ describe('Next Lint', () => {
     expect(stdout).toContain('2 warnings found')
   })
 
+  test('format flag supports async formatters', async () => {
+    const { stdout, stderr } = await nextLint(
+      dirMaxWarnings,
+      ['-f', formatterAsync],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+    expect(output).toContain('Async results:')
+    expect(stdout).toContain('Synchronous scripts should not be used.')
+  })
+
   test('file flag can selectively lint only a single file', async () => {
     const { stdout, stderr } = await nextLint(
       dirFileLinting,
@@ -486,7 +504,7 @@ describe('Next Lint', () => {
     expect(output).not.toContain('Synchronous scripts should not be used.')
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
+  test('format flag "json" creates a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.json`
     const { stdout, stderr } = await nextLint(
       dirFileLinting,
@@ -538,7 +556,7 @@ describe('Next Lint', () => {
     }
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
+  test('format flag "compact" creates a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.txt`
     const { stdout, stderr } = await nextLint(
       dirFileLinting,

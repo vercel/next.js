@@ -2,7 +2,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { hasRedbox } from 'next-test-utils'
+import { assertNoRedbox } from 'next-test-utils'
 
 describe('basePath + trailingSlash', () => {
   let next: NextInstance
@@ -47,7 +47,7 @@ describe('basePath + trailingSlash', () => {
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (dev) {
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         }
       } finally {
         await browser.close()
@@ -73,7 +73,7 @@ describe('basePath + trailingSlash', () => {
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (dev) {
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         }
       } finally {
         await browser.close()

@@ -55,6 +55,7 @@ export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
+    response: new Set(),
   }
   private async initContextTracing(url: string, context: BrowserContext) {
     if (!tracePlaywright) {
@@ -237,6 +238,9 @@ export class Playwright extends BrowserInterface {
     page.on('request', (req) => {
       this.eventCallbacks.request.forEach((cb) => cb(req))
     })
+    page.on('response', (res) => {
+      this.eventCallbacks.response.forEach((cb) => cb(res))
+    })
 
     if (opts?.disableCache) {
       // TODO: this doesn't seem to work (dev tools does not check the box as expected)
@@ -280,31 +284,25 @@ export class Playwright extends BrowserInterface {
     await page.goto(url, { waitUntil: 'load' })
   }
 
-  back(options): BrowserInterface {
+  back(options) {
     return this.chain(async () => {
       await page.goBack(options)
     })
   }
-  forward(options): BrowserInterface {
+  forward(options) {
     return this.chain(async () => {
       await page.goForward(options)
     })
   }
-  refresh(): BrowserInterface {
+  refresh() {
     return this.chain(async () => {
       await page.reload()
     })
   }
-  setDimensions({
-    width,
-    height,
-  }: {
-    height: number
-    width: number
-  }): BrowserInterface {
+  setDimensions({ width, height }: { height: number; width: number }) {
     return this.chain(() => page.setViewportSize({ width, height }))
   }
-  addCookie(opts: { name: string; value: string }): BrowserInterface {
+  addCookie(opts: { name: string; value: string }) {
     return this.chain(async () =>
       context.addCookies([
         {
@@ -315,7 +313,7 @@ export class Playwright extends BrowserInterface {
       ])
     )
   }
-  deleteCookies(): BrowserInterface {
+  deleteCookies() {
     return this.chain(async () => context.clearCookies())
   }
 
@@ -373,21 +371,21 @@ export class Playwright extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute<T = any>(attr) {
-    return this.chain((el: ElementHandleExt) => el.getAttribute(attr)) as T
+  async getAttribute(attr) {
+    return this.chain((el: ElementHandleExt) => el.getAttribute(attr))
   }
 
   hasElementByCssSelector(selector: string) {
     return this.eval<boolean>(`!!document.querySelector('${selector}')`)
   }
 
-  keydown(key: string): BrowserInterface {
+  keydown(key: string) {
     return this.chain((el: ElementHandleExt) => {
       return page.keyboard.down(key).then(() => el)
     })
   }
 
-  keyup(key: string): BrowserInterface {
+  keyup(key: string) {
     return this.chain((el: ElementHandleExt) => {
       return page.keyboard.up(key).then(() => el)
     })
@@ -418,7 +416,7 @@ export class Playwright extends BrowserInterface {
           return el
         })
       })
-    ) as any as BrowserInterface[]
+    )
   }
 
   waitForElementByCss(selector, timeout?: number) {
@@ -441,7 +439,7 @@ export class Playwright extends BrowserInterface {
   }
 
   eval<T = any>(fn: any, ...args: any[]): Promise<T> {
-    return this.chainWithReturnValue(() =>
+    return this.chain(() =>
       page
         .evaluate(fn, ...args)
         .catch((err) => {
@@ -455,7 +453,7 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  async evalAsync<T = any>(fn: any, ...args: any[]) {
+  async evalAsync<T = any>(fn: any) {
     if (typeof fn === 'function') {
       fn = fn.toString()
     }
@@ -477,15 +475,15 @@ export class Playwright extends BrowserInterface {
   }
 
   async log() {
-    return this.chain(() => pageLogs) as any
+    return this.chain(() => pageLogs)
   }
 
   async websocketFrames() {
-    return this.chain(() => websocketFrames) as any
+    return this.chain(() => websocketFrames)
   }
 
   async url() {
-    return this.chain(() => page.evaluate('window.location.href')) as any
+    return this.chain(() => page.url())
   }
 
   async waitForIdleNetwork(): Promise<void> {

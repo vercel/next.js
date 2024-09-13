@@ -6,9 +6,9 @@ import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
+  assertNoRedbox,
   check,
   fetchViaHTTP,
-  hasRedbox,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -946,7 +946,7 @@ describe('basePath', () => {
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         }
       } finally {
         await browser.close()
@@ -970,7 +970,7 @@ describe('basePath', () => {
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (isDev) {
-          expect(await hasRedbox(browser)).toBe(false)
+          await assertNoRedbox(browser)
         }
       } finally {
         await browser.close()

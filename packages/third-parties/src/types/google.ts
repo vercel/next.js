@@ -5,17 +5,26 @@ declare global {
   }
 }
 
+type JSONValue =
+  | string
+  | number
+  | boolean
+  | JSONValue[]
+  | { [key: string]: JSONValue }
+
 export type GTMParams = {
   gtmId: string
-  dataLayer?: string[]
+  dataLayer?: { [key: string]: JSONValue }
   dataLayerName?: string
   auth?: string
   preview?: string
+  nonce?: string
 }
 
 export type GAParams = {
   gaId: string
   dataLayerName?: string
+  nonce?: string
 }
 
 export type GoogleMapsEmbed = {

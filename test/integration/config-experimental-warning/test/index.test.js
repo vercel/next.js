@@ -139,7 +139,7 @@ describe('Config Experimental Warning', () => {
           experimental: {
             workerThreads: true,
             scrollRestoration: true,
-            instrumentationHook: true,
+            parallelServerCompiles: true,
             cpus: 2,
           }
         }
@@ -162,7 +162,7 @@ describe('Config Experimental Warning', () => {
           experimental: {
             workerThreads: true,
             scrollRestoration: true,
-            instrumentationHook: true,
+            parallelServerCompiles: true,
             cpus: 2,
           }
         }
@@ -172,7 +172,7 @@ describe('Config Experimental Warning', () => {
         expect(stdout).toMatch(' · cpus')
         expect(stdout).toMatch(' · workerThreads')
         expect(stdout).toMatch(' · scrollRestoration')
-        expect(stdout).toMatch(' · instrumentationHook')
+        expect(stdout).toMatch(' · parallelServerCompiles')
       })
 
       it('should show unrecognized experimental features in warning but not in start log experiments section', async () => {

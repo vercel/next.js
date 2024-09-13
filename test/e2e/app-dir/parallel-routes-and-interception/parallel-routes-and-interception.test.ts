@@ -1,6 +1,6 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, FileRef } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
-import { outdent } from 'outdent'
+import path from 'path'
 
 describe('parallel-routes-and-interception', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
@@ -879,32 +879,24 @@ describe('parallel-routes-and-interception', () => {
   })
 })
 
-describe('parallel-routes-and-interception with patching', () => {
-  const { next } = nextTestSetup({
-    files: __dirname,
-    skipStart: true,
+describe('parallel-routes-and-interception-conflicting-pages', () => {
+  const { next, skipped } = nextTestSetup({
+    // This is skipped when deployed as it appears to cause an issue when tracing Next.js files
+    // TODO: Investigate why this causes an issue when deployed
+    skipDeployment: true,
+    files: {
+      app: new FileRef(path.join(__dirname, 'app')),
+      'app/parallel/nested-2/page.js': `
+       export default function Page() {
+          return 'hello world'
+       }
+      `,
+    },
   })
 
-  afterEach(async () => {
-    try {
-      await next.stop()
-    } finally {
-      await next.deleteFile('app/parallel/nested-2/page.js')
-    }
-  })
+  if (skipped) return
 
   it('should gracefully handle when two page segments match the `children` parallel slot', async () => {
-    await next.patchFile(
-      'app/parallel/nested-2/page.js',
-      outdent`
-          export default function Page() {
-            return 'hello world'
-          }
-        `
-    )
-
-    await next.start()
-
     const html = await next.render('/parallel/nested-2')
 
     // before adding this file, the page would have matched `/app/parallel/(new)/@baz/nested-2/page`

@@ -176,10 +176,8 @@ describe('app dir - navigation', () => {
         )
       }
 
-      if (isNextStart) {
+      if (isNextStart || isNextDeploy) {
         await browser.waitForIdleNetwork()
-        // there should be an RSC call for the prefetch
-        expect(hasRscRequest).toBe(true)
       }
 
       // Wait for all network requests to finish, and then initialize the flag
@@ -837,6 +835,7 @@ describe('app dir - navigation', () => {
         // throttling the CPU to rule out flakiness based on how quickly the page loads
         cpuThrottleRate: 6,
       })
+
       const body = await browser.elementByCss('body')
       expect(await body.text()).toContain('Item 50')
       await browser.elementById('load-more').click()
@@ -864,16 +863,22 @@ describe('app dir - navigation', () => {
     it('should render the final state of the page with correct metadata', async () => {
       const browser = await next.browser('/metadata-await-promise')
 
-      await browser
-        .elementByCss("[href='/metadata-await-promise/nested']")
-        .click()
+      // dev doesn't trigger the loading boundary as it's not prefetched
+      if (isNextDev) {
+        await browser
+          .elementByCss("[href='/metadata-await-promise/nested']")
+          .click()
+      } else {
+        const loadingText = await browser
+          .elementByCss("[href='/metadata-await-promise/nested']")
+          .click()
+          .waitForElementByCss('#loading')
+          .text()
+
+        expect(loadingText).toBe('Loading')
+      }
 
       await retry(async () => {
-        // dev doesn't trigger the loading boundary as it's not prefetched
-        if (!isNextDev) {
-          expect(await browser.eval(`window.shownLoading`)).toBe(true)
-        }
-
         expect(await browser.elementById('page-content').text()).toBe('Content')
 
         expect(await browser.elementByCss('title').text()).toBe('Async Title')

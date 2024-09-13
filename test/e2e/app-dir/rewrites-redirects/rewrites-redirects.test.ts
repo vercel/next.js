@@ -4,8 +4,6 @@ describe('redirects and rewrites', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      react: '19.0.0-rc-f994737d14-20240522',
-      'react-dom': '19.0.0-rc-f994737d14-20240522',
       typescript: 'latest',
       '@types/react': 'latest',
       '@types/node': 'latest',
@@ -69,6 +67,15 @@ describe('redirects and rewrites', () => {
         .waitForElementByCss('.page_config-redirect-catchall-after_thing')
       const url = new URL(await browser.url())
       expect(url.pathname).toEndWith('-after/thing')
+    })
+    it('should redirect from next.config.js correctly with empty query params', async () => {
+      const browser = await next.browser('/?q=1&=')
+      await browser
+        .elementById(`${testType}-config-redirect`)
+        .click()
+        .waitForElementByCss('.page_config-redirect-after')
+      const url = new URL(await browser.url())
+      expect(url.pathname).toEndWith('-after')
     })
   })
 })

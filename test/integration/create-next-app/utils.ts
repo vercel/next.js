@@ -86,6 +86,5 @@ export {
   shouldBeTemplateProject,
   shouldBeJavascriptProject,
   shouldBeTypescriptProject,
-  spawnExitPromise,
 } from './lib/utils'
 export { useTempDir } from '../../lib/use-temp-dir'

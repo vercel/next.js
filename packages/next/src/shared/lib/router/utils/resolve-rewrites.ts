@@ -5,7 +5,7 @@ import { matchHas, prepareDestination } from './prepare-destination'
 import { removeTrailingSlash } from './remove-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
 import { removeBasePath } from '../../../../client/remove-base-path'
-import { parseRelativeUrl } from './parse-relative-url'
+import { parseRelativeUrl, type ParsedRelativeUrl } from './parse-relative-url'
 
 export default function resolveRewrites(
   asPath: string,
@@ -20,7 +20,7 @@ export default function resolveRewrites(
   locales?: string[]
 ): {
   matchedPage: boolean
-  parsedAs: ReturnType<typeof parseRelativeUrl>
+  parsedAs: ParsedRelativeUrl
   asPath: string
   resolvedHref?: string
   externalDest?: boolean
