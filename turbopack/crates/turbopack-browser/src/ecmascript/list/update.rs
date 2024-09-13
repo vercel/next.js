@@ -122,7 +122,7 @@ pub(super) async fn update_chunk_list(
                         },
                     );
                 }
-                Update::None => {}
+                Update::Missing | Update::None => {}
             }
         } else {
             chunks.insert(chunk_path.as_ref(), ChunkUpdate::Deleted);
@@ -156,7 +156,7 @@ pub(super) async fn update_chunk_list(
                 Update::Partial(partial) => {
                     merged.push(partial.instruction.clone());
                 }
-                Update::None => {}
+                Update::Missing | Update::None => {}
             }
         }
     }
