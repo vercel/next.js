@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
@@ -87,7 +87,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 )))
                 .cell();
                 let module_asset_context = ModuleAssetContext::new(
-                    Vc::cell(HashMap::new()),
+                    Default::default(),
                     compile_time_info,
                     ModuleOptionsContext {
                         ecmascript: EcmascriptOptionsContext {

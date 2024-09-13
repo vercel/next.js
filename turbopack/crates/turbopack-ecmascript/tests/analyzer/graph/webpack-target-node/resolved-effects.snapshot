@@ -15,22 +15,24 @@
 0 -> 9 call = require*0*("fs/promises")
 - *0* require: The require method from CommonJS
 
-0 -> 11 member call = module<fs/promises, {}>["readFile"]("./hello.txt", "utf-8")
+0 -> 11 member call = fs*0*["readFile"]("./hello.txt", "utf-8")
+- *0* fs: The Node.js fs module: https://nodejs.org/api/fs.html
 
 0 -> 14 member call = ???*0*["status"](200)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
 0 -> 15 member call = ???*0*["json"](
-    {
-        "users": [{"id": 1}, {"id": 2}, {"id": 3}],
-        "hello": module<fs/promises, {}>["readFile"]("./hello.txt", "utf-8")
-    }
+    {"users": [{"id": 1}, {"id": 2}, {"id": 3}], "hello": ???*2*}
 )
 - *0* ???*1*["status"](200)
   ⚠️  unknown callee object
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
+- *2* fs.readFile*3*("./hello.txt", "utf-8")
+  ⚠️  unsupported function
+  ⚠️  This value might have side effects
+- *3* fs.readFile: A file reading method from the Node.js fs module: https://nodejs.org/api/fs.html
 
 0 -> 16 free var = FreeVar(require)
 

@@ -38,7 +38,12 @@ pub async fn main_inner(
     }
 
     let project = tt
-        .run_once(async { Ok(ProjectContainer::new(options)) })
+        .run_once(async {
+            let project = ProjectContainer::new("next-build-test".into(), options.dev);
+            let project = project.resolve().await?;
+            project.initialize(options).await?;
+            Ok(project)
+        })
         .await?;
 
     tracing::info!("collecting endpoints");
@@ -252,12 +257,8 @@ async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> R
             let session = session.clone();
             async move {
                 let project = project.project();
-                project
-                    .hmr_update(
-                        ident.clone(),
-                        project.hmr_version_state(ident.clone(), session),
-                    )
-                    .await?;
+                let state = project.hmr_version_state(ident.clone(), session);
+                project.hmr_update(ident.clone(), state).await?;
                 Ok(Vc::<()>::cell(()))
             }
         });

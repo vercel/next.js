@@ -19,6 +19,7 @@ function DeleteButton() {
 }
 
 export function DeleteForm({ id, todo }: { id: number; todo: string }) {
+  // useActionState is available with React 19 (Next.js App Router)
   const [state, formAction] = useActionState(deleteTodo, initialState);
 
   return (

@@ -2,7 +2,7 @@ function a(v) {
   return v
 }
 ;['index.js'].forEach(f => {
-  require(a('./' + f))
+  require(a('./dynamic-file-imports/' + f))
 })
 
 export default () => 'Warn'

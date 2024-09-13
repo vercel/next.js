@@ -1,3 +1,3 @@
-module.exports={"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/ecmascript_minify/input/index.js [test] (ecmascript)":function({r:t,f:o,i:s,s:e,v:c,n:l,c:i,M:n,l:r,j:a,P:p,U:u,R:m,g:f,__dirname:b,m:d,e:g,t:j}){(function(){let t="Hello";console.log("Hello, world!",3,t),console.log(t)}).call(this)}};
+module.exports={"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/ecmascript_minify/input/index.js [test] (ecmascript)":function({r:t,f:o,i:s,s:e,v:c,n:l,c:i,M:n,l:r,j:a,P:p,U:u,R:m,b:b,g:f,__dirname:d,m:g,e:j,t:h}){(function(){let t="Hello";console.log("Hello, world!",3,t),console.log(t)}).call(this)}};
 
 //# sourceMappingURL=b1abf_turbopack-tests_tests_snapshot_basic_ecmascript_minify_input_index_6869f8.js.map

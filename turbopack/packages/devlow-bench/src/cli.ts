@@ -111,4 +111,5 @@ import { pathToFileURL } from "url";
   await runScenarios(scenarios, compose(...ifaces));
 })().catch((e) => {
   console.error(e.stack);
+  process.exit(1);
 });
