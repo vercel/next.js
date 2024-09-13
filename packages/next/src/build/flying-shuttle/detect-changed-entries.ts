@@ -241,7 +241,10 @@ export async function detectChangedEntries({
           console.error('missing trace data', traceFile, normalizedEntry)
         }
       } catch (err) {
-        console.error(`Failed to detect change for ${entry}`, err)
+        console.error(
+          `Failed to detect change for ${entry} ${normalizedEntry}`,
+          err
+        )
       }
     }
 
@@ -275,7 +278,11 @@ export async function detectChangedEntries({
   }
 
   for (const entry of appPaths || []) {
-    const normalizedEntry = getPageFromPath(entry, pageExtensions)
+    let normalizedEntry = getPageFromPath(entry, pageExtensions)
+
+    if (normalizedEntry === '/not-found') {
+      normalizedEntry = '/_not-found/page'
+    }
     await detectChange({ entry, normalizedEntry, type: 'app' })
   }
 

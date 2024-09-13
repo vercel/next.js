@@ -102,6 +102,15 @@ describe('Middleware Runtime', () => {
   }
 
   function runTests({ i18n }: { i18n?: boolean }) {
+    it('should handle 404 on fallback: false route correctly', async () => {
+      const res = await next.fetch('/ssg-fallback-false/first')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('blog')
+
+      const res2 = await next.fetch('/ssg-fallback-false/non-existent')
+      expect(res2.status).toBe(404)
+    })
+
     it('should work with notFound: true correctly', async () => {
       const browser = await next.browser('/ssr-page')
       await browser.eval('window.next.router.push("/ssg/not-found-1")')
