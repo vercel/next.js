@@ -1,4 +1,4 @@
-import type { API, Collection } from 'jscodeshift'
+import type { API, ASTPath, CallExpression, Collection } from 'jscodeshift'
 
 function insertReactUseImport(root: Collection<any>, j: API['j']) {
   const hasReactUseImport =
@@ -58,7 +58,39 @@ export function transformDynamicAPI(source: string, api: API) {
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
 
+  function findImportedIdentifier(functionName: 'cookies' | 'headers') {
+    let importedAlias: string | undefined
+    root
+      .find(j.ImportDeclaration, {
+        source: { value: 'next/headers' },
+      })
+      .find(j.ImportSpecifier, {
+        imported: { name: functionName },
+      })
+      .forEach((importSpecifier) => {
+        importedAlias = importSpecifier.node.local.name
+      })
+    return importedAlias
+  }
+
+  function isImportedInModule(
+    path: ASTPath<CallExpression>,
+    functionName: string
+  ) {
+    const closestDef = j(path)
+      .closestScope()
+      .findVariableDeclarators(functionName)
+    return closestDef.size() === 0
+  }
+
   function processAsyncApiCalls(functionName: 'cookies' | 'headers') {
+    const importedAlias = findImportedIdentifier(functionName)
+
+    if (!importedAlias) {
+      // Skip the transformation if the function is not imported from 'next/headers'
+      return
+    }
+
     // Process each call to cookies() or headers()
     root
       .find(j.CallExpression, {
@@ -68,6 +100,11 @@ export function transformDynamicAPI(source: string, api: API) {
         },
       })
       .forEach((path) => {
+        const isImportedTopLevel = isImportedInModule(path, importedAlias)
+        if (isImportedTopLevel) {
+          return
+        }
+
         // Check if available to apply transform
         const closestFunction = j(path).closest(j.FunctionDeclaration)
         const isAsyncFunction = closestFunction
@@ -95,6 +132,7 @@ export function transformDynamicAPI(source: string, api: API) {
   const isClientComponent =
     root.find(j.Literal, { value: 'use client' }).size() > 0
 
+  // Only transform the valid calls in server or shared components
   if (!isClientComponent) {
     processAsyncApiCalls('cookies')
     processAsyncApiCalls('headers')

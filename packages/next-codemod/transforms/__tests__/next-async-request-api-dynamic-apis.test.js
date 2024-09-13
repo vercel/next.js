@@ -7,7 +7,7 @@ const { join } = require('path')
 const testFileRegex = /\.input\.(j|t)sx?$/
 
 const fixtureDir = 'next-async-request-api-dynamic-apis'
-const transformName = 'next-async-dynamic-api'
+const transformName = 'next-async-request-api'
 const fixtureDirPath = join(__dirname, '..', '__testfixtures__', fixtureDir)
 const fixtures = readdirSync(fixtureDirPath)
   .filter(file => testFileRegex.test(file))
