@@ -9,3 +9,6 @@ const d4 = d1[2];
 
 for (const value of d1){
 }
+
+for (const value of []){
+}

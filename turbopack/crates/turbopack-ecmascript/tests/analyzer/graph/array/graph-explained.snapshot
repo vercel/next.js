@@ -12,4 +12,6 @@ d3 = d1[1]
 
 d4 = d1[2]
 
-value = Iterated(d1)
+value#3 = Iterated(d1)
+
+value#5 = Iterated([])
