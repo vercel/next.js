@@ -864,8 +864,8 @@ export async function renderToHTMLImpl(
             revalidateReason: renderOpts.isOnDemandRevalidate
               ? 'on-demand'
               : isBuildTimeSSG
-                ? 'build'
-                : 'stale',
+              ? 'build'
+              : 'stale',
           })
       )
     } catch (staticPropsError: any) {

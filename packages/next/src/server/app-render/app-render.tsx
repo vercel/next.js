@@ -935,19 +935,19 @@ async function renderToHTMLOrFlightImpl(
             })
           }
         : isStaticGeneration || isResume
-          ? // During static generation and during resumes we don't
-            // ask React to emit headers. For Resume this is just not supported
-            // For static generation we know there will be an entire HTML document
-            // output and so moving from tag to header for preloading can only
-            // server to alter preloading priorities in unwanted ways
-            undefined
-          : // During dynamic renders that are not resumes we write
-            // early headers to the response
-            (headers: Headers) => {
-              headers.forEach((value, key) => {
-                res.appendHeader(key, value)
-              })
-            }
+        ? // During static generation and during resumes we don't
+          // ask React to emit headers. For Resume this is just not supported
+          // For static generation we know there will be an entire HTML document
+          // output and so moving from tag to header for preloading can only
+          // server to alter preloading priorities in unwanted ways
+          undefined
+        : // During dynamic renders that are not resumes we write
+          // early headers to the response
+          (headers: Headers) => {
+            headers.forEach((value, key) => {
+              res.appendHeader(key, value)
+            })
+          }
 
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
@@ -1096,8 +1096,9 @@ async function renderToHTMLOrFlightImpl(
                   </HeadManagerContext.Provider>
                 )
 
-                const { stream: resumeStream } =
-                  await resumeRenderer.render(resumeChildren)
+                const { stream: resumeStream } = await resumeRenderer.render(
+                  resumeChildren
+                )
                 // First we write everything from the prerender, then we write everything from the aborted resume render
                 renderedHTMLStream = chainStreams(stream, resumeStream)
               }
@@ -1225,8 +1226,8 @@ async function renderToHTMLOrFlightImpl(
         const errorType = is404
           ? 'not-found'
           : hasRedirectError
-            ? 'redirect'
-            : undefined
+          ? 'redirect'
+          : undefined
 
         const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
           buildManifest,

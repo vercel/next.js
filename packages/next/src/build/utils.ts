@@ -467,8 +467,8 @@ export async function printTreeView(
             ? '─'
             : '┌'
           : i === arr.length - 1
-            ? '└'
-            : '├'
+          ? '└'
+          : '├'
 
       const pageInfo = pageInfos.get(item)
       const ampFirst = buildManifest.ampFirstPages.includes(item)
@@ -522,15 +522,15 @@ export async function printTreeView(
           ? ampFirst
             ? cyan('AMP')
             : pageInfo.size >= 0
-              ? prettyBytes(pageInfo.size)
-              : ''
+            ? prettyBytes(pageInfo.size)
+            : ''
           : '',
         pageInfo
           ? ampFirst
             ? cyan('AMP')
             : pageInfo.size >= 0
-              ? getPrettySize(pageInfo.totalSize)
-              : ''
+            ? getPrettySize(pageInfo.totalSize)
+            : ''
           : '',
       ])
 
