@@ -577,10 +577,11 @@ impl SourceMap {
                         column
                     };
 
-                    return map
-                        .await?
-                        .lookup_token_and_source_internal(l, c, need_source_content)
-                        .await;
+                    if need_source_content {
+                        return map.lookup_token_and_source(l, c);
+                    } else {
+                        return (map.lookup_token_and_source(l, c), None);
+                    }
                 }
                 Token::Synthetic(SyntheticToken {
                     generated_line: line,
