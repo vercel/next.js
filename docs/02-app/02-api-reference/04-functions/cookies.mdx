@@ -271,23 +271,19 @@ export async function delete(data) {
 To use `cookies` in a synchronous Server Component, you can use React's [`use`](https://react.dev/reference/react/use) function to read the promise:
 
 ```tsx filename="app/ui/component.tsx" switcher
-'use client'
-
 import { cookies } from 'next/headers'
 import { use } from 'react'
 
-export default async function Component() {
+export default function Component() {
   const theme = use(cookies()).get('theme')
 }
 ```
 
 ```js filename="app/ui/component.js" switcher
-'use client'
-
 import { cookies } from 'next/headers'
 import { use } from 'react'
 
-export default async function Component() {
+export default function Component() {
   const theme = use(cookies()).get('theme')
 }
 ```
