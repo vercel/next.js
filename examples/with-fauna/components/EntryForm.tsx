@@ -22,6 +22,7 @@ const initialState = {
 };
 
 export default function EntryForm() {
+  // useActionState is available with React 19 (Next.js App Router)
   const [state, formAction] = useActionState(createEntryAction, initialState);
   const { pending } = useFormStatus();
 

@@ -131,7 +131,6 @@ export function isStaticMetadataRouteFile(appDirRelativePath: string) {
   return isMetadataRouteFile(appDirRelativePath, [], true)
 }
 
-// @deprecated
 export function isStaticMetadataRoute(page: string) {
   return (
     page === '/robots' ||

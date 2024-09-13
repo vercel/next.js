@@ -350,8 +350,6 @@ function InnerLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,
@@ -408,9 +406,11 @@ function InnerLayoutRouter({
       const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
       childNode.lazyData = lazyData = fetchServerResponse(
         new URL(url, location.origin),
-        refetchTree,
-        includeNextUrl ? context.nextUrl : null,
-        buildId
+        {
+          flightRouterState: refetchTree,
+          nextUrl: includeNextUrl ? context.nextUrl : null,
+          buildId,
+        }
       ).then((serverResponse) => {
         startTransition(() => {
           changeByServerResponse({
@@ -427,23 +427,6 @@ function InnerLayoutRouter({
     use(unresolvedThenable) as never
   }
 
-  // We use `useDeferredValue` to handle switching between the prefetched and
-  // final values. The second argument is returned on initial render, then it
-  // re-renders with the first argument. We only use the prefetched layer assets
-  // if they are available. Otherwise, we use the non-prefetched version.
-  const resolvedPrefetchLayerAssets =
-    childNode.prefetchLayerAssets !== null
-      ? childNode.prefetchLayerAssets
-      : childNode.layerAssets
-
-  const layerAssets = useDeferredValue(
-    childNode.layerAssets,
-    // @ts-expect-error The second argument to `useDeferredValue` is only
-    // available in the experimental builds. When its disabled, it will always
-    // return `cache.layerAssets`.
-    resolvedPrefetchLayerAssets
-  )
-
   // If we get to this point, then we know we have something we can render.
   const subtree = (
     // The layout router context narrows down tree and childNodes at each level.
@@ -456,7 +439,6 @@ function InnerLayoutRouter({
         loading: childNode.loading,
       }}
     >
-      {layerAssets}
       {resolvedRsc}
     </LayoutRouterContext.Provider>
   )
@@ -517,7 +499,6 @@ export default function OuterLayoutRouter({
   template,
   notFound,
   notFoundStyles,
-  styles,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -529,7 +510,6 @@ export default function OuterLayoutRouter({
   template: React.ReactNode
   notFound: React.ReactNode | undefined
   notFoundStyles: React.ReactNode | undefined
-  styles?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -562,7 +542,6 @@ export default function OuterLayoutRouter({
 
   return (
     <>
-      {styles}
       {preservedSegments.map((preservedSegment) => {
         const preservedSegmentValue = getSegmentValue(preservedSegment)
         const cacheKey = createRouterCacheKey(preservedSegment)
