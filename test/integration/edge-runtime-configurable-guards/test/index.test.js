@@ -109,7 +109,7 @@ describe('Edge runtime configurable guards', () => {
           const output = await nextBuild(context.appDir, undefined, {
             stdout: true,
             stderr: true,
-            env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: '1' },
+            env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: 1 },
           })
 
           expect(output.code).toBe(1)
@@ -321,6 +321,7 @@ describe('Edge runtime configurable guards', () => {
             const output = await nextBuild(context.appDir, undefined, {
               stdout: true,
               stderr: true,
+              env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: 1 },
             })
             // eslint-disable-next-line jest/no-standalone-expect
             expect(output.stderr).not.toContain(`Build failed`)
@@ -413,7 +414,7 @@ describe('Edge runtime configurable guards', () => {
           const output = await nextBuild(context.appDir, undefined, {
             stdout: true,
             stderr: true,
-            env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: '1' },
+            env: process.env.TURBOPACK ? {} : { NEXT_TELEMETRY_DEBUG: 1 },
           })
           expect(output.stderr).toContain(
             `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
