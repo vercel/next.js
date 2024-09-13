@@ -3,13 +3,13 @@ title: cookies
 description: API Reference for the cookies function.
 ---
 
-The `cookies` function allows you to read the HTTP incoming request cookies from a [Server Component](/docs/app/building-your-application/rendering/server-components) or write outgoing request cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+`cookies` is an **async** function that allows you to read the HTTP incoming request cookies in components, and read/write outgoing request cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
 
-export default function Page() {
-  const cookieStore = cookies()
+export default async function Page() {
+  const cookieStore = await cookies()
   const theme = cookieStore.get('theme')
   return '...'
 }
@@ -18,8 +18,8 @@ export default function Page() {
 ```js filename="app/page.js" switcher
 import { cookies } from 'next/headers'
 
-export default function Page() {
-  const cookieStore = cookies()
+export default async function Page() {
+  const cookieStore = await cookies()
   const theme = cookieStore.get('theme')
   return '...'
 }
@@ -62,8 +62,10 @@ When setting a cookie, the following properties from the `options` object are su
 
 To learn more about these options, see the [MDN docs](https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies).
 
-## Caveats
+## Good to know
 
+- `cookies()` is an **asynchronous** function that returns a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access cookies.
+  - In version 14 and earlier, `cookies()` was a synchronous function. To help with backwards compatability, you can still access it synchronoulsy in Next.js 15, but this behavior will be deprecated in the future.
 - `cookies()` is a [Dynamic Function](/docs/app/building-your-application/rendering/server-components#dynamic-functions) whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering).
 - The `.delete()` method can only be called:
   - In a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
@@ -79,8 +81,8 @@ You can use the `cookies().get('name')` method to get a single cookie:
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
 
-export default function Page() {
-  const cookieStore = cookies()
+export default async function Page() {
+  const cookieStore = await cookies()
   const theme = cookieStore.get('theme')
   return '...'
 }
@@ -89,8 +91,8 @@ export default function Page() {
 ```jsx filename="app/page.js" switcher
 import { cookies } from 'next/headers'
 
-export default function Page() {
-  const cookieStore = cookies()
+export default async function Page() {
+  const cookieStore = await cookies()
   const theme = cookieStore.get('theme')
   return '...'
 }
@@ -103,8 +105,8 @@ You can use the `cookies().getAll()` method to get all cookies with a matching n
 ```tsx filename="app/page.tsx" switcher
 import { cookies } from 'next/headers'
 
-export default function Page() {
-  const cookieStore = cookies()
+export default async function Page() {
+  const cookieStore = await cookies()
   return cookieStore.getAll().map((cookie) => (
     <div key={cookie.name}>
       <p>Name: {cookie.name}</p>
@@ -117,8 +119,8 @@ export default function Page() {
 ```jsx filename="app/page.js" switcher
 import { cookies } from 'next/headers'
 
-export default function Page() {
-  const cookieStore = cookies()
+export default async function Page() {
+  const cookieStore = await cookies()
   return cookieStore.getAll().map((cookie) => (
     <div key={cookie.name}>
       <p>Name: {cookie.name}</p>
@@ -137,12 +139,12 @@ You can use the `cookies().set(name, value, options)` method in a [Server Action
 
 import { cookies } from 'next/headers'
 
-async function create(data) {
-  cookies().set('name', 'lee')
+export async function create(data) {
+  await cookies().set('name', 'lee')
   // or
-  cookies().set('name', 'lee', { secure: true })
+  await cookies().set('name', 'lee', { secure: true })
   // or
-  cookies().set({
+  await cookies().set({
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -156,12 +158,12 @@ async function create(data) {
 
 import { cookies } from 'next/headers'
 
-async function create(data) {
-  cookies().set('name', 'lee')
+export async function create(data) {
+  await cookies().set('name', 'lee')
   // or
-  cookies().set('name', 'lee', { secure: true })
+  await cookies().set('name', 'lee', { secure: true })
   // or
-  cookies().set({
+  await cookies().set({
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -170,15 +172,15 @@ async function create(data) {
 }
 ```
 
-### Check if a cookie exists
+### Checking if a cookie exists
 
 You can use the `cookies().has(name)` method to check if a cookie exists:
 
 ```tsx filename="app/page.ts" switcher
 import { cookies } from 'next/headers'
 
-export default function Page() {
-  const cookieStore = cookies()
+export default async function Page() {
+  const cookieStore = await cookies()
   const hasCookie = cookieStore.has('theme')
   return '...'
 }
@@ -187,8 +189,8 @@ export default function Page() {
 ```jsx filename="app/page.js" switcher
 import { cookies } from 'next/headers'
 
-export default function Page() {
-  const cookieStore = cookies()
+export default async function Page() {
+  const cookieStore = await cookies()
   const hasCookie = cookieStore.has('theme')
   return '...'
 }
@@ -205,8 +207,8 @@ Using the `delete()` method:
 
 import { cookies } from 'next/headers'
 
-async function delete(data) {
-  cookies().delete('name')
+export async function delete(data) {
+  await cookies().delete('name')
 }
 ```
 
@@ -215,8 +217,8 @@ async function delete(data) {
 
 import { cookies } from 'next/headers'
 
-async function delete(data) {
-  cookies().delete('name')
+export async function delete(data) {
+  await cookies().delete('name')
 }
 ```
 
@@ -227,8 +229,8 @@ Setting a new cookie with the same name and an empty value:
 
 import { cookies } from 'next/headers'
 
-async function delete(data) {
-  cookies().set('name', '')
+export async function delete(data) {
+  await cookies().set('name', '')
 }
 ```
 
@@ -237,8 +239,8 @@ async function delete(data) {
 
 import { cookies } from 'next/headers'
 
-async function delete(data) {
-  cookies().set('name', '')
+export async function delete(data) {
+  await cookies().set('name', '')
 }
 ```
 
@@ -249,8 +251,8 @@ Setting the `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a v
 
 import { cookies } from 'next/headers'
 
-async function delete(data) {
-  cookies().set('name', 'value', { maxAge: 0 })
+export async function delete(data) {
+  await cookies().set('name', 'value', { maxAge: 0 })
 }
 ```
 
@@ -259,13 +261,40 @@ async function delete(data) {
 
 import { cookies } from 'next/headers'
 
-async function delete(data) {
-  cookies().set('name', 'value', { maxAge: 0 })
+export async function delete(data) {
+  await cookies().set('name', 'value', { maxAge: 0 })
+}
+```
+
+### Cookies in synchronous components
+
+To use `cookies` in a synchronous component, such as a Client Component, you can use React's [`use`](https://react.dev/reference/react/use) function to read the promise:
+
+```tsx filename="app/ui/component.tsx" switcher
+'use client'
+
+import { cookies } from 'next/headers'
+import { use } from 'react'
+
+export default async function Component() {
+  const theme = use(cookies()).get('theme')
+}
+```
+
+```js filename="app/ui/component.js" switcher
+'use client'
+
+import { cookies } from 'next/headers'
+import { use } from 'react'
+
+export default async function Component() {
+  const theme = use(cookies()).get('theme')
 }
 ```
 
 ## Version History
 
-| Version   | Changes               |
-| --------- | --------------------- |
-| `v13.0.0` | `cookies` introduced. |
+| Version      | Changes                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `v15.0.0-RC` | `cookies` is now an async function. A [codemod](/docs/app/building-your-application/upgrading/codemods#150) is available. |
+| `v13.0.0`    | `cookies` introduced.                                                                                                     |
