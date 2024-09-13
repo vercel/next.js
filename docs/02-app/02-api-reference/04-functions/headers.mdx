@@ -10,9 +10,7 @@ import { headers } from 'next/headers'
 
 export default async function Page() {
   const headersList = await headers()
-  const referer = headersList.get('referer')
-
-  return <div>Referer: {referer}</div>
+  const userAgent = headersList.get('user-agent')
 }
 ```
 
@@ -21,9 +19,7 @@ import { headers } from 'next/headers'
 
 export default async function Page() {
   const headersList = await headers()
-  const referer = headersList.get('referer')
-
-  return <div>Referer: {referer}</div>
+  const userAgent = headersList.get('user-agent')
 }
 ```
 
