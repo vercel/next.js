@@ -1,6 +1,7 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
+use async_recursion::async_recursion;
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
@@ -10,10 +11,13 @@ use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMap
 use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     rope::{Rope, RopeBuilder},
-    FileContent, FileSystemPath,
+    File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
 };
 
-use crate::{source::Source, source_pos::SourcePos, SOURCE_MAP_PREFIX};
+use crate::{
+    asset::AssetContent, source::Source, source_pos::SourcePos, virtual_source::VirtualSource,
+    SOURCE_MAP_PREFIX,
+};
 
 pub(crate) mod source_map_asset;
 
@@ -485,6 +489,7 @@ impl SourceMap {
 }
 
 impl SourceMap {
+    #[async_recursion]
     async fn lookup_token_and_source_internal(
         &self,
         line: usize,
@@ -517,10 +522,23 @@ impl SourceMap {
                     }
                 }
 
-                if let Some(map) = map.map.as_regular_source_map() {
-                    let src = tok.and_then(|tok| map.get_source_contents(tok.get_src_id()));
+                if need_source_content && content.is_none() {
+                    if let Some(map) = map.map.as_regular_source_map() {
+                        content = tok.and_then(|tok| {
+                            let src_id = tok.get_src_id();
 
-                    content = src.map(|c| c.into());
+                            let name = map.get_source(src_id);
+                            let content = map.get_source_contents(src_id);
+
+                            let (name, content) = name.zip(content)?;
+
+                            let path = VirtualFileSystem::new().root().join(name.into());
+                            let content =
+                                AssetContent::file(FileContent::new(File::from(content)).cell());
+
+                            Some(Vc::upcast(VirtualSource::new(path, content)))
+                        });
+                    }
                 }
 
                 token
