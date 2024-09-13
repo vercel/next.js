@@ -88,7 +88,7 @@ Dynamic rendering is useful when a route has data that is personalized to the us
 
 During rendering, if a [dynamic function](#dynamic-functions) or uncached data request is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
 
-| Dynamic Functions | Data       | Route                |
+| Dynamic Functions (discovered) | Data Discovery       | Route                |
 | ----------------- | ---------- | -------------------- |
 | No                | Cached     | Statically Rendered  |
 | Yes               | Cached     | Dynamically Rendered |
