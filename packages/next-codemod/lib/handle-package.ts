@@ -27,3 +27,10 @@ export function uninstallPackage(packageToUninstall: string) {
 
   execa.sync(pkgManager, [command, packageToUninstall], { stdio: 'inherit' })
 }
+
+export function installPackage(packageToInstall: string) {
+  const pkgManager = getPkgManager(process.cwd())
+  if (!pkgManager) throw new Error('Failed to find package manager')
+
+  execa.sync(pkgManager, ['add', packageToInstall], { stdio: 'inherit' })
+}

@@ -15,7 +15,7 @@ import path from 'path'
 import execa from 'execa'
 import { yellow } from 'picocolors'
 import isGitClean from 'is-git-clean'
-import { uninstallPackage } from '../lib/uninstall-package'
+import { installPackage, uninstallPackage } from '../lib/handle-package'
 
 export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
 export const transformerDirectory = path.join(__dirname, '../', 'transforms')
@@ -61,6 +61,28 @@ export function runTransform({ files, flags, transformer }) {
   let args = []
 
   const { dry, print, runInBand } = flags
+
+  if (!dry && transformer === 'next-request-geolocation') {
+    console.log('Note: This codemod expects your app to be deployed on Vercel.')
+    console.log('Installing `@vercel/functions`')
+    try {
+      installPackage('@vercel/functions')
+    } catch {
+      console.error(
+        "Couldn't install `@vercel/functions`, please install it manually"
+      )
+    }
+
+    console.log(
+      'You can replace `geo` and `ip` of `NextRequest` with `@vercel/functions`:'
+    )
+    console.log()
+    console.log(
+      '```\nimport { geolocation, ipAddress } from "@vercel/functions"\n```'
+    )
+
+    return
+  }
 
   if (dry) {
     args.push('--dry')
@@ -158,6 +180,10 @@ const TRANSFORMER_INQUIRER_CHOICES = [
   {
     name: 'built-in-next-font: Uninstall `@next/font` and transform imports to `next/font`',
     value: 'built-in-next-font',
+  },
+  {
+    name: 'next-request-geolocation: Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
+    value: 'next-request-geolocation',
   },
 ]
 
