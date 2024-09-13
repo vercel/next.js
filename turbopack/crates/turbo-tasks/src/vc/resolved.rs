@@ -1,6 +1,7 @@
 use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+    future::IntoFuture,
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::Deref,
@@ -22,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
-    RcStr,
+    RcStr, VcValueType,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -75,6 +76,24 @@ where
         self.node.hash(state);
     }
 }
+
+macro_rules! into_future {
+    ($ty:ty) => {
+        impl<T> IntoFuture for $ty
+        where
+            T: VcValueType,
+        {
+            type Output = <Vc<T> as IntoFuture>::Output;
+            type IntoFuture = <Vc<T> as IntoFuture>::IntoFuture;
+            fn into_future(self) -> Self::IntoFuture {
+                (*self).into_future()
+            }
+        }
+    };
+}
+
+into_future!(ResolvedVc<T>);
+into_future!(&ResolvedVc<T>);
 
 impl<T> std::fmt::Debug for ResolvedVc<T>
 where

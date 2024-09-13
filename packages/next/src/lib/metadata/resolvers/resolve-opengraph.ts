@@ -50,6 +50,14 @@ function resolveAndValidateImage(
   const inputUrl = isItemUrl ? item : item.url
   if (!inputUrl) return undefined
 
+  // process.env.VERCEL is set to "1" when System Environment Variables are
+  // exposed. When exposed, validation is not necessary since we are falling back to
+  // process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_BRANCH_URL, or
+  // process.env.VERCEL_URL for the `metadataBase`. process.env.VERCEL is undefined
+  // when System Environment Variables are not exposed. When not exposed, we cannot
+  // detect in the build environment if the deployment is a Vercel deployment or not.
+  //
+  // x-ref: https://vercel.com/docs/projects/environment-variables/system-environment-variables#system-environment-variables
   const isNonVercelDeployment =
     !process.env.VERCEL && process.env.NODE_ENV === 'production'
   // Validate url in self-host standalone mode or non-Vercel deployment

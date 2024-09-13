@@ -14,9 +14,11 @@ use super::module_rule_match_js_no_url;
 pub fn next_edge_node_api_assert(
     enable_mdx_rs: bool,
     should_error_for_node_apis: bool,
+    is_production: bool,
 ) -> ModuleRule {
     let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextEdgeNodeApiAssert {
         should_error_for_node_apis,
+        is_production,
     }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
@@ -30,6 +32,7 @@ pub fn next_edge_node_api_assert(
 #[derive(Debug)]
 struct NextEdgeNodeApiAssert {
     should_error_for_node_apis: bool,
+    is_production: bool,
 }
 
 #[async_trait]
@@ -43,6 +46,7 @@ impl CustomTransformer for NextEdgeNodeApiAssert {
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(ctx.unresolved_mark),
             },
             self.should_error_for_node_apis,
+            self.is_production,
         );
         program.visit_with(&mut visitor);
         Ok(())

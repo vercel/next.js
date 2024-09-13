@@ -628,7 +628,7 @@ describe('Production Usage', () => {
 
       expect(res.status).toBe(404)
       expect(res.headers.get('Cache-Control')).toBe(
-        'no-cache, no-store, max-age=0, must-revalidate'
+        'private, no-cache, no-store, max-age=0, must-revalidate'
       )
     })
 

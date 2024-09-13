@@ -149,5 +149,6 @@
         ],
         span: 13..39,
         in_try: false,
+        new: false,
     },
 ]
