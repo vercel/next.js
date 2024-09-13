@@ -1287,6 +1287,10 @@ async fn find_package(
                     }
                 }
                 for extension in &options.extensions {
+                    if extension == ".json" {
+                        // tsconfig basepath doesn't apply to json requests
+                        continue;
+                    }
                     let package_file = package_dir.append(extension.clone());
                     if let Some(package_file) = exists(package_file, &mut affecting_sources).await?
                     {
