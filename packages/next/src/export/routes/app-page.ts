@@ -20,6 +20,9 @@ import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.re
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
+import type { FetchMetrics } from '../../server/base-http'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { FallbackRouteParams } from '../../client/components/fallback-params'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -29,6 +32,9 @@ export const enum ExportedAppPageFiles {
   POSTPONED = 'POSTPONED',
 }
 
+/**
+ * Renders & exports a page associated with the /app directory
+ */
 export async function exportAppPage(
   req: MockedRequest,
   res: MockedResponse,
@@ -36,6 +42,7 @@ export async function exportAppPage(
   path: string,
   pathname: string,
   query: NextParsedUrlQuery,
+  fallbackRouteParams: FallbackRouteParams | null,
   renderOpts: RenderOpts,
   htmlFilepath: string,
   debugOutput: boolean,
@@ -56,13 +63,20 @@ export async function exportAppPage(
       new NodeNextResponse(res),
       pathname,
       query,
+      fallbackRouteParams,
       renderOpts
     )
 
     const html = result.toUnchunkedString()
 
     const { metadata } = result
-    const { flightData, revalidate = false, postponed, fetchTags } = metadata
+    const {
+      flightData,
+      revalidate = false,
+      postponed,
+      fetchTags,
+      fetchMetrics,
+    } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
     if (postponed && !renderOpts.experimental.isRoutePPREnabled) {
@@ -85,32 +99,40 @@ export async function exportAppPage(
         })
       }
 
-      return { revalidate: 0 }
+      return { revalidate: 0, fetchMetrics }
     }
+
     // If page data isn't available, it means that the page couldn't be rendered
-    // properly.
-    else if (!flightData) {
+    // properly so long as we don't have unknown route params. When a route doesn't
+    // have unknown route params, there will not be any flight data.
+    if (
+      !flightData &&
+      (!fallbackRouteParams || fallbackRouteParams.size === 0)
+    ) {
       throw new Error(`Invariant: failed to get page data for ${path}`)
     }
-    // If PPR is enabled, we want to emit a prefetch rsc file for the page
-    // instead of the standard rsc. This is because the standard rsc will
-    // contain the dynamic data. We do this if any routes have PPR enabled so
-    // that the cache read/write is the same.
-    else if (renderOpts.experimental.isRoutePPREnabled) {
-      // If PPR is enabled, we should emit the flight data as the prefetch
-      // payload.
-      await fileWriter(
-        ExportedAppPageFiles.PREFETCH_FLIGHT,
-        htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-        flightData
-      )
-    } else {
-      // Writing the RSC payload to a file if we don't have PPR enabled.
-      await fileWriter(
-        ExportedAppPageFiles.FLIGHT,
-        htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
-        flightData
-      )
+
+    if (flightData) {
+      // If PPR is enabled, we want to emit a prefetch rsc file for the page
+      // instead of the standard rsc. This is because the standard rsc will
+      // contain the dynamic data. We do this if any routes have PPR enabled so
+      // that the cache read/write is the same.
+      if (renderOpts.experimental.isRoutePPREnabled) {
+        // If PPR is enabled, we should emit the flight data as the prefetch
+        // payload.
+        await fileWriter(
+          ExportedAppPageFiles.PREFETCH_FLIGHT,
+          htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
+          flightData
+        )
+      } else {
+        // Writing the RSC payload to a file if we don't have PPR enabled.
+        await fileWriter(
+          ExportedAppPageFiles.FLIGHT,
+          htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
+          flightData
+        )
+      }
     }
 
     const headers: OutgoingHttpHeaders = { ...metadata.headers }
@@ -167,6 +189,7 @@ export async function exportAppPage(
       hasEmptyPrelude: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
       revalidate,
+      fetchMetrics,
     }
   } catch (err) {
     if (!isDynamicUsageError(err)) {
@@ -179,18 +202,21 @@ export async function exportAppPage(
       throw err
     }
 
+    let fetchMetrics: FetchMetrics | undefined
+
     if (debugOutput) {
-      const { dynamicUsageDescription, dynamicUsageStack } = (renderOpts as any)
-        .store
+      const store = (renderOpts as any).store as StaticGenerationStore
+      const { dynamicUsageDescription, dynamicUsageStack } = store
+      fetchMetrics = store.fetchMetrics
 
       logDynamicUsageWarning({
         path,
-        description: dynamicUsageDescription,
+        description: dynamicUsageDescription ?? '',
         stack: dynamicUsageStack,
       })
     }
 
-    return { revalidate: 0 }
+    return { revalidate: 0, fetchMetrics }
   }
 }
 

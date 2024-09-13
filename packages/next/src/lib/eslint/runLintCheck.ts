@@ -229,7 +229,7 @@ async function lint(
     if (reportErrorsOnly) results = await ESLint.getErrorResults(results) // Only return errors if --quiet flag is used
 
     if (formatter) selectedFormatter = await eslint.loadFormatter(formatter)
-    const formattedResult = formatResults(
+    const formattedResult = await formatResults(
       baseDir,
       results,
       selectedFormatter?.format

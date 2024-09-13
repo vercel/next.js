@@ -64,16 +64,14 @@ import {
   isInternalComponent,
   isNonRoutePagesPage,
 } from '../lib/is-internal-component'
-import {
-  isMetadataRoute,
-  isStaticMetadataRouteFile,
-} from '../lib/metadata/is-metadata-route'
+import { isMetadataRoute } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
+import { isAppPageRoute } from '../lib/is-app-page-route'
 
 export function sortByPageExts(pageExtensions: PageExtensions) {
   return (a: string, b: string) => {
@@ -119,17 +117,21 @@ export async function getStaticInfoIncludingLayouts({
     pageFilePath,
     isDev,
     page,
+    // TODO: sync types for pages: PAGE_TYPES, ROUTER_TYPE, 'app' | 'pages', etc.
     pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
   })
 
-  const staticInfo: PageStaticInfo = isInsideAppDir
-    ? {
-        // TODO-APP: Remove the rsc key altogether. It's no longer required.
-        rsc: 'server',
-      }
-    : pageStaticInfo
+  if (!isInsideAppDir || !appDir) {
+    return pageStaticInfo
+  }
 
-  if (isInsideAppDir && appDir) {
+  const staticInfo: PageStaticInfo = {
+    // TODO-APP: Remove the rsc key altogether. It's no longer required.
+    rsc: 'server',
+  }
+
+  // inherit from layout files only if it's a page route
+  if (isAppPageRoute(page)) {
     const layoutFiles = []
     const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
     let dir = dirname(pageFilePath)
@@ -162,22 +164,28 @@ export async function getStaticInfoIncludingLayouts({
       if (layoutStaticInfo.preferredRegion) {
         staticInfo.preferredRegion = layoutStaticInfo.preferredRegion
       }
-    }
-
-    if (pageStaticInfo.runtime) {
-      staticInfo.runtime = pageStaticInfo.runtime
-    }
-    if (pageStaticInfo.preferredRegion) {
-      staticInfo.preferredRegion = pageStaticInfo.preferredRegion
-    }
-
-    // if it's static metadata route, don't inherit runtime from layout
-    const relativePath = pageFilePath.replace(appDir, '')
-    if (isStaticMetadataRouteFile(relativePath)) {
-      delete staticInfo.runtime
-      delete staticInfo.preferredRegion
+      if (layoutStaticInfo.extraConfig) {
+        staticInfo.extraConfig = {
+          ...staticInfo.extraConfig,
+          ...layoutStaticInfo.extraConfig,
+        }
+      }
     }
   }
+
+  if (pageStaticInfo.runtime) {
+    staticInfo.runtime = pageStaticInfo.runtime
+  }
+  if (pageStaticInfo.preferredRegion) {
+    staticInfo.preferredRegion = pageStaticInfo.preferredRegion
+  }
+  if (pageStaticInfo.extraConfig) {
+    staticInfo.extraConfig = {
+      ...staticInfo.extraConfig,
+      ...pageStaticInfo.extraConfig,
+    }
+  }
+
   return staticInfo
 }
 
@@ -677,7 +685,7 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
-              flyingShuttle: config.experimental.flyingShuttle,
+              flyingShuttle: Boolean(config.experimental.flyingShuttle),
               nextConfigExperimentalUseEarlyImport: config.experimental
                 .useEarlyImport
                 ? true
@@ -743,7 +751,7 @@ export async function createEntrypoints(
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,
                 nextConfigOutput: config.output,
-                flyingShuttle: config.experimental.flyingShuttle,
+                flyingShuttle: Boolean(config.experimental.flyingShuttle),
                 // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
                 // Still passing it here for consistency.
                 preferredRegion: staticInfo.preferredRegion,
@@ -791,6 +799,12 @@ export async function createEntrypoints(
   )
 
   await Promise.all(promises)
+
+  // Optimization: If there's only one instrumentation hook in edge compiler, which means there's no edge server entry.
+  // We remove the edge instrumentation entry from edge compiler as it can be pure server side.
+  if (edgeServer.instrumentation && Object.keys(edgeServer).length === 1) {
+    delete edgeServer.instrumentation
+  }
 
   return {
     client,

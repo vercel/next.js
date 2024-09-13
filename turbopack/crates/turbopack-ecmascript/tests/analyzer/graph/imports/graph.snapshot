@@ -1,0 +1,55 @@
+[
+    (
+        "aa",
+        Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "x2",
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "a",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "xx",
+        Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "x1",
+                    annotations: ImportAnnotations {
+                        map: {},
+                    },
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "default",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "yy",
+        Module(
+            ModuleValue {
+                module: "x3",
+                annotations: ImportAnnotations {
+                    map: {},
+                },
+            },
+        ),
+    ),
+]

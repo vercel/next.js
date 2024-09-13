@@ -1,0 +1,16 @@
+{
+  "name": "@vercel/turbopack-cli",
+  "version": "0.0.0",
+  "description": "Turbopack-cli runtime",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vercel/turbopack-ecmascript-runtime": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.11"
+  }
+}

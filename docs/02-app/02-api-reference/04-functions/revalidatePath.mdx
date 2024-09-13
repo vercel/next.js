@@ -42,7 +42,7 @@ This will revalidate one specific URL on the next page visit.
 import { revalidatePath } from 'next/cache'
 revalidatePath('/blog/[slug]', 'page')
 // or with route groups
-revalidatePath('/(main)/post/[slug]', 'page')
+revalidatePath('/(main)/blog/[slug]', 'page')
 ```
 
 This will revalidate any URL that matches the provided `page` file on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
