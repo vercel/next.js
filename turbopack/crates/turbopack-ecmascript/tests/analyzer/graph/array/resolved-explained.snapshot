@@ -32,4 +32,6 @@ d4 = ???*0*
 - *0* [1, "foo"][2]
   ⚠️  invalid index
 
-value = (1 | "foo")
+value = (1 | "foo" | ???*0*)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
