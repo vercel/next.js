@@ -289,13 +289,6 @@ impl DepGraph {
         let mut mangle_count = 0;
         let mut mangled_vars = FxHashMap::default();
         let mut mangle = |var: &Id| {
-            // For react hooks.
-            // We need to preserve `use*` to make error reporting logic work.
-            // We catch `useXxx is not a function`, and report it with a hint about 'use client'.
-            if var.0.starts_with("use") {
-                return var.0.clone();
-            }
-
             mangled_vars
                 .entry(var.clone())
                 .or_insert_with(|| encode_base54(&mut mangle_count, true))
