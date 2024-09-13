@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, HashSet},
     ops::ControlFlow,
 };
@@ -499,14 +500,14 @@ impl CodeGenerateable for EsmExports {
                 )),
                 EsmExport::LocalBinding(name, mutable) => {
                     let local = if name == "default" {
-                        magic_identifier::mangle("default export").into()
+                        Cow::Owned(magic_identifier::mangle("default export"))
                     } else {
-                        name.clone()
+                        Cow::Borrowed(name.as_str())
                     };
                     if *mutable {
                         Some(quote!(
                             "([() => $local, ($new) => $local = $new])" as Expr,
-                            local = Ident::new(local.as_str().into(), DUMMY_SP, Default::default()),
+                            local = Ident::new(local.into(), DUMMY_SP, Default::default()),
                             new = Ident::new(
                                 format!("new_{name}").into(),
                                 DUMMY_SP,

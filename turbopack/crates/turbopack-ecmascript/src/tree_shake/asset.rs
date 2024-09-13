@@ -41,14 +41,13 @@ impl EcmascriptParsable for EcmascriptModulePartAsset {
         Ok(part_of_module(split_data, this.part))
     }
     #[turbo_tasks::function]
-    async fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let this = self.await?;
-        Ok(this.full_module.parse_original())
+    fn parse_original(&self) -> Result<Vc<ParseResult>> {
+        Ok(self.full_module.parse_original())
     }
 
     #[turbo_tasks::function]
-    async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
-        Ok(self.await?.full_module.ty())
+    async fn ty(&self) -> Result<Vc<EcmascriptModuleAssetType>> {
+        Ok(self.full_module.ty())
     }
 }
 
