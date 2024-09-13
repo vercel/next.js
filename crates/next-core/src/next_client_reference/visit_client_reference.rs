@@ -10,15 +10,13 @@ use turbo_tasks::{
     trace::TraceRawVcs,
     RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc,
 };
+use turbopack::css::CssModuleAsset;
 use turbopack_core::{
     module::{Module, Modules},
     reference::primary_referenced_modules,
 };
 
-use super::{
-    css_client_reference::css_client_reference_module::CssClientReferenceModule,
-    ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
-};
+use super::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
 use crate::next_server_component::server_component_module::NextServerComponentModule;
 
 #[derive(
@@ -44,7 +42,7 @@ impl ClientReference {
 )]
 pub enum ClientReferenceType {
     EcmascriptClientReference(Vc<EcmascriptClientReferenceModule>),
-    CssClientReference(Vc<CssClientReferenceModule>),
+    CssClientReference(Vc<CssModuleAsset>),
 }
 
 #[turbo_tasks::value]
@@ -196,7 +194,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 }
 
                 if let Some(css_client_reference_asset) =
-                    Vc::try_resolve_downcast_type::<CssClientReferenceModule>(module).await?
+                    Vc::try_resolve_downcast_type::<CssModuleAsset>(module).await?
                 {
                     return Ok(VisitClientReferenceNode {
                         server_component: node.server_component,

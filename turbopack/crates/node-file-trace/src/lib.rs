@@ -4,7 +4,7 @@
 mod nft_json;
 
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::BTreeSet,
     env::current_dir,
     future::Future,
     path::{Path, PathBuf},
@@ -192,7 +192,7 @@ async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn Fil
     if watch {
         fs.await?.start_watching()?;
     } else {
-        fs.await?.invalidate();
+        fs.await?.invalidate_with_reason();
     }
     Ok(Vc::upcast(fs))
 }
@@ -667,7 +667,7 @@ async fn create_module_asset(
     }
 
     Ok(ModuleAssetContext::new(
-        Vc::cell(HashMap::new()),
+        Default::default(),
         compile_time_info,
         ModuleOptionsContext::clone(&*module_options).cell(),
         resolve_options.cell(),
