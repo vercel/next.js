@@ -1,5 +1,5 @@
 use std::{
-    future::Future,
+    fs,
     path::{Path, PathBuf},
     process::Child,
 };
@@ -13,44 +13,22 @@ use chromiumoxide::{
     Browser, Page,
 };
 use futures::{FutureExt, StreamExt};
-use tokio::task::spawn_blocking;
 use url::Url;
 
 use crate::{bundlers::Bundler, util::PageGuard, BINDING_NAME};
 
-// HACK: Needed so that `copy_dir`'s `Future` can be inferred as `Send`:
-// https://github.com/rust-lang/rust/issues/123072
-fn copy_dir_send(from: PathBuf, to: PathBuf) -> impl Future<Output = anyhow::Result<()>> + Send {
-    copy_dir(from, to)
-}
-
-async fn copy_dir(from: PathBuf, to: PathBuf) -> anyhow::Result<()> {
-    let dir = spawn_blocking(|| std::fs::read_dir(from)).await??;
-    let mut jobs = Vec::new();
-    let mut file_futures = Vec::new();
+fn copy_dir<FP: AsRef<Path>, TP: AsRef<Path>>(from: FP, to: TP) -> Result<()> {
+    let dir = fs::read_dir(from)?;
     for entry in dir {
         let entry = entry?;
         let ty = entry.file_type()?;
-        let to = to.join(entry.file_name());
+        let to = to.as_ref().join(entry.file_name());
         if ty.is_dir() {
-            jobs.push(tokio::spawn(async move {
-                tokio::fs::create_dir(&to).await?;
-                copy_dir_send(entry.path(), to).await
-            }));
+            fs::create_dir(&to)?;
+            copy_dir(entry.path(), to)?;
         } else if ty.is_file() {
-            file_futures.push(async move {
-                tokio::fs::copy(entry.path(), to).await?;
-                Ok::<_, anyhow::Error>(())
-            });
+            fs::copy(entry.path(), to)?;
         }
-    }
-
-    for future in file_futures {
-        jobs.push(tokio::spawn(future));
-    }
-
-    for job in jobs {
-        job.await??;
     }
 
     Ok(())
@@ -68,11 +46,11 @@ pub struct PreparedApp<'a> {
 }
 
 impl<'a> PreparedApp<'a> {
-    pub async fn new(bundler: &'a dyn Bundler, template_dir: PathBuf) -> Result<PreparedApp<'a>> {
+    pub fn new(bundler: &'a dyn Bundler, template_dir: PathBuf) -> Result<PreparedApp<'a>> {
         let test_dir = tempfile::tempdir()?;
 
-        tokio::fs::create_dir_all(&test_dir).await?;
-        copy_dir(template_dir, test_dir.path().to_path_buf()).await?;
+        fs::create_dir_all(&test_dir)?;
+        copy_dir(template_dir, test_dir.path())?;
 
         Ok(Self {
             bundler,
@@ -81,15 +59,12 @@ impl<'a> PreparedApp<'a> {
         })
     }
 
-    pub async fn new_without_copy(
-        bundler: &'a dyn Bundler,
-        template_dir: PathBuf,
-    ) -> Result<PreparedApp<'a>> {
-        Ok(Self {
+    pub fn new_without_copy(bundler: &'a dyn Bundler, template_dir: PathBuf) -> PreparedApp<'a> {
+        Self {
             bundler,
             server: None,
             test_dir: PreparedDir::Path(template_dir),
-        })
+        }
     }
 
     pub fn start_server(&mut self) -> Result<()> {
@@ -100,7 +75,7 @@ impl<'a> PreparedApp<'a> {
         Ok(())
     }
 
-    pub async fn with_page(self, browser: &Browser) -> Result<PageGuard<'a>> {
+    pub async fn open_page(&self, browser: &Browser) -> Result<PageGuard> {
         let server = self.server.as_ref().context("Server must be started")?;
         let page = browser
             .new_page("about:blank")
@@ -150,13 +125,13 @@ impl<'a> PreparedApp<'a> {
         // Make sure no runtime errors occurred when loading the page
         assert!(errors.next().now_or_never().is_none());
 
-        let page_guard = PageGuard::new(page, binding_events, errors, self);
+        let page_guard = PageGuard::new(page, binding_events, errors);
 
         Ok(page_guard)
     }
 
     pub fn stop_server(&mut self) -> Result<()> {
-        let mut proc = self.server.take().expect("Server never started").0;
+        let mut proc = self.server.take().context("Server never started")?.0;
         stop_process(&mut proc)?;
         Ok(())
     }

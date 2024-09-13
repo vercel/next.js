@@ -9,15 +9,14 @@ use chromiumoxide::{
 use futures::{Stream, StreamExt};
 use tokio::time::timeout;
 
-use crate::{PreparedApp, BINDING_NAME};
+use crate::BINDING_NAME;
 
 const MAX_HYDRATION_TIMEOUT: Duration = Duration::from_secs(120);
 const TEST_APP_HYDRATION_DONE: &str = "Hydration done";
 
 /// Closes a browser page on Drop.
-pub struct PageGuard<'a> {
+pub struct PageGuard {
     page: Option<Page>,
-    app: Option<PreparedApp<'a>>,
     events: Box<dyn Stream<Item = Event> + Unpin>,
 }
 
@@ -26,17 +25,15 @@ enum Event {
     EventExceptionThrown(Arc<EventExceptionThrown>),
 }
 
-impl<'a> PageGuard<'a> {
+impl PageGuard {
     /// Creates a new guard for the given page.
     pub fn new(
         page: Page,
         events: EventStream<EventBindingCalled>,
         errors: EventStream<EventExceptionThrown>,
-        app: PreparedApp<'a>,
     ) -> Self {
         Self {
             page: Some(page),
-            app: Some(app),
             events: Box::new(futures::stream::select(
                 events.map(Event::EventBindingCalled),
                 errors.map(Event::EventExceptionThrown),
@@ -50,14 +47,11 @@ impl<'a> PageGuard<'a> {
         self.page.as_ref().unwrap()
     }
 
-    /// Closes the page, returns the app.
-    pub async fn close_page(mut self) -> Result<PreparedApp<'a>> {
+    /// Closes the page.
+    pub async fn close_page(mut self) -> Result<()> {
         // Invariant: the page is always Some while the guard is alive.
         self.page.take().unwrap().close().await?;
-        Ok(
-            // Invariant: the app is always Some while the guard is alive.
-            self.app.take().unwrap(),
-        )
+        Ok(())
     }
 
     /// Waits until the binding is called with the given payload.
@@ -94,7 +88,7 @@ impl<'a> PageGuard<'a> {
     }
 }
 
-impl<'a> Drop for PageGuard<'a> {
+impl Drop for PageGuard {
     fn drop(&mut self) {
         // The page might have been closed already in `close_page`.
         if let Some(page) = self.page.take() {

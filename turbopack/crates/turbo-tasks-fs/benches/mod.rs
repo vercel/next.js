@@ -5,11 +5,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use codspeed_criterion_compat::{
-    criterion_group, criterion_main,
-    measurement::{Measurement, WallTime},
-    BenchmarkId, Criterion,
-};
+use codspeed_criterion_compat::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::BatchSize;
 use notify::{Config, RecommendedWatcher, RecursiveMode, Watcher};
 use tokio::runtime::Runtime;
 use turbo_tasks::event::Event;
@@ -48,26 +45,17 @@ fn bench_file_watching(c: &mut Criterion) {
                 }
             });
 
-            b.to_async(Runtime::new().unwrap())
-                .iter_custom(move |iters| {
-                    let event = event.clone();
-                    async move {
-                        let m = WallTime;
-                        let mut value = m.zero();
-                        for _ in 0..iters {
-                            std::thread::sleep(Duration::from_millis(1));
-                            let l = event.listen();
-                            let path = temp_path.join("file.txt");
-                            let content = start.elapsed().as_micros().to_string();
-                            let s = m.start();
-                            fs::write(path, content).unwrap();
-                            l.await;
-                            let duration = m.end(s);
-                            value = m.add(&value, &duration);
-                        }
-                        value
-                    }
-                });
+            b.to_async(Runtime::new().unwrap()).iter_batched(
+                || event.clone(),
+                |event| async move {
+                    let l = event.listen();
+                    let path = temp_path.join("file.txt");
+                    let content = start.elapsed().as_micros().to_string();
+                    fs::write(path, content).unwrap();
+                    l.await;
+                },
+                BatchSize::SmallInput,
+            );
 
             drop(watcher);
             t.join().unwrap();

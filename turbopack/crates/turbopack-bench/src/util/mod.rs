@@ -4,7 +4,7 @@ use std::{
     },
     panic::UnwindSafe,
     process::Command,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -12,16 +12,13 @@ use chromiumoxide::{
     browser::{Browser, BrowserConfig},
     error::CdpError::Ws,
 };
-use codspeed_criterion_compat::{
-    async_executor::AsyncExecutor, black_box, measurement::WallTime, AsyncBencher,
-};
+use codspeed_criterion_compat::{async_executor::AsyncExecutor, AsyncBencher};
+use criterion::BatchSize;
 use futures::{Future, StreamExt};
 pub use page_guard::PageGuard;
-use parking_lot::Mutex;
 pub use prepared_app::PreparedApp;
 use regex::Regex;
 use tungstenite::{error::ProtocolError::ResetWithoutClosingHandshake, Error::Protocol};
-use turbo_tasks::util::FormatDuration;
 use turbo_tasks_testing::retry::{retry, retry_async};
 use turbopack_create_test_app::test_app_builder::{
     EffectMode, PackageJsonConfig, TestApp, TestAppBuilder,
@@ -44,15 +41,6 @@ where
 {
     // waits 5, 10, 20, 40 seconds = 75 seconds total
     retry(args, f, 3, Duration::from_secs(5))
-}
-
-async fn retry_async_default<A, F, Fut, R, E>(args: A, f: F) -> Result<R, E>
-where
-    F: Fn(&mut A) -> Fut,
-    Fut: Future<Output = Result<R, E>>,
-{
-    // waits 5, 10, 20, 40 seconds = 75 seconds total
-    retry_async(args, f, 3, Duration::from_secs(5)).await
 }
 
 pub fn build_test(module_count: usize, bundler: &dyn Bundler) -> TestApp {
@@ -137,111 +125,25 @@ pub fn resume_on_error<F: FnOnce() + UnwindSafe>(f: F) {
 }
 
 pub trait AsyncBencherExtension<A: AsyncExecutor> {
-    fn try_iter_custom<R, F>(&mut self, routine: R)
+    fn try_iter_batched<I, O, S, R, F>(&mut self, setup: S, routine: R, size: BatchSize)
     where
-        R: Fn(u64, WallTime) -> F,
-        F: Future<Output = Result<Duration>>;
-
-    fn try_iter_async<I, S, SF, R, F, T, TF>(
-        &mut self,
-        runner: A,
-        setup: S,
-        routine: R,
-        teardown: T,
-    ) where
-        S: Fn() -> SF,
-        SF: Future<Output = Result<I>>,
-        R: Fn(I, u64, WallTime, bool) -> F,
-        F: Future<Output = Result<(I, Duration)>>,
-        T: Fn(I) -> TF,
-        TF: Future<Output = ()>;
+        S: Fn() -> Result<I>,
+        R: Fn(I) -> F,
+        F: Future<Output = Result<O>>;
 }
 
 impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'a, 'b, A> {
-    fn try_iter_custom<R, F>(&mut self, routine: R)
+    fn try_iter_batched<I, O, S, R, F>(&mut self, setup: S, routine: R, size: BatchSize)
     where
-        R: Fn(u64, WallTime) -> F,
-        F: Future<Output = Result<Duration>>,
+        S: Fn() -> Result<I>,
+        R: Fn(I) -> F,
+        F: Future<Output = Result<O>>,
     {
-        let log_progress = read_env_bool("TURBOPACK_BENCH_PROGRESS");
-
-        let routine = &routine;
-        self.iter_custom(|iters| async move {
-            let measurement = WallTime;
-            let value = routine(iters, measurement).await.expect("routine failed");
-            if log_progress {
-                eprint!(" {:?}/{}", FormatDuration(value / (iters as u32)), iters);
-            }
-            value
-        });
-    }
-
-    fn try_iter_async<I, S, SF, R, F, T, TF>(
-        &mut self,
-        runner: A,
-        setup: S,
-        routine: R,
-        teardown: T,
-    ) where
-        S: Fn() -> SF,
-        SF: Future<Output = Result<I>>,
-        R: Fn(I, u64, WallTime, bool) -> F,
-        F: Future<Output = Result<(I, Duration)>>,
-        T: Fn(I) -> TF,
-        TF: Future<Output = ()>,
-    {
-        let log_progress = read_env_bool("TURBOPACK_BENCH_PROGRESS");
-
-        let setup = &setup;
-        let routine = &routine;
-        let teardown = &teardown;
-        let input_mutex = &Mutex::new(Some(black_box(runner.block_on(async {
-            if log_progress {
-                eprint!(" setup...");
-            }
-            let start = Instant::now();
-            let input = retry_async_default((), |_| setup())
-                .await
-                .expect("failed to setup");
-            if log_progress {
-                let duration = start.elapsed();
-                eprint!(" [{:?}]", FormatDuration(duration));
-            }
-            input
-        }))));
-
-        self.iter_custom(|iters| async move {
-            let measurement = WallTime;
-
-            let input = input_mutex
-                .lock()
-                .take()
-                .expect("iter_custom only executes its closure once");
-
-            let (output, value) = routine(input, iters, measurement, log_progress)
-                .await
-                .expect("Routine failed");
-            let output = black_box(output);
-
-            if log_progress {
-                eprint!(" {:?}/{}", FormatDuration(value / (iters as u32)), iters);
-            }
-
-            input_mutex.lock().replace(output);
-
-            value
-        });
-
-        let input = input_mutex.lock().take().unwrap();
-        if log_progress {
-            eprint!(" teardown...");
-        }
-        let start = Instant::now();
-        runner.block_on(teardown(input));
-        let duration = start.elapsed();
-        if log_progress {
-            eprintln!(" [{:?}]", FormatDuration(duration));
-        }
+        self.iter_batched(
+            || setup().expect("setup failed"),
+            |input| async { routine(input).await.expect("routine failed") },
+            size,
+        )
     }
 }
 
