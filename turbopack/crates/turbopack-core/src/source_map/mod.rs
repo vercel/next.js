@@ -1,7 +1,6 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use async_recursion::async_recursion;
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
@@ -489,7 +488,6 @@ impl SourceMap {
 }
 
 impl SourceMap {
-    #[async_recursion]
     async fn lookup_token_and_source_internal(
         &self,
         line: usize,
@@ -578,9 +576,10 @@ impl SourceMap {
                     };
 
                     if need_source_content {
-                        return map.lookup_token_and_source(l, c);
+                        let result = map.lookup_token_and_source(l, c).await?;
+                        return Ok((result.token, result.source_content));
                     } else {
-                        return (map.lookup_token_and_source(l, c), None);
+                        return Ok((map.lookup_token(l, c), None));
                     }
                 }
                 Token::Synthetic(SyntheticToken {
