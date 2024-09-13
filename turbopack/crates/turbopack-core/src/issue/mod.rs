@@ -601,12 +601,9 @@ async fn source_pos(
     let (start, content_1) = find(start.line, start.column).await?;
     let (end, content_2) = find(end.line, end.column).await?;
 
-    let (content_1, content_2) = match (content_1, content_2) {
-        (Some(content_1), Some(content_2)) => (content_1, content_2),
-        _ => return Ok(None),
+    let Some((content_1, content_2)) = content_1.zip(content_2) else {
+        return Ok(None);
     };
-    let content_1 = content_1.await?;
-    let content_2 = content_2.await?;
 
     if content_1 != content_2 {
         return Ok(None);
