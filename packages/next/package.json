@@ -78,7 +78,7 @@
     "next": "./dist/bin/next"
   },
   "scripts": {
-    "dev": "NEXT_SERVER_EVAL_SOURCE_MAPS=1 taskr",
+    "dev": "cross-env NEXT_SERVER_EVAL_SOURCE_MAPS=1 taskr",
     "release": "taskr release",
     "build": "pnpm release",
     "prepublishOnly": "cd ../../ && turbo run build",
@@ -330,7 +330,8 @@
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
     "ws": "8.2.3",
-    "zod": "3.22.3"
+    "zod": "3.22.3",
+    "cross-env": "6.0.3"
   },
   "keywords": [
     "react",
