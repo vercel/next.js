@@ -13,13 +13,13 @@ import {
 import type { LoaderTree } from '../lib/app-dir-module'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
-import {
-  addSearchParamsIfPageSegment,
-  createFlightRouterStateFromLoaderTree,
-} from './create-flight-router-state-from-loader-tree'
+import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import {
+  DEFAULT_SEGMENT_KEY,
+  addSearchParamsIfPageSegment,
+} from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
 
 /**

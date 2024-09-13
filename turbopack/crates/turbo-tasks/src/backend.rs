@@ -164,23 +164,27 @@ mod ser {
         {
             match self {
                 CachedTaskType::Native { fn_type, this, arg } => {
-                    let mut s = serializer.serialize_seq(Some(3))?;
+                    let mut s = serializer.serialize_tuple(5)?;
                     s.serialize_element::<u8>(&0)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
-                        arg,
+                        arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
+                    s.serialize_element(&())?;
+                    s.serialize_element(&())?;
                     s.end()
                 }
                 CachedTaskType::ResolveNative { fn_type, this, arg } => {
-                    let mut s = serializer.serialize_seq(Some(3))?;
+                    let mut s = serializer.serialize_tuple(5)?;
                     s.serialize_element::<u8>(&1)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
                         arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
+                    s.serialize_element(&())?;
+                    s.serialize_element(&())?;
                     s.end()
                 }
                 CachedTaskType::ResolveTrait {
@@ -236,6 +240,12 @@ mod ser {
                             let this = seq
                                 .next_element()?
                                 .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::Native { fn_type, this, arg })
                         }
                         1 => {
@@ -248,18 +258,24 @@ mod ser {
                             let this = seq
                                 .next_element()?
                                 .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::ResolveNative { fn_type, this, arg })
                         }
                         2 => {
                             let trait_type = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
                             let method_name = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
                             let this = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
                             let Some(method) =
                                 registry::get_trait(trait_type).methods.get(&method_name)
                             else {
@@ -267,7 +283,7 @@ mod ser {
                             };
                             let arg = seq
                                 .next_element_seed(method.arg_deserializer)?
-                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::ResolveTrait {
                                 trait_type,
                                 method_name,
@@ -279,7 +295,7 @@ mod ser {
                     }
                 }
             }
-            deserializer.deserialize_seq(Visitor)
+            deserializer.deserialize_tuple(5, Visitor)
         }
     }
 }
@@ -296,18 +312,18 @@ impl CachedTaskType {
                 fn_type: native_fn,
                 this: _,
                 arg: _,
-            }
-            | Self::ResolveNative {
+            } => Cow::Borrowed(&registry::get_function(*native_fn).name),
+            Self::ResolveNative {
                 fn_type: native_fn,
                 this: _,
                 arg: _,
-            } => Cow::Borrowed(&registry::get_function(*native_fn).name),
+            } => format!("*{}", registry::get_function(*native_fn).name).into(),
             Self::ResolveTrait {
                 trait_type: trait_id,
                 method_name: fn_name,
                 this: _,
                 arg: _,
-            } => format!("{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
+            } => format!("*{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
         }
     }
 
@@ -438,6 +454,13 @@ pub trait Backend: Sync + Send {
 
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>);
     fn invalidate_tasks_set(&self, tasks: &TaskIdSet, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
+
+    fn invalidate_serialization(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+    }
 
     fn get_task_description(&self, task: TaskId) -> String;
 
@@ -607,6 +630,14 @@ pub trait Backend: Sync + Send {
         // Do nothing by default
     }
 
+    fn mark_own_task_as_dirty_when_persisted(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        // Do nothing by default
+    }
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
@@ -732,7 +763,7 @@ pub(crate) mod tests {
                 arg: Box::new(()),
             }
             .get_name(),
-            "MockTrait::mock_method_task",
+            "*MockTrait::mock_method_task",
         );
     }
 }

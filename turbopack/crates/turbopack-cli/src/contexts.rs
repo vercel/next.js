@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt};
+use std::fmt;
 
 use anyhow::Result;
 use turbo_tasks::{RcStr, Value, Vc};
@@ -7,7 +7,7 @@ use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleCondition, ModuleRuleEffect,
+        ModuleRuleEffect, RuleCondition,
     },
     ModuleAssetContext,
 };
@@ -126,11 +126,11 @@ async fn get_client_module_options_context(
 
     let versions = *env.runtime_versions().await?;
 
-    let conditions = ModuleRuleCondition::any(vec![
-        ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-        ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-        ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-        ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+    let conditions = RuleCondition::any(vec![
+        RuleCondition::ResourcePathEndsWith(".js".to_string()),
+        RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+        RuleCondition::ResourcePathEndsWith(".ts".to_string()),
+        RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
     ]);
 
     let module_rules = ModuleRule::new(
@@ -188,7 +188,7 @@ pub fn get_client_asset_context(
     );
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
-        Vc::cell(HashMap::new()),
+        Default::default(),
         compile_time_info,
         module_options_context,
         resolve_options_context,

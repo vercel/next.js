@@ -31,11 +31,15 @@ use crate::{
     },
     capture_future::{self, CaptureFuture},
     event::{Event, EventListener},
-    id::{BackendJobId, ExecutionId, FunctionId, LocalCellId, TraitTypeId, TRANSIENT_TASK_BIT},
+    id::{
+        BackendJobId, ExecutionId, FunctionId, LocalCellId, LocalTaskId, TraitTypeId,
+        TRANSIENT_TASK_BIT,
+    },
     id_factory::{IdFactory, IdFactoryWithReuse},
     magic_any::MagicAny,
     raw_vc::{CellId, RawVc},
     registry::{self, get_function},
+    serialization_invalidation::SerializationInvalidator,
     task::shared_reference::TypedSharedReference,
     trace::TraceRawVcs,
     trait_helpers::get_trait_method,
@@ -112,6 +116,8 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate(&self, task: TaskId);
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
+    fn invalidate_serialization(&self, task: TaskId);
+
     /// Eagerly notifies all tasks that were scheduled for notifications via
     /// `schedule_notify_tasks_set()`
     fn notify_scheduled_tasks(&self);
@@ -144,6 +150,22 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
     ) -> Result<Result<TypedCellContent, EventListener>>;
 
+    fn try_read_local_output(
+        &self,
+        parent_task_id: TaskId,
+        local_task_id: LocalTaskId,
+        consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>>;
+
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    fn try_read_local_output_untracked(
+        &self,
+        parent_task_id: TaskId,
+        local_task_id: LocalTaskId,
+        consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>>;
+
     fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap;
 
     fn emit_collectible(&self, trait_type: TraitTypeId, collectible: RawVc);
@@ -161,6 +183,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent);
     fn mark_own_task_as_finished(&self, task: TaskId);
+    fn mark_own_task_as_dirty_when_persisted(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -172,6 +195,8 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         f: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>;
+
+    fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send>>;
 }
 
 /// A wrapper around a value that is unused.
@@ -1235,6 +1260,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.invalidate_task(task, self);
     }
 
+    fn invalidate_serialization(&self, task: TaskId) {
+        self.backend.invalidate_serialization(task, self);
+    }
+
     fn notify_scheduled_tasks(&self) {
         let _ = CURRENT_GLOBAL_TASK_STATE.try_with(|cell| {
             let tasks = {
@@ -1292,6 +1321,26 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     ) -> Result<TypedCellContent> {
         self.backend
             .try_read_own_task_cell_untracked(current_task, index, self)
+    }
+
+    fn try_read_local_output(
+        &self,
+        _parent_task_id: TaskId,
+        _local_task_id: LocalTaskId,
+        _consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>> {
+        todo!("bgw: local outputs");
+    }
+
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    fn try_read_local_output_untracked(
+        &self,
+        _parent_task_id: TaskId,
+        _local_task_id: LocalTaskId,
+        _consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>> {
+        todo!("bgw: local outputs");
     }
 
     fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap {
@@ -1354,6 +1403,11 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
+    fn mark_own_task_as_dirty_when_persisted(&self, task: TaskId) {
+        self.backend
+            .mark_own_task_as_dirty_when_persisted(task, self);
+    }
+
     /// Creates a future that inherits the current task id and task state. The current global task
     /// will wait for this future to be dropped before exiting.
     fn detached_for_testing(
@@ -1376,6 +1430,13 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             ),
         ))
     }
+
+    fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+        let this = self.pin();
+        Box::pin(async move {
+            this.stop_and_wait().await;
+        })
+    }
 }
 
 impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
@@ -1392,6 +1453,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             this.backend.run_backend_job(id, &*this).await;
         })
     }
+
     #[track_caller]
     fn schedule_backend_foreground_job(&self, id: BackendJobId) {
         self.schedule_foreground_job(move |this| async move {
@@ -1628,6 +1690,15 @@ pub fn current_task_for_testing() -> TaskId {
     CURRENT_GLOBAL_TASK_STATE.with(|ts| ts.read().unwrap().task_id)
 }
 
+/// Marks the current task as dirty when restored from persistent cache.
+pub fn mark_dirty_when_persisted() {
+    with_turbo_tasks(|tt| {
+        tt.mark_own_task_as_dirty_when_persisted(current_task(
+            "turbo_tasks::mark_dirty_when_persisted()",
+        ))
+    });
+}
+
 /// Marks the current task as finished. This excludes it from waiting for
 /// strongly consistency.
 pub fn mark_finished() {
@@ -1638,10 +1709,15 @@ pub fn mark_finished() {
 
 /// Marks the current task as stateful. This prevents the tasks from being
 /// dropped without persisting the state.
-pub fn mark_stateful() {
+/// Returns a [`SerializationInvalidator`] that can be used to invalidate the
+/// serialization of the current task cells
+pub fn mark_stateful() -> SerializationInvalidator {
     CURRENT_GLOBAL_TASK_STATE.with(|cell| {
-        let CurrentGlobalTaskState { stateful, .. } = &mut *cell.write().unwrap();
+        let CurrentGlobalTaskState {
+            stateful, task_id, ..
+        } = &mut *cell.write().unwrap();
         *stateful = true;
+        SerializationInvalidator::new(*task_id)
     })
 }
 
@@ -1950,6 +2026,15 @@ pub(crate) fn read_local_cell(
         // local cell ids are one-indexed (they use NonZeroU32)
         local_cells[(*local_cell_id as usize) - 1].clone()
     })
+}
+
+pub(crate) async fn read_local_output(
+    _this: &dyn TurboTasksApi,
+    _task_id: TaskId,
+    _local_output_id: LocalTaskId,
+    _consistency: ReadConsistency,
+) -> Result<RawVc> {
+    todo!("bgw: local outputs");
 }
 
 /// Panics if the [`ExecutionId`] does not match the current task's
