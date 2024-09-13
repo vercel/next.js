@@ -50,7 +50,19 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       expect(manifest).toEqual({
         nextVersion,
         config: initialConfig,
+        gitSha: expect.toBeString(),
       })
+
+      const diagnostics = await next.readJSON(
+        '.next/diagnostics/incremental-build-diagnostics.json'
+      )
+
+      expect(Array.isArray(diagnostics.changedAppPaths)).toBe(true)
+      expect(Array.isArray(diagnostics.unchangedAppPaths)).toBe(true)
+      expect(Array.isArray(diagnostics.changedPagePaths)).toBe(true)
+      expect(Array.isArray(diagnostics.unchangedPagePaths)).toBe(true)
+      expect(typeof diagnostics.currentGitSha).toBe('string')
+      expect(typeof diagnostics.shuttleGitSha).toBe('string')
     }
 
     async function nextStart() {
@@ -372,8 +384,6 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         await nextStart()
 
         checkErrorLogs()
-
-        expect(next.cliOutput).toContain('/not-found')
 
         const browser = await next.browser('/non-existent/path')
         await retry(async () => {

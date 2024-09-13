@@ -537,6 +537,7 @@ impl ReactServerComponentValidator {
                         "useTransition",
                         "useOptimistic",
                         "useActionState",
+                        "experimental_useOptimistic",
                     ],
                 ),
                 (
