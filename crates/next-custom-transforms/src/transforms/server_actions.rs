@@ -1017,7 +1017,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     if export_name == "default" {
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
                             ExportDefaultExpr {
-                                span,
+                                span: DUMMY_SP,
                                 expr: Box::new(Expr::Call(CallExpr {
                                     span,
                                     callee: Callee::Expr(Box::new(Expr::Ident(
