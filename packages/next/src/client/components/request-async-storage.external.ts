@@ -8,6 +8,7 @@ import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/ada
 import { requestAsyncStorage } from './request-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AfterContext } from '../../server/after/after-context'
+import type { ServerComponentsHmrCache } from '../../server/response-cache'
 
 export interface RequestStore {
   /**
@@ -36,6 +37,8 @@ export interface RequestStore {
   >
   readonly assetPrefix: string
   readonly afterContext: AfterContext | undefined
+  readonly isHmrRefresh?: boolean
+  readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 }
 
 export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>

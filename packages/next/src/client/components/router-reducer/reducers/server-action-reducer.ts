@@ -1,12 +1,11 @@
 import type {
   ActionFlightResponse,
   ActionResult,
-  FlightData,
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
 import {
-  ACTION,
-  NEXT_ROUTER_STATE_TREE,
+  ACTION_HEADER,
+  NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
@@ -40,11 +39,15 @@ import { createEmptyCacheNode } from '../../app-router'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
+import {
+  normalizeFlightData,
+  type NormalizedFlightData,
+} from '../../../flight-data-helpers'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
   actionResult?: ActionResult
-  actionFlightData?: FlightData | undefined | null
+  actionFlightData?: NormalizedFlightData[] | string
   revalidatedParts: {
     tag: boolean
     cookie: boolean
@@ -63,8 +66,10 @@ async function fetchServerAction(
     method: 'POST',
     headers: {
       Accept: RSC_CONTENT_TYPE_HEADER,
-      [ACTION]: actionId,
-      [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(JSON.stringify(state.tree)),
+      [ACTION_HEADER]: actionId,
+      [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
+        JSON.stringify(state.tree)
+      ),
       ...(process.env.NEXT_DEPLOYMENT_ID
         ? {
             'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
@@ -118,19 +123,16 @@ async function fetchServerAction(
 
     if (location) {
       // if it was a redirection, then result is just a regular RSC payload
-      const [, actionFlightData] = (response as any) ?? []
       return {
-        actionFlightData: actionFlightData,
+        actionFlightData: normalizeFlightData(response.f),
         redirectLocation,
         revalidatedParts,
       }
     }
 
-    // otherwise it's a tuple of [actionResult, actionFlightData]
-    const [actionResult, [, actionFlightData]] = (response as any) ?? []
     return {
-      actionResult,
-      actionFlightData,
+      actionResult: response.a,
+      actionFlightData: normalizeFlightData(response.f),
       redirectLocation,
       revalidatedParts,
     }
@@ -222,16 +224,21 @@ export function serverActionReducer(
         mutable.canonicalUrl = newHref
       }
 
-      for (const flightDataPath of flightData) {
-        // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 4) {
+      for (const normalizedFlightData of flightData) {
+        const {
+          tree: treePatch,
+          seedData: cacheNodeSeedData,
+          head,
+          isRootRender,
+        } = normalizedFlightData
+
+        if (!isRootRender) {
           // TODO-APP: handle this case better
           console.log('SERVER ACTION APPLY FAILED')
           return state
         }
 
         // Given the path can only have two items the items are only the router state and rsc for the root.
-        const [treePatch] = flightDataPath
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
@@ -255,12 +262,9 @@ export function serverActionReducer(
           )
         }
 
-        // The one before last item is the router state tree patch
-        const [cacheNodeSeedData, head, layerAssets] = flightDataPath.slice(-3)
-        const rsc = cacheNodeSeedData !== null ? cacheNodeSeedData[2] : null
-
         // Handles case where prefetch only returns the router tree patch without rendered components.
-        if (rsc !== null) {
+        if (cacheNodeSeedData !== null) {
+          const rsc = cacheNodeSeedData[1]
           const cache: CacheNode = createEmptyCacheNode()
           cache.rsc = rsc
           cache.prefetchRsc = null
@@ -271,8 +275,7 @@ export function serverActionReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head,
-            layerAssets
+            head
           )
 
           await refreshInactiveParallelSegments({

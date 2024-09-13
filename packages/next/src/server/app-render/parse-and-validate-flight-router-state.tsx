@@ -3,6 +3,15 @@ import { flightRouterStateSchema } from './types'
 import { assert } from 'next/dist/compiled/superstruct'
 
 export function parseAndValidateFlightRouterState(
+  stateHeader: string | string[]
+): FlightRouterState
+export function parseAndValidateFlightRouterState(
+  stateHeader: undefined
+): undefined
+export function parseAndValidateFlightRouterState(
+  stateHeader: string | string[] | undefined
+): FlightRouterState | undefined
+export function parseAndValidateFlightRouterState(
   stateHeader: string | string[] | undefined
 ): FlightRouterState | undefined {
   if (typeof stateHeader === 'undefined') {

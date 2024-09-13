@@ -1,0 +1,6 @@
+0 -> 1 free var = FreeVar(require)
+
+0 -> 2 conditional = true
+
+2 -> 3 call = require*0*("test")
+- *0* require: The require method from CommonJS

@@ -44,11 +44,16 @@ export const IMAGES_MANIFEST = 'images-manifest.json'
 export const SERVER_FILES_MANIFEST = 'required-server-files.json'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
-export const DEV_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
+export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
+  '_clientMiddlewareManifest.json'
+export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
-export const AUTOMATIC_FONT_OPTIMIZATION_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
-export const CONFIG_FILES = ['next.config.js', 'next.config.mjs']
+export const CONFIG_FILES = [
+  'next.config.js',
+  'next.config.mjs',
+  'next.config.ts',
+]
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'
@@ -90,11 +95,6 @@ export const DEFAULT_RUNTIME_WEBPACK = 'webpack-runtime'
 export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
-export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/'
-export const OPTIMIZED_FONT_PROVIDERS = [
-  { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },
-  { url: 'https://use.typekit.net', preconnect: 'https://use.typekit.net' },
-]
 export const DEFAULT_SERIF_FONT = {
   name: 'Times New Roman',
   xAvgCharWidth: 821,
