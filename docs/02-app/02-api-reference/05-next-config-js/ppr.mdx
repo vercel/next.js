@@ -75,6 +75,12 @@ export default function Page() {
 }
 ```
 
+> **Good to know**:
+>
+> - Routes that don't have `experimental_ppr` will default to `false` and will not be prerendered using PPR. You need to explicitly opt-in to PPR for each route.
+> - `experimental_ppr` will apply to all children of the route segment, including nested layouts and pages. You don't have to add it to every file, only the top segment of a route.
+> - To disable PPR for children segments, you can set `experimental_ppr` to `false` in the child segment.
+
 ### Enabling PPR (Version 14)
 
 For version 14, you can enable it by adding the [`ppr`](/docs/app/api-reference/next-config-js/ppr) option to your `next.config.js` file. You must also be on version 14 canary to enable PPR. This will apply to all routes in your application:
@@ -101,12 +107,6 @@ const nextConfig = {
 
 module.exports = nextConfig
 ```
-
-> **Good to know**:
->
-> - Routes that don't have `experimental_ppr` will default to `false` and will not be prerendered using PPR. You need to explicitly opt-in to PPR for each route.
-> - `experimental_ppr` will apply to all children of the route segment, including nested layouts and pages. You don't have to add it to every file, only the top segment of a route.
-> - To disable PPR for children segments, you can set `experimental_ppr` to `false` in the child segment.
 
 | Version   | Changes                                     |
 | --------- | ------------------------------------------- |
