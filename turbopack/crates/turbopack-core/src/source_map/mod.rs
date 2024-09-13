@@ -1,7 +1,6 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use async_recursion::async_recursion;
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
@@ -457,7 +456,6 @@ impl SourceMap {
                 Some(new_source_contents),
             ))
         }
-        #[async_recursion]
         async fn decoded_map_with_resolved_sources(
             map: &CrateMapWrapper,
             origin: Vc<FileSystemPath>,
@@ -483,7 +481,7 @@ impl SourceMap {
                         .map(|(offset, map)| async move {
                             Ok((
                                 offset,
-                                decoded_map_with_resolved_sources(map, origin).await?,
+                                Box::pin(decoded_map_with_resolved_sources(map, origin)).await?,
                             ))
                         })
                         .try_join()
@@ -506,7 +504,7 @@ impl SourceMap {
         }
         Ok(match &*self.await? {
             Self::Decoded(m) => {
-                let map = decoded_map_with_resolved_sources(&m.map, origin).await?;
+                let map = Box::pin(decoded_map_with_resolved_sources(&m.map, origin)).await?;
                 Self::Decoded(InnerSourceMap::new(map.0))
             }
             Self::Sectioned(m) => {
@@ -676,9 +674,8 @@ impl SourceMapSection {
         Self { offset, map }
     }
 
-    #[async_recursion]
     pub async fn to_crate_wrapper(&self) -> Result<CrateSectionWrapper> {
-        let map = (*self.map.await?).to_source_map().await?;
+        let map = Box::pin((*self.map.await?).to_source_map()).await?;
         Ok(CrateSectionWrapper {
             offset: self.offset,
             map,

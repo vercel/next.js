@@ -32,7 +32,7 @@ use crate::{
     cell::{Cell, ReadContentError},
     edges_set::{TaskEdge, TaskEdgesList, TaskEdgesSet},
     gc::{GcQueue, GcTaskState},
-    output::{Output, OutputContent},
+    output::Output,
     task::aggregation::{TaskAggregationContext, TaskChange},
     MemoryBackend,
 };
@@ -598,39 +598,7 @@ impl Task {
         match ty {
             TaskTypeForDescription::Root => format!("[{}] root", id),
             TaskTypeForDescription::Once => format!("[{}] once", id),
-            TaskTypeForDescription::Persistent(ty) => match &***ty {
-                CachedTaskType::Native {
-                    fn_type: native_fn,
-                    this: _,
-                    arg: _,
-                } => {
-                    format!("[{}] {}", id, registry::get_function(*native_fn).name)
-                }
-                CachedTaskType::ResolveNative {
-                    fn_type: native_fn,
-                    this: _,
-                    arg: _,
-                } => {
-                    format!(
-                        "[{}] [resolve] {}",
-                        id,
-                        registry::get_function(*native_fn).name
-                    )
-                }
-                CachedTaskType::ResolveTrait {
-                    trait_type,
-                    method_name: fn_name,
-                    this: _,
-                    arg: _,
-                } => {
-                    format!(
-                        "[{}] [resolve trait] {} in trait {}",
-                        id,
-                        fn_name,
-                        registry::get_trait(*trait_type).name
-                    )
-                }
-            },
+            TaskTypeForDescription::Persistent(ty) => format!("[{id}] {ty}"),
         }
     }
 
@@ -776,11 +744,11 @@ impl Task {
             ),
             TaskType::Persistent { ty, .. } | TaskType::Transient { ty, .. } => match &***ty {
                 CachedTaskType::Native {
-                    fn_type: native_fn,
+                    fn_type: native_fn_id,
                     this,
                     arg,
                 } => {
-                    let func = registry::get_function(*native_fn);
+                    let func = registry::get_function(*native_fn_id);
                     let span = func.span();
                     let entered = span.enter();
                     let future = func.execute(*this, &**arg);
@@ -788,21 +756,19 @@ impl Task {
                     (future, span)
                 }
                 CachedTaskType::ResolveNative {
-                    fn_type: ref native_fn_id,
+                    fn_type: native_fn_id,
                     this,
                     arg,
                 } => {
-                    let native_fn_id = *native_fn_id;
-                    let func = registry::get_function(native_fn_id);
+                    let func = registry::get_function(*native_fn_id);
                     let span = func.resolve_span();
                     let entered = span.enter();
-                    let turbo_tasks = turbo_tasks.pin();
                     let future = Box::pin(CachedTaskType::run_resolve_native(
-                        native_fn_id,
+                        *native_fn_id,
                         *this,
                         &**arg,
                         self.id.persistence(),
-                        turbo_tasks,
+                        turbo_tasks.pin(),
                     ));
                     drop(entered);
                     (future, span)
@@ -813,19 +779,16 @@ impl Task {
                     this,
                     arg,
                 } => {
-                    let trait_type_id = *trait_type_id;
-                    let trait_type = registry::get_trait(trait_type_id);
+                    let trait_type = registry::get_trait(*trait_type_id);
                     let span = trait_type.resolve_span(name);
                     let entered = span.enter();
-                    let name = name.clone();
-                    let turbo_tasks = turbo_tasks.pin();
                     let future = Box::pin(CachedTaskType::run_resolve_trait(
-                        trait_type_id,
-                        name,
+                        *trait_type_id,
+                        name.clone(),
                         *this,
                         &**arg,
                         self.id.persistence(),
-                        turbo_tasks,
+                        turbo_tasks.pin(),
                     ));
                     drop(entered);
                     (future, span)
@@ -908,7 +871,7 @@ impl Task {
                 Ok(Ok(result)) => {
                     if state.output != result {
                         if cfg!(feature = "print_task_invalidation")
-                            && !matches!(state.output.content, OutputContent::Empty)
+                            && state.output.content.is_some()
                         {
                             println!(
                                 "Task {{ id: {}, name: {} }} invalidates:",

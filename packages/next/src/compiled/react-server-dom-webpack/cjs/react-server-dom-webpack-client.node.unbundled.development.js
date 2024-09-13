@@ -22,6 +22,38 @@
         : (obj[key] = value);
       return obj;
     }
+    function bindToConsole(methodName, args, badgeName) {
+      var offset = 0;
+      switch (methodName) {
+        case "dir":
+        case "dirxml":
+        case "groupEnd":
+        case "table":
+          return bind$1.apply(console[methodName], [console].concat(args));
+        case "assert":
+          offset = 1;
+      }
+      args = args.slice(0);
+      "string" === typeof args[offset]
+        ? args.splice(
+            offset,
+            1,
+            "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + args[offset],
+            "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+            " " + badgeName + " ",
+            ""
+          )
+        : args.splice(
+            offset,
+            0,
+            "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
+            "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+            " " + badgeName + " ",
+            ""
+          );
+      args.unshift(console);
+      return bind$1.apply(console[methodName], args);
+    }
     function resolveClientReference(bundlerConfig, metadata) {
       var moduleExports = bundlerConfig[metadata[0]];
       if ((bundlerConfig = moduleExports[metadata[2]]))
@@ -1335,11 +1367,8 @@
       }
       switch (id.status) {
         case "fulfilled":
-          for (var value = id.value, i = 1; i < reference.length; i++)
-            if (
-              ((value = value[reference[i]]),
-              value.$$typeof === REACT_LAZY_TYPE)
-            )
+          for (var value = id.value, i = 1; i < reference.length; i++) {
+            for (; value.$$typeof === REACT_LAZY_TYPE; )
               if (((value = value._payload), "fulfilled" === value.status))
                 value = value.value;
               else
@@ -1349,8 +1378,10 @@
                   key,
                   response,
                   map,
-                  reference.slice(i)
+                  reference.slice(i - 1)
                 );
+            value = value[reference[i]];
+          }
           response = map(response, value);
           id._debugInfo &&
             ("object" !== typeof response ||
@@ -1856,6 +1887,34 @@
       }
       return fn;
     }
+    function buildFakeCallStack(response, stack, environmentName, innerCall) {
+      for (var i = 0; i < stack.length; i++) {
+        var frame = stack[i],
+          frameKey = frame.join("-") + "-" + environmentName,
+          fn = fakeFunctionCache.get(frameKey);
+        if (void 0 === fn) {
+          fn = frame[0];
+          var filename = frame[1],
+            line = frame[2];
+          frame = frame[3];
+          var findSourceMapURL = response._debugFindSourceMapURL;
+          findSourceMapURL = findSourceMapURL
+            ? findSourceMapURL(filename, environmentName)
+            : null;
+          fn = createFakeFunction(
+            fn,
+            filename,
+            findSourceMapURL,
+            line,
+            frame,
+            environmentName
+          );
+          fakeFunctionCache.set(frameKey, fn);
+        }
+        innerCall = fn.bind(null, innerCall);
+      }
+      return innerCall;
+    }
     function fakeJSXCallSite() {
       return Error("react-stack-top-frame");
     }
@@ -1984,10 +2043,10 @@
               break;
             case "L":
               id = response[0];
-              var as = response[1];
+              tag = response[1];
               3 === response.length
-                ? row.L(id, as, response[2])
-                : row.L(id, as);
+                ? row.L(id, tag, response[2])
+                : row.L(id, tag);
               break;
             case "m":
               "string" === typeof response
@@ -2015,18 +2074,18 @@
           }
           break;
         case 69:
-          tag = JSON.parse(row);
-          as = tag.digest;
-          var env = tag.env;
+          var errorInfo = JSON.parse(row);
+          tag = errorInfo.digest;
+          var env = errorInfo.env;
           row = Error(
-            tag.message ||
+            errorInfo.message ||
               "An error occurred in the Server Components render but no message was provided"
           );
-          tag = tag.stack;
+          errorInfo = errorInfo.stack;
           var v8StyleStack = row.name + ": " + row.message;
-          if (tag)
-            for (var i = 0; i < tag.length; i++) {
-              var frame = tag[i],
+          if (errorInfo)
+            for (var i = 0; i < errorInfo.length; i++) {
+              var frame = errorInfo[i],
                 name = frame[0],
                 filename = frame[1],
                 line = frame[2];
@@ -2046,18 +2105,18 @@
                   ("\n    at " + filename + ":" + line + ":" + frame);
             }
           row.stack = v8StyleStack;
-          row.digest = as;
+          row.digest = tag;
           row.environmentName = env;
-          as = response._chunks;
-          (env = as.get(id))
+          tag = response._chunks;
+          (env = tag.get(id))
             ? triggerErrorOnChunk(env, row)
-            : as.set(id, new ReactPromise("rejected", null, row, response));
+            : tag.set(id, new ReactPromise("rejected", null, row, response));
           break;
         case 84:
-          as = response._chunks;
-          (env = as.get(id)) && "pending" !== env.status
+          tag = response._chunks;
+          (env = tag.get(id)) && "pending" !== env.status
             ? env.reason.enqueueValue(row)
-            : as.set(id, new ReactPromise("fulfilled", row, null, response));
+            : tag.set(id, new ReactPromise("fulfilled", row, null, response));
           break;
         case 68:
           row = JSON.parse(row, response._fromJSON);
@@ -2066,52 +2125,12 @@
           (response._debugInfo || (response._debugInfo = [])).push(row);
           break;
         case 87:
-          if (response._replayConsole) {
-            row = JSON.parse(row, response._fromJSON);
-            response = row[0];
-            id = row[3];
-            row = row.slice(4);
-            tag = ReactSharedInternals.getCurrentStack;
-            ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
-            try {
-              b: {
-                v8StyleStack = 0;
-                switch (response) {
-                  case "dir":
-                  case "dirxml":
-                  case "groupEnd":
-                  case "table":
-                    as = bind$1.apply(console[response], [console].concat(row));
-                    break b;
-                  case "assert":
-                    v8StyleStack = 1;
-                }
-                env = row.slice(0);
-                "string" === typeof env[v8StyleStack]
-                  ? env.splice(
-                      v8StyleStack,
-                      1,
-                      "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + env[v8StyleStack],
-                      "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                      " " + id + " ",
-                      ""
-                    )
-                  : env.splice(
-                      v8StyleStack,
-                      0,
-                      "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
-                      "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                      " " + id + " ",
-                      ""
-                    );
-                env.unshift(console);
-                as = bind$1.apply(console[response], env);
-              }
-              as();
-            } finally {
-              ReactSharedInternals.getCurrentStack = tag;
-            }
-          }
+          response._replayConsole &&
+            ((row = JSON.parse(row, response._fromJSON)),
+            (response = row[0]),
+            (id = row[3]),
+            (row = row.slice(4)),
+            bindToConsole(response, row, id)());
           break;
         case 82:
           startReadableStream(response, id, void 0);
@@ -2131,10 +2150,10 @@
             response.reason.close("" === row ? '"$undefined"' : row);
           break;
         default:
-          (as = response._chunks),
-            (env = as.get(id))
+          (tag = response._chunks),
+            (env = tag.get(id))
               ? resolveModelChunk(env, row)
-              : as.set(
+              : tag.set(
                   id,
                   new ReactPromise("resolved_model", row, null, response)
                 );
@@ -2284,37 +2303,57 @@
           stack,
           environmentName
         ) {
-          for (var callStack = fakeJSXCallSite, i = 0; i < stack.length; i++) {
-            var frame = stack[i],
-              frameKey = frame.join("-") + "-" + environmentName,
-              fn = fakeFunctionCache.get(frameKey);
-            if (void 0 === fn) {
-              fn = frame[0];
-              var filename = frame[1],
-                line = frame[2];
-              frame = frame[3];
-              var findSourceMapURL = response._debugFindSourceMapURL;
-              findSourceMapURL = findSourceMapURL
-                ? findSourceMapURL(filename, environmentName)
-                : null;
-              fn = createFakeFunction(
-                fn,
-                filename,
-                findSourceMapURL,
-                line,
-                frame,
-                environmentName
-              );
-              fakeFunctionCache.set(frameKey, fn);
-            }
-            callStack = fn.bind(null, callStack);
-          }
-          return callStack();
+          return buildFakeCallStack(
+            response,
+            stack,
+            environmentName,
+            fakeJSXCallSite
+          )();
         }
       },
       createFakeJSXCallStackInDEV = createFakeJSXCallStack[
         "react-stack-bottom-frame"
-      ].bind(createFakeJSXCallStack);
+      ].bind(createFakeJSXCallStack),
+      replayConsoleWithCallStack = {
+        "react-stack-bottom-frame": function (
+          response,
+          methodName,
+          stackTrace,
+          owner,
+          env,
+          args
+        ) {
+          var prevStack = ReactSharedInternals.getCurrentStack;
+          ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
+          try {
+            var callStack = buildFakeCallStack(
+              response,
+              stackTrace,
+              env,
+              bindToConsole(methodName, args, env)
+            );
+            null != owner && initializeFakeStack(response, owner);
+            var rootTask = response._debugRootTask;
+            if (rootTask)
+              if (response._rootEnvironmentName !== env) {
+                var createTaskFn = console.createTask.bind(
+                  console,
+                  '"use ' + env.toLowerCase() + '"'
+                );
+                var rootTask$jscomp$0 = rootTask.run(createTaskFn);
+              } else rootTask$jscomp$0 = rootTask;
+            else rootTask$jscomp$0 = null;
+            null != rootTask$jscomp$0
+              ? rootTask$jscomp$0.run(callStack)
+              : callStack();
+          } finally {
+            ReactSharedInternals.getCurrentStack = prevStack;
+          }
+        }
+      };
+    replayConsoleWithCallStack["react-stack-bottom-frame"].bind(
+      replayConsoleWithCallStack
+    );
     exports.createFromNodeStream = function (stream, ssrManifest, options) {
       var response = new ResponseInstance(
         ssrManifest.moduleMap,

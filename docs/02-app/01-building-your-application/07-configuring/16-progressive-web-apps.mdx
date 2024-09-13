@@ -297,7 +297,7 @@ function PushNotificationManager() {
 }
 ```
 
-Finally, let’s create a component to show a message for iOS devices to instruct them to install to their home screen, and only show this if the app is already installed.
+Finally, let’s create a component to show a message for iOS devices to instruct them to install to their home screen, and only show this if the app is not already installed.
 
 ```tsx switcher
 function InstallPrompt() {
@@ -502,7 +502,7 @@ export async function sendNotification(message) {
 }
 ```
 
-Sending a notification will be handled be our service worker, created in step 5.
+Sending a notification will be handled by our service worker, created in step 5.
 
 In a production environment, you would want to store the subscription in a database for persistence across server restarts and to manage multiple users' subscriptions.
 

@@ -502,6 +502,11 @@ export const metadata = {
         height: 600,
       },
     ],
+    audio: [
+      {
+        url: 'https://nextjs.org/audio.mp3', // Must be an absolute URL
+      },
+    ],
     locale: 'en_US',
     type: 'website',
   },
@@ -514,13 +519,17 @@ export const metadata = {
 <meta property="og:url" content="https://nextjs.org/" />
 <meta property="og:site_name" content="Next.js" />
 <meta property="og:locale" content="en_US" />
-<meta property="og:image:url" content="https://nextjs.org/og.png" />
+<meta property="og:image" content="https://nextjs.org/og.png" />
 <meta property="og:image:width" content="800" />
 <meta property="og:image:height" content="600" />
-<meta property="og:image:url" content="https://nextjs.org/og-alt.png" />
+<meta property="og:image" content="https://nextjs.org/og-alt.png" />
 <meta property="og:image:width" content="1800" />
 <meta property="og:image:height" content="1600" />
 <meta property="og:image:alt" content="My custom alt" />
+<meta property="og:video" content="https://nextjs.org/video.mp4" />
+<meta property="og:video:width" content="800" />
+<meta property="og:video:height" content="600" />
+<meta property="og:audio" content="https://nextjs.org/audio.mp3" />
 <meta property="og:type" content="website" />
 ```
 
