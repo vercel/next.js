@@ -1,3 +1,6 @@
+// DO NOT MANUALLY EDIT THESE TYPES
+// You can regenerate this file by running `pnpm swc-build-wasm` in the root of the repo.
+
 /* tslint:disable */
 /* eslint-disable */
 /**
