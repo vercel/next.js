@@ -53,7 +53,7 @@ export default async function Page() {
 
 ### Using the Authorization header
 
-````jsx filename="app/page.js"
+```jsx filename="app/page.js"
 import { headers } from 'next/headers'
 
 export default async function Page() {
@@ -65,40 +65,7 @@ export default async function Page() {
 
   return <h1>{user.name}</h1>
 }
-#### IP Address
-
-`headers()` can be used to get the IP address of the client.
-
-```jsx filename="app/page.js"
-import { Suspense } from 'react'
-import { headers } from 'next/headers'
-
-function IP() {
-  const FALLBACK_IP_ADDRESS = '0.0.0.0'
-  const forwardedFor = headers().get('x-forwarded-for')
-
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0] ?? FALLBACK_IP_ADDRESS
-  }
-
-  return headers().get('x-real-ip') ?? FALLBACK_IP_ADDRESS
-}
-
-export default function Page() {
-  return (
-    <Suspense fallback={null}>
-      <IP />
-    </Suspense>
-  )
-}
-````
-
-In addition to `x-forwarded-for`, `headers()` can also read:
-
-- `x-real-ip`
-- `x-forwarded-host`
-- `x-forwarded-port`
-- `x-forwarded-proto`
+```
 
 ## Version History
 
