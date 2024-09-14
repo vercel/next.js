@@ -15687,7 +15687,7 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test-start test/production/app-dir/actions-tree-shaking/client-actions-tree-shaking/client-actions-tree-shaking.test.ts": {
+    "test/production/app-dir/actions-tree-shaking/client-actions-tree-shaking/client-actions-tree-shaking.test.ts": {
       "passed": [],
       "failed": [
         "app-dir - client-actions-tree-shaking should not bundle unused server reference id in client bundles"
