@@ -1682,7 +1682,7 @@ export default async function getBaseWebpackConfig(
           sideEffects: false,
         },
         {
-          test: /[\\/]next[\\/]dist[\\/]build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
+          test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
           sideEffects: false,
         },
         {
