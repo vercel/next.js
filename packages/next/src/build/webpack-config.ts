@@ -1060,11 +1060,11 @@ export default async function getBaseWebpackConfig(
         ? { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK }
         : undefined,
 
-      minimize:
-        !dev &&
-        (isClient ||
-          isEdgeServer ||
-          (isNodeServer && config.experimental.serverMinification)),
+      minimize: false,
+      // !dev &&
+      // (isClient ||
+      //   isEdgeServer ||
+      //   (isNodeServer && config.experimental.serverMinification)),
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
@@ -1182,6 +1182,7 @@ export default async function getBaseWebpackConfig(
         'next-flight-client-entry-loader',
         'next-flight-action-entry-loader',
         'next-flight-client-module-loader',
+        'next-flight-server-reference-proxy-loader',
         'empty-loader',
         'next-middleware-loader',
         'next-edge-function-loader',
@@ -1678,6 +1679,10 @@ export default async function getBaseWebpackConfig(
           // Mark `image-response.js` as side-effects free to make sure we can
           // tree-shake it if not used.
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js/,
+          sideEffects: false,
+        },
+        {
+          test: /[\\/]next[\\/]dist[\\/]build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
           sideEffects: false,
         },
         {
