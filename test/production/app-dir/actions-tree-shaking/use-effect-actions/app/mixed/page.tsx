@@ -12,11 +12,9 @@ export default function Page() {
 
   // calling action1 fails!!
   useEffect(() => {
-    if (globalThis.DO_NOT_TREE_SHAKE) {
-      action1().then((obj) => {
-        console.log('action1 returned:', obj)
-      })
-    }
+    action1().then((obj) => {
+      console.log('action1 returned:', obj)
+    })
   }, [])
 
   return <MyComponent />

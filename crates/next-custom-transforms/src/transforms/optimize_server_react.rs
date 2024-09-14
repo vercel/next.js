@@ -61,8 +61,12 @@ fn effect_has_side_effect_deps(call: &CallExpr) -> bool {
 }
 
 fn wrap_expr_with_env_prod_condition(call: CallExpr) -> Expr {
-    // Wrap the `<call>` with `if (process.env.NODE_ENV !== 'production') { <call }`
-    let condition = Expr::Bin(BinExpr {
+    // Wrap the call expression with the condition
+    // turn it into `process.env.__NEXT_OPTIMIZE_DEC_FALSE` && <call>.
+    // And `process.env.__NEXT_OPTIMIZE_DEC_FALSE`` will be treated as `false` in minification.
+    // In this way the expression and dependencies are still available in compilation during
+    // bundling, but will be removed in the final DEC.
+    return Expr::Bin(BinExpr {
         span: DUMMY_SP,
         left: Box::new(Expr::Member(MemberExpr {
             obj: (Box::new(Expr::Member(MemberExpr {
@@ -79,26 +83,14 @@ fn wrap_expr_with_env_prod_condition(call: CallExpr) -> Expr {
                 span: DUMMY_SP,
             }))),
             prop: (MemberProp::Ident(IdentName {
-                sym: "NODE_ENV".into(),
+                sym: "__NEXT_OPTIMIZE_DEC_FALSE".into(),
                 span: DUMMY_SP,
                 ..Default::default()
             })),
             span: DUMMY_SP,
         })),
-        op: op!("!=="),
-        right: Box::new(Expr::Lit(Lit::Str(Str {
-            span: DUMMY_SP,
-            value: "production".into(),
-            raw: None,
-        }))),
-    });
-
-    // Wrap the call expression with the condition
-    return Expr::Cond(CondExpr {
-        span: DUMMY_SP,
-        test: Box::new(condition),
-        cons: Box::new(Expr::Call(call.clone())),
-        alt: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
+        op: op!("&&"),
+        right: Box::new(Expr::Call(call)),
     });
 }
 

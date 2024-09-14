@@ -110,6 +110,13 @@ impl Task for MinifyTask {
 fn patch_opts(opts: &mut JsMinifyOptions) {
     opts.compress = BoolOrDataConfig::from_obj(TerserCompressorOptions {
         inline: Some(TerserInlineOption::Num(2)),
+        global_defs: [(
+            "process.env.__NEXT_OPTIMIZE_DEC_FALSE".into(),
+            "production".into(),
+        )]
+        .iter()
+        .cloned()
+        .collect(),
         ..Default::default()
     });
     opts.mangle = BoolOrDataConfig::from_obj(MangleOptions {
