@@ -1681,6 +1681,13 @@ export default async function getBaseWebpackConfig(
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js/,
           sideEffects: false,
         },
+        // Mark the action-client-wrapper module as side-effects free to make sure
+        // the individual transformed module of client action can be tree-shaken.
+        // This will make modules processed by `next-flight-server-reference-proxy-loader` become side-effects free,
+        // then on client side the module ids will become tree-shakable.
+        // e.g. the output of client action module will look like:
+        // `export { a } from 'next-flight-server-reference-proxy-loader?id=idOfA&name=a!
+        // `export { b } from 'next-flight-server-reference-proxy-loader?id=idOfB&name=b!
         {
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?build[\\/]webpack[\\/]loaders[\\/]next-flight-loader[\\/]action-client-wrapper\.js/,
           sideEffects: false,
