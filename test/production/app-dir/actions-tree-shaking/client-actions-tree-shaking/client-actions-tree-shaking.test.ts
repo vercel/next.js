@@ -1,9 +1,7 @@
-import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
 import { promises as fs } from 'fs'
 import { join } from 'path'
-
-const appDir = __dirname
+import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 function getServerReferenceIdsFromBundle(source: string): string[] {
   // Reference IDs are strings with [0-9a-f] that are at least 32 characters long.
@@ -12,8 +10,8 @@ function getServerReferenceIdsFromBundle(source: string): string[] {
   return [...referenceIds].map(([, id]) => id)
 }
 
-describe('app-dir tree-shaking', () => {
-  const { next, isNextStart } = nextTestSetup({
+describe('app-dir - client-actions-tree-shaking', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -32,8 +30,7 @@ describe('app-dir tree-shaking', () => {
   })
 
   it('should not bundle unused server reference id in client bundles', async () => {
-    if (!isNextStart) return
-
+    const appDir = next.testDir
     const route1Files = await fs.readdir(
       join(appDir, '.next/static/chunks/app/route-1')
     )
@@ -69,26 +66,20 @@ describe('app-dir tree-shaking', () => {
   it('should trigger actions correctly', async () => {
     const browser = await next.browser('/route-1')
     await browser.elementById('submit').click()
-    expect(
-      await check(
-        () =>
-          logs.some((log) => log.includes('This is action foo'))
-            ? 'success'
-            : '',
-        'success'
+
+    await retry(() => {
+      expect(logs).toEqual(
+        expect.arrayContaining([expect.stringContaining('This is action foo')])
       )
-    ).toBeTrue()
+    })
 
     const browser2 = await next.browser('/route-2')
     await browser2.elementById('submit').click()
-    expect(
-      await check(
-        () =>
-          logs.some((log) => log.includes('This is action bar'))
-            ? 'success'
-            : '',
-        'success'
+
+    await retry(() => {
+      expect(logs).toEqual(
+        expect.arrayContaining([expect.stringContaining('This is action bar')])
       )
-    ).toBeTrue()
+    })
   })
 })
