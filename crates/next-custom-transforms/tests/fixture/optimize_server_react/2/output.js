@@ -16,8 +16,26 @@ export default function FilterItemDropdown({ list }) {
         ()=>null
     ];
     const ref = useRef(null);
-    null;
-    null;
+    process.env.NODE_ENV !== "production" ? useEffect(()=>{
+        const handleClickOutside = (event)=>{
+            if (ref.current && !ref.current.contains(event.target)) {
+                setOpenSelect(false);
+            }
+        };
+        window.addEventListener('click', handleClickOutside);
+        return ()=>window.removeEventListener('click', handleClickOutside);
+    }, []) : null;
+    process.env.NODE_ENV !== "production" ? useEffect(()=>{
+        list.forEach((listItem)=>{
+            if ('path' in listItem && pathname === listItem.path || 'slug' in listItem && searchParams.get('sort') === listItem.slug) {
+                setActive(listItem.title);
+            }
+        });
+    }, [
+        pathname,
+        list,
+        searchParams
+    ]) : null;
     return <div className="relative" ref={ref}>
       <div onClick={()=>{
         setOpenSelect(!openSelect);

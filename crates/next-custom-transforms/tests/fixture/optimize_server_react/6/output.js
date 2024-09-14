@@ -5,7 +5,7 @@ const Component = ({ children, fallback })=>{
         false,
         ()=>null
     ];
-    null;
+    process.env.NODE_ENV !== "production" ? useEffect(()=>setMounted(true), []) : null;
     if (!mounted) {
         return fallback ?? /* @__PURE__ */ jsx(Fragment, {});
     }
