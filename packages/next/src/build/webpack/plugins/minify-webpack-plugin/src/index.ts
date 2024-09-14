@@ -111,7 +111,7 @@ export class MinifyPlugin {
                   : {}),
                 compress: {
                   global_defs: {
-                    'process.env.__NEXT_OPTIMIZE_DEC_FALSE': false,
+                    'process.env.__NEXT_OPTIMIZE_FALSE': false,
                   },
                 },
                 mangle: true,

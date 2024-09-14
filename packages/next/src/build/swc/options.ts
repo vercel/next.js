@@ -400,7 +400,7 @@ export function getLoaderSWCOptions({
     },
   }
 
-  if (optimizeServerReact && isServer /* && !development*/) {
+  if (optimizeServerReact && isServer && !development) {
     baseOptions.optimizeServerReact = {
       optimize_use_state: false,
     }

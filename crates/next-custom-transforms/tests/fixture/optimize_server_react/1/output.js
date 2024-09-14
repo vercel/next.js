@@ -1,17 +1,17 @@
 import { useEffect, useLayoutEffect, useMemo } from 'react';
 import React from 'react';
 export default function App() {
-    process.env.NODE_ENV !== "production" ? useEffect(()=>{
+    process.env.__NEXT_OPTIMIZE_FALSE && useEffect(()=>{
         console.log('Hello World');
-    }, []) : null;
-    process.env.NODE_ENV !== "production" ? useLayoutEffect(()=>{
+    }, []);
+    process.env.__NEXT_OPTIMIZE_FALSE && useLayoutEffect(()=>{
         function foo() {}
         return ()=>{};
     }, [
         1,
         2,
         App
-    ]) : null;
+    ]);
     useLayoutEffect(()=>{}, [
         runSideEffect()
     ]);
@@ -24,9 +24,9 @@ export default function App() {
     const a = useMemo(()=>{
         return 1;
     }, []);
-    process.env.NODE_ENV !== "production" ? React.useEffect(()=>{
+    process.env.__NEXT_OPTIMIZE_FALSE && React.useEffect(()=>{
         console.log('Hello World');
-    }) : null;
+    });
     return <div>
       <h1>Hello World</h1>
     </div>;
