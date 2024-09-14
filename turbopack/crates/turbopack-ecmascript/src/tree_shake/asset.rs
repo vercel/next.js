@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
@@ -100,6 +100,28 @@ impl EcmascriptModulePartAsset {
         module: Vc<EcmascriptModuleAsset>,
         part: Vc<ModulePart>,
     ) -> Result<Vc<Box<dyn Module>>> {
+        let name = module.ident().to_string().await?;
+
+        if name.contains("node_modules/next/dist/esm/")
+            || name.contains("node_modules/next/dist/client/")
+            || name.contains("node_modules/next/dist/server/")
+            || name.contains("node_modules/next/dist/shared/")
+            || name.contains("node_modules/next/dist/build/")
+            || name.contains("node_modules/next/dist/lib/")
+            || name.contains("node_modules/next/dist/compiled/react-dom/")
+            || name.contains("node_modules/next/dist/compiled/react/cjs/")
+        {
+            // New logic works for these files.
+        } else if name.contains("node_modules/next/dist/compiled/react/jsx-runtime.js") {
+            // New logic, but fails
+            dbg!(&name);
+        } else if name.contains("node_modules/") {
+            // Old code
+            let old = name;
+            dbg!(&old);
+            return Ok(Vc::upcast(EcmascriptModulePartAsset::new(module, part)));
+        }
+
         let split_result = split_module(module).await?;
 
         Ok(if matches!(&*split_result, SplitResult::Failed { .. }) {
