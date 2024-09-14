@@ -9,6 +9,14 @@ const flightServerReferenceProxyLoader: webpack.LoaderDefinitionFunction<{
 }> = function transformSource(this) {
   const { id, name } = this.getOptions()
 
+  // Both the import and the `createServerReference` call are marked as side
+  // effect free:
+  // - private-next-rsc-action-client-wrapper is matched as `sideEffects: false` in
+  //   the Webpack loader
+  // - createServerReference is marked as /*#__PURE__*/
+  //
+  // Because of that, Webpack is able to concatenate the modules and inline the
+  // reference IDs recursively directly into the module that uses them.
   return `\
 import { createServerReference } from 'private-next-rsc-action-client-wrapper'
 export ${
