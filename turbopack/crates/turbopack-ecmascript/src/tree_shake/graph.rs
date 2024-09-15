@@ -14,11 +14,11 @@ use swc_core::{
     common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            op, ClassDecl, ClassExpr, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
-            ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, FnExpr, Id, Ident,
-            IdentName, ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier,
-            KeyValueProp, Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport,
-            ObjectLit, Prop, PropName, PropOrSpread, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
+            ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
+            ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
+            Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
+            PropName, PropOrSpread, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
@@ -736,35 +736,21 @@ impl DepGraph {
                                 write_vars: used_ids.write,
                                 eventual_write_vars: captured_ids.write,
                                 var_decls: [default_var.to_id()].into_iter().collect(),
-                                content: ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(
-                                    VarDecl {
-                                        span: DUMMY_SP,
-                                        kind: VarDeclKind::Const,
-                                        decls: vec![VarDeclarator {
-                                            span: DUMMY_SP,
-                                            name: default_var.clone().into(),
-                                            init: Some(match &export.decl {
-                                                DefaultDecl::Class(c) => ClassExpr {
-                                                    ident: default_var.clone().into(),
-                                                    class: c.class.clone(),
-                                                }
-                                                .into(),
-                                                DefaultDecl::Fn(f) => FnExpr {
-                                                    ident: default_var.clone().into(),
-                                                    function: f.function.clone(),
-                                                }
-                                                .into(),
-                                                DefaultDecl::TsInterfaceDecl(_) => unreachable!(),
-                                            }),
-                                            definite: false,
-                                        }],
-                                        ..Default::default()
-                                    },
-                                )))),
-                                side_effects: true,
+                                content: ModuleItem::Stmt(Stmt::Decl(match &export.decl {
+                                    DefaultDecl::Class(c) => Decl::Class(ClassDecl {
+                                        ident: default_var.clone(),
+                                        declare: false,
+                                        class: c.class.clone(),
+                                    }),
+                                    DefaultDecl::Fn(f) => Decl::Fn(FnDecl {
+                                        ident: default_var.clone(),
+                                        declare: false,
+                                        function: f.function.clone(),
+                                    }),
+                                    DefaultDecl::TsInterfaceDecl(_) => unreachable!(),
+                                })),
                                 ..Default::default()
                             };
-
                             let id = ItemId::Item {
                                 index,
                                 kind: ItemIdItemKind::Normal,
