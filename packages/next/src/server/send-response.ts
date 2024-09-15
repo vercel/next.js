@@ -27,6 +27,15 @@ export async function sendResponse(
     res.statusCode = response.status
     res.statusMessage = response.statusText
 
+    const headersWithNoMultipleValuesAllowed = [
+      'content-type',
+      'content-length',
+      'content-encoding',
+      'cache-control',
+      'expires',
+      'etag',
+    ]
+
     // Copy over the response headers.
     response.headers?.forEach((value, name) => {
       // The append handling is special cased for `set-cookie`.
@@ -36,6 +45,15 @@ export async function sendResponse(
           res.appendHeader(name, cookie)
         }
       } else {
+        // if there is a common header from the list of headers which should not
+        // have multiple values do not overwrite it
+        const isHeaderPresentInRes = typeof res.getHeader(name) !== 'undefined'
+        if (
+          headersWithNoMultipleValuesAllowed.includes(name.toLowerCase()) &&
+          isHeaderPresentInRes
+        ) {
+          return
+        }
         res.appendHeader(name, value)
       }
     })
