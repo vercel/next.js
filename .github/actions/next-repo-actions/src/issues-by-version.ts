@@ -17,7 +17,7 @@ async function main() {
   try {
     const { data: issues } = await octokit.rest.search.issuesAndPullRequests({
       order: 'desc',
-      per_page: 50,
+      per_page: 25,
       q: `repo:${owner}/${repo} is:issue is:open`,
     })
 
@@ -25,29 +25,33 @@ async function main() {
       (issue) => issue.body && issue.body.includes(`${version}`)
     )
 
-    const blocks = BlockCollection([
-      Section({
-        text: `*A list of the most recently created, open issues that are on v${version}.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/issue_version.yml|workflow> queries the 50 most recent issues, then filters them to only include issues that mention v${version}._`,
-      }),
-      Divider(),
-      Section({
-        text: filteredIssues
-          .map(
-            (issue, i) =>
-              `${i + 1}. <${issue.html_url}|#${issue.number}>: ${issue.title}`
-          )
-          .join('\n'),
-      }),
-    ])
+    if (filteredIssues.length > 0) {
+      const blocks = BlockCollection([
+        Section({
+          text: `*A list of the most recently created, open issues that are on v${version}.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/issue_version.yml|workflow> queries the 50 most recent issues, then filters them to only include issues that mention v${version}._`,
+        }),
+        Divider(),
+        Section({
+          text: filteredIssues
+            .map(
+              (issue, i) =>
+                `${i + 1}. <${issue.html_url}|#${issue.number}>: ${issue.title}`
+            )
+            .join('\n'),
+        }),
+      ])
 
-    await slackClient.chat.postMessage({
-      blocks,
-      channel: '#next-info',
-      icon_emoji: ':github:',
-      username: 'GitHub Notifier',
-    })
+      await slackClient.chat.postMessage({
+        blocks,
+        channel: '#next-info',
+        icon_emoji: ':github:',
+        username: 'GitHub Notifier',
+      })
 
-    info(`Posted to Slack!`)
+      info(`Posted to Slack!`)
+    } else {
+      info(`No issues found for ${version}.`)
+    }
   } catch (error) {
     setFailed(error)
   }

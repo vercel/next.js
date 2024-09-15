@@ -17,7 +17,10 @@ use turbo_tasks::{RcStr, Vc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
-use crate::tree_shake::{find_turbopack_part_id_in_asserts, PartId};
+use crate::{
+    tree_shake::{find_turbopack_part_id_in_asserts, PartId},
+    SpecifiedModuleType,
+};
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Default, Debug, Clone, Hash)]
@@ -209,8 +212,14 @@ pub(crate) struct ImportMapReference {
 }
 
 impl ImportMap {
-    pub fn is_esm(&self) -> bool {
-        self.has_exports || self.has_imports || self.has_top_level_await
+    pub fn is_esm(&self, specified_type: SpecifiedModuleType) -> bool {
+        match specified_type {
+            SpecifiedModuleType::Automatic => {
+                self.has_exports || self.has_imports || self.has_top_level_await
+            }
+            SpecifiedModuleType::CommonJs => false,
+            SpecifiedModuleType::EcmaScript => true,
+        }
     }
 
     pub fn get_import(&self, id: &Id) -> Option<JsValue> {

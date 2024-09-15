@@ -7285,15 +7285,14 @@
         "Build Output production mode Basic Application Output (experimental: {}) should not emit extracted comments",
         "Build Output production mode Basic Application Output (experimental: {}) should print duration when rendering or get static props takes long",
         "Build Output production mode Custom Static Error Output should not specify /404 as lambda when static",
-        "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route"
-      ],
-      "failed": [
+        "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route",
         "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not include internal pages",
         "Build Output production mode Basic Application Output (experimental: {}) should not include internal pages",
         "Build Output production mode Custom App Output should not include custom error",
         "Build Output production mode Custom Error Output should not include custom app",
         "Build Output production mode With AMP Output should not include custom error"
       ],
+      "failed": [],
       "pending": [
         "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not deviate from snapshot",
         "Build Output production mode Basic Application Output (experimental: {}) should not deviate from snapshot"
@@ -7326,11 +7325,11 @@
         "Build warnings production mode should not warn about missing cache on supported platforms",
         "Build warnings production mode should warn about missing cache in CI"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Build warnings production mode should shown warning about minification for minimize",
         "Build warnings production mode should shown warning about minification for minimizer"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -8721,11 +8720,10 @@
         "Dynamic Routing production mode should serve file with space from static folder",
         "Dynamic Routing production mode should support long URLs for dynamic routes",
         "Dynamic Routing production mode should update dynamic values on mount",
-        "Dynamic Routing production mode should update with a hash in the URL"
-      ],
-      "failed": [
+        "Dynamic Routing production mode should update with a hash in the URL",
         "Dynamic Routing production mode should output a pages-manifest correctly"
       ],
+      "failed": [],
       "pending": [
         "Dynamic Routing development mode [catch all] should not decode slashes (end)",
         "Dynamic Routing development mode [catch all] should not decode slashes (middle)",
@@ -8880,11 +8878,10 @@
         "Dynamic Routing production mode should serve file with space from static folder",
         "Dynamic Routing production mode should support long URLs for dynamic routes",
         "Dynamic Routing production mode should update dynamic values on mount",
-        "Dynamic Routing production mode should update with a hash in the URL"
-      ],
-      "failed": [
+        "Dynamic Routing production mode should update with a hash in the URL",
         "Dynamic Routing production mode should output a pages-manifest correctly"
       ],
+      "failed": [],
       "pending": [
         "Dynamic Routing development mode [catch all] should not decode slashes (end)",
         "Dynamic Routing development mode [catch all] should not decode slashes (middle)",
@@ -8971,25 +8968,25 @@
         "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code warns in dev at runtime",
         "Edge runtime configurable guards Edge API with allowed, used dynamic code still warns in dev at runtime",
         "Edge runtime configurable guards Edge API with use of Function as a type does not warn in dev at runtime",
-        "Edge runtime configurable guards Edge API with use of Function as a type production mode build and does not warn at runtime",
         "Edge runtime configurable guards Middleware using lib with allowed, used dynamic code still warns in dev at runtime",
         "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code warns in dev at runtime",
         "Edge runtime configurable guards Middleware with allowed, used dynamic code still warns in dev at runtime",
         "Edge runtime configurable guards Middleware with use of Function as a type does not warn in dev at runtime",
-        "Edge runtime configurable guards Middleware with use of Function as a type production mode build and does not warn at runtime",
         "Edge runtime configurable guards Multiple functions with different configurations warns in dev for allowed code",
-        "Edge runtime configurable guards Multiple functions with different configurations warns in dev for unallowed code"
-      ],
-      "failed": [
-        "Edge runtime configurable guards Edge API using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Multiple functions with different configurations warns in dev for unallowed code",
+        "Edge runtime configurable guards Multiple functions with different configurations production mode fails to build because of unallowed code",
         "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation",
-        "Edge runtime configurable guards Edge API with allowed, unused dynamic code production mode build and does not warn at runtime",
-        "Edge runtime configurable guards Middleware using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
-        "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation",
-        "Edge runtime configurable guards Middleware with allowed, unused dynamic code production mode build and does not warn at runtime",
-        "Edge runtime configurable guards Multiple functions with different configurations production mode fails to build because of unallowed code"
+        "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation"
       ],
-      "pending": [],
+      "failed": [],
+      "pending": [
+        "Edge runtime configurable guards Edge API with use of Function as a type production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Middleware with use of Function as a type production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Edge API with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Middleware with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Edge API using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Middleware using lib with allowed, unused dynamic code production mode build and does not warn at runtime"
+      ],
       "flakey": [],
       "runtimeError": false
     },
@@ -13675,10 +13672,10 @@
       "runtimeError": false
     },
     "test/integration/next-image-new/invalid-image-import/test/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "Missing Import Image Tests production mode should show error"
       ],
+      "failed": [],
       "pending": [
         "Missing Import Image Tests development mode should show error"
       ],
@@ -16424,13 +16421,11 @@
         "Production Usage should remove placeholder for next/image correctly",
         "Production Usage should replace static pages with HTML files",
         "Production Usage should respond with 405 for POST to static page",
-        "Production Usage should warn when prefetch is true"
-      ],
-      "failed": [
+        "Production Usage should warn when prefetch is true",
         "Production Usage process.browser should eliminate client only code on the server",
-        "Production Usage process.browser should eliminate server only code on the client",
-        "Production Usage should output traces"
+        "Production Usage process.browser should eliminate server only code on the client"
       ],
+      "failed": ["Production Usage should output traces"],
       "pending": [
         "Production Usage With Security Related Issues should handle invalid URL properly",
         "Production Usage With basic usage should allow etag header support with getServerSideProps",

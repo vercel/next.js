@@ -18,6 +18,7 @@ pub fn warn_for_edge_runtime(
     cm: Arc<SourceMap>,
     ctx: ExprCtx,
     should_error_for_node_apis: bool,
+    is_production: bool,
 ) -> impl Visit {
     WarnForEdgeRuntime {
         cm,
@@ -26,6 +27,7 @@ pub fn warn_for_edge_runtime(
         should_add_guards: false,
         guarded_symbols: Default::default(),
         guarded_process_props: Default::default(),
+        is_production,
     }
 }
 
@@ -39,6 +41,7 @@ struct WarnForEdgeRuntime {
     /// `if(typeof clearImmediate !== "function") clearImmediate();`
     guarded_symbols: FxHashSet<Atom>,
     guarded_process_props: FxHashSet<Atom>,
+    is_production: bool,
 }
 
 const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
@@ -60,7 +63,7 @@ const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
     "WritableStreamDefaultController",
 ];
 
-/// Get this value from `require('module').builtinModules`
+/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
 const NODEJS_MODULE_NAMES: &[&str] = &[
     "_http_agent",
     "_http_client",
@@ -84,9 +87,9 @@ const NODEJS_MODULE_NAMES: &[&str] = &[
     "cluster",
     "console",
     "constants",
-    // "crypto",
+    "crypto",
     "dgram",
-    // "diagnostics_channel",
+    "diagnostics_channel",
     "dns",
     "dns/promises",
     "domain",
@@ -100,21 +103,21 @@ const NODEJS_MODULE_NAMES: &[&str] = &[
     "module",
     "net",
     "os",
-    // "path",
-    // "path/posix",
-    // "path/win32",
+    "path",
+    "path/posix",
+    "path/win32",
     "perf_hooks",
-    // "process",
+    "process",
     "punycode",
     "querystring",
     "readline",
     "readline/promises",
     "repl",
-    // "stream",
-    // "stream/consumers",
-    // "stream/promises",
-    // "stream/web",
-    // "string_decoder",
+    "stream",
+    "stream/consumers",
+    "stream/promises",
+    "stream/web",
+    "string_decoder",
     "sys",
     "timers",
     "timers/promises",
@@ -200,7 +203,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
     fn add_guards(&mut self, test: &Expr) {
         let old = self.should_add_guards;
         self.should_add_guards = true;
-        test.visit_children_with(self);
+        test.visit_with(self);
         self.should_add_guards = old;
     }
 
@@ -232,6 +235,18 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
             _ => (),
         }
     }
+
+    fn emit_dynamic_not_allowed_error(&self, span: Span) {
+        if self.is_production {
+            let msg = "Dynamic Code Evaluation (e. g. 'eval', 'new Function', \
+                       'WebAssembly.compile') not allowed in Edge Runtime"
+                .to_string();
+
+            HANDLER.with(|h| {
+                h.struct_span_err(span, &msg).emit();
+            });
+        }
+    }
 }
 
 impl Visit for WarnForEdgeRuntime {
@@ -245,6 +260,17 @@ impl Visit for WarnForEdgeRuntime {
         }
     }
 
+    fn visit_bin_expr(&mut self, node: &BinExpr) {
+        match node.op {
+            op!("&&") | op!("||") | op!("??") => {
+                self.add_guards(&node.left);
+                node.right.visit_with(self);
+            }
+            _ => {
+                node.visit_children_with(self);
+            }
+        }
+    }
     fn visit_cond_expr(&mut self, node: &CondExpr) {
         self.add_guards(&node.test);
 
@@ -255,6 +281,11 @@ impl Visit for WarnForEdgeRuntime {
     fn visit_expr(&mut self, n: &Expr) {
         if let Expr::Ident(ident) = n {
             if ident.ctxt == self.ctx.unresolved_ctxt {
+                if ident.sym == "eval" {
+                    self.emit_dynamic_not_allowed_error(ident.span);
+                    return;
+                }
+
                 for api in EDGE_UNSUPPORTED_NODE_APIS {
                     if self.is_in_middleware_layer() && ident.sym == *api {
                         self.emit_unsupported_api_error(ident.span, api);

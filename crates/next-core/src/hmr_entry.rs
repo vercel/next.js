@@ -31,23 +31,13 @@ fn modifier() -> Vc<RcStr> {
 pub struct HmrEntryModule {
     pub ident: Vc<AssetIdent>,
     pub module: Vc<Box<dyn ChunkableModule>>,
-    pub force_reload: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl HmrEntryModule {
     #[turbo_tasks::function]
-    pub fn new(
-        ident: Vc<AssetIdent>,
-        module: Vc<Box<dyn ChunkableModule>>,
-        force_reload: bool,
-    ) -> Vc<Self> {
-        Self {
-            ident,
-            module,
-            force_reload,
-        }
-        .cell()
+    pub fn new(ident: Vc<AssetIdent>, module: Vc<Box<dyn ChunkableModule>>) -> Vc<Self> {
+        Self { ident, module }.cell()
     }
 }
 
@@ -189,19 +179,7 @@ impl EcmascriptChunkItem for HmrEntryChunkItem {
         let id = self.chunking_context.chunk_item_id(chunk_item).await?;
 
         let mut code = RopeBuilder::default();
-        if this.force_reload {
-            writeln!(
-                code,
-                "__turbopack_require__({});\nmodule.hot.dispose(() => window.location.reload());",
-                StringifyJs(&id)
-            )?;
-        } else {
-            writeln!(
-                code,
-                "__turbopack_require__({});\nmodule.hot.accept();",
-                StringifyJs(&id)
-            )?;
-        }
+        writeln!(code, "__turbopack_require__({});", StringifyJs(&id))?;
         Ok(EcmascriptChunkItemContent {
             inner_code: code.build(),
             options: EcmascriptChunkItemOptions {

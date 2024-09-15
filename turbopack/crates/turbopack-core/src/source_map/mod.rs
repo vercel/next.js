@@ -10,10 +10,13 @@ use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMap
 use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     rope::{Rope, RopeBuilder},
-    FileContent, FileSystemPath,
+    File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
 };
 
-use crate::{source_pos::SourcePos, SOURCE_MAP_PREFIX};
+use crate::{
+    asset::AssetContent, source::Source, source_pos::SourcePos, virtual_source::VirtualSource,
+    SOURCE_MAP_PREFIX,
+};
 
 pub(crate) mod source_map_asset;
 
@@ -78,6 +81,13 @@ pub struct Tokens(Vec<Token>);
 pub enum Token {
     Synthetic(SyntheticToken),
     Original(OriginalToken),
+}
+
+#[turbo_tasks::value]
+#[derive(Clone, Debug)]
+pub struct TokenWithSource {
+    pub token: Vc<Token>,
+    pub source_content: Option<Vc<Box<dyn Source>>>,
 }
 
 /// A SyntheticToken represents a region of the generated file that was created
@@ -313,77 +323,31 @@ impl SourceMap {
     /// synthetic code or user-authored original code.
     #[turbo_tasks::function]
     pub async fn lookup_token(self: Vc<Self>, line: usize, column: usize) -> Result<Vc<Token>> {
-        let token = match &*self.await? {
-            SourceMap::Decoded(map) => {
-                let mut token = map
-                    .lookup_token(line as u32, column as u32)
-                    .map(Token::from)
-                    .unwrap_or_else(|| {
-                        Token::Synthetic(SyntheticToken {
-                            generated_line: line,
-                            generated_column: column,
-                            guessed_original_file: None,
-                        })
-                    });
-                if let Token::Synthetic(SyntheticToken {
-                    guessed_original_file,
-                    ..
-                }) = &mut token
-                {
-                    if let DecodedMap::Regular(map) = &map.map.0 {
-                        if map.get_source_count() == 1 {
-                            let source = map.sources().next().unwrap();
-                            *guessed_original_file = Some(source.to_string());
-                        }
-                    }
-                }
-                token
-            }
-
-            SourceMap::Sectioned(map) => {
-                let len = map.sections.len();
-                let mut low = 0;
-                let mut high = len;
-                let pos = SourcePos { line, column };
-
-                // A "greatest lower bound" binary search. We're looking for the closest section
-                // offset <= to our line/col.
-                while low < high {
-                    let mid = (low + high) / 2;
-                    if pos < map.sections[mid].offset {
-                        high = mid;
-                    } else {
-                        low = mid + 1;
-                    }
-                }
-
-                // Our GLB search will return the section immediately to the right of the
-                // section we actually want to recurse into, because the binary search does not
-                // early exit on an exact match (it'll `low = mid + 1`).
-                if low > 0 && low <= len {
-                    let SourceMapSection { map, offset } = &map.sections[low - 1];
-                    // We're looking for the position `l` lines into region covered by this
-                    // sourcemap's section.
-                    let l = line - offset.line;
-                    // The source map starts offset by the section's column only on its first line.
-                    // On the 2nd+ line, the source map covers starting at column 0.
-                    let c = if line == offset.line {
-                        column - offset.column
-                    } else {
-                        column
-                    };
-                    return Ok(map.lookup_token(l, c));
-                }
-                Token::Synthetic(SyntheticToken {
-                    generated_line: line,
-                    generated_column: column,
-                    guessed_original_file: None,
-                })
-            }
-        };
-        Ok(token.cell())
+        let (token, _) = self
+            .await?
+            .lookup_token_and_source_internal(line, column, true)
+            .await?;
+        Ok(token)
     }
 
+    /// Traces a generated line/column into an mapping token representing either
+    /// synthetic code or user-authored original code.
+    #[turbo_tasks::function]
+    pub async fn lookup_token_and_source(
+        self: Vc<Self>,
+        line: usize,
+        column: usize,
+    ) -> Result<Vc<TokenWithSource>> {
+        let (token, content) = self
+            .await?
+            .lookup_token_and_source_internal(line, column, true)
+            .await?;
+        Ok(TokenWithSource {
+            token,
+            source_content: content,
+        }
+        .cell())
+    }
     #[turbo_tasks::function]
     pub async fn with_resolved_sources(
         self: Vc<Self>,
@@ -520,6 +484,113 @@ impl SourceMap {
             }
         }
         .cell())
+    }
+}
+
+impl SourceMap {
+    async fn lookup_token_and_source_internal(
+        &self,
+        line: usize,
+        column: usize,
+        need_source_content: bool,
+    ) -> Result<(Vc<Token>, Option<Vc<Box<dyn Source>>>)> {
+        let mut content: Option<Vc<Box<dyn Source>>> = None;
+
+        let token: Token = match self {
+            SourceMap::Decoded(map) => {
+                let tok = map.lookup_token(line as u32, column as u32);
+                let mut token = tok.map(Token::from).unwrap_or_else(|| {
+                    Token::Synthetic(SyntheticToken {
+                        generated_line: line,
+                        generated_column: column,
+                        guessed_original_file: None,
+                    })
+                });
+
+                if let Token::Synthetic(SyntheticToken {
+                    guessed_original_file,
+                    ..
+                }) = &mut token
+                {
+                    if let DecodedMap::Regular(map) = &map.map.0 {
+                        if map.get_source_count() == 1 {
+                            let source = map.sources().next().unwrap();
+                            *guessed_original_file = Some(source.to_string());
+                        }
+                    }
+                }
+
+                if need_source_content && content.is_none() {
+                    if let Some(map) = map.map.as_regular_source_map() {
+                        content = tok.and_then(|tok| {
+                            let src_id = tok.get_src_id();
+
+                            let name = map.get_source(src_id);
+                            let content = map.get_source_contents(src_id);
+
+                            let (name, content) = name.zip(content)?;
+
+                            let path = VirtualFileSystem::new().root().join(name.into());
+                            let content =
+                                AssetContent::file(FileContent::new(File::from(content)).cell());
+
+                            Some(Vc::upcast(VirtualSource::new(path, content)))
+                        });
+                    }
+                }
+
+                token
+            }
+
+            SourceMap::Sectioned(map) => {
+                let len = map.sections.len();
+                let mut low = 0;
+                let mut high = len;
+                let pos = SourcePos { line, column };
+
+                // A "greatest lower bound" binary search. We're looking for the closest section
+                // offset <= to our line/col.
+                while low < high {
+                    let mid = (low + high) / 2;
+                    if pos < map.sections[mid].offset {
+                        high = mid;
+                    } else {
+                        low = mid + 1;
+                    }
+                }
+
+                // Our GLB search will return the section immediately to the right of the
+                // section we actually want to recurse into, because the binary search does not
+                // early exit on an exact match (it'll `low = mid + 1`).
+                if low > 0 && low <= len {
+                    let SourceMapSection { map, offset } = &map.sections[low - 1];
+                    // We're looking for the position `l` lines into region covered by this
+                    // sourcemap's section.
+                    let l = line - offset.line;
+                    // The source map starts offset by the section's column only on its first line.
+                    // On the 2nd+ line, the source map covers starting at column 0.
+                    let c = if line == offset.line {
+                        column - offset.column
+                    } else {
+                        column
+                    };
+
+                    if need_source_content {
+                        let result = map.lookup_token_and_source(l, c).await?;
+                        return Ok((result.token, result.source_content));
+                    } else {
+                        return Ok((map.lookup_token(l, c), None));
+                    }
+                }
+                Token::Synthetic(SyntheticToken {
+                    generated_line: line,
+                    generated_column: column,
+                    guessed_original_file: None,
+                })
+            }
+        };
+
+        Ok((token.cell(), content))
     }
 }
 
@@ -681,4 +752,15 @@ impl SourceMapSection {
             map,
         })
     }
+}
+
+#[turbo_tasks::function]
+pub async fn convert_to_turbopack_source_map(
+    source_map: Vc<OptionSourceMap>,
+    origin: Vc<FileSystemPath>,
+) -> Result<Vc<OptionSourceMap>> {
+    let Some(source_map) = *source_map.await? else {
+        return Ok(Vc::cell(None));
+    };
+    Ok(Vc::cell(Some(source_map.with_resolved_sources(origin))))
 }
