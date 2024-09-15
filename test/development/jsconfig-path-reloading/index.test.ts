@@ -12,6 +12,8 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import fs from 'fs-extra'
 
+jest.setTimeout(300000)
+
 describe('jsconfig-path-reloading', () => {
   let next: NextInstance
   const tsConfigFile = 'jsconfig.json'

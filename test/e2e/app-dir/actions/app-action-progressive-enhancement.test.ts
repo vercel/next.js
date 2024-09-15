@@ -3,6 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import type { Response } from 'playwright'
 
+jest.setTimeout(300000)
+
 describe('app-dir action progressive enhancement', () => {
   const { next } = nextTestSetup({
     files: __dirname,

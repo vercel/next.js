@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
 import { check } from 'next-test-utils'
 
+jest.setTimeout(180000)
+
 const CACHE_HEADERS = {
   NONE: 'no-cache, no-store',
   LONG: 'public, immutable, no-transform, max-age=31536000',

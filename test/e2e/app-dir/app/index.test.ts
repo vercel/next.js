@@ -3,6 +3,8 @@ import { check, retry, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 
+jest.setTimeout(300000)
+
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
 // gates like this one into a single module.

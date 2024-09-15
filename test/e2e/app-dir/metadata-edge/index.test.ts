@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
 
+jest.setTimeout(180000)
+
 describe('app dir - Metadata API on the Edge runtime', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,

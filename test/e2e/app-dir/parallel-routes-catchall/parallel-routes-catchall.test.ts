@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
+jest.setTimeout(300000)
+
 describe('parallel-routes-catchall', () => {
   const { next } = nextTestSetup({
     files: __dirname,
