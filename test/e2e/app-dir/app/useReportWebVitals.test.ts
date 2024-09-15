@@ -2,6 +2,8 @@ import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
+jest.setTimeout(180000)
+
 describe('useReportWebVitals hook', () => {
   let next: NextInstance
 

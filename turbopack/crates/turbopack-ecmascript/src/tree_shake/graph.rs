@@ -289,6 +289,13 @@ impl DepGraph {
         let mut mangle_count = 0;
         let mut mangled_vars = FxHashMap::default();
         let mut mangle = |var: &Id| {
+            // For react hooks.
+            // We need to preserve `use*` to make error reporting logic work.
+            // We catch `useXxx is not a function`, and report it with a hint about 'use client'.
+            if var.0.starts_with("use") {
+                return var.0.clone();
+            }
+
             mangled_vars
                 .entry(var.clone())
                 .or_insert_with(|| encode_base54(&mut mangle_count, true))
@@ -329,10 +336,13 @@ impl DepGraph {
                 }
             }
 
+            let mut use_export_instead_of_declarator = false;
+
             for item in group {
                 match item {
                     ItemId::Group(ItemIdGroupKind::Export(..)) => {
                         if let Some(export) = &data[item].export {
+                            use_export_instead_of_declarator = true;
                             exports.insert(Key::Export(export.as_str().into()), ix as u32);
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
@@ -383,6 +393,67 @@ impl DepGraph {
                         )))),
                         phase: Default::default(),
                     })));
+            }
+
+            // Workaround for implcit export issue of server actions.
+            //
+            // Inline server actions require the generated `$$ACTION_0` to be **exported**.
+            //
+            // But tree shaking works by removing unused code, and the **export** of $$ACTION_0 is
+            // cleary not used from the external module as it does not exist at all in the user
+            // code.
+            //
+            // So we need to add an import for $$ACTION_0 to the module, so that the export is
+            // preserved.
+            if use_export_instead_of_declarator {
+                for (other_ix, other_group) in groups.graph_ix.iter().enumerate() {
+                    if other_ix == ix {
+                        continue;
+                    }
+
+                    let deps = part_deps.entry(ix as u32).or_default();
+
+                    for other_item in other_group {
+                        if let ItemId::Group(ItemIdGroupKind::Export(export, _)) = other_item {
+                            let Some(&declarator) = declarator.get(export) else {
+                                continue;
+                            };
+
+                            if declarator == ix as u32 {
+                                continue;
+                            }
+
+                            if !has_path_connecting(&groups.idx_graph, ix as u32, declarator, None)
+                            {
+                                continue;
+                            }
+
+                            let s = ImportSpecifier::Named(ImportNamedSpecifier {
+                                span: DUMMY_SP,
+                                local: export.clone().into(),
+                                imported: None,
+                                is_type_only: false,
+                            });
+
+                            required_vars.remove(export);
+
+                            deps.push(PartId::Export(export.0.as_str().into()));
+
+                            chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                ImportDecl {
+                                    span: DUMMY_SP,
+                                    specifiers: vec![s],
+                                    src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                                    type_only: false,
+                                    with: Some(Box::new(create_turbopack_part_id_assert(
+                                        PartId::Export(export.0.as_str().into()),
+                                    ))),
+                                    phase: Default::default(),
+                                },
+                            )));
+                        }
+                    }
+                }
             }
 
             // Import variables

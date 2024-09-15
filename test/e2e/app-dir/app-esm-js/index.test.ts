@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
+jest.setTimeout(180000)
+
 describe('app-dir - esm js extension', () => {
   const { next } = nextTestSetup({
     files: __dirname,

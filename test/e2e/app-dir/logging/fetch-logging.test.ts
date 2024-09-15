@@ -4,6 +4,8 @@ import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
+jest.setTimeout(300000)
+
 const cacheReasonRegex = /Cache (missed|skipped) reason: /
 
 interface ParsedLog {

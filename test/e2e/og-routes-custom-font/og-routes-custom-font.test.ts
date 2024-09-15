@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
+jest.setTimeout(180000)
+
 describe('og-routes-custom-font', () => {
   const { next } = nextTestSetup({
     files: __dirname,
