@@ -6,6 +6,7 @@ import type { Writable } from 'node:stream'
 import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
+import { isNodeNextRequest, isWebNextRequest } from '../../../base-http/helpers'
 
 export const ResponseAbortedName = 'ResponseAborted'
 export class ResponseAborted extends Error {
@@ -57,15 +58,23 @@ export class NextRequestAdapter {
     request: BaseNextRequest,
     signal: AbortSignal
   ): NextRequest {
-    // TODO: look at refining this check
-    if ('request' in request && (request as WebNextRequest).request) {
-      return NextRequestAdapter.fromWebNextRequest(request as WebNextRequest)
+    if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME === 'edge' &&
+      isWebNextRequest(request)
+    ) {
+      return NextRequestAdapter.fromWebNextRequest(request)
+    } else if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      isNodeNextRequest(request)
+    ) {
+      return NextRequestAdapter.fromNodeNextRequest(request, signal)
+    } else {
+      throw new Error('Invariant: Unsupported NextRequest type')
     }
-
-    return NextRequestAdapter.fromNodeNextRequest(
-      request as NodeNextRequest,
-      signal
-    )
   }
 
   public static fromNodeNextRequest(
@@ -96,7 +105,6 @@ export class NextRequestAdapter {
     }
 
     return new NextRequest(url, {
-      body,
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -105,6 +113,14 @@ export class NextRequestAdapter {
       // geo
       // ip
       // nextConfig
+
+      // body can not be passed if request was aborted
+      // or we get a Request body was disturbed error
+      ...(signal.aborted
+        ? {}
+        : {
+            body,
+          }),
     })
   }
 
@@ -116,7 +132,6 @@ export class NextRequestAdapter {
     }
 
     return new NextRequest(request.url, {
-      body,
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -125,6 +140,14 @@ export class NextRequestAdapter {
       // geo
       // ip
       // nextConfig
+
+      // body can not be passed if request was aborted
+      // or we get a Request body was disturbed error
+      ...(request.request.signal.aborted
+        ? {}
+        : {
+            body,
+          }),
     })
   }
 }

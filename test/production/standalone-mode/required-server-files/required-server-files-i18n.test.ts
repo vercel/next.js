@@ -3,7 +3,7 @@ import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -14,11 +14,12 @@ import {
   waitFor,
 } from 'next-test-utils'
 import nodeFetch from 'node-fetch'
+import { ChildProcess } from 'child_process'
 
 describe('required server files i18n', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
   let errors = []
   let requiredFilesManifest
 
@@ -106,9 +107,10 @@ describe('required server files i18n', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('port:', 'minimalMode: true,port:')
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        'minimalMode: true,port:'
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -116,7 +118,7 @@ describe('required server files i18n', () => {
       /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
@@ -127,6 +129,7 @@ describe('required server files i18n', () => {
       }
     )
   })
+
   afterAll(async () => {
     await next.destroy()
     if (server) await killApp(server)
@@ -345,12 +348,16 @@ describe('required server files i18n', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
-        'x-now-route-matches': '1=second&nxtPslug=second',
-      },
-    })
+    const html3 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?nxtPslug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
+        },
+      }
+    )
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 

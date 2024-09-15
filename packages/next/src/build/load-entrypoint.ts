@@ -48,7 +48,7 @@ export async function loadEntrypoint(
   // imports to be relative to the root of the `next` package.
   let count = 0
   file = file.replaceAll(
-    /from "(\..*)"|import "(\..*)"/g,
+    /from '(\..*)'|import '(\..*)'/g,
     function (_, fromRequest, importRequest) {
       count++
 
@@ -90,12 +90,12 @@ export async function loadEntrypoint(
   file = file.replaceAll(
     new RegExp(
       `${Object.keys(replacements)
-        .map((k) => `"${k}"`)
+        .map((k) => `'${k}'`)
         .join('|')}`,
       'g'
     ),
     (match) => {
-      const key = JSON.parse(match)
+      const key = JSON.parse(match.replace(/'/g, `"`))
 
       if (!(key in replacements)) {
         throw new Error(`Invariant: Unexpected template variable ${key}`)

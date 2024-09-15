@@ -7,12 +7,13 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
     "next": "latest",
     "react": "^18",
     "react-dom": "^18",
     "supertokens-auth-react": "latest",
-    "supertokens-node": "latest",
-    "supertokens-web-js": "latest"
+    "supertokens-node": "latest"
   },
   "devDependencies": {
     "@types/cookie": "^0.5.2",
@@ -21,8 +22,6 @@
     "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "13.5.4",
-    "i": "^0.3.7",
-    "npm": "^10.2.0",
     "typescript": "^5"
   }
 }

@@ -28,6 +28,7 @@ module.exports = function (task) {
       filename: file.base,
       minify: options.minify === false ? false : true,
       assetBuilds: true,
+      cache: false,
       ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => {

@@ -47,12 +47,11 @@ module.exports = function (task) {
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
-            importAssertions: true,
+            importAttributes: true,
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
             keepImportAttributes,
-            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
@@ -93,12 +92,11 @@ module.exports = function (task) {
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
-            importAssertions: true,
+            importAttributes: true,
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
             keepImportAttributes,
-            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
@@ -125,7 +123,7 @@ module.exports = function (task) {
       const options = {
         filename: path.join(file.dir, file.base),
         sourceMaps: true,
-        inlineSourcesContent: false,
+        inlineSourcesContent: true,
         sourceFileName: path.relative(distFilePath, fullFilePath),
 
         ...swcOptions,

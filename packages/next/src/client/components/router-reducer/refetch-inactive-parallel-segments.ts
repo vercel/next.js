@@ -10,6 +10,7 @@ interface RefreshInactiveParallelSegments {
   updatedTree: FlightRouterState
   updatedCache: CacheNode
   includeNextUrl: boolean
+  canonicalUrl: string
 }
 
 /**
@@ -27,7 +28,11 @@ export async function refreshInactiveParallelSegments(
   options: RefreshInactiveParallelSegments
 ) {
   const fetchedSegments = new Set<string>()
-  await refreshInactiveParallelSegmentsImpl({ ...options, fetchedSegments })
+  await refreshInactiveParallelSegmentsImpl({
+    ...options,
+    rootTree: options.updatedTree,
+    fetchedSegments,
+  })
 }
 
 async function refreshInactiveParallelSegmentsImpl({
@@ -36,31 +41,37 @@ async function refreshInactiveParallelSegmentsImpl({
   updatedCache,
   includeNextUrl,
   fetchedSegments,
-}: RefreshInactiveParallelSegments & { fetchedSegments: Set<string> }) {
-  const [, parallelRoutes, refetchPathname, refetchMarker] = updatedTree
+  rootTree = updatedTree,
+  canonicalUrl,
+}: RefreshInactiveParallelSegments & {
+  fetchedSegments: Set<string>
+  rootTree: FlightRouterState
+}) {
+  const [, parallelRoutes, refetchPath, refetchMarker] = updatedTree
   const fetchPromises = []
 
   if (
-    refetchPathname &&
-    refetchPathname !== location.pathname &&
+    refetchPath &&
+    refetchPath !== canonicalUrl &&
     refetchMarker === 'refresh' &&
     // it's possible for the tree to contain multiple segments that contain data at the same URL
     // we keep track of them so we can dedupe the requests
-    !fetchedSegments.has(refetchPathname)
+    !fetchedSegments.has(refetchPath)
   ) {
-    fetchedSegments.add(refetchPathname) // Mark this URL as fetched
+    fetchedSegments.add(refetchPath) // Mark this URL as fetched
 
     // Eagerly kick off the fetch for the refetch path & the parallel routes. This should be fine to do as they each operate
     // independently on their own cache nodes, and `applyFlightData` will copy anything it doesn't care about from the existing cache.
     const fetchPromise = fetchServerResponse(
-      // we capture the pathname of the refetch without search params, so that it can be refetched with
-      // the "latest" search params when it comes time to actually trigger the fetch (below)
-      new URL(refetchPathname + location.search, location.origin),
-      [updatedTree[0], updatedTree[1], updatedTree[2], 'refetch'],
-      includeNextUrl ? state.nextUrl : null,
-      state.buildId
-    ).then((fetchResponse) => {
-      const flightData = fetchResponse[0]
+      new URL(refetchPath, location.origin),
+      {
+        // refetch from the root of the updated tree, otherwise it will be scoped to the current segment
+        // and might not contain the data we need to patch in interception route data (such as dynamic params from a previous segment)
+        flightRouterState: [rootTree[0], rootTree[1], rootTree[2], 'refetch'],
+        nextUrl: includeNextUrl ? state.nextUrl : null,
+        buildId: state.buildId,
+      }
+    ).then(({ flightData }) => {
       if (typeof flightData !== 'string') {
         for (const flightDataPath of flightData) {
           // we only pass the new cache as this function is called after clearing the router cache
@@ -85,6 +96,8 @@ async function refreshInactiveParallelSegmentsImpl({
       updatedCache,
       includeNextUrl,
       fetchedSegments,
+      rootTree,
+      canonicalUrl,
     })
 
     fetchPromises.push(parallelFetchPromise)
@@ -101,15 +114,16 @@ async function refreshInactiveParallelSegmentsImpl({
  */
 export function addRefreshMarkerToActiveParallelSegments(
   tree: FlightRouterState,
-  pathname: string
+  path: string
 ) {
   const [segment, parallelRoutes, , refetchMarker] = tree
-  if (segment === PAGE_SEGMENT_KEY && refetchMarker !== 'refresh') {
-    tree[2] = pathname
+  // a page segment might also contain concatenated search params, so we do a partial match on the key
+  if (segment.includes(PAGE_SEGMENT_KEY) && refetchMarker !== 'refresh') {
+    tree[2] = path
     tree[3] = 'refresh'
   }
 
   for (const key in parallelRoutes) {
-    addRefreshMarkerToActiveParallelSegments(parallelRoutes[key], pathname)
+    addRefreshMarkerToActiveParallelSegments(parallelRoutes[key], path)
   }
 }

@@ -37,9 +37,9 @@ import {
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
-import { RSCPathnameNormalizer } from '../../future/normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
-import { PrefetchRSCPathnameNormalizer } from '../../future/normalizers/request/prefetch-rsc'
+import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
+import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
+import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 
 export type FsOutput = {
   type:
@@ -423,10 +423,17 @@ export async function setupFsCheck(opts: {
 
       const { basePath } = opts.config
 
-      if (basePath && !pathHasPrefix(itemPath, basePath)) {
+      const hasBasePath = pathHasPrefix(itemPath, basePath)
+
+      // Return null if path doesn't start with basePath
+      if (basePath && !hasBasePath) {
         return null
       }
-      itemPath = removePathPrefix(itemPath, basePath) || '/'
+
+      // Remove basePath if it exists.
+      if (basePath && hasBasePath) {
+        itemPath = removePathPrefix(itemPath, basePath) || '/'
+      }
 
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.
@@ -548,7 +555,7 @@ export async function setupFsCheck(opts: {
 
         // check decoded variant as well
         if (!matchedItem && !opts.dev) {
-          matchedItem = items.has(curItemPath)
+          matchedItem = items.has(curDecodedItemPath)
           if (matchedItem) curItemPath = curDecodedItemPath
           else {
             // x-ref: https://github.com/vercel/next.js/issues/54008

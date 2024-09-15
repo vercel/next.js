@@ -107,7 +107,7 @@ For all the available params, see the [API Reference](/docs/app/api-reference/fu
 > **Good to know**:
 >
 > - Both static and dynamic metadata through `generateMetadata` are **only supported in Server Components**.
-> - `fetch` requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/caching#request-memoization) if `fetch` is unavailable.
+> - `fetch` requests are automatically [memoized](/docs/app/building-your-application/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components. React [`cache` can be used](/docs/app/building-your-application/caching#react-cache-function) if `fetch` is unavailable.
 > - Next.js will wait for data fetching inside `generateMetadata` to complete before streaming UI to the client. This guarantees the first part of a [streamed response](/docs/app/building-your-application/routing/loading-ui-and-streaming) includes `<head>` tags.
 
 ## File-based metadata
@@ -247,14 +247,10 @@ export const metadata = {
 
 The `ImageResponse` constructor allows you to generate dynamic images using JSX and CSS. This is useful for creating social media images such as Open Graph images, Twitter cards, and more.
 
-`ImageResponse` uses the [Edge Runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime), and Next.js automatically adds the correct headers to cached images at the edge, helping improve performance and reducing recomputation.
-
 To use it, you can import `ImageResponse` from `next/og`:
 
 ```jsx filename="app/about/route.js"
 import { ImageResponse } from 'next/og'
-
-export const runtime = 'edge'
 
 export async function GET() {
   return new ImageResponse(

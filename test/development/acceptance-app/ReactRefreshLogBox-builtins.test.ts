@@ -8,10 +8,6 @@ import { outdent } from 'outdent'
 describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
@@ -49,7 +45,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     if (process.env.TURBOPACK) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/my-package/index.js:1:13
@@ -64,6 +60,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/my-package/index.js:1:1
         Module not found: Can't resolve 'dns'
+        > 1 | const dns = require('dns')
+            | ^
+          2 | module.exports = dns
 
         https://nextjs.org/docs/messages/module-not-found
 
@@ -93,7 +92,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
@@ -146,7 +145,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
@@ -196,7 +195,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         ],
       ])
     )
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
@@ -235,7 +234,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
     expect(
       await session.evaluate(() => document.documentElement.innerHTML)
     ).toContain('index page')

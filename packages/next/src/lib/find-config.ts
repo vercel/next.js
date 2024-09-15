@@ -1,6 +1,7 @@
 import findUp from 'next/dist/compiled/find-up'
 import { readFile } from 'fs/promises'
 import JSON5 from 'next/dist/compiled/json5'
+import { pathToFileURL } from 'url'
 
 type RecursivePartial<T> = {
   [P in keyof T]?: RecursivePartial<T[P]>
@@ -64,11 +65,27 @@ export async function findConfig<T>(
 
   const filePath = await findConfigPath(directory, key)
 
+  const esmImport = (path: string) => {
+    // Skip mapping to absolute url with pathToFileURL on windows if it's jest
+    // https://github.com/nodejs/node/issues/31710#issuecomment-587345749
+    if (process.platform === 'win32' && !process.env.JEST_WORKER_ID) {
+      // on windows import("C:\\path\\to\\file") is not valid, so we need to
+      // use file:// URLs
+      return import(pathToFileURL(path).toString())
+    } else {
+      return import(path)
+    }
+  }
+
   if (filePath) {
     if (filePath.endsWith('.js')) {
-      return isESM ? (await import(filePath)).default : require(filePath)
+      if (isESM) {
+        return (await esmImport(filePath)).default
+      } else {
+        return require(filePath)
+      }
     } else if (filePath.endsWith('.mjs')) {
-      return (await import(filePath)).default
+      return (await esmImport(filePath)).default
     } else if (filePath.endsWith('.cjs')) {
       return require(filePath)
     }

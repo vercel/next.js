@@ -1,11 +1,11 @@
 'use client'
 
-import { useFormState } from 'react-dom'
+import { useActionState } from 'react'
 import { appendName } from './actions'
 import { useEffect, useState } from 'react'
 
 export default function Page() {
-  const [state, appendNameFormAction] = useFormState(
+  const [state, appendNameFormAction] = useActionState(
     appendName,
     'initial-state',
     '/client/form-state'

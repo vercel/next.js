@@ -4,12 +4,13 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
-describe('Error overlay for hydration errors', () => {
+// TODO: Enable this test once react 18 is supported for pages router
+describe.skip('Error overlay for hydration errors (React 18)', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '18.3.1',
+      'react-dom': '18.3.1',
     },
     skipStart: true,
   })
@@ -34,7 +35,7 @@ describe('Error overlay for hydration errors', () => {
       ])
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Text content does not match server-rendered HTML.
@@ -58,7 +59,7 @@ describe('Error overlay for hydration errors', () => {
     `
     )
 
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     expect(await browser.elementByCss('.child').text()).toBe('Value')
 

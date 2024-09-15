@@ -8,7 +8,7 @@ import type {
   PrivateRouteInfo,
 } from '../shared/lib/router/router'
 
-import React from 'react'
+import React, { type JSX } from 'react'
 import ReactDOM from 'react-dom/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import mitt from '../shared/lib/mitt'
@@ -27,7 +27,6 @@ import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
 import type { StyleSheetTuple } from './page-loader'
-import measureWebVitals from './performance-relayer' // TODO: remove in the next major version
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
@@ -46,7 +45,7 @@ import {
   SearchParamsContext,
   PathParamsContext,
 } from '../shared/lib/hooks-client-context.shared-runtime'
-import onRecoverableError from './on-recoverable-error'
+import { onRecoverableError } from './on-recoverable-error'
 import tracer from './tracing/tracer'
 import reportToSocket from './tracing/report-to-socket'
 
@@ -604,12 +603,6 @@ function Root({
     () => callbacks.forEach((callback) => callback()),
     [callbacks]
   )
-  // TODO: remove in the next major version
-  // We should ask to measure the Web Vitals after rendering completes so we
-  // don't cause any hydration delay:
-  React.useEffect(() => {
-    measureWebVitals(onPerfEntry)
-  }, [])
 
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -705,6 +698,8 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
   function onHeadCommit(): void {
     if (
+      // Turbopack has it's own css injection handling, this code ends up removing the CSS.
+      !process.env.TURBOPACK &&
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
       process.env.NODE_ENV === 'production' &&

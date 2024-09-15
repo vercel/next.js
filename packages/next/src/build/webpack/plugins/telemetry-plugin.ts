@@ -30,7 +30,6 @@ export type Feature =
   | 'next/font/google'
   | 'next/font/local'
   | 'swcLoader'
-  | 'swcMinify'
   | 'swcRelay'
   | 'swcStyledComponents'
   | 'swcReactRemoveProperties'
@@ -44,6 +43,7 @@ export type Feature =
   | 'skipMiddlewareUrlNormalize'
   | 'skipTrailingSlashRedirect'
   | 'modularizeImports'
+  | 'esmExternals'
 
 interface FeatureUsage {
   featureName: Feature
@@ -83,7 +83,6 @@ const FEATURE_MODULE_REGEXP_MAP: ReadonlyMap<Feature, RegExp> = new Map([
 // List of build features used in webpack configuration
 const BUILD_FEATURES: Array<Feature> = [
   'swcLoader',
-  'swcMinify',
   'swcRelay',
   'swcStyledComponents',
   'swcReactRemoveProperties',
@@ -109,6 +108,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'skipMiddlewareUrlNormalize',
   'skipTrailingSlashRedirect',
   'modularizeImports',
+  'esmExternals',
 ]
 
 const eliminatedPackages = new Set<string>()

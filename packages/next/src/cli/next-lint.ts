@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync } from 'fs'
-import { join } from 'path'
+import { isAbsolute, join } from 'path'
 
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
@@ -16,7 +16,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
 
-type NextLintOptions = {
+export type NextLintOptions = {
   cache: boolean
   cacheLocation?: string
   cacheStrategy: string
@@ -34,7 +34,7 @@ type NextLintOptions = {
   maxWarnings: number
   outputFile?: string
   quiet?: boolean
-  reportUnusedDisableDirectives: string
+  reportUnusedDisableDirectivesSeverity: 'error' | 'off' | 'warn'
   resolvePluginsRelativeTo?: string
   rulesdir?: string
   strict?: boolean
@@ -53,7 +53,8 @@ const eslintOptions = (
   ignorePath: options.ignorePath || null,
   ignore: options.ignore,
   allowInlineConfig: options.inlineConfig,
-  reportUnusedDisableDirectives: options.reportUnusedDisableDirectives || null,
+  reportUnusedDisableDirectives:
+    options.reportUnusedDisableDirectivesSeverity || null,
   cache: options.cache,
   cacheLocation: options.cacheLocation || defaultCacheLocation,
   cacheStrategy: options.cacheStrategy,
@@ -77,7 +78,7 @@ const nextLint = async (options: NextLintOptions, directory?: string) => {
   const pathsToLint = (
     filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS
   ).reduce((res: string[], d: string) => {
-    const currDir = join(baseDir, d)
+    const currDir = isAbsolute(d) ? d : join(baseDir, d)
 
     if (!existsSync(currDir)) {
       return res

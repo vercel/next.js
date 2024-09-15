@@ -89,7 +89,7 @@ export async function getStaticPaths() {
           params: {
             slug,
           },
-        } || []),
+        }) || [],
     ),
     fallback: false,
   };

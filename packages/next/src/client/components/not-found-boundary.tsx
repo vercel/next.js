@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useContext } from 'react'
-import { usePathname } from './navigation'
+import { useUntrackedPathname } from './navigation-untracked'
 import { isNotFoundError } from './not-found'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
@@ -11,16 +11,17 @@ interface NotFoundBoundaryProps {
   notFoundStyles?: React.ReactNode
   asNotFound?: boolean
   children: React.ReactNode
+  missingSlots?: Set<string>
 }
 
 interface NotFoundErrorBoundaryProps extends NotFoundBoundaryProps {
-  pathname: string
-  missingSlots: Set<string>
+  pathname: string | null
+  missingSlots?: Set<string>
 }
 
 interface NotFoundErrorBoundaryState {
   notFoundTriggered: boolean
-  previousPathname: string
+  previousPathname: string | null
 }
 
 class NotFoundErrorBoundary extends React.Component<
@@ -38,6 +39,7 @@ class NotFoundErrorBoundary extends React.Component<
   componentDidCatch(): void {
     if (
       process.env.NODE_ENV === 'development' &&
+      this.props.missingSlots &&
       // A missing children slot is the typical not-found case, so no need to warn
       !this.props.missingSlots.has('children')
     ) {
@@ -114,19 +116,26 @@ export function NotFoundBoundary({
   asNotFound,
   children,
 }: NotFoundBoundaryProps) {
-  const pathname = usePathname()
+  // When we're rendering the missing params shell, this will return null. This
+  // is because we won't be rendering any not found boundaries or error
+  // boundaries for the missing params shell. When this runs on the client
+  // (where these error can occur), we will get the correct pathname.
+  const pathname = useUntrackedPathname()
   const missingSlots = useContext(MissingSlotContext)
-  return notFound ? (
-    <NotFoundErrorBoundary
-      pathname={pathname}
-      notFound={notFound}
-      notFoundStyles={notFoundStyles}
-      asNotFound={asNotFound}
-      missingSlots={missingSlots}
-    >
-      {children}
-    </NotFoundErrorBoundary>
-  ) : (
-    <>{children}</>
-  )
+
+  if (notFound) {
+    return (
+      <NotFoundErrorBoundary
+        pathname={pathname}
+        notFound={notFound}
+        notFoundStyles={notFoundStyles}
+        asNotFound={asNotFound}
+        missingSlots={missingSlots}
+      >
+        {children}
+      </NotFoundErrorBoundary>
+    )
+  }
+
+  return <>{children}</>
 }

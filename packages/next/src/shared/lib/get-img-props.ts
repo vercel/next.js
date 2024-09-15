@@ -7,6 +7,8 @@ import type {
   ImageLoaderPropsWithConfig,
 } from './image-config'
 
+import type { JSX } from 'react'
+
 export interface StaticImageData {
   src: string
   height: number
@@ -38,6 +40,7 @@ export type ImageProps = Omit<
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
+  overrideSrc?: string
   /**
    * @deprecated Use `onLoad` instead.
    * @see https://nextjs.org/docs/app/api-reference/components/image#onload
@@ -245,6 +248,7 @@ export function getImgProps(
     height,
     fill = false,
     style,
+    overrideSrc,
     onLoad,
     onLoadingComplete,
     placeholder = 'empty',
@@ -283,6 +287,11 @@ export function getImgProps(
     config = { ...c, allSizes, deviceSizes }
   }
 
+  if (typeof defaultLoader === 'undefined') {
+    throw new Error(
+      'images.loaderFile detected but the file is missing default export.\nRead more: https://nextjs.org/docs/messages/invalid-images-config'
+    )
+  }
   let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
 
   // Remove property so it's not spread on <img> element
@@ -391,9 +400,6 @@ export function getImgProps(
     // through the built-in Image Optimization API.
     unoptimized = true
   }
-  if (priority) {
-    fetchPriority = 'high'
-  }
 
   const qualityInt = getInt(quality)
 
@@ -456,6 +462,18 @@ export function getImgProps(
         } else if (isNaN(heightInt)) {
           throw new Error(
             `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
+          )
+        }
+        // eslint-disable-next-line no-control-regex
+        if (/^[\x00-\x20]/.test(src)) {
+          throw new Error(
+            `Image with src "${src}" cannot start with a space or control character. Use src.trimStart() to remove it or encodeURIComponent(src) to keep it.`
+          )
+        }
+        // eslint-disable-next-line no-control-regex
+        if (/[\x00-\x20]$/.test(src)) {
+          throw new Error(
+            `Image with src "${src}" cannot end with a space or control character. Use src.trimEnd() to remove it or encodeURIComponent(src) to keep it.`
           )
         }
       }
@@ -671,7 +689,7 @@ export function getImgProps(
     style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,
     srcSet: imgAttributes.srcSet,
-    src: imgAttributes.src,
+    src: overrideSrc || imgAttributes.src,
   }
   const meta = { unoptimized, priority, placeholder, fill }
   return { props, meta }

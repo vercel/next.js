@@ -18,7 +18,7 @@ export default function initializeBuildWatcher(
   const shadowHost = document.createElement('div')
   const [verticalProperty, horizontalProperty] = position.split('-', 2) as [
     VerticalPosition,
-    HorizonalPosition
+    HorizonalPosition,
   ]
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
