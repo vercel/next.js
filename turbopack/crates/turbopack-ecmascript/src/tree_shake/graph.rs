@@ -408,6 +408,10 @@ impl DepGraph {
 
                     for other_item in other_group {
                         if let ItemId::Group(ItemIdGroupKind::Export(export, _)) = other_item {
+                            if !export.0.as_str().starts_with("$$ACTION_") {
+                                continue;
+                            }
+
                             let Some(&declarator) = declarator.get(export) else {
                                 continue;
                             };
@@ -429,6 +433,8 @@ impl DepGraph {
                             });
 
                             required_vars.remove(export);
+
+                            dbg!(ix, "Depends on ", export.0.as_str());
 
                             deps.push(PartId::Export(export.0.as_str().into()));
 
