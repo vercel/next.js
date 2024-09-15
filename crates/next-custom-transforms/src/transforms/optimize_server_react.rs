@@ -62,10 +62,10 @@ fn effect_has_side_effect_deps(call: &CallExpr) -> bool {
 
 fn wrap_expr_with_env_prod_condition(call: CallExpr) -> Expr {
     // Wrap the call expression with the condition
-    // turn it into `process.env.__NEXT_OPTIMIZE_FALSE` && <call>.
-    // And `process.env.__NEXT_OPTIMIZE_FALSE`` will be treated as `false` in minification.
-    // In this way the expression and dependencies are still available in compilation during
-    // bundling, but will be removed in the final DEC.
+    // turn it into `process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE` && <call>.
+    // And `process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE`` will be treated as `false` in
+    // minification. In this way the expression and dependencies are still available in
+    // compilation during bundling, but will be removed in the final DEC.
     Expr::Bin(BinExpr {
         span: DUMMY_SP,
         left: Box::new(Expr::Member(MemberExpr {
@@ -83,7 +83,7 @@ fn wrap_expr_with_env_prod_condition(call: CallExpr) -> Expr {
                 span: DUMMY_SP,
             }))),
             prop: (MemberProp::Ident(IdentName {
-                sym: "__NEXT_OPTIMIZE_FALSE".into(),
+                sym: "__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE".into(),
                 span: DUMMY_SP,
             })),
             span: DUMMY_SP,

@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo } from 'react';
 import * as React from 'react';
 export default function App() {
-    process.env.__NEXT_OPTIMIZE_FALSE && useEffect(()=>{
+    process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE && useEffect(()=>{
         console.log('Hello World');
     }, []);
-    process.env.__NEXT_OPTIMIZE_FALSE && useLayoutEffect(()=>{
+    process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE && useLayoutEffect(()=>{
         function foo() {}
         return ()=>{};
     }, [

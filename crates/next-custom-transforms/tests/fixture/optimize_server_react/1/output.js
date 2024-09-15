@@ -1,10 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo } from 'react';
 import React from 'react';
 export default function App() {
-    process.env.__NEXT_OPTIMIZE_FALSE && useEffect(()=>{
+    process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE && useEffect(()=>{
         console.log('Hello World');
     }, []);
-    process.env.__NEXT_OPTIMIZE_FALSE && useLayoutEffect(()=>{
+    process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE && useLayoutEffect(()=>{
         function foo() {}
         return ()=>{};
     }, [
@@ -24,7 +24,7 @@ export default function App() {
     const a = useMemo(()=>{
         return 1;
     }, []);
-    process.env.__NEXT_OPTIMIZE_FALSE && React.useEffect(()=>{
+    process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE && React.useEffect(()=>{
         console.log('Hello World');
     });
     return <div>
