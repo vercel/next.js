@@ -147,9 +147,8 @@ pub struct EcmascriptOptions {
     /// required because tree shaking can split imports like `export const
     /// runtime = 'edge'` as a separate module.
     ///
-    /// Currently the analysis of these exports are statically verified by `NextPageStaticInfo`,
-    /// which is a `CustomTransformer` implementation and we don't have a way to apply it after
-    /// tree shaking.
+    /// Currently the analysis of these exports are performed from JS using SWC AST, so we can't
+    /// use original module for that. Instead, we just disable tree shaking for those modules.
     pub special_exports: Vc<Vec<RcStr>>,
 }
 
