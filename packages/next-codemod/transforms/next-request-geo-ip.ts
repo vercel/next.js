@@ -24,6 +24,7 @@ export default function (fileInfo: FileInfo, api: API) {
   let geoIdentifier = 'geolocation'
   let ipIdentifier = 'ipAddress'
 
+  // avoid duplicate identifiers for `geolocation` and `ipAddress`
   const allIdentifiers = root.find(j.Identifier).nodes()
   const identifierNames = new Set(allIdentifiers.map((node) => node.name))
 
@@ -47,6 +48,7 @@ export default function (fileInfo: FileInfo, api: API) {
     const blockStatement = fn.find(j.BlockStatement)
     const varDeclarators = fn.find(j.VariableDeclarator)
 
+    // req.geo, req.ip
     const geoAccesses = blockStatement.find(
       j.MemberExpression,
       (me) =>
@@ -64,6 +66,7 @@ export default function (fileInfo: FileInfo, api: API) {
         me.property.name === IP
     )
 
+    // var { geo, ip } = req
     const geoDestructuring = varDeclarators.filter(
       (path) =>
         path.node.id.type === 'ObjectPattern' &&
@@ -85,6 +88,7 @@ export default function (fileInfo: FileInfo, api: API) {
         )
     )
 
+    // geolocation(req), ipAddress(req)
     const geoCall = j.callExpression(j.identifier(geoIdentifier), [
       {
         ...param.node,
@@ -101,6 +105,22 @@ export default function (fileInfo: FileInfo, api: API) {
     geoAccesses.replaceWith(geoCall)
     ipAccesses.replaceWith(ipCall)
 
+    /*
+      For each destructuring assignment, we create a new variable
+      declaration and insert it after the current block statement.
+
+      Before:
+      ```
+      var { buildId, geo, ip } = req;
+      ```
+
+      After:
+      ```
+      var { buildId } = req;
+      const geo = geolocation(req);
+      const ip = ipAddress(req);
+      ```
+    */
     geoDestructuring.forEach((path) => {
       if (path.node.id.type === 'ObjectPattern') {
         const properties = path.node.id.properties
@@ -118,8 +138,9 @@ export default function (fileInfo: FileInfo, api: API) {
         const geoDeclaration = j.variableDeclaration('const', [
           j.variableDeclarator(
             j.identifier(
-              // alias of destructuring
-              // { geo: geoAlias }
+              // Use alias from destructuring (if present) to retain references:
+              // const { geo: geoAlias } = req; -> const geoAlias = geolocation(req);
+              // This prevents errors from undeclared variables.
               geoProperty.type === 'ObjectProperty' &&
                 geoProperty.value.type === 'Identifier'
                 ? geoProperty.value.name
@@ -147,8 +168,9 @@ export default function (fileInfo: FileInfo, api: API) {
         const ipDeclaration = j.variableDeclaration('const', [
           j.variableDeclarator(
             j.identifier(
-              // alias of destructuring
-              // { ip: ipAlias }
+              // Use alias from destructuring (if present) to retain references:
+              // const { ip: ipAlias } = req; -> const ipAlias = ipAddress(req);
+              // This prevents errors from undeclared variables.
               ipProperty.type === 'ObjectProperty' &&
                 ipProperty.value.type === 'Identifier'
                 ? ipProperty.value.name
@@ -179,12 +201,18 @@ export default function (fileInfo: FileInfo, api: API) {
         need_import_geolocation
           ? j.importSpecifier(
               j.identifier('geolocation'),
+              // If there was a duplicate identifier, we add an
+              // incremental number suffix to it and we use alias:
+              // `import { geolocation as geolocation1 } from ...`
               j.identifier(geoIdentifier)
             )
           : null,
         need_import_ipAddress
           ? j.importSpecifier(
               j.identifier('ipAddress'),
+              // If there was a duplicate identifier, we add an
+              // incremental number suffix to it and we use alias:
+              // `import { ipAddress as ipAddress1 } from ...`
               j.identifier(ipIdentifier)
             )
           : null,
