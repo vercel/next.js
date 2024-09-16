@@ -54,7 +54,7 @@ impl ValueToString for AssetIdent {
 
         let query = self.query.await?;
         if !query.is_empty() {
-            write!(s, "?{}", &*query)?;
+            write!(s, "{}", &*query)?;
         }
 
         if let Some(fragment) = &self.fragment {
@@ -96,7 +96,12 @@ impl ValueToString for AssetIdent {
         }
 
         if let Some(part) = self.part {
-            write!(s, " <{}>", part.to_string().await?)?;
+            let part = part.to_string().await?;
+            // facade is not included in ident as switching between facade and non-facade shouldn't
+            // change the ident
+            if part.as_str() != "facade" {
+                write!(s, " <{}>", part)?;
+            }
         }
 
         Ok(Vc::cell(s.into()))

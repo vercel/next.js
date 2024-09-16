@@ -256,6 +256,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     async fn chunk_group(
         self: Vc<Self>,
+        _ident: Vc<AssetIdent>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {

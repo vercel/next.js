@@ -11,3 +11,7 @@ d2 = d1[FreeVar(global)["index"]]
 d3 = d1[1]
 
 d4 = d1[2]
+
+value#3 = Iterated(d1)
+
+value#5 = Iterated([])

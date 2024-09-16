@@ -5,12 +5,16 @@ import assert from 'assert'
 import path from 'path'
 
 const withCustomPagesDirectory = path.join(__dirname, 'with-custom-pages-dir')
+const withNestedPagesDirectory = path.join(__dirname, 'with-nested-pages-dir')
 
 const withoutPagesLinter = new Linter({
   cwd: path.join(__dirname, 'without-pages-dir'),
 })
 const withAppLinter = new Linter({
   cwd: path.join(__dirname, 'with-app-dir'),
+})
+const withNestedPagesLinter = new Linter({
+  cwd: withNestedPagesDirectory,
 })
 const withCustomPagesLinter = new Linter({
   cwd: withCustomPagesDirectory,
@@ -50,11 +54,22 @@ const linterConfigWithMultipleDirectories = {
     ],
   },
 }
+const linterConfigWithNestedContentRootDirDirectory = {
+  ...linterConfig,
+  settings: {
+    next: {
+      rootDir: path.join(withNestedPagesDirectory, 'demos/with-nextjs'),
+    },
+  },
+}
 
 withoutPagesLinter.defineRules({
   'no-html-link-for-pages': rule,
 })
 withAppLinter.defineRules({
+  'no-html-link-for-pages': rule,
+})
+withNestedPagesLinter.defineRules({
   'no-html-link-for-pages': rule,
 })
 withCustomPagesLinter.defineRules({
@@ -212,6 +227,19 @@ export class Blah extends Head {
 `
 
 describe('no-html-link-for-pages', function () {
+  it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+    withNestedPagesLinter.verify(
+      validCode,
+      linterConfigWithNestedContentRootDirDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
+    expect(consoleSpy).not.toHaveBeenCalled()
+
+    consoleSpy.mockRestore()
+  })
   it('prints warning when there are no "pages" or "app" directories', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
     withoutPagesLinter.verify(validCode, linterConfig, {

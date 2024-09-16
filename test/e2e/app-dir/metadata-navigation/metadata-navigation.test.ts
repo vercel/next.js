@@ -77,5 +77,26 @@ describe('app dir - metadata navigation', () => {
       })
       expect(res.status).toBe(307)
     })
+
+    it('should show the index title', async () => {
+      const browser = await next.browser('/parallel-route')
+      expect(await browser.elementByCss('title').text()).toBe('Home Layout')
+    })
+
+    it('should show target page metadata after navigation', async () => {
+      const browser = await next.browser('/parallel-route')
+      await browser.elementByCss('#product-link').click()
+      await browser.waitForElementByCss('#product-title')
+      expect(await browser.elementByCss('title').text()).toBe('Product Layout')
+    })
+
+    it('should show target page metadata after navigation with back', async () => {
+      const browser = await next.browser('/parallel-route')
+      await browser.elementByCss('#product-link').click()
+      await browser.waitForElementByCss('#product-title')
+      await browser.elementByCss('#home-link').click()
+      await browser.waitForElementByCss('#home-title')
+      expect(await browser.elementByCss('title').text()).toBe('Home Layout')
+    })
   })
 })

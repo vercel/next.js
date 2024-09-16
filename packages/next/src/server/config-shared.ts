@@ -158,6 +158,19 @@ export interface ExperimentalTurboOptions {
    * Enable tree shaking for the turbopack dev server and build.
    */
   treeShaking?: boolean
+
+  /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  moduleIdStrategy?: 'named' | 'deterministic'
+
+  /**
+   * This is the repo root usually and only files above this
+   * directory can be resolved by turbopack.
+   */
+  root?: string
 }
 
 export interface WebpackConfigContext {
@@ -524,6 +537,12 @@ export interface ExperimentalConfig {
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
+
+  /**
+   * When enabled will cause IO in App Router to be excluded from prerenders
+   * unless explicitly cached.
+   */
+  dynamicIO?: boolean
 }
 
 export type ExportPathMap = {
@@ -1066,6 +1085,7 @@ export const defaultConfig: NextConfig = {
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
+    dynamicIO: false,
   },
   bundlePagesRouterDependencies: false,
 }

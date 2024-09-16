@@ -121,8 +121,9 @@ export function createMetadataComponents({
       errorType
     )
 
-    // We construct this instrumented promise to allow React.use to synchronously unwrap
-    // it if it has already settled.
+    // We instrument the promise compatible with React. This isn't necessary but we can
+    // perform a similar trick in synchronously unwrapping in the outlet component to avoid
+    // ticking a new microtask unecessarily
     const metadataReady: Promise<void> & { status: string; value: unknown } =
       pendingMetadata.then(
         ([error]) => {

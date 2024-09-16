@@ -5,6 +5,7 @@ import {
   type UnhandledErrorAction,
   type UnhandledRejectionAction,
 } from '../../shared'
+import type { DebugInfo } from '../../types'
 import {
   Dialog,
   DialogBody,
@@ -28,6 +29,8 @@ import {
   type HydrationErrorState,
   getHydrationWarningType,
 } from '../helpers/hydration-error-info'
+import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
+import { CopyButton } from '../components/copy-button'
 
 export type SupportedErrorEvent = {
   id: number
@@ -39,6 +42,7 @@ export type ErrorsProps = {
   initialDisplayState: DisplayState
   versionInfo?: VersionInfo
   hasStaticIndicator?: boolean
+  debugInfo?: DebugInfo
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -71,6 +75,7 @@ export function Errors({
   initialDisplayState,
   versionInfo,
   hasStaticIndicator,
+  debugInfo,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -273,9 +278,28 @@ export function Errors({
               </small>
               <VersionStalenessInfo versionInfo={versionInfo} />
             </LeftRightDialogHeader>
-            <h1 id="nextjs__container_errors_label">
-              {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
-            </h1>
+
+            <div className="nextjs__container_errors__error_title">
+              <h1
+                id="nextjs__container_errors_label"
+                className="nextjs__container_errors_label"
+              >
+                {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
+              </h1>
+              <span>
+                <CopyButton
+                  data-nextjs-data-runtime-error-copy-stack
+                  actionLabel="Copy error stack"
+                  successLabel="Copied"
+                  content={error.stack || ''}
+                  disabled={!error.stack}
+                />
+
+                <NodejsInspectorCopyButton
+                  devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
+                />
+              </span>
+            </div>
             <p
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
@@ -423,5 +447,26 @@ export const styles = css`
     position: absolute;
     top: 0;
     right: 0;
+  }
+  .nextjs__container_errors_inspect_copy_button {
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--color-ansi-bright-white);
+    font-size: 1.5rem;
+    padding: 0;
+    margin: 0;
+    margin-left: var(--size-gap);
+    transition: opacity 0.25s ease;
+  }
+  .nextjs__container_errors__error_title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nextjs-data-runtime-error-inspect-link,
+  .nextjs-data-runtime-error-inspect-link:hover {
+    margin: 0 8px;
+    color: inherit;
   }
 `

@@ -94,11 +94,23 @@ For help, see: https://nodejs.org/en/docs/inspector
 ready - started server on 0.0.0.0:3000, url: http://localhost:3000
 ```
 
-> Be aware that running `NODE_OPTIONS='--inspect' npm run dev` or `NODE_OPTIONS='--inspect' yarn dev` won't work. This would try to start multiple debuggers on the same port: one for the npm/yarn process and one for Next.js. You would then get an error like `Starting inspector on 127.0.0.1:9229 failed: address already in use` in your console.
-
 Once the server starts, open a new tab in Chrome and visit `chrome://inspect`, where you should see your Next.js application inside the **Remote Target** section. Click **inspect** under your application to open a separate DevTools window, then go to the **Sources** tab.
 
 Debugging server-side code here works much like debugging client-side code with Chrome DevTools, except that when you search for files here with `Ctrl+P` or `⌘+P`, your source files will have paths starting with `webpack://{application-name}/./` (where `{application-name}` will be replaced with the name of your application according to your `package.json` file).
+
+### Inspect Server Errors with Chrome DevTools
+
+When you encounter an error, inspecting the source code can help trace the root cause of errors.
+
+Next.js will display a Node.js logo like a green button on the dev overlay. By clicking that button Chrome DevTool url is copied into clipboard, and you can open a new browser tab with that url to inspect the Next.js server process with Chrome DevTool.
+
+<Image
+  alt="Copy Chrome DevTool url example"
+  srcLight="/docs/dark/copy-devtool-url-example.png"
+  srcDark="/docs/dark/copy-devtool-url-example.png"
+  width="1600"
+  height="594"
+/>
 
 ### Debugging on Windows
 

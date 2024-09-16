@@ -97,6 +97,13 @@ export type CacheNodeSeedData = [
   loading: LoadingModuleData,
 ]
 
+export type FlightDataSegment = [
+  /* segment of the rendered slice: */ Segment,
+  /* treePatch */ FlightRouterState,
+  /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
+  /* head */ React.ReactNode | null,
+]
+
 export type FlightDataPath =
   // Uses `any` as repeating pattern can't be typed.
   | any[]
@@ -104,10 +111,7 @@ export type FlightDataPath =
   | [
       // Holds full path to the segment.
       ...FlightSegmentPath[],
-      /* segment of the rendered slice: */ Segment,
-      /* treePatch */ FlightRouterState,
-      /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null,
+      ...FlightDataSegment,
     ]
 
 /**
@@ -171,6 +175,7 @@ export interface RenderOptsPartial {
     swrDelta: SwrDelta | undefined
     clientTraceMetadata: string[] | undefined
     after: boolean
+    dynamicIO: boolean
   }
   postponed?: string
   /**
@@ -235,15 +240,7 @@ export type ActionFlightResponse = {
   /** buildId */
   b: string
   /** flightData */
-  f: FlightData | null
-}
-
-export type FetchServerResponseResult = {
-  flightData: FlightData
-  canonicalUrl: URL | undefined
-  couldBeIntercepted: boolean
-  isPrerender: boolean
-  postponed: boolean
+  f: FlightData
 }
 
 export type RSCPayload =

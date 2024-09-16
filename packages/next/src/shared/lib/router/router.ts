@@ -1893,8 +1893,6 @@ export default class Router implements BaseRouter {
     routeProps: RouteProperties,
     loadErrorFail?: boolean
   ): Promise<CompletePrivateRouteInfo> {
-    console.error(err)
-
     if (err.cancelled) {
       // bubble up cancellation errors
       throw err
@@ -1918,6 +1916,8 @@ export default class Router implements BaseRouter {
       // So let's throw a cancellation error stop the routing logic.
       throw buildCancellationError()
     }
+
+    console.error(err)
 
     try {
       let props: Record<string, any> | undefined

@@ -92,7 +92,7 @@ impl Task for MinifyTask {
                 GLOBALS.set(&Default::default(), || {
                     let fm = self.code.to_file(self.c.cm.clone());
 
-                    self.c.minify(fm, handler, &self.opts)
+                    self.c.minify(fm, handler, &self.opts, Default::default())
                 })
             },
         )
@@ -110,6 +110,13 @@ impl Task for MinifyTask {
 fn patch_opts(opts: &mut JsMinifyOptions) {
     opts.compress = BoolOrDataConfig::from_obj(TerserCompressorOptions {
         inline: Some(TerserInlineOption::Num(2)),
+        global_defs: [(
+            "process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE".into(),
+            false.into(),
+        )]
+        .iter()
+        .cloned()
+        .collect(),
         ..Default::default()
     });
     opts.mangle = BoolOrDataConfig::from_obj(MangleOptions {
@@ -151,7 +158,11 @@ pub fn minify_sync(input: Buffer, opts: Buffer) -> napi::Result<TransformOutput>
             color: ColorConfig::Never,
             skip_filename: true,
         },
-        |handler| GLOBALS.set(&Default::default(), || c.minify(fm, handler, &opts)),
+        |handler| {
+            GLOBALS.set(&Default::default(), || {
+                c.minify(fm, handler, &opts, Default::default())
+            })
+        },
     )
     .convert_err()
 }

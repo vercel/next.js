@@ -14,7 +14,6 @@ const { createFromFetch } = (
 import type {
   FlightRouterState,
   NavigationFlightResponse,
-  FetchServerResponseResult,
 } from '../../../server/app-render/types'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -30,6 +29,10 @@ import {
 import { callServer } from '../../app-call-server'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
+import {
+  normalizeFlightData,
+  type NormalizedFlightData,
+} from '../../flight-data-helpers'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -37,6 +40,14 @@ export interface FetchServerResponseOptions {
   readonly buildId: string
   readonly prefetchKind?: PrefetchKind
   readonly isHmrRefresh?: boolean
+}
+
+export type FetchServerResponseResult = {
+  flightData: NormalizedFlightData[] | string
+  canonicalUrl: URL | undefined
+  couldBeIntercepted: boolean
+  isPrerender: boolean
+  postponed: boolean
 }
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
@@ -167,7 +178,7 @@ export async function fetchServerResponse(
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
+    let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
@@ -209,7 +220,7 @@ export async function fetchServerResponse(
     }
 
     return {
-      flightData: response.f,
+      flightData: normalizeFlightData(response.f),
       canonicalUrl: canonicalUrl,
       couldBeIntercepted: interception,
       isPrerender: isPrerender,

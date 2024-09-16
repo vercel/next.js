@@ -168,8 +168,17 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
 
             #[allow(non_snake_case)]
             #[allow(unreachable_code)] // This can occur for enums with no variants.
-            async fn resolve(&self) -> turbo_tasks::Result<Self> {
-                #resolve_impl
+            #[allow(clippy::manual_async_fn)] // some impls need the manual return type to work :(
+            fn resolve(
+                &self,
+            ) -> impl
+                ::std::future::Future<Output = turbo_tasks::Result<Self>> +
+                ::std::marker::Send +
+                '_
+            {
+                async move {
+                    #resolve_impl
+                }
             }
         }
     }
