@@ -6,7 +6,7 @@
 __turbopack_esm__({
     "c": [
         ()=>dog,
-        (dog_new_value)=>dog = dog_new_value
+        (new_dog)=>dog = new_dog
     ]
 });
 let dog = "dog";

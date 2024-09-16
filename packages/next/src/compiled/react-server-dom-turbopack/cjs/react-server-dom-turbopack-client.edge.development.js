@@ -1620,6 +1620,13 @@
       this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
       this._buffer = [];
       this._tempRefs = temporaryReferences;
+      this._debugRootOwner = bundlerConfig =
+        void 0 === ReactSharedInteralsServer ||
+        null === ReactSharedInteralsServer.A
+          ? null
+          : ReactSharedInteralsServer.A.getOwner();
+      this._debugRootStack =
+        null !== bundlerConfig ? Error("react-stack-top-frame") : null;
       this._debugFindSourceMapURL = findSourceMapURL;
       this._replayConsole = replayConsole;
       this._rootEnvironmentName =
@@ -2143,7 +2150,10 @@
           break;
         case 68:
           buffer = JSON.parse(buffer, response._fromJSON);
-          initializeFakeStack(response, buffer);
+          null === buffer.owner && null != response._debugRootOwner
+            ? ((buffer.owner = response._debugRootOwner),
+              (buffer.debugStack = response._debugRootStack))
+            : initializeFakeStack(response, buffer);
           response = getChunk(response, id);
           (response._debugInfo || (response._debugInfo = [])).push(buffer);
           break;
@@ -2189,25 +2199,26 @@
         if ("object" === typeof value && null !== value) {
           if (value[0] === REACT_ELEMENT_TYPE)
             if (
-              ((key = {
+              ((key = value[4]),
+              (value = {
                 $$typeof: REACT_ELEMENT_TYPE,
                 type: value[1],
                 key: value[2],
                 props: value[3],
-                _owner: value[4]
+                _owner: null === key ? response._debugRootOwner : key
               }),
-              Object.defineProperty(key, "ref", {
+              Object.defineProperty(value, "ref", {
                 enumerable: !1,
                 get: nullRefGetter
               }),
-              (key._store = {}),
-              Object.defineProperty(key._store, "validated", {
+              (value._store = {}),
+              Object.defineProperty(value._store, "validated", {
                 configurable: !1,
                 enumerable: !1,
                 writable: !0,
                 value: 1
               }),
-              Object.defineProperty(key, "_debugInfo", {
+              Object.defineProperty(value, "_debugInfo", {
                 configurable: !1,
                 enumerable: !1,
                 writable: !0,
@@ -2218,28 +2229,27 @@
               var handler = initializingHandler;
               initializingHandler = handler.parent;
               handler.errored
-                ? ((value = new ReactPromise(
+                ? ((key = new ReactPromise(
                     "rejected",
                     null,
                     handler.value,
                     response
                   )),
-                  (key = {
-                    name: getComponentNameFromType(key.type) || "",
-                    owner: key._owner
+                  (value = {
+                    name: getComponentNameFromType(value.type) || "",
+                    owner: value._owner
                   }),
-                  (value._debugInfo = [key]),
-                  (key = createLazyChunkWrapper(value)))
+                  (key._debugInfo = [value]),
+                  (value = createLazyChunkWrapper(key)))
                 : 0 < handler.deps &&
-                  ((value = new ReactPromise("blocked", null, null, response)),
-                  (handler.value = key),
-                  (handler.chunk = value),
-                  (key = Object.freeze.bind(Object, key.props)),
-                  value.then(key, key),
-                  (key = createLazyChunkWrapper(value)));
-            } else Object.freeze(key.props);
-          else key = value;
-          return key;
+                  ((key = new ReactPromise("blocked", null, null, response)),
+                  (handler.value = value),
+                  (handler.chunk = key),
+                  (value = Object.freeze.bind(Object, value.props)),
+                  key.then(value, value),
+                  (value = createLazyChunkWrapper(key)));
+            } else Object.freeze(value.props);
+          return value;
         }
         return value;
       };
@@ -2399,9 +2409,11 @@
       jscSpiderMonkeyFrameRegExp = /(?:(.*)@)?(.*):(\d+):(\d+)/,
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
     new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var ReactSharedInternals =
-      React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
-      React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+    var ReactSharedInteralsServer =
+        React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+      ReactSharedInternals =
+        React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
+        ReactSharedInteralsServer;
     ReactPromise.prototype = Object.create(Promise.prototype);
     ReactPromise.prototype.then = function (resolve, reject) {
       switch (this.status) {
