@@ -15,6 +15,9 @@ export default function (fileInfo: FileInfo, api: API) {
     )
   })
 
+  const GEO = 'geo'
+  const IP = 'ip'
+
   let need_import_geolocation = false
   let need_import_ipAddress = false
 
@@ -41,51 +44,46 @@ export default function (fileInfo: FileInfo, api: API) {
   for (const param of params.paths()) {
     const fnPath: ASTPath<FunctionDeclaration> = param.parentPath.parentPath
     const fn = j(fnPath)
+    const blockStatement = fn.find(j.BlockStatement)
+    const varDeclarators = fn.find(j.VariableDeclarator)
 
-    const geoAccesses = fn
-      .find(j.BlockStatement)
-      .find(j.MemberExpression, (me) => {
-        if (me.object.type !== 'Identifier') return false
-        if (me.object.name !== param.node.name) return false
-        if (me.property.type !== 'Identifier') return false
+    const geoAccesses = blockStatement.find(
+      j.MemberExpression,
+      (me) =>
+        me.object.type === 'Identifier' &&
+        me.object.name === param.node.name &&
+        me.property.type === 'Identifier' &&
+        me.property.name === GEO
+    )
+    const ipAccesses = blockStatement.find(
+      j.MemberExpression,
+      (me) =>
+        me.object.type === 'Identifier' &&
+        me.object.name === param.node.name &&
+        me.property.type === 'Identifier' &&
+        me.property.name === IP
+    )
 
-        return me.property.name === 'geo'
-      })
-
-    // Handle geo destructuring
-    const geoDestructuring = fn.find(j.VariableDeclarator).filter((path) => {
-      return (
+    const geoDestructuring = varDeclarators.filter(
+      (path) =>
         path.node.id.type === 'ObjectPattern' &&
         path.node.id.properties.some(
           (prop) =>
             prop.type === 'ObjectProperty' &&
             prop.key.type === 'Identifier' &&
-            prop.key.name === 'geo'
+            prop.key.name === GEO
         )
-      )
-    })
-
-    const ipAccesses = fn
-      .find(j.BlockStatement)
-      .find(j.MemberExpression, (me) => {
-        if (me.object.type !== 'Identifier') return false
-        if (me.object.name !== param.node.name) return false
-        if (me.property.type !== 'Identifier') return false
-
-        return me.property.name === 'ip'
-      })
-
-    const ipDestructuring = fn.find(j.VariableDeclarator).filter((path) => {
-      return (
+    )
+    const ipDestructuring = varDeclarators.filter(
+      (path) =>
         path.node.id.type === 'ObjectPattern' &&
         path.node.id.properties.some(
           (prop) =>
             prop.type === 'ObjectProperty' &&
             prop.key.type === 'Identifier' &&
-            prop.key.name === 'ip'
+            prop.key.name === IP
         )
-      )
-    })
+    )
 
     const geoCall = j.callExpression(j.identifier(geoIdentifier), [
       {
@@ -103,30 +101,6 @@ export default function (fileInfo: FileInfo, api: API) {
     geoAccesses.replaceWith(geoCall)
     ipAccesses.replaceWith(ipCall)
 
-    ipDestructuring.forEach((path) => {
-      if (path.node.id.type === 'ObjectPattern') {
-        const properties = path.node.id.properties
-        const ipProperty = properties.find(
-          (prop) =>
-            prop.type === 'ObjectProperty' &&
-            prop.key.type === 'Identifier' &&
-            prop.key.name === 'ip'
-        )
-        const otherProperties = properties.filter((prop) => prop !== ipProperty)
-
-        // Create new variable declaration for ip
-        const ipDeclaration = j.variableDeclaration('const', [
-          j.variableDeclarator(j.identifier('ip'), ipCall),
-        ])
-
-        // Update the original destructuring
-        path.node.id.properties = otherProperties
-
-        // Insert the new ip declaration after the updated destructuring
-        path.parent.insertAfter(ipDeclaration)
-      }
-    })
-
     geoDestructuring.forEach((path) => {
       if (path.node.id.type === 'ObjectPattern') {
         const properties = path.node.id.properties
@@ -134,22 +108,58 @@ export default function (fileInfo: FileInfo, api: API) {
           (prop) =>
             prop.type === 'ObjectProperty' &&
             prop.key.type === 'Identifier' &&
-            prop.key.name === 'geo'
+            prop.key.name === GEO
         )
+
         const otherProperties = properties.filter(
           (prop) => prop !== geoProperty
         )
 
-        // Create new variable declaration for geo
         const geoDeclaration = j.variableDeclaration('const', [
-          j.variableDeclarator(j.identifier('geo'), geoCall),
+          j.variableDeclarator(
+            j.identifier(
+              // alias of destructuring
+              // { geo: geoAlias }
+              geoProperty.type === 'ObjectProperty' &&
+                geoProperty.value.type === 'Identifier'
+                ? geoProperty.value.name
+                : GEO
+            ),
+            geoCall
+          ),
         ])
 
-        // Update the original destructuring
         path.node.id.properties = otherProperties
-
-        // Insert the new geo declaration after the updated destructuring
         path.parent.insertAfter(geoDeclaration)
+      }
+    })
+    ipDestructuring.forEach((path) => {
+      if (path.node.id.type === 'ObjectPattern') {
+        const properties = path.node.id.properties
+        const ipProperty = properties.find(
+          (prop) =>
+            prop.type === 'ObjectProperty' &&
+            prop.key.type === 'Identifier' &&
+            prop.key.name === IP
+        )
+        const otherProperties = properties.filter((prop) => prop !== ipProperty)
+
+        const ipDeclaration = j.variableDeclaration('const', [
+          j.variableDeclarator(
+            j.identifier(
+              // alias of destructuring
+              // { ip: ipAlias }
+              ipProperty.type === 'ObjectProperty' &&
+                ipProperty.value.type === 'Identifier'
+                ? ipProperty.value.name
+                : IP
+            ),
+            ipCall
+          ),
+        ])
+
+        path.node.id.properties = otherProperties
+        path.parent.insertAfter(ipDeclaration)
       }
     })
 

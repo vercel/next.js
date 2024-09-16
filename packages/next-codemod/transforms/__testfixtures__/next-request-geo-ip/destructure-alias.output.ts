@@ -7,7 +7,7 @@ export function GET(request: NextRequest) {
   const {
     buildId
   } = request;
-  const ip = ipAddress(request);
-  const geo = geolocation(request);
-  return NextResponse.json({ buildId, geo, ip });
+  const ipAlias = ipAddress(request);
+  const geoAlias = geolocation(request);
+  return NextResponse.json({ buildId, geo: geoAlias, ip: ipAlias });
 }
