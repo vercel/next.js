@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useRef, useCallback } from "react";
 
 export default function Index() {
