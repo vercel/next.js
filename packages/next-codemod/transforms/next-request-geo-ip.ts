@@ -185,20 +185,18 @@ export default function (fileInfo: FileInfo, api: API) {
       }
     })
 
-    need_import_geolocation =
-      need_import_geolocation ||
+    needImportGeolocation =
+      needImportGeolocation ||
       geoAccesses.length > 0 ||
       geoDestructuring.length > 0
-    need_import_ipAddress =
-      need_import_ipAddress ||
-      ipAccesses.length > 0 ||
-      ipDestructuring.length > 0
+    needImportIpAddress =
+      needImportIpAddress || ipAccesses.length > 0 || ipDestructuring.length > 0
   }
 
-  if (need_import_geolocation || need_import_ipAddress) {
+  if (needImportGeolocation || needImportIpAddress) {
     const importDeclaration = j.importDeclaration(
       [
-        need_import_geolocation
+        needImportGeolocation
           ? j.importSpecifier(
               j.identifier('geolocation'),
               // If there was a duplicate identifier, we add an
@@ -207,7 +205,7 @@ export default function (fileInfo: FileInfo, api: API) {
               j.identifier(geoIdentifier)
             )
           : null,
-        need_import_ipAddress
+        needImportIpAddress
           ? j.importSpecifier(
               j.identifier('ipAddress'),
               // If there was a duplicate identifier, we add an
