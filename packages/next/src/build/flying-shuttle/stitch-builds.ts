@@ -141,6 +141,9 @@ export async function stitchBuilds(
           if (normalizedEntry === '/') {
             normalizedEntry = '/index'
           }
+          if (normalizedEntry === '/not-found') {
+            normalizedEntry = '/_not-found/page'
+          }
           await copyPageChunk(normalizedEntry, type)
         } finally {
           copySema.release()
@@ -148,8 +151,6 @@ export async function stitchBuilds(
       })
     )
   }
-  // always attempt copying not-found chunk
-  await copyPageChunk('/_not-found/page', 'app').catch(() => {})
 
   // merge dynamic/static routes in routes-manifest
   const [restoreRoutesManifest, currentRoutesManifest] = await Promise.all(

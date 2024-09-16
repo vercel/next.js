@@ -91,6 +91,7 @@ pub trait ChunkingContext {
 
     fn chunk_group(
         self: Vc<Self>,
+        ident: Vc<AssetIdent>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<ChunkGroupResult>;
@@ -189,7 +190,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Vc<ChunkGroupResult> {
-        self.chunk_group(module, Value::new(AvailabilityInfo::Root))
+        self.chunk_group(module.ident(), module, Value::new(AvailabilityInfo::Root))
     }
 
     fn root_chunk_group_assets(
@@ -309,7 +310,7 @@ async fn chunk_group_assets(
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<OutputAssets>> {
     Ok(chunking_context
-        .chunk_group(module, availability_info)
+        .chunk_group(module.ident(), module, availability_info)
         .await?
         .assets)
 }

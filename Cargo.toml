@@ -85,7 +85,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "0.102.0", features = [
+swc_core = { version = "0.103.1", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
@@ -94,12 +94,12 @@ testing = { version = "0.39.0" }
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.16.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
-mdxjs = "0.2.8"
-modularize_imports = { version = "0.68.23" }
-styled_components = { version = "0.96.22" }
-styled_jsx = { version = "0.73.31" }
-swc_emotion = { version = "0.72.21" }
-swc_relay = { version = "0.44.24" }
+mdxjs = "0.2.9"
+modularize_imports = { version = "0.68.25" }
+styled_components = { version = "0.96.23" }
+styled_jsx = { version = "0.73.34" }
+swc_emotion = { version = "0.72.22" }
+swc_relay = { version = "0.44.25" }
 
 # General Deps
 
@@ -127,7 +127,6 @@ async-compression = { version = "0.3.13", default-features = false, features = [
   "gzip",
   "tokio",
 ] }
-async-recursion = "1.0.2"
 async-trait = "0.1.64"
 atty = "0.2.14"
 bytes = "1.1.0"
@@ -153,12 +152,12 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.58", features = [
+lightningcss = { version = "1.0.0-alpha.59", features = [
   "serde",
   "visitor",
   "into_owned",
 ] }
-lightningcss-napi = { version = "0.2.0", default-features = false, features = [
+lightningcss-napi = { version = "0.3.0", default-features = false, features = [
   "visitor"
 ]}
 markdown = "1.0.0-alpha.18"
@@ -167,7 +166,7 @@ nohash-hasher = "0.2.0"
 notify = "6.1.1"
 once_cell = "1.17.1"
 owo-colors = "3.5.0"
-parcel_selectors = "0.26.0"
+parcel_selectors = "0.27.0"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
 # Temporary: Reference the latest git minor version of pathfinder_simd until it's published.
@@ -187,6 +186,8 @@ rustc-hash = "1.1.0"
 semver = "1.0.16"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.93"
+serde_bytes = "0.11.15"
+serde_path_to_error = "0.1.9"
 serde_qs = "0.11.0"
 serde_with = "2.3.2"
 serde_yaml = "0.9.17"
@@ -200,12 +201,13 @@ smallvec = { version = "1.13.1", features = [
   "const_new",
 ] }
 sourcemap = "9.0.0"
+strsim = "0.11.1"
 syn = "1.0.107"
 tempfile = "3.3.0"
 thiserror = "1.0.48"
 tiny-gradient = "0.1.0"
 tokio = "1.25.0"
-tokio-util = { version = "0.7.7", features = ["io"] }
+tokio-util = { version = "0.7.11", features = ["io", "rt"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }

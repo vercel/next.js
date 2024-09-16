@@ -52,6 +52,7 @@ export async function toResponseCacheEntry(
     isMiss: response.isMiss,
     isStale: response.isStale,
     revalidate: response.revalidate,
+    isFallback: response.isFallback,
     value:
       response.value?.kind === CachedRouteKind.PAGES
         ? ({

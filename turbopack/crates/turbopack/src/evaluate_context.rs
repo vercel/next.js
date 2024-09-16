@@ -16,7 +16,7 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
-    transition::TransitionsByName,
+    transition::TransitionOptions,
     ModuleAssetContext,
 };
 
@@ -31,7 +31,7 @@ pub fn node_build_environment() -> Vc<Environment> {
 pub async fn node_evaluate_asset_context(
     execution_context: Vc<ExecutionContext>,
     import_map: Option<Vc<ImportMap>>,
-    transitions: Option<Vc<TransitionsByName>>,
+    transitions: Option<Vc<TransitionOptions>>,
     layer: RcStr,
     ignore_dynamic_requests: bool,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
@@ -78,7 +78,7 @@ pub async fn node_evaluate_asset_context(
     .cell();
 
     Ok(Vc::upcast(ModuleAssetContext::new(
-        transitions.unwrap_or_else(|| Vc::cell(Default::default())),
+        transitions.unwrap_or_default(),
         CompileTimeInfo::builder(node_build_environment())
             .defines(
                 compile_time_defines!(
