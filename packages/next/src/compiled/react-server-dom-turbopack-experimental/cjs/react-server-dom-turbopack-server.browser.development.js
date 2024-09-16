@@ -1644,7 +1644,7 @@
           null !== value.debugTask &&
           "function" === typeof value.debugTask.run) ||
           value.debugStack instanceof Error) &&
-        isArrayImpl(value.stack) &&
+        (isArrayImpl(value.stack) || null === value.stack) &&
         "string" === typeof value.name &&
         "string" === typeof value.env &&
         void 0 !== value.owner

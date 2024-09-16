@@ -174,6 +174,7 @@ import {
   recordFrameworkVersion,
   updateBuildDiagnostics,
   recordFetchMetrics,
+  updateIncrementalBuildMetrics,
 } from '../diagnostics/build-diagnostics'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
@@ -859,6 +860,30 @@ export default async function build(
         cacheDir,
       }
 
+      const distDirCreated = await nextBuildSpan
+        .traceChild('create-dist-dir')
+        .traceAsyncFn(async () => {
+          try {
+            await fs.mkdir(distDir, { recursive: true })
+            return true
+          } catch (err) {
+            if (isError(err) && err.code === 'EPERM') {
+              return false
+            }
+            throw err
+          }
+        })
+
+      if (!distDirCreated || !(await isWriteable(distDir))) {
+        throw new Error(
+          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
+        )
+      }
+
+      if (config.cleanDistDir && !isGenerateMode) {
+        await recursiveDelete(distDir, /^cache/)
+      }
+
       // For app directory, we run type checking after build. That's because
       // we dynamically generate types for each layout and page in the app
       // directory.
@@ -904,23 +929,22 @@ export default async function build(
           }
 
       if (pagesPaths && isFullFlyingShuttle) {
-        changedPagePathsResult = await detectChangedEntries({
-          pagesPaths,
-          pageExtensions: config.pageExtensions,
-          distDir,
-          shuttleDir,
-          config,
-        })
-        console.log(
-          JSON.stringify(
-            {
-              changedPagePathsResult: changedPagePathsResult.changed.pages,
-            },
-            null,
-            2
-          )
-        )
-        pagesPaths = changedPagePathsResult.changed.pages
+        await nextBuildSpan
+          .traceChild('detect-changed-entries', { type: 'pages' })
+          .traceAsyncFn(async () => {
+            changedPagePathsResult = await detectChangedEntries({
+              pagesPaths,
+              pageExtensions: config.pageExtensions,
+              distDir,
+              shuttleDir,
+              config,
+            })
+            await updateIncrementalBuildMetrics({
+              changedPagePaths: changedPagePathsResult.changed.pages,
+              unchangedPagePaths: changedPagePathsResult.unchanged.pages,
+            })
+            pagesPaths = changedPagePathsResult.changed.pages
+          })
       }
 
       const middlewareDetectionRegExp = new RegExp(
@@ -998,23 +1022,22 @@ export default async function build(
           )
 
         if (appPaths && isFullFlyingShuttle) {
-          changedAppPathsResult = await detectChangedEntries({
-            appPaths,
-            pageExtensions: config.pageExtensions,
-            distDir,
-            shuttleDir,
-            config,
-          })
-          console.log(
-            JSON.stringify(
-              {
-                changedAppPathsResult: changedAppPathsResult.changed.app,
-              },
-              null,
-              2
-            )
-          )
-          appPaths = changedAppPathsResult.changed.app
+          await nextBuildSpan
+            .traceChild('detect-changed-entries', { type: 'app' })
+            .traceAsyncFn(async () => {
+              changedAppPathsResult = await detectChangedEntries({
+                appPaths,
+                pageExtensions: config.pageExtensions,
+                distDir,
+                shuttleDir,
+                config,
+              })
+              await updateIncrementalBuildMetrics({
+                changedAppPaths: changedAppPathsResult.changed.app,
+                unchangedAppPaths: changedAppPathsResult.unchanged.app,
+              })
+              appPaths = changedAppPathsResult.changed.app
+            })
         }
 
         mappedAppPages = await nextBuildSpan
@@ -1267,30 +1290,6 @@ export default async function build(
           config.experimental.clientRouterFilterAllowedRate
         )
         NextBuildContext.clientRouterFilters = clientRouterFilters
-      }
-
-      const distDirCreated = await nextBuildSpan
-        .traceChild('create-dist-dir')
-        .traceAsyncFn(async () => {
-          try {
-            await fs.mkdir(distDir, { recursive: true })
-            return true
-          } catch (err) {
-            if (isError(err) && err.code === 'EPERM') {
-              return false
-            }
-            throw err
-          }
-        })
-
-      if (!distDirCreated || !(await isWriteable(distDir))) {
-        throw new Error(
-          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
-        )
-      }
-
-      if (config.cleanDistDir && !isGenerateMode) {
-        await recursiveDelete(distDir, /^cache/)
       }
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
@@ -2600,53 +2599,65 @@ export default async function build(
             console.log('skipping stitching builds due to store-only mode')
           } else {
             console.log('stitching builds...')
-            const stitchResult = await stitchBuilds(
-              {
-                config,
-                buildId,
-                distDir,
-                shuttleDir,
-                rewrites,
-                redirects,
-                edgePreviewProps: {
-                  __NEXT_PREVIEW_MODE_ID:
-                    NextBuildContext.previewProps!.previewModeId,
-                  __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
-                    NextBuildContext.previewProps!.previewModeEncryptionKey,
-                  __NEXT_PREVIEW_MODE_SIGNING_KEY:
-                    NextBuildContext.previewProps!.previewModeSigningKey,
-                },
-                encryptionKey,
-                allowedErrorRate:
-                  config.experimental.clientRouterFilterAllowedRate,
-              },
-              {
-                changed: {
-                  pages: changedPagePathsResult?.changed.pages || [],
-                  app: changedAppPathsResult?.changed.app || [],
-                },
-                unchanged: {
-                  pages: changedPagePathsResult?.unchanged.pages || [],
-                  app: changedAppPathsResult?.unchanged.app || [],
-                },
-                pageExtensions: config.pageExtensions,
-              }
-            )
-            // reload pagesManifest since it's been updated on disk
-            if (stitchResult.pagesManifest) {
-              pagesManifest = stitchResult.pagesManifest
-            }
+            await nextBuildSpan
+              .traceChild('stitch-incremental-builds')
+              .traceAsyncFn(async () => {
+                const stitchResult = await stitchBuilds(
+                  {
+                    config,
+                    buildId,
+                    distDir,
+                    shuttleDir,
+                    rewrites,
+                    redirects,
+                    edgePreviewProps: {
+                      __NEXT_PREVIEW_MODE_ID:
+                        NextBuildContext.previewProps!.previewModeId,
+                      __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
+                        NextBuildContext.previewProps!.previewModeEncryptionKey,
+                      __NEXT_PREVIEW_MODE_SIGNING_KEY:
+                        NextBuildContext.previewProps!.previewModeSigningKey,
+                    },
+                    encryptionKey,
+                    allowedErrorRate:
+                      config.experimental.clientRouterFilterAllowedRate,
+                  },
+                  {
+                    changed: {
+                      pages: changedPagePathsResult?.changed.pages || [],
+                      app: changedAppPathsResult?.changed.app || [],
+                    },
+                    unchanged: {
+                      pages: changedPagePathsResult?.unchanged.pages || [],
+                      app: changedAppPathsResult?.unchanged.app || [],
+                    },
+                    pageExtensions: config.pageExtensions,
+                  }
+                )
+                // reload pagesManifest since it's been updated on disk
+                if (stitchResult.pagesManifest) {
+                  pagesManifest = stitchResult.pagesManifest
+                }
+              })
           }
 
           console.log('storing shuttle')
-          await storeShuttle({
-            config,
-            distDir,
-            shuttleDir,
-          })
+          await nextBuildSpan
+            .traceChild('store-cache-shuttle')
+            .traceAsyncFn(async () => {
+              await storeShuttle({
+                config,
+                distDir,
+                shuttleDir,
+              })
+            })
 
           console.log('inlining static env')
-          await inlineStaticEnv({ distDir })
+          await nextBuildSpan
+            .traceChild('inline-static-env')
+            .traceAsyncFn(async () => {
+              await inlineStaticEnv({ distDir })
+            })
         }
       }
 
