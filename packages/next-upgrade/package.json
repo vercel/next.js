@@ -17,6 +17,7 @@
   "author": "Next.js Team <support@vercel.com>",
   "license": "MIT",
   "dependencies": {
+    "chalk": "5.3.0",
     "compare-versions": "6.1.1",
     "prompts": "^2.4.2",
     "yaml": "2.5.1"
