@@ -164,7 +164,7 @@ export default async function Image({
   params: { id: string }
   id: number
 }) {
-  const productId = params.id
+  const productId = (await params).id
   const imageId = id
   const text = await getCaptionForImage(productId, imageId)
 
@@ -200,7 +200,7 @@ export async function generateImageMetadata({ params }) {
 }
 
 export default async function Image({ params, id }) {
-  const productId = params.id
+  const productId = (await params).id
   const imageId = id
   const text = await getCaptionForImage(productId, imageId)
 
