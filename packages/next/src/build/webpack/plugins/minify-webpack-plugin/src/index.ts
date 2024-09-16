@@ -109,7 +109,11 @@ export class MinifyPlugin {
                       },
                     }
                   : {}),
-                compress: true,
+                compress: {
+                  global_defs: {
+                    'process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE': false,
+                  },
+                },
                 mangle: true,
                 module: 'unknown',
                 output: {
