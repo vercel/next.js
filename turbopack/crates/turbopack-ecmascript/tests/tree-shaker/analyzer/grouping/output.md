@@ -471,7 +471,7 @@ import "__TURBOPACK_PART__" assert {
 import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-export { x as x };
+export { x };
 
 ```
 ## Part 10
@@ -701,7 +701,7 @@ import "__TURBOPACK_PART__" assert {
 import { a as x } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-export { x as x };
+export { x };
 
 ```
 ## Part 11

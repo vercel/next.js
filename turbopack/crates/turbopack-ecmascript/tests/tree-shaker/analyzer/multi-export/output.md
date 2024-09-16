@@ -120,7 +120,7 @@ import "__TURBOPACK_PART__" assert {
 import { a as cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-export { cat as cat };
+export { cat };
 
 ```
 ## Part 2
@@ -195,7 +195,7 @@ import "__TURBOPACK_PART__" assert {
 import { a as cat } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-export { cat as cat };
+export { cat };
 
 ```
 ## Part 2
