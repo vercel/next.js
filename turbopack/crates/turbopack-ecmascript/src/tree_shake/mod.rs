@@ -4,11 +4,11 @@ use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use rustc_hash::FxHashMap;
 use swc_core::{
-    common::{util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
+    common::{comments::Comments, util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
     ecma::{
         ast::{
-            ExportAll, ExportNamedSpecifier, Id, Ident, ImportDecl, Module, ModuleDecl,
-            ModuleExportName, ModuleItem, NamedExport, Program,
+            ExportAll, ExportNamedSpecifier, Expr, ExprStmt, Id, Ident, ImportDecl, Lit, Module,
+            ModuleDecl, ModuleExportName, ModuleItem, NamedExport, Program, Stmt,
         },
         codegen::to_code,
     },
@@ -65,11 +65,12 @@ fn get_var<'a>(map: &'a FxHashMap<Id, VarState>, id: &Id) -> Cow<'a, VarState> {
 impl Analyzer<'_> {
     pub(super) fn analyze(
         module: &Module,
+        comments: &dyn Comments,
         unresolved_ctxt: SyntaxContext,
         top_level_ctxt: SyntaxContext,
     ) -> (DepGraph, FxHashMap<ItemId, ItemData>) {
         let mut g = DepGraph::default();
-        let (item_ids, mut items) = g.init(module, unresolved_ctxt, top_level_ctxt);
+        let (item_ids, mut items) = g.init(module, comments, unresolved_ctxt, top_level_ctxt);
 
         let mut analyzer = Analyzer {
             g: &mut g,
@@ -397,7 +398,7 @@ pub(crate) enum SplitResult {
         modules: Vec<Vc<ParseResult>>,
 
         #[turbo_tasks(trace_ignore)]
-        deps: FxHashMap<u32, Vec<u32>>,
+        deps: FxHashMap<u32, Vec<PartId>>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
         star_reexports: Vec<ExportAll>,
@@ -451,9 +452,26 @@ pub(super) async fn split(
                 Program::Script(..) => unreachable!("CJS is already handled"),
             };
 
+            // We copy directives like `use client` or `use server` to each module
+            let directives = module
+                .body
+                .iter()
+                .take_while(|item| {
+                    matches!(
+                        item,
+                        ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                            expr: box Expr::Lit(Lit::Str(..)),
+                            ..
+                        }))
+                    )
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+
             let (mut dep_graph, items) = GLOBALS.set(globals, || {
                 Analyzer::analyze(
                     module,
+                    comments,
                     SyntaxContext::empty().apply_mark(eval_context.unresolved_mark),
                     SyntaxContext::empty().apply_mark(eval_context.top_level_mark),
                 )
@@ -466,7 +484,7 @@ pub(super) async fn split(
                 part_deps,
                 modules,
                 star_reexports,
-            } = dep_graph.split_module(&items);
+            } = dep_graph.split_module(&directives, &items);
 
             assert_ne!(modules.len(), 0, "modules.len() == 0;\nModule: {module:?}",);
 
@@ -518,7 +536,7 @@ pub(super) async fn split(
 }
 
 #[turbo_tasks::function]
-pub(super) async fn part_of_module(
+pub(crate) async fn part_of_module(
     split_data: Vc<SplitResult>,
     part: Vc<ModulePart>,
 ) -> Result<Vc<ParseResult>> {
@@ -614,83 +632,6 @@ pub(super) async fn part_of_module(
                         None,
                     );
 
-                    return Ok(ParseResult::Ok {
-                        program,
-                        comments: comments.clone(),
-                        eval_context,
-                        globals: globals.clone(),
-                        source_map: source_map.clone(),
-                    }
-                    .cell());
-                } else {
-                    unreachable!()
-                }
-            }
-
-            if matches!(&*part.await?, ModulePart::Exports) {
-                if let ParseResult::Ok {
-                    comments,
-                    eval_context,
-                    globals,
-                    source_map,
-                    ..
-                } = &*modules[0].await?
-                {
-                    let mut export_names = entrypoints
-                        .keys()
-                        .filter_map(|key| {
-                            if let Key::Export(v) = key {
-                                Some(v.clone())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>();
-                    export_names.sort();
-
-                    let mut module = Module::dummy();
-
-                    for export_name in export_names {
-                        // We can't use quote! as `with` is not standard yet
-                        let chunk_prop =
-                            create_turbopack_part_id_assert(PartId::Export(export_name.clone()));
-
-                        let specifier =
-                            swc_core::ecma::ast::ExportSpecifier::Named(ExportNamedSpecifier {
-                                span: DUMMY_SP,
-                                orig: ModuleExportName::Ident(Ident::new(
-                                    export_name.as_str().into(),
-                                    DUMMY_SP,
-                                    Default::default(),
-                                )),
-                                exported: None,
-                                is_type_only: false,
-                            });
-                        module
-                            .body
-                            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
-                                NamedExport {
-                                    span: DUMMY_SP,
-                                    specifiers: vec![specifier],
-                                    src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
-                                    type_only: false,
-                                    with: Some(Box::new(chunk_prop)),
-                                },
-                            )));
-                    }
-
-                    module.body.extend(star_reexports.iter().map(|export_all| {
-                        ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export_all.clone()))
-                    }));
-
-                    let program = Program::Module(module);
-                    let eval_context = EvalContext::new(
-                        &program,
-                        eval_context.unresolved_mark,
-                        eval_context.top_level_mark,
-                        None,
-                        None,
-                    );
                     return Ok(ParseResult::Ok {
                         program,
                         comments: comments.clone(),
