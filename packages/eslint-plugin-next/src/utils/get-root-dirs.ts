@@ -5,7 +5,7 @@ import type { Rule } from 'eslint'
  * Process a Next.js root directory glob.
  */
 const processRootDir = (rootDir: string): string[] => {
-  return globSync(rootDir, {
+  return globSync(rootDir.replace(/\\/g, '/'), {
     onlyDirectories: true,
   })
 }
