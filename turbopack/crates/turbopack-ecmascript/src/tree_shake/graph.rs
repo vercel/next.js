@@ -1095,7 +1095,11 @@ impl DepGraph {
                         specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
                             span: DUMMY_SP,
                             orig: ModuleExportName::Ident(local.clone().into()),
-                            exported: export_name,
+                            exported: Some(ModuleExportName::Ident(Ident::new(
+                                "testexportname".into(),
+                                DUMMY_SP,
+                                Default::default(),
+                            ))),
                             is_type_only: false,
                         })],
                         src: None,

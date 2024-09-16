@@ -659,11 +659,15 @@ pub(super) async fn part_of_module(
                             swc_core::ecma::ast::ExportSpecifier::Named(ExportNamedSpecifier {
                                 span: DUMMY_SP,
                                 orig: ModuleExportName::Ident(Ident::new(
-                                    export_name.as_str().into(),
+                                    "testexportname".into(),
                                     DUMMY_SP,
                                     Default::default(),
                                 )),
-                                exported: None,
+                                exported: Some(ModuleExportName::Ident(Ident::new(
+                                    export_name.as_str().into(),
+                                    DUMMY_SP,
+                                    Default::default(),
+                                ))),
                                 is_type_only: false,
                             });
                         module
