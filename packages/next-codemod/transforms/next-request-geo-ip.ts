@@ -138,15 +138,14 @@ export default function (fileInfo: FileInfo, api: API) {
       }
     })
 
-    if (
-      ipAccesses.length > 0 ||
+    need_import_geolocation =
+      need_import_geolocation ||
       geoAccesses.length > 0 ||
-      ipDestructuring.length > 0 ||
       geoDestructuring.length > 0
-    ) {
-      need_import_geolocation = true
-      need_import_ipAddress = true
-    }
+    need_import_ipAddress =
+      need_import_ipAddress ||
+      ipAccesses.length > 0 ||
+      ipDestructuring.length > 0
   }
 
   if (need_import_geolocation || need_import_ipAddress) {
