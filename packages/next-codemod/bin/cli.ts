@@ -62,28 +62,6 @@ export function runTransform({ files, flags, transformer }) {
 
   const { dry, print, runInBand } = flags
 
-  if (!dry && transformer === 'next-request-geolocation') {
-    console.log('Note: This codemod expects your app to be deployed on Vercel.')
-    console.log('Installing `@vercel/functions`')
-    try {
-      installPackage('@vercel/functions')
-    } catch {
-      console.error(
-        "Couldn't install `@vercel/functions`, please install it manually"
-      )
-    }
-
-    console.log(
-      'You can replace `geo` and `ip` of `NextRequest` with `@vercel/functions`:'
-    )
-    console.log()
-    console.log(
-      '```\nimport { geolocation, ipAddress } from "@vercel/functions"\n```'
-    )
-
-    return
-  }
-
   if (dry) {
     args.push('--dry')
   }
@@ -127,6 +105,18 @@ export function runTransform({ files, flags, transformer }) {
     } catch {
       console.error(
         "Couldn't uninstall `@next/font`, please uninstall it manually"
+      )
+    }
+  }
+
+  if (!dry && transformer === 'next-request-geo-ip') {
+    console.log('Note: This Codemod expects your app to be deployed on Vercel.')
+    console.log('Installing `@vercel/functions`')
+    try {
+      installPackage('@vercel/functions')
+    } catch {
+      console.error(
+        "Couldn't install `@vercel/functions`, please install it manually"
       )
     }
   }
@@ -182,8 +172,8 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'built-in-next-font',
   },
   {
-    name: 'next-request-geolocation: Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
-    value: 'next-request-geolocation',
+    name: 'next-request-geo-ip: Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
+    value: 'next-request-geo-ip',
   },
 ]
 
