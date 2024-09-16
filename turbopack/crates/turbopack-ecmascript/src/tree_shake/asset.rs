@@ -11,7 +11,7 @@ use turbopack_core::{
 
 use super::{
     chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split, split_module,
-    Key, SplitResult,
+    Key, PartId, SplitResult,
 };
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
@@ -27,7 +27,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct EcmascriptModulePartAsset {
     pub full_module: Vc<EcmascriptModuleAsset>,
-    pub(crate) part: Vc<ModulePart>,
+    pub part: Vc<ModulePart>,
 }
 
 #[turbo_tasks::value_impl]
@@ -40,15 +40,14 @@ impl EcmascriptParsable for EcmascriptModulePartAsset {
         let split_data = split(this.full_module.ident(), this.full_module.source(), parsed);
         Ok(part_of_module(split_data, this.part))
     }
-
     #[turbo_tasks::function]
-    async fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        Ok(self.await?.full_module.parse_original())
+    fn parse_original(&self) -> Result<Vc<ParseResult>> {
+        Ok(self.full_module.parse_original())
     }
 
     #[turbo_tasks::function]
-    async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
-        Ok(self.await?.full_module.ty())
+    async fn ty(&self) -> Result<Vc<EcmascriptModuleAssetType>> {
+        Ok(self.full_module.ty())
     }
 }
 
@@ -212,11 +211,17 @@ impl Module for EcmascriptModulePartAsset {
 
         let mut assets = deps
             .iter()
-            .map(|&part_id| {
+            .map(|part_id| {
                 Ok(Vc::upcast(SingleModuleReference::new(
                     Vc::upcast(EcmascriptModulePartAsset::new(
                         self.full_module,
-                        ModulePart::internal(part_id),
+                        match part_id {
+                            PartId::Internal(part_id) => ModulePart::internal(*part_id),
+                            PartId::Export(name) => ModulePart::export(name.clone()),
+                            _ => unreachable!(
+                                "PartId other than Internal and Export should not be used here"
+                            ),
+                        },
                     )),
                     Vc::cell("ecmascript module part".into()),
                 )))
