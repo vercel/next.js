@@ -218,7 +218,9 @@ async function createForwardedActionResponse(
       },
     })
 
-    if (response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
+    if (
+      response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)
+    ) {
       // copy the headers from the redirect response to the response we're sending
       for (const [key, value] of response.headers) {
         if (!actionsForbiddenHeaders.includes(key)) {
@@ -340,7 +342,11 @@ async function createRedirectRenderResult(
         },
       })
 
-      if (response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
+      if (
+        response.headers
+          .get('content-type')
+          ?.startsWith(RSC_CONTENT_TYPE_HEADER)
+      ) {
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
           if (!actionsForbiddenHeaders.includes(key)) {
