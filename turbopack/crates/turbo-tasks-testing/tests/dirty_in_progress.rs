@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{emit, CollectiblesSource, RcStr, State, ValueToString, Vc};
+use turbo_tasks::{emit, CollectiblesSource, RcStr, State, ValueToString, Vc, VcOperation};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -92,7 +92,7 @@ async fn compute(input: Vc<ChangingInput>) -> Result<Vc<Output>> {
     println!("start compute");
     let operation = inner_compute(input);
     let value = *operation.await?;
-    let collectibles = operation.peek_collectibles::<Box<dyn ValueToString>>();
+    let collectibles = VcOperation::new(operation).peek_collectibles::<Box<dyn ValueToString>>();
     if collectibles.len() > 1 {
         bail!("expected 0..1 collectible, found {}", collectibles.len());
     }

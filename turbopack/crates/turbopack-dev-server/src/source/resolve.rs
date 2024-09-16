@@ -8,7 +8,7 @@ use hyper::{
     header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
     Uri,
 };
-use turbo_tasks::{RcStr, ResolvedVc, TransientInstance, Value, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TransientInstance, Value, Vc, VcOperation};
 
 use super::{
     headers::{HeaderValue, Headers},
@@ -25,7 +25,7 @@ use super::{
 pub enum ResolveSourceRequestResult {
     NotFound,
     Static(ResolvedVc<StaticContent>, ResolvedVc<HeaderList>),
-    HttpProxy(Vc<ProxyResult>),
+    HttpProxy(VcOperation<ProxyResult>),
 }
 
 /// Resolves a [SourceRequest] within a [super::ContentSource], returning the
@@ -115,7 +115,7 @@ pub async fn resolve_source_request(
                         .cell());
                     }
                     ContentSourceContent::HttpProxy(proxy_result) => {
-                        return Ok(ResolveSourceRequestResult::HttpProxy(**proxy_result).cell());
+                        return Ok(ResolveSourceRequestResult::HttpProxy(*proxy_result).cell());
                     }
                     ContentSourceContent::Next => continue,
                 }

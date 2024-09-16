@@ -3,7 +3,7 @@ use std::collections::{HashSet, VecDeque};
 use anyhow::Result;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc, VcOperation,
 };
 
 use crate::{
@@ -198,16 +198,22 @@ pub async fn all_modules_and_affecting_sources(
 ) -> Result<Vc<Modules>> {
     // TODO need to track import path here
     let mut queue = VecDeque::with_capacity(32);
-    queue.push_back((asset, referenced_modules_and_affecting_sources(*asset)));
+    queue.push_back((
+        asset,
+        VcOperation::new(referenced_modules_and_affecting_sources(*asset)),
+    ));
     let mut assets = HashSet::new();
     assets.insert(asset);
     while let Some((parent, references)) = queue.pop_front() {
         let references = references
             .issue_file_path(parent.ident().path(), "expanding references of asset")
             .await?;
-        for asset in references.await?.iter() {
+        for asset in references.connect().await?.iter() {
             if assets.insert(*asset) {
-                queue.push_back((*asset, referenced_modules_and_affecting_sources(**asset)));
+                queue.push_back((
+                    *asset,
+                    VcOperation::new(referenced_modules_and_affecting_sources(**asset)),
+                ));
             }
         }
     }

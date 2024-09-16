@@ -28,7 +28,7 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
     Completion, Completions, FxIndexMap, IntoTraitRef, RcStr, ReadRef, ResolvedVc, State,
-    TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc, VcOperation,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -66,9 +66,10 @@ use crate::{
     global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
+    operation::EntrypointsOperation,
     pages::PagesProject,
     route::{Endpoint, Route},
-    versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
+    versioned_content_map::VersionedContentMap,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
@@ -395,6 +396,13 @@ impl ProjectContainer {
     #[turbo_tasks::function]
     pub fn entrypoints(self: Vc<Self>) -> Vc<Entrypoints> {
         self.project().entrypoints()
+    }
+
+    /// See [Project::entrypoints].
+    #[turbo_tasks::function]
+    pub fn entrypoints_operation(self: Vc<Self>) -> Vc<EntrypointsOperation> {
+        let entrypoints = VcOperation::new(self.entrypoints());
+        EntrypointsOperation::new(entrypoints)
     }
 
     /// See [Project::hmr_identifiers].
@@ -1153,7 +1161,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
-        output_assets: Vc<OutputAssetsOperation>,
+        output_assets: VcOperation<OutputAssets>,
     ) -> Result<Vc<()>> {
         let span = tracing::info_span!("emitting");
         async move {
@@ -1176,7 +1184,7 @@ impl Project {
                 Ok(Vc::cell(()))
             } else {
                 let _ = emit_assets(
-                    *all_output_assets.await?,
+                    all_output_assets.connect(),
                     node_root,
                     client_relative_path,
                     node_root,
@@ -1348,17 +1356,16 @@ async fn get_referenced_output_assets(
 
 #[turbo_tasks::function]
 async fn all_assets_from_entries_operation_inner(
-    operation: Vc<OutputAssetsOperation>,
+    operation: VcOperation<OutputAssets>,
 ) -> Result<Vc<OutputAssets>> {
-    let assets = *operation.await?;
-    Vc::connect(assets);
+    let assets = operation.connect();
     Ok(all_assets_from_entries(assets))
 }
 
 fn all_assets_from_entries_operation(
-    operation: Vc<OutputAssetsOperation>,
-) -> Vc<OutputAssetsOperation> {
-    Vc::cell(all_assets_from_entries_operation_inner(operation))
+    operation: VcOperation<OutputAssets>,
+) -> VcOperation<OutputAssets> {
+    VcOperation::new(all_assets_from_entries_operation_inner(operation))
 }
 
 #[turbo_tasks::function]

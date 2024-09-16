@@ -7,7 +7,7 @@ use next_api::{
     route::{Endpoint, WrittenEndpoint},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, ReadRef, Vc, VcValueType};
+use turbo_tasks::{Completion, ReadRef, Vc, VcOperation, VcValueType};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -86,10 +86,10 @@ impl From<Option<WrittenEndpoint>> for NapiWrittenEndpoint {
 //    some async functions (in this case `endpoint_write_to_disk`) can cause
 //    higher-ranked lifetime errors. See https://github.com/rust-lang/rust/issues/102211
 // 2. the type_complexity clippy lint.
-pub struct ExternalEndpoint(pub VcArc<Vc<Box<dyn Endpoint>>>);
+pub struct ExternalEndpoint(pub VcArc<Box<dyn Endpoint>>);
 
 impl Deref for ExternalEndpoint {
-    type Target = VcArc<Vc<Box<dyn Endpoint>>>;
+    type Target = VcArc<Box<dyn Endpoint>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -99,13 +99,13 @@ impl Deref for ExternalEndpoint {
 // Await the source and return fatal issues if there are any, otherwise
 // propagate any actual error results.
 async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
-    source: Vc<R>,
+    source: VcOperation<R>,
 ) -> Result<(
     Option<ReadRef<R>>,
     Arc<Vec<ReadRef<PlainIssue>>>,
     Arc<Vec<ReadRef<PlainDiagnostic>>>,
 )> {
-    let result = source.strongly_consistent().await;
+    let result = source.connect().strongly_consistent().await;
     let issues = get_issues(source).await?;
     let diagnostics = get_diagnostics(source).await?;
 
@@ -127,11 +127,12 @@ struct WrittenEndpointWithIssues {
 
 #[turbo_tasks::function]
 async fn get_written_endpoint_with_issues(
-    endpoint: Vc<Box<dyn Endpoint>>,
+    endpoint: VcOperation<Box<dyn Endpoint>>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
-    let write_to_disk = endpoint.write_to_disk();
+    let write_to_disk = endpoint.connect().write_to_disk(endpoint);
+    let write_to_disk_operation = VcOperation::new(write_to_disk);
     let (written, issues, diagnostics) =
-        strongly_consistent_catch_collectables(write_to_disk).await?;
+        strongly_consistent_catch_collectables(write_to_disk_operation).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -227,14 +228,15 @@ impl Eq for EndpointIssuesAndDiags {}
 
 #[turbo_tasks::function]
 async fn subscribe_issues_and_diags(
-    endpoint: Vc<Box<dyn Endpoint>>,
+    endpoint: VcOperation<Box<dyn Endpoint>>,
     should_include_issues: bool,
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
-    let changed = endpoint.server_changed();
+    let changed = endpoint.connect().server_changed();
+    let changed_operation = VcOperation::new(changed);
 
     if should_include_issues {
         let (changed_value, issues, diagnostics) =
-            strongly_consistent_catch_collectables(changed).await?;
+            strongly_consistent_catch_collectables(changed_operation).await?;
         Ok(EndpointIssuesAndDiags {
             changed: changed_value,
             issues,
@@ -264,7 +266,7 @@ pub fn endpoint_client_changed_subscribe(
         func,
         move || {
             async move {
-                let changed = endpoint.client_changed();
+                let changed = endpoint.connect().client_changed();
                 // We don't capture issues and diagonistics here since we don't want to be
                 // notified when they change
                 changed.strongly_consistent().await?;

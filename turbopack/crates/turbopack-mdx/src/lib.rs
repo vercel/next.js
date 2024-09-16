@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use mdxjs::{compile, MdxParseOptions, Options};
-use turbo_tasks::{RcStr, ValueDefault, Vc};
+use turbo_tasks::{RcStr, ValueDefault, Vc, VcOperation};
 use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -123,10 +123,10 @@ impl Asset for MdxTransformedAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        Ok(self
-            .process()
+        Ok(VcOperation::new(self.process())
             .issue_file_path(this.source.ident().path(), "MDX processing")
             .await?
+            .connect()
             .await?
             .content)
     }

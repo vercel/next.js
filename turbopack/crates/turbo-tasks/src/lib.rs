@@ -121,8 +121,8 @@ pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
     Dynamic, ResolvedValue, ResolvedVc, TypedForInput, Upcast, ValueDefault, Vc, VcCast,
-    VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait,
-    VcValueTraitCast, VcValueType, VcValueTypeCast,
+    VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcOperation, VcRead, VcTransparentRead,
+    VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 
 pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;

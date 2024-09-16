@@ -1,6 +1,7 @@
 pub(crate) mod cast;
 mod cell_mode;
 pub(crate) mod default;
+pub(crate) mod operation;
 mod read;
 pub(crate) mod resolved;
 mod traits;
@@ -14,13 +15,13 @@ use std::{
 };
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 
 pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
     cell_mode::{VcCellMode, VcCellNewMode, VcCellSharedMode},
     default::ValueDefault,
+    operation::VcOperation,
     read::{ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::{ResolvedValue, ResolvedVc},
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
@@ -30,7 +31,7 @@ use crate::{
     manager::{create_local_cell, try_get_function_meta},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, CollectiblesSource, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
+    CellId, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
 };
 
 /// A Value Cell (`Vc` for short) is a reference to a memoized computation
@@ -311,11 +312,6 @@ impl<T> Vc<T>
 where
     T: ?Sized + Send,
 {
-    /// Connects the operation pointed to by this `Vc` to the current task.
-    pub fn connect(vc: Self) {
-        vc.node.connect()
-    }
-
     /// Returns a debug identifier for this `Vc`.
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.resolve().await?;
@@ -477,19 +473,6 @@ where
             node: raw_vc,
             _t: PhantomData,
         }))
-    }
-}
-
-impl<T> CollectiblesSource for Vc<T>
-where
-    T: ?Sized + Send,
-{
-    fn take_collectibles<Vt: VcValueTrait + Send>(self) -> AutoSet<Vc<Vt>> {
-        self.node.take_collectibles()
-    }
-
-    fn peek_collectibles<Vt: VcValueTrait + Send>(self) -> AutoSet<Vc<Vt>> {
-        self.node.peek_collectibles()
     }
 }
 

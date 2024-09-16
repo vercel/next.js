@@ -5,7 +5,7 @@ use next_core::emit_assets;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexSet, RcStr, ResolvedVc, State,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueDefault, ValueToString, Vc, VcOperation,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -15,16 +15,10 @@ use turbopack_core::{
     version::OptionVersionedContent,
 };
 
-/// An unresolved output assets operation. We need to pass an operation here as
-/// it's stored for later usage and we want to reconnect this operation when
-/// it's received from the map again.
-#[turbo_tasks::value(transparent)]
-pub struct OutputAssetsOperation(Vc<OutputAssets>);
-
 #[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug)]
 struct MapEntry {
-    assets_operation: Vc<OutputAssets>,
-    side_effects: Vc<Completion>,
+    assets_operation: VcOperation<OutputAssets>,
+    side_effects_operation: VcOperation<Completion>,
     /// Precomputed map for quick access to output asset by filepath
     path_to_asset: HashMap<ResolvedVc<FileSystemPath>, Vc<Box<dyn OutputAsset>>>,
 }
@@ -32,9 +26,10 @@ struct MapEntry {
 #[turbo_tasks::value(transparent)]
 struct OptionMapEntry(Option<MapEntry>);
 
-type PathToOutputOperation = HashMap<ResolvedVc<FileSystemPath>, FxIndexSet<Vc<OutputAssets>>>;
+type PathToOutputOperation =
+    HashMap<ResolvedVc<FileSystemPath>, FxIndexSet<VcOperation<OutputAssets>>>;
 // A precomputed map for quick access to output asset by filepath
-type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, Vc<OptionMapEntry>>;
+type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, VcOperation<OptionMapEntry>>;
 
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
@@ -69,7 +64,7 @@ impl VersionedContentMap {
     pub async fn insert_output_assets(
         self: Vc<Self>,
         // Output assets to emit
-        assets_operation: Vc<OutputAssetsOperation>,
+        assets_operation: VcOperation<OutputAssets>,
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
         client_output_path: Vc<FileSystemPath>,
@@ -81,13 +76,15 @@ impl VersionedContentMap {
             client_relative_path,
             client_output_path,
         );
-        let assets = *assets_operation.await?;
-        this.map_op_to_compute_entry
-            .update_conditionally(|map| map.insert(assets, compute_entry) != Some(compute_entry));
+        let assets = assets_operation.connect();
+        let compute_entry_operation = VcOperation::new(compute_entry);
+        this.map_op_to_compute_entry.update_conditionally(|map| {
+            map.insert(assets, compute_entry_operation) != Some(compute_entry_operation)
+        });
         let Some(entry) = &*compute_entry.await? else {
             unreachable!("compute_entry always returns Some(MapEntry)")
         };
-        Ok(entry.side_effects)
+        Ok(entry.side_effects_operation.connect())
     }
 
     /// Creates a [`MapEntry`] (a pre-computed map for optimized lookup) for an output assets
@@ -95,12 +92,12 @@ impl VersionedContentMap {
     #[turbo_tasks::function]
     async fn compute_entry(
         &self,
-        assets_operation: Vc<OutputAssetsOperation>,
+        assets_operation: VcOperation<OutputAssets>,
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
         client_output_path: Vc<FileSystemPath>,
     ) -> Result<Vc<OptionMapEntry>> {
-        let assets = *assets_operation.await?;
+        let assets = assets_operation.connect();
         async fn get_entries(
             assets: Vc<OutputAssets>,
         ) -> Result<Vec<(ResolvedVc<FileSystemPath>, Vc<Box<dyn OutputAsset>>)>> {
@@ -124,7 +121,7 @@ impl VersionedContentMap {
             let mut stale_assets = map.keys().copied().collect::<HashSet<_>>();
 
             for (k, _) in entries.iter() {
-                let res = map.entry(*k).or_default().insert(assets);
+                let res = map.entry(*k).or_default().insert(assets_operation);
                 stale_assets.remove(k);
                 changed = changed || res;
             }
@@ -135,17 +132,22 @@ impl VersionedContentMap {
                     .get_mut(k)
                     // guaranteed
                     .unwrap()
-                    .swap_remove(&assets);
+                    .swap_remove(&assets_operation);
                 changed = changed || res
             }
             changed
         });
 
         // Make sure all written client assets are up-to-date
-        let side_effects = emit_assets(assets, node_root, client_relative_path, client_output_path);
+        let side_effects_operation = VcOperation::new(emit_assets(
+            assets,
+            node_root,
+            client_relative_path,
+            client_output_path,
+        ));
         let map_entry = Vc::cell(Some(MapEntry {
-            assets_operation: assets,
-            side_effects,
+            assets_operation,
+            side_effects_operation,
             path_to_asset: entries.into_iter().collect(),
         }));
         Ok(map_entry)
@@ -194,11 +196,11 @@ impl VersionedContentMap {
         let result = self.raw_get(*path).await?;
         if let Some(MapEntry {
             assets_operation: _,
-            side_effects,
+            side_effects_operation,
             path_to_asset,
         }) = &*result
         {
-            side_effects.await?;
+            side_effects_operation.connect().await?;
 
             if let Some(asset) = path_to_asset.get(&path) {
                 return Ok(Vc::cell(Some(asset.to_resolved().await?)));
@@ -239,7 +241,7 @@ impl VersionedContentMap {
             return Vc::cell(None);
         };
         // Need to reconnect the operation to the map
-        Vc::connect(assets);
+        let assets = assets.connect();
 
         let compute_entry = {
             let map = self.map_op_to_compute_entry.get();
@@ -249,7 +251,7 @@ impl VersionedContentMap {
             return Vc::cell(None);
         };
         // Need to reconnect the operation to the map
-        Vc::connect(compute_entry);
+        let compute_entry = compute_entry.connect();
 
         compute_entry
     }

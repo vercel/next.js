@@ -12,7 +12,7 @@ use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, RcStr, ResolvedVc,
-    TryJoinIterExt, TurboTasks, Value, Vc,
+    TryJoinIterExt, TurboTasks, Value, Vc, VcOperation,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -171,7 +171,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         let prepared_test = prepare_test(resource_str.into());
         let run_result = run_test(prepared_test);
         if matches!(snapshot_mode, IssueSnapshotMode::Snapshots) {
-            snapshot_issues(prepared_test, run_result).await?;
+            snapshot_issues(prepared_test, VcOperation::new(run_result)).await?;
         }
 
         Ok((*run_result.await.unwrap().js_result.await.unwrap()).clone())
@@ -398,12 +398,13 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
 #[turbo_tasks::function]
 async fn snapshot_issues(
     prepared_test: Vc<PreparedTest>,
-    run_result: Vc<RunTestResult>,
+    run_operation: VcOperation<RunTestResult>,
 ) -> Result<Vc<()>> {
     let PreparedTest { path, .. } = *prepared_test.await?;
+    let run_result = run_operation.connect();
     let _ = run_result.resolve_strongly_consistent().await;
 
-    let captured_issues = run_result.peek_issues_with_path().await?;
+    let captured_issues = run_operation.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues
         .iter_with_shortest_path()

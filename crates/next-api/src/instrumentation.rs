@@ -6,7 +6,7 @@ use next_core::{
     next_server::{get_server_runtime_entries, ServerContextType},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, Vc, VcOperation};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -166,6 +166,16 @@ impl InstrumentationEndpoint {
         Ok(*chunk)
     }
 
+    /// This is used to wrap output assets of an endpoint into a single operation (VcOperation)
+    #[turbo_tasks::function]
+    fn output_assets_operation(
+        self: Vc<Self>,
+        endpoint: VcOperation<Box<dyn Endpoint>>,
+    ) -> Vc<OutputAssets> {
+        let _ = endpoint.connect();
+        self.output_assets()
+    }
+
     #[turbo_tasks::function]
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
@@ -224,14 +234,17 @@ struct InstrumentationCoreModules {
 #[turbo_tasks::value_impl]
 impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn write_to_disk(
+        self: Vc<Self>,
+        self_op: VcOperation<Box<dyn Endpoint>>,
+    ) -> Result<Vc<WrittenEndpoint>> {
         let span = tracing::info_span!("instrumentation endpoint");
         async move {
             let this = self.await?;
-            let output_assets = self.output_assets();
+            let output_assets = self.output_assets_operation(self_op);
             let _ = output_assets.resolve().await?;
             this.project
-                .emit_all_output_assets(Vc::cell(output_assets))
+                .emit_all_output_assets(VcOperation::new(output_assets))
                 .await?;
 
             let node_root = this.project.node_root();

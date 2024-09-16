@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Value, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Value, Vc, VcOperation};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -185,7 +185,8 @@ impl GetContentSourceContent for NodeRenderContentSource {
             anyhow::bail!("Missing request data")
         };
         let entry = (*self.entry).entry(data.clone()).await?;
-        let result = render_static(
+        // TODO entry should be included in the operation too
+        let render_static = VcOperation::new(render_static(
             *self.cwd,
             *self.env,
             self.server_root.join(path.clone()),
@@ -208,13 +209,14 @@ impl GetContentSourceContent for NodeRenderContentSource {
             }
             .cell(),
             self.debug,
-        )
-        .issue_file_path(
-            entry.module.ident().path(),
-            format!("server-side rendering {}", pathname),
-        )
-        .await?;
-        Ok(match *result.await? {
+        ));
+        let result = render_static
+            .issue_file_path(
+                entry.module.ident().path(),
+                format!("server-side rendering {}", pathname),
+            )
+            .await?;
+        Ok(match *result.connect().await? {
             StaticResult::Content {
                 content,
                 status_code,
@@ -228,20 +230,31 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 status,
                 headers,
                 ref body,
-            } => ContentSourceContent::HttpProxy(
-                ProxyResult {
+            } => {
+                let proxy_result = ProxyResult {
                     status,
                     headers: headers.await?.clone_value(),
                     body: body.clone(),
                 }
-                .resolved_cell(),
-            )
-            .cell(),
-            StaticResult::Rewrite(rewrite) => {
-                ContentSourceContent::Rewrite(rewrite.to_resolved().await?).cell()
+                .resolved_cell();
+                ContentSourceContent::HttpProxy(VcOperation::new(proxy_result_operation(
+                    render_static,
+                    *proxy_result,
+                )))
+                .cell()
             }
+            StaticResult::Rewrite(rewrite) => ContentSourceContent::Rewrite(rewrite).cell(),
         })
     }
+}
+
+#[turbo_tasks::function]
+fn proxy_result_operation(
+    render_static: VcOperation<StaticResult>,
+    proxy_result: Vc<ProxyResult>,
+) -> Vc<ProxyResult> {
+    let _ = render_static.connect();
+    proxy_result
 }
 
 #[turbo_tasks::function]
