@@ -14,17 +14,16 @@ const Preview = ({
   return (
     <div className="absolute flex bottom-10 gap-8">
       {images.map((data) => (
-        <div className="w-[100px] h-[100px] relative">
+        <div
+          className={`w-[100px] h-[100px] relative hover:opacity-100 cursor-pointer ${
+            currentIndex === data.index ? "rounded border border-gray-300 opacity-100" : "inset-0 bg-black opacity-60"
+          }`}
+        >
           <IKImage
             key={data.fileId}
             urlEndpoint={process.env.NEXT_PUBLIC_URL_ENDPOINT}
             src={data.fileType === "image" ? data.url : data.thumbnail}
             alt="test"
-            className={`${
-              currentIndex === data.index
-                ? "opacity-100"
-                : `inset-0 bg-black opacity-60`
-            } hover:opacity-100 cursor-pointer`}
             transformation={[{ width: "100", height: "100" }]}
             onClick={() => setCurrentIndex(data.index)}
           />

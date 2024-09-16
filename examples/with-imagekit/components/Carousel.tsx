@@ -33,15 +33,28 @@ const Carousel = ({
       });
     }
   }, [currentIndex, images, imageWrapper]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft" && currentIndex !== 0) {
+        setCurrentIndex((prev) => prev - 1);
+      } else if (event.key === "ArrowRight" && currentIndex + 1 < images.length) {
+        setCurrentIndex((prev) => prev + 1);
+      }
+      if (event.key === "Escape") {
+        router.push("/");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [currentIndex, setCurrentIndex]);
+
   return (
     <>
-      <NavigateLeftButton
-        currentIndex={currentIndex}
-        setCurrentIndex={setCurrentIndex}
-      />
-      {images[currentIndex]?.fileType === "image" &&
-      imageWrapperDimension.width &&
-      imageWrapperDimension.height ? (
+      <NavigateLeftButton currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} />
+      {images[currentIndex]?.fileType === "image" && imageWrapperDimension.width && imageWrapperDimension.height ? (
         <IKImage
           key={imageId as string}
           urlEndpoint={process.env.NEXT_PUBLIC_URL_ENDPOINT}
@@ -59,17 +72,9 @@ const Carousel = ({
           controls
         />
       )}
-      <Preview
-        images={getClosestSubarray(images, currentIndex, 7)}
-        currentIndex={currentIndex}
-        setCurrentIndex={setCurrentIndex}
-      />
+      <Preview images={getClosestSubarray(images, currentIndex, 7)} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} />
       <CancelButton />
-      <NavigateRightButton
-        images={images}
-        currentIndex={currentIndex}
-        setCurrentIndex={setCurrentIndex}
-      />
+      <NavigateRightButton images={images} currentIndex={currentIndex} setCurrentIndex={setCurrentIndex} />
     </>
   );
 };
