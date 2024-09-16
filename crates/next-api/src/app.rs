@@ -40,9 +40,9 @@ use turbo_tasks::{trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, Value, 
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
-    module_options::ModuleOptionsContext,
+    module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, FullContextTransition, Transition},
+    transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -70,8 +70,8 @@ use crate::{
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
-        wasm_paths_to_bindings,
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
     route::{AppPageRoute, Endpoint, Route, Routes, WrittenEndpoint},
@@ -117,6 +117,14 @@ impl AppProject {
 }
 
 pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+
+fn styles_rule_condition() -> RuleCondition {
+    RuleCondition::any(vec![
+        RuleCondition::ResourcePathEndsWith(".css".into()),
+        RuleCondition::ResourcePathEndsWith(".scss".into()),
+        RuleCondition::ResourcePathEndsWith(".sass".into()),
+    ])
+}
 
 #[turbo_tasks::value_impl]
 impl AppProject {
@@ -303,7 +311,15 @@ impl AppProject {
         .into_iter()
         .collect();
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                transition_rules: vec![TransitionRule::new(
+                    styles_rule_condition(),
+                    Vc::upcast(self.client_transition()),
+                )],
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
@@ -333,7 +349,15 @@ impl AppProject {
         .into_iter()
         .collect();
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                transition_rules: vec![TransitionRule::new(
+                    styles_rule_condition(),
+                    Vc::upcast(self.client_transition()),
+                )],
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
@@ -361,7 +385,11 @@ impl AppProject {
         .collect();
 
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
@@ -391,7 +419,11 @@ impl AppProject {
         .into_iter()
         .collect();
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
@@ -402,7 +434,7 @@ impl AppProject {
     #[turbo_tasks::function]
     fn client_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         ModuleAssetContext::new(
-            Vc::cell(Default::default()),
+            Default::default(),
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
@@ -1100,10 +1132,13 @@ impl AppEndpoint {
                 wasm_paths_from_root
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
+                let all_assets =
+                    get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true)
+                        .await?;
+
                 let entry_file = "app-edge-has-no-entrypoint".into();
 
                 // create middleware manifest
-                // TODO(alexkirsz) This should be shared with next build.
                 let named_regex = get_named_middleware_regex(&app_entry.pathname);
                 let matchers = MiddlewareMatcher {
                     regexp: Some(named_regex.into()),
@@ -1113,6 +1148,7 @@ impl AppEndpoint {
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: file_paths_from_root,
                     wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                    assets: paths_to_bindings(all_assets),
                     name: app_entry.pathname.clone(),
                     page: app_entry.original_name.clone(),
                     regions: app_entry
@@ -1123,7 +1159,6 @@ impl AppEndpoint {
                         .map(Regions::Multiple),
                     matchers: vec![matchers],
                     env: this.app_project.project().edge_env().await?.clone_value(),
-                    ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
                     sorted_middleware: vec![app_entry.original_name.clone()],

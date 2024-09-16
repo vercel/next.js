@@ -42,6 +42,7 @@ import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { existsSync } from 'fs'
 import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../turbopack-utils'
+import { tryToParsePath } from '../../../lib/try-to-parse-path'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -602,6 +603,20 @@ export class TurbopackManifestLoader {
     const middlewareManifest = this.mergeMiddlewareManifests(
       this.middlewareManifests.values()
     )
+
+    // Normalize regexes as it uses path-to-regexp
+    for (const key in middlewareManifest.middleware) {
+      middlewareManifest.middleware[key].matchers.forEach((matcher) => {
+        if (!matcher.regexp.startsWith('^')) {
+          const parsedPage = tryToParsePath(matcher.regexp)
+          if (parsedPage.error || !parsedPage.regexStr) {
+            throw new Error(`Invalid source: ${matcher.regexp}`)
+          }
+          matcher.regexp = parsedPage.regexStr
+        }
+      })
+    }
+
     const middlewareManifestPath = join(
       this.distDir,
       'server',
