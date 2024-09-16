@@ -18,6 +18,26 @@ export default function (fileInfo: FileInfo, api: API) {
   let need_import_geolocation = false
   let need_import_ipAddress = false
 
+  let geoIdentifier = 'geolocation'
+  let ipIdentifier = 'ipAddress'
+
+  const allIdentifiers = root.find(j.Identifier).nodes()
+  const identifierNames = new Set(allIdentifiers.map((node) => node.name))
+
+  let suffix = 1
+  while (
+    identifierNames.has(geoIdentifier) ||
+    identifierNames.has(ipIdentifier)
+  ) {
+    if (identifierNames.has(geoIdentifier)) {
+      geoIdentifier = `geolocation${suffix}`
+    }
+    if (identifierNames.has(ipIdentifier)) {
+      ipIdentifier = `ipAddress${suffix}`
+    }
+    suffix++
+  }
+
   for (const param of params.paths()) {
     const fnPath: ASTPath<FunctionDeclaration> = param.parentPath.parentPath
     const fn = j(fnPath)
@@ -67,13 +87,13 @@ export default function (fileInfo: FileInfo, api: API) {
       )
     })
 
-    const geoCall = j.callExpression(j.identifier('geolocation'), [
+    const geoCall = j.callExpression(j.identifier(geoIdentifier), [
       {
         ...param.node,
         typeAnnotation: null,
       },
     ])
-    const ipCall = j.callExpression(j.identifier('ipAddress'), [
+    const ipCall = j.callExpression(j.identifier(ipIdentifier), [
       {
         ...param.node,
         typeAnnotation: null,
@@ -82,12 +102,7 @@ export default function (fileInfo: FileInfo, api: API) {
 
     geoAccesses.replaceWith(geoCall)
     ipAccesses.replaceWith(ipCall)
-    // if destructuring, add a new variable declaration for ip,
-    // then remove the ip property from the destructuring
-    // const { ip, foo, bar } = req
-    // becomes:
-    // const { foo, bar } = req
-    // const ip = ipAddress(req)
+
     ipDestructuring.forEach((path) => {
       if (path.node.id.type === 'ObjectPattern') {
         const properties = path.node.id.properties
@@ -152,10 +167,16 @@ export default function (fileInfo: FileInfo, api: API) {
     const importDeclaration = j.importDeclaration(
       [
         need_import_geolocation
-          ? j.importSpecifier(j.identifier('geolocation'))
+          ? j.importSpecifier(
+              j.identifier('geolocation'),
+              j.identifier(geoIdentifier)
+            )
           : null,
         need_import_ipAddress
-          ? j.importSpecifier(j.identifier('ipAddress'))
+          ? j.importSpecifier(
+              j.identifier('ipAddress'),
+              j.identifier(ipIdentifier)
+            )
           : null,
       ].filter(Boolean),
       j.literal('@vercel/functions')
