@@ -971,9 +971,19 @@ fn directory_tree_to_loader_tree_internal(
         }
 
         for key in keys_to_replace {
+            let subdir_name: RcStr = format!("@{}", key).into();
+
+            let default = if key == "children" {
+                components.default
+            } else if let Some(subdirectory) = directory_tree.subdirectories.get(&subdir_name) {
+                subdirectory.components.default
+            } else {
+                None
+            };
+
             tree.parallel_routes.insert(
                 key,
-                default_route_tree(app_dir, global_metadata, app_page.clone(), None),
+                default_route_tree(app_dir, global_metadata, app_page.clone(), default),
             );
         }
     }
