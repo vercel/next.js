@@ -5,7 +5,7 @@ export default function App() {
     useEffect(()=>{
         console.log('Hello World');
     }, []);
-    process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE && useLayoutEffect(()=>{
+    process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE && useLayoutEffect(()=>{
         function foo() {}
         return ()=>{};
     }, [
