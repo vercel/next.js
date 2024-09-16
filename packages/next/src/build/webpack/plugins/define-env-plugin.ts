@@ -235,7 +235,6 @@ export function getDefineEnv({
     'process.env.__NEXT_STRICT_MODE_APP':
       // When next.config.js does not have reactStrictMode it's enabled by default.
       config.reactStrictMode === null ? true : config.reactStrictMode,
-    'process.env.__NEXT_OPTIMIZE_FONTS': !dev && config.optimizeFonts,
     'process.env.__NEXT_OPTIMIZE_CSS':
       (config.experimental.optimizeCss && !dev) ?? false,
     'process.env.__NEXT_SCRIPT_WORKERS':
@@ -282,7 +281,7 @@ export function getDefineEnv({
   }
   const serializedDefineEnv = serializeDefineEnv(defineEnv)
 
-  if (Boolean(config.experimental.flyingShuttle)) {
+  if (!dev && Boolean(config.experimental.flyingShuttle)) {
     // we delay inlining these values until after the build
     // with flying shuttle enabled so we can update them
     // without invalidating entries

@@ -834,10 +834,10 @@ describe('Error overlay for hydration errors', () => {
     if (isTurbopack) {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
-            <RedirectBoundary>
-              <RedirectErrorBoundary router={{...}}>
-                <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+                <Segment>
                   <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
                     <Page params={{}} searchParams={{}}>
                       <div>
@@ -854,10 +854,10 @@ describe('Error overlay for hydration errors', () => {
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
-            <RedirectBoundary>
-              <RedirectErrorBoundary router={{...}}>
-                <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
+                <Segment>
                   <ClientPageRoot props={{params:{}, ...}} Component={function Page}>
                     <Page params={{}} searchParams={{}}>
                       <div>

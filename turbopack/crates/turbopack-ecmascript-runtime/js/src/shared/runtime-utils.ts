@@ -264,7 +264,7 @@ function moduleContext(map: ModuleContextMap): ModuleContext {
       return map[id].module();
     }
 
-    const e = new Error(`Cannot find module '${name}'`);
+    const e = new Error(`Cannot find module '${id}'`);
     (e as any).code = "MODULE_NOT_FOUND";
     throw e;
   }
@@ -278,7 +278,7 @@ function moduleContext(map: ModuleContextMap): ModuleContext {
       return map[id].id();
     }
 
-    const e = new Error(`Cannot find module '${name}'`);
+    const e = new Error(`Cannot find module '${id}'`);
     (e as any).code = "MODULE_NOT_FOUND";
     throw e;
   };

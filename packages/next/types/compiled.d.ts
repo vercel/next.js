@@ -59,6 +59,7 @@ declare module 'next/dist/compiled/amphtml-validator' {
 }
 
 declare module 'react-server-dom-webpack/server.edge'
+declare module 'react-server-dom-webpack/static.edge'
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'

@@ -158,7 +158,7 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
                 // We always analyze dependencies, but remove them only if remove_imports is
                 // true
                 let mut deps = vec![];
-                stylesheet.visit_mut_with(&mut SwcDepColllector {
+                stylesheet.visit_mut_with(&mut SwcDepCollector {
                     deps: &mut deps,
                     remove_imports,
                 });
@@ -574,6 +574,7 @@ async fn process_content(
                         match err.kind {
                             lightningcss::error::ParserError::UnexpectedToken(_)
                             | lightningcss::error::ParserError::UnexpectedImportRule
+                            | lightningcss::error::ParserError::SelectorError(..)
                             | lightningcss::error::ParserError::EndOfInput => {
                                 let source = err.loc.as_ref().map(|loc| {
                                     let pos = SourcePos {
@@ -586,7 +587,7 @@ async fn process_content(
                                 ParsingIssue {
                                     file: fs_path_vc,
                                     msg: Vc::cell(err.to_string().into()),
-                                    source: Vc::cell(source),
+                                    source,
                                 }
                                 .cell()
                                 .emit();
@@ -609,11 +610,10 @@ async fn process_content(
                         };
                         IssueSource::from_line_col(source, pos, pos)
                     });
-
                     ParsingIssue {
                         file: fs_path_vc,
                         msg: Vc::cell(e.to_string().into()),
-                        source: Vc::cell(source),
+                        source,
                     }
                     .cell()
                     .emit();
@@ -634,7 +634,7 @@ async fn process_content(
             )),
         );
 
-        let fm = cm.new_source_file(FileName::Custom(filename.to_string()), code.clone());
+        let fm = cm.new_source_file(FileName::Custom(filename.to_string()).into(), code.clone());
         let mut errors = vec![];
 
         let ss = swc_core::css::parser::parse_file(
@@ -683,7 +683,7 @@ async fn process_content(
                     .get(0)
                     .context("Must include basename preceding .")?
                     .as_str();
-                // Truncate this as u32 so it's formated as 8-character hex in the suffic below
+                // Truncate this as u32 so it's formatted as 8-character hex in the suffix below
                 let path_hash = turbo_tasks_hash::hash_xxh3_hash64(filename) as u32;
 
                 Some(SwcCssModuleMode {
@@ -738,11 +738,11 @@ impl CssError {
                 ParsingIssue {
                     file,
                     msg: Vc::cell(CSS_MODULE_ERROR.into()),
-                    source: Vc::cell(Some(IssueSource::from_swc_offsets(
+                    source: Some(IssueSource::from_swc_offsets(
                         source,
                         span.lo.0 as _,
                         span.hi.0 as _,
-                    ))),
+                    )),
                 }
                 .cell()
                 .emit();
@@ -751,7 +751,7 @@ impl CssError {
                 ParsingIssue {
                     file,
                     msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into()),
-                    source: Vc::cell(None),
+                    source: None,
                 }
                 .cell()
                 .emit();
@@ -763,7 +763,7 @@ impl CssError {
 const CSS_MODULE_ERROR: &str =
     "Selector is not pure (pure selectors must contain at least one local class or id)";
 
-/// We only vist top-level selectors.
+/// We only visit top-level selectors.
 impl swc_core::css::visit::Visit for CssValidator {
     fn visit_complex_selector(&mut self, n: &ComplexSelector) {
         fn is_complex_not_pure(sel: &ComplexSelector) -> bool {
@@ -867,7 +867,7 @@ impl swc_core::css::visit::Visit for CssValidator {
     fn visit_simple_block(&mut self, _: &swc_core::css::ast::SimpleBlock) {}
 }
 
-/// We only vist top-level selectors.
+/// We only visit top-level selectors.
 impl lightningcss::visitor::Visitor<'_> for CssValidator {
     type Error = ();
 
@@ -1008,12 +1008,12 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
     }
 }
 
-struct SwcDepColllector<'a> {
+struct SwcDepCollector<'a> {
     deps: &'a mut Vec<Dependency>,
     remove_imports: bool,
 }
 
-impl VisitMut for SwcDepColllector<'_> {
+impl VisitMut for SwcDepCollector<'_> {
     fn visit_mut_rules(&mut self, n: &mut Vec<swc_core::css::ast::Rule>) {
         n.visit_mut_children_with(self);
 
@@ -1073,7 +1073,7 @@ impl TransformConfig for ModuleTransformConfig {
 struct ParsingIssue {
     msg: Vc<RcStr>,
     file: Vc<FileSystemPath>,
-    source: Vc<OptionIssueSource>,
+    source: Option<Vc<IssueSource>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -1095,7 +1095,7 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        self.source
+        Vc::cell(self.source.map(|s| s.resolve_source_map(self.file)))
     }
 
     #[turbo_tasks::function]
@@ -1144,7 +1144,10 @@ mod tests {
     fn lint_swc(code: &str) -> Vec<CssError> {
         let cm = swc_core::common::SourceMap::new(FilePathMapping::empty());
 
-        let fm = cm.new_source_file(FileName::Custom("test.css".to_string()), code.to_string());
+        let fm = cm.new_source_file(
+            FileName::Custom("test.css".to_string()).into(),
+            code.to_string(),
+        );
 
         let ss: Stylesheet = swc_core::css::parser::parse_file(
             &fm,

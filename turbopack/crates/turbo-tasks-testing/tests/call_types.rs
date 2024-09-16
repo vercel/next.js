@@ -8,7 +8,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn functions() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         assert_eq!(*fn_plain().await?, 42);
         assert_eq!(*fn_arg(43).await?, 43);
         assert_eq!(*fn_vc_arg(Vc::cell(44)).await?, 44);
@@ -53,7 +53,7 @@ async fn async_fn_vc_arg(n: Vc<u32>) -> Result<Vc<u32>> {
 
 #[tokio::test]
 async fn methods() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         assert_eq!(*Value::static_method().await?, 42);
         assert_eq!(*Value::async_static_method().await?, 42);
 
@@ -106,7 +106,7 @@ impl Value {
 
 #[tokio::test]
 async fn trait_methods() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         assert_eq!(*Value::static_trait_method().await?, 42);
         assert_eq!(*Value::async_static_trait_method().await?, 42);
 

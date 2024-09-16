@@ -226,9 +226,8 @@ fn get_named_parametrized_route(
             } else {
                 None
             };
-            let param_matches = Regex::new(r"\[((?:\[.*\])|.+)\]")
-                .unwrap()
-                .captures(segment);
+            static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
+            let param_matches = RE.captures(segment);
             if let Some(matches) = param_matches {
                 return get_safe_key_from_segment(
                     get_safe_route_key,

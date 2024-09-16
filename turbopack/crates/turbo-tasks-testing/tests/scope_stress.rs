@@ -14,7 +14,7 @@ fn rectangle_stress() {
         .build()
         .unwrap();
     rt.block_on(async {
-        let tt = REGISTRATION.create_turbo_tasks();
+        let tt = REGISTRATION.create_turbo_tasks("scope_stress_rectangle_stress", true);
         let size = std::env::var("TURBOPACK_TEST_RECTANGLE_STRESS_SIZE")
             .map(|size| size.parse().unwrap())
             .unwrap_or(50);

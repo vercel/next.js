@@ -14,14 +14,13 @@ import { Suspense } from "react";
 import AlertBanner from "./alert-banner";
 import PortableText from "./portable-text";
 
-import type { SettingsQueryResult } from "@/sanity.types";
 import * as demo from "@/sanity/lib/demo";
 import { sanityFetch } from "@/sanity/lib/fetch";
 import { settingsQuery } from "@/sanity/lib/queries";
 import { resolveOpenGraphImage } from "@/sanity/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await sanityFetch<SettingsQueryResult>({
+  const settings = await sanityFetch({
     query: settingsQuery,
     // Metadata should never contain stega
     stega: false,
@@ -58,9 +57,7 @@ const inter = Inter({
 });
 
 async function Footer() {
-  const data = await sanityFetch<SettingsQueryResult>({
-    query: settingsQuery,
-  });
+  const data = await sanityFetch({ query: settingsQuery });
   const footer = data?.footer || [];
 
   return (

@@ -252,25 +252,23 @@ impl TraceReader {
                 println!("Initial read completed ({} MB)", total / (1024 * 1024));
             }
         }
-        thread::sleep(Duration::from_millis(100));
-        let Ok(end) = file.seek(SeekFrom::End(0)) else {
-            return Some(true);
-        };
-        // No more data to read, sleep for a while to wait for more data
-        if end < pos {
-            // new file
-            return Some(true);
-        } else if end != pos {
-            // Seek to the same position. This will fail when the file was
-            // truncated.
-            let Ok(new_pos) = file.seek(SeekFrom::Start(pos)) else {
+        loop {
+            // No more data to read, sleep for a while to wait for more data
+            thread::sleep(Duration::from_millis(100));
+            let Ok(mut real_file) = File::open(&self.path) else {
                 return Some(true);
             };
-            if new_pos != pos {
+            let Ok(end) = real_file.seek(SeekFrom::End(0)) else {
                 return Some(true);
+            };
+            if end < pos {
+                // new file
+                return Some(true);
+            } else if end != pos {
+                // file has more data
+                return None;
             }
         }
-        None
     }
 
     fn wait_for_new_file(&self, file: &mut TraceFile) {

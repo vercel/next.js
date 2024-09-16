@@ -26,7 +26,7 @@ describe('app-dir assetPrefix full URL', () => {
     })
 
     await retry(async () => {
-      expect(await browser.elementByCss('p').text()).toContain('after edit')
+      expect(await browser.elementByCss('p').text()).toBe('after edit')
     })
   })
 })

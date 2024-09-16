@@ -19,30 +19,30 @@ import { type StructuredError } from "src/ipc";
 
 export type IpcInfoMessage =
   | {
-      type: "fileDependency";
-      path: string;
-    }
+    type: "fileDependency";
+    path: string;
+  }
   | {
-      type: "buildDependency";
-      path: string;
-    }
+    type: "buildDependency";
+    path: string;
+  }
   | {
-      type: "dirDependency";
-      path: string;
-      glob: string;
-    }
+    type: "dirDependency";
+    path: string;
+    glob: string;
+  }
   | {
-      type: "emittedError";
-      severity: "warning" | "error";
-      error: StructuredError;
-    }
+    type: "emittedError";
+    severity: "warning" | "error";
+    error: StructuredError;
+  }
   | {
-      type: "log";
-      time: number;
-      logType: string;
-      args: any[];
-      trace?: StackFrame[];
-    };
+    type: "log";
+    time: number;
+    logType: string;
+    args: any[];
+    trace?: StackFrame[];
+  };
 
 export type IpcRequestMessage = {
   type: "resolve";
@@ -54,9 +54,9 @@ export type IpcRequestMessage = {
 type LoaderConfig =
   | string
   | {
-      loader: string;
-      options: { [k: string]: unknown };
-    };
+    loader: string;
+    options: { [k: string]: unknown };
+  };
 
 let runLoaders: typeof import("loader-runner")["runLoaders"];
 try {
@@ -168,6 +168,7 @@ const transform = (
   ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
   content: string,
   name: string,
+  query: string,
   loaders: LoaderConfig[]
 ) => {
   return new Promise((resolve, reject) => {
@@ -180,7 +181,7 @@ const transform = (
 
     runLoaders(
       {
-        resource,
+        resource: resource + query,
         context: {
           _module: {
             // For debugging purpose, if someone find context is not full compatible to
@@ -468,13 +469,13 @@ const transform = (
         if (!result.result) return reject(new Error("No result from loaders"));
         const [source, map] = result.result;
         resolve({
-          source: Buffer.isBuffer(source) ? {binary: source.toString('base64')} : source,
+          source: Buffer.isBuffer(source) ? { binary: source.toString('base64') } : source,
           map:
             typeof map === "string"
               ? map
               : typeof map === "object"
-              ? JSON.stringify(map)
-              : undefined,
+                ? JSON.stringify(map)
+                : undefined,
         });
       }
     );
@@ -494,15 +495,15 @@ function makeErrorEmitter(
       error:
         error instanceof Error
           ? {
-              name: error.name,
-              message: error.message,
-              stack: parseStackTrace(error.stack),
-            }
+            name: error.name,
+            message: error.message,
+            stack: error.stack ? parseStackTrace(error.stack) : [],
+          }
           : {
-              name: "Error",
-              message: error,
-              stack: [],
-            },
+            name: "Error",
+            message: error,
+            stack: [],
+          },
     });
   };
 }
