@@ -20,6 +20,10 @@ use crate::resolve::{parse::Request, plugin::AfterResolvePlugin};
 #[derive(Hash, Debug)]
 pub struct LockedVersions {}
 
+#[turbo_tasks::value(transparent)]
+#[derive(Debug)]
+pub struct ExcludedExtensions(pub IndexSet<RcStr>);
+
 /// A location where to resolve modules.
 #[derive(
     TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, ValueDebugFormat,
@@ -31,7 +35,7 @@ pub enum ResolveModules {
     /// look into that directory, unless the request has an excluded extension
     Path {
         dir: Vc<FileSystemPath>,
-        excluded_extensions: Vc<IndexSet<Vc<RcStr>>>,
+        excluded_extensions: Vc<ExcludedExtensions>,
     },
     /// lookup versions based on lockfile in the registry filesystem
     /// registry filesystem is assumed to have structure like

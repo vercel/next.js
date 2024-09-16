@@ -1291,7 +1291,7 @@ async fn find_package(
                     }
                 }
                 for extension in &options.extensions {
-                    if excluded_extensions.contains(&Vc::cell(extension.to_owned())) {
+                    if excluded_extensions.contains(extension) {
                         continue;
                     }
                     let package_file = package_dir.append(extension.clone());
