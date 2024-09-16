@@ -3759,15 +3759,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "md4"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7da5ac363534dce5fabf69949225e174fbf111a498bf0ff794c8ea1fba9f3dda"
-dependencies = [
- "digest",
-]
-
-[[package]]
 name = "mdxjs"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8692,7 +8683,6 @@ dependencies = [
 name = "turbo-tasks-hash"
 version = "0.1.0"
 dependencies = [
- "md4",
  "turbo-tasks-macros",
  "twox-hash",
 ]

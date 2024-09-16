@@ -71,7 +71,7 @@ use turbopack_core::{
         resolve, FindContextFileResult, ModulePart,
     },
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, OptionSourceMap, SourceMap},
 };
 use turbopack_resolve::{
     ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
@@ -3202,15 +3202,4 @@ fn maybe_decode_data_url(url: RcStr) -> Vc<OptionSourceMap> {
     } else {
         Vc::cell(None)
     }
-}
-
-#[turbo_tasks::function]
-async fn convert_to_turbopack_source_map(
-    source_map: Vc<OptionSourceMap>,
-    origin: Vc<FileSystemPath>,
-) -> Result<Vc<OptionSourceMap>> {
-    let Some(source_map) = *source_map.await? else {
-        return Ok(Vc::cell(None));
-    };
-    Ok(Vc::cell(Some(source_map.with_resolved_sources(origin))))
 }
