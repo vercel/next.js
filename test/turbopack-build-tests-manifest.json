@@ -2881,12 +2881,13 @@
     },
     "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
       "passed": [
-        "parallel-routes-catchall should match both the catch-all page & slot",
         "parallel-routes-catchall should match correctly when defining an explicit page & slot",
-        "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
         "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
       ],
-      "failed": [],
+      "failed": [
+        "parallel-routes-catchall should match both the catch-all page & slot",
+        "parallel-routes-catchall should match correctly when defining an explicit page but no slot"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -8968,25 +8969,25 @@
         "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code warns in dev at runtime",
         "Edge runtime configurable guards Edge API with allowed, used dynamic code still warns in dev at runtime",
         "Edge runtime configurable guards Edge API with use of Function as a type does not warn in dev at runtime",
-        "Edge runtime configurable guards Edge API with use of Function as a type production mode build and does not warn at runtime",
         "Edge runtime configurable guards Middleware using lib with allowed, used dynamic code still warns in dev at runtime",
         "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code warns in dev at runtime",
         "Edge runtime configurable guards Middleware with allowed, used dynamic code still warns in dev at runtime",
         "Edge runtime configurable guards Middleware with use of Function as a type does not warn in dev at runtime",
-        "Edge runtime configurable guards Middleware with use of Function as a type production mode build and does not warn at runtime",
         "Edge runtime configurable guards Multiple functions with different configurations warns in dev for allowed code",
         "Edge runtime configurable guards Multiple functions with different configurations warns in dev for unallowed code",
-        "Edge runtime configurable guards Multiple functions with different configurations production mode fails to build because of unallowed code"
-      ],
-      "failed": [
-        "Edge runtime configurable guards Edge API using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Multiple functions with different configurations production mode fails to build because of unallowed code",
         "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation",
-        "Edge runtime configurable guards Edge API with allowed, unused dynamic code production mode build and does not warn at runtime",
-        "Edge runtime configurable guards Middleware using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
-        "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation",
-        "Edge runtime configurable guards Middleware with allowed, unused dynamic code production mode build and does not warn at runtime"
+        "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation"
       ],
-      "pending": [],
+      "failed": [],
+      "pending": [
+        "Edge runtime configurable guards Edge API with use of Function as a type production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Middleware with use of Function as a type production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Edge API with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Middleware with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Edge API using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Middleware using lib with allowed, unused dynamic code production mode build and does not warn at runtime"
+      ],
       "flakey": [],
       "runtimeError": false
     },
