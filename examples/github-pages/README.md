@@ -20,9 +20,7 @@ pnpm create next-app --example github-pages nextjs-github-pages
 
 1.  Create a new public GitHub repository.
 1.  Edit `next.config.js` to match your GitHub repository name:
-    - Given the pattern `https://github.com/<user>/<repo>`, update the two fields: `basePath` and `assetPrefix`:
-      - `basePath: "/repo"`
-      - `assetPrefix: "/repo"`
+    - Given the pattern `https://github.com/<user>/<repo>`, update your `basePath` config to `/repo`. 
 1.  Push the starter code to the `main` branch.
 1.  Run the `deploy` script (e.g. `npm run deploy`) to create the `gh-pages` branch.
 1.  On GitHub, go to **Settings** > **Pages** > **Branch**, and choose `gh-pages` as the branch with the `/root` folder. Hit **Save**.
