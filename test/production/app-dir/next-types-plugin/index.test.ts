@@ -7,8 +7,14 @@ describe('next-types-plugin', () => {
     skipStart: true,
   })
 
+  // Used `process.env.TURBOPACK` because `isTurbopack` is returned
+  // after creating the next instance, but we need to skip before
+  // `next build` is called, because it's not supported yet.
+  if (process.env.TURBOPACK || isTurbopack) {
+    it.skip('should skip turbopack', () => {})
+    return
+  }
   if (skipped) return
-  if (isTurbopack) it.skip('should skip turbopack', () => {})
 
   beforeAll(async () => {
     await next.build()
