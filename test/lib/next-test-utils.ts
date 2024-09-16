@@ -46,6 +46,8 @@ export function initNextServerScript(
     nodeArgs?: string[]
     onStdout?: (data: any) => void
     onStderr?: (data: any) => void
+    // If true, the promise will reject if the process exits with a non-zero code
+    shouldRejectOnError?: boolean
   }
 ): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
@@ -81,6 +83,14 @@ export function initNextServerScript(
       if (opts && opts.onStderr) {
         opts.onStderr(message.toString())
       }
+    }
+
+    if (opts?.shouldRejectOnError) {
+      instance.on('exit', (code) => {
+        if (code !== 0) {
+          reject(new Error('exited with code: ' + code))
+        }
+      })
     }
 
     instance.stdout.on('data', handleStdout)
@@ -146,6 +156,15 @@ export function withQuery(
   }
 
   return `${pathname}?${querystring}`
+}
+
+export function getFetchUrl(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string | null | undefined
+) {
+  const url = query ? withQuery(pathname, query) : pathname
+  return getFullUrl(appPort, url)
 }
 
 export function fetchViaHTTP(
@@ -794,7 +813,7 @@ export async function retry<T>(
         )
         throw err
       }
-      console.warn(
+      console.log(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
       await waitFor(interval)
@@ -844,8 +863,19 @@ export async function assertNoRedbox(browser: BrowserInterface) {
   })
 
   if (hasRedbox) {
-    const error = new Error('Expected no Redbox but found one')
-    Error.captureStackTrace(error, assertHasRedbox)
+    const [redboxHeader, redboxDescription, redboxSource] = await Promise.all([
+      getRedboxHeader(browser).catch(() => '<missing>'),
+      getRedboxDescription(browser).catch(() => '<missing>'),
+      getRedboxSource(browser).catch(() => '<missing>'),
+    ])
+
+    const error = new Error(
+      'Expected no Redbox but found one\n' +
+        `header: ${redboxHeader}\n` +
+        `description: ${redboxDescription}\n` +
+        `source: ${redboxSource}`
+    )
+    Error.captureStackTrace(error, assertNoRedbox)
     throw error
   }
 }
@@ -973,12 +1003,29 @@ export function getBuildManifest(dir: string) {
   return readJson(path.join(dir, '.next/build-manifest.json'))
 }
 
-export function getPageFileFromBuildManifest(dir: string, page: string) {
+export function getPageFilesFromBuildManifest(dir: string, page: string) {
   const buildManifest = getBuildManifest(dir)
   const pageFiles = buildManifest.pages[page]
   if (!pageFiles) {
     throw new Error(`No files for page ${page}`)
   }
+
+  return pageFiles
+}
+
+export function getContentOfPageFilesFromBuildManifest(
+  dir: string,
+  page: string
+): string {
+  const pageFiles = getPageFilesFromBuildManifest(dir, page)
+
+  return pageFiles
+    .map((file) => readFileSync(path.join(dir, '.next', file), 'utf8'))
+    .join('\n')
+}
+
+export function getPageFileFromBuildManifest(dir: string, page: string) {
+  const pageFiles = getPageFilesFromBuildManifest(dir, page)
 
   const pageFile = pageFiles[pageFiles.length - 1]
   expect(pageFile).toEndWith('.js')

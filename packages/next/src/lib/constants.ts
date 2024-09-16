@@ -20,6 +20,8 @@ export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
 
+export const NEXT_RESUME_HEADER = 'next-resume'
+
 // if these change make sure we update the related
 // documentation as well
 export const NEXT_CACHE_TAG_MAX_ITEMS = 64
@@ -78,26 +80,6 @@ export const NON_STANDARD_NODE_ENV = `You are using a non-standard "NODE_ENV" va
 export const SSG_FALLBACK_EXPORT_ERROR = `Pages with \`fallback\` enabled in \`getStaticPaths\` can not be exported. See more info here: https://nextjs.org/docs/messages/ssg-fallback-true-export`
 
 export const ESLINT_DEFAULT_DIRS = ['app', 'pages', 'components', 'lib', 'src']
-
-export const ESLINT_PROMPT_VALUES = [
-  {
-    title: 'Strict',
-    recommended: true,
-    config: {
-      extends: 'next/core-web-vitals',
-    },
-  },
-  {
-    title: 'Base',
-    config: {
-      extends: 'next',
-    },
-  },
-  {
-    title: 'Cancel',
-    config: null,
-  },
-]
 
 export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   edge: 'edge',

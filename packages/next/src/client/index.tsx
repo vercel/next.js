@@ -495,8 +495,8 @@ function markHydrateComplete(): void {
     if (
       process.env.NODE_ENV === 'development' &&
       // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
-      beforeHydrationMeasure !== undefined &&
-      hydrationMeasure !== undefined
+      beforeHydrationMeasure &&
+      hydrationMeasure
     ) {
       tracer
         .startSpan('navigation-to-hydration', {
@@ -698,6 +698,8 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
   function onHeadCommit(): void {
     if (
+      // Turbopack has it's own css injection handling, this code ends up removing the CSS.
+      !process.env.TURBOPACK &&
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
       process.env.NODE_ENV === 'production' &&

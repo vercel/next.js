@@ -73,4 +73,4 @@ flowchart TD
 #### To add new swc transforms
 
 1. Implements a new visitor in `next-custom-transforms`. It is highly encouraged to use `VisitMut` instead of `Fold` for the performance reasons.
-2. Implements a new `CustomTransformer` under `packages/next-swc/crates/next-core/src/next_shared/transforms` to make Turbopack's ecma transform plugin, then adjust corresponding rules in `packages/next-swc/crates/next-core/src/(next_client|next_server)/context.rs`.
+2. Implements a new `CustomTransformer` under `crates/next-core/src/next_shared/transforms` to make Turbopack's ecma transform plugin, then adjust corresponding rules in `crates/next-core/src/(next_client|next_server)/context.rs`.

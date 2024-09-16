@@ -1,0 +1,9 @@
+{
+  "name": "self-reference",
+  "version": "0.0.0",
+  "exports": {
+    "./env": {
+      "default": "./env-entry.js"
+    }
+  }
+}

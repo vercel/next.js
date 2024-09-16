@@ -1,0 +1,11 @@
+x = (1 | ???*0*)
+- *0* y
+  ⚠️  circular variable reference
+
+y = (1 | ???*0*)
+- *0* x
+  ⚠️  circular variable reference
+
+z = (1 | ???*0*)
+- *0* x
+  ⚠️  circular variable reference

@@ -4,7 +4,7 @@ import { AsyncLocalStorage } from 'async_hooks'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { AfterContext } from './after-context'
 
-describe('createAfterContext', () => {
+describe('AfterContext', () => {
   // 'async-local-storage.ts' needs `AsyncLocalStorage` on `globalThis` at import time,
   // so we have to do some contortions here to set it up before running anything else
   type RASMod =
@@ -13,7 +13,7 @@ describe('createAfterContext', () => {
   type AfterContextMod = typeof import('./after-context')
 
   let requestAsyncStorage: RASMod['requestAsyncStorage']
-  let createAfterContext: AfterContextMod['createAfterContext']
+  let AfterContext: AfterContextMod['AfterContext']
   let after: AfterMod['unstable_after']
 
   beforeAll(async () => {
@@ -26,7 +26,7 @@ describe('createAfterContext', () => {
     requestAsyncStorage = RASMod.requestAsyncStorage
 
     const AfterContextMod = await import('./after-context')
-    createAfterContext = AfterContextMod.createAfterContext
+    AfterContext = AfterContextMod.AfterContext
 
     const AfterMod = await import('./after')
     after = AfterMod.unstable_after
@@ -49,10 +49,9 @@ describe('createAfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -116,10 +115,9 @@ describe('createAfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -164,10 +162,9 @@ describe('createAfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -255,10 +252,9 @@ describe('createAfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -315,10 +311,9 @@ describe('createAfterContext', () => {
       throw new Error('onClose is broken for some reason')
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -353,10 +348,9 @@ describe('createAfterContext', () => {
       onCloseCallback = cb
     })
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -406,10 +400,9 @@ describe('createAfterContext', () => {
     const waitUntil = undefined
     const onClose = jest.fn()
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -436,10 +429,9 @@ describe('createAfterContext', () => {
 
     const onClose = undefined
 
-    const afterContext = createAfterContext({
+    const afterContext = new AfterContext({
       waitUntil,
       onClose,
-      cacheScope: undefined,
     })
 
     const requestStore = createMockRequestStore(afterContext)
@@ -459,6 +451,47 @@ describe('createAfterContext', () => {
     expect(waitUntil).not.toHaveBeenCalled()
     expect(afterCallback1).not.toHaveBeenCalled()
   })
+
+  it('shadows requestAsyncStorage within after callbacks', async () => {
+    const waitUntil = jest.fn()
+
+    let onCloseCallback: (() => void) | undefined = undefined
+    const onClose = jest.fn((cb) => {
+      onCloseCallback = cb
+    })
+
+    const afterContext = new AfterContext({
+      waitUntil,
+      onClose,
+    })
+
+    const requestStore = createMockRequestStore(afterContext)
+    const run = createRun(afterContext, requestStore)
+
+    // ==================================
+
+    const stores = new DetachedPromise<
+      [RequestStore | undefined, RequestStore | undefined]
+    >()
+
+    await run(async () => {
+      const store1 = requestAsyncStorage.getStore()
+      after(() => {
+        const store2 = requestAsyncStorage.getStore()
+        stores.resolve([store1, store2])
+      })
+    })
+
+    // the response is done.
+    onCloseCallback!()
+
+    const [store1, store2] = await stores.promise
+    // if we use .toBe, the proxy from createMockRequestStore throws because jest checks '$$typeof'
+    expect(store1).toBeTruthy()
+    expect(store2).toBeTruthy()
+    expect(store1 === requestStore).toBe(true)
+    expect(store2 !== store1).toBe(true)
+  })
 })
 
 const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
@@ -468,6 +501,8 @@ const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
     assetPrefix: '',
     reactLoadableManifest: {},
     draftMode: undefined,
+    isHmrRefresh: false,
+    serverComponentsHmrCache: undefined,
   }
 
   return new Proxy(partialStore as RequestStore, {

@@ -10,15 +10,16 @@ export const Toast: React.FC<ToastProps> = function Toast({
   onClick,
   children,
   className,
+  ...props
 }) {
   return (
     <div
-      data-nextjs-toast
+      {...props}
       onClick={(e) => {
         e.preventDefault()
         return onClick?.()
       }}
-      className={className}
+      className={`nextjs-toast${className ? ' ' + className : ''}`}
     >
       <div data-nextjs-toast-wrapper>{children}</div>
     </div>
