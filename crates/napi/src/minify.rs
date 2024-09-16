@@ -112,7 +112,7 @@ fn patch_opts(opts: &mut JsMinifyOptions) {
         inline: Some(TerserInlineOption::Num(2)),
         global_defs: [(
             "process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE".into(),
-            "production".into(),
+            "false".into(),
         )]
         .iter()
         .cloned()
