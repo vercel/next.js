@@ -18,8 +18,8 @@ export default function (fileInfo: FileInfo, api: API) {
   const GEO = 'geo'
   const IP = 'ip'
 
-  let need_import_geolocation = false
-  let need_import_ipAddress = false
+  let needImportGeolocation = false
+  let needImportIpAddress = false
 
   let geoIdentifier = 'geolocation'
   let ipIdentifier = 'ipAddress'
