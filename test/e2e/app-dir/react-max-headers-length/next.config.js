@@ -8,6 +8,7 @@ const nextConfig = {
   experimental: {
     // Emitting Link headers currently requires the experimental PPR feature.
     ppr: true,
+    pprFallbacks: true,
   },
 }
 

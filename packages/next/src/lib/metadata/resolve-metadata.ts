@@ -49,6 +49,7 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
+import type { CreateDynamicallyTrackedParams } from '../../client/components/fallback-params'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
@@ -478,6 +479,7 @@ export async function resolveMetadataItems({
   getDynamicParamFromSegment,
   searchParams,
   errorConvention,
+  createDynamicallyTrackedParams,
 }: {
   tree: LoaderTree
   parentParams: { [key: string]: any }
@@ -488,6 +490,7 @@ export async function resolveMetadataItems({
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   searchParams: ParsedUrlQuery
   errorConvention: 'not-found' | undefined
+  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams
 }): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix = [...treePrefix, segment]
@@ -508,15 +511,17 @@ export async function resolveMetadataItems({
       : // Pass through parent params to children
         parentParams
 
+  const params = createDynamicallyTrackedParams(currentParams)
+
   let layerProps: LayoutProps | PageProps
   if (isPage) {
     layerProps = {
-      params: currentParams,
+      params,
       searchParams,
     }
   } else {
     layerProps = {
-      params: currentParams,
+      params,
     }
   }
 
@@ -543,6 +548,7 @@ export async function resolveMetadataItems({
       searchParams,
       getDynamicParamFromSegment,
       errorConvention,
+      createDynamicallyTrackedParams,
     })
   }
 
@@ -885,6 +891,7 @@ export async function resolveMetadata({
   searchParams,
   errorConvention,
   metadataContext,
+  createDynamicallyTrackedParams,
 }: {
   tree: LoaderTree
   parentParams: { [key: string]: any }
@@ -896,6 +903,7 @@ export async function resolveMetadata({
   searchParams: { [key: string]: any }
   errorConvention: 'not-found' | undefined
   metadataContext: MetadataContext
+  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams
 }): Promise<[any, ResolvedMetadata, ResolvedViewport]> {
   const resolvedMetadataItems = await resolveMetadataItems({
     tree,
@@ -905,6 +913,7 @@ export async function resolveMetadata({
     getDynamicParamFromSegment,
     searchParams,
     errorConvention,
+    createDynamicallyTrackedParams,
   })
   let error
   let metadata: ResolvedMetadata = createDefaultMetadata()

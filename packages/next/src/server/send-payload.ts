@@ -59,7 +59,9 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  if (typeof revalidate !== 'undefined') {
+  // If cache control is already set on the response we don't
+  // override it to allow users to customize it via next.config
+  if (typeof revalidate !== 'undefined' && !res.getHeader('Cache-Control')) {
     res.setHeader(
       'Cache-Control',
       formatRevalidate({
