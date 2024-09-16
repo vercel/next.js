@@ -9,7 +9,8 @@ use swc_core::{
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{
-    ConstantNumber, ConstantValue, JsValue, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
+    ConstantNumber, ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+    WellKnownObjectKind,
 };
 
 pub fn unparen(expr: &Expr) -> &Expr {
@@ -34,6 +35,7 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             ConstantValue::Regex(exp, flags) => format!("/{exp}/{flags}").into(),
             ConstantValue::Undefined => "undefined".into(),
         }),
+        JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_str().into()),
         JsValue::Alternatives {
             total_nodes: _,
             values,

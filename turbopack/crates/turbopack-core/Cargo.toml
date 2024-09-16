@@ -14,7 +14,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-async-recursion = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 browserslist-rs = { workspace = true }
@@ -26,6 +25,7 @@ patricia_tree = "0.5.5"
 ref-cast = "1.0.20"
 regex = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
+serde_bytes = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }

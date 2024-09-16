@@ -859,34 +859,55 @@ export function createPatchedFetcher(
             })
           }
 
-          /**
-           * We used to just resolve the Response and clone it however for static generation
-           * with dynamicIO we need the response to be able to be resolved in a microtask
-           * and Response#clone() will never have a body that can resolve in a microtask in node (as observed through experimentation)
-           * So instead we await the body and then when it is available we construct manually
-           * cloned Response objects with the body as an ArrayBuffer. This will be resolvable in
-           * a microtask making it compatiable with dynamicIO
-           */
+          // We used to just resolve the Response and clone it however for
+          // static generation with dynamicIO we need the response to be able to
+          // be resolved in a microtask and Response#clone() will never have a
+          // body that can resolve in a microtask in node (as observed through
+          // experimentation) So instead we await the body and then when it is
+          // available we construct manually cloned Response objects with the
+          // body as an ArrayBuffer. This will be resolvable in a microtask
+          // making it compatible with dynamicIO.
           const pendingResponse = doOriginalFetch(true, cacheReasonOverride)
+
           const nextRevalidate = pendingResponse
             .then(async (response) => {
+              // Clone the response here. It'll run first because we attached
+              // the resolve before we returned below. We have to clone it
+              // because the original response is going to be consumed by
+              // at a later point in time.
+              const clonedResponse = response.clone()
+
               return {
-                body: await response.arrayBuffer(),
-                headers: response.headers,
-                status: response.status,
-                statusText: response.statusText,
+                body: await clonedResponse.arrayBuffer(),
+                headers: clonedResponse.headers,
+                status: clonedResponse.status,
+                statusText: clonedResponse.statusText,
               }
             })
             .finally(() => {
-              staticGenerationStore.pendingRevalidates ??= {}
+              // If the pending revalidate is not present in the store, then
+              // we have nothing to delete.
+              if (
+                !staticGenerationStore.pendingRevalidates?.[
+                  pendingRevalidateKey
+                ]
+              ) {
+                return
+              }
+
               delete staticGenerationStore.pendingRevalidates[
                 pendingRevalidateKey
               ]
             })
+
+          // Attach the empty catch here so we don't get a "unhandled promise
+          // rejection" warning
           nextRevalidate.catch(() => {})
+
           staticGenerationStore.pendingRevalidates[pendingRevalidateKey] =
             nextRevalidate
-          return (await pendingResponse).clone()
+
+          return pendingResponse
         } else {
           return doOriginalFetch(false, cacheReasonOverride)
         }

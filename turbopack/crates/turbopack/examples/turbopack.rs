@@ -1,7 +1,6 @@
 #![feature(trivial_bounds)]
 
 use std::{
-    collections::HashMap,
     env::current_dir,
     time::{Duration, Instant},
 };
@@ -44,7 +43,7 @@ async fn main() -> Result<()> {
 
             let source = FileSource::new(entry);
             let module_asset_context = turbopack::ModuleAssetContext::new(
-                Vc::cell(HashMap::new()),
+                Default::default(),
                 CompileTimeInfo::new(Environment::new(Value::new(
                     ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
                 ))),

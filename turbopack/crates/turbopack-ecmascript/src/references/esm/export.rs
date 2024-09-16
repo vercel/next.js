@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, HashSet},
     ops::ControlFlow,
 };
@@ -9,8 +10,9 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
-        self, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr, MemberProp,
-        ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script, Stmt, Str,
+        self, AssignTarget, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr,
+        MemberProp, ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script,
+        SimpleAssignTarget, Stmt, Str,
     },
     quote, quote_expr,
 };
@@ -28,7 +30,7 @@ use super::base::ReferencedAsset;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor,
+    create_visitor, magic_identifier,
     references::esm::base::insert_hoisted_stmt,
 };
 
@@ -46,6 +48,63 @@ pub enum EsmExport {
     ImportedNamespace(Vc<Box<dyn ModuleReference>>),
     /// An error occurred while resolving the export
     Error,
+}
+
+#[turbo_tasks::function]
+pub async fn is_export_missing(
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    export_name: RcStr,
+) -> Result<Vc<bool>> {
+    let exports = module.get_exports().await?;
+    let exports = match &*exports {
+        EcmascriptExports::None => return Ok(Vc::cell(true)),
+        EcmascriptExports::Value => return Ok(Vc::cell(false)),
+        EcmascriptExports::CommonJs => return Ok(Vc::cell(false)),
+        EcmascriptExports::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
+        EcmascriptExports::DynamicNamespace => return Ok(Vc::cell(false)),
+        EcmascriptExports::EsmExports(exports) => *exports,
+    };
+
+    let exports = exports.await?;
+    if exports.exports.contains_key(&export_name) {
+        return Ok(Vc::cell(false));
+    }
+    if export_name == "default" {
+        return Ok(Vc::cell(true));
+    }
+
+    if exports.star_exports.is_empty() {
+        return Ok(Vc::cell(true));
+    }
+
+    let all_export_names = get_all_export_names(module).await?;
+    if all_export_names.esm_exports.contains_key(&export_name) {
+        return Ok(Vc::cell(false));
+    }
+
+    for &dynamic_module in &all_export_names.dynamic_exporting_modules {
+        let exports = dynamic_module.get_exports().await?;
+        match &*exports {
+            EcmascriptExports::Value
+            | EcmascriptExports::CommonJs
+            | EcmascriptExports::DynamicNamespace => {
+                return Ok(Vc::cell(false));
+            }
+            EcmascriptExports::None
+            | EcmascriptExports::EmptyCommonJs
+            | EcmascriptExports::EsmExports(_) => {}
+        }
+    }
+
+    Ok(Vc::cell(true))
+}
+
+#[turbo_tasks::function]
+pub async fn all_known_export_names(
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+) -> Result<Vc<Vec<RcStr>>> {
+    let export_names = get_all_export_names(module).await?;
+    Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -291,7 +350,7 @@ pub async fn expand_star_exports(
                     }
                 }
             }
-            EcmascriptExports::None => emit_star_exports_issue(
+            EcmascriptExports::None | EcmascriptExports::EmptyCommonJs => emit_star_exports_issue(
                 asset.ident(),
                 format!(
                     "export * used with module {} which has no exports\nTypescript only: Did you \
@@ -440,12 +499,17 @@ impl CodeGenerateable for EsmExports {
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
                 )),
                 EsmExport::LocalBinding(name, mutable) => {
+                    let local = if name == "default" {
+                        Cow::Owned(magic_identifier::mangle("default export"))
+                    } else {
+                        Cow::Borrowed(name.as_str())
+                    };
                     if *mutable {
                         Some(quote!(
                             "([() => $local, ($new) => $local = $new])" as Expr,
-                            local = Ident::new((name as &str).into(), DUMMY_SP, Default::default()),
+                            local = Ident::new(local.into(), DUMMY_SP, Default::default()),
                             new = Ident::new(
-                                format!("{name}_new_value").into(),
+                                format!("new_{name}").into(),
                                 DUMMY_SP,
                                 Default::default()
                             ),
@@ -461,9 +525,13 @@ impl CodeGenerateable for EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset.get_ident().await?.map(|ident| {
-                        let expr = Expr::Member(MemberExpr {
+                        let expr = MemberExpr {
                             span: DUMMY_SP,
-                            obj: Box::new(Expr::Ident(Ident::new(ident.into(), DUMMY_SP, Default::default()))),
+                            obj: Box::new(Expr::Ident(Ident::new(
+                                ident.into(),
+                                DUMMY_SP,
+                                Default::default(),
+                            ))),
                             prop: MemberProp::Computed(ComputedPropName {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Lit(Lit::Str(Str {
@@ -472,17 +540,22 @@ impl CodeGenerateable for EsmExports {
                                     raw: None,
                                 }))),
                             }),
-                        });
+                        };
                         if *mutable {
                             quote!(
-                                "([() => $expr, ($new) => $expr = $new])" as Expr,
-                                expr: Expr = expr,
-                                new = Ident::new(format!("{name}_new_value").into(), DUMMY_SP, Default::default()),
+                                "([() => $expr, ($new) => $lhs = $new])" as Expr,
+                                expr: Expr = Expr::Member(expr.clone()),
+                                lhs: AssignTarget = AssignTarget::Simple(SimpleAssignTarget::Member(expr)),
+                                new = Ident::new(
+                                    format!("new_{name}").into(),
+                                    DUMMY_SP,
+                                    Default::default()
+                                ),
                             )
                         } else {
                             quote!(
                                 "(() => $expr)" as Expr,
-                                expr: Expr = expr,
+                                expr: Expr = Expr::Member(expr),
                             )
                         }
                     })
