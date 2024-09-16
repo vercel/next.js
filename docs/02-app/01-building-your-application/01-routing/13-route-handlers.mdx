@@ -153,7 +153,7 @@ Alternatively, you can return a new `Response` using the [`Set-Cookie`](https://
 import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get('token')
 
   return new Response('Hello, Next.js!', {
@@ -167,7 +167,7 @@ export async function GET(request: Request) {
 import { cookies } from 'next/headers'
 
 export async function GET(request) {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get('token')
 
   return new Response('Hello, Next.js!', {
@@ -203,7 +203,7 @@ This `headers` instance is read-only. To set headers, you need to return a new `
 import { headers } from 'next/headers'
 
 export async function GET(request: Request) {
-  const headersList = headers()
+  const headersList = await headers()
   const referer = headersList.get('referer')
 
   return new Response('Hello, Next.js!', {
@@ -217,7 +217,7 @@ export async function GET(request: Request) {
 import { headers } from 'next/headers'
 
 export async function GET(request) {
-  const headersList = headers()
+  const headersList = await headers()
   const referer = headersList.get('referer')
 
   return new Response('Hello, Next.js!', {
@@ -272,13 +272,13 @@ export async function GET(
   request: Request,
   { params }: { params: { slug: string } }
 ) {
-  const slug = params.slug // 'a', 'b', or 'c'
+  const slug = (await params).slug // 'a', 'b', or 'c'
 }
 ```
 
 ```js filename="app/items/[slug]/route.js" switcher
 export async function GET(request, { params }) {
-  const slug = params.slug // 'a', 'b', or 'c'
+  const slug = (await params).slug // 'a', 'b', or 'c'
 }
 ```
 

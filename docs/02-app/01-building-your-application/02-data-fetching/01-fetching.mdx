@@ -137,7 +137,7 @@ To prevent the page from prerendering, you can add the following to your file:
 export const dynamic = 'force-dynamic'
 ```
 
-However, you will commonly use functions like `cookies()`, `headers()`, or reading the incoming `searchParams` from the page props, which will automatically make the page render dynamically. In this case, you do _not_ need to explicitly use `force-dynamic`.
+However, you will commonly use functions like `cookies`, `headers`, or reading the incoming `searchParams` from the page props, which will automatically make the page render dynamically. In this case, you do _not_ need to explicitly use `force-dynamic`.
 
 ### Fetching data on the client
 

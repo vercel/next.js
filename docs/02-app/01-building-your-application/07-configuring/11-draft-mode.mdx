@@ -34,7 +34,7 @@ Then, import the [`draftMode`](/docs/app/api-reference/functions/draft-mode) fun
 import { draftMode } from 'next/headers'
 
 export async function GET(request: Request) {
-  draftMode().enable()
+  await draftMode().enable()
   return new Response('Draft mode is enabled')
 }
 ```
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 import { draftMode } from 'next/headers'
 
 export async function GET(request) {
-  draftMode().enable()
+  await draftMode().enable()
   return new Response('Draft mode is enabled')
 }
 ```
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
   }
 
   // Enable Draft Mode by setting the cookie
-  draftMode().enable()
+  await draftMode().enable()
 
   // Redirect to the path from the fetched post
   // We don't redirect to searchParams.slug as that might lead to open redirect vulnerabilities
@@ -133,7 +133,7 @@ export async function GET(request) {
   }
 
   // Enable Draft Mode by setting the cookie
-  draftMode().enable()
+  await draftMode().enable()
 
   // Redirect to the path from the fetched post
   // We don't redirect to searchParams.slug as that might lead to open redirect vulnerabilities
@@ -156,7 +156,7 @@ Furthermore, the value of `isEnabled` will be `true`.
 import { draftMode } from 'next/headers'
 
 async function getData() {
-  const { isEnabled } = draftMode()
+  const { isEnabled } = await draftMode()
 
   const url = isEnabled
     ? 'https://draft.example.com'
@@ -184,7 +184,7 @@ export default async function Page() {
 import { draftMode } from 'next/headers'
 
 async function getData() {
-  const { isEnabled } = draftMode()
+  const { isEnabled } = await draftMode()
 
   const url = isEnabled
     ? 'https://draft.example.com'
