@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::{bail, Result};
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
@@ -27,8 +28,11 @@ pub enum ResolveModules {
     /// when inside of path, use the list of directories to
     /// resolve inside these
     Nested(Vc<FileSystemPath>, Vec<RcStr>),
-    /// look into that directory
-    Path(Vc<FileSystemPath>),
+    /// look into that directory, unless the request has an excluded extension
+    Path {
+        dir: Vc<FileSystemPath>,
+        excluded_extensions: Vc<IndexSet<Vc<RcStr>>>,
+    },
     /// lookup versions based on lockfile in the registry filesystem
     /// registry filesystem is assumed to have structure like
     /// @scope/module/version/<path-in-package>

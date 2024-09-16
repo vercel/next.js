@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
+use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
 use turbo_tasks::{RcStr, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
@@ -357,9 +358,14 @@ pub async fn apply_tsconfig_resolve_options(
     if let Some(base_url) = tsconfig_resolve_options.base_url {
         // We want to resolve in `compilerOptions.baseUrl` first, then in other
         // locations as a fallback.
-        resolve_options
-            .modules
-            .insert(0, ResolveModules::Path(base_url));
+        resolve_options.modules.insert(
+            0,
+            ResolveModules::Path {
+                dir: base_url,
+                // tsconfig basepath doesn't apply to json requests
+                excluded_extensions: Vc::cell(IndexSet::from([Vc::cell(".json".into())])),
+            },
+        );
     }
     if let Some(tsconfig_import_map) = tsconfig_resolve_options.import_map {
         resolve_options.import_map = Some(
