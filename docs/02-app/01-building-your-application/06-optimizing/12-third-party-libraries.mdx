@@ -334,19 +334,25 @@ enabled in your Admin panel and the _“Page changes based on browser history ev
 selected.
 
 > **Note**: If you decide to manually send pageview events, make sure to disable the default
-> pageview measurement to avoid having duplicate data. Refer to the Google Analytics [developer
-> documentation](https://developers.google.com/analytics/devguides/collection/ga4/views?client_type=gtag#manual_pageviews)
-> to learn more.
+> pageview measurement to avoid having duplicate data. You can disable the default behavior by
+> setting `send_page_view` to `false` in the `gaOptions` argument. 
+> 
+> For more detailed information on manually sending pageview events, please refer to the Google Analytics 
+> [developer documentation](https://developers.google.com/analytics/devguides/collection/ga4/views?client_type=gtag#manual_pageviews).
+>
+> Additionally, `gaOptions` allows you to configure other default parameters, such as `anonymize_ip` 
+> or custom dimensions.
 
 #### Options
 
 Options to pass to the `<GoogleAnalytics>` component.
 
-| Name            | Type     | Description                                                                                            |
-| --------------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| `gaId`          | Required | Your [measurement ID](https://support.google.com/analytics/answer/12270356). Usually starts with `G-`. |
-| `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`.                                                       |
-| `nonce`         | Optional | A [nonce](/docs/app/building-your-application/configuring/content-security-policy#nonces).             |
+| Name            | Type     | Description                                                                                                                                                                                                                                               |
+| --------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gaId`          | Required | Your [measurement ID](https://support.google.com/analytics/answer/12270356). Usually starts with `G-`.                                                                                                                                                    |
+| `gaOptions`     | Optional | Object containing options for Google Analytics configuration, such as `send_page_view`, and other default parameters you want to set. These options will be passed to the `gtag('config')` function. Eg `{ send_page_view: false, customParam: 'value' }` |
+| `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`.                                                                                                                                                                                                          |
+| `nonce`         | Optional | A [nonce](/docs/app/building-your-application/configuring/content-security-policy#nonces).                                                                                                                                                                |
 
 ### Google Maps Embed
 
