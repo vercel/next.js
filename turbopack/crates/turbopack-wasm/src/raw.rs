@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -78,11 +78,19 @@ impl ChunkableModule for RawWebAssemblyModuleAsset {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        let resolved_self = self.to_resolved().await?;
+        let resolved_chunking_context = chunking_context.to_resolved().await?;
+
+        let wasm_asset = resolved_self
+            .wasm_asset(Vc::upcast(*resolved_chunking_context))
+            .to_resolved()
+            .await?;
+
         Ok(Vc::upcast(
             RawModuleChunkItem {
-                module: self,
-                chunking_context,
-                wasm_asset: self.wasm_asset(Vc::upcast(chunking_context)),
+                module: resolved_self,
+                chunking_context: *resolved_chunking_context,
+                wasm_asset,
             }
             .cell(),
         ))
@@ -99,9 +107,9 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
 
 #[turbo_tasks::value]
 struct RawModuleChunkItem {
-    module: Vc<RawWebAssemblyModuleAsset>,
+    module: ResolvedVc<RawWebAssemblyModuleAsset>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    wasm_asset: Vc<WebAssemblyAsset>,
+    wasm_asset: ResolvedVc<WebAssemblyAsset>,
 }
 
 #[turbo_tasks::value_impl]
@@ -113,9 +121,11 @@ impl ChunkItem for RawModuleChunkItem {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        let resolved_wasm_asset = self.wasm_asset.to_resolved().await?;
+        let wasm_asset_vc: Vc<WebAssemblyAsset> = *resolved_wasm_asset;
         Ok(Vc::cell(vec![Vc::upcast(SingleOutputAssetReference::new(
-            Vc::upcast(self.wasm_asset),
-            Vc::cell(format!("wasm(url) {}", self.wasm_asset.ident().to_string().await?).into()),
+            Vc::upcast(wasm_asset_vc),
+            Vc::cell(format!("wasm(url) {}", wasm_asset_vc.ident().to_string().await?).into()),
         ))]))
     }
 
@@ -132,8 +142,9 @@ impl ChunkItem for RawModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+    async fn module(&self) -> Result<Vc<Box<dyn Module>>> {
+        let resolved_module = self.module.to_resolved().await?;
+        Ok(Vc::upcast(*resolved_module))
     }
 }
 

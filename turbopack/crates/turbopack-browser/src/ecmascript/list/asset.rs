@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, EvaluatableAssets},
@@ -24,32 +24,37 @@ use crate::BrowserChunkingContext;
 /// * changing a chunk's path.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevChunkList {
-    pub(super) chunking_context: Vc<BrowserChunkingContext>,
-    pub(super) ident: Vc<AssetIdent>,
-    pub(super) evaluatable_assets: Vc<EvaluatableAssets>,
-    pub(super) chunks: Vc<OutputAssets>,
+    pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
+    pub(super) ident: ResolvedVc<AssetIdent>,
+    pub(super) evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+    pub(super) chunks: ResolvedVc<OutputAssets>,
     pub(super) source: EcmascriptDevChunkListSource,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptDevChunkList {
     /// Creates a new [`Vc<EcmascriptDevChunkList>`].
+
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         chunking_context: Vc<BrowserChunkingContext>,
         ident: Vc<AssetIdent>,
         evaluatable_assets: Vc<EvaluatableAssets>,
         chunks: Vc<OutputAssets>,
         source: Value<EcmascriptDevChunkListSource>,
-    ) -> Vc<Self> {
-        EcmascriptDevChunkList {
+    ) -> Result<Vc<Self>> {
+        let chunking_context = chunking_context.to_resolved().await?;
+        let ident = ident.to_resolved().await?;
+        let evaluatable_assets = evaluatable_assets.to_resolved().await?;
+        let chunks = chunks.to_resolved().await?;
+        Ok(EcmascriptDevChunkList {
             chunking_context,
             ident,
             evaluatable_assets,
             chunks,
             source: source.into_value(),
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -112,7 +117,7 @@ impl OutputAsset for EcmascriptDevChunkList {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(self.chunks)
+        Ok(*self.chunks)
     }
 }
 

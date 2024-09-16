@@ -28,7 +28,7 @@ use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     time::{sleep, timeout},
 };
-use turbo_tasks::{duration_span, RcStr, Vc};
+use turbo_tasks::{duration_span, RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -689,9 +689,9 @@ pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
     env: HashMap<RcStr, RcStr>,
-    pub assets_for_source_mapping: Vc<AssetsForSourceMapping>,
+    pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: Vc<FileSystemPath>,
-    pub project_dir: Vc<FileSystemPath>,
+    pub project_dir: ResolvedVc<FileSystemPath>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
     processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
     /// Semaphore to limit the number of concurrent operations in general
@@ -716,7 +716,7 @@ pub struct NodeJsPool {
 impl NodeJsPool {
     /// * debug: Whether to automatically enable Node's `--inspect-brk` when spawning it. Note:
     ///   automatically overrides concurrency to 1.
-    pub(super) fn new(
+    pub(super) async fn new(
         cwd: PathBuf,
         entrypoint: PathBuf,
         env: HashMap<RcStr, RcStr>,
@@ -725,13 +725,17 @@ impl NodeJsPool {
         project_dir: Vc<FileSystemPath>,
         concurrency: usize,
         debug: bool,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        let assets_for_source_mapping = assets_for_source_mapping.to_resolved().await?;
+        let assets_root = assets_root.to_resolved().await?;
+        let project_dir = project_dir.to_resolved().await?;
+
+        Ok(Self {
             cwd,
             entrypoint,
             env,
             assets_for_source_mapping,
-            assets_root,
+            assets_root: *assets_root,
             project_dir,
             processes: Arc::new(Mutex::new(Vec::new())),
             concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
@@ -741,7 +745,7 @@ impl NodeJsPool {
             shared_stderr: Arc::new(Mutex::new(IndexSet::new())),
             debug,
             stats: Default::default(),
-        }
+        })
     }
 
     async fn acquire_process(&self) -> Result<(NodeJsPoolProcess, AcquiredPermits)> {
@@ -793,9 +797,9 @@ impl NodeJsPool {
             self.cwd.as_path(),
             &self.env,
             self.entrypoint.as_path(),
-            self.assets_for_source_mapping,
-            self.assets_root,
-            self.project_dir,
+            *self.assets_for_source_mapping.to_resolved().await?,
+            *self.assets_root.to_resolved().await?,
+            *self.project_dir.to_resolved().await?,
             self.shared_stdout.clone(),
             self.shared_stderr.clone(),
             self.debug,

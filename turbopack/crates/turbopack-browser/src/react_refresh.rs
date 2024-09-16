@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -48,13 +48,14 @@ pub async fn assert_can_resolve_react_refresh(
     path: Vc<FileSystemPath>,
     resolve_options_context: Vc<ResolveOptionsContext>,
 ) -> Result<Vc<ResolveReactRefreshResult>> {
+    let resolved_path = path.to_resolved().await?;
     let resolve_options = apply_cjs_specific_options(turbopack_resolve::resolve::resolve_options(
-        path,
+        *resolved_path,
         resolve_options_context,
     ));
     for request in [react_refresh_request_in_next(), react_refresh_request()] {
         let result = turbopack_core::resolve::resolve(
-            path,
+            *resolved_path,
             Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
             request,
             resolve_options,
@@ -65,14 +66,18 @@ pub async fn assert_can_resolve_react_refresh(
             return Ok(ResolveReactRefreshResult::Found(request).cell());
         }
     }
-    ReactRefreshResolvingIssue { path }.cell().emit();
+    ReactRefreshResolvingIssue {
+        path: resolved_path,
+    }
+    .cell()
+    .emit();
     Ok(ResolveReactRefreshResult::NotFound.cell())
 }
 
 /// An issue that occurred while resolving the React Refresh runtime module.
 #[turbo_tasks::value(shared)]
 pub struct ReactRefreshResolvingIssue {
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -93,8 +98,8 @@ impl Issue for ReactRefreshResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(*self.path)
     }
 
     #[turbo_tasks::function]

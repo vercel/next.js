@@ -33,7 +33,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -107,7 +107,7 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
         }
     }
 
-    pub fn to_css(
+    pub async fn to_css(
         &self,
         cm: Arc<swc_core::common::SourceMap>,
         code: &str,
@@ -154,9 +154,9 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
                 stylesheet,
                 css_modules,
             } => {
-                let mut stylesheet = stylesheet.clone();
                 // We always analyze dependencies, but remove them only if remove_imports is
                 // true
+                let mut stylesheet = stylesheet.clone();
                 let mut deps = vec![];
                 stylesheet.visit_mut_with(&mut SwcDepCollector {
                     deps: &mut deps,
@@ -360,7 +360,9 @@ pub async fn process_css_with_placeholder(
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
-            let (result, _) = stylesheet.to_css(cm.clone(), &code, false, false, false)?;
+            let (result, _) = stylesheet
+                .to_css(cm.clone(), &code, false, false, false)
+                .await?;
 
             let exports = result.exports.map(|exports| {
                 let mut exports = exports.into_iter().collect::<IndexMap<_, _>>();
@@ -427,7 +429,9 @@ pub async fn finalize_css(
                 FileContent::Content(v) => v.content().to_str()?,
                 _ => bail!("this case should be filtered out while parsing"),
             };
-            let (result, srcmap) = stylesheet.to_css(cm.clone(), &code, true, true, true)?;
+            let (result, srcmap) = stylesheet
+                .to_css(cm.clone(), &code, true, true, true)
+                .await?;
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
@@ -479,7 +483,7 @@ pub async fn parse_css(
                 FileContent::Content(file) => match file.content().to_str() {
                     Err(_err) => ParseCssResult::Unparseable.cell(),
                     Ok(string) => {
-                        process_content(
+                        let result = process_content(
                             *file_content,
                             string.into_owned(),
                             fs_path,
@@ -490,7 +494,9 @@ pub async fn parse_css(
                             ty,
                             use_swc_css,
                         )
-                        .await?
+                        .await?;
+
+                        result.clone()
                     }
                 },
             },
@@ -584,9 +590,9 @@ async fn process_content(
                                 });
 
                                 ParsingIssue {
-                                    file: fs_path_vc,
-                                    msg: Vc::cell(err.to_string().into()),
-                                    source: Vc::cell(source),
+                                    file: fs_path_vc.to_resolved().await?,
+                                    msg: ResolvedVc::cell(err.to_string().into()),
+                                    source: ResolvedVc::cell(source),
                                 }
                                 .cell()
                                 .emit();
@@ -611,9 +617,9 @@ async fn process_content(
                     });
 
                     ParsingIssue {
-                        file: fs_path_vc,
-                        msg: Vc::cell(e.to_string().into()),
-                        source: Vc::cell(source),
+                        file: fs_path_vc.to_resolved().await?,
+                        msg: ResolvedVc::cell(e.to_string().into()),
+                        source: ResolvedVc::cell(source),
                     }
                     .cell()
                     .emit();
@@ -622,7 +628,7 @@ async fn process_content(
             }
         })
     } else {
-        let fs_path = &*fs_path_vc.await?;
+        let fs_path = &*fs_path_vc.to_resolved().await?;
 
         let handler = swc_core::common::errors::Handler::with_emitter(
             true,
@@ -677,8 +683,10 @@ async fn process_content(
         StyleSheetLike::Swc {
             stylesheet: ss,
             css_modules: if matches!(ty, CssModuleAssetType::Module) {
+                let fs_path_awaited = fs_path.await?;
+                let fs_path_filename = fs_path_awaited.file_name();
                 let basename = BASENAME_RE
-                    .captures(fs_path.file_name())
+                    .captures(fs_path_filename)
                     .context("Must include basename preceding .")?
                     .get(0)
                     .context("Must include basename preceding .")?
@@ -732,13 +740,13 @@ enum CssError {
 }
 
 impl CssError {
-    fn report(self, source: Vc<Box<dyn Source>>, file: Vc<FileSystemPath>) {
-        match self {
+    async fn report(self, source: Vc<Box<dyn Source>>, file: Vc<FileSystemPath>) -> Result<()> {
+        let result = match self {
             CssError::SwcSelectorInModuleNotPure { span } => {
                 ParsingIssue {
-                    file,
-                    msg: Vc::cell(CSS_MODULE_ERROR.into()),
-                    source: Vc::cell(Some(IssueSource::from_swc_offsets(
+                    file: file.to_resolved().await?,
+                    msg: ResolvedVc::cell(CSS_MODULE_ERROR.into()),
+                    source: ResolvedVc::cell(Some(IssueSource::from_swc_offsets(
                         source,
                         span.lo.0 as _,
                         span.hi.0 as _,
@@ -749,14 +757,18 @@ impl CssError {
             }
             CssError::LightningCssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
-                    file,
-                    msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into()),
-                    source: Vc::cell(None),
+                    file: file.to_resolved().await?,
+                    msg: ResolvedVc::cell(
+                        format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
+                    ),
+                    source: ResolvedVc::cell(None),
                 }
                 .cell()
                 .emit();
             }
-        }
+        };
+
+        Ok(result)
     }
 }
 
@@ -1071,16 +1083,16 @@ impl TransformConfig for ModuleTransformConfig {
 
 #[turbo_tasks::value]
 struct ParsingIssue {
-    msg: Vc<RcStr>,
-    file: Vc<FileSystemPath>,
-    source: Vc<OptionIssueSource>,
+    msg: ResolvedVc<RcStr>,
+    file: ResolvedVc<FileSystemPath>,
+    source: ResolvedVc<OptionIssueSource>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ParsingIssue {
     #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file
+    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(*self.file.to_resolved().await?)
     }
 
     #[turbo_tasks::function]
@@ -1094,8 +1106,8 @@ impl Issue for ParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        self.source
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(*self.source.to_resolved().await?)
     }
 
     #[turbo_tasks::function]

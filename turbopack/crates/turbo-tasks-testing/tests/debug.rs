@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 
-use turbo_tasks::{debug::ValueDebug, Vc};
+use turbo_tasks::{debug::ValueDebug, ResolvedVc, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -170,17 +170,17 @@ struct StructUnit;
 
 #[turbo_tasks::value(shared)]
 struct StructWithTransparent {
-    transparent: Vc<Transparent>,
+    transparent: ResolvedVc<Transparent>,
 }
 
 #[turbo_tasks::value(shared)]
 struct StructWithOption {
-    option: Option<Vc<Transparent>>,
+    option: Option<ResolvedVc<Transparent>>,
 }
 
 #[turbo_tasks::value(shared)]
 struct StructWithVec {
-    vec: Vec<Vc<Transparent>>,
+    vec: Vec<ResolvedVc<Transparent>>,
 }
 
 #[turbo_tasks::value(shared, eq = "manual")]

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indexmap::IndexSet;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext, OutputChunk, OutputChunkRuntimeInfo},
@@ -17,23 +17,26 @@ use crate::{ecmascript::content::EcmascriptDevChunkContent, BrowserChunkingConte
 /// Development Ecmascript chunk.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevChunk {
-    chunking_context: Vc<BrowserChunkingContext>,
-    chunk: Vc<EcmascriptChunk>,
+    chunking_context: ResolvedVc<BrowserChunkingContext>,
+    chunk: ResolvedVc<EcmascriptChunk>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptDevChunk {
     /// Creates a new [`Vc<EcmascriptDevChunk>`].
+
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         chunking_context: Vc<BrowserChunkingContext>,
         chunk: Vc<EcmascriptChunk>,
-    ) -> Vc<Self> {
-        EcmascriptDevChunk {
+    ) -> Result<Vc<Self>> {
+        let chunking_context = chunking_context.to_resolved().await?;
+        let chunk = chunk.to_resolved().await?;
+        Ok(EcmascriptDevChunk {
             chunking_context,
             chunk,
         }
-        .cell()
+        .cell())
     }
 }
 
@@ -68,7 +71,7 @@ impl EcmascriptDevChunk {
     async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptDevChunkContent>> {
         let this = self.await?;
         Ok(EcmascriptDevChunkContent::new(
-            this.chunking_context,
+            *this.chunking_context,
             self,
             this.chunk.chunk_content(),
         ))
@@ -160,7 +163,7 @@ impl Introspectable for EcmascriptDevChunk {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = IndexSet::new();
-        let chunk = Vc::upcast::<Box<dyn Introspectable>>(self.chunk)
+        let chunk = Vc::upcast::<Box<dyn Introspectable>>(*self.chunk)
             .resolve()
             .await?;
         children.insert((Vc::cell("chunk".into()), chunk));

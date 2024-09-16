@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_tasks::{IntoTraitRef, TryJoinIterExt, Vc};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -27,7 +27,7 @@ use super::{
 #[turbo_tasks::value]
 pub(super) struct EcmascriptDevChunkListContent {
     chunk_list_path: String,
-    pub(super) chunks_contents: IndexMap<String, Vc<Box<dyn VersionedContent>>>,
+    pub(super) chunks_contents: IndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
 }
 
@@ -77,6 +77,7 @@ impl EcmascriptDevChunkListContent {
         let mut by_path = IndexMap::<_, _>::new();
 
         for (chunk_path, chunk_content) in &this.chunks_contents {
+            let chunk_content_resolved = chunk_content.to_resolved().await?;
             if let Some(mergeable) =
                 Vc::try_resolve_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
                     .await?
@@ -86,7 +87,7 @@ impl EcmascriptDevChunkListContent {
             } else {
                 by_path.insert(
                     chunk_path.clone(),
-                    chunk_content.version().into_trait_ref().await?,
+                    chunk_content_resolved.version().into_trait_ref().await?,
                 );
             }
         }

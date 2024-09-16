@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{Value, ValueToString, Vc, ResolvedVc};
 use turbopack_core::{
     asset::Asset,
     chunk::{ChunkGroup, ChunkListReference, ChunkingContext},
@@ -16,14 +16,14 @@ use crate::ecmascript::content::EcmascriptDevChunkContent;
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevChunkRuntime {
     /// The chunking context that created this runtime.
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     /// All chunks of this chunk group need to be ready for execution to start.
     /// When None, it will use a chunk group created from the current chunk.
-    chunk_group: Option<Vc<ChunkGroup>>,
+    chunk_group: Option<ResolvedVc<ChunkGroup>>,
     /// If any evaluated entries are set, the main runtime code will be included
     /// in the chunk and the provided entries will be evaluated as soon as the
     /// chunk executes.
-    evaluated_entries: Option<Vc<EcmascriptChunkPlaceables>>,
+    evaluated_entries: Option<ResolvedVc<EcmascriptChunkPlaceables>>,
 }
 
 #[turbo_tasks::value_impl]

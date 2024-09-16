@@ -252,6 +252,7 @@ pub async fn get_renderer_pool(
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     )
+    .await?
     .cell())
 }
 

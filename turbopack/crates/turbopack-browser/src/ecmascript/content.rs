@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
@@ -23,8 +23,8 @@ use crate::BrowserChunkingContext;
 #[turbo_tasks::value(serialization = "none")]
 pub struct EcmascriptDevChunkContent {
     pub(super) entries: Vc<EcmascriptDevChunkContentEntries>,
-    pub(super) chunking_context: Vc<BrowserChunkingContext>,
-    pub(super) chunk: Vc<EcmascriptDevChunk>,
+    pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
+    pub(super) chunk: ResolvedVc<EcmascriptDevChunk>,
 }
 
 #[turbo_tasks::value_impl]
@@ -38,6 +38,8 @@ impl EcmascriptDevChunkContent {
         let entries = EcmascriptDevChunkContentEntries::new(content)
             .resolve()
             .await?;
+        let chunking_context = chunking_context.to_resolved().await?;
+        let chunk = chunk.to_resolved().await?;
         Ok(EcmascriptDevChunkContent {
             entries,
             chunking_context,

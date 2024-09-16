@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
@@ -27,13 +27,13 @@ use crate::{
 
 #[turbo_tasks::value]
 struct NextConfigAndCustomRoutes {
-    config: Vc<NextConfig>,
-    custom_routes: Vc<CustomRoutes>,
+    config: ResolvedVc<NextConfig>,
+    custom_routes: ResolvedVc<CustomRoutes>,
 }
 
 #[turbo_tasks::value]
 struct CustomRoutes {
-    rewrites: Vc<Rewrites>,
+    rewrites: ResolvedVc<Rewrites>,
 }
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]

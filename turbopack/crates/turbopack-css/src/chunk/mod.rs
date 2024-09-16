@@ -5,7 +5,7 @@ use std::fmt::Write;
 
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -32,8 +32,8 @@ use crate::{process::ParseCssResultSourceMap, util::stringify_js, ImportAssetRef
 
 #[turbo_tasks::value]
 pub struct CssChunk {
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub content: Vc<CssChunkContent>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub content: ResolvedVc<CssChunkContent>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -42,20 +42,23 @@ pub struct CssChunks(Vec<Vc<CssChunk>>);
 #[turbo_tasks::value_impl]
 impl CssChunk {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         content: Vc<CssChunkContent>,
-    ) -> Vc<Self> {
-        CssChunk {
-            chunking_context,
-            content,
+    ) -> Result<Vc<Self>> {
+        let resolved_chunking_context = chunking_context.to_resolved().await?;
+        let resolved_content = content.to_resolved().await?;
+        Ok(CssChunk {
+            chunking_context: resolved_chunking_context,
+            content: resolved_content,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
-    fn chunk_content(&self) -> Vc<CssChunkContent> {
-        self.content
+    async fn chunk_content(&self) -> Result<Vc<CssChunkContent>> {
+        let resolved_content = self.content.to_resolved().await?;
+        Ok(*resolved_content)
     }
 
     #[turbo_tasks::function]
@@ -78,7 +81,12 @@ impl CssChunk {
             }
 
             writeln!(body, "/* {} */", id)?;
-            let close = write_import_context(&mut body, content.import_context).await?;
+            let import_context_resolved = match content.import_context.as_ref() {
+                Some(vc) => Some(vc.to_resolved().await?),
+                None => None,
+            };
+            let import_context_vc = import_context_resolved.map(|resolved| *resolved);
+            let close = write_import_context(&mut body, import_context_vc).await?;
 
             body.push_source(&content.inner_code, content.source_map.map(Vc::upcast));
 
@@ -150,7 +158,7 @@ pub async fn write_import_context(
 #[turbo_tasks::value]
 pub struct CssChunkContent {
     pub chunk_items: Vec<Vc<Box<dyn CssChunkItem>>>,
-    pub referenced_output_assets: Vc<OutputAssets>,
+    pub referenced_output_assets: ResolvedVc<OutputAssets>,
 }
 
 #[turbo_tasks::value_impl]
@@ -162,8 +170,9 @@ impl Chunk for CssChunk {
     }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+    async fn chunking_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        let resolved_context = self.chunking_context.to_resolved().await?;
+        Ok(*resolved_context)
     }
 
     #[turbo_tasks::function]
@@ -213,7 +222,12 @@ impl OutputChunk for CssChunk {
             .chunk_items
             .iter()
             .chain(imports_chunk_items.iter())
-            .map(|item| Vc::upcast(SingleItemCssChunk::new(self.chunking_context, *item)))
+            .map(|item| {
+                Vc::upcast(SingleItemCssChunk::new(
+                    (*self.chunking_context).clone(),
+                    *item,
+                ))
+            })
             .collect();
         Ok(OutputChunkRuntimeInfo {
             included_ids: Some(Vc::cell(included_ids)),
@@ -294,9 +308,10 @@ impl OutputAsset for CssChunk {
         let this = self.await?;
         let content = this.content.await?;
         let mut references = content.referenced_output_assets.await?.clone_value();
+        let chunking_context = this.chunking_context.clone(); // Clone the ResolvedVc
         for item in content.chunk_items.iter() {
             references.push(Vc::upcast(SingleItemCssChunk::new(
-                this.chunking_context,
+                *chunking_context,
                 *item,
             )));
         }
@@ -329,14 +344,18 @@ impl GenerateSourceMap for CssChunk {
 
 #[turbo_tasks::value]
 pub struct CssChunkContext {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl CssChunkContext {
     #[turbo_tasks::function]
-    pub fn of(chunking_context: Vc<Box<dyn ChunkingContext>>) -> Vc<CssChunkContext> {
-        CssChunkContext { chunking_context }.cell()
+    pub async fn of(chunking_context: Vc<Box<dyn ChunkingContext>>) -> Result<Vc<CssChunkContext>> {
+        let resolved_context = chunking_context.to_resolved().await?;
+        Ok(CssChunkContext {
+            chunking_context: resolved_context,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -366,7 +385,7 @@ pub enum CssImport {
 #[derive(Debug)]
 #[turbo_tasks::value(shared)]
 pub struct CssChunkItemContent {
-    pub import_context: Option<Vc<ImportContext>>,
+    pub import_context: Option<ResolvedVc<ImportContext>>,
     pub imports: Vec<CssImport>,
     pub inner_code: Rope,
     pub source_map: Option<Vc<ParseCssResultSourceMap>>,
@@ -459,6 +478,7 @@ impl ChunkType for CssChunkType {
         chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
         referenced_output_assets: Vc<OutputAssets>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
+        let referenced_output_assets = referenced_output_assets.to_resolved().await?;
         let content = CssChunkContent {
             chunk_items: chunk_items
                 .iter()

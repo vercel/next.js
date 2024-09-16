@@ -93,10 +93,10 @@ pub(super) async fn update_chunk_list(
 
     for (chunk_path, chunk_content) in &content.chunks_contents {
         if let Some(mergeable) =
-            Vc::try_resolve_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content).await?
+            Vc::try_resolve_sidecast::<Box<dyn MergeableVersionedContent>>(**chunk_content).await?
         {
             let merger = mergeable.get_merger().resolve().await?;
-            by_merger.entry(merger).or_default().push(*chunk_content);
+            by_merger.entry(merger).or_default().push(**chunk_content);
         } else {
             by_path.insert(chunk_path, chunk_content);
         }
@@ -136,8 +136,9 @@ pub(super) async fn update_chunk_list(
     let mut merged = vec![];
 
     for (merger, chunks_contents) in by_merger {
-        if let Some(from_version) = from.by_merger.get(&merger) {
-            let content = merger.merge(Vc::cell(chunks_contents));
+        let resolved_merger = merger.to_resolved().await?;
+        if let Some(from_version) = from.by_merger.get(&resolved_merger) {
+            let content = resolved_merger.merge(Vc::cell(chunks_contents));
 
             let chunk_update = content.update(TraitRef::cell(from_version.clone())).await?;
 

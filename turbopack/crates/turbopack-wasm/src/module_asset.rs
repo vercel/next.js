@@ -1,6 +1,6 @@
 use anyhow::{bail, Context, Result};
 use indexmap::indexmap;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -137,9 +137,11 @@ impl ChunkableModule for WebAssemblyModuleAsset {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        let chunking_context = chunking_context.to_resolved().await?;
+        let module = self.to_resolved().await?;
         Ok(Vc::upcast(
             ModuleChunkItem {
-                module: self,
+                module,
                 chunking_context,
             }
             .cell(),
@@ -180,8 +182,8 @@ impl ResolveOrigin for WebAssemblyModuleAsset {
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: Vc<WebAssemblyModuleAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<WebAssemblyModuleAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -193,17 +195,18 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        let chunking_context = self.chunking_context.to_resolved().await?;
         let loader = self
             .module
             .loader()
-            .as_chunk_item(Vc::upcast(self.chunking_context));
+            .as_chunk_item(Vc::upcast(*chunking_context));
 
         Ok(loader.references())
     }
 
     #[turbo_tasks::function]
     async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        Vc::upcast(*self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -214,8 +217,9 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+    async fn module(&self) -> Result<Vc<Box<dyn Module>>> {
+        let resolved_module = self.module.to_resolved().await?;
+        Ok(Vc::upcast(*resolved_module))
     }
 
     #[turbo_tasks::function]
@@ -227,8 +231,8 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+    async fn chunking_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        Ok(*self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -242,7 +246,8 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let loader_asset = self.module.loader();
-        let item = loader_asset.as_chunk_item(Vc::upcast(self.chunking_context));
+        let chunking_context = self.chunking_context.to_resolved().await?;
+        let item = loader_asset.as_chunk_item(Vc::upcast(*chunking_context));
 
         let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
             .await?

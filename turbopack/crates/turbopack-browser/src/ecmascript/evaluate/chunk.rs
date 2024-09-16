@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{bail, Result};
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -31,37 +31,42 @@ use crate::BrowserChunkingContext;
 /// * Evaluates a list of runtime entries.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevEvaluateChunk {
-    chunking_context: Vc<BrowserChunkingContext>,
-    ident: Vc<AssetIdent>,
-    other_chunks: Vc<OutputAssets>,
-    evaluatable_assets: Vc<EvaluatableAssets>,
+    chunking_context: ResolvedVc<BrowserChunkingContext>,
+    ident: ResolvedVc<AssetIdent>,
+    other_chunks: ResolvedVc<OutputAssets>,
+    evaluatable_assets: ResolvedVc<EvaluatableAssets>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptDevEvaluateChunk {
     /// Creates a new [`Vc<EcmascriptDevEvaluateChunk>`].
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         chunking_context: Vc<BrowserChunkingContext>,
         ident: Vc<AssetIdent>,
         other_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
-    ) -> Vc<Self> {
-        EcmascriptDevEvaluateChunk {
+    ) -> Result<Vc<Self>> {
+        let chunking_context = chunking_context.to_resolved().await?;
+        let ident = ident.to_resolved().await?;
+        let other_chunks = other_chunks.to_resolved().await?;
+        let evaluatable_assets = evaluatable_assets.to_resolved().await?;
+        Ok(EcmascriptDevEvaluateChunk {
             chunking_context,
             ident,
             other_chunks,
             evaluatable_assets,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
     async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
         let this = self.await?;
+        let other_chunks = this.other_chunks.to_resolved().await?;
         Ok(ChunkData::from_assets(
             this.chunking_context.output_root(),
-            this.other_chunks,
+            *other_chunks,
         ))
     }
 
@@ -96,7 +101,7 @@ impl EcmascriptDevEvaluateChunk {
             .await?
             .iter()
             .map({
-                let chunking_context = this.chunking_context;
+                let chunking_context = this.chunking_context.clone();
                 move |entry| async move {
                     if let Some(placeable) =
                         Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry)
@@ -104,7 +109,7 @@ impl EcmascriptDevEvaluateChunk {
                     {
                         Ok(Some(
                             placeable
-                                .as_chunk_item(Vc::upcast(chunking_context))
+                                .as_chunk_item(Vc::upcast(*chunking_context))
                                 .id()
                                 .await?,
                         ))

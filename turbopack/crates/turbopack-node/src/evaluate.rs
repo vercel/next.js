@@ -174,7 +174,7 @@ pub async fn get_evaluate_pool(
         debug,
     );
     additional_invalidation.await?;
-    Ok(pool.cell())
+    Ok(pool.await?.cell())
 }
 
 struct PoolErrorHandler;
@@ -508,12 +508,16 @@ impl EvaluateContext for BasicEvaluateContext {
     }
 
     async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
+        let assets_for_source_mapping = *pool.assets_for_source_mapping; // Dereference to convert ResolvedVc to Vc
+        let assets_root = pool.assets_root.to_resolved().await?;
+        let project_dir = self.chunking_context.context_path().root();
+
         EvaluationIssue {
             error,
             context_ident: self.context_ident_for_issue,
-            assets_for_source_mapping: pool.assets_for_source_mapping,
-            assets_root: pool.assets_root,
-            project_dir: self.chunking_context.context_path().root(),
+            assets_for_source_mapping,
+            assets_root: *assets_root, // Dereference to convert ResolvedVc to Vc
+            project_dir,
         }
         .cell()
         .emit();
@@ -550,7 +554,7 @@ async fn print_error(
 ) -> Result<String> {
     error
         .print(
-            pool.assets_for_source_mapping,
+            *pool.assets_for_source_mapping,
             pool.assets_root,
             evaluate_context.cwd(),
             FormattingMode::Plain,

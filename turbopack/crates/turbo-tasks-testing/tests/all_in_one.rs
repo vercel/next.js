@@ -1,7 +1,7 @@
 #![feature(arbitrary_self_types)]
 
 use anyhow::{anyhow, bail, Result};
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -99,7 +99,7 @@ impl ValueToString for MyEnumValue {
 #[turbo_tasks::value(shared)]
 struct MyStructValue {
     value: u32,
-    next: Option<Vc<MyStructValue>>,
+    next: Option<ResolvedVc<MyStructValue>>,
 }
 
 #[turbo_tasks::value_impl]
