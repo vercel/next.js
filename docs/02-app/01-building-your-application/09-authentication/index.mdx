@@ -217,19 +217,19 @@ export function SignupForm() {
         <label htmlFor="name">Name</label>
         <input id="name" name="name" placeholder="Name" />
       </div>
-      {state? && <p>{state.errors.name}</p>}
+      {state?.errors?.name && <p>{state.errors.name}</p>}
 
       <div>
         <label htmlFor="email">Email</label>
         <input id="email" name="email" placeholder="Email" />
       </div>
-      {state? && <p>{state.errors.email}</p>}
+      {state?.errors?.email && <p>{state.errors.email}</p>}
 
       <div>
         <label htmlFor="password">Password</label>
         <input id="password" name="password" type="password" />
       </div>
-      {state? && (
+      {state?.errors?.password && (
         <div>
           <p>Password must:</p>
           <ul>
@@ -270,19 +270,19 @@ export function SignupForm() {
         <label htmlFor="name">Name</label>
         <input id="name" name="name" placeholder="John Doe" />
       </div>
-      {state && <p>{state.errors.name}</p>}
+      {state?.errors?.name && <p>{state.errors.name}</p>}
 
       <div>
         <label htmlFor="email">Email</label>
         <input id="email" name="email" placeholder="john@example.com" />
       </div>
-      {state && <p>{state.errors.email}</p>}
+      {state?.errors?.name && <p>{state.errors.email}</p>}
 
       <div>
         <label htmlFor="password">Password</label>
         <input id="password" name="password" type="password" />
       </div>
-      {state && (
+      {state.errors?.password && (
         <div>
           <p>Password must:</p>
           <ul>
