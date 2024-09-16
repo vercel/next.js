@@ -7,25 +7,21 @@ use next_core::{
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, RcStr, Value, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{File, FileContent, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            chunk::{
-                availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-                EntryChunkGroupResult,
-            },
-            context::AssetContext,
-            module::Module,
-            output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
-            source::Source,
-            virtual_output::VirtualOutputAsset,
-        },
-        ecmascript::chunk::EcmascriptChunkPlaceable,
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbopack_core::{
+    asset::AssetContent,
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult,
     },
+    context::AssetContext,
+    module::{Module, Modules},
+    output::{OutputAsset, OutputAssets},
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
+    virtual_output::VirtualOutputAsset,
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     paths::{
@@ -38,7 +34,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct InstrumentationEndpoint {
     project: Vc<Project>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     is_edge: bool,
 
@@ -51,7 +47,7 @@ impl InstrumentationEndpoint {
     #[turbo_tasks::function]
     pub fn new(
         project: Vc<Project>,
-        context: Vc<Box<dyn AssetContext>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
         source: Vc<Box<dyn Source>>,
         is_edge: bool,
         app_dir: Option<Vc<FileSystemPath>>,
@@ -59,7 +55,7 @@ impl InstrumentationEndpoint {
     ) -> Vc<Self> {
         Self {
             project,
-            context,
+            asset_context,
             source,
             is_edge,
             app_dir,
@@ -69,31 +65,44 @@ impl InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn edge_files(&self) -> Result<Vc<OutputAssets>> {
+    async fn core_modules(&self) -> Result<Vc<InstrumentationCoreModules>> {
         let userland_module = self
-            .context
+            .asset_context
             .process(
                 self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
             )
             .module();
 
-        let module = wrap_edge_entry(
-            self.context,
+        let edge_entry_module = wrap_edge_entry(
+            self.asset_context,
             self.project.project_path(),
             userland_module,
             "instrumentation".into(),
         );
 
+        Ok(InstrumentationCoreModules {
+            userland_module,
+            edge_entry_module,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn edge_files(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        let this = self.await?;
+
+        let module = self.core_modules().await?.edge_entry_module;
+
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Instrumentation {
-                app_dir: self.app_dir,
-                ecmascript_client_reference_transition_name: self
+                app_dir: this.app_dir,
+                ecmascript_client_reference_transition_name: this
                     .ecmascript_client_reference_transition_name,
             }),
-            self.project.next_mode(),
+            this.project.next_mode(),
         )
-        .resolve_entries(self.context)
+        .resolve_entries(this.asset_context)
         .await?
         .clone_value();
 
@@ -108,7 +117,7 @@ impl InstrumentationEndpoint {
         };
         evaluatable_assets.push(evaluatable);
 
-        let edge_chunking_context = self.project.edge_chunking_context(false);
+        let edge_chunking_context = this.project.edge_chunking_context(false);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
@@ -120,16 +129,12 @@ impl InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn node_chunk(&self) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let chunking_context = self.project.server_chunking_context(false);
+    async fn node_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let this = self.await?;
 
-        let userland_module = self
-            .context
-            .process(
-                self.source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
-            )
-            .module();
+        let chunking_context = this.project.server_chunking_context(false);
+
+        let userland_module = self.core_modules().await?.userland_module;
 
         let Some(module) = Vc::try_resolve_downcast(userland_module).await? else {
             bail!("Entry module must be evaluatable");
@@ -137,19 +142,19 @@ impl InstrumentationEndpoint {
 
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
             .entry_chunk_group(
-                self.project
+                this.project
                     .node_root()
                     .join("server/instrumentation.js".into()),
                 module,
                 get_server_runtime_entries(
                     Value::new(ServerContextType::Instrumentation {
-                        app_dir: self.app_dir,
-                        ecmascript_client_reference_transition_name: self
+                        app_dir: this.app_dir,
+                        ecmascript_client_reference_transition_name: this
                             .ecmascript_client_reference_transition_name,
                     }),
-                    self.project.next_mode(),
+                    this.project.next_mode(),
                 )
-                .resolve_entries(self.context),
+                .resolve_entries(this.asset_context),
                 Value::new(AvailabilityInfo::Root),
             )
             .await?;
@@ -203,6 +208,12 @@ impl InstrumentationEndpoint {
     }
 }
 
+#[turbo_tasks::value]
+struct InstrumentationCoreModules {
+    pub userland_module: Vc<Box<dyn Module>>,
+    pub edge_entry_module: Vc<Box<dyn Module>>,
+}
+
 #[turbo_tasks::value_impl]
 impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
@@ -239,5 +250,14 @@ impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
     fn client_changed(self: Vc<Self>) -> Vc<Completion> {
         Completion::immutable()
+    }
+
+    #[turbo_tasks::function]
+    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let core_modules = self.core_modules().await?;
+        Ok(Vc::cell(vec![
+            core_modules.userland_module,
+            core_modules.edge_entry_module,
+        ]))
     }
 }

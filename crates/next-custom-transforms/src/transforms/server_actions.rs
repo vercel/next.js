@@ -7,13 +7,12 @@ use std::{
 use hex::encode as hex_encode;
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
-use swc_core::common::Span;
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
         util::take::Take,
-        BytePos, FileName, DUMMY_SP,
+        BytePos, FileName, Mark, Span, SyntaxContext, DUMMY_SP,
     },
     ecma::{
         ast::*,
@@ -28,6 +27,7 @@ use turbopack_binding::swc::core::{
 pub struct Config {
     pub is_react_server_layer: bool,
     pub enabled: bool,
+    pub hash_salt: String,
 }
 
 /// A mapping of hashed action id to the action's exported function name.
@@ -68,6 +68,8 @@ pub fn server_actions<C: Comments>(
         annotations: Default::default(),
         extra_items: Default::default(),
         export_actions: Default::default(),
+
+        private_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
     })
 }
 
@@ -111,6 +113,8 @@ struct ServerActions<C: Comments> {
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
     export_actions: Vec<String>,
+
+    private_ctxt: SyntaxContext,
 }
 
 impl<C: Comments> ServerActions<C> {
@@ -160,7 +164,7 @@ impl<C: Comments> ServerActions<C> {
         arrow: Option<&mut ArrowExpr>,
     ) -> Option<Box<Expr>> {
         let action_name: JsWord = gen_ident(&mut self.reference_index);
-        let action_ident = private_ident!(action_name.clone());
+        let action_ident = Ident::new(action_name.clone(), DUMMY_SP, self.private_ctxt);
         let export_name: JsWord = action_name;
 
         self.has_action = true;
@@ -174,13 +178,17 @@ impl<C: Comments> ServerActions<C> {
                     .cloned()
                     .map(|id| Some(id.as_arg()))
                     .collect(),
-                &self.file_name,
-                export_name.to_string(),
+                generate_action_id(
+                    &self.config.hash_salt,
+                    &self.file_name,
+                    export_name.to_string().as_str(),
+                ),
             );
 
             if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
                 block.visit_mut_with(&mut ClosureReplacer {
                     used_ids: &ids_from_closure,
+                    private_ctxt: self.private_ctxt,
                 });
             }
 
@@ -193,7 +201,9 @@ impl<C: Comments> ServerActions<C> {
                 new_params.push(Param {
                     span: DUMMY_SP,
                     decorators: vec![],
-                    pat: Pat::Ident(Ident::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+                    pat: Pat::Ident(
+                        IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
+                    ),
                 });
 
                 // Also prepend the decryption decl into the body.
@@ -202,7 +212,12 @@ impl<C: Comments> ServerActions<C> {
                 let mut pats = vec![];
                 for i in 0..ids_from_closure.len() {
                     pats.push(Some(Pat::Ident(
-                        Ident::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                        Ident::new(
+                            format!("$$ACTION_ARG_{i}").into(),
+                            DUMMY_SP,
+                            self.private_ctxt,
+                        )
+                        .into(),
                     )));
                 }
                 let decryption_decl = VarDecl {
@@ -223,14 +238,20 @@ impl<C: Comments> ServerActions<C> {
                                 span: DUMMY_SP,
                                 callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                                 args: vec![
-                                    generate_action_id(&self.file_name, &export_name).as_arg(),
+                                    generate_action_id(
+                                        &self.config.hash_salt,
+                                        &self.file_name,
+                                        &export_name,
+                                    )
+                                    .as_arg(),
                                     quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                                 ],
-                                type_args: None,
+                                ..Default::default()
                             })),
                         }))),
                         definite: Default::default(),
                     }],
+                    ..Default::default()
                 };
 
                 match &mut new_body {
@@ -247,6 +268,7 @@ impl<C: Comments> ServerActions<C> {
                                     arg: Some(body_expr.take()),
                                 }),
                             ],
+                            ..Default::default()
                         });
                     }
                 }
@@ -276,14 +298,14 @@ impl<C: Comments> ServerActions<C> {
                                         span: DUMMY_SP,
                                         arg: Some(expr),
                                     })],
+                                    ..Default::default()
                                 }),
                             },
                             decorators: vec![],
                             span: DUMMY_SP,
                             is_generator: false,
                             is_async: true,
-                            type_params: None,
-                            return_type: None,
+                            ..Default::default()
                         }),
                         declare: Default::default(),
                     }
@@ -299,12 +321,12 @@ impl<C: Comments> ServerActions<C> {
                     .cloned()
                     .map(|id| Some(id.as_arg()))
                     .collect(),
-                &self.file_name,
-                export_name.to_string(),
+                generate_action_id(&self.config.hash_salt, &self.file_name, &export_name),
             );
 
             f.body.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
+                private_ctxt: self.private_ctxt,
             });
 
             // export async function $ACTION_myAction () {}
@@ -317,7 +339,9 @@ impl<C: Comments> ServerActions<C> {
                 new_params.push(Param {
                     span: DUMMY_SP,
                     decorators: vec![],
-                    pat: Pat::Ident(Ident::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+                    pat: Pat::Ident(
+                        IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
+                    ),
                 });
 
                 // Also prepend the decryption decl into the body.
@@ -326,13 +350,17 @@ impl<C: Comments> ServerActions<C> {
                 let mut pats = vec![];
                 for i in 0..ids_from_closure.len() {
                     pats.push(Some(Pat::Ident(
-                        Ident::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                        Ident::new(
+                            format!("$$ACTION_ARG_{i}").into(),
+                            DUMMY_SP,
+                            self.private_ctxt,
+                        )
+                        .into(),
                     )));
                 }
                 let decryption_decl = VarDecl {
                     span: DUMMY_SP,
                     kind: VarDeclKind::Var,
-                    declare: false,
                     decls: vec![VarDeclarator {
                         span: DUMMY_SP,
                         name: Pat::Array(ArrayPat {
@@ -347,14 +375,20 @@ impl<C: Comments> ServerActions<C> {
                                 span: DUMMY_SP,
                                 callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                                 args: vec![
-                                    generate_action_id(&self.file_name, &export_name).as_arg(),
+                                    generate_action_id(
+                                        &self.config.hash_salt,
+                                        &self.file_name,
+                                        &export_name,
+                                    )
+                                    .as_arg(),
                                     quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                                 ],
-                                type_args: None,
+                                ..Default::default()
                             })),
                         }))),
                         definite: Default::default(),
                     }],
+                    ..Default::default()
                 };
 
                 if let Some(body) = &mut new_body {
@@ -363,6 +397,7 @@ impl<C: Comments> ServerActions<C> {
                     new_body = Some(BlockStmt {
                         span: DUMMY_SP,
                         stmts: vec![decryption_decl.into()],
+                        ..Default::default()
                     });
                 }
             }
@@ -471,7 +506,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             match f.ident.as_mut() {
                 None => {
                     let action_name = gen_ident(&mut self.reference_index);
-                    let ident = Ident::new(action_name, DUMMY_SP);
+                    let ident = Ident::new(action_name, DUMMY_SP, self.private_ctxt);
                     f.ident.insert(ident)
                 }
                 Some(i) => i,
@@ -570,13 +605,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
                 span: DUMMY_SP,
                 kind: VarDeclKind::Var,
-                declare: false,
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
                     name: Pat::Ident(f.ident.clone().into()),
                     init: maybe_new_expr,
                     definite: false,
                 }],
+                ..Default::default()
             });
         }
     }
@@ -762,7 +797,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if self.in_action_file {
                 let mut disallowed_export_span = DUMMY_SP;
 
-                // Currrently only function exports are allowed.
+                // Currently only function exports are allowed.
                 match &mut stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, span })) => {
                         match decl {
@@ -838,8 +873,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 self.exported_idents.push((ident.to_id(), "default".into()));
                             } else {
                                 // export default function() {}
-                                let new_ident =
-                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
+                                let new_ident = Ident::new(
+                                    gen_ident(&mut self.reference_index),
+                                    DUMMY_SP,
+                                    self.private_ctxt,
+                                );
                                 f.ident = Some(new_ident.clone());
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -857,8 +895,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     disallowed_export_span = default_expr.span;
                                 } else {
                                     // export default async () => {}
-                                    let new_ident =
-                                        Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
+                                    let new_ident = Ident::new(
+                                        gen_ident(&mut self.reference_index),
+                                        DUMMY_SP,
+                                        self.private_ctxt,
+                                    );
 
                                     self.exported_idents
                                         .push((new_ident.to_id(), "default".into()));
@@ -876,8 +917,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                             Expr::Call(call) => {
                                 // export default fn()
-                                let new_ident =
-                                    Ident::new(gen_ident(&mut self.reference_index), DUMMY_SP);
+                                let new_ident = Ident::new(
+                                    gen_ident(&mut self.reference_index),
+                                    DUMMY_SP,
+                                    self.private_ctxt,
+                                );
 
                                 self.exported_idents
                                     .push((new_ident.to_id(), "default".into()));
@@ -962,22 +1006,25 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
 
             for (id, export_name) in self.exported_idents.iter() {
-                let ident = Ident::new(id.0.clone(), DUMMY_SP.with_ctxt(id.1));
+                let ident = Ident::new(id.0.clone(), DUMMY_SP, id.1);
 
                 if !self.config.is_react_server_layer {
-                    let action_id = generate_action_id(&self.file_name, export_name);
+                    let action_id =
+                        generate_action_id(&self.config.hash_salt, &self.file_name, export_name);
 
+                    let span = Span::dummy_with_cmt();
+                    self.comments.add_pure_comment(span.lo);
                     if export_name == "default" {
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
                             ExportDefaultExpr {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Call(CallExpr {
-                                    span: DUMMY_SP,
+                                    span,
                                     callee: Callee::Expr(Box::new(Expr::Ident(
                                         create_ref_ident.clone(),
                                     ))),
                                     args: vec![action_id.as_arg()],
-                                    type_args: None,
+                                    ..Default::default()
                                 })),
                             },
                         ));
@@ -989,22 +1036,23 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 decl: Decl::Var(Box::new(VarDecl {
                                     span: DUMMY_SP,
                                     kind: VarDeclKind::Var,
-                                    declare: false,
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,
                                         name: Pat::Ident(
-                                            Ident::new(export_name.clone().into(), DUMMY_SP).into(),
+                                            IdentName::new(export_name.clone().into(), DUMMY_SP)
+                                                .into(),
                                         ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
-                                            span: DUMMY_SP,
+                                            span,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
                                             ))),
                                             args: vec![action_id.as_arg()],
-                                            type_args: None,
+                                            ..Default::default()
                                         }))),
                                         definite: false,
                                     }],
+                                    ..Default::default()
                                 })),
                             }));
                         new.push(export_expr);
@@ -1015,8 +1063,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         expr: Box::new(annotate_ident_as_action(
                             ident.clone(),
                             Vec::new(),
-                            &self.file_name,
-                            export_name.to_string(),
+                            generate_action_id(
+                                &self.config.hash_salt,
+                                &self.file_name,
+                                export_name,
+                            ),
                         )),
                     }));
                 }
@@ -1063,14 +1114,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             spread: None,
                                             expr: Box::new(Expr::Ident(Ident::new(
                                                 e.0 .0.clone(),
-                                                DUMMY_SP.with_ctxt(e.0 .1),
+                                                DUMMY_SP,
+                                                e.0 .1,
                                             ))),
                                         })
                                     })
                                     .collect(),
                             })),
                         }],
-                        type_args: None,
+                        ..Default::default()
                     })),
                 })));
 
@@ -1089,7 +1141,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             let actions = actions
                 .into_iter()
-                .map(|name| (generate_action_id(&self.file_name, &name), name))
+                .map(|name| {
+                    (
+                        generate_action_id(&self.config.hash_salt, &self.file_name, &name),
+                        name,
+                    )
+                })
                 .collect::<ActionsMap>();
             // Prepend a special comment to the top of the file.
             self.comments.add_leading(
@@ -1109,7 +1166,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     span: DUMMY_SP,
                     specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
-                        local: quote_ident!("registerServerReference"),
+                        local: quote_ident!("registerServerReference").into(),
                         imported: None,
                         is_type_only: false,
                     })],
@@ -1131,13 +1188,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     specifiers: vec![
                         ImportSpecifier::Named(ImportNamedSpecifier {
                             span: DUMMY_SP,
-                            local: quote_ident!("encryptActionBoundArgs"),
+                            local: quote_ident!("encryptActionBoundArgs").into(),
                             imported: None,
                             is_type_only: false,
                         }),
                         ImportSpecifier::Named(ImportNamedSpecifier {
                             span: DUMMY_SP,
-                            local: quote_ident!("decryptActionBoundArgs"),
+                            local: quote_ident!("decryptActionBoundArgs").into(),
                             imported: None,
                             is_type_only: false,
                         }),
@@ -1238,13 +1295,13 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
     extra_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
         span: DUMMY_SP,
         kind: VarDeclKind::Var,
-        declare: Default::default(),
         decls: vec![VarDeclarator {
             span: DUMMY_SP,
             name: ident.clone().into(),
             init: None,
             definite: Default::default(),
         }],
+        ..Default::default()
     })))));
 
     if let Expr::Paren(_paren) = &expr {
@@ -1263,10 +1320,11 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
     }
 }
 
-fn generate_action_id(file_name: &str, export_name: &str) -> String {
+fn generate_action_id(hash_salt: &str, file_name: &str, export_name: &str) -> String {
     // Attach a checksum to the action using sha1:
-    // $$id = sha1('file_name' + ':' + 'export_name');
+    // $$id = sha1('hash_salt' + 'file_name' + ':' + 'export_name');
     let mut hasher = Sha1::new();
+    hasher.update(hash_salt.as_bytes());
     hasher.update(file_name.as_bytes());
     hasher.update(b":");
     hasher.update(export_name.as_bytes());
@@ -1278,12 +1336,10 @@ fn generate_action_id(file_name: &str, export_name: &str) -> String {
 fn annotate_ident_as_action(
     ident: Ident,
     bound: Vec<Option<ExprOrSpread>>,
-    file_name: &str,
-    export_name: String,
+    action_id: String,
 ) -> Expr {
     // Add the proxy wrapper call `registerServerReference($$id, $$bound, myAction,
     // maybe_orig_action)`.
-    let action_id = generate_action_id(file_name, &export_name);
 
     let proxy_expr = Expr::Call(CallExpr {
         span: DUMMY_SP,
@@ -1299,7 +1355,7 @@ fn annotate_ident_as_action(
                 expr: Box::new(Expr::Ident(ident)),
             },
         ],
-        type_args: Default::default(),
+        ..Default::default()
     });
 
     if bound.is_empty() {
@@ -1337,23 +1393,72 @@ fn annotate_ident_as_action(
                                 })),
                             },
                         ],
-                        type_args: None,
+                        ..Default::default()
                     })),
                 },
             ],
-            type_args: Default::default(),
+            ..Default::default()
         })
     }
 }
 
-const DIRECTIVE_TYPOS: &[&str] = &[
-    "use servers",
-    "use-server",
-    "use sevrer",
-    "use srever",
-    "use servre",
-    "user server",
-];
+// Detects if two strings are similar (but not the same).
+// This implementation is fast and simple as it allows only one
+// edit (add, remove, edit, swap), instead of using a N^2 Levenshtein algorithm.
+//
+// Example of similar strings of "use server":
+// "use servers",
+// "use-server",
+// "use sevrer",
+// "use srever",
+// "use servre",
+// "user server",
+//
+// This avoids accidental typos as there's currently no other static analysis
+// tool to help when these mistakes happen.
+fn detect_similar_strings(a: &str, b: &str) -> bool {
+    let mut a = a.chars().collect::<Vec<char>>();
+    let mut b = b.chars().collect::<Vec<char>>();
+
+    if a.len() < b.len() {
+        (a, b) = (b, a);
+    }
+
+    if a.len() == b.len() {
+        // Same length, get the number of character differences.
+        let mut diff = 0;
+        for i in 0..a.len() {
+            if a[i] != b[i] {
+                diff += 1;
+                if diff > 2 {
+                    return false;
+                }
+            }
+        }
+
+        // Should be 1 or 2, but not 0.
+        diff != 0
+    } else {
+        if a.len() - b.len() > 1 {
+            return false;
+        }
+
+        // A has one more character than B.
+        for i in 0..b.len() {
+            if a[i] != b[i] {
+                // This should be the only difference, a[i+1..] should be equal to b[i..].
+                // Otherwise, they're not considered similar.
+                // A: "use srerver"
+                // B: "use server"
+                //          ^
+                return a[i + 1..] == b[i..];
+            }
+        }
+
+        // This happens when the last character of A is an extra character.
+        true
+    }
+}
 
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
@@ -1396,7 +1501,7 @@ fn remove_server_directive_index_in_module(
                     }
                 } else {
                     // Detect typo of "use server"
-                    if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                    if detect_similar_strings(value, "use server") {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
@@ -1422,7 +1527,7 @@ fn remove_server_directive_index_in_module(
                 ..
             })) => {
                 // Match `("use server")`.
-                if value == "use server" || DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                if value == "use server" || detect_similar_strings(value, "use server") {
                     if is_directive {
                         HANDLER.with(|handler| {
                             handler
@@ -1500,7 +1605,7 @@ fn remove_server_directive_index_in_fn(
                 }
             } else {
                 // Detect typo of "use server"
-                if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                if detect_similar_strings(value, "use server") {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
@@ -1552,7 +1657,7 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp], ids: &mut Vec<Id>) {
         match prop {
             ObjectPatProp::KeyValue(KeyValuePatProp { key, value }) => {
                 if let PropName::Ident(ident) = key {
-                    ids.push(ident.to_id());
+                    ids.push((ident.sym.clone(), SyntaxContext::empty()));
                 }
 
                 match &**value {
@@ -1617,6 +1722,7 @@ fn collect_decl_idents_in_stmt(stmt: &Stmt, ids: &mut Vec<Id>) {
 
 pub(crate) struct ClosureReplacer<'a> {
     used_ids: &'a [Name],
+    private_ctxt: SyntaxContext,
 }
 
 impl ClosureReplacer<'_> {
@@ -1635,6 +1741,7 @@ impl VisitMut for ClosureReplacer<'_> {
                 // $$ACTION_ARG_0
                 format!("$$ACTION_ARG_{index}").into(),
                 DUMMY_SP,
+                self.private_ctxt,
             ));
         }
     }
@@ -1646,11 +1753,12 @@ impl VisitMut for ClosureReplacer<'_> {
             let name = Name::from(&*i);
             if let Some(index) = self.used_ids.iter().position(|used_id| *used_id == name) {
                 *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                    key: PropName::Ident(i.clone()),
+                    key: PropName::Ident(i.clone().into()),
                     value: Box::new(Expr::Ident(Ident::new(
                         // $$ACTION_ARG_0
                         format!("$$ACTION_ARG_{index}").into(),
                         DUMMY_SP,
+                        self.private_ctxt,
                     ))),
                 })));
             }
@@ -1744,7 +1852,7 @@ impl From<Name> for Box<Expr> {
                 expr = Box::new(Expr::Member(MemberExpr {
                     span: DUMMY_SP,
                     obj: expr,
-                    prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
+                    prop: MemberProp::Ident(IdentName::new(prop, DUMMY_SP)),
                 }));
             } else {
                 expr = Box::new(Expr::OptChain(OptChainExpr {
@@ -1752,7 +1860,7 @@ impl From<Name> for Box<Expr> {
                     base: Box::new(OptChainBase::Member(MemberExpr {
                         span: DUMMY_SP,
                         obj: expr,
-                        prop: MemberProp::Ident(Ident::new(prop, DUMMY_SP)),
+                        prop: MemberProp::Ident(IdentName::new(prop, DUMMY_SP)),
                     })),
                     optional,
                 }));

@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "15.0.0-canary.87",
+  "version": "15.0.0-canary.156",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -41,6 +41,8 @@
     "image.d.ts",
     "link.js",
     "link.d.ts",
+    "form.js",
+    "form.d.ts",
     "router.js",
     "router.d.ts",
     "jest.js",
@@ -76,7 +78,7 @@
     "next": "./dist/bin/next"
   },
   "scripts": {
-    "dev": "NEXT_SERVER_EVAL_SOURCE_MAPS=1 taskr",
+    "dev": "cross-env NEXT_SERVER_EVAL_SOURCE_MAPS=1 taskr",
     "release": "taskr release",
     "build": "pnpm release",
     "prepublishOnly": "cd ../../ && turbo run build",
@@ -93,9 +95,9 @@
     ]
   },
   "dependencies": {
-    "@next/env": "15.0.0-canary.87",
+    "@next/env": "15.0.0-canary.156",
     "@swc/counter": "0.1.3",
-    "@swc/helpers": "0.5.12",
+    "@swc/helpers": "0.5.13",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
     "graceful-fs": "^4.2.11",
@@ -106,8 +108,8 @@
     "@opentelemetry/api": "^1.1.0",
     "@playwright/test": "^1.41.2",
     "babel-plugin-react-compiler": "*",
-    "react": "19.0.0-rc.0",
-    "react-dom": "19.0.0-rc.0",
+    "react": "19.0.0-rc-206df66e-20240912",
+    "react-dom": "19.0.0-rc-206df66e-20240912",
     "sass": "^1.3.0"
   },
   "peerDependenciesMeta": {
@@ -125,7 +127,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.33.4"
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.8.3",
@@ -158,10 +160,11 @@
     "@jest/types": "29.5.0",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/polyfill-module": "15.0.0-canary.87",
-    "@next/polyfill-nomodule": "15.0.0-canary.87",
-    "@next/react-refresh-utils": "15.0.0-canary.87",
-    "@next/swc": "15.0.0-canary.87",
+    "@next/font": "15.0.0-canary.156",
+    "@next/polyfill-module": "15.0.0-canary.156",
+    "@next/polyfill-nomodule": "15.0.0-canary.156",
+    "@next/react-refresh-utils": "15.0.0-canary.156",
+    "@next/swc": "15.0.0-canary.156",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.41.2",
     "@swc/core": "1.7.0-nightly-20240714.1",
@@ -206,7 +209,7 @@
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.34.0",
     "@vercel/nft": "0.27.1",
-    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240724.2",
+    "@vercel/turbopack-ecmascript-runtime": "*",
     "acorn": "8.11.3",
     "amphtml-validator": "1.0.35",
     "anser": "1.4.9",
@@ -231,6 +234,7 @@
     "content-disposition": "0.5.3",
     "content-type": "1.0.4",
     "cookie": "0.4.1",
+    "cross-env": "6.0.3",
     "cross-spawn": "7.0.3",
     "crypto-browserify": "3.12.0",
     "css.escape": "1.5.1",
@@ -291,7 +295,7 @@
     "raw-body": "2.4.1",
     "react-refresh": "0.12.0",
     "regenerator-runtime": "0.13.4",
-    "sass-loader": "12.6.0",
+    "sass-loader": "15.0.0",
     "schema-utils2": "npm:schema-utils@2.7.1",
     "schema-utils3": "npm:schema-utils@3.0.0",
     "semver": "7.3.2",

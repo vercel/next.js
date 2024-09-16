@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbopack::core::{
+use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, ChunkingContextExt},
     ident::AssetIdent,

@@ -1,10 +1,8 @@
 use anyhow::{bail, Result};
 use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbopack::{
-    core::module::Module,
-    ecmascript::chunk::EcmascriptChunkPlaceable,
-    turbopack::{transition::Transition, ModuleAssetContext},
-};
+use turbopack::{transition::Transition, ModuleAssetContext};
+use turbopack_core::module::Module;
+use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use super::server_component_module::NextServerComponentModule;
 
