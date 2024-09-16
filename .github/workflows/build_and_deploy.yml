@@ -106,16 +106,20 @@ jobs:
       fail-fast: false
       matrix:
         exclude:
-          # only build the binaries we usually test with
-          # darwin arm64, windows x64, linux GNU x64
+          # only build the binaries we run automated tests against
+          # linux GNU x64
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'i686-pc-windows-msvc' }}
+          - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-apple-darwin' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-pc-windows-msvc' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-gnu' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-musl' }}
+          - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-pc-windows-msvc' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-unknown-linux-musl' }}
           - settings:
