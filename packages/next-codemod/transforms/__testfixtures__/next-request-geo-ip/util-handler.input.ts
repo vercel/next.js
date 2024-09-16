@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* eslint-disable */
 import { type NextRequest, NextResponse } from "next/server";
 
 function getGeo(request: NextRequest) {
