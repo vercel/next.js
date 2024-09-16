@@ -5,7 +5,7 @@ const Component = ({ children, fallback })=>{
         false,
         ()=>null
     ];
-    process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE && useEffect(()=>setMounted(true), []);
+    process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE && useEffect(()=>setMounted(true), []);
     if (!mounted) {
         return fallback ?? /* @__PURE__ */ jsx(Fragment, {});
     }

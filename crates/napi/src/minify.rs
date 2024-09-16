@@ -111,7 +111,7 @@ fn patch_opts(opts: &mut JsMinifyOptions) {
     opts.compress = BoolOrDataConfig::from_obj(TerserCompressorOptions {
         inline: Some(TerserInlineOption::Num(2)),
         global_defs: [(
-            "process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE".into(),
+            "process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE".into(),
             "production".into(),
         )]
         .iter()
