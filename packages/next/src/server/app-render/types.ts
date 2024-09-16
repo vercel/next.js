@@ -175,7 +175,6 @@ export interface RenderOptsPartial {
     swrDelta: SwrDelta | undefined
     clientTraceMetadata: string[] | undefined
     after: boolean
-    dynamicIO: boolean
   }
   postponed?: string
   /**

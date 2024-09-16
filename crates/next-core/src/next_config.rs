@@ -557,8 +557,6 @@ pub struct ExperimentalConfig {
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
-    #[serde(rename = "dynamicIO")]
-    dynamic_io: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -1088,13 +1086,6 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn enable_taint(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.experimental.taint.unwrap_or(false)))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn enable_dynamic_io(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?.experimental.dynamic_io.unwrap_or(false),
-        ))
     }
 
     #[turbo_tasks::function]

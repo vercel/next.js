@@ -115,7 +115,6 @@ export class EdgeRouteModuleWrapper {
           : undefined,
         experimental: {
           after: isAfterEnabled,
-          dynamicIO: false,
         },
       },
     }

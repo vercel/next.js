@@ -582,7 +582,6 @@ export default abstract class Server<
         swrDelta: this.nextConfig.swrDelta,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
-        dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -2448,7 +2447,6 @@ export default abstract class Server<
             renderOpts: {
               experimental: {
                 after: renderOpts.experimental.after,
-                dynamicIO: renderOpts.experimental.dynamicIO,
               },
               supportsDynamicResponse,
               incrementalCache,
