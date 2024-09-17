@@ -149,10 +149,6 @@ async function run(): Promise<void> {
     stdio: 'inherit',
   })
 
-  appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
-  appPackageJson.dependencies['next'] = targetVersionSpecifier
-  fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
-
   console.log(
     `\n${chalk.green('✔')} Your Next.js project has been upgraded successfully. ${chalk.bold('Time to ship! 🚢')}`
   )
@@ -223,7 +219,8 @@ async function getPackageManager(_packageJson: any): Promise<PackageManager> {
     bun: 'bun.lockb',
   }
 
-  function findLockFile(dir: string): PackageManager[] {
+  // Recursively looks for either a package.json with a packageManager field or a lock file
+  function resolvePackageManagerUpwards(dir: string): PackageManager[] {
     const packageJsonPath = path.join(dir, 'package.json')
     if (fs.existsSync(packageJsonPath)) {
       let detectedPackageManagers: PackageManager[] = []
@@ -251,13 +248,13 @@ async function getPackageManager(_packageJson: any): Promise<PackageManager> {
     }
     const parentDir = path.dirname(dir)
     if (parentDir !== dir) {
-      return findLockFile(parentDir)
+      return resolvePackageManagerUpwards(parentDir)
     }
     return []
   }
 
   let realPath = fs.realpathSync(process.cwd())
-  const detectedPackageManagers = findLockFile(realPath)
+  const detectedPackageManagers = resolvePackageManagerUpwards(realPath)
 
   // Exactly one package manager detected
   if (detectedPackageManagers.length === 1) {
