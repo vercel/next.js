@@ -5,9 +5,9 @@ import fs from 'fs'
 import { execSync } from 'child_process'
 import path from 'path'
 import { compareVersions } from 'compare-versions'
-import yaml from 'yaml'
 import chalk from 'chalk'
 import which from 'which'
+import { createRequire } from 'node:module'
 
 type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
 type CustomVersionSpecifier = string
@@ -161,34 +161,30 @@ async function run(): Promise<void> {
  * in the array ['canary', 'rc', 'latest']
  */
 async function processCurrentVersion(showRc: boolean): Promise<number> {
-  // TODO(LichuAcu): support other package managers
-  const appLockFilePath = path.resolve(process.cwd(), 'pnpm-lock.yaml')
-  if (fs.existsSync(appLockFilePath)) {
-    const appLockFileContent = fs.readFileSync(appLockFilePath, 'utf8')
-    const appLockFile = yaml.parse(appLockFileContent)
-    const appNextDependency = appLockFile.importers?.['.']?.dependencies?.next
+  const require = createRequire(import.meta.url)
+  const installedNextPackageJsonDir = require.resolve('next/package.json', {
+    paths: [process.cwd()],
+  })
+  const installedNextPackageJson = JSON.parse(
+    fs.readFileSync(installedNextPackageJsonDir, 'utf8')
+  )
+  let installedNextVersion = installedNextPackageJson.version
 
-    if (appNextDependency) {
-      if (appNextDependency.version) {
-        console.log(
-          `You are currently using ${chalk.blueBright('Next.js ' + appNextDependency.version.split('(')[0])}`
-        )
-      }
-      if (appNextDependency.specifier) {
-        switch (appNextDependency.specifier) {
-          case 'canary':
-            return 0
-          case 'rc':
-            return 1 // If rc is not available, will return the latest version's index
-          case 'latest':
-            return showRc ? 2 : 1
-          default:
-            return 0
-        }
-      }
-    }
+  if (installedNextVersion == null) {
+    return 0
   }
-  return 0
+
+  console.log(
+    `You are currently using ${chalk.blueBright('Next.js ' + installedNextVersion)}`
+  )
+
+  if (installedNextVersion.includes('canary')) {
+    return 0
+  }
+  if (installedNextVersion.includes('rc')) {
+    return 1 // If rc is not available, will default to latest's index
+  }
+  return showRc ? 2 : 1 // "latest" is 1 or 2 depending on if rc is shown as an option
 }
 
 async function getPackageManager(_packageJson: any): Promise<PackageManager> {
