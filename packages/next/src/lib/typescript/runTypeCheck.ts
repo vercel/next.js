@@ -79,8 +79,6 @@ export async function runTypeCheck(
     /[\\/]__(?:tests|mocks)__[\\/]/,
     // matches **/*.(spec|test).*
     /(?<=[\\/.])(?:spec|test)\.[^\\/]+$/,
-    // matches **/app/**/_*
-    /^.*\/app(?:\/[^/]+)*\/_.*$/,
   ]
   const regexIgnoredFile = new RegExp(
     ignoreRegex.map((r) => r.source).join('|')
