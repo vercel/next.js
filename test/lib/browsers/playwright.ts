@@ -9,6 +9,7 @@ import {
   Page,
   ElementHandle,
   devices,
+  Response,
 } from 'playwright'
 import path from 'path'
 
@@ -317,10 +318,6 @@ export class Playwright extends BrowserInterface {
     return this.chain(async () => context.clearCookies())
   }
 
-  getCookies(): BrowserInterface<any[]> & Promise<any[]> {
-    return this.chain(async () => context.cookies())
-  }
-
   focusPage() {
     return this.chain(() => page.bringToFront())
   }
@@ -493,6 +490,20 @@ export class Playwright extends BrowserInterface {
   async waitForIdleNetwork(): Promise<void> {
     return this.chain(() => {
       return page.waitForLoadState('networkidle')
+    })
+  }
+
+  waitForResponse(
+    urlOrPredicate:
+      | string
+      | RegExp
+      | ((response: Response) => boolean | Promise<boolean>),
+    options?: {
+      timeout?: number
+    }
+  ): Promise<Response> {
+    return this.chain(() => {
+      return page.waitForResponse(urlOrPredicate, options)
     })
   }
 }
