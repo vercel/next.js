@@ -1,5 +1,8 @@
 'use server'
 
+// Test side effects
+console.log('This is a side effect')
+
 export async function foo() {
   console.log('This is action foo')
 }
