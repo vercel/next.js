@@ -7,3 +7,7 @@ export async function foo() {
 export async function bar() {
   console.log('This is action bar')
 }
+
+export async function baz() {
+  console.log('This is action baz')
+}
