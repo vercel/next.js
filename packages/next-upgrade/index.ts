@@ -152,6 +152,11 @@ async function run(): Promise<void> {
   console.log(
     `\n${chalk.green('✔')} Your Next.js project has been upgraded successfully. ${chalk.bold('Time to ship! 🚢')}`
   )
+
+  const changelogUrl = await getChangelogUrl(targetNextPackageJson.version)
+  if (changelogUrl) {
+    console.log(`📝 Changelog: ${chalk.underline(changelogUrl)}`)
+  }
 }
 
 async function detectWorkspace(appPackageJson: any): Promise<void> {
@@ -363,6 +368,15 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
 
   packageJson.scripts['dev'] =
     responseCustomDevScript.customDevScript || devScript
+}
+
+async function getChangelogUrl(version: string): Promise<string | null> {
+  const url = `https://github.com/vercel/next.js/releases/tag/v${version}`
+  const res = await fetch(url)
+  if (res.status === 200) {
+    return url
+  }
+  return null
 }
 
 run().catch(console.error)
