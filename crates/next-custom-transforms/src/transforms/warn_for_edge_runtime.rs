@@ -26,6 +26,7 @@ pub fn warn_for_edge_runtime(
         should_add_guards: false,
         guarded_symbols: Default::default(),
         guarded_process_props: Default::default(),
+        guarded_runtime: false,
         is_production,
     }
 }
@@ -48,6 +49,8 @@ struct WarnForEdgeRuntime {
     should_add_guards: bool,
     guarded_symbols: Vec<Atom>,
     guarded_process_props: Vec<Atom>,
+    // for process.env.NEXT_RUNTIME
+    guarded_runtime: bool,
     is_production: bool,
 }
 
@@ -143,6 +146,10 @@ const NODEJS_MODULE_NAMES: &[&str] = &[
 
 impl WarnForEdgeRuntime {
     fn warn_if_nodejs_module(&self, span: Span, module_specifier: &str) -> Option<()> {
+        if self.guarded_runtime {
+            return None;
+        }
+
         // Node.js modules can be loaded with `node:` prefix or directly
         if module_specifier.starts_with("node:") || NODEJS_MODULE_NAMES.contains(&module_specifier)
         {
@@ -164,10 +171,11 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
     }
 
     fn emit_unsupported_api_error(&self, span: Span, api_name: &str) -> Option<()> {
-        if self
-            .guarded_symbols
-            .iter()
-            .any(|guarded| guarded == api_name)
+        if self.guarded_runtime
+            || self
+                .guarded_symbols
+                .iter()
+                .any(|guarded| guarded == api_name)
         {
             return None;
         }
@@ -200,7 +208,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
         if !self.is_in_middleware_layer() || prop.sym == "env" {
             return;
         }
-        if self.guarded_process_props.contains(&prop.sym) {
+        if self.guarded_runtime || self.guarded_process_props.contains(&prop.sym) {
             return;
         }
 
@@ -224,6 +232,15 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
                 self.guarded_symbols.push(ident.sym.clone());
             }
             Expr::Member(member) => {
+                if member.prop.is_ident_with("NEXT_RUNTIME") {
+                    if let Expr::Member(obj_member) = &*member.obj {
+                        if obj_member.obj.is_global_ref_to(&self.ctx, "process")
+                            && obj_member.prop.is_ident_with("env")
+                        {
+                            self.guarded_runtime = true;
+                        }
+                    }
+                }
                 if member.obj.is_global_ref_to(&self.ctx, "process") {
                     if let MemberProp::Ident(prop) = &member.prop {
                         self.guarded_process_props.push(prop.sym.clone());
@@ -258,10 +275,12 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
     fn with_new_scope(&mut self, f: impl FnOnce(&mut Self)) {
         let old_guarded_symbols_len = self.guarded_symbols.len();
         let old_guarded_process_props_len = self.guarded_symbols.len();
+        let old_guarded_runtime = self.guarded_runtime;
         f(self);
         self.guarded_symbols.truncate(old_guarded_symbols_len);
         self.guarded_process_props
             .truncate(old_guarded_process_props_len);
+        self.guarded_runtime = old_guarded_runtime;
     }
 }
 
@@ -283,6 +302,11 @@ impl Visit for WarnForEdgeRuntime {
                     this.add_guards(&node.left);
                     node.right.visit_with(this);
                 });
+            }
+            op!("==") | op!("===") => {
+                self.add_guard_for_test(&node.left);
+                self.add_guard_for_test(&node.right);
+                node.visit_children_with(self);
             }
             _ => {
                 node.visit_children_with(self);
