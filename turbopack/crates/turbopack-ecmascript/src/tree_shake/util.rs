@@ -504,21 +504,13 @@ impl Visit for ShouldSkip {
         n.visit_children_with(self);
     }
 
-    fn visit_callee(&mut self, n: &Callee) {
-        // TODO: Remove this. This is a bug.
-        if matches!(n, Callee::Import(..)) {
-            self.skip = true;
-            return;
-        }
-
-        n.visit_children_with(self);
-    }
-
     fn visit_expr(&mut self, n: &Expr) {
         if self.skip {
             return;
         }
 
+        // This is needed to pass some tests even if we enable tree shaking only for production
+        // builds.
         if n.is_ident_ref_to("__turbopack_refresh__") {
             self.skip = true;
             return;
