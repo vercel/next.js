@@ -28,6 +28,7 @@ import {
   NextRequestAdapter,
   signalFromNodeResponse,
 } from '../web/spec-extension/adapters/next-request'
+import { isNodeNextResponse } from '../base-http/helpers'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -138,7 +139,9 @@ export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
       ? req
       : NextRequestAdapter.fromBaseNextRequest(
           req,
-          res && signalFromNodeResponse(res.destination)
+          res && isNodeNextResponse(res)
+            ? signalFromNodeResponse(res.destination)
+            : undefined
         )
 
   const store: RequestStore = {

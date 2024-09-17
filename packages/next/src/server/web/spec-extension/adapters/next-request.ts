@@ -88,23 +88,7 @@ export class NextRequestAdapter {
       body = request.body
     }
 
-    let url: URL
-    if (request.url.startsWith('http')) {
-      url = new URL(request.url)
-    } else {
-      // Grab the full URL from the request metadata.
-      const base = getRequestMeta(request, 'initURL')
-      if (!base || !base.startsWith('http')) {
-        // Because the URL construction relies on the fact that the URL provided
-        // is absolute, we need to provide a base URL. We can't use the request
-        // URL because it's relative, so we use a dummy URL instead.
-        url = new URL(request.url, 'http://n')
-      } else {
-        url = new URL(request.url, base)
-      }
-    }
-
-    return new NextRequest(url, {
+    return new NextRequest(createUrl(request), {
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -131,7 +115,7 @@ export class NextRequestAdapter {
       body = request.body
     }
 
-    return new NextRequest(request.url, {
+    return new NextRequest(createUrl(request), {
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -150,4 +134,25 @@ export class NextRequestAdapter {
           }),
     })
   }
+}
+
+function createUrl(request: BaseNextRequest): URL {
+  let url: URL
+
+  if (request.url.startsWith('http')) {
+    url = new URL(request.url)
+  } else {
+    // Grab the full URL from the request metadata.
+    const base = getRequestMeta(request, 'initURL')
+    if (!base || !base.startsWith('http')) {
+      // Because the URL construction relies on the fact that the URL provided
+      // is absolute, we need to provide a base URL. We can't use the request
+      // URL because it's relative, so we use a dummy URL instead.
+      url = new URL(request.url, 'http://n')
+    } else {
+      url = new URL(request.url, base)
+    }
+  }
+
+  return url
 }
