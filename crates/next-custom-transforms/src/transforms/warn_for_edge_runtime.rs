@@ -31,6 +31,16 @@ pub fn warn_for_edge_runtime(
     }
 }
 
+/// This is a very simple visitor that currently only checks if a condition (be it an if-statement
+/// or ternary expression) contains a reference to disallowed globals/etc.
+/// It does not know the difference between
+/// ```js
+/// if(typeof clearImmediate === "function") clearImmediate();
+/// ```
+/// and
+/// ```js
+/// if(typeof clearImmediate !== "function") clearImmediate();
+/// ```
 struct WarnForEdgeRuntime {
     cm: Arc<SourceMap>,
     ctx: ExprCtx,
