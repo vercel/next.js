@@ -61,7 +61,7 @@ export function GoogleTagManager(props: GTMParams) {
 }
 
 export const sendGTMEvent = (data: Object, dataLayerName?: string) => {
-  // special case if we are sending events before GTM init and we have custom dataLayerName 
+  // special case if we are sending events before GTM init and we have custom dataLayerName
   const dataLayer = dataLayerName || currDataLayerName
   // define dataLayer so we can still queue up events before GTM init
   window[dataLayer] = window[dataLayer] || []
