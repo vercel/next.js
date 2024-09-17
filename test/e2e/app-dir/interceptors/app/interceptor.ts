@@ -1,5 +1,4 @@
-import { setTimeout } from 'timers/promises'
-import { logWithTime } from './time-utils'
+import { logWithTime, setTimeout } from './time-utils'
 import { NextRequest } from 'next/server'
 
 export default async function interceptRoot(

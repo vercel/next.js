@@ -1,5 +1,5 @@
 import React from 'react'
-import { setTimeout } from 'timers/promises'
+import { setTimeout } from '../time-utils'
 
 export const getData = React.cache(async () => {
   await setTimeout(100)

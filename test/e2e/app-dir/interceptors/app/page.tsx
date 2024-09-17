@@ -1,5 +1,4 @@
-import { setTimeout } from 'timers/promises'
-import { createTimeStamp, logWithTime } from './time-utils'
+import { createTimeStamp, logWithTime, setTimeout } from './time-utils'
 
 export default async function RootPage() {
   await logWithTime('RootPage', () => setTimeout(500))

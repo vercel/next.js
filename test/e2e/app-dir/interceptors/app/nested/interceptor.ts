@@ -1,5 +1,4 @@
-import { setTimeout } from 'timers/promises'
-import { logWithTime } from '../time-utils'
+import { logWithTime, setTimeout } from '../time-utils'
 import { redirect } from 'next/navigation'
 import { NextRequest } from 'next/server'
 import { getData } from './data'

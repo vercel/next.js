@@ -10,3 +10,12 @@ export async function logWithTime(
   await callback()
   console.log(createTimeStamp(), `${message}, finish`)
 }
+
+export async function setTimeout<T = void>(
+  delay?: number,
+  value?: T
+): Promise<T> {
+  return new Promise((resolve) =>
+    globalThis.setTimeout(() => resolve(value), delay)
+  )
+}

@@ -1,6 +1,5 @@
 import { ReactNode } from 'react'
-import { createTimeStamp, logWithTime } from '../time-utils'
-import { setTimeout } from 'timers/promises'
+import { createTimeStamp, logWithTime, setTimeout } from '../time-utils'
 import Link from 'next/link'
 
 export default async function NestedLayout({
