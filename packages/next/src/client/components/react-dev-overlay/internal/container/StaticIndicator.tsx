@@ -7,17 +7,7 @@ export function StaticIndicator({ dispatcher }: { dispatcher?: Dispatcher }) {
   return (
     <Toast className="nextjs-static-indicator-toast-wrapper">
       <LightningBolt />
-      <span>
-        Statically rendered page.{' '}
-        <a
-          onClick={(e) => e.stopPropagation()}
-          href="https://nextjs.org/docs/app/api-reference/next-config-js/devIndicators"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Learn more
-        </a>
-      </span>
+      <span>Static route </span>
       <button
         onClick={() => {
           dispatcher?.onStaticIndicator(false)

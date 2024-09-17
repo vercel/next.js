@@ -235,7 +235,6 @@ export function getDefineEnv({
     'process.env.__NEXT_STRICT_MODE_APP':
       // When next.config.js does not have reactStrictMode it's enabled by default.
       config.reactStrictMode === null ? true : config.reactStrictMode,
-    'process.env.__NEXT_OPTIMIZE_FONTS': !dev && config.optimizeFonts,
     'process.env.__NEXT_OPTIMIZE_CSS':
       (config.experimental.optimizeCss && !dev) ?? false,
     'process.env.__NEXT_SCRIPT_WORKERS':

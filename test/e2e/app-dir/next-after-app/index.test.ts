@@ -4,57 +4,19 @@ import { retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 import { outdent } from 'outdent'
 import { sandbox } from '../../../lib/development-sandbox'
-import * as fs from 'fs'
-import * as path from 'path'
-import * as os from 'os'
 import * as Log from './utils/log'
 
 const runtimes = ['nodejs', 'edge']
 
 describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
-  const logFileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'logs-'))
-  const logFile = path.join(logFileDir, 'logs.jsonl')
-
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     // `patchFile` and reading runtime logs are not supported in a deployed environment
     skipDeployment: true,
-    env: {
-      PERSISTENT_LOG_FILE: logFile,
-    },
   })
 
   if (skipped) return
-
-  {
-    const originalContents: Record<string, string> = {}
-
-    beforeAll(async () => {
-      const placeholder = `// export const runtime = 'REPLACE_ME'`
-
-      const filesToPatch = ['app/layout.js', 'app/route/route.js']
-
-      for (const file of filesToPatch) {
-        await next.patchFile(file, (contents) => {
-          if (!contents.includes(placeholder)) {
-            throw new Error(`Placeholder "${placeholder}" not found in ${file}`)
-          }
-          originalContents[file] = contents
-
-          return contents.replace(
-            placeholder,
-            `export const runtime = '${runtimeValue}'`
-          )
-        })
-      }
-    })
-
-    afterAll(async () => {
-      for (const [file, contents] of Object.entries(originalContents)) {
-        await next.patchFile(file, contents)
-      }
-    })
-  }
+  const pathPrefix = '/' + runtimeValue
 
   let currentCliOutputIndex = 0
   beforeEach(() => {
@@ -70,7 +32,8 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   }
 
   it('runs in dynamic pages', async () => {
-    await next.render('/123/dynamic')
+    const response = await next.fetch(pathPrefix + '/123/dynamic')
+    expect(response.status).toBe(200)
     await retry(() => {
       expect(getLogs()).toContainEqual({ source: '[layout] /[id]' })
       expect(getLogs()).toContainEqual({
@@ -85,7 +48,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   })
 
   it('runs in dynamic route handlers', async () => {
-    const res = await next.fetch('/route')
+    const res = await next.fetch(pathPrefix + '/route')
     expect(res.status).toBe(200)
     await retry(() => {
       expect(getLogs()).toContainEqual({ source: '[route handler] /route' })
@@ -93,7 +56,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   })
 
   it('runs in server actions', async () => {
-    const browser = await next.browser('/123/with-action')
+    const browser = await next.browser(pathPrefix + '/123/with-action')
     expect(getLogs()).toContainEqual({
       source: '[layout] /[id]',
     })
@@ -104,7 +67,8 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         source: '[action] /[id]/with-action',
         value: '123',
         assertions: {
-          'cache() works in after()': true,
+          // cache() does not currently work in actions, and after() shouldn't affect that
+          'cache() works in after()': false,
           'headers() works in after()': true,
         },
       })
@@ -113,7 +77,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   })
 
   it('runs callbacks from nested unstable_after calls', async () => {
-    await next.browser('/nested-after')
+    await next.browser(pathPrefix + '/nested-after')
 
     await retry(() => {
       for (const id of [1, 2, 3]) {
@@ -130,7 +94,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
 
   describe('interrupted RSC renders', () => {
     it('runs callbacks if redirect() was called', async () => {
-      await next.browser('/interrupted/calls-redirect')
+      await next.browser(pathPrefix + '/interrupted/calls-redirect')
 
       await retry(() => {
         expect(getLogs()).toContainEqual({
@@ -143,14 +107,14 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     })
 
     it('runs callbacks if notFound() was called', async () => {
-      await next.browser('/interrupted/calls-not-found')
+      await next.browser(pathPrefix + '/interrupted/calls-not-found')
       expect(getLogs()).toContainEqual({
         source: '[page] /interrupted/calls-not-found',
       })
     })
 
     it('runs callbacks if a user error was thrown in the RSC render', async () => {
-      await next.browser('/interrupted/throws-error')
+      await next.browser(pathPrefix + '/interrupted/throws-error')
       expect(getLogs()).toContainEqual({
         source: '[page] /interrupted/throws-error',
       })
@@ -160,7 +124,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   it('runs in middleware', async () => {
     const requestId = `${Date.now()}`
     const res = await next.fetch(
-      `/middleware/redirect-source?requestId=${requestId}`,
+      pathPrefix + `/middleware/redirect-source?requestId=${requestId}`,
       {
         redirect: 'follow',
         headers: {
@@ -182,10 +146,19 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   if (!isNextDeploy) {
     it('only runs callbacks after the response is fully sent', async () => {
       const pageStartedFetching = promiseWithResolvers<void>()
+      pageStartedFetching.promise.catch(() => {})
       const shouldSendResponse = promiseWithResolvers<void>()
+      shouldSendResponse.promise.catch(() => {})
+
       const abort = (error: Error) => {
-        pageStartedFetching.reject(error)
-        shouldSendResponse.reject(error)
+        pageStartedFetching.reject(
+          new Error('pageStartedFetching was aborted', { cause: error })
+        )
+        shouldSendResponse.reject(
+          new Error('shouldSendResponse was aborted', {
+            cause: error,
+          })
+        )
       }
 
       const proxyServer = await createProxyServer({
@@ -199,25 +172,30 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
       })
 
       try {
-        const pendingReq = next.fetch('/delay', {
-          headers: { 'Next-Test-Proxy-Port': String(proxyServer.port) },
-        })
-
-        pendingReq.then(
-          async (res) => {
-            if (res.status !== 200) {
-              const msg = `Got non-200 response (${res.status}), aborting`
-              console.error(msg + '\n', await res.text())
-              abort(new Error(msg))
+        const pendingReq = next
+          .fetch(pathPrefix + '/delay', {
+            headers: { 'Next-Test-Proxy-Port': String(proxyServer.port) },
+          })
+          .then(
+            async (res) => {
+              if (res.status !== 200) {
+                const err = new Error(
+                  `Got non-200 response (${res.status}) for ${res.url}, aborting`
+                )
+                abort(err)
+                throw err
+              }
+              return res
+            },
+            (err) => {
+              abort(err)
+              throw err
             }
-          },
-          (err) => {
-            abort(err)
-          }
-        )
+          )
 
         await Promise.race([
           pageStartedFetching.promise,
+          pendingReq, // if the page throws before it starts fetching, we want to catch that
           timeoutPromise(
             10_000,
             'Timeout while waiting for the page to call fetch'
@@ -252,7 +230,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   }
 
   it('runs in generateMetadata()', async () => {
-    await next.browser('/123/with-metadata')
+    await next.browser(pathPrefix + '/123/with-metadata')
     expect(getLogs()).toContainEqual({
       source: '[metadata] /[id]/with-metadata',
       value: '123',
@@ -263,7 +241,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     const EXPECTED_ERROR =
       /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
 
-    const browser = await next.browser('/123/setting-cookies')
+    const browser = await next.browser(pathPrefix + '/123/setting-cookies')
     // after() from render
     expect(next.cliOutput).toMatch(EXPECTED_ERROR)
 
@@ -301,7 +279,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           `,
         ],
       ]),
-      '/provided-request-context'
+      pathPrefix + '/provided-request-context'
     )
 
     try {
@@ -318,67 +296,6 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
       await cleanup()
     }
   })
-
-  if (isNextDev) {
-    // TODO: these are at the end because they destroy the next server.
-    // is there a cleaner way to do this without making the tests slower?
-
-    describe('invalid usages', () => {
-      it.each(['error', 'force-static'])(
-        `errors at compile time with dynamic = "%s"`,
-        async (dynamicValue) => {
-          const { session, cleanup } = await sandbox(
-            next,
-            new Map([
-              [
-                'app/static/page.js',
-                (await next.readFile('app/static/page.js')).replace(
-                  `// export const dynamic = 'REPLACE_ME'`,
-                  `export const dynamic = '${dynamicValue}'`
-                ),
-              ],
-            ]),
-            '/static'
-          )
-
-          try {
-            await session.assertHasRedbox()
-            expect(await session.getRedboxDescription()).toContain(
-              `Route /static with \`dynamic = "${dynamicValue}"\` couldn't be rendered statically because it used \`unstable_after\``
-            )
-            expect(getLogs()).toHaveLength(0)
-          } finally {
-            await cleanup()
-          }
-        }
-      )
-
-      it('errors at compile time when used in a client module', async () => {
-        const { session, cleanup } = await sandbox(
-          next,
-          new Map([
-            [
-              'app/invalid-in-client/page.js',
-              (await next.readFile('app/invalid-in-client/page.js')).replace(
-                `// 'use client'`,
-                `'use client'`
-              ),
-            ],
-          ]),
-          '/invalid-in-client'
-        )
-        try {
-          await session.assertHasRedbox()
-          expect(await session.getRedboxSource(true)).toMatch(
-            /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
-          )
-          expect(getLogs()).toHaveLength(0)
-        } finally {
-          await cleanup()
-        }
-      })
-    })
-  }
 })
 
 function promiseWithResolvers<T>() {

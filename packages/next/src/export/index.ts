@@ -44,7 +44,6 @@ import { loadEnvConfig } from '@next/env'
 import { isAPIRoute } from '../lib/is-api-route'
 import { getPagePath } from '../server/require'
 import type { Span } from '../trace'
-import type { FontConfig } from '../server/font-utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
@@ -340,7 +339,6 @@ async function exportAppImpl(
     optimizeCss: nextConfig.experimental.optimizeCss,
     nextConfigOutput: nextConfig.output,
     nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
-    optimizeFonts: nextConfig.optimizeFonts as FontConfig,
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
@@ -359,6 +357,7 @@ async function exportAppImpl(
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       swrDelta: nextConfig.swrDelta,
       after: nextConfig.experimental.after ?? false,
+      dynamicIO: nextConfig.experimental.dynamicIO ?? false,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
@@ -551,7 +550,6 @@ async function exportAppImpl(
           dir,
           distDir,
           outDir,
-          enabledDirectories,
           nextConfig,
           cacheHandler: nextConfig.cacheHandler,
           cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,

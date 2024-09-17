@@ -4,8 +4,10 @@
 
 mod app;
 mod dynamic_imports;
+mod empty;
 pub mod entrypoints;
 mod font;
+pub mod global_module_id_strategy;
 mod instrumentation;
 mod loadable_manifest;
 mod middleware;

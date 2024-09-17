@@ -90,11 +90,18 @@ export type FlightSegmentPath =
  */
 export type CacheNodeSeedData = [
   segment: Segment,
+  node: React.ReactNode | null,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  node: React.ReactNode | null,
   loading: LoadingModuleData,
+]
+
+export type FlightDataSegment = [
+  /* segment of the rendered slice: */ Segment,
+  /* treePatch */ FlightRouterState,
+  /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
+  /* head */ React.ReactNode | null,
 ]
 
 export type FlightDataPath =
@@ -104,10 +111,7 @@ export type FlightDataPath =
   | [
       // Holds full path to the segment.
       ...FlightSegmentPath[],
-      /* segment of the rendered slice: */ Segment,
-      /* treePatch */ FlightRouterState,
-      /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null,
+      ...FlightDataSegment,
     ]
 
 /**
@@ -171,6 +175,7 @@ export interface RenderOptsPartial {
     swrDelta: SwrDelta | undefined
     clientTraceMetadata: string[] | undefined
     after: boolean
+    dynamicIO: boolean
   }
   postponed?: string
   /**
@@ -206,8 +211,8 @@ export type InitialRSCPayload = {
   b: string
   /** assetPrefix */
   p: string
-  /** initialCanonicalUrl */
-  c: string
+  /** initialCanonicalUrlParts */
+  c: string[]
   /** couldBeIntercepted */
   i: boolean
   /** initialFlightData */
@@ -216,6 +221,8 @@ export type InitialRSCPayload = {
   m: Set<string> | undefined
   /** GlobalError */
   G: React.ComponentType<any>
+  /** postponed */
+  s: boolean
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -233,18 +240,7 @@ export type ActionFlightResponse = {
   /** buildId */
   b: string
   /** flightData */
-  f: FlightData | null
-}
-
-export type FetchServerResponseResult = {
-  /** flightData */
   f: FlightData
-  /** canonicalUrl */
-  c: URL | undefined
-  /** couldBeIntercepted */
-  i: boolean
-  /** isPrerender */
-  p: boolean
 }
 
 export type RSCPayload =

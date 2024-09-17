@@ -14,6 +14,7 @@ pub mod chunk;
 pub mod chunk_group_files_asset;
 pub mod code_gen;
 mod errors;
+pub mod global_module_id_strategy;
 pub mod magic_identifier;
 pub mod manifest;
 pub mod minify;
@@ -30,6 +31,7 @@ pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
+pub mod worker_chunk;
 
 use std::fmt::{Display, Formatter};
 
@@ -47,7 +49,7 @@ use swc_core::{
     common::GLOBALS,
     ecma::{
         codegen::{text_writer::JsWriter, Emitter},
-        visit::{VisitMutWith, VisitMutWithPath},
+        visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
 pub use transform::{
@@ -71,7 +73,7 @@ use turbopack_core::{
     reference_type::InnerAssets,
     resolve::{
         find_context_file, origin::ResolveOrigin, package_json, parse::Request,
-        FindContextFileResult, ModulePart,
+        FindContextFileResult,
     },
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -82,7 +84,6 @@ pub use turbopack_resolve::ecmascript as resolve;
 use self::{
     chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports},
     code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables, VisitorFactory},
-    tree_shake::asset::EcmascriptModulePartAsset,
 };
 use crate::{
     chunk::EcmascriptChunkPlaceable,
@@ -228,12 +229,6 @@ impl EcmascriptModuleAssetBuilder {
             )
         }
     }
-
-    pub async fn build_part(self, part: Vc<ModulePart>) -> Result<Vc<EcmascriptModulePartAsset>> {
-        let import_externals = self.options.await?.import_externals;
-        let base = self.build();
-        Ok(EcmascriptModulePartAsset::new(base, part, import_externals))
-    }
 }
 
 #[turbo_tasks::value]
@@ -246,8 +241,7 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: Vc<CompileTimeInfo>,
     pub inner_assets: Option<Vc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
-    #[serde(skip)]
-    last_successful_parse: turbo_tasks::State<Option<ReadRef<ParseResult>>>,
+    last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
 }
 
 #[turbo_tasks::value_trait]
@@ -340,8 +334,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         let real_result_value = real_result.await?;
         let this = self.await?;
         let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-            this.last_successful_parse
-                .set(Some(real_result_value.clone()));
+            this.last_successful_parse.set(real_result_value.clone());
             real_result_value
         } else {
             let state_ref = this.last_successful_parse.get();
@@ -418,6 +411,7 @@ impl EcmascriptModuleAsset {
     pub fn new(
         source: Vc<Box<dyn Source>>,
         asset_context: Vc<Box<dyn AssetContext>>,
+
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
         options: Vc<EcmascriptOptions>,
@@ -429,6 +423,7 @@ impl EcmascriptModuleAsset {
             ty: ty.into_value(),
             transforms,
             options,
+
             compile_time_info,
             inner_assets: None,
             last_successful_parse: Default::default(),
@@ -441,6 +436,7 @@ impl EcmascriptModuleAsset {
         asset_context: Vc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
+
         options: Vc<EcmascriptOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
         inner_assets: Vc<InnerAssets>,
@@ -460,6 +456,11 @@ impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
         Ok(self.await?.source)
+    }
+
+    #[turbo_tasks::function]
+    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyse_ecmascript_module(self, None)
     }
 
     #[turbo_tasks::function]
@@ -831,7 +832,7 @@ async fn gen_content_with_visitors(
 
             GLOBALS.set(globals, || {
                 if !visitors.is_empty() {
-                    program.visit_mut_with_path(
+                    program.visit_mut_with_ast_path(
                         &mut ApplyVisitors::new(visitors),
                         &mut Default::default(),
                     );
@@ -877,8 +878,7 @@ async fn gen_content_with_visitors(
             Ok(EcmascriptModuleContent {
                 inner_code: bytes.into(),
                 source_map: Some(Vc::upcast(srcmap)),
-                is_esm: eval_context.is_esm()
-                    || specified_module_type == SpecifiedModuleType::EcmaScript,
+                is_esm: eval_context.is_esm(specified_module_type),
             }
             .cell())
         }

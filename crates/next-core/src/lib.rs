@@ -9,6 +9,7 @@ pub mod app_structure;
 mod bootstrap;
 mod embed_js;
 mod emit;
+pub mod hmr_entry;
 pub mod instrumentation;
 mod loader_tree;
 pub mod middleware;

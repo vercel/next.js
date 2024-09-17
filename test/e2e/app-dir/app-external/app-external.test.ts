@@ -158,24 +158,20 @@ describe('app dir - external dependency', () => {
       )
     ).toMatch(/^myFont, "myFont Fallback"$/)
   })
-  // TODO: This test depends on `new Worker` which is not supported in Turbopack yet.
-  ;(process.env.TURBOPACK ? it.skip : it)(
-    'should not apply swc optimizer transform for external packages in browser layer in web worker',
-    async () => {
-      const browser = await next.browser('/browser')
+  it('should not apply swc optimizer transform for external packages in browser layer in web worker', async () => {
+    const browser = await next.browser('/browser')
+    // eslint-disable-next-line jest/no-standalone-expect
+    expect(await browser.elementByCss('#worker-state').text()).toBe('default')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
       // eslint-disable-next-line jest/no-standalone-expect
-      expect(await browser.elementByCss('#worker-state').text()).toBe('default')
-
-      await browser.elementByCss('button').click()
-
-      await retry(async () => {
-        // eslint-disable-next-line jest/no-standalone-expect
-        expect(await browser.elementByCss('#worker-state').text()).toBe(
-          'worker.js:browser-module/other'
-        )
-      })
-    }
-  )
+      expect(await browser.elementByCss('#worker-state').text()).toBe(
+        'worker.js:browser-module/other'
+      )
+    })
+  })
 
   describe('react in external esm packages', () => {
     it('should use the same react in client app', async () => {

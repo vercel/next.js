@@ -127,7 +127,7 @@ module.exports = nextConfig
 
 ## Dynamic Components
 
-When creating the prender for your route during `next build`, Next.js requires that dynamic functions are wrapped with React Suspense. The `fallback` is then included in the prerender.
+When creating the prerender for your route during `next build`, Next.js requires that dynamic functions are wrapped with React Suspense. The `fallback` is then included in the prerender.
 
 For example, using functions like `cookies()` or `headers()`:
 

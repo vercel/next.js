@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -91,6 +91,7 @@ pub trait ChunkingContext {
 
     fn chunk_group(
         self: Vc<Self>,
+        ident: Vc<AssetIdent>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<ChunkGroupResult>;
@@ -116,9 +117,7 @@ pub trait ChunkingContext {
     async fn chunk_item_id_from_ident(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-    ) -> Result<Vc<ModuleId>> {
-        Ok(ModuleId::String(ident.to_string().await?.clone_value()).cell())
-    }
+    ) -> Result<Vc<ModuleId>>;
 
     fn chunk_item_id(self: Vc<Self>, chunk_item: Vc<Box<dyn ChunkItem>>) -> Vc<ModuleId> {
         self.chunk_item_id_from_ident(chunk_item.asset_ident())
@@ -191,7 +190,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Vc<ChunkGroupResult> {
-        self.chunk_group(module, Value::new(AvailabilityInfo::Root))
+        self.chunk_group(module.ident(), module, Value::new(AvailabilityInfo::Root))
     }
 
     fn root_chunk_group_assets(
@@ -311,7 +310,7 @@ async fn chunk_group_assets(
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<OutputAssets>> {
     Ok(chunking_context
-        .chunk_group(module, availability_info)
+        .chunk_group(module.ident(), module, availability_info)
         .await?
         .assets)
 }

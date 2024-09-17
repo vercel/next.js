@@ -34,6 +34,12 @@ bun add next@rc react@rc react-dom@rc eslint-config-next@rc
 
 - The minimum `react` and `react-dom` is now 19.
 
+## React 19
+
+- `useFormState` has been replaced by `useActionState`. The `useFormState` hook is still available in React 19, but it is deprecated and will be removed in a future release. `useActionState` is recommended and includes additional properties like reading the `pending` state directly. [Learn more](https://react.dev/reference/react/useActionState).
+- `useFormStatus` now includes additional keys like `data`, `method`, and `action`. If you are not using React 19, only the `pending` key is available. [Learn more](https://react.dev/reference/react-dom/hooks/useFormStatus).
+- Read more in the [React 19 upgrade guide](https://react.dev/blog/2024/04/25/react-19-upgrade-guide).
+
 ## `fetch` requests
 
 [`fetch` requests](/docs/app/api-reference/functions/fetch) are no longer cached by default.
@@ -151,3 +157,31 @@ module.exports = nextConfig
 Auto instrumentation for Speed Insights was removed in Next.js 15.
 
 To continue using Speed Insights, follow the [Vercel Speed Insights Quickstart](https://vercel.com/docs/speed-insights/quickstart) guide.
+
+## `NextRequest` Geolocation
+
+The `geo` and `ip` properties on `NextRequest` have been removed. These values had to be provided by your hosting provider.
+
+If you are using Vercel, you can alternatively use the `geolocation` and `ipAddress` functions from [`@vercel/functions](https://vercel.com/docs/functions/vercel-functions-package) instead:
+
+```ts filename="middleware.ts"
+import { geolocation } from '@vercel/functions'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const { city } = geolocation(request)
+
+  // ...
+}
+```
+
+```ts filename="middleware.ts"
+import { ipAddress } from '@vercel/functions'
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  const ip = ipAddress(request)
+
+  // ...
+}
+```

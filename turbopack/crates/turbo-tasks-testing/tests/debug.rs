@@ -9,91 +9,107 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn primitive_debug() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let a: Vc<u32> = Vc::cell(42);
-        assert_eq!(format!("{:?}", a.dbg().await.unwrap()), "42");
+        assert_eq!(format!("{:?}", a.dbg().await?), "42");
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn transparent_debug() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let a: Vc<Transparent> = Transparent(42).cell();
-        assert_eq!(format!("{:?}", a.dbg().await.unwrap()), "42");
+        assert_eq!(format!("{:?}", a.dbg().await?), "42");
+
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn enum_none_debug() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let a: Vc<Enum> = Enum::None.cell();
-        assert_eq!(format!("{:?}", a.dbg().await.unwrap()), "Enum :: None");
+        assert_eq!(format!("{:?}", a.dbg().await?), "Enum :: None");
+
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn enum_transparent_debug() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let a: Vc<Enum> = Enum::Transparent(Transparent(42).cell()).cell();
         assert_eq!(
-            format!("{:?}", a.dbg().await.unwrap()),
+            format!("{:?}", a.dbg().await?),
             r#"Enum :: Transparent(
     42,
 )"#
         );
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn enum_inner_vc_debug() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let a: Vc<Enum> = Enum::Enum(Enum::None.cell()).cell();
         assert_eq!(
-            format!("{:?}", a.dbg().await.unwrap()),
+            format!("{:?}", a.dbg().await?),
             r#"Enum :: Enum(
     Enum :: None,
 )"#
         );
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn struct_unit_debug() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let a: Vc<StructUnit> = StructUnit.cell();
-        assert_eq!(format!("{:?}", a.dbg().await.unwrap()), "StructUnit");
+        assert_eq!(format!("{:?}", a.dbg().await?), "StructUnit");
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn struct_transparent_debug() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let a: Vc<StructWithTransparent> = StructWithTransparent {
             transparent: Transparent(42).cell(),
         }
         .cell();
         assert_eq!(
-            format!("{:?}", a.dbg().await.unwrap()),
+            format!("{:?}", a.dbg().await?),
             r#"StructWithTransparent {
     transparent: 42,
 }"#
         );
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn struct_vec_debug() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let a: Vc<StructWithVec> = StructWithVec { vec: vec![] }.cell();
         assert_eq!(
-            format!("{:?}", a.dbg().await.unwrap()),
+            format!("{:?}", a.dbg().await?),
             r#"StructWithVec {
     vec: [],
 }"#
@@ -104,33 +120,37 @@ async fn struct_vec_debug() {
         }
         .cell();
         assert_eq!(
-            format!("{:?}", b.dbg().await.unwrap()),
+            format!("{:?}", b.dbg().await?),
             r#"StructWithVec {
     vec: [
         42,
     ],
 }"#
         );
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[tokio::test]
 async fn struct_ignore_debug() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let a: Vc<StructWithIgnore> = StructWithIgnore {
             dont_ignore: 42,
             ignore: Mutex::new(()),
         }
         .cell();
         assert_eq!(
-            format!("{:?}", a.dbg().await.unwrap()),
+            format!("{:?}", a.dbg().await?),
             r#"StructWithIgnore {
     dont_ignore: 42,
 }"#
         );
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[turbo_tasks::value(transparent, shared)]

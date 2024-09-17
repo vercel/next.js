@@ -204,6 +204,7 @@ pub enum EcmascriptExports {
     EsmExports(Vc<EsmExports>),
     DynamicNamespace,
     CommonJs,
+    EmptyCommonJs,
     Value,
     None,
 }

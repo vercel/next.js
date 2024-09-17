@@ -16,10 +16,7 @@ import { checkCustomRoutes } from '../../lib/load-custom-routes'
 import { tryToParsePath } from '../../lib/try-to-parse-path'
 import { isAPIRoute } from '../../lib/is-api-route'
 import { isEdgeRuntime } from '../../lib/is-edge-runtime'
-import {
-  PHASE_PRODUCTION_BUILD,
-  RSC_MODULE_TYPES,
-} from '../../shared/lib/constants'
+import { RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { RSCMeta } from '../webpack/loaders/get-module-build-info'
 import { PAGE_TYPES } from '../../lib/page-types'
 
@@ -84,8 +81,11 @@ export function getRSCModuleInformation(
   isReactServerLayer: boolean
 ): RSCMeta {
   const actionsJson = source.match(ACTION_MODULE_LABEL)
-  const actions = actionsJson
-    ? (Object.values(JSON.parse(actionsJson[1])) as string[])
+  const parsedActionsMeta = actionsJson
+    ? (JSON.parse(actionsJson[1]) as Record<string, string>)
+    : undefined
+  const actions = parsedActionsMeta
+    ? (Object.values(parsedActionsMeta) as string[])
     : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
@@ -94,6 +94,7 @@ export function getRSCModuleInformation(
     return {
       type: RSC_MODULE_TYPES.client,
       actions,
+      actionIds: parsedActionsMeta,
       isClientRef,
     }
   }
@@ -448,6 +449,7 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
 }
 
 export let hadUnsupportedValue = false
+const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
 
 function warnAboutUnsupportedValue(
   pageFilePath: string,
@@ -455,6 +457,17 @@ function warnAboutUnsupportedValue(
   error: UnsupportedValueError
 ) {
   hadUnsupportedValue = true
+  const isProductionBuild = process.env.NODE_ENV === 'production'
+  if (
+    // we only log for the server compilation so it's not
+    // duplicated due to webpack build worker having fresh
+    // module scope for each compiler
+    process.env.NEXT_COMPILER_NAME !== 'server' ||
+    (isProductionBuild && warnedUnsupportedValueMap.has(pageFilePath))
+  ) {
+    return
+  }
+  warnedUnsupportedValueMap.set(pageFilePath, true)
 
   const message =
     `Next.js can't recognize the exported \`config\` field in ` +
@@ -465,8 +478,9 @@ function warnAboutUnsupportedValue(
     '.\n' +
     'Read More - https://nextjs.org/docs/messages/invalid-page-config'
 
-  // for a build wait to log all errors before exiting
-  if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) {
+  // for a build we use `Log.error` instead of throwing
+  // so that all errors can be logged before exiting the process
+  if (isProductionBuild) {
     Log.error(message)
   } else {
     throw new Error(message)
