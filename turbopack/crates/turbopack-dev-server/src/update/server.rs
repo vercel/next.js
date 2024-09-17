@@ -143,7 +143,7 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                             ))
                             .await?;
                     }
-                    Update::Total(_total) => {
+                    Update::Missing | Update::Total(_) => {
                         client
                             .send(ClientUpdateInstruction::restart(&resource, &issues))
                             .await?;
