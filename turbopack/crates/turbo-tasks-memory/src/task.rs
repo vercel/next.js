@@ -268,8 +268,11 @@ struct MaybeCollectibles {
 
 impl MaybeCollectibles {
     /// Consumes the collectibles (if any) and return them.
-    fn take_collectibles(&mut self) -> Option<Collectibles> {
-        self.inner.as_mut().map(|boxed| take(&mut **boxed))
+    fn take_collectibles(&mut self) -> Collectibles {
+        self.inner
+            .as_mut()
+            .map(|boxed| take(&mut **boxed))
+            .unwrap_or_default()
     }
 
     /// Consumes the collectibles (if any) and return them.
@@ -844,10 +847,8 @@ impl Task {
                 unfinished_tasks_update: vec![(self.id, -1)],
                 ..Default::default()
             };
-            if let Some(collectibles) = outdated_collectibles {
-                for ((trait_type, value), count) in collectibles.into_iter() {
-                    change.collectibles.push((trait_type, value, -count));
-                }
+            for ((trait_type, value), count) in outdated_collectibles.into_iter() {
+                change.collectibles.push((trait_type, value, -count));
             }
             let change_job = state
                 .aggregation_node
@@ -986,9 +987,9 @@ impl Task {
                     for child in new_children {
                         outdated_edges.insert(TaskEdge::Child(child));
                     }
-                    if let Some(collectibles) = outdated_collectibles {
+                    if !outdated_collectibles.is_empty() {
                         let mut change = TaskChange::default();
-                        for ((trait_type, value), count) in collectibles.into_iter() {
+                        for ((trait_type, value), count) in outdated_collectibles.into_iter() {
                             change.collectibles.push((trait_type, value, -count));
                         }
                         change_job = state
@@ -1039,17 +1040,15 @@ impl Task {
                             unfinished_tasks_update: vec![(self.id, -1)],
                             ..Default::default()
                         };
-                        if let Some(collectibles) = outdated_collectibles {
-                            for ((trait_type, value), count) in collectibles.into_iter() {
-                                change.collectibles.push((trait_type, value, -count));
-                            }
+                        for ((trait_type, value), count) in outdated_collectibles.into_iter() {
+                            change.collectibles.push((trait_type, value, -count));
                         }
                         change_job = state
                             .aggregation_node
                             .apply_change(&aggregation_context, change);
-                    } else if let Some(collectibles) = outdated_collectibles {
+                    } else if !outdated_collectibles.is_empty() {
                         let mut change = TaskChange::default();
-                        for ((trait_type, value), count) in collectibles.into_iter() {
+                        for ((trait_type, value), count) in outdated_collectibles.into_iter() {
                             change.collectibles.push((trait_type, value, -count));
                         }
                         change_job = state
