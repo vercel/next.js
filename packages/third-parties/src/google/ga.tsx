@@ -43,7 +43,7 @@ export function GoogleAnalytics(props: GAParams) {
           function gtag(){window['${dataLayerName}'].push(arguments);}
           gtag('js', new Date());
 
-          gtag('config', '${gaId}' ${debugMode ? ",{ 'debug_mode': true }" : ""});`,
+          gtag('config', '${gaId}' ${debugMode ? ",{ 'debug_mode': true }" : ''});`,
         }}
         nonce={nonce}
       />
