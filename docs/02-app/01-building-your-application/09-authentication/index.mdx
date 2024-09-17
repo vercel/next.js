@@ -282,7 +282,7 @@ export function SignupForm() {
         <label htmlFor="password">Password</label>
         <input id="password" name="password" type="password" />
       </div>
-      {state.errors?.password && (
+      {state?.errors?.password && (
         <div>
           <p>Password must:</p>
           <ul>
