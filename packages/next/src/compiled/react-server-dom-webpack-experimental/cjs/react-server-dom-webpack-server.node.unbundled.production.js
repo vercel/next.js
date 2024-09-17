@@ -837,7 +837,7 @@ function serializeThenable(request, task, thenable) {
         newTask.id
       );
     default:
-      if (11 === request.status)
+      if (12 === request.status)
         return (
           request.abortableTasks.delete(newTask),
           (newTask.status = 3),
@@ -1087,7 +1087,7 @@ function renderFunctionComponent(request, task, key, Component, props) {
   thenableIndexCounter = 0;
   thenableState = prevThenableState;
   Component = Component(props, void 0);
-  if (11 === request.status)
+  if (12 === request.status)
     throw (
       ("object" === typeof Component &&
         null !== Component &&
@@ -1186,7 +1186,7 @@ function renderElement(request, task, type, key, ref, props) {
       case REACT_LAZY_TYPE:
         var init = type._init;
         type = init(type._payload);
-        if (11 === request.status) throw null;
+        if (12 === request.status) throw null;
         return renderElement(request, task, type, key, ref, props);
       case REACT_FORWARD_REF_TYPE:
         return renderFunctionComponent(request, task, key, type.render, props);
@@ -1207,7 +1207,7 @@ function pingTask(request, task) {
   pingedTasks.push(task);
   1 === pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
-    21 === request.type
+    21 === request.type || 10 === request.status
       ? scheduleMicrotask(function () {
           return performWork(request);
         })
@@ -1283,8 +1283,14 @@ function serializeClientReference(
             '" in the React Client Manifest. This is probably a bug in the React Server Components bundler.'
         );
     }
+    if (!0 === resolvedModuleData.async && !0 === clientReference.$$async)
+      throw Error(
+        'The module "' +
+          modulePath +
+          '" is marked as an async ESM module but was loaded as a CJS proxy. This is probably a bug in the React Server Components bundler.'
+      );
     var JSCompiler_inline_result =
-      !0 === clientReference.$$async
+      !0 === resolvedModuleData.async || !0 === clientReference.$$async
         ? [resolvedModuleData.id, resolvedModuleData.chunks, existingId, 1]
         : [resolvedModuleData.id, resolvedModuleData.chunks, existingId];
     request.pendingChunks++;
@@ -1383,7 +1389,7 @@ function renderModel(request, task, parent, key, value) {
       null !== parent &&
       (parent.$$typeof === REACT_ELEMENT_TYPE ||
         parent.$$typeof === REACT_LAZY_TYPE);
-    if (11 === request.status) {
+    if (12 === request.status) {
       task.status = 3;
       if (21 === request.type)
         return (
@@ -1482,7 +1488,7 @@ function renderModelDestructive(
         task.thenableState = null;
         parentPropertyName = value._init;
         value = parentPropertyName(value._payload);
-        if (11 === request.status) throw null;
+        if (12 === request.status) throw null;
         return renderModelDestructive(request, task, emptyRoot, "", value);
       case REACT_LEGACY_ELEMENT_TYPE:
         throw Error(
@@ -1769,8 +1775,8 @@ function fatalError(request, error) {
   onFatalError(error);
   cleanupTaintQueue(request);
   null !== request.destination
-    ? ((request.status = 13), request.destination.destroy(error))
-    : ((request.status = 12), (request.fatalError = error));
+    ? ((request.status = 14), request.destination.destroy(error))
+    : ((request.status = 13), (request.fatalError = error));
 }
 function emitPostponeChunk(request, id) {
   id = id.toString(16) + ":P\n";
@@ -1880,7 +1886,7 @@ function retryTask(request, task) {
       request.abortableTasks.delete(task);
       task.status = 1;
     } catch (thrownValue) {
-      if (11 === request.status)
+      if (12 === request.status)
         if (
           (request.abortableTasks.delete(task),
           (task.status = 3),
@@ -2014,19 +2020,18 @@ function flushCompletedChunks(request, destination) {
   "function" === typeof destination.flush && destination.flush();
   0 === request.pendingChunks &&
     (cleanupTaintQueue(request),
-    (request.status = 13),
+    (request.status = 14),
     destination.end(),
     (request.destination = null));
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
-  21 === request.type
-    ? scheduleMicrotask(function () {
-        requestStorage.run(request, performWork, request);
-      })
-    : setImmediate(function () {
-        return requestStorage.run(request, performWork, request);
-      });
+  scheduleMicrotask(function () {
+    requestStorage.run(request, performWork, request);
+  });
+  setImmediate(function () {
+    10 === request.status && (request.status = 11);
+  });
 }
 function enqueueFlush(request) {
   !1 === request.flushScheduled &&
@@ -2040,9 +2045,9 @@ function enqueueFlush(request) {
     }));
 }
 function startFlowing(request, destination) {
-  if (12 === request.status)
-    (request.status = 13), destination.destroy(request.fatalError);
-  else if (13 !== request.status && null === request.destination) {
+  if (13 === request.status)
+    (request.status = 14), destination.destroy(request.fatalError);
+  else if (14 !== request.status && null === request.destination) {
     request.destination = destination;
     try {
       flushCompletedChunks(request, destination);
@@ -2053,7 +2058,7 @@ function startFlowing(request, destination) {
 }
 function abort(request, reason) {
   try {
-    10 === request.status && (request.status = 11);
+    11 >= request.status && (request.status = 12);
     var abortableTasks = request.abortableTasks;
     if (0 < abortableTasks.size) {
       if (
