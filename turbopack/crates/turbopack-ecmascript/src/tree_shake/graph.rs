@@ -434,8 +434,6 @@ impl DepGraph {
 
                             required_vars.remove(export);
 
-                            dbg!(ix, "Depends on ", export.0.as_str());
-
                             deps.push(PartId::Export(export.0.as_str().into()));
 
                             chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
