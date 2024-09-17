@@ -19,7 +19,7 @@ static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
 fn should_collect_estimated_third_part_packages() {
     let eliminated_packages: Rc<RefCell<FxHashSet<String>>> = Default::default();
     let fm = COMPILER.cm.new_source_file(
-        FileName::Real("fixture.js".into()),
+        FileName::Real("fixture.js".into()).into(),
         r#"import http from 'http'
 import { hash } from '@napi-rs/bcrypt'
 

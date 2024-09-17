@@ -6,7 +6,7 @@ use swc_core::{
     ecma::{
         ast::Program,
         codegen::{text_writer::JsWriter, Emitter},
-        visit::{VisitMutWith, VisitMutWithPath},
+        visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
 use turbo_tasks::{TryJoinIterExt, Vc};
@@ -106,7 +106,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         let mut program = Program::Module(swc_core::ecma::ast::Module::dummy());
         GLOBALS.set(&Globals::new(), || {
             if !visitors.is_empty() {
-                program.visit_mut_with_path(
+                program.visit_mut_with_ast_path(
                     &mut ApplyVisitors::new(visitors),
                     &mut Default::default(),
                 );

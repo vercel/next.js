@@ -17,6 +17,8 @@ use turbopack_core::{
     source_pos::SourcePos,
 };
 
+use crate::util::log_internal_error_and_inform;
+
 /// A helper type to hold both a Vc operation and the TurboTasks root process.
 /// Without this, we'd need to pass both individually all over the place
 #[derive(Clone)]
@@ -312,7 +314,11 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             let result = handler().await;
 
             let status = func.call(
-                result.map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string())),
+                result.map_err(|e| {
+                    let error = PrettyPrintError(&e).to_string();
+                    log_internal_error_and_inform(&error);
+                    napi::Error::from_reason(error)
+                }),
                 ThreadsafeFunctionCallMode::NonBlocking,
             );
             if !matches!(status, Status::Ok) {

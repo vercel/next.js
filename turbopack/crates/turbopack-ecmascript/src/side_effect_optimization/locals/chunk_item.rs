@@ -13,7 +13,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType,
     },
-    EcmascriptAnalyzable, EcmascriptModuleContent,
+    EcmascriptModuleContent,
 };
 
 /// The chunk item for [EcmascriptModuleLocalsModule].

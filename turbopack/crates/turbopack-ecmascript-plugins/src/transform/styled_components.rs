@@ -14,7 +14,7 @@ pub struct OptionStyledComponentsTransformConfig(Option<Vc<StyledComponentsTrans
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct StyledComponentsTransformConfig {
     pub display_name: bool,
     pub ssr: bool,
@@ -95,7 +95,7 @@ impl CustomTransformer for StyledComponentsTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_components", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         program.visit_mut_with(&mut styled_components::styled_components(
-            FileName::Real(PathBuf::from(ctx.file_path_str)),
+            FileName::Real(PathBuf::from(ctx.file_path_str)).into(),
             ctx.file_name_hash,
             self.config.clone(),
             NoopComments,

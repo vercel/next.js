@@ -112,16 +112,16 @@ impl Visit for IdentUsageCollector<'_> {
             return;
         }
 
-        if n.span.ctxt == self.unresolved {
+        if n.ctxt == self.unresolved {
             self.vars.found_unresolved = true;
             return;
         }
 
         // We allow SyntaxContext::empty() because Some built-in files do not go into
         // resolver()
-        if n.span.ctxt != self.unresolved
-            && n.span.ctxt != self.top_level
-            && n.span.ctxt != SyntaxContext::empty()
+        if n.ctxt != self.unresolved
+            && n.ctxt != self.top_level
+            && n.ctxt != SyntaxContext::empty()
             && !self.top_level_vars.contains(&n.to_id())
         {
             return;

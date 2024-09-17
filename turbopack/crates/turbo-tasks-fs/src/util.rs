@@ -65,62 +65,62 @@ pub fn unix_to_sys(path: &str) -> Cow<'_, str> {
 }
 
 /// Normalizes a /-separated path into a form that contains no leading /, no
-/// double /, no "." seqment, no ".." seqment.
+/// double /, no "." segment, no ".." segment.
 ///
 /// Returns None if the path would need to start with ".." to be equal.
 pub fn normalize_path(str: &str) -> Option<String> {
-    let mut seqments = Vec::new();
-    for seqment in str.split('/') {
-        match seqment {
+    let mut segments = Vec::new();
+    for segment in str.split('/') {
+        match segment {
             "." | "" => {}
             ".." => {
-                seqments.pop()?;
+                segments.pop()?;
             }
-            seqment => {
-                seqments.push(seqment);
+            segment => {
+                segments.push(segment);
             }
         }
     }
-    Some(seqments.join("/"))
+    Some(segments.join("/"))
 }
 
 /// Normalizes a /-separated request into a form that contains no leading /, no
-/// double /, and no "." or ".." seqments in the middle of the request. A
-/// request might only start with a single "." seqment and no ".." segements, or
-/// any positive number of ".." seqments but no "." seqment.
+/// double /, and no "." or ".." segments in the middle of the request. A
+/// request might only start with a single "." segment and no ".." segments, or
+/// any positive number of ".." segments but no "." segment.
 pub fn normalize_request(str: &str) -> String {
-    let mut seqments = vec!["."];
+    let mut segments = vec!["."];
     // Keeps track of our directory depth so that we can pop directories when
     // encountering a "..". If this is positive, then we're inside a directory
     // and we can pop that. If it's 0, then we can't pop the directory and we must
-    // keep the ".." in our seqments. This is not the same as the seqments.len(),
+    // keep the ".." in our segments. This is not the same as the segments.len(),
     // because we cannot pop a kept ".." when encountering another "..".
     let mut depth = 0;
     let mut popped_dot = false;
-    for seqment in str.split('/') {
-        match seqment {
+    for segment in str.split('/') {
+        match segment {
             "." => {}
             ".." => {
                 if depth > 0 {
                     depth -= 1;
-                    seqments.pop();
+                    segments.pop();
                 } else {
                     // The first time we push a "..", we need to remove the "." we include by
                     // default.
                     if !popped_dot {
                         popped_dot = true;
-                        seqments.pop();
+                        segments.pop();
                     }
-                    seqments.push(seqment);
+                    segments.push(segment);
                 }
             }
-            seqment => {
-                seqments.push(seqment);
+            segment => {
+                segments.push(segment);
                 depth += 1;
             }
         }
     }
-    seqments.join("/")
+    segments.join("/")
 }
 
 /// Converts a disk access Result<T> into a Result<Some<T>>, where a NotFound

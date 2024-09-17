@@ -54,7 +54,8 @@
       "test/e2e/postcss-config-cjs/index.test.ts",
       "test/e2e/socket-io/index.test.js",
       "test/e2e/middleware-matcher/index.test.ts",
-      "test/e2e/next-script/index.test.ts"
+      "test/e2e/next-script/index.test.ts",
+      "test/production/standalone-mode/**/*"
     ]
   }
 }
