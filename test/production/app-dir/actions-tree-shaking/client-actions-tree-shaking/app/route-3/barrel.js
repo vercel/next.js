@@ -1,6 +1,6 @@
 import { baz } from '../actions'
 
-// Test side effects
+// Ensure side effects won't affect tree shaking and DCE
 console.log(1)
 
 export { baz }

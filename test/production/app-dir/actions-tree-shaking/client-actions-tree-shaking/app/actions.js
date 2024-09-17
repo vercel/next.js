@@ -1,6 +1,6 @@
 'use server'
 
-// Test side effects
+// Ensure side effects won't affect tree shaking and DCE
 console.log('This is a side effect')
 
 export async function foo() {
