@@ -143,6 +143,14 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+    /// The list of export names that should make tree shaking bail off. This is
+    /// required because tree shaking can split imports like `export const
+    /// runtime = 'edge'` as a separate module.
+    ///
+    /// Currently the analysis of these exports are performed from JS (See get-page-static-info.ts)
+    /// using SWC AST, so we can't use original module for that. Instead, we just disable tree
+    /// shaking for those modules.
+    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -436,7 +444,6 @@ impl EcmascriptModuleAsset {
         asset_context: Vc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
-
         options: Vc<EcmascriptOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
         inner_assets: Vc<InnerAssets>,
