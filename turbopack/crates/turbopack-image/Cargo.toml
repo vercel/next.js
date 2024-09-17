@@ -37,6 +37,7 @@ serde_with = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

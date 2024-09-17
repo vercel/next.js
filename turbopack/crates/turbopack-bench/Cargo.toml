@@ -37,6 +37,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbopack-create-test-app = { workspace = true }
 url = { workspace = true }
+workspace-hack.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 nix = "0.26.1"

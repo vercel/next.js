@@ -123,6 +123,18 @@ jobs:
         uses: ./.github/actions/setup-rust
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
+      - name: Install cargo-hakari
+        uses: taiki-e/install-action@v2
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        with:
+          tool: cargo-hakari
+
+      # cargo-hakari / workspace-hack is only useful for development and would slow down CI
+      - name: Disable cargo-hakari
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        run: |
+          cargo hakari disable
+
       - name: 'Install mold linker'
         if: ${{ inputs.mold == 'yes' }}
         run: |

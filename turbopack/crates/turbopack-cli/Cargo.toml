@@ -70,6 +70,7 @@ turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 webbrowser = { workspace = true }
+workspace-hack.workspace = true
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

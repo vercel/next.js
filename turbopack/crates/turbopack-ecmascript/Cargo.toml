@@ -66,6 +66,7 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
+workspace-hack.workspace = true
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

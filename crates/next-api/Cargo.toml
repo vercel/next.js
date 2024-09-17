@@ -34,6 +34,7 @@ turbopack-ecmascript = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
 swc_core = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 # It is not a mistake this dependency is specified in dep / build-dep both.

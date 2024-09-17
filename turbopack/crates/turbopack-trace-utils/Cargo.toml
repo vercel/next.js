@@ -21,3 +21,4 @@ tokio = { workspace = true, features = ["macros", "signal", "sync", "rt"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
+workspace-hack.workspace = true

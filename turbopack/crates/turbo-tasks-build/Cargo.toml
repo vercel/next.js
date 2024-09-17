@@ -18,3 +18,4 @@ glob = "0.3.0"
 quote = { workspace = true }
 syn = { workspace = true, features = ["full"] }
 turbo-tasks-macros-shared = { workspace = true }
+workspace-hack.workspace = true

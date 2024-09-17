@@ -46,6 +46,7 @@ turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-hmr-protocol = { workspace = true }
 # TODO remove this dependency
 turbopack-cli-utils = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

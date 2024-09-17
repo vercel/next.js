@@ -41,6 +41,7 @@ styled_jsx = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_ast", "ecma_visit", "common"] }
 swc_emotion = { workspace = true }
 swc_relay = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

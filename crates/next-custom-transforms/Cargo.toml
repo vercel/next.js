@@ -59,6 +59,7 @@ turbopack-ecmascript-plugins = { workspace = true, optional = true }
 react_remove_properties = "0.24.20"
 remove_console = "0.25.20"
 preset_env_base = "0.5.1"
+workspace-hack.workspace = true
 
 [dev-dependencies]
 swc_core = { workspace = true, features = ["testing_transform"]}

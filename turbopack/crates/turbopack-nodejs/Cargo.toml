@@ -32,6 +32,7 @@ turbo-tasks-hash = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-runtime = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

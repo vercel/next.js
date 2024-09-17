@@ -15,6 +15,7 @@ workspace = true
 [dependencies]
 next-core = { workspace = true }
 turbopack-core = { workspace = true }
+workspace-hack.workspace = true
 
 #turbopack-binding = { workspace = true, features = [
 #  "__turbo_tasks",

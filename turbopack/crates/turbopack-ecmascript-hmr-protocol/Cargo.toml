@@ -18,3 +18,4 @@ serde_json = { workspace = true }
 
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
+workspace-hack.workspace = true

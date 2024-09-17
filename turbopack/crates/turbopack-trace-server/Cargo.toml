@@ -25,3 +25,4 @@ serde_json = { workspace = true }
 tungstenite = { version = "0.21.0" }
 turbopack-trace-utils = { workspace = true }
 zstd = { version = "0.13.0" }
+workspace-hack.workspace = true

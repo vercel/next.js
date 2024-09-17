@@ -76,6 +76,7 @@ turbopack-nodejs = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-server = { workspace = true }
 turbopack-trace-utils = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

@@ -5,6 +5,7 @@ edition = "2021"
 license = "MPL-2.0"
 
 [dependencies]
+workspace-hack.workspace = true
 
 [lints]
 workspace = true

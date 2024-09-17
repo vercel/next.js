@@ -3,13 +3,7 @@ resolver = "2"
 
 members = [
   "scripts/send-trace-to-jaeger",
-  "crates/napi",
-  "crates/wasm",
-  "crates/next-api",
-  "crates/next-build-test",
-  "crates/next-build",
-  "crates/next-core",
-  "crates/next-custom-transforms",
+  "crates/*",
   "turbopack/crates/*",
   "turbopack/xtask",
 ]
@@ -31,7 +25,12 @@ opt-level = 1
 [profile.dev.build-override]
 opt-level = 3
 
+[patch.crates-io.workspace-hack]
+path = "crates/workspace-hack"
+
 [workspace.dependencies]
+workspace-hack = "=0.1.0"
+
 # Workspace crates
 next-api = { path = "crates/next-api" }
 next-build = { path = "crates/next-build" }

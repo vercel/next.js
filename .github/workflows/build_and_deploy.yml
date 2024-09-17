@@ -316,6 +316,16 @@ jobs:
         with:
           targets: ${{ matrix.settings.target }}
 
+      - name: Install cargo-hakari
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hakari
+
+      # cargo-hakari / workspace-hack is only useful for development and would slow down CI
+      - name: Disable cargo-hakari
+        run: |
+          cargo hakari disable
+
       - name: normalize versions
         run: node scripts/normalize-version-bump.js
 
@@ -423,6 +433,16 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
+
+      - name: Install cargo-hakari
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hakari
+
+      # cargo-hakari / workspace-hack is only useful for development and would slow down CI
+      - name: Disable cargo-hakari
+        run: |
+          cargo hakari disable
 
       - run: npm i -g turbo@${{ env.TURBO_VERSION }}
 

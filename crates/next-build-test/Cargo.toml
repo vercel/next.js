@@ -35,6 +35,7 @@ turbopack-env = { workspace = true }
 turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
 turbopack-trace-utils = { workspace = true }
+workspace-hack.workspace = true
 
 # Enable specific tls features per-target.
 [target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]

@@ -46,6 +46,7 @@ turbopack-core = { workspace = true }
 turbopack-dev-server = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-resolve = { workspace = true }
+workspace-hack.workspace = true
 #url = { workspace = true }
 #urlencoding = { workspace = true }
 

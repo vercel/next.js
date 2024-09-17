@@ -16,3 +16,6 @@ turbo-tasks-memory = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
+
+[dependencies]
+workspace-hack.workspace = true

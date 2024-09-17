@@ -23,6 +23,7 @@ turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 wasmparser = "0.110.0"
 wat = "1.0.69"
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

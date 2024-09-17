@@ -39,6 +39,7 @@ turbopack-node = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-wasm = { workspace = true }
+workspace-hack.workspace = true
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

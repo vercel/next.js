@@ -163,6 +163,26 @@ jobs:
       stepName: 'rust-doc-check'
     secrets: inherit
 
+  workspace-hack-check:
+    name: check workspace-hack
+    runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-hakari
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hakari
+
+      - name: Check workspace-hack Cargo.toml is up-to-date
+        run: cargo hakari generate --diff
+      - name: Check all crates depend on workspace-hack
+        run: cargo hakari manage-deps --dry-run
+
   ast-grep:
     needs: ['changes', 'build-next']
     runs-on: ubuntu-latest

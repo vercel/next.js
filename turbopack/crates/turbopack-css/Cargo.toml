@@ -44,6 +44,7 @@ swc_core = { workspace = true, features = [
   "common",
   "common_concurrent",
 ] }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

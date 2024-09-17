@@ -20,6 +20,7 @@ syn = { version = "2", features = ["parsing", "full", "visit", "extra-traits"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing.workspace = true
 walkdir = "2.5.0"
+workspace-hack.workspace = true
 
 [lints]
 workspace = true

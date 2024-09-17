@@ -11,3 +11,4 @@ workspace = true
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 smallvec = { workspace = true }
+workspace-hack.workspace = true

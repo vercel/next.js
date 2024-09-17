@@ -35,6 +35,7 @@ turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-ecmascript-runtime = { workspace = true }
 turbopack-resolve = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

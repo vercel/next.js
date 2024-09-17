@@ -15,3 +15,4 @@ workspace = true
 [dependencies]
 turbo-tasks-macros = { workspace = true }
 twox-hash = "1.6.3"
+workspace-hack.workspace = true

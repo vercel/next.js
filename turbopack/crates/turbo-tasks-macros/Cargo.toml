@@ -20,3 +20,4 @@ quote = { workspace = true }
 regex = { workspace = true }
 syn = { workspace = true, features = ["full", "extra-traits", "visit-mut"] }
 turbo-tasks-macros-shared = { workspace = true }
+workspace-hack.workspace = true

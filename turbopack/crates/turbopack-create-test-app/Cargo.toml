@@ -26,3 +26,4 @@ indoc = { workspace = true }
 pathdiff = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
+workspace-hack.workspace = true

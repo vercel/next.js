@@ -27,3 +27,4 @@ swc_core = { workspace = true, features = [
   "ecma_ast",
   "ecma_parser",
 ] }
+workspace-hack.workspace = true

@@ -44,6 +44,7 @@ turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

@@ -1,0 +1,23 @@
+# This file contains settings for `cargo hakari`.
+# See https://docs.rs/cargo-hakari/latest/cargo_hakari/config for a full list of options.
+
+hakari-package = "workspace-hack"
+dep-format-version = "4"
+resolver = "2"
+
+# Add triples corresponding to platforms commonly used by developers here.
+# https://doc.rust-lang.org/rustc/platform-support.html
+platforms = [
+    "aarch64-apple-darwin",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+]
+
+# Write out exact versions rather than a semver range. (Defaults to false.)
+# exact-versions = true
+
+workspace-hack-line-style = "workspace-dotted"
+
+[traversal-excludes]
+workspace-members = ["next-swc-napi", "wasm"]

@@ -18,6 +18,7 @@ indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

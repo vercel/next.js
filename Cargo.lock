@@ -566,6 +566,7 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "smallvec",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4063,6 +4064,7 @@ dependencies = [
  "turbopack-env",
  "turbopack-node",
  "turbopack-nodejs",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4073,6 +4075,7 @@ dependencies = [
  "turbo-tasks-build",
  "turbopack-core",
  "vergen 7.5.1",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4106,6 +4109,7 @@ dependencies = [
  "turbopack-node",
  "turbopack-nodejs",
  "turbopack-trace-utils",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4157,6 +4161,7 @@ dependencies = [
  "turbopack-static",
  "turbopack-trace-server",
  "turbopack-trace-utils",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4190,6 +4195,7 @@ dependencies = [
  "tracing",
  "turbopack-ecmascript-plugins",
  "walkdir",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -4283,6 +4289,7 @@ dependencies = [
  "turbopack-cli-utils",
  "turbopack-core",
  "turbopack-resolve",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5855,6 +5862,7 @@ version = "0.1.0"
 dependencies = [
  "reqwest",
  "serde_json",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -6503,6 +6511,7 @@ dependencies = [
  "owo-colors 3.5.0",
  "regex",
  "swc_core",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8511,6 +8520,9 @@ dependencies = [
 [[package]]
 name = "turbo-prehash"
 version = "0.1.0"
+dependencies = [
+ "workspace-hack",
+]
 
 [[package]]
 name = "turbo-static"
@@ -8531,6 +8543,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "walkdir",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8565,6 +8578,7 @@ dependencies = [
  "turbo-tasks-macros",
  "turbo-tasks-malloc",
  "unsize",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8577,6 +8591,7 @@ dependencies = [
  "quote",
  "syn 1.0.109",
  "turbo-tasks-macros-shared",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8591,6 +8606,7 @@ dependencies = [
  "serde_test",
  "turbo-tasks",
  "turbo-tasks-build",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8604,6 +8620,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-build",
  "turbo-tasks-fs",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8621,6 +8638,7 @@ dependencies = [
  "turbo-tasks-memory",
  "turbo-tasks-testing",
  "turbopack-core",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8658,6 +8676,7 @@ dependencies = [
  "turbo-tasks-memory",
  "turbo-tasks-testing",
  "unicode-segmentation",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8666,6 +8685,7 @@ version = "0.1.0"
 dependencies = [
  "turbo-tasks-macros",
  "twox-hash",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8679,6 +8699,7 @@ dependencies = [
  "regex",
  "syn 1.0.109",
  "turbo-tasks-macros-shared",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8688,6 +8709,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8702,6 +8724,7 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-memory",
  "turbo-tasks-testing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8709,6 +8732,7 @@ name = "turbo-tasks-malloc"
 version = "0.1.0"
 dependencies = [
  "mimalloc",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8742,6 +8766,7 @@ dependencies = [
  "turbo-tasks-hash",
  "turbo-tasks-malloc",
  "turbo-tasks-testing",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8754,6 +8779,7 @@ dependencies = [
  "rustc-hash",
  "tokio",
  "turbo-tasks",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8789,6 +8815,7 @@ dependencies = [
  "turbopack-resolve",
  "turbopack-static",
  "turbopack-wasm",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8814,6 +8841,7 @@ dependencies = [
  "turbo-tasks-testing",
  "turbopack-create-test-app",
  "url",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8836,6 +8864,7 @@ dependencies = [
  "turbopack-ecmascript-runtime",
  "turbopack-resolve",
  "urlencoding",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8875,6 +8904,7 @@ dependencies = [
  "turbopack-resolve",
  "turbopack-trace-utils",
  "webbrowser",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8891,6 +8921,7 @@ dependencies = [
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-resolve",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8921,6 +8952,7 @@ dependencies = [
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8933,6 +8965,7 @@ dependencies = [
  "pathdiff",
  "serde_json",
  "tempfile",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8959,6 +8992,7 @@ dependencies = [
  "turbopack-ecmascript",
  "turbopack-swc-utils",
  "urlencoding",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -8994,6 +9028,7 @@ dependencies = [
  "turbopack-ecmascript",
  "turbopack-ecmascript-hmr-protocol",
  "urlencoding",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9032,6 +9067,7 @@ dependencies = [
  "turbopack-swc-utils",
  "url",
  "urlencoding",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9042,6 +9078,7 @@ dependencies = [
  "serde_json",
  "turbopack-cli-utils",
  "turbopack-core",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9066,6 +9103,7 @@ dependencies = [
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9081,6 +9119,7 @@ dependencies = [
  "turbopack",
  "turbopack-core",
  "turbopack-ecmascript",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9096,6 +9135,7 @@ dependencies = [
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9114,6 +9154,7 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9128,6 +9169,7 @@ dependencies = [
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9143,6 +9185,7 @@ dependencies = [
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9178,6 +9221,7 @@ dependencies = [
  "turbopack-dev-server",
  "turbopack-ecmascript",
  "turbopack-resolve",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9197,6 +9241,7 @@ dependencies = [
  "turbopack-ecmascript",
  "turbopack-ecmascript-runtime",
  "urlencoding",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9214,6 +9259,7 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9229,6 +9275,7 @@ dependencies = [
  "turbopack-core",
  "turbopack-css",
  "turbopack-ecmascript",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9239,6 +9286,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-build",
  "turbopack-core",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9256,6 +9304,7 @@ dependencies = [
  "turbo-tasks-hash",
  "turbopack-cli-utils",
  "turbopack-core",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9288,6 +9337,7 @@ dependencies = [
  "turbopack-nodejs",
  "turbopack-resolve",
  "turbopack-test-utils",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9306,6 +9356,7 @@ dependencies = [
  "serde_json",
  "tungstenite 0.21.0",
  "turbopack-trace-utils",
+ "workspace-hack",
  "zstd",
 ]
 
@@ -9322,6 +9373,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turbo-tasks-malloc",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -9339,6 +9391,7 @@ dependencies = [
  "turbopack-ecmascript",
  "wasmparser 0.110.0",
  "wat",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -10787,6 +10840,111 @@ dependencies = [
 ]
 
 [[package]]
+name = "workspace-hack"
+version = "0.1.0"
+dependencies = [
+ "Inflector",
+ "ahash 0.8.11",
+ "aho-corasick",
+ "anyhow",
+ "arrayvec 0.7.4",
+ "base64 0.13.1",
+ "bitflags 2.5.0",
+ "byteorder",
+ "bytes",
+ "cc",
+ "chrono",
+ "clap 4.5.2",
+ "clap_builder",
+ "crossbeam-utils",
+ "cssparser",
+ "digest",
+ "either",
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-util",
+ "getrandom",
+ "hashbrown 0.12.3",
+ "hashbrown 0.14.5",
+ "heapless",
+ "hyper",
+ "iana-time-zone",
+ "image",
+ "indexmap 1.9.3",
+ "indexmap 2.2.6",
+ "itertools 0.10.5",
+ "libc",
+ "lightningcss",
+ "linux-raw-sys 0.4.13",
+ "lock_api",
+ "log",
+ "memchr",
+ "miniz_oxide",
+ "mio",
+ "num-traits",
+ "parcel_selectors",
+ "parking_lot",
+ "phf_shared 0.10.0",
+ "phf_shared 0.11.2",
+ "plotters",
+ "proc-macro2",
+ "quote",
+ "rand",
+ "rand_core",
+ "regex",
+ "regex-automata 0.4.6",
+ "regex-syntax 0.8.3",
+ "reqwest",
+ "rkyv",
+ "rkyv_derive",
+ "rustix 0.38.31",
+ "scopeguard",
+ "semver 1.0.23",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "smallvec",
+ "socket2 0.4.9",
+ "stable_deref_trait",
+ "swc",
+ "swc_atoms",
+ "swc_common",
+ "swc_config",
+ "swc_core",
+ "swc_ecma_ast",
+ "swc_ecma_loader",
+ "swc_ecma_minifier",
+ "swc_ecma_transforms",
+ "swc_ecma_transforms_base",
+ "swc_ecma_transforms_optimization",
+ "swc_ecma_utils",
+ "swc_ecma_visit",
+ "syn 1.0.109",
+ "syn 2.0.58",
+ "textwrap",
+ "time",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "toml_datetime",
+ "tracing",
+ "tracing-core",
+ "tracing-subscriber",
+ "twox-hash",
+ "ucd-trie",
+ "unicode-id",
+ "unicode-normalization",
+ "url",
+ "vergen 9.0.0",
+ "vergen-lib",
+ "winapi",
+ "windows-sys 0.48.0",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "wyz"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10830,6 +10988,7 @@ dependencies = [
  "serde_json",
  "tabled",
  "walkdir",
+ "workspace-hack",
 ]
 
 [[package]]

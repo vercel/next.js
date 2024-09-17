@@ -23,6 +23,7 @@ turbopack-css = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 
 serde = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

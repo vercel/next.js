@@ -23,6 +23,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
+workspace-hack.workspace = true
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

@@ -30,6 +30,7 @@ serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 tabled = { version = "0.10.0", features = ["color"] }
 walkdir = "2.3.2"
+workspace-hack.workspace = true
 
 [dependencies.plotters]
 version = "0.3.4"
