@@ -113,7 +113,7 @@ async function fetchServerAction(
 
   const contentType = res.headers.get('content-type')
 
-  if (contentType === RSC_CONTENT_TYPE_HEADER) {
+  if (contentType?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
       {
