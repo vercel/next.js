@@ -216,22 +216,52 @@ async function processCurrentVersion(showRc: boolean): Promise<number> {
 }
 
 async function getPackageManager(_packageJson: any): Promise<PackageManager> {
-  const detectedPackageManagers: [PackageManager, string][] = []
-
-  for (const { lockFile, packageManager } of [
-    { lockFile: 'pnpm-lock.yaml', packageManager: 'pnpm' },
-    { lockFile: 'yarn.lock', packageManager: 'yarn' },
-    { lockFile: 'package-lock.json', packageManager: 'npm' },
-    { lockFile: 'bun.lockb', packageManager: 'bun' },
-  ]) {
-    if (fs.existsSync(path.join(process.cwd(), lockFile))) {
-      detectedPackageManagers.push([packageManager as PackageManager, lockFile])
-    }
+  const packageManagers = {
+    pnpm: 'pnpm-lock.yaml',
+    yarn: 'yarn.lock',
+    npm: 'package-lock.json',
+    bun: 'bun.lockb',
   }
+
+  function findLockFile(dir: string): PackageManager[] {
+    const packageJsonPath = path.join(dir, 'package.json')
+    if (fs.existsSync(packageJsonPath)) {
+      let detectedPackageManagers: PackageManager[] = []
+      let packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+      if (packageJson.packageManager) {
+        // corepack
+        let packageManagerName = packageJson.packageManager.split(
+          '@'
+        )[0] as PackageManager
+        if (packageManagerName in packageManagers) {
+          return [packageManagerName]
+        }
+      }
+      for (const [packageManager, lockFile] of Object.entries(
+        packageManagers
+      )) {
+        const lockFilePath = path.join(dir, lockFile)
+        if (fs.existsSync(lockFilePath)) {
+          detectedPackageManagers.push(packageManager as PackageManager)
+        }
+      }
+      if (detectedPackageManagers.length !== 0) {
+        return detectedPackageManagers
+      }
+    }
+    const parentDir = path.dirname(dir)
+    if (parentDir !== dir) {
+      return findLockFile(parentDir)
+    }
+    return []
+  }
+
+  let realPath = fs.realpathSync(process.cwd())
+  const detectedPackageManagers = findLockFile(realPath)
 
   // Exactly one package manager detected
   if (detectedPackageManagers.length === 1) {
-    return detectedPackageManagers[0][0]
+    return detectedPackageManagers[0]
   }
 
   // Multiple package managers detected
@@ -242,8 +272,8 @@ async function getPackageManager(_packageJson: any): Promise<PackageManager> {
         name: 'packageManager',
         message: 'Multiple package managers detected. Which one are you using?',
         choices: detectedPackageManagers.map((packageManager) => ({
-          title: packageManager[0],
-          value: packageManager[0],
+          title: packageManager,
+          value: packageManager,
         })),
         initial: 0,
       },
@@ -255,7 +285,7 @@ async function getPackageManager(_packageJson: any): Promise<PackageManager> {
     )
 
     console.log(
-      `${chalk.red('⚠️')} To avoid this next time, keep only one of ${detectedPackageManagers.map((packageManager) => chalk.underline(packageManager[1])).join(' or ')}\n`
+      `${chalk.red('⚠️')} To avoid this next time, keep only one of ${detectedPackageManagers.map((packageManager) => chalk.underline(packageManagers[packageManager])).join(' or ')}\n`
     )
 
     return responsePackageManager.packageManager as PackageManager
