@@ -1,6 +1,20 @@
-import type { API, ASTPath, CallExpression, Collection } from 'jscodeshift'
+import type {
+  API,
+  ASTPath,
+  CallExpression,
+  Collection,
+  FunctionDeclaration,
+} from 'jscodeshift'
 
 type AsyncAPIName = 'cookies' | 'headers' | 'draftMode'
+
+function isFunctionType(type: string) {
+  return (
+    type === 'FunctionDeclaration' ||
+    type === 'FunctionExpression' ||
+    type === 'ArrowFunctionExpression'
+  )
+}
 
 function insertReactUseImport(root: Collection<any>, j: API['j']) {
   const hasReactUseImport =
@@ -53,18 +67,91 @@ function insertReactUseImport(root: Collection<any>, j: API['j']) {
   }
 }
 
-function isSameNode(childNode, parentNode, j: API['j']) {
-  // Start from the child node and move up the AST
+function isMatchedFunctionExported(
+  path: ASTPath<FunctionDeclaration>,
+  j: API['jscodeshift']
+): boolean {
+  const GENERATE_METADATA_FUNCTION_NAME = 'generateMetadata'
+  // Check for direct export (`export function generateMetadata() {}`)
+  const directMetadataAPIExport = j(path).closest(j.ExportNamedDeclaration, {
+    declaration: {
+      type: 'FunctionDeclaration',
+      id: {
+        name: GENERATE_METADATA_FUNCTION_NAME,
+      },
+    },
+  })
 
-  if (!childNode || !parentNode) {
-    return false
-  }
-
-  if (j(childNode).toSource() === j(parentNode).toSource()) {
+  if (directMetadataAPIExport.size() > 0) {
     return true
   }
 
-  return false
+  // Check for default export (`export default function() {}`)
+  const isDefaultExport = j(path).closest(j.ExportDefaultDeclaration).size() > 0
+  if (isDefaultExport) {
+    return true
+  }
+
+  // Look for named export elsewhere in the file (`export { generateMetadata }`)
+  const root = j(path).closestScope().closest(j.Program)
+  const isNamedExport =
+    root
+      .find(j.ExportNamedDeclaration, {
+        specifiers: [
+          {
+            type: 'ExportSpecifier',
+            exported: {
+              name: GENERATE_METADATA_FUNCTION_NAME,
+            },
+          },
+        ],
+      })
+      .size() > 0
+
+  // Look for variable export but still function, e.g. `export const generateMetadata = function() {}`,
+  // also check if variable is a function or arrow function
+  const isVariableExport =
+    root
+      .find(j.ExportNamedDeclaration, {
+        declaration: {
+          declarations: [
+            {
+              type: 'VariableDeclarator',
+              id: {
+                type: 'Identifier',
+                name: GENERATE_METADATA_FUNCTION_NAME,
+              },
+              init: {
+                type: isFunctionType,
+              },
+            },
+          ],
+        },
+      })
+      .size() > 0
+
+  if (isVariableExport) return true
+
+  return isNamedExport
+}
+
+function findImportedIdentifier(
+  root: Collection<any>,
+  j: API['j'],
+  functionName: AsyncAPIName
+) {
+  let importedAlias: string | undefined
+  root
+    .find(j.ImportDeclaration, {
+      source: { value: 'next/headers' },
+    })
+    .find(j.ImportSpecifier, {
+      imported: { name: functionName },
+    })
+    .forEach((importSpecifier) => {
+      importedAlias = importSpecifier.node.local.name
+    })
+  return importedAlias
 }
 
 export function transformDynamicAPI(source: string, api: API) {
@@ -73,21 +160,6 @@ export function transformDynamicAPI(source: string, api: API) {
 
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
-
-  function findImportedIdentifier(functionName: AsyncAPIName) {
-    let importedAlias: string | undefined
-    root
-      .find(j.ImportDeclaration, {
-        source: { value: 'next/headers' },
-      })
-      .find(j.ImportSpecifier, {
-        imported: { name: functionName },
-      })
-      .forEach((importSpecifier) => {
-        importedAlias = importSpecifier.node.local.name
-      })
-    return importedAlias
-  }
 
   function isImportedInModule(
     path: ASTPath<CallExpression>,
@@ -100,21 +172,12 @@ export function transformDynamicAPI(source: string, api: API) {
   }
 
   function processAsyncApiCalls(functionName: AsyncAPIName) {
-    const importedAlias = findImportedIdentifier(functionName)
+    const importedAlias = findImportedIdentifier(root, j, functionName)
 
     if (!importedAlias) {
       // Skip the transformation if the function is not imported from 'next/headers'
       return
     }
-
-    const defaultExportFunctionPath = root.find(j.ExportDefaultDeclaration, {
-      declaration: {
-        type: (type) =>
-          type === 'FunctionDeclaration' ||
-          type === 'FunctionExpression' ||
-          type === 'ArrowFunctionExpression',
-      },
-    })
 
     // Process each call to cookies() or headers()
     root
@@ -130,8 +193,15 @@ export function transformDynamicAPI(source: string, api: API) {
           return
         }
 
+        const closetScope = j(path).closestScope()
+
         // Check if available to apply transform
-        const closestFunction = j(path).closest(j.FunctionDeclaration)
+        const closestFunction =
+          j(path).closest(j.FunctionDeclaration) ||
+          j(path).closest(j.FunctionExpression) ||
+          j(path).closest(j.ArrowFunctionExpression) ||
+          j(path).closest(j.VariableDeclaration)
+
         const isAsyncFunction = closestFunction
           .nodes()
           .some((node) => node.async)
@@ -149,35 +219,42 @@ export function transformDynamicAPI(source: string, api: API) {
             )
           }
         } else {
-          // Check if current path is under the defaultExportFunction, without using any helper
-          const defaultExportFunctionNode = defaultExportFunctionPath.size()
-            ? defaultExportFunctionPath.get().node
+          // Determine if the function is an export
+          const isFromExport = isMatchedFunctionExported(closetScope.get(), j)
+          const closestFunctionNode = closetScope.size()
+            ? closetScope.get().node
             : null
 
-          const closestFunctionNode = closestFunction.get().node
+          // If it's exporting a function directly, exportFunctionNode is same as exportNode
+          // e.g. export default function MyComponent() {}
+          // If it's exporting a variable declaration, exportFunctionNode is the function declaration
+          // e.g. export const MyComponent = function() {}
+          let exportFunctionNode
 
-          // Determine if defaultExportFunctionNode contains the current path
-          const isUnderDefaultExportFunction = defaultExportFunctionNode
-            ? isSameNode(
-                closestFunctionNode,
-                defaultExportFunctionNode.declaration,
-                j
-              )
-            : false
+          if (isFromExport) {
+            if (
+              closestFunctionNode &&
+              isFunctionType(closestFunctionNode.type)
+            ) {
+              exportFunctionNode = closestFunctionNode
+            }
+          } else {
+            // Is normal async function
+            exportFunctionNode = closestFunctionNode
+          }
 
           let canConvertToAsync = false
           // check if current path is under the default export function
-          if (isUnderDefaultExportFunction) {
+          if (isFromExport) {
             // if default export function is not async, convert it to async, and await the api call
-
             if (!isCallAwaited) {
-              if (defaultExportFunctionNode.declaration) {
-                defaultExportFunctionNode.declaration.async = true
+              // If the scoped function is async function
+              if (
+                isFunctionType(exportFunctionNode.type) &&
+                exportFunctionNode.async === false
+              ) {
                 canConvertToAsync = true
-              }
-              if (defaultExportFunctionNode.expression) {
-                defaultExportFunctionNode.expression.async = true
-                canConvertToAsync = true
+                exportFunctionNode.async = true
               }
 
               if (canConvertToAsync) {
@@ -190,17 +267,22 @@ export function transformDynamicAPI(source: string, api: API) {
             }
           } else {
             // if parent is function function and it's a hook, which starts with 'use', wrap the api call with 'use()'
-            const parentFunction = j(path).closest(j.FunctionDeclaration)
-            const isParentFunctionHook =
-              parentFunction.size() > 0 &&
-              parentFunction.get().node.id?.name.startsWith('use')
-            if (isParentFunctionHook) {
-              j(path).replaceWith(
-                j.callExpression(j.identifier('use'), [
-                  j.callExpression(j.identifier(functionName), []),
-                ])
-              )
-              needsReactUseImport = true
+            const parentFunction =
+              j(path).closest(j.FunctionDeclaration) ||
+              j(path).closest(j.FunctionExpression) ||
+              j(path).closest(j.ArrowFunctionExpression)
+
+            if (parentFunction.size() > 0) {
+              const parentFUnctionName = parentFunction.get().node.id?.name
+              const isParentFunctionHook = parentFUnctionName?.startsWith('use')
+              if (isParentFunctionHook) {
+                j(path).replaceWith(
+                  j.callExpression(j.identifier('use'), [
+                    j.callExpression(j.identifier(functionName), []),
+                  ])
+                )
+                needsReactUseImport = true
+              }
             } else {
               // TODO: Otherwise, leave a message to the user to manually handle the transformation
             }

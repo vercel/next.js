@@ -3,9 +3,14 @@ import type {
   Collection,
   ASTPath,
   ExportDefaultDeclaration,
+  ExportNamedDeclaration,
 } from 'jscodeshift'
 
 const PAGE_PROPS = 'props'
+
+type FunctionalExportDeclaration =
+  | ExportDefaultDeclaration
+  | ExportNamedDeclaration
 
 function insertReactUseImport(root: Collection<any>, j: API['j']) {
   const hasReactUseImport =
@@ -60,7 +65,9 @@ function insertReactUseImport(root: Collection<any>, j: API['j']) {
   }
 }
 
-function isAsyncFunctionDeclaration(path: ASTPath<ExportDefaultDeclaration>) {
+function isAsyncFunctionDeclaration(
+  path: ASTPath<FunctionalExportDeclaration>
+) {
   const decl = path.value.declaration
   const isAsyncFunction =
     (decl.type === 'FunctionDeclaration' ||
@@ -78,7 +85,9 @@ export function transformDynamicProps(source: string, api: API) {
 
   function processAsyncPropOfEntryFile(isClientComponent: boolean) {
     // find `params` and `searchParams` in file, and transform the access to them
-    function renameAsyncPropIfExisted(path: ASTPath<ExportDefaultDeclaration>) {
+    function renameAsyncPropIfExisted(
+      path: ASTPath<FunctionalExportDeclaration>
+    ) {
       let found = false
 
       const decl = path.value.declaration
@@ -172,7 +181,7 @@ export function transformDynamicProps(source: string, api: API) {
     }
 
     function getBodyOfFunctionDeclaration(
-      path: ASTPath<ExportDefaultDeclaration>
+      path: ASTPath<FunctionalExportDeclaration>
     ) {
       const decl = path.value.declaration
 
@@ -192,7 +201,7 @@ export function transformDynamicProps(source: string, api: API) {
 
     // Helper function to insert `const params = await asyncParams;` at the beginning of the function body
     function resolveAsyncProp(
-      path: ASTPath<ExportDefaultDeclaration>,
+      path: ASTPath<FunctionalExportDeclaration>,
       propNames: string[]
     ) {
       const isAsyncFunc = isAsyncFunctionDeclaration(path)
@@ -238,16 +247,50 @@ export function transformDynamicProps(source: string, api: API) {
 
     if (!isClientComponent) {
       // Process Function Declarations
-      const functionDeclarations = root.find(j.ExportDefaultDeclaration, {
-        declaration: {
-          type: (type) =>
-            type === 'FunctionDeclaration' ||
-            type === 'FunctionExpression' ||
-            type === 'ArrowFunctionExpression',
-        },
+      // Matching: default export function XXX(...) { ... }
+      const defaultExportFunctionDeclarations = root.find(
+        j.ExportDefaultDeclaration,
+        {
+          declaration: {
+            type: (type) =>
+              type === 'FunctionDeclaration' ||
+              type === 'FunctionExpression' ||
+              type === 'ArrowFunctionExpression',
+          },
+        }
+      )
+
+      defaultExportFunctionDeclarations.forEach((path) => {
+        renameAsyncPropIfExisted(path)
       })
 
-      functionDeclarations.forEach((path) => {
+      // Matching functional metadata export:
+      // - export function generateMetadata(...) { ... }
+      // - export const generateMetadata = ...
+      const generateMetadataExportDeclarations = root.find(
+        j.ExportNamedDeclaration,
+        {
+          declaration: {
+            declarations: [
+              {
+                // match both variable and function declarations
+                type(declaration: ExportNamedDeclaration['declaration']) {
+                  return (
+                    declaration.type === 'VariableDeclaration' ||
+                    declaration.type === 'FunctionDeclaration'
+                  )
+                },
+                id: {
+                  type: 'Identifier',
+                  name: 'generateMetadata',
+                },
+              },
+            ],
+          },
+        }
+      )
+
+      generateMetadataExportDeclarations.forEach((path) => {
         renameAsyncPropIfExisted(path)
       })
     }
