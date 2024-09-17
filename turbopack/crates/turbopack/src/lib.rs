@@ -190,11 +190,10 @@ async fn apply_module_type(
                 let options = options.await?;
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
-                        Vc::upcast(if let Some(part) = part {
-                            EcmascriptModulePartAsset::new(module, part)
-                        } else {
-                            EcmascriptModulePartAsset::new(module, ModulePart::facade())
-                        })
+                        Vc::upcast(EcmascriptModulePartAsset::select_part(
+                            module,
+                            part.unwrap_or(ModulePart::facade()),
+                        ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
                         if let Some(part) = part {
