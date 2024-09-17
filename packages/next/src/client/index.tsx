@@ -495,8 +495,8 @@ function markHydrateComplete(): void {
     if (
       process.env.NODE_ENV === 'development' &&
       // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
-      beforeHydrationMeasure !== undefined &&
-      hydrationMeasure !== undefined
+      beforeHydrationMeasure &&
+      hydrationMeasure
     ) {
       tracer
         .startSpan('navigation-to-hydration', {
