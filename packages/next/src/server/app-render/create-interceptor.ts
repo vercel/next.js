@@ -11,11 +11,13 @@ import {
 
 const callingExpression = 'an interceptor'
 
+export type RequestBoundInterceptor = () => Promise<void>
+
 export async function createInterceptor(
   moduleTuple: ModuleTuple,
   requestStore: RequestStore,
   workStore: WorkStore
-): Promise<() => Promise<void>> {
+): Promise<RequestBoundInterceptor> {
   const [getModule, , filePathRelative] = moduleTuple
   const workUnitStore = workUnitAsyncStorage.getStore()
 
