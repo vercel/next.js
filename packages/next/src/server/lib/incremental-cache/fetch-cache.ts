@@ -182,8 +182,8 @@ export default class FetchCache implements CacheHandler {
       return
     }
 
-    for (let i = 0; i < tags.length / 64; i++) {
-      const currentTags = tags.slice(i * 64, i * 64 + 64)
+    for (let i = 0; i < Math.ceil(tags.length / 64); i++) {
+      const currentTags = tags.slice(i * 64, i * 64 + 64);
       try {
         const res = await fetchRetryWithTimeout(
           `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${currentTags
