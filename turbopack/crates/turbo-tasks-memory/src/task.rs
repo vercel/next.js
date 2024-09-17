@@ -830,11 +830,11 @@ impl Task {
             let remove_job = if outdated_children.is_empty() {
                 None
             } else {
-                Some(state.aggregation_node.handle_lost_edges(
+                state.aggregation_node.handle_lost_edges(
                     &aggregation_context,
                     &self.id,
                     outdated_children,
-                ))
+                )
             };
 
             let mut change = TaskChange {
