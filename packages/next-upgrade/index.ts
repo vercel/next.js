@@ -12,7 +12,7 @@ import which from 'which'
 type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
 type CustomVersionSpecifier = string
 type VersionSpecifier = StandardVersionSpecifier | CustomVersionSpecifier
-type PackageManager = 'pnpm' | 'npm' | 'yarn'
+type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
 interface Response {
   version: StandardVersionSpecifier
@@ -133,6 +133,9 @@ async function run(): Promise<void> {
     case 'yarn':
       updateCommand = `yarn add ${reactDependencies.join(' ')} ${nextDependency}`
       break
+    case 'bun':
+      updateCommand = `bun add ${reactDependencies.join(' ')} ${nextDependency}`
+      break
     default:
       throw new Error(`Unreachable code`)
   }
@@ -195,6 +198,7 @@ async function getPackageManager(_packageJson: any): Promise<PackageManager> {
     { lockFile: 'pnpm-lock.yaml', packageManager: 'pnpm' },
     { lockFile: 'yarn.lock', packageManager: 'yarn' },
     { lockFile: 'package-lock.json', packageManager: 'npm' },
+    { lockFile: 'bun.lockb', packageManager: 'bun' },
   ]) {
     if (fs.existsSync(path.join(process.cwd(), lockFile))) {
       detectedPackageManagers.push([packageManager as PackageManager, lockFile])
@@ -234,7 +238,7 @@ async function getPackageManager(_packageJson: any): Promise<PackageManager> {
   }
 
   // No package manager detected
-  let choices = ['pnpm', 'yarn', 'npm']
+  let choices = ['pnpm', 'yarn', 'npm', 'bun']
     .filter((packageManager) => which.sync(packageManager, { nothrow: true }))
     .map((packageManager) => ({
       title: packageManager,
