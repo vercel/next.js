@@ -93,6 +93,8 @@ export = defineRule({
     }
 
     const pageUrls = getUrlFromPagesDirectories('/', foundPagesDirs)
+    const appUrls = getUrlFromPagesDirectories('/', foundAppDirs)
+
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'a') {
@@ -134,7 +136,7 @@ export = defineRule({
           return
         }
 
-        pageUrls.forEach((pageUrl) => {
+        ;[...pageUrls, ...appUrls].forEach((pageUrl) => {
           if (pageUrl.test(normalizeURL(hrefPath))) {
             context.report({
               node,
