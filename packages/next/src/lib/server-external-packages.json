@@ -13,6 +13,7 @@
   "@prisma/client",
   "@react-pdf/renderer",
   "@sentry/profiling-node",
+  "@sentry/nextjs",
   "@sparticuz/chromium",
   "@swc/core",
   "argon2",
