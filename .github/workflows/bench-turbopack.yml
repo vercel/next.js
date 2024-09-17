@@ -51,14 +51,7 @@ jobs:
               - 'linux'
               - 'x64'
               - 'metal'
-          # - name: macos
-          #   title: MacOS
-          #   quiet: true
-          #   runner: macos-latest
-          # - name: windows
-          #   title: Windows
-          #   quiet: true
-          #   runner: windows-latest
+
     runs-on: ${{ matrix.os.runs-on }}
     permissions:
       contents: read
@@ -93,5 +86,5 @@ jobs:
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v3
         with:
-          run: cargo codspeed run
+          run: cargo codspeed run --workspace --exclude turbopack-bench
 #          token: ${{ secrets.CODSPEED_TOKEN }}
