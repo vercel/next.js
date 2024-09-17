@@ -828,6 +828,16 @@ impl Task {
             let outdated_children = outdated_edges.drain_children();
             let outdated_collectibles = outdated_collectibles.take_collectibles();
 
+            let remove_job = if outdated_children.is_empty() {
+                None
+            } else {
+                Some(state.aggregation_node.handle_lost_edges(
+                    &aggregation_context,
+                    &self.id,
+                    outdated_children,
+                ))
+            };
+
             let mut change = TaskChange {
                 unfinished: -1,
                 #[cfg(feature = "track_unfinished")]
@@ -842,18 +852,10 @@ impl Task {
             let change_job = state
                 .aggregation_node
                 .apply_change(&aggregation_context, change);
-            let remove_job = if outdated_children.is_empty() {
-                None
-            } else {
-                Some(state.aggregation_node.handle_lost_edges(
-                    &aggregation_context,
-                    &self.id,
-                    outdated_children,
-                ))
-            };
+
             drop(state);
-            change_job.apply(&aggregation_context);
             remove_job.apply(&aggregation_context);
+            change_job.apply(&aggregation_context);
         }
         aggregation_context.apply_queued_updates();
     }
