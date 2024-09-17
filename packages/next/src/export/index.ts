@@ -362,7 +362,11 @@ async function exportAppImpl(
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
 
-  const { publicRuntimeConfig } = nextConfig
+  // if(nextConfig) {
+
+    // const { publicRuntimeConfig } = nextConfig!
+    const publicRuntimeConfig = nextConfig?.publicRuntimeConfig;
+  // }
 
   if (Object.keys(publicRuntimeConfig).length > 0) {
     renderOpts.runtimeConfig = publicRuntimeConfig
