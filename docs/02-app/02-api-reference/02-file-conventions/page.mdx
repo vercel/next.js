@@ -149,11 +149,13 @@ export default async function Page({ searchParams }) {
 }
 ```
 
-### Reading `searchParams` and `params` in synchronous components
+### Reading `searchParams` and `params` in Client Components
 
-To use `searchParams` and `params` in a synchronous Server Component, you can use React's [`use`](https://react.dev/reference/react/use) function to read the promise:
+To use `searchParams` and `params` in a Client Component (which cannot be `async`), you can use React's [`use`](https://react.dev/reference/react/use) function to read the promise:
 
 ```tsx filename="app/page.tsx" switcher
+'use client'
+
 import { use } from 'react'
 
 export function Page({
@@ -169,6 +171,8 @@ export function Page({
 ```
 
 ```js filename="app/page.js" switcher
+'use client'
+
 import { use } from 'react'
 
 export function Page({ params, searchParams }) {
