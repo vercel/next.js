@@ -1,8 +1,6 @@
 import * as path from 'path'
 import * as fs from 'fs'
 
-import { normalizeAppPath } from '../../../next/src/shared/lib/router/utils/app-paths'
-
 // Cache for fs.readdirSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsReadDirSyncCache = {}
@@ -84,6 +82,56 @@ export function normalizeURL(url: string) {
 }
 
 /**
+ * Normalizes an app route so it represents the actual request path. Essentially
+ * performing the following transformations:
+ *
+ * - `/(dashboard)/user/[id]/page` to `/user/[id]`
+ * - `/(dashboard)/account/page` to `/account`
+ * - `/user/[id]/page` to `/user/[id]`
+ * - `/account/page` to `/account`
+ * - `/page` to `/`
+ * - `/(dashboard)/user/[id]/route` to `/user/[id]`
+ * - `/(dashboard)/account/route` to `/account`
+ * - `/user/[id]/route` to `/user/[id]`
+ * - `/account/route` to `/account`
+ * - `/route` to `/`
+ * - `/` to `/`
+ *
+ * @param route the app route to normalize
+ * @returns the normalized pathname
+ */
+export function normalizeAppPath(route: string) {
+  return ensureLeadingSlash(
+    route.split('/').reduce((pathname, segment, index, segments) => {
+      // Empty segments are ignored.
+      if (!segment) {
+        return pathname
+      }
+
+      // Groups are ignored.
+      if (isGroupSegment(segment)) {
+        return pathname
+      }
+
+      // Parallel segments are ignored.
+      if (segment[0] === '@') {
+        return pathname
+      }
+
+      // The last segment (if it's a leaf) should be ignored.
+      if (
+        (segment === 'page' || segment === 'route') &&
+        index === segments.length - 1
+      ) {
+        return pathname
+      }
+
+      return `${pathname}/${segment}`
+    }, '')
+  )
+}
+
+/**
  * Gets the possible URLs from a directory.
  */
 export function getUrlFromPagesDirectories(
@@ -140,4 +188,12 @@ export function execOnce<TArgs extends any[], TResult>(
     }
     return result
   }
+}
+
+function ensureLeadingSlash(route: string) {
+  return route.startsWith('/') ? route : `/${route}`
+}
+
+function isGroupSegment(segment: string) {
+  return segment[0] === '(' && segment.endsWith(')')
 }
