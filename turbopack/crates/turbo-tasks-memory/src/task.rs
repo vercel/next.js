@@ -308,6 +308,23 @@ impl MaybeCollectibles {
             .or_default();
         *value -= count as i32;
     }
+
+    /// Removes an collectible if the count is positive.
+    fn remove_emit(&mut self, trait_type: TraitTypeId, value: RawVc) -> bool {
+        let Some(inner) = self.inner.as_mut() else {
+            return false;
+        };
+
+        let auto_hash_map::map::Entry::Occupied(mut e) = inner.entry((trait_type, value)) else {
+            return false;
+        };
+        let value = e.get_mut();
+        *value -= 1;
+        if *value == 0 {
+            e.remove();
+        }
+        true
+    }
 }
 
 struct InProgressState {
@@ -1682,9 +1699,18 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
-        let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let mut state = self.full_state_mut();
         state.collectibles.emit(trait_type, collectible);
+        if let TaskStateType::InProgress(box InProgressState {
+            outdated_collectibles,
+            ..
+        }) = &mut state.state_type
+        {
+            if outdated_collectibles.remove_emit(trait_type, collectible) {
+                return;
+            }
+        }
+        let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let change_job = state.aggregation_node.apply_change(
             &aggregation_context,
             TaskChange {
