@@ -19,6 +19,11 @@ interface Response {
 }
 
 async function run(): Promise<void> {
+  const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
+  let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
+
+  await detectWorkspace(appPackageJson)
+
   let targetNextPackageJson
   let targetVersionSpecifier: VersionSpecifier = ''
 
@@ -99,9 +104,6 @@ async function run(): Promise<void> {
     targetVersionSpecifier = response.version
   }
 
-  const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
-  let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
-
   if (
     targetNextPackageJson.version &&
     compareVersions(targetNextPackageJson.version, '15.0.0-canary') >= 0
@@ -141,7 +143,7 @@ async function run(): Promise<void> {
   }
 
   console.log(
-    `Upgrading your project to ${chalk.blueBright('Next.js ' + targetVersionSpecifier)}...\n`
+    `Upgrading your project to ${chalk.blue('Next.js ' + targetVersionSpecifier)}...\n`
   )
   execSync(updateCommand, {
     stdio: 'inherit',
@@ -154,6 +156,32 @@ async function run(): Promise<void> {
   console.log(
     `\n${chalk.green('✔')} Your Next.js project has been upgraded successfully. ${chalk.bold('Time to ship! 🚢')}`
   )
+}
+
+async function detectWorkspace(appPackageJson: any): Promise<void> {
+  let isWorkspace =
+    appPackageJson.workspaces ||
+    fs.existsSync(path.resolve(process.cwd(), 'pnpm-workspace.yaml'))
+
+  if (!isWorkspace) return
+
+  console.log(
+    `${chalk.red('⚠️')} You seem to be in the root of a monorepo. ${chalk.blue('@next/upgrade')} should be run in a specific app directory within the monorepo.`
+  )
+
+  const response = await prompts(
+    {
+      type: 'confirm',
+      name: 'value',
+      message: 'Do you still want to continue?',
+      initial: false,
+    },
+    { onCancel: () => process.exit(0) }
+  )
+
+  if (!response.value) {
+    process.exit(0)
+  }
 }
 
 /*
@@ -175,7 +203,7 @@ async function processCurrentVersion(showRc: boolean): Promise<number> {
   }
 
   console.log(
-    `You are currently using ${chalk.blueBright('Next.js ' + installedNextVersion)}`
+    `You are currently using ${chalk.blue('Next.js ' + installedNextVersion)}`
   )
 
   if (installedNextVersion.includes('canary')) {
