@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use rustc_hash::FxHashSet;
 use swc_core::{
     atoms::Atom,
     common::{errors::HANDLER, SourceMap, Span},
@@ -47,10 +46,8 @@ struct WarnForEdgeRuntime {
     should_error_for_node_apis: bool,
 
     should_add_guards: bool,
-    /// We don't drop guards because a user may write a code like
-    /// `if(typeof clearImmediate !== "function") clearImmediate();`
-    guarded_symbols: FxHashSet<Atom>,
-    guarded_process_props: FxHashSet<Atom>,
+    guarded_symbols: Vec<Atom>,
+    guarded_process_props: Vec<Atom>,
     is_production: bool,
 }
 
@@ -224,12 +221,12 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
 
         match test {
             Expr::Ident(ident) => {
-                self.guarded_symbols.insert(ident.sym.clone());
+                self.guarded_symbols.push(ident.sym.clone());
             }
             Expr::Member(member) => {
                 if member.obj.is_global_ref_to(&self.ctx, "process") {
                     if let MemberProp::Ident(prop) = &member.prop {
-                        self.guarded_process_props.insert(prop.sym.clone());
+                        self.guarded_process_props.push(prop.sym.clone());
                     }
                 }
             }
@@ -257,6 +254,15 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
             });
         }
     }
+
+    fn with_new_scope(&mut self, f: impl FnOnce(&mut Self)) {
+        let old_guarded_symbols_len = self.guarded_symbols.len();
+        let old_guarded_process_props_len = self.guarded_symbols.len();
+        f(self);
+        self.guarded_symbols.truncate(old_guarded_symbols_len);
+        self.guarded_process_props
+            .truncate(old_guarded_process_props_len);
+    }
 }
 
 impl Visit for WarnForEdgeRuntime {
@@ -273,8 +279,10 @@ impl Visit for WarnForEdgeRuntime {
     fn visit_bin_expr(&mut self, node: &BinExpr) {
         match node.op {
             op!("&&") | op!("||") | op!("??") => {
-                self.add_guards(&node.left);
-                node.right.visit_with(self);
+                self.with_new_scope(move |this| {
+                    this.add_guards(&node.left);
+                    node.right.visit_with(this);
+                });
             }
             _ => {
                 node.visit_children_with(self);
@@ -282,10 +290,12 @@ impl Visit for WarnForEdgeRuntime {
         }
     }
     fn visit_cond_expr(&mut self, node: &CondExpr) {
-        self.add_guards(&node.test);
+        self.with_new_scope(move |this| {
+            this.add_guards(&node.test);
 
-        node.cons.visit_with(self);
-        node.alt.visit_with(self);
+            node.cons.visit_with(this);
+            node.alt.visit_with(this);
+        });
     }
 
     fn visit_expr(&mut self, n: &Expr) {
@@ -309,10 +319,12 @@ impl Visit for WarnForEdgeRuntime {
     }
 
     fn visit_if_stmt(&mut self, node: &IfStmt) {
-        self.add_guards(&node.test);
+        self.with_new_scope(move |this| {
+            this.add_guards(&node.test);
 
-        node.cons.visit_with(self);
-        node.alt.visit_with(self);
+            node.cons.visit_with(this);
+            node.alt.visit_with(this);
+        });
     }
 
     fn visit_import_decl(&mut self, n: &ImportDecl) {
