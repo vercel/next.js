@@ -637,9 +637,11 @@ export class NextTypesPlugin {
       }
       if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
 
-      // skip for _private dir convention
-      // matches **/app/**/_*
-      const IS_PRIVATE = /^.*\/app(?:\/[^/]+)*\/_.*$/.test(mod.resource)
+      // skip for /app/_private dir convention
+      // matches <app-dir>/**/_*
+      const IS_PRIVATE = /(?:\/[^/]+)*\/_.*$/.test(
+        mod.resource.replace(this.appDir, '')
+      )
       if (IS_PRIVATE) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
