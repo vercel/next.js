@@ -7,25 +7,33 @@ describe('cookies-dedup', () => {
 
   it('cookies set by middleware should be removed if action sets the same cookie', async () => {
     const browser = await next.browser('/')
+    const url = await browser.url()
     await browser.waitForElementByCss('button#action')
-    await browser.elementByCss('button#action').click()
-    await browser.waitForIdleNetwork()
 
-    const cookies = await browser.getCookies()
-    expect(cookies.length).toEqual(1)
-    expect(cookies[0].name).toEqual('common-cookie')
-    expect(cookies[0].value).toEqual('from-action')
+    const actionResponsePromise = browser.waitForResponse(url, {
+      timeout: 100,
+    })
+    await browser.elementByCss('button#action').click()
+    const actionResponse = await actionResponsePromise
+
+    const headers = await actionResponse.allHeaders()
+    const setCookieHeaders = headers['set-cookie']
+    expect(setCookieHeaders).toEqual('common-cookie=from-action; Path=/')
   })
 
   it('cookies set by middleware should be removed if api route sets the same cookie', async () => {
     const browser = await next.browser('/')
+    const url = await browser.url()
     await browser.waitForElementByCss('button#api')
-    await browser.elementByCss('button#api').click()
-    await browser.waitForIdleNetwork()
 
-    const cookies = await browser.getCookies()
-    expect(cookies.length).toEqual(1)
-    expect(cookies[0].name).toEqual('common-cookie')
-    expect(cookies[0].value).toEqual('from-api')
+    const apiResponsePromise = browser.waitForResponse(`${url}api`, {
+      timeout: 100,
+    })
+    await browser.elementByCss('button#api').click()
+    const apiResponse = await apiResponsePromise
+
+    const headers = await apiResponse.allHeaders()
+    const setCookieHeaders = headers['set-cookie']
+    expect(setCookieHeaders).toEqual('common-cookie=from-api; Path=/')
   })
 })
