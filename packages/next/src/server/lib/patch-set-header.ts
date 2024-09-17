@@ -35,13 +35,19 @@ export function patchSetHeaderWithCookieSupport(
         !Array.isArray(value) ||
         !value.every((item, idx) => item === middlewareValue[idx])
       ) {
-        const valueAsArray: string[] =
+        let valueAsArray: string[] =
           typeof value === 'string'
             ? [value]
             : Array.isArray(value)
               ? value
               : []
 
+        // this step is necessary because when merging cookies in send-response.ts
+        // the "value" argument will contain the cookies set by the middleware
+        // so we remove those in this step by exact match
+        valueAsArray = valueAsArray.filter(
+          (cookie) => !middlewareValue?.includes(cookie)
+        )
         const cookieNamesToSet = new Set<string>()
         for (const cookie of valueAsArray) {
           const [cookieName] = cookie.split('=')
