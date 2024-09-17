@@ -37,6 +37,9 @@ describe('app-dir - client-actions-tree-shaking', () => {
     const route2Files = await fs.readdir(
       join(appDir, '.next/static/chunks/app/route-2')
     )
+    const route3Files = await fs.readdir(
+      join(appDir, '.next/static/chunks/app/route-3')
+    )
 
     const route1Bundle = await fs.readFile(
       join(
@@ -52,14 +55,25 @@ describe('app-dir - client-actions-tree-shaking', () => {
         route2Files.find((file) => file.endsWith('.js'))
       )
     )
+    const route3Bundle = await fs.readFile(
+      join(
+        appDir,
+        '.next/static/chunks/app/route-3',
+        route3Files.find((file) => file.endsWith('.js'))
+      )
+    )
 
     const bundle1Ids = getServerReferenceIdsFromBundle(route1Bundle.toString())
     const bundle2Ids = getServerReferenceIdsFromBundle(route2Bundle.toString())
+    const bundle3Ids = getServerReferenceIdsFromBundle(route3Bundle.toString())
 
-    // Each should only have one ID.
+    // Bundle 1 and 2 should only have one ID.
     expect(bundle1Ids).toHaveLength(1)
     expect(bundle2Ids).toHaveLength(1)
     expect(bundle1Ids[0]).not.toEqual(bundle2Ids[0])
+
+    // Bundle 3 should have no IDs.
+    expect(bundle3Ids).toHaveLength(0)
   })
 
   // Test the application
