@@ -10,11 +10,12 @@ export function wrapClientComponentLoader(ComponentMod: any) {
 
   return {
     require: (...args: any[]) => {
+      const startTime = performance.now()
+
       if (clientComponentLoadStart === 0) {
-        clientComponentLoadStart = performance.now()
+        clientComponentLoadStart = startTime
       }
 
-      const startTime = performance.now()
       try {
         clientComponentLoadCount += 1
         return ComponentMod.__next_app__.require(...args)

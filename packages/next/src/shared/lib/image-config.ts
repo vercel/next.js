@@ -112,7 +112,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   formats: ['image/webp'],
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
-  contentDispositionType: 'inline',
+  contentDispositionType: 'attachment',
   remotePatterns: [],
   unoptimized: false,
 }

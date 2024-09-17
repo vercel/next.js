@@ -1,3 +1,5 @@
+export const fetchCache = 'default-cache'
+
 export default function Layout({ children }) {
   return (
     <html lang="en">

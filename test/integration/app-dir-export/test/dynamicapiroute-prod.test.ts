@@ -5,7 +5,11 @@ describe('app dir - with output export - dynamic api route prod', () => {
     'production mode',
     () => {
       it.each([
-        { dynamicApiRoute: 'undefined' },
+        {
+          dynamicApiRoute: 'undefined',
+          expectedErrMsg:
+            'export const dynamic = "force-static"/export const revalidate not configured on route',
+        },
         { dynamicApiRoute: "'error'" },
         { dynamicApiRoute: "'force-static'" },
         {

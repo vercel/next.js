@@ -1,9 +1,5 @@
-import React from 'react'
-import type { ReactElement, ReactNode } from 'react'
-import {
-  OPTIMIZED_FONT_PROVIDERS,
-  NEXT_BUILTIN_DOCUMENT,
-} from '../shared/lib/constants'
+import React, { type JSX } from 'react'
+import { NEXT_BUILTIN_DOCUMENT } from '../shared/lib/constants'
 import type {
   DocumentContext,
   DocumentInitialProps,
@@ -25,6 +21,9 @@ import {
 } from '../shared/lib/html-context.shared-runtime'
 import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getTracer } from '../server/lib/trace/tracer'
+import { getTracedMetadata } from '../server/lib/trace/utils'
 
 export type { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -97,19 +96,19 @@ function getPolyfillScripts(context: HtmlProps, props: OriginProps) {
     ))
 }
 
-function hasComponentProps(child: any): child is React.ReactElement {
+function hasComponentProps(child: any): child is React.ReactElement<any> {
   return !!child && !!child.props
 }
 
 function AmpStyles({
   styles,
 }: {
-  styles?: React.ReactElement[] | React.ReactFragment
+  styles?: React.ReactElement[] | Iterable<React.ReactNode>
 }) {
   if (!styles) return null
 
   // try to parse styles from fragment for backwards compat
-  const curStyles: React.ReactElement[] = Array.isArray(styles)
+  const curStyles: React.ReactElement<any>[] = Array.isArray(styles)
     ? (styles as React.ReactElement[])
     : []
   if (
@@ -118,7 +117,7 @@ function AmpStyles({
     // @ts-ignore Property 'props' does not exist on type ReactElement
     Array.isArray(styles.props.children)
   ) {
-    const hasStyles = (el: React.ReactElement) =>
+    const hasStyles = (el: React.ReactElement<any>) =>
       el?.props?.dangerouslySetInnerHTML?.__html
     // @ts-ignore Property 'props' does not exist on type ReactElement
     styles.props.children.forEach((child: React.ReactElement) => {
@@ -284,8 +283,8 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
                 typeof scriptChildren === 'string'
                   ? scriptChildren
                   : Array.isArray(scriptChildren)
-                  ? scriptChildren.join('')
-                  : '',
+                    ? scriptChildren.join('')
+                    : '',
             }
           } else {
             throw new Error(
@@ -360,7 +359,7 @@ function getAmpPath(ampPath: string, asPath: string): string {
 }
 
 function getNextFontLinkTags(
-  nextFontManifest: NextFontManifest | undefined,
+  nextFontManifest: DeepReadonly<NextFontManifest> | undefined,
   dangerousAsPath: string,
   assetPrefix: string = ''
 ) {
@@ -432,14 +431,13 @@ export class Head extends React.Component<HeadProps> {
       dynamicImports,
       crossOrigin,
       optimizeCss,
-      optimizeFonts,
     } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
     // Unmanaged files are CSS files that will be handled directly by the
     // webpack runtime (`mini-css-extract-plugin`).
-    let unmangedFiles: Set<string> = new Set([])
+    let unmanagedFiles: Set<string> = new Set([])
     let dynamicCssFiles = Array.from(
       new Set(dynamicImports.filter((file) => file.endsWith('.css')))
     )
@@ -448,7 +446,7 @@ export class Head extends React.Component<HeadProps> {
       dynamicCssFiles = dynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
-      unmangedFiles = new Set(dynamicCssFiles)
+      unmanagedFiles = new Set(dynamicCssFiles)
       cssFiles.push(...dynamicCssFiles)
     }
 
@@ -471,7 +469,7 @@ export class Head extends React.Component<HeadProps> {
         )
       }
 
-      const isUnmanagedFile = unmangedFiles.has(file)
+      const isUnmanagedFile = unmanagedFiles.has(file)
       cssLinkElements.push(
         <link
           key={file}
@@ -486,12 +484,6 @@ export class Head extends React.Component<HeadProps> {
         />
       )
     })
-
-    if (process.env.NODE_ENV !== 'development' && optimizeFonts) {
-      cssLinkElements = this.makeStylesheetInert(
-        cssLinkElements
-      ) as ReactElement[]
-    }
 
     return cssLinkElements.length === 0 ? null : cssLinkElements
   }
@@ -586,8 +578,8 @@ export class Head extends React.Component<HeadProps> {
             typeof children === 'string'
               ? children
               : Array.isArray(children)
-              ? children.join('')
-              : ''
+                ? children.join('')
+                : ''
         }
 
         return (
@@ -622,36 +614,6 @@ export class Head extends React.Component<HeadProps> {
     return getPolyfillScripts(this.context, this.props)
   }
 
-  makeStylesheetInert(node: ReactNode[]): ReactNode[] {
-    return React.Children.map(node, (c: any) => {
-      if (
-        c?.type === 'link' &&
-        c?.props?.href &&
-        OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
-          c?.props?.href?.startsWith(url)
-        )
-      ) {
-        const newProps = {
-          ...(c.props || {}),
-          'data-href': c.props.href,
-          href: undefined,
-        }
-
-        return React.cloneElement(c, newProps)
-      } else if (c?.props?.children) {
-        const newProps = {
-          ...(c.props || {}),
-          children: this.makeStylesheetInert(c.props.children),
-        }
-
-        return React.cloneElement(c, newProps)
-      }
-
-      return c
-      // @types/react bug. Returned value from .map will not be `null` if you pass in `[null]`
-    })!.filter(Boolean)
-  }
-
   render() {
     const {
       styles,
@@ -666,7 +628,6 @@ export class Head extends React.Component<HeadProps> {
       unstable_JsPreload,
       disableOptimizedLoading,
       optimizeCss,
-      optimizeFonts,
       assetPrefix,
       nextFontManifest,
     } = this.context
@@ -681,30 +642,29 @@ export class Head extends React.Component<HeadProps> {
     let cssPreloads: Array<JSX.Element> = []
     let otherHeadElements: Array<JSX.Element> = []
     if (head) {
-      head.forEach((c) => {
-        let metaTag
-
-        if (this.context.strictNextHead) {
-          metaTag = React.createElement('meta', {
-            name: 'next-head',
-            content: '1',
-          })
-        }
-
+      head.forEach((child) => {
         if (
-          c &&
-          c.type === 'link' &&
-          c.props['rel'] === 'preload' &&
-          c.props['as'] === 'style'
+          child &&
+          child.type === 'link' &&
+          child.props['rel'] === 'preload' &&
+          child.props['as'] === 'style'
         ) {
-          metaTag && cssPreloads.push(metaTag)
-          cssPreloads.push(c)
+          if (this.context.strictNextHead) {
+            cssPreloads.push(
+              React.cloneElement(child, { 'data-next-head': '' })
+            )
+          } else {
+            cssPreloads.push(child)
+          }
         } else {
-          if (c) {
-            if (metaTag && (c.type !== 'meta' || !c.props['charSet'])) {
-              otherHeadElements.push(metaTag)
+          if (child) {
+            if (this.context.strictNextHead) {
+              otherHeadElements.push(
+                React.cloneElement(child, { 'data-next-head': '' })
+              )
+            } else {
+              otherHeadElements.push(child)
             }
-            otherHeadElements.push(c)
           }
         }
       })
@@ -738,14 +698,6 @@ export class Head extends React.Component<HeadProps> {
         console.warn(
           'Warning: `Head` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
         )
-    }
-
-    if (
-      process.env.NODE_ENV !== 'development' &&
-      optimizeFonts &&
-      !(process.env.NEXT_RUNTIME !== 'edge' && inAmpMode)
-    ) {
-      children = this.makeStylesheetInert(children)
     }
 
     let hasAmphtmlRel = false
@@ -808,6 +760,17 @@ export class Head extends React.Component<HeadProps> {
       assetPrefix
     )
 
+    const tracingMetadata = getTracedMetadata(
+      getTracer().getTracePropagationData(),
+      this.context.experimentalClientTraceMetadata
+    )
+
+    const traceMetaTags = (tracingMetadata || []).map(
+      ({ key, value }, index) => (
+        <meta key={`next-trace-data-${index}`} name={key} content={value} />
+      )
+    )
+
     return (
       <head {...getHeadHTMLProps(this.props)}>
         {this.context.isDevelopment && (
@@ -848,7 +811,6 @@ export class Head extends React.Component<HeadProps> {
         )}
 
         {children}
-        {optimizeFonts && <meta name="next-font-preconnect" />}
 
         {nextFontLinkTags.preconnect}
         {nextFontLinkTags.preload}
@@ -933,6 +895,7 @@ export class Head extends React.Component<HeadProps> {
               // (by default, style-loader injects at the bottom of <head />)
               <noscript id="__next_css__DO_NOT_USE__" />
             )}
+            {traceMetaTags}
             {styles || null}
           </>
         )}
@@ -988,6 +951,9 @@ function handleDocumentScriptLoaderItems(
         )
       ) {
         scriptLoaderItems.push(child.props)
+        return
+      } else if (typeof child.props.strategy === 'undefined') {
+        scriptLoaderItems.push({ ...child.props, strategy: 'afterInteractive' })
         return
       }
     }

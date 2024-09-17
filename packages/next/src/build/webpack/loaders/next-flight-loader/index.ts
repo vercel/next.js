@@ -1,3 +1,4 @@
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import {
   BARREL_OPTIMIZATION_PREFIX,
@@ -13,6 +14,36 @@ const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 const MODULE_PROXY_PATH =
   'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
 
+type SourceType = 'auto' | 'commonjs' | 'module'
+export function getAssumedSourceType(
+  mod: webpack.Module,
+  sourceType: SourceType
+): SourceType {
+  const buildInfo = getModuleBuildInfo(mod)
+  const detectedClientEntryType = buildInfo?.rsc?.clientEntryType
+  const clientRefs = buildInfo?.rsc?.clientRefs || []
+
+  // It's tricky to detect the type of a client boundary, but we should always
+  // use the `module` type when we can, to support `export *` and `export from`
+  // syntax in other modules that import this client boundary.
+  let assumedSourceType = sourceType
+  if (assumedSourceType === 'auto' && detectedClientEntryType === 'auto') {
+    if (
+      clientRefs.length === 0 ||
+      (clientRefs.length === 1 && clientRefs[0] === '')
+    ) {
+      // If there's zero export detected in the client boundary, and it's the
+      // `auto` type, we can safely assume it's a CJS module because it doesn't
+      // have ESM exports.
+      assumedSourceType = 'commonjs'
+    } else if (!clientRefs.includes('*')) {
+      // Otherwise, we assume it's an ESM module.
+      assumedSourceType = 'module'
+    }
+  }
+  return assumedSourceType
+}
+
 export default function transformSource(
   this: any,
   source: string,
@@ -22,6 +53,9 @@ export default function transformSource(
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
+
+  const options = this.getOptions()
+  const { isEdgeServer } = options
 
   // Assign the RSC meta information to buildInfo.
   // Exclude next internal files which are not marked as client files
@@ -50,28 +84,11 @@ export default function transformSource(
 
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
-    const sourceType = this._module?.parser?.sourceType
-    const detectedClientEntryType = buildInfo.rsc.clientEntryType
+    const assumedSourceType = getAssumedSourceType(
+      this._module,
+      this._module?.parser?.sourceType
+    )
     const clientRefs = buildInfo.rsc.clientRefs!
-
-    // It's tricky to detect the type of a client boundary, but we should always
-    // use the `module` type when we can, to support `export *` and `export from`
-    // syntax in other modules that import this client boundary.
-    let assumedSourceType = sourceType
-    if (assumedSourceType === 'auto' && detectedClientEntryType === 'auto') {
-      if (
-        clientRefs.length === 0 ||
-        (clientRefs.length === 1 && clientRefs[0] === '')
-      ) {
-        // If there's zero export detected in the client boundary, and it's the
-        // `auto` type, we can safely assume it's a CJS module because it doesn't
-        // have ESM exports.
-        assumedSourceType = 'commonjs'
-      } else if (!clientRefs.includes('*')) {
-        // Otherwise, we assume it's an ESM module.
-        assumedSourceType = 'module'
-      }
-    }
 
     if (assumedSourceType === 'module') {
       if (clientRefs.includes('*')) {
@@ -83,30 +100,29 @@ export default function transformSource(
         return
       }
 
+      // `proxy` is the module proxy that we treat the module as a client boundary.
+      // For ESM, we access the property of the module proxy directly for each export.
+      // This is bit hacky that treating using a CJS like module proxy for ESM's exports,
+      // but this will avoid creating nested proxies for each export. It will be improved in the future.
+
+      // Explanation for: await createProxy(...)
+      // We need to await the module proxy creation because it can be async module for SSR layer
+      // due to having async dependencies.
+      // We only apply `the await` for Node.js as only Edge doesn't have external dependencies.
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
-const proxy = createProxy(String.raw\`${resourceKey}\`)
 
-// Accessing the __esModule property and exporting $$typeof are required here.
-// The __esModule getter forces the proxy target to create the default export
-// and the $$typeof value is for rendering logic to determine if the module
-// is a client boundary.
-const { __esModule, $$typeof } = proxy;
-const __default__ = proxy.default;
+const proxy = ${isEdgeServer ? '' : 'await'} createProxy(String.raw\`${resourceKey}\`)
 `
       let cnt = 0
       for (const ref of clientRefs) {
         if (ref === '') {
-          esmSource += `\nexports[''] = createProxy(String.raw\`${resourceKey}#\`);`
+          esmSource += `exports[''] = proxy['']\n`
         } else if (ref === 'default') {
-          esmSource += `\
-export { __esModule, $$typeof };
-export default createProxy(String.raw\`${resourceKey}#default\`);
-`
+          esmSource += `export default proxy.default;\n`
         } else {
-          esmSource += `
-const e${cnt} = createProxy(String.raw\`${resourceKey}#${ref}\`);
-export { e${cnt++} as ${ref} };`
+          esmSource += `const e${cnt} = proxy["${ref}"];\n`
+          esmSource += `export { e${cnt++} as ${ref} };\n`
         }
       }
 
@@ -123,9 +139,9 @@ export { e${cnt++} as ${ref} };`
     }
   }
 
-  this.callback(
-    null,
-    source.replace(RSC_MOD_REF_PROXY_ALIAS, MODULE_PROXY_PATH),
-    sourceMap
+  const replacedSource = source.replace(
+    RSC_MOD_REF_PROXY_ALIAS,
+    MODULE_PROXY_PATH
   )
+  this.callback(null, replacedSource, sourceMap)
 }

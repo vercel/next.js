@@ -20,8 +20,8 @@ function VisitorDataPresenter({
         {isLoading
           ? "Loading..."
           : data
-          ? data.visitorId
-          : "not established yet"}
+            ? data.visitorId
+            : "not established yet"}
       </p>
       {data && (
         <>

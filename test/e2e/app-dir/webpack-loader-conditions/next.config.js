@@ -7,23 +7,24 @@ const nextConfig = {
       rules: {
         '*.test-file.js': {
           browser: {
-            loaders: [
-              {
-                loader: require.resolve('./test-file-loader.js'),
-                options: { browser: true },
-              },
-            ],
-          },
-          'next-app': {
-            'next-ssr': {
+            foreign: {
               loaders: [
                 {
                   loader: require.resolve('./test-file-loader.js'),
-                  options: { nextSsr: true },
+                  options: { browser: true, foreign: true },
+                },
+              ],
+            },
+            default: {
+              loaders: [
+                {
+                  loader: require.resolve('./test-file-loader.js'),
+                  options: { browser: true },
                 },
               ],
             },
           },
+          foreign: false,
           default: {
             loaders: [
               {

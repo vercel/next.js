@@ -38,14 +38,30 @@ describe('absolute assetPrefix with path prefix', () => {
             },
             (proxyRes) => {
               // cdn must be configured to allow requests from this origin
-              proxyRes.headers[
-                'Access-Control-Allow-Origin'
-              ] = `http://localhost:${appPort}`
+              proxyRes.headers['Access-Control-Allow-Origin'] =
+                `http://localhost:${appPort}`
               clientRes.writeHead(proxyRes.statusCode, proxyRes.headers)
+              // [NOTE] if socket doesn't have a handler to error event and if error
+              // event leaks, node.js ends its process with errored exit code.
+              // However, there can be failing socket event while running test
+              // as long as assertion is correct, do not care indiviual socket errors.
+              proxyRes.on('error', (e) => {
+                require('console').error(e)
+              })
+              clientRes.on('error', (e) => {
+                require('console').error(e)
+              })
+
               proxyRes.pipe(clientRes, { end: true })
             }
           )
 
+          proxyReq.on('error', (e) => {
+            require('console').error(e)
+          })
+          clientReq.on('error', (e) => {
+            require('console').error(e)
+          })
           clientReq.pipe(proxyReq, { end: true })
         })
         await new Promise((resolve) => cdn.listen(cdnPort, resolve))

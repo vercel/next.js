@@ -1,10 +1,9 @@
 import stripAnsi from 'strip-ansi'
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-createNextDescribe(
-  'next.config.js schema validating - defaultConfig',
-  {
+describe('next.config.js schema validating - defaultConfig', () => {
+  const { next, skipped } = nextTestSetup({
     files: {
       'pages/index.js': `
     export default function Page() {
@@ -18,19 +17,21 @@ createNextDescribe(
     `,
     },
     skipDeployment: true,
-  },
-  ({ next }) => {
-    it('should validate against defaultConfig', async () => {
-      const output = stripAnsi(next.cliOutput)
+  })
 
-      expect(output).not.toContain('Invalid next.config.js options detected')
-    })
+  if (skipped) {
+    return
   }
-)
 
-createNextDescribe(
-  'next.config.js schema validating - invalid config',
-  {
+  it('should validate against defaultConfig', async () => {
+    const output = stripAnsi(next.cliOutput)
+
+    expect(output).not.toContain('Invalid next.config.js options detected')
+  })
+})
+
+describe('next.config.js schema validating - invalid config', () => {
+  const { next, isNextStart, skipped } = nextTestSetup({
     files: {
       'pages/index.js': `
     export default function Page() {
@@ -44,20 +45,23 @@ createNextDescribe(
     `,
     },
     skipDeployment: true,
-  },
-  ({ next, isNextStart }) => {
-    it('should warn the invalid next config', async () => {
-      await check(() => {
-        const output = stripAnsi(next.cliOutput)
-        const warningTimes = output.split('badKey').length - 1
+  })
 
-        expect(output).toContain('Invalid next.config.js options detected')
-        expect(output).toContain('badKey')
-        // for next start and next build we both display the warnings
-        expect(warningTimes).toBe(isNextStart ? 2 : 1)
-
-        return 'success'
-      }, 'success')
-    })
+  if (skipped) {
+    return
   }
-)
+
+  it('should warn the invalid next config', async () => {
+    await check(() => {
+      const output = stripAnsi(next.cliOutput)
+      const warningTimes = output.split('badKey').length - 1
+
+      expect(output).toContain('Invalid next.config.js options detected')
+      expect(output).toContain('badKey')
+      // for next start and next build we both display the warnings
+      expect(warningTimes).toBe(isNextStart ? 2 : 1)
+
+      return 'success'
+    }, 'success')
+  })
+})

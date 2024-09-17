@@ -58,7 +58,7 @@ The difference between **catch-all** and **optional catch-all** segments is that
 
 | Route                       | Example URL   | `params`                    |
 | --------------------------- | ------------- | --------------------------- |
-| `pages/shop/[[...slug]].js` | `/shop`       | `{ slug: [] }`              |
+| `pages/shop/[[...slug]].js` | `/shop`       | `{ slug: undefined }`       |
 | `pages/shop/[[...slug]].js` | `/shop/a`     | `{ slug: ['a'] }`           |
 | `pages/shop/[[...slug]].js` | `/shop/a/b`   | `{ slug: ['a', 'b'] }`      |
 | `pages/shop/[[...slug]].js` | `/shop/a/b/c` | `{ slug: ['a', 'b', 'c'] }` |

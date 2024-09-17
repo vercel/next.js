@@ -64,57 +64,15 @@ Create a `next.config.mjs` at the root of your project. This file will hold your
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export', // Outputs a Single-Page Application (SPA).
-  distDir: './dist', // Changes the build output directory to `./dist/`.
+  distDir: './build', // Changes the build output directory to `./dist`.
 }
 
 export default nextConfig
 ```
 
-### Step 3: Update TypeScript Configuration
+### Step 3: Create the Root Layout
 
-If you're using TypeScript, you need to update your `tsconfig.json` file with the following changes to make it compatible with Next.js:
-
-```json filename="tsconfig.json"
-{
-  "compilerOptions": {
-    "target": "es5",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": false,
-    "forceConsistentCasingInFileNames": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "baseUrl": ".",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "strictNullChecks": true
-  },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    "./dist/types/**/*.ts"
-  ],
-  "exclude": ["node_modules"]
-}
-```
-
-You can find more information about configuring TypeScript on the [Next.js docs](/docs/app/building-your-application/configuring/typescript#typescript-plugin).
-
-### Step 4: Create the Root Layout
-
-A Next.js [App Router](/docs/app) application must include a [root layout](/docs/app/building-your-application/routing/pages-and-layouts#root-layout-required) file, which is a [React Server Component](/docs/app/building-your-application/rendering/server-components) that will wrap all pages in your application. This file is defined at the top level of the `app` directory.
+A Next.js [App Router](/docs/app) application must include a [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) file, which is a [React Server Component](/docs/app/building-your-application/rendering/server-components) that will wrap all pages in your application. This file is defined at the top level of the `app` directory.
 
 The closest equivalent to the root layout file in a CRA application is the `index.html` file, which contains your `<html>`, `<head>`, and `<body>` tags.
 
@@ -129,19 +87,19 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  return null
+  return '...'
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
 export default function RootLayout({ children }) {
-  return null
+  return '...'
 }
 ```
 
 > **Good to know**: `.js`, `.jsx`, or `.tsx` extensions can be used for Layout files.
 
-Copy the content of your `index.html` file into the previously created `<RootLayout>` component while replacing the `body.div#root` and `body.script` tags with `<div id="root">{children}</div>`:
+Copy the content of your `index.html` file into the previously created `<RootLayout>` component while replacing the `body.div#root` and `body.noscript` tags with `<div id="root">{children}</div>`:
 
 ```tsx filename="app/layout.tsx" switcher
 export default function RootLayout({
@@ -152,7 +110,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta charset="UTF-8" />
+        <meta charSet="UTF-8" />
         <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>React App</title>
@@ -185,9 +143,9 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Good to know**: We'll ignore the [manifest file](/docs/app/api-reference/file-conventions/metadata), additional iconography other than the favicon, and [testing configuration](/docs/app/building-your-application/testing), but if these are requirements, Next.js also supports these options.
+> **Good to know**: Next.js ignores CRA's `public/manifest.json` file, additional iconography (except [`favicon`, `icon`, and `apple-icon`](/docs/app/api-reference/file-conventions/metadata/app-icons) ), and [testing configuration](/docs/app/building-your-application/testing), but if these are requirements, Next.js also supports these options. See the [Metadata API](/docs/app/building-your-application/optimizing/metadata) and [Testing](/docs/app/building-your-application/testing) docs for more information.
 
-### Step 5: Metadata
+### Step 4: Metadata
 
 Next.js already includes by default the [meta charset](https://developer.mozilla.org/docs/Web/HTML/Element/meta#charset) and [meta viewport](https://developer.mozilla.org/docs/Web/HTML/Viewport_meta_tag) tags, so you can safely remove those from your `<head>`:
 
@@ -311,9 +269,9 @@ export default function RootLayout({ children }) {
 
 With the above changes, you shifted from declaring everything in your `index.html` to using Next.js' convention-based approach built into the framework ([Metadata API](/docs/app/building-your-application/optimizing/metadata)). This approach enables you to more easily improve your SEO and web shareability of your pages.
 
-### Step 6: Styles
+### Step 5: Styles
 
-Like Create React App, Next.js has built-in support for [CSS Modules](/docs/app/building-your-application/styling/css-modules).
+Like Create React App, Next.js has built-in support for [CSS Modules](/docs/app/building-your-application/styling/css#css-modules).
 
 If you're using a global CSS file, import it into your `app/layout.tsx` file:
 
@@ -340,7 +298,7 @@ module.exports = {
 }
 ```
 
-### Step 7: Create the Entrypoint Page
+### Step 6: Create the Entrypoint Page
 
 On Next.js you declare an entrypoint for your application by creating a `page.tsx` file. The closest equivalent of this file on CRA is your `src/index.tsx` file. In this step, you’ll set up the entry point of your application.
 
@@ -353,8 +311,6 @@ This directory is what is called an [optional catch-all route segment](/docs/app
 **Create a new `page.tsx` file inside the `app/[[...slug]]` directory with the following content:**
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
-import '../../index.css'
-
 export function generateStaticParams() {
   return [{ slug: [''] }]
 }
@@ -365,8 +321,6 @@ export default function Page() {
 ```
 
 ```jsx filename="app/[[...slug]]/page.js" switcher
-import '../../index.css'
-
 export function generateStaticParams() {
   return [{ slug: [''] }]
 }
@@ -385,7 +339,6 @@ Now, let's move the rest of our CRA application which will run client-only.
 ```tsx filename="app/[[...slug]]/client.tsx" switcher
 'use client'
 
-import React from 'react'
 import dynamic from 'next/dynamic'
 
 const App = dynamic(() => import('../../App'), { ssr: false })
@@ -398,7 +351,6 @@ export function ClientOnly() {
 ```jsx filename="app/[[...slug]]/client.js" switcher
 'use client'
 
-import React from 'react'
 import dynamic from 'next/dynamic'
 
 const App = dynamic(() => import('../../App'), { ssr: false })
@@ -419,7 +371,6 @@ const App = dynamic(() => import('../../App'), { ssr: false })
 Now, update your entrypoint page to use the new component:
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
-import '../../index.css'
 import { ClientOnly } from './client'
 
 export function generateStaticParams() {
@@ -432,7 +383,6 @@ export default function Page() {
 ```
 
 ```jsx filename="app/[[...slug]]/page.js" switcher
-import '../../index.css'
 import { ClientOnly } from './client'
 
 export function generateStaticParams() {
@@ -444,7 +394,7 @@ export default function Page() {
 }
 ```
 
-### Step 8: Update Static Image Imports
+### Step 7: Update Static Image Imports
 
 Next.js handles static image imports slightly different from CRA. With CRA, importing an image file will return its public URL as a string:
 
@@ -484,24 +434,24 @@ import logo from '../public/logo.png'
 
 Alternatively, you can reference the public URL for the image asset based on the filename. For example, `public/logo.png` will serve the image at `/logo.png` for your application, which would be the `src` value.
 
-> **Warning:** If you're using TypeScript, you might encounter type errors when accessing the `src` property. You can safely ignore those for now. They will be fixed by the end of this guide.
+> **Warning:** If you're using TypeScript, you might encounter type errors when accessing the `src` property. To fix them, you need to add `next-env.d.ts` to the [`include` array](https://www.typescriptlang.org/tsconfig#include) of your `tsconfig.json` file. Next.js will automatically generate this file when you run your application on step 9.
 
-### Step 9: Migrate the Environment Variables
+### Step 8: Migrate the Environment Variables
 
 Next.js has support for `.env` [environment variables](/docs/app/building-your-application/configuring/environment-variables) similar to CRA.
 
 The main difference is the prefix used to expose environment variables on the client-side. Change all environment variables with the `REACT_APP_` prefix to `NEXT_PUBLIC_`.
 
-### Step 10: Update Scripts in `package.json`
+### Step 9: Update Scripts in `package.json`
 
-You should now be able to run your application to test if you successfully migrated to Next.js. But before that, you need to update your `scripts` in your `package.json` with Next.js related commands, and add `.next`, `next-env.d.ts`, and `dist` to your `.gitignore` file:
+You should now be able to run your application to test if you successfully migrated to Next.js. But before that, you need to update your `scripts` in your `package.json` with Next.js related commands, and add `.next`, and `next-env.d.ts` to your `.gitignore` file:
 
 ```json filename="package.json"
 {
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "npx serve@latest ./build"
   }
 }
 ```
@@ -510,17 +460,17 @@ You should now be able to run your application to test if you successfully migra
 # ...
 .next
 next-env.d.ts
-dist
 ```
 
 Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000). You should see your application now running on Next.js.
 
-### Step 11: Clean Up
+### Step 10: Clean Up
 
 You can now clean up your codebase from Create React App related artifacts:
 
-- Delete `src/index.tsx`
 - Delete `public/index.html`
+- Delete `src/index.tsx`
+- Delete `src/react-app-env.d.ts`
 - Delete `reportWebVitals` setup
 - Uninstall CRA dependencies (`react-scripts`)
 

@@ -18,9 +18,13 @@ type Req = IncomingMessage & {
 
 export class NodeNextRequest extends BaseNextRequest<Readable> {
   public headers = this._req.headers
-  public fetchMetrics?: FetchMetric[] = this._req?.fetchMetrics;
+  public fetchMetrics: FetchMetric[] | undefined = this._req?.fetchMetrics;
 
   [NEXT_REQUEST_META]: RequestMeta = this._req[NEXT_REQUEST_META] || {}
+
+  constructor(private _req: Req) {
+    super(_req.method!.toUpperCase(), _req.url!, _req)
+  }
 
   get originalRequest() {
     // Need to mimic these changes to the original req object for places where we use it:
@@ -35,8 +39,36 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
     this._req = value
   }
 
-  constructor(private _req: Req) {
-    super(_req.method!.toUpperCase(), _req.url!, _req)
+  private streaming = false
+
+  /**
+   * Returns the request body as a Web Readable Stream. The body here can only
+   * be read once as the body will start flowing as soon as the data handler
+   * is attached.
+   *
+   * @internal
+   */
+  public stream() {
+    if (this.streaming) {
+      throw new Error(
+        'Invariant: NodeNextRequest.stream() can only be called once'
+      )
+    }
+    this.streaming = true
+
+    return new ReadableStream({
+      start: (controller) => {
+        this._req.on('data', (chunk) => {
+          controller.enqueue(new Uint8Array(chunk))
+        })
+        this._req.on('end', () => {
+          controller.close()
+        })
+        this._req.on('error', (err) => {
+          controller.error(err)
+        })
+      },
+    })
   }
 }
 
@@ -129,5 +161,9 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
 
   send() {
     this._res.end(this.textBody)
+  }
+
+  public onClose(callback: () => void) {
+    this.originalResponse.on('close', callback)
   }
 }

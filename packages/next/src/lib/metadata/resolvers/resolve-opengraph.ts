@@ -9,7 +9,7 @@ import type {
   MetadataContext,
 } from '../types/resolvers'
 import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
-import { resolveAsArrayOrUndefined } from '../generate/utils'
+import { resolveArray, resolveAsArrayOrUndefined } from '../generate/utils'
 import {
   getSocialImageFallbackMetadataBase,
   isStringOrURL,
@@ -42,14 +42,28 @@ const OgTypeFields = {
 function resolveAndValidateImage(
   item: FlattenArray<OpenGraph['images'] | Twitter['images']>,
   metadataBase: NonNullable<ResolvedMetadataBase>,
-  isMetadataBaseMissing: boolean
+  isMetadataBaseMissing: boolean,
+  isStandaloneMode: boolean
 ) {
   if (!item) return undefined
   const isItemUrl = isStringOrURL(item)
   const inputUrl = isItemUrl ? item : item.url
   if (!inputUrl) return undefined
 
-  validateResolvedImageUrl(inputUrl, metadataBase, isMetadataBaseMissing)
+  // process.env.VERCEL is set to "1" when System Environment Variables are
+  // exposed. When exposed, validation is not necessary since we are falling back to
+  // process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_BRANCH_URL, or
+  // process.env.VERCEL_URL for the `metadataBase`. process.env.VERCEL is undefined
+  // when System Environment Variables are not exposed. When not exposed, we cannot
+  // detect in the build environment if the deployment is a Vercel deployment or not.
+  //
+  // x-ref: https://vercel.com/docs/projects/environment-variables/system-environment-variables#system-environment-variables
+  const isNonVercelDeployment =
+    !process.env.VERCEL && process.env.NODE_ENV === 'production'
+  // Validate url in self-host standalone mode or non-Vercel deployment
+  if (isStandaloneMode || isNonVercelDeployment) {
+    validateResolvedImageUrl(inputUrl, metadataBase, isMetadataBaseMissing)
+  }
 
   return isItemUrl
     ? {
@@ -64,15 +78,18 @@ function resolveAndValidateImage(
 
 export function resolveImages(
   images: Twitter['images'],
-  metadataBase: ResolvedMetadataBase
+  metadataBase: ResolvedMetadataBase,
+  isStandaloneMode: boolean
 ): NonNullable<ResolvedMetadata['twitter']>['images']
 export function resolveImages(
   images: OpenGraph['images'],
-  metadataBase: ResolvedMetadataBase
+  metadataBase: ResolvedMetadataBase,
+  isStandaloneMode: boolean
 ): NonNullable<ResolvedMetadata['openGraph']>['images']
 export function resolveImages(
   images: OpenGraph['images'] | Twitter['images'],
-  metadataBase: ResolvedMetadataBase
+  metadataBase: ResolvedMetadataBase,
+  isStandaloneMode: boolean
 ):
   | NonNullable<ResolvedMetadata['twitter']>['images']
   | NonNullable<ResolvedMetadata['openGraph']>['images'] {
@@ -86,7 +103,8 @@ export function resolveImages(
     const resolvedItem = resolveAndValidateImage(
       item,
       fallbackMetadataBase,
-      isMetadataBaseMissing
+      isMetadataBaseMissing,
+      isStandaloneMode
     )
     if (!resolvedItem) continue
 
@@ -96,24 +114,20 @@ export function resolveImages(
   return nonNullableImages
 }
 
+const ogTypeToFields: Record<string, readonly string[]> = {
+  article: OgTypeFields.article,
+  book: OgTypeFields.article,
+  'music.song': OgTypeFields.song,
+  'music.album': OgTypeFields.song,
+  'music.playlist': OgTypeFields.playlist,
+  'music.radio_station': OgTypeFields.radio,
+  'video.movie': OgTypeFields.video,
+  'video.episode': OgTypeFields.video,
+}
+
 function getFieldsByOgType(ogType: OpenGraphType | undefined) {
-  switch (ogType) {
-    case 'article':
-    case 'book':
-      return OgTypeFields.article
-    case 'music.song':
-    case 'music.album':
-      return OgTypeFields.song
-    case 'music.playlist':
-      return OgTypeFields.playlist
-    case 'music.radio_station':
-      return OgTypeFields.radio
-    case 'video.movie':
-    case 'video.episode':
-      return OgTypeFields.video
-    default:
-      return OgTypeFields.basic
-  }
+  if (!ogType || !(ogType in ogTypeToFields)) return OgTypeFields.basic
+  return ogTypeToFields[ogType].concat(OgTypeFields.basic)
 }
 
 function validateResolvedImageUrl(
@@ -146,14 +160,15 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
       const key = k as keyof ResolvedOpenGraph
       if (key in og && key !== 'url') {
         const value = og[key]
-        if (value) {
-          const arrayValue = resolveAsArrayOrUndefined(value)
-          /// TODO: improve typing inferring
-          ;(target as any)[key] = arrayValue
-        }
+        // TODO: improve typing inferring
+        ;(target as any)[key] = value ? resolveArray(value) : null
       }
     }
-    target.images = resolveImages(og.images, metadataBase)
+    target.images = resolveImages(
+      og.images,
+      metadataBase,
+      metadataContext.isStandaloneMode
+    )
   }
 
   const resolved = {
@@ -183,8 +198,8 @@ const TwitterBasicInfoKeys = [
 
 export const resolveTwitter: FieldResolverExtraArgs<
   'twitter',
-  [ResolvedMetadataBase, string | null]
-> = (twitter, metadataBase, titleTemplate) => {
+  [ResolvedMetadataBase, MetadataContext, string | null]
+> = (twitter, metadataBase, metadataContext, titleTemplate) => {
   if (!twitter) return null
   let card = 'card' in twitter ? twitter.card : undefined
   const resolved = {
@@ -195,7 +210,11 @@ export const resolveTwitter: FieldResolverExtraArgs<
     resolved[infoKey] = twitter[infoKey] || null
   }
 
-  resolved.images = resolveImages(twitter.images, metadataBase)
+  resolved.images = resolveImages(
+    twitter.images,
+    metadataBase,
+    metadataContext.isStandaloneMode
+  )
 
   card = card || (resolved.images?.length ? 'summary_large_image' : 'summary')
   resolved.card = card

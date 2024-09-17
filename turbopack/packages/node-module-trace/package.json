@@ -1,0 +1,10 @@
+{
+  "name": "@vercel/experimental-nft",
+  "version": "0.0.5-alpha.0",
+  "description": "Node.js module trace",
+  "license": "MPL-2.0",
+  "alias": "node-file-trace",
+  "publishConfig": {
+    "access": "public"
+  }
+}

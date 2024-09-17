@@ -31,7 +31,7 @@ The `Component` prop is the active `page`, so whenever you navigate between rout
 
 `pageProps` is an object with the initial props that were preloaded for your page by one of our [data fetching methods](/docs/pages/building-your-application/data-fetching), otherwise it's an empty object.
 
-> **Good to know**
+> **Good to know**:
 >
 > - If your app is running and you added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
 > - `App` does not support Next.js [Data Fetching methods](/docs/pages/building-your-application/data-fetching) like [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) or [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props).
@@ -40,7 +40,7 @@ The `Component` prop is the active `page`, so whenever you navigate between rout
 
 Using [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props) in `App` will disable [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) for pages without [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props).
 
-**We do not recommend using this pattern.** Instead, consider [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router, which allows you to more easily fetch data for [pages and layouts](/docs/app/building-your-application/routing/pages-and-layouts).
+**We do not recommend using this pattern.** Instead, consider [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router, which allows you to more easily fetch data for [pages and layouts](/docs/app/building-your-application/routing/layouts-and-templates).
 
 ```tsx filename="pages/_app.tsx" switcher
 import App, { AppContext, AppInitialProps, AppProps } from 'next/app'

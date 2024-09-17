@@ -1,4 +1,4 @@
-section {
+.storybook-page {
   font-family: "Nunito Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 14px;
   line-height: 24px;
@@ -8,7 +8,7 @@ section {
   color: #333;
 }
 
-section h2 {
+.storybook-page h2 {
   font-weight: 700;
   font-size: 32px;
   line-height: 1;
@@ -17,25 +17,25 @@ section h2 {
   vertical-align: top;
 }
 
-section p {
+.storybook-page p {
   margin: 1em 0;
 }
 
-section a {
+.storybook-page a {
   text-decoration: none;
   color: #1ea7fd;
 }
 
-section ul {
+.storybook-page ul {
   padding-left: 30px;
   margin: 1em 0;
 }
 
-section li {
+.storybook-page li {
   margin-bottom: 8px;
 }
 
-section .tip {
+.storybook-page .tip {
   display: inline-block;
   border-radius: 1em;
   font-size: 11px;
@@ -48,14 +48,14 @@ section .tip {
   vertical-align: top;
 }
 
-section .tip-wrapper {
+.storybook-page .tip-wrapper {
   font-size: 13px;
   line-height: 20px;
   margin-top: 40px;
   margin-bottom: 40px;
 }
 
-section .tip-wrapper svg {
+.storybook-page .tip-wrapper svg {
   display: inline-block;
   height: 12px;
   width: 12px;
@@ -64,6 +64,6 @@ section .tip-wrapper svg {
   margin-top: 3px;
 }
 
-section .tip-wrapper svg path {
+.storybook-page .tip-wrapper svg path {
   fill: #1ea7fd;
 }

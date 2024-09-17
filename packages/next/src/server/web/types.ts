@@ -1,4 +1,4 @@
-import type { I18NConfig } from '../config-shared'
+import type { ExperimentalConfig, I18NConfig } from '../config-shared'
 import type { NextRequest } from './spec-extension/request'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import type { NextResponse } from './spec-extension/response'
@@ -9,24 +9,17 @@ import type { FetchMetrics } from '../base-http'
 export type { MiddlewareConfig } from '../../build/analysis/get-page-static-info'
 
 export interface RequestData {
-  geo?: {
-    city?: string
-    country?: string
-    region?: string
-    latitude?: string
-    longitude?: string
-  }
   headers: OutgoingHttpHeaders
-  ip?: string
   method: string
   nextConfig?: {
     basePath?: string
     i18n?: I18NConfig | null
     trailingSlash?: boolean
+    experimental?: Pick<ExperimentalConfig, 'after'>
   }
   page?: {
     name?: string
-    params?: { [key: string]: string | string[] }
+    params?: { [key: string]: string | string[] | undefined }
   }
   url: string
   body?: ReadableStream<Uint8Array>

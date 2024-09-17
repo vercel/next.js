@@ -1,67 +1,32 @@
 import fs from 'fs-extra'
-import os from 'os'
 
 import { join } from 'path'
 
-import findUp from 'next/dist/compiled/find-up'
-import { File, nextBuild, nextLint } from 'next-test-utils'
+import { nextBuild } from 'next-test-utils'
 
-const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
-const dirWebVitalsConfig = join(__dirname, '../config-core-web-vitals')
-const dirPluginRecommendedConfig = join(
-  __dirname,
-  '../plugin-recommended-config'
-)
-const dirPluginCoreWebVitalsConfig = join(
-  __dirname,
-  '../plugin-core-web-vitals-config'
-)
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirBaseDirectories = join(__dirname, '../base-directories')
-const dirBaseDirectoriesConfigFile = new File(
-  join(dirBaseDirectories, '/next.config.js')
-)
 const dirCustomDirectories = join(__dirname, '../custom-directories')
-const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
 const dirInvalidOlderEslintVersion = join(
   __dirname,
   '../invalid-eslint-version'
 )
-const dirMaxWarnings = join(__dirname, '../max-warnings')
 const dirEmptyDirectory = join(__dirname, '../empty-directory')
 const dirEslintIgnore = join(__dirname, '../eslint-ignore')
 const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
-const dirNoConfig = join(__dirname, '../no-config')
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
-const dirFileLinting = join(__dirname, '../file-linting')
-const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
-const dirTypescript = join(__dirname, '../with-typescript')
 
 describe('Next Build', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
-      test('first time setup', async () => {
-        const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
-        await fs.writeFile(eslintrcJson, '')
-
-        const { stdout, stderr } = await nextBuild(dirFirstTimeSetup, [], {
-          stdout: true,
-          stderr: true,
-        })
-        const output = stdout + stderr
-
-        expect(output).toContain(
-          'No ESLint configuration detected. Run next lint to begin setup'
-        )
-      })
-
       test('shows warnings and errors', async () => {
         const { stdout, stderr } = await nextBuild(dirCustomConfig, [], {
           stdout: true,
           stderr: true,
+          lint: true,
         })
 
         const output = stdout + stderr
@@ -77,6 +42,7 @@ describe('Next Build', () => {
         const { stdout, stderr } = await nextBuild(dirIgnoreDuringBuilds, [], {
           stdout: true,
           stderr: true,
+          lint: true,
         })
 
         const output = stdout + stderr
@@ -90,6 +56,7 @@ describe('Next Build', () => {
         const { stdout, stderr } = await nextBuild(dirBaseDirectories, [], {
           stdout: true,
           stderr: true,
+          lint: true,
         })
 
         const output = stdout + stderr
@@ -121,6 +88,7 @@ describe('Next Build', () => {
         const { stdout, stderr } = await nextBuild(dirCustomDirectories, [], {
           stdout: true,
           stderr: true,
+          lint: true,
         })
 
         const output = stdout + stderr
@@ -140,6 +108,7 @@ describe('Next Build', () => {
           {
             stdout: true,
             stderr: true,
+            lint: true,
           }
         )
 
@@ -153,6 +122,7 @@ describe('Next Build', () => {
         const { stdout, stderr } = await nextBuild(dirEmptyDirectory, [], {
           stdout: true,
           stderr: true,
+          lint: true,
         })
 
         const output = stdout + stderr
@@ -168,6 +138,7 @@ describe('Next Build', () => {
         const { stdout, stderr } = await nextBuild(dirEslintIgnore, [], {
           stdout: true,
           stderr: true,
+          lint: true,
         })
 
         const output = stdout + stderr
@@ -183,6 +154,7 @@ describe('Next Build', () => {
         const { stdout, stderr } = await nextBuild(dirNoEslintPlugin, [], {
           stdout: true,
           stderr: true,
+          lint: true,
         })
 
         const output = stdout + stderr
@@ -195,7 +167,9 @@ describe('Next Build', () => {
         const cacheDir = join(dirEslintCache, '.next', 'cache')
 
         await fs.remove(cacheDir)
-        await nextBuild(dirEslintCache, [])
+        await nextBuild(dirEslintCache, [], {
+          lint: true,
+        })
 
         const files = await fs.readdir(join(cacheDir, 'eslint/'))
         const cacheExists = files.some((f) => /\.cache/.test(f))
@@ -210,7 +184,9 @@ describe('Next Build', () => {
         await fs.remove(oldCacheDir)
         await fs.remove(newCacheDir)
 
-        await nextBuild(dirEslintCacheCustomDir, [])
+        await nextBuild(dirEslintCacheCustomDir, [], {
+          lint: true,
+        })
 
         expect(fs.existsSync(oldCacheDir)).toBe(false)
 

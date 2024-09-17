@@ -8,15 +8,19 @@ import { warn } from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
+import { enableMemoryDebuggingMode } from '../lib/memory/startup'
+import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 
-type NextBuildOptions = {
+export type NextBuildOptions = {
   debug?: boolean
   profile?: boolean
   lint: boolean
   mangling: boolean
+  experimentalDebugMemoryUsage: boolean
   experimentalAppOnly?: boolean
   experimentalTurbo?: boolean
   experimentalBuildMode: 'default' | 'compile' | 'generate'
+  experimentalUploadTrace?: string
 }
 
 const nextBuild = (options: NextBuildOptions, directory?: string) => {
@@ -25,13 +29,20 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
 
   const {
     debug,
+    experimentalDebugMemoryUsage,
     profile,
     lint,
     mangling,
     experimentalAppOnly,
     experimentalTurbo,
     experimentalBuildMode,
+    experimentalUploadTrace,
   } = options
+
+  let traceUploadUrl: string | undefined
+  if (experimentalUploadTrace && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
+    traceUploadUrl = experimentalUploadTrace
+  }
 
   if (!lint) {
     warn('Linting is disabled.')
@@ -49,9 +60,13 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     )
   }
 
+  if (experimentalDebugMemoryUsage) {
+    process.env.EXPERIMENTAL_DEBUG_MEMORY_USAGE = '1'
+    enableMemoryDebuggingMode()
+  }
+
   const dir = getProjectDir(directory)
 
-  // Check if the provided directory exists
   if (!existsSync(dir)) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
@@ -68,24 +83,34 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     !mangling,
     experimentalAppOnly,
     !!process.env.TURBOPACK,
-    experimentalBuildMode
-  ).catch((err) => {
-    console.error('')
-    if (
-      isError(err) &&
-      (err.code === 'INVALID_RESOLVE_ALIAS' ||
-        err.code === 'WEBPACK_ERRORS' ||
-        err.code === 'BUILD_OPTIMIZATION_FAILED' ||
-        err.code === 'NEXT_EXPORT_ERROR' ||
-        err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
-        err.code === 'EDGE_RUNTIME_UNSUPPORTED_API')
-    ) {
-      printAndExit(`> ${err.message}`)
-    } else {
-      console.error('> Build error occurred')
-      printAndExit(err)
-    }
-  })
+    experimentalBuildMode,
+    traceUploadUrl
+  )
+    .catch((err) => {
+      if (experimentalDebugMemoryUsage) {
+        disableMemoryDebuggingMode()
+      }
+      console.error('')
+      if (
+        isError(err) &&
+        (err.code === 'INVALID_RESOLVE_ALIAS' ||
+          err.code === 'WEBPACK_ERRORS' ||
+          err.code === 'BUILD_OPTIMIZATION_FAILED' ||
+          err.code === 'NEXT_EXPORT_ERROR' ||
+          err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
+          err.code === 'EDGE_RUNTIME_UNSUPPORTED_API')
+      ) {
+        printAndExit(`> ${err.message}`)
+      } else {
+        console.error('> Build error occurred')
+        printAndExit(err)
+      }
+    })
+    .finally(() => {
+      if (experimentalDebugMemoryUsage) {
+        disableMemoryDebuggingMode()
+      }
+    })
 }
 
 export { nextBuild }

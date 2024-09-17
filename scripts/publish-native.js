@@ -16,7 +16,7 @@ const cwd = process.cwd()
     ).version
 
     // Copy binaries to package folders, update version, and publish
-    let nativePackagesDir = path.join(cwd, 'packages/next-swc/crates/napi/npm')
+    let nativePackagesDir = path.join(cwd, 'crates/napi/npm')
     let platforms = (await readdir(nativePackagesDir)).filter(
       (name) => !name.startsWith('.')
     )
@@ -80,7 +80,7 @@ const cwd = process.cwd()
     )
 
     // Update name/version of wasm packages and publish
-    const pkgDirectory = 'packages/next-swc/crates/wasm'
+    const pkgDirectory = 'crates/wasm'
     let wasmDir = path.join(cwd, pkgDirectory)
     await Promise.all(
       ['web', 'nodejs'].map(async (wasmTarget) => {

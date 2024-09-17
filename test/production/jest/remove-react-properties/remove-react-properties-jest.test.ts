@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 
@@ -13,14 +13,14 @@ describe('next/jest', () => {
       files: {
         pages: new FileRef(path.join(appDir, 'pages')),
         'tests/index.test.tsx': `
-        import { render as renderFn, waitFor } from '@testing-library/react'
+        import { render, waitFor } from '@testing-library/react'
         import '@testing-library/jest-dom/extend-expect';
 
         import Page from '@/pages'
 
         describe('testid', () => {
           it('data-testid should be available in the test', async () => {
-            const { getByTestId } = renderFn(
+            const { getByTestId } = render(
               <Page />
             )
             expect(getByTestId('main-text')).toHaveTextContent('Hello World')
@@ -33,9 +33,9 @@ describe('next/jest', () => {
         'tsconfig.json': new FileRef(path.join(appDir, 'tsconfig.json')),
       },
       dependencies: {
-        jest: '27.4.7',
-        '@testing-library/react': '^13.1.1',
-        jsdom: '^19.0.0',
+        jest: '29.7.0',
+        'jest-environment-jsdom': '29.7.0',
+        '@testing-library/react': '15.0.2',
         '@testing-library/jest-dom': '5.16.4',
       },
       packageJson: {

@@ -1,11 +1,10 @@
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import webdriver, { BrowserInterface } from 'next-webdriver'
 
-import type { HistoryState } from '../../../packages/next/src/shared/lib/router/router'
-import { BrowserInterface } from 'test/lib/browsers/base'
+import type { HistoryState } from 'next/dist/shared/lib/router/router'
 
 const emitPopsStateEvent = (browser: BrowserInterface, state: HistoryState) =>
   browser.eval(

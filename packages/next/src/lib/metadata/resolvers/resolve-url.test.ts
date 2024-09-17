@@ -1,4 +1,8 @@
-import { resolveUrl, resolveAbsoluteUrlWithPathname } from './resolve-url'
+import {
+  resolveUrl,
+  resolveAbsoluteUrlWithPathname,
+  getSocialImageFallbackMetadataBase,
+} from './resolve-url'
 
 // required to be resolved as URL with resolveUrl()
 describe('metadata: resolveUrl', () => {
@@ -49,6 +53,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const opts = {
       trailingSlash: false,
       pathname: '/',
+      isStandaloneMode: false,
     }
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
@@ -64,6 +69,7 @@ describe('resolveAbsoluteUrlWithPathname', () => {
     const opts = {
       trailingSlash: true,
       pathname: '/',
+      isStandaloneMode: false,
     }
     const resolver = (url: string | URL) =>
       resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
@@ -102,6 +108,87 @@ describe('resolveAbsoluteUrlWithPathname', () => {
       expect(resolver('/foo?bar')).toBe('https://example.com/foo?bar')
       expect(resolver(new URL('/foo?bar', metadataBase))).toBe(
         'https://example.com/foo?bar'
+      )
+    })
+
+    it('should not add trailing slash to relative url that matches file pattern', () => {
+      expect(resolver('/foo.html')).toBe('https://example.com/foo.html')
+      expect(resolver('/foo.html?q=v')).toBe('https://example.com/foo.html?q=v')
+      expect(resolver(new URL('/.well-known/bar.jpg', metadataBase))).toBe(
+        'https://example.com/.well-known/bar.jpg/'
+      )
+      expect(resolver(new URL('/foo.html', metadataBase))).toBe(
+        'https://example.com/foo.html'
+      )
+    })
+  })
+})
+
+describe('getSocialImageFallbackMetadataBase', () => {
+  describe('fallbackMetadataBase when metadataBase is not present', () => {
+    let originalEnv: NodeJS.ProcessEnv
+    function getSocialImageFallbackMetadataBaseHelper(): string {
+      return getSocialImageFallbackMetadataBase(null).fallbackMetadataBase.href
+    }
+
+    beforeEach(() => {
+      originalEnv = process.env
+    })
+
+    afterEach(() => {
+      delete process.env.VERCEL_URL
+      delete process.env.VERCEL_ENV
+      delete process.env.VERCEL_BRANCH_URL
+      delete process.env.VERCEL_PROJECT_PRODUCTION_URL
+
+      process.env = originalEnv
+    })
+
+    it('should return localhost url in local dev mode', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'development'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'http://localhost:3000/'
+      )
+    })
+
+    it('should return local url in local build mode', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'http://localhost:3000/'
+      )
+    })
+
+    it('should prefer branch url in preview deployment if presents', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      process.env.VERCEL_ENV = 'preview'
+      process.env.VERCEL_BRANCH_URL = 'branch-url'
+      process.env.VERCEL_URL = 'vercel-url'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://branch-url/'
+      )
+    })
+
+    it('should return vercel url in preview deployment if only it presents', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      process.env.VERCEL_ENV = 'preview'
+      process.env.VERCEL_URL = 'vercel-url'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://vercel-url/'
+      )
+    })
+
+    it('should return project production url in production deployment', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      process.env.VERCEL_ENV = 'production'
+      process.env.VERCEL_URL = 'vercel-url'
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = 'production-url'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://production-url/'
       )
     })
   })

@@ -8,10 +8,6 @@ import { outdent } from 'outdent'
 describe('Error Overlay for server components', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
@@ -545,12 +541,12 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      expect(await session.hasRedbox()).toBe(true)
+      await session.assertHasRedbox()
       // In webpack when the message too long it gets truncated with `  | ` with new lines.
       // So we need to check for the first part of the message.
       const normalizedSource = await session.getRedboxSource()
       expect(normalizedSource).toContain(
-        `You're importing a component that needs ${hook}. It only works in a Client Component but none of its parents are marked with "use client"`
+        `You're importing a component that needs \`${hook}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
       expect(normalizedSource).toContain(
         `import { ${hook} } from 'next/navigation'`

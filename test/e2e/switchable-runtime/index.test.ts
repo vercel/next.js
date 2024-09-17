@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
 
 function splitLines(text) {
@@ -43,10 +43,6 @@ describe('Switchable runtime', () => {
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(__dirname),
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-      },
     })
     context = {
       appPort: next.url,

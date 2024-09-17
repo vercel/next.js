@@ -3,4 +3,4 @@
  */
 export const unresolvedThenable = {
   then: () => {},
-}
+} as PromiseLike<void>
