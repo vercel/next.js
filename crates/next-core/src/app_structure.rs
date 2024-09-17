@@ -422,7 +422,7 @@ impl LoaderTree {
         false
     }
 
-    /// Returns whether or not the only match in this tree is for a catch-all
+    /// Returns whether the only match in this tree is for a catch-all
     /// route.
     pub fn has_only_catchall(&self) -> bool {
         if &*self.segment == "__PAGE__" && !self.page.is_catchall() {
@@ -436,6 +436,21 @@ impl LoaderTree {
         }
 
         true
+    }
+
+    /// Returns true if this loader tree contains an intercepting route match.
+    pub fn is_intercepting(&self) -> bool {
+        if self.page.is_intercepting() && self.has_page() {
+            return true;
+        }
+
+        for (_, tree) in &self.parallel_routes {
+            if tree.is_intercepting() {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Returns the specificity of the page (i.e. the number of segments
@@ -940,49 +955,49 @@ fn directory_tree_to_loader_tree_internal(
         }
     }
 
+    // make sure we don't have a match for other slots if there's an intercepting route match
+    // we only check subtrees as the current level could trigger `is_intercepting`
+    if tree
+        .parallel_routes
+        .iter()
+        .any(|(_, parallel_tree)| parallel_tree.is_intercepting())
+    {
+        let mut keys_to_replace = Vec::new();
+
+        for (key, parallel_tree) in &tree.parallel_routes {
+            if !parallel_tree.is_intercepting() {
+                keys_to_replace.push(key.clone());
+            }
+        }
+
+        for key in keys_to_replace {
+            let subdir_name: RcStr = format!("@{}", key).into();
+
+            let default = if key == "children" {
+                components.default
+            } else if let Some(subdirectory) = directory_tree.subdirectories.get(&subdir_name) {
+                subdirectory.components.default
+            } else {
+                None
+            };
+
+            tree.parallel_routes.insert(
+                key,
+                default_route_tree(app_dir, global_metadata, app_page.clone(), default),
+            );
+        }
+    }
+
     if tree.parallel_routes.is_empty() {
-        tree.segment = "__DEFAULT__".into();
-        if let Some(default) = components.default {
-            tree.components = Components {
-                default: Some(default),
-                ..Default::default()
-            };
-        } else if current_level_is_parallel_route {
-            // default fallback component
-            tree.components = Components {
-                default: Some(
-                    get_next_package(app_dir)
-                        .join("dist/client/components/parallel-route-default.js".into()),
-                ),
-                ..Default::default()
-            };
+        if components.default.is_some() || current_level_is_parallel_route {
+            tree = default_route_tree(app_dir, global_metadata, app_page, components.default);
         } else {
             return Ok(None);
         }
     } else if tree.parallel_routes.get("children").is_none() {
         tree.parallel_routes.insert(
             "children".into(),
-            LoaderTree {
-                page: app_page.clone(),
-                segment: "__DEFAULT__".into(),
-                parallel_routes: IndexMap::new(),
-                components: if let Some(default) = components.default {
-                    Components {
-                        default: Some(default),
-                        ..Default::default()
-                    }
-                } else {
-                    // default fallback component
-                    Components {
-                        default: Some(
-                            get_next_package(app_dir)
-                                .join("dist/client/components/parallel-route-default.js".into()),
-                        ),
-                        ..Default::default()
-                    }
-                },
-                global_metadata,
-            },
+            default_route_tree(app_dir, global_metadata, app_page, components.default),
         );
     }
 
@@ -995,6 +1010,35 @@ fn directory_tree_to_loader_tree_internal(
     }
 
     Ok(Some(tree))
+}
+
+fn default_route_tree(
+    app_dir: Vc<FileSystemPath>,
+    global_metadata: Vc<GlobalMetadata>,
+    app_page: AppPage,
+    default_component: Option<Vc<FileSystemPath>>,
+) -> LoaderTree {
+    LoaderTree {
+        page: app_page.clone(),
+        segment: "__DEFAULT__".into(),
+        parallel_routes: IndexMap::new(),
+        components: if let Some(default) = default_component {
+            Components {
+                default: Some(default),
+                ..Default::default()
+            }
+        } else {
+            // default fallback component
+            Components {
+                default: Some(
+                    get_next_package(app_dir)
+                        .join("dist/client/components/parallel-route-default.js".into()),
+                ),
+                ..Default::default()
+            }
+        },
+        global_metadata,
+    }
 }
 
 #[turbo_tasks::function]
