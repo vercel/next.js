@@ -1,24 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
-
-describe('next-types-plugin', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
+;(process.env.TURBOPACK ? describe.skip : describe)('next-types-plugin', () => {
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
-    skipStart: true,
   })
 
-  // Used `process.env.TURBOPACK` because `isTurbopack` is returned
-  // after creating the next instance, but we need to skip before
-  // `next build` is called, because it's not supported yet.
-  if (process.env.TURBOPACK || isTurbopack) {
-    it.skip('should skip turbopack', () => {})
-    return
-  }
   if (skipped) return
-
-  beforeAll(async () => {
-    await next.build()
-  })
 
   it('should have type for root page', async () => {
     expect(await next.hasFile('app/page.tsx')).toBe(true)
