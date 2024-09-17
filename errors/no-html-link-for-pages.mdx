@@ -44,6 +44,26 @@ export default Home
 
 ### Options
 
+The rule accepts the following options:
+
+```ts
+type NoHTMLLinkForPagesOptions =
+  | string
+  | string[]
+  | {
+      pagesDir?: string | string[]
+      pageExtensions?: string | string[]
+    }
+```
+
+The values can be:
+
+- `string` - It's equivalent to the `pagesDir` argument.
+- `string[]` - It's equivalent to the `pagesDir` argument.
+- An object with the following properties:
+  - `pagesDir` - a path to a directory or an array of paths to directories
+  - `pageExtensions` - a string or an array of strings representing the extensions of the page files
+
 #### `pagesDir`
 
 This rule can normally locate your `pages` directory automatically.
@@ -52,14 +72,39 @@ If you're working in a monorepo, we recommend configuring the [`rootDir`](/docs/
 
 In some cases, you may also need to configure this rule directly by providing a `pages` directory. This can be a path or an array of paths.
 
-```json filename="eslint.config.json"
-{
-  "rules": {
-    "@next/next/no-html-link-for-pages": ["error", "packages/my-app/pages/"]
-  }
+```js filename=".eslintrc.js" highlight={3}
+module.exports = {
+  rules: {
+    '@next/next/no-html-link-for-pages': ['error', 'packages/foo/pages/'],
+    // or
+    // "@next/next/no-html-link-for-pages": ["error", { pagesDir: "packages/foo/pages/" }],
+  },
+}
+```
+
+#### `pageExtensions`
+
+If you set the [`pageExtensions`](/docs/app/api-reference/next-config-js/pageExtensions) config, this rule will not work and the `pageExtensions` option must be set for it to work.
+
+```js filename="next.config.js" highlight={3}
+/** @type {import('next').NextConfig} */
+module.exports = {
+  pageExtensions: ['page.tsx', 'mdx'],
+}
+```
+
+```js filename=".eslintrc.js" highlight={5}
+module.exports = {
+  rules: {
+    '@next/next/no-html-link-for-pages': [
+      'error',
+      { pageExtensions: ['page.tsx', 'mdx'] },
+    ],
+  },
 }
 ```
 
 ## Useful Links
 
 - [next/link API Reference](/docs/pages/api-reference/components/link)
+- [next.config.js Options: pageExtensions](/docs/app/api-reference/next-config-js/pageExtensions)

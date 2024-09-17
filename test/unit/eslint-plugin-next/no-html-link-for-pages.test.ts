@@ -19,8 +19,11 @@ const withNestedPagesLinter = new Linter({
 const withCustomPagesLinter = new Linter({
   cwd: withCustomPagesDirectory,
 })
+const withPagesAndExtensionsLinter = new Linter({
+  cwd: path.join(__dirname, 'with-pages-and-extensions'),
+})
 
-const linterConfig: any = {
+const linterConfig: Linter.Config = {
   rules: {
     'no-html-link-for-pages': [2],
   },
@@ -33,7 +36,7 @@ const linterConfig: any = {
     },
   },
 }
-const linterConfigWithCustomDirectory: any = {
+const linterConfigWithCustomDirectory: Linter.Config = {
   ...linterConfig,
   rules: {
     'no-html-link-for-pages': [
@@ -42,7 +45,7 @@ const linterConfigWithCustomDirectory: any = {
     ],
   },
 }
-const linterConfigWithMultipleDirectories = {
+const linterConfigWithMultipleDirectories: Linter.Config = {
   ...linterConfig,
   rules: {
     'no-html-link-for-pages': [
@@ -63,6 +66,18 @@ const linterConfigWithNestedContentRootDirDirectory = {
   },
 }
 
+const linterConfigWithPagesAndPageExtensions: Linter.Config = {
+  ...linterConfig,
+  rules: {
+    'no-html-link-for-pages': [
+      2,
+      {
+        pageExtensions: ['page.tsx'],
+      },
+    ],
+  },
+}
+
 withoutPagesLinter.defineRules({
   'no-html-link-for-pages': rule,
 })
@@ -73,6 +88,9 @@ withNestedPagesLinter.defineRules({
   'no-html-link-for-pages': rule,
 })
 withCustomPagesLinter.defineRules({
+  'no-html-link-for-pages': rule,
+})
+withPagesAndExtensionsLinter.defineRules({
   'no-html-link-for-pages': rule,
 })
 
@@ -219,6 +237,39 @@ export class Blah extends Head {
     return (
       <div>
         <a href='/list/lorem-ipsum/'>Homepage</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const invalidStaticRouterWithPageExtensionsCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href="/">Homepage</a>
+        <a href="/about">About</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const validStaticRouterWithPageExtensionsCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <Link href="/">Homepage</Link>
+        <Link href="/about">About</Link>
+        <a href="/component">Component</a>
         <h1>Hello title</h1>
       </div>
     );
@@ -397,5 +448,35 @@ describe('no-html-link-for-pages', function () {
       thirdReport.message,
       'Do not use an `<a>` element to navigate to `/list/lorem-ipsum/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
+  })
+
+  it('invalid static route with pageExtensions', function () {
+    const report = withPagesAndExtensionsLinter.verify(
+      invalidStaticRouterWithPageExtensionsCode,
+      linterConfigWithPagesAndPageExtensions,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.equal(report.length, 2)
+    assert.equal(
+      report[0].message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+    assert.equal(
+      report[1].message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  it('valid static route with pageExtensions', function () {
+    const report = withPagesAndExtensionsLinter.verify(
+      validStaticRouterWithPageExtensionsCode,
+      linterConfigWithPagesAndPageExtensions,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.deepEqual(report, [])
   })
 })
