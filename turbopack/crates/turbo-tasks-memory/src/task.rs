@@ -1024,6 +1024,14 @@ impl Task {
                         stateful,
                         edges: new_edges.into_list(),
                     };
+                    let outdated_children = outdated_edges.drain_children();
+                    if !outdated_children.is_empty() {
+                        remove_job = state.aggregation_node.handle_lost_edges(
+                            &aggregation_context,
+                            &self.id,
+                            outdated_children,
+                        );
+                    }
                     if !count_as_finished {
                         let mut change = TaskChange {
                             unfinished: -1,
@@ -1048,14 +1056,7 @@ impl Task {
                             .aggregation_node
                             .apply_change(&aggregation_context, change);
                     }
-                    let outdated_children = outdated_edges.drain_children();
-                    if !outdated_children.is_empty() {
-                        remove_job = state.aggregation_node.handle_lost_edges(
-                            &aggregation_context,
-                            &self.id,
-                            outdated_children,
-                        );
-                    }
+
                     done_event.notify(usize::MAX);
                     drop(state);
                     self.clear_dependencies(outdated_edges, backend, turbo_tasks);
@@ -1064,8 +1065,8 @@ impl Task {
             for cell in drained_cells {
                 cell.gc_drop(turbo_tasks);
             }
-            change_job.apply(&aggregation_context);
             remove_job.apply(&aggregation_context);
+            change_job.apply(&aggregation_context);
         }
         if let TaskType::Once(_) = self.ty {
             // unset the root type, so tasks below are no longer active
