@@ -123,7 +123,7 @@
     "@typescript-eslint/parser": "7.16.0",
     "@vercel/devlow-bench": "workspace:*",
     "@vercel/fetch": "6.1.1",
-    "@vercel/og": "0.6.2",
+    "@vercel/og": "0.6.3",
     "abort-controller": "3.0.0",
     "alex": "9.1.0",
     "amphtml-validator": "1.0.35",
