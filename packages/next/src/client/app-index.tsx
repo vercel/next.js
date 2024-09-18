@@ -1,4 +1,5 @@
 import '../build/polyfills/polyfill-module'
+import '../build/polyfills/url-can-parse'
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
 // eslint-disable-next-line import/no-extraneous-dependencies

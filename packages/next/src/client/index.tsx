@@ -1,5 +1,6 @@
 /* global location */
 import '../build/polyfills/polyfill-module'
+import '../build/polyfills/url-can-parse'
 
 import type Router from '../shared/lib/router/router'
 import type {
