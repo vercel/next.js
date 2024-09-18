@@ -182,7 +182,7 @@ async function createComponentTreeInternal({
 
   const segmentInterceptor =
     interceptor &&
-    (await createInterceptor(interceptor, requestStore, workStore))
+    (await createInterceptor(interceptor, requestStore.nextRequest, workStore))
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'

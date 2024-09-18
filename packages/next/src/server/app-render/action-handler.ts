@@ -43,7 +43,7 @@ import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
-import { callInterceptors } from './call-interceptors'
+import { callInterceptorsWithLoaderTree } from './call-interceptors'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -831,9 +831,9 @@ export async function handleAction({
         actionId!
       ]
 
-      await callInterceptors({
+      await callInterceptorsWithLoaderTree({
         loaderTree: ComponentMod.tree,
-        requestStore: ctx.requestStore,
+        request: ctx.requestStore.nextRequest,
         workStore: ctx.workStore,
       })
 

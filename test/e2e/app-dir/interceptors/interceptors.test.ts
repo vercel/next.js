@@ -29,6 +29,7 @@ describe('interceptors', () => {
         expect(next.cliOutput).toInclude('ƒ /_not-found ')
         expect(next.cliOutput).toInclude('ƒ /nested ')
         expect(next.cliOutput).toInclude('ƒ /nested/[slug] ')
+        expect(next.cliOutput).toInclude('ƒ /api/nested ')
       })
     }
   }
@@ -209,5 +210,21 @@ describe('interceptors', () => {
       SlotInterceptor, finish
       Action!
     `)
+  })
+
+  it('should intercept requests for route handlers', async () => {
+    await next.browser('/api/nested')
+    const cliOutput = next.cliOutput.slice(cliOutputLength)
+
+    expect(cliOutput.replace(timeStampRegExp, '')).toMatch(outdent`
+        RootInterceptor, start
+        URL: http://localhost:${next.appPort}/api/nested
+        RootInterceptor, finish
+        ApiInterceptor, start
+        ApiInterceptor, finish
+        ApiNestedInterceptor, start
+        ApiNestedInterceptor, finish
+        GET http://localhost:${next.appPort}/api/nested
+      `)
   })
 })

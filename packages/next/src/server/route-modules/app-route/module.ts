@@ -76,6 +76,8 @@ import {
 } from '../../../client/components/redirect'
 import { isNotFoundError } from '../../../client/components/not-found'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
+import { callInterceptors } from '../../app-render/call-interceptors'
+import type { ModuleTuple } from '../../../build/webpack/loaders/metadata/types'
 
 export class WrappedNextRouterError {
   constructor(
@@ -151,6 +153,7 @@ export interface AppRouteRouteModuleOptions
   extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
+  readonly interceptors: ModuleTuple[]
 }
 
 /**
@@ -186,6 +189,7 @@ export class AppRouteRouteModule extends RouteModule<
 
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
+  public readonly interceptors: ModuleTuple[]
 
   private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
   private readonly hasNonStaticMethods: boolean
@@ -196,11 +200,13 @@ export class AppRouteRouteModule extends RouteModule<
     definition,
     resolvedPagePath,
     nextConfigOutput,
+    interceptors,
   }: AppRouteRouteModuleOptions) {
     super({ userland, definition })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
+    this.interceptors = interceptors
 
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
@@ -308,6 +314,16 @@ export class AppRouteRouteModule extends RouteModule<
           ? workUnitStore.pathname
           : undefined
 
+    const handleRequest = async () => {
+      await callInterceptors({
+        interceptors: this.interceptors,
+        request,
+        workStore,
+      })
+
+      return handler(request, handlerContext)
+    }
+
     let res: unknown
     try {
       if (isStaticGeneration && dynamicIOEnabled) {
@@ -348,9 +364,7 @@ export class AppRouteRouteModule extends RouteModule<
         try {
           prospectiveResult = this.workUnitAsyncStorage.run(
             prospectiveRoutePrerenderStore,
-            handler,
-            request,
-            handlerContext
+            handleRequest
           )
         } catch (err) {
           if (isPrerenderInterruptedError(err)) {
@@ -418,9 +432,7 @@ export class AppRouteRouteModule extends RouteModule<
             try {
               const result = await (this.workUnitAsyncStorage.run(
                 finalRoutePrerenderStore,
-                handler,
-                request,
-                handlerContext
+                handleRequest
               ) as Promise<Response>)
               if (responseHandled) {
                 // we already rejected in the followup task
@@ -481,12 +493,10 @@ export class AppRouteRouteModule extends RouteModule<
             type: 'prerender-legacy',
             pathname,
           },
-          handler,
-          request,
-          handlerContext
+          handleRequest
         )
       } else {
-        res = await handler(request, handlerContext)
+        res = await handleRequest()
       }
     } catch (err) {
       if (isRedirectError(err)) {

@@ -4,10 +4,7 @@ import type { WorkStore } from '../../client/components/work-async-storage.exter
 import type { NextRequest } from '../web/exports'
 import { markCurrentScopeAsDynamic } from './dynamic-rendering'
 import { interopDefault } from './interop-default'
-import {
-  workUnitAsyncStorage,
-  type RequestStore,
-} from './work-unit-async-storage.external'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 
 const callingExpression = 'an interceptor'
 
@@ -15,7 +12,7 @@ export type RequestBoundInterceptor = () => Promise<void>
 
 export async function createInterceptor(
   moduleTuple: ModuleTuple,
-  requestStore: RequestStore,
+  request: NextRequest,
   workStore: WorkStore
 ): Promise<RequestBoundInterceptor> {
   const [getModule, , filePathRelative] = moduleTuple
@@ -43,7 +40,7 @@ export async function createInterceptor(
     }
 
     if (!interceptorPromise) {
-      interceptorPromise = interceptRequest(requestStore.nextRequest)
+      interceptorPromise = interceptRequest(request)
     }
 
     return interceptorPromise

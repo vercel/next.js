@@ -19,8 +19,6 @@ declare const interceptors: ModuleTuple[]
 // INJECT:nextConfigOutput
 // INJECT:interceptors
 
-export { interceptors }
-
 const routeModule = new AppRouteRouteModule({
   definition: {
     kind: RouteKind.APP_ROUTE,
@@ -32,6 +30,7 @@ const routeModule = new AppRouteRouteModule({
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
   userland,
+  interceptors,
 })
 
 // Pull out the exports that we need to expose from the module. This should
