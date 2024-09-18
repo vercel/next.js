@@ -20,3 +20,15 @@ export function stripNextRscUnionQuery(relativeUrl: string): string {
 
   return urlInstance.pathname + urlInstance.search
 }
+
+export function canParseUrl(url: string): boolean {
+  if (typeof URL.canParse === 'function') {
+    return URL.canParse(url)
+  }
+  try {
+    new URL(url)
+    return true
+  } catch {}
+
+  return false
+}

@@ -1,3 +1,5 @@
+import { canParseUrl } from '../../lib/url'
+
 export function normalizedAssetPrefix(assetPrefix: string | undefined): string {
   // remove all leading slashes and trailing slashes
   const escapedAssetPrefix = assetPrefix?.replace(/^\/+|\/+$/g, '') || false
@@ -8,7 +10,7 @@ export function normalizedAssetPrefix(assetPrefix: string | undefined): string {
     return ''
   }
 
-  if (URL.canParse(escapedAssetPrefix)) {
+  if (canParseUrl(escapedAssetPrefix)) {
     const url = new URL(escapedAssetPrefix).toString()
     return url.endsWith('/') ? url.slice(0, -1) : url
   }
