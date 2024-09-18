@@ -857,7 +857,7 @@ importers:
         version: 0.5.13
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-ca8e0be-20240916
+        version: 0.0.0-experimental-24ec0eb-20240918
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -1566,8 +1566,8 @@ importers:
   packages/next-polyfill-nomodule:
     devDependencies:
       core-js:
-        specifier: 3.6.5
-        version: 3.6.5
+        specifier: 3.38.1
+        version: 3.38.1
       microbundle:
         specifier: 0.15.0
         version: 0.15.0(@types/babel__core@7.20.5)
@@ -5934,11 +5934,11 @@ packages:
     peerDependencies:
       '@babel/core': 7.22.5
 
+  babel-plugin-react-compiler@0.0.0-experimental-24ec0eb-20240918:
+    resolution: {integrity: sha512-3uFbIPB/q68AUwoPlv4nleIARMdLnzco0FL9f1Iv05kb0/wwOX8sE6rHz+6fyXEScBWf8cogTq1lnlHBc/dyNQ==}
+
   babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
-
-  babel-plugin-react-compiler@0.0.0-experimental-ca8e0be-20240916:
-    resolution: {integrity: sha512-S/fMyIedoXdIVEleWMctmllsjXIDQwGiB8Z5v12L+lGKJ7n28K/8aFzVFcDpICnIIP3tXuAo0rF1bfn0MYb7YQ==}
 
   babel-plugin-transform-async-to-promises@0.8.15:
     resolution: {integrity: sha512-fDXP68ZqcinZO2WCiimCL9zhGjGXOnn3D33zvbh+yheZ/qOrNVVDDIBtAaM3Faz8TRvQzHiRKsu3hfrBAhEncQ==}
@@ -6686,6 +6686,9 @@ packages:
 
   core-js-compat@3.37.1:
     resolution: {integrity: sha512-9TNiImhKvQqSUkOvk/mMRZzOANTiEVC7WaBNhHcKM7x+/5E1l5NvsysR19zuDQScE8k+kfQXWRN3AtS/eOSHpg==}
+
+  core-js@3.38.1:
+    resolution: {integrity: sha512-OP35aUorbU3Zvlx7pjsFdu1rGNnD4pgw/CWoYzRY3t2EzoVT7shKHY1dlAy3f41cGIO7ZDPQimhGFTlEYkG/Hw==}
 
   core-js@3.6.5:
     resolution: {integrity: sha512-vZVEEwZoIsI+vPEuoF9Iqf5H7/M3eeQqWlQnYa8FSKKePuYTf5MWnxb5SDAzCa60b3JBRS5g9b+Dq7b1y/RCrA==}
@@ -20464,7 +20467,7 @@ snapshots:
       - supports-color
     optional: true
 
-  babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
+  babel-plugin-react-compiler@0.0.0-experimental-24ec0eb-20240918:
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
@@ -20474,7 +20477,7 @@ snapshots:
       zod: 3.23.8
       zod-validation-error: 2.1.0(zod@3.23.8)
 
-  babel-plugin-react-compiler@0.0.0-experimental-ca8e0be-20240916:
+  babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
@@ -21356,6 +21359,8 @@ snapshots:
     dependencies:
       browserslist: 4.22.2
     optional: true
+
+  core-js@3.38.1: {}
 
   core-js@3.6.5: {}
 
