@@ -1294,6 +1294,10 @@ export default abstract class Server<
                 .hasValidParams
             ) {
               params = utils.defaultRouteMatches
+
+              // Mark that the default route matches were set on the request
+              // during routing.
+              addRequestMeta(req, 'didSetDefaultRouteMatches', true)
             }
 
             if (params) {
@@ -2938,23 +2942,18 @@ export default abstract class Server<
         }
       }
 
-      const context: RendererContext = {
-        // Only requests that aren't revalidating can be resumed. If we have the
-        // minimal postponed data, then we should resume the render with it.
-        postponed:
-          !isOnDemandRevalidate && !isRevalidating && minimalPostponed
-            ? minimalPostponed
-            : undefined,
-        // This is a regular render, not a fallback render, so we don't need to
-        // set this.
-        fallbackRouteParams: null,
-      }
+      // Only requests that aren't revalidating can be resumed. If we have the
+      // minimal postponed data, then we should resume the render with it.
+      const postponed =
+        !isOnDemandRevalidate && !isRevalidating && minimalPostponed
+          ? minimalPostponed
+          : undefined
 
       // When we're in minimal mode, if we're trying to debug the static shell,
       // we should just return nothing instead of resuming the dynamic render.
       if (
         (isDebugStaticShell || isDebugDynamicAccesses) &&
-        typeof context.postponed !== 'undefined'
+        typeof postponed !== 'undefined'
       ) {
         return {
           revalidate: 1,
@@ -2969,8 +2968,21 @@ export default abstract class Server<
         }
       }
 
+      // If this is a dynamic route with PPR enabled and the default route
+      // matches were set, then we should pass the fallback route params to
+      // the renderer as this is a fallback revalidation request.
+      const fallbackRouteParams =
+        isDynamic &&
+        isRoutePPREnabled &&
+        getRequestMeta(req, 'didSetDefaultRouteMatches')
+          ? getFallbackRouteParams(pathname)
+          : null
+
       // Perform the render.
-      const result = await doRender(context)
+      const result = await doRender({
+        postponed,
+        fallbackRouteParams,
+      })
       if (!result) return null
 
       return {
