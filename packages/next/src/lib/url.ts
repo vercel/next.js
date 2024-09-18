@@ -21,14 +21,15 @@ export function stripNextRscUnionQuery(relativeUrl: string): string {
   return urlInstance.pathname + urlInstance.search
 }
 
-export function canParseUrl(url: string): boolean {
-  if (typeof URL.canParse === 'function') {
-    return URL.canParse(url)
+// patch URL.canParse to be available in older browsers e.g. Safari 16
+// x-ref: https://github.com/vercel/next.js/pull/70215
+// x-ref: https://caniuse.com/?search=URL.canParse
+if (!('canParse' in URL)) {
+  ;(URL as any).canParse = (url: string, base?: string): boolean => {
+    try {
+      return !!new URL(url, base)
+    } catch {
+      return false
+    }
   }
-  try {
-    new URL(url)
-    return true
-  } catch {}
-
-  return false
 }
