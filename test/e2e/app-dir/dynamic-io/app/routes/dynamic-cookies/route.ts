@@ -4,7 +4,7 @@ import { cookies } from 'next/headers'
 
 import { getSentinelValue } from '../../getSentinelValue'
 
-export async function GET(request: NextRequest, { params }: { params: {} }) {
+export async function GET(request: NextRequest) {
   const sentinel = (await cookies()).get('x-sentinel')
   return new Response(
     JSON.stringify({
