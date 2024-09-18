@@ -833,6 +833,10 @@ export default async function getBaseWebpackConfig(
 
   const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
+  const cssChunkingStyle = config.experimental.cssChunking?.style === 'strict'
+  const minChunkingSize = config.experimental.cssChunking?.minChunkSize
+  const maxChunkingSize = config.experimental.cssChunking?.maxChunkSize
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
@@ -1922,7 +1926,11 @@ export default async function getBaseWebpackConfig(
         }),
       !dev &&
         isClient &&
-        new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
+        new CssChunkingPlugin(
+          cssChunkingStyle,
+          minChunkingSize,
+          maxChunkingSize
+        ),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(

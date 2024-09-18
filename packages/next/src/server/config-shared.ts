@@ -271,8 +271,15 @@ export interface ExperimentalConfig {
    * between CSS files to keep ordering of them.
    * An alternative is 'strict', which will try to keep correct ordering as
    * much as possible, even when this leads to many requests.
+   *
+   * minChunkSize: Minimum size of a chunk in bytes. Defaults to 30 KB.
+   * maxChunkSize: Maximum size of a chunk in bytes. Defaults to 100 KB.
    */
-  cssChunking?: 'strict' | 'loose'
+  cssChunking?: {
+    style?: 'loose' | 'strict'
+    minChunkSize?: number
+    maxChunkSize?: number
+  }
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
