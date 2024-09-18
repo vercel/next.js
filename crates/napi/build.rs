@@ -26,5 +26,5 @@ fn main() {
     println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
 
     #[cfg(not(target_arch = "wasm32"))]
-    turbopack_binding::turbo::tasks_build::generate_register();
+    turbo_tasks_build::generate_register();
 }

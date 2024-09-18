@@ -3,22 +3,19 @@ use std::collections::HashMap;
 use anyhow::Result;
 use lazy_static::lazy_static;
 use turbo_tasks::{RcStr, Value, Vc};
-use turbo_tasks_fs::glob::Glob;
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::core::{
-        diagnostics::DiagnosticExt,
-        file_source::FileSource,
-        issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-        reference_type::ReferenceType,
-        resolve::{
-            parse::Request,
-            plugin::{
-                AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
-                BeforeResolvePluginCondition,
-            },
-            ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
+use turbo_tasks_fs::{glob::Glob, FileSystemPath};
+use turbopack_core::{
+    diagnostics::DiagnosticExt,
+    file_source::FileSource,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    reference_type::ReferenceType,
+    resolve::{
+        parse::Request,
+        plugin::{
+            AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
+            BeforeResolvePluginCondition,
         },
+        ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
     },
 };
 
@@ -256,15 +253,22 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
 #[turbo_tasks::value]
 pub(crate) struct NextNodeSharedRuntimeResolvePlugin {
     root: Vc<FileSystemPath>,
-    context: ServerContextType,
+    server_context_type: ServerContextType,
 }
 
 #[turbo_tasks::value_impl]
 impl NextNodeSharedRuntimeResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>, context: Value<ServerContextType>) -> Vc<Self> {
-        let context = context.into_value();
-        NextNodeSharedRuntimeResolvePlugin { root, context }.cell()
+    pub fn new(
+        root: Vc<FileSystemPath>,
+        server_context_type: Value<ServerContextType>,
+    ) -> Vc<Self> {
+        let server_context_type = server_context_type.into_value();
+        NextNodeSharedRuntimeResolvePlugin {
+            root,
+            server_context_type,
+        }
+        .cell()
     }
 }
 
@@ -292,7 +296,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
 
         let resource_request = format!(
             "next/dist/server/route-modules/{}/vendored/contexts/{}.js",
-            match self.context {
+            match self.server_context_type {
                 ServerContextType::AppRoute { .. } => "app-route",
                 ServerContextType::AppSSR { .. } | ServerContextType::AppRSC { .. } => "app-page",
                 // Use default pages context for all other contexts.

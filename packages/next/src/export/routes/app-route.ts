@@ -43,7 +43,7 @@ export async function exportAppRoute(
   distDir: string,
   htmlFilepath: string,
   fileWriter: FileWriter,
-  experimental: Required<Pick<ExperimentalConfig, 'after'>>
+  experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -96,7 +96,15 @@ export async function exportAppRoute(
     const normalizedPage = normalizeAppPath(page)
     const isMetadataRoute = isMetadataRouteFile(normalizedPage, [], false)
 
-    if (!isStaticGenEnabled(userland) && !isMetadataRoute) {
+    if (
+      !isStaticGenEnabled(userland) &&
+      !isMetadataRoute &&
+      // We don't disable static gen when dynamicIO is enabled because we
+      // expect that anything dynamic in the GET handler will make it dynamic
+      // and thus avoid the cache surprises that led to us removing static gen
+      // unless specifically opted into
+      experimental.dynamicIO !== true
+    ) {
       return { revalidate: 0 }
     }
 

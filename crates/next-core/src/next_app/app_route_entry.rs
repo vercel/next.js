@@ -1,17 +1,13 @@
 use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::{
-        core::{
-            context::AssetContext,
-            module::Module,
-            reference_type::{EntryReferenceSubType, ReferenceType},
-            source::Source,
-        },
-        turbopack::ModuleAssetContext,
-    },
+use turbo_tasks_fs::FileSystemPath;
+use turbopack::ModuleAssetContext;
+use turbopack_core::{
+    context::AssetContext,
+    module::Module,
+    reference_type::{EntryReferenceSubType, ReferenceType},
+    source::Source,
 };
 
 use crate::{
@@ -26,8 +22,8 @@ use crate::{
 /// Computes the entry for a Next.js app route.
 /// # Arguments
 ///
-/// * `original_segment_config` - A next segment config to be specified
-///   explicitly for the given source.
+/// * `original_segment_config` - A next segment config to be specified explicitly for the given
+///   source.
 /// For some cases `source` may not be the original but the handler (dynamic
 /// metadata) which will lose segment config.
 #[turbo_tasks::function]
@@ -50,7 +46,7 @@ pub async fn get_app_route_entry(
     };
 
     let is_edge = matches!(config.await?.runtime, Some(NextRuntime::Edge));
-    let context = if is_edge {
+    let module_asset_context = if is_edge {
         edge_context
     } else {
         nodejs_context
@@ -94,7 +90,7 @@ pub async fn get_app_route_entry(
     )
     .await?;
 
-    let userland_module = context
+    let userland_module = module_asset_context
         .process(
             source,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::AppRoute)),
@@ -105,7 +101,7 @@ pub async fn get_app_route_entry(
         INNER.into() => userland_module
     };
 
-    let mut rsc_entry = context
+    let mut rsc_entry = module_asset_context
         .process(
             Vc::upcast(virtual_source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
@@ -114,7 +110,7 @@ pub async fn get_app_route_entry(
 
     if is_edge {
         rsc_entry = wrap_edge_route(
-            Vc::upcast(context),
+            Vc::upcast(module_asset_context),
             project_root,
             rsc_entry,
             pathname.clone(),
@@ -132,7 +128,7 @@ pub async fn get_app_route_entry(
 
 #[turbo_tasks::function]
 async fn wrap_edge_route(
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
     pathname: RcStr,
@@ -154,12 +150,17 @@ async fn wrap_edge_route(
         INNER.into() => entry
     };
 
-    let wrapped = context
+    let wrapped = asset_context
         .process(
             Vc::upcast(source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
         .module();
 
-    Ok(wrap_edge_entry(context, project_root, wrapped, pathname))
+    Ok(wrap_edge_entry(
+        asset_context,
+        project_root,
+        wrapped,
+        pathname,
+    ))
 }

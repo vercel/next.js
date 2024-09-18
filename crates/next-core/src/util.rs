@@ -1,31 +1,29 @@
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use swc_core::{
+    common::GLOBALS,
+    ecma::ast::{Expr, Lit, Program},
+};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, ValueDefault, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, util::join_path, File};
-use turbopack_binding::{
-    swc::core::{
-        common::GLOBALS,
-        ecma::ast::{Expr, Lit, Program},
-    },
-    turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
-    turbopack::{
-        core::{
-            asset::AssetContent,
-            ident::AssetIdent,
-            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-            module::Module,
-            source::Source,
-            virtual_source::VirtualSource,
-        },
-        ecmascript::{
-            analyzer::{JsValue, ObjectPart},
-            parse::ParseResult,
-            utils::StringifyJs,
-            EcmascriptModuleAsset,
-        },
-        turbopack::condition::ContextCondition,
-    },
+use turbo_tasks_fs::{
+    self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
+    FileContent, FileSystemPath,
+};
+use turbopack_core::{
+    asset::AssetContent,
+    condition::ContextCondition,
+    ident::AssetIdent,
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    module::Module,
+    source::Source,
+    virtual_source::VirtualSource,
+};
+use turbopack_ecmascript::{
+    analyzer::{ConstantValue, JsValue, ObjectPart},
+    parse::ParseResult,
+    utils::StringifyJs,
+    EcmascriptParsable,
 };
 
 use crate::{
@@ -180,6 +178,8 @@ pub struct NextSourceConfig {
 
     /// Middleware router matchers
     pub matcher: Option<Vec<MiddlewareMatcherKind>>,
+
+    pub regions: Option<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -373,7 +373,7 @@ fn parse_route_matcher_from_js_value(
 #[turbo_tasks::function]
 pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<NextSourceConfig>> {
     if let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
     {
         if let ParseResult::Ok {
             program: Program::Module(module_ast),
@@ -489,37 +489,77 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                 ),
                 ObjectPart::KeyValue(key, value) => {
                     if let Some(key) = key.as_str() {
-                        if key == "runtime" {
-                            if let JsValue::Constant(runtime) = value {
-                                if let Some(runtime) = runtime.as_str() {
-                                    match runtime {
-                                        "edge" | "experimental-edge" => {
-                                            config.runtime = NextRuntime::Edge;
-                                        }
-                                        "nodejs" => {
-                                            config.runtime = NextRuntime::NodeJs;
-                                        }
-                                        _ => {
-                                            emit_invalid_config_warning(
-                                                module.ident(),
-                                                "The runtime property must be either \"nodejs\" \
-                                                 or \"edge\".",
-                                                value,
-                                            );
+                        match key {
+                            "runtime" => {
+                                if let JsValue::Constant(runtime) = value {
+                                    if let Some(runtime) = runtime.as_str() {
+                                        match runtime {
+                                            "edge" | "experimental-edge" => {
+                                                config.runtime = NextRuntime::Edge;
+                                            }
+                                            "nodejs" => {
+                                                config.runtime = NextRuntime::NodeJs;
+                                            }
+                                            _ => {
+                                                emit_invalid_config_warning(
+                                                    module.ident(),
+                                                    "The runtime property must be either \
+                                                     \"nodejs\" or \"edge\".",
+                                                    value,
+                                                );
+                                            }
                                         }
                                     }
+                                } else {
+                                    emit_invalid_config_warning(
+                                        module.ident(),
+                                        "The runtime property must be a constant string.",
+                                        value,
+                                    );
                                 }
-                            } else {
-                                emit_invalid_config_warning(
-                                    module.ident(),
-                                    "The runtime property must be a constant string.",
-                                    value,
-                                );
                             }
-                        }
-                        if key == "matcher" {
-                            config.matcher =
-                                parse_route_matcher_from_js_value(module.ident(), value);
+                            "matcher" => {
+                                config.matcher =
+                                    parse_route_matcher_from_js_value(module.ident(), value);
+                            }
+                            "regions" => {
+                                config.regions = match value {
+                                    // Single value is turned into a single-element Vec.
+                                    JsValue::Constant(ConstantValue::Str(str)) => {
+                                        Some(vec![str.to_string().into()])
+                                    }
+                                    // Array of strings is turned into a Vec. If one of the values
+                                    // in not a String it will
+                                    // error.
+                                    JsValue::Array { items, .. } => {
+                                        let mut regions: Vec<RcStr> = Vec::new();
+                                        for item in items {
+                                            if let JsValue::Constant(ConstantValue::Str(str)) = item
+                                            {
+                                                regions.push(str.to_string().into());
+                                            } else {
+                                                emit_invalid_config_warning(
+                                                    module.ident(),
+                                                    "Values of the `config.regions` array need to \
+                                                     static strings",
+                                                    item,
+                                                );
+                                            }
+                                        }
+                                        Some(regions)
+                                    }
+                                    _ => {
+                                        emit_invalid_config_warning(
+                                            module.ident(),
+                                            "`config.regions` needs to be a static string or \
+                                             array of static strings",
+                                            value,
+                                        );
+                                        None
+                                    }
+                                };
+                            }
+                            _ => {}
                         }
                     } else {
                         emit_invalid_config_warning(

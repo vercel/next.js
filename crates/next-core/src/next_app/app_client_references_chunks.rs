@@ -2,7 +2,7 @@ use anyhow::Result;
 use indexmap::IndexMap;
 use tracing::Instrument;
 use turbo_tasks::{RcStr, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc};
-use turbopack_binding::turbopack::core::{
+use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
     module::Module,
     output::OutputAssets,
@@ -18,12 +18,12 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-fn client_modules_modifier() -> Vc<RcStr> {
+pub fn client_modules_modifier() -> Vc<RcStr> {
     Vc::cell("client modules".into())
 }
 
 #[turbo_tasks::function]
-fn client_modules_ssr_modifier() -> Vc<RcStr> {
+pub fn client_modules_ssr_modifier() -> Vc<RcStr> {
     Vc::cell("client modules ssr".into())
 }
 
@@ -93,12 +93,9 @@ pub async fn get_app_client_references_chunks(
                                     },
                                 )
                             }
-                            ClientReferenceType::CssClientReference(css_client_reference) => {
-                                let css_client_reference_ref = css_client_reference.await?;
+                            ClientReferenceType::CssClientReference(css_module) => {
                                 let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(Vc::upcast(
-                                        css_client_reference_ref.client_module,
-                                    ))
+                                    .root_chunk_group(Vc::upcast(css_module))
                                     .await?;
 
                                 (
@@ -202,6 +199,7 @@ pub async fn get_app_client_references_chunks(
                             ssr_modules,
                         );
                         ssr_chunking_context.chunk_group(
+                            ssr_entry_module.ident(),
                             Vc::upcast(ssr_entry_module),
                             Value::new(current_ssr_availability_info),
                         )
@@ -221,9 +219,8 @@ pub async fn get_app_client_references_chunks(
                                     ecmascript_client_reference.await?;
                                 Vc::upcast(ecmascript_client_reference_ref.client_module)
                             }
-                            ClientReferenceType::CssClientReference(css_client_reference) => {
-                                let css_client_reference_ref = css_client_reference.await?;
-                                Vc::upcast(css_client_reference_ref.client_module)
+                            ClientReferenceType::CssClientReference(css_module) => {
+                                Vc::upcast(*css_module)
                             }
                         })
                     })
@@ -241,6 +238,7 @@ pub async fn get_app_client_references_chunks(
                         client_modules,
                     );
                     Some(client_chunking_context.chunk_group(
+                        client_entry_module.ident(),
                         Vc::upcast(client_entry_module),
                         Value::new(current_client_availability_info),
                     ))

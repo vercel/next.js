@@ -500,6 +500,24 @@ declare module 'next/navigation' {
 
   export declare function useRouter(): AppRouterInstance;
 }
+
+declare module 'next/form' {
+  import type { FormProps as OriginalFormProps } from 'next/dist/client/form.js'
+
+  type FormRestProps = Omit<OriginalFormProps, 'action'>
+
+  export type FormProps<RouteInferType> = {
+    /**
+     * \`action\` can be either a \`string\` or a function.
+     * - If \`action\` is a string, it will be interpreted as a path or URL to navigate to when the form is submitted.
+     *   The path will be prefetched when the form becomes visible.
+     * - If \`action\` is a function, it will be called when the form is submitted. See the [React docs](https://react.dev/reference/react-dom/components/form#props) for more.
+     */
+    action: __next_route_internal_types__.RouteImpl<RouteInferType> | ((formData: FormData) => void)
+  } & FormRestProps
+
+  export default function Form<RouteType>(props: FormProps<RouteType>): JSX.Element
+}
 `
 }
 
@@ -618,6 +636,13 @@ export class NextTypesPlugin {
         return
       }
       if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
+
+      // skip for /app/_private dir convention
+      // matches <app-dir>/**/_*
+      const IS_PRIVATE = /(?:\/[^/]+)*\/_.*$/.test(
+        mod.resource.replace(this.appDir, '')
+      )
+      if (IS_PRIVATE) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
