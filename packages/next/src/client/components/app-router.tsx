@@ -378,7 +378,9 @@ function Router({
   useEffect(() => {
     // Ensure that any redirect errors that bubble up outside of the RedirectBoundary
     // are caught and handled by the router.
-    function handle(event: ErrorEvent | PromiseRejectionEvent) {
+    function handleUnhandledRedirect(
+      event: ErrorEvent | PromiseRejectionEvent
+    ) {
       const error = 'reason' in event ? event.reason : event.error
       if (isRedirectError(error)) {
         event.preventDefault()
@@ -391,12 +393,12 @@ function Router({
         }
       }
     }
-    window.addEventListener('error', handle)
-    window.addEventListener('unhandledrejection', handle)
+    window.addEventListener('error', handleUnhandledRedirect)
+    window.addEventListener('unhandledrejection', handleUnhandledRedirect)
 
     return () => {
-      window.removeEventListener('error', handle)
-      window.removeEventListener('unhandledrejection', handle)
+      window.removeEventListener('error', handleUnhandledRedirect)
+      window.removeEventListener('unhandledrejection', handleUnhandledRedirect)
     }
   }, [appRouter])
 

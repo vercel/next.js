@@ -5,6 +5,7 @@ import type {
 import { callServer } from '../../../app-call-server'
 import {
   ACTION_HEADER,
+  NEXT_IS_PRERENDER_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
@@ -53,6 +54,7 @@ type FetchServerActionResult = {
   redirectLocation: URL | undefined
   actionResult?: ActionResult
   actionFlightData?: NormalizedFlightData[] | string
+  isPrerender: boolean
   revalidatedParts: {
     tag: boolean
     cookie: boolean
@@ -90,6 +92,7 @@ async function fetchServerAction(
   })
 
   const location = res.headers.get('x-action-redirect')
+  const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
   let revalidatedParts: FetchServerActionResult['revalidatedParts']
   try {
     const revalidatedHeader = JSON.parse(
@@ -132,6 +135,7 @@ async function fetchServerAction(
         actionFlightData: normalizeFlightData(response.f),
         redirectLocation,
         revalidatedParts,
+        isPrerender,
       }
     }
 
@@ -140,6 +144,7 @@ async function fetchServerAction(
       actionFlightData: normalizeFlightData(response.f),
       redirectLocation,
       revalidatedParts,
+      isPrerender,
     }
   }
 
@@ -158,6 +163,7 @@ async function fetchServerAction(
   return {
     redirectLocation,
     revalidatedParts,
+    isPrerender,
   }
 }
 
@@ -191,6 +197,7 @@ export function serverActionReducer(
       actionResult,
       actionFlightData: flightData,
       redirectLocation,
+      isPrerender,
     }) => {
       // Make sure the redirection is a push instead of a replace.
       // Issue: https://github.com/vercel/next.js/issues/53911
@@ -242,7 +249,7 @@ export function serverActionReducer(
           tree: state.tree,
           prefetchCache: state.prefetchCache,
           nextUrl: state.nextUrl,
-          kind: PrefetchKind.FULL,
+          kind: isPrerender ? PrefetchKind.FULL : PrefetchKind.AUTO,
         })
 
         mutable.prefetchCache = state.prefetchCache

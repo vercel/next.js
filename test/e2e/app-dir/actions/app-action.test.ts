@@ -957,9 +957,13 @@ describe('app-dir action handling', () => {
           'redirected'
         )
 
-        // no other requests should be made
-        expect(requests).toHaveLength(1)
-        expect(responses).toHaveLength(1)
+        // This verifies the redirect & server response happens in a single roundtrip,
+        // if the redirect resource was static. In development, these responses are always
+        // dynamically generated, so we only expect a single request for build/deploy.
+        if (!isNextDev) {
+          expect(requests).toHaveLength(1)
+          expect(responses).toHaveLength(1)
+        }
 
         const request = requests[0]
         const response = responses[0]
@@ -1056,9 +1060,13 @@ describe('app-dir action handling', () => {
         await browser.elementById(`redirect-${redirectType}`).click()
         await check(() => browser.url(), `${next.url}${destinationPagePath}`)
 
-        // no other requests should be made
-        expect(requests).toHaveLength(1)
-        expect(responses).toHaveLength(1)
+        // This verifies the redirect & server response happens in a single roundtrip,
+        // if the redirect resource was static. In development, these responses are always
+        // dynamically generated, so we only expect a single request for build/deploy.
+        if (!isNextDev) {
+          expect(requests).toHaveLength(1)
+          expect(responses).toHaveLength(1)
+        }
 
         const request = requests[0]
         const response = responses[0]
