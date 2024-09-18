@@ -108,138 +108,146 @@ export function transformDynamicProps(
       const objectPropNames = []
 
       // If there's no first param, return
-      if (params.length === 0) {
+      if (params.length !== 1) {
         return
       }
 
-      for (let i = 0; i < params.length; i++) {
-        const currentParam = params[i]
+      const currentParam = params[0]
 
-        if (currentParam.type === 'ObjectPattern') {
-          // change pageProps to pageProps.<propName>
-          const propsIdentifier = j.identifier(PAGE_PROPS)
+      if (currentParam.type === 'ObjectPattern') {
+        // change pageProps to pageProps.<propName>
+        const propsIdentifier = j.identifier(PAGE_PROPS)
 
-          currentParam.properties.forEach((prop) => {
-            if (
-              // Could be `Property` or `ObjectProperty`
-              'key' in prop &&
-              prop.key.type === 'Identifier'
-            ) {
-              objectPropNames.push(prop.key.name)
+        // Validate if the properties are not `params` and `searchParams`,
+        // if they are, quit the transformation
+        for (const prop of currentParam.properties) {
+          if ('key' in prop && prop.key.type === 'Identifier') {
+            const propName = prop.key.name
+            if (!TARGET_PROP_NAMES.has(propName)) {
+              return
             }
-          })
+          }
+        }
 
-          const paramTypeAnnotation = currentParam.typeAnnotation
-          if (paramTypeAnnotation && paramTypeAnnotation.typeAnnotation) {
-            const typeAnnotation = paramTypeAnnotation.typeAnnotation
-            if (typeAnnotation.type === 'TSTypeLiteral') {
-              const typeLiteral = typeAnnotation
+        currentParam.properties.forEach((prop) => {
+          if (
+            // Could be `Property` or `ObjectProperty`
+            'key' in prop &&
+            prop.key.type === 'Identifier'
+          ) {
+            objectPropNames.push(prop.key.name)
+          }
+        })
 
-              // Find the type property for `params`
-              typeLiteral.members.forEach((member) => {
+        const paramTypeAnnotation = currentParam.typeAnnotation
+        if (paramTypeAnnotation && paramTypeAnnotation.typeAnnotation) {
+          const typeAnnotation = paramTypeAnnotation.typeAnnotation
+          if (typeAnnotation.type === 'TSTypeLiteral') {
+            const typeLiteral = typeAnnotation
+
+            // Find the type property for `params`
+            typeLiteral.members.forEach((member) => {
+              if (
+                member.type === 'TSPropertySignature' &&
+                member.key.type === 'Identifier' &&
+                objectPropNames.includes(member.key.name)
+              ) {
+                // if it's already a Promise, don't wrap it again, return
                 if (
-                  member.type === 'TSPropertySignature' &&
-                  member.key.type === 'Identifier' &&
-                  objectPropNames.includes(member.key.name)
+                  member.typeAnnotation &&
+                  member.typeAnnotation.typeAnnotation &&
+                  member.typeAnnotation.typeAnnotation.type ===
+                    'TSTypeReference' &&
+                  member.typeAnnotation.typeAnnotation.typeName.type ===
+                    'Identifier' &&
+                  member.typeAnnotation.typeAnnotation.typeName.name ===
+                    'Promise'
                 ) {
-                  // if it's already a Promise, don't wrap it again, return
-                  if (
-                    member.typeAnnotation &&
-                    member.typeAnnotation.typeAnnotation &&
-                    member.typeAnnotation.typeAnnotation.type ===
-                      'TSTypeReference' &&
-                    member.typeAnnotation.typeAnnotation.typeName.type ===
-                      'Identifier' &&
-                    member.typeAnnotation.typeAnnotation.typeName.name ===
-                      'Promise'
-                  ) {
-                    return
-                  }
-
-                  // Wrap the `params` type in Promise<>
-                  if (
-                    member.typeAnnotation &&
-                    member.typeAnnotation.typeAnnotation &&
-                    member.typeAnnotation.typeAnnotation.type ===
-                      'TSTypeLiteral'
-                  ) {
-                    member.typeAnnotation.typeAnnotation = j.tsTypeReference(
-                      j.identifier('Promise'),
-                      j.tsTypeParameterInstantiation([
-                        member.typeAnnotation.typeAnnotation,
-                      ])
-                    )
-                  }
+                  return
                 }
-              })
-            } else if (typeAnnotation.type === 'TSTypeReference') {
-              // If typeAnnotation is a type or interface, change the properties to Promise<type of property>
-              // e.g. interface PageProps { params: { slug: string } } => interface PageProps { params: Promise<{ slug: string }> }
-              const typeReference = typeAnnotation
-              if (typeReference.typeName.type === 'Identifier') {
-                // Find the actual type of the type reference
-                const foundTypes = findAllTypes(
-                  root,
-                  j,
-                  typeReference.typeName.name
-                )
 
-                // Deal with interfaces
-                if (foundTypes.interfaces.length > 0) {
-                  const interfaceDeclaration = foundTypes.interfaces[0]
-                  if (
-                    interfaceDeclaration.type === 'TSInterfaceDeclaration' &&
-                    interfaceDeclaration.body?.type === 'TSInterfaceBody'
-                  ) {
-                    const typeBody = interfaceDeclaration.body.body
-                    // if it's already a Promise, don't wrap it again, return
-                    // traverse the typeReference's properties, if any is in propNames, wrap it in Promise<> if needed
-                    typeBody.forEach((member) => {
+                // Wrap the `params` type in Promise<>
+                if (
+                  member.typeAnnotation &&
+                  member.typeAnnotation.typeAnnotation &&
+                  member.typeAnnotation.typeAnnotation.type === 'TSTypeLiteral'
+                ) {
+                  member.typeAnnotation.typeAnnotation = j.tsTypeReference(
+                    j.identifier('Promise'),
+                    j.tsTypeParameterInstantiation([
+                      member.typeAnnotation.typeAnnotation,
+                    ])
+                  )
+                }
+              }
+            })
+          } else if (typeAnnotation.type === 'TSTypeReference') {
+            // If typeAnnotation is a type or interface, change the properties to Promise<type of property>
+            // e.g. interface PageProps { params: { slug: string } } => interface PageProps { params: Promise<{ slug: string }> }
+            const typeReference = typeAnnotation
+            if (typeReference.typeName.type === 'Identifier') {
+              // Find the actual type of the type reference
+              const foundTypes = findAllTypes(
+                root,
+                j,
+                typeReference.typeName.name
+              )
+
+              // Deal with interfaces
+              if (foundTypes.interfaces.length > 0) {
+                const interfaceDeclaration = foundTypes.interfaces[0]
+                if (
+                  interfaceDeclaration.type === 'TSInterfaceDeclaration' &&
+                  interfaceDeclaration.body?.type === 'TSInterfaceBody'
+                ) {
+                  const typeBody = interfaceDeclaration.body.body
+                  // if it's already a Promise, don't wrap it again, return
+                  // traverse the typeReference's properties, if any is in propNames, wrap it in Promise<> if needed
+                  typeBody.forEach((member) => {
+                    if (
+                      member.type === 'TSPropertySignature' &&
+                      member.key.type === 'Identifier' &&
+                      TARGET_PROP_NAMES.has(member.key.name)
+                    ) {
+                      // if it's already a Promise, don't wrap it again, return
                       if (
-                        member.type === 'TSPropertySignature' &&
-                        member.key.type === 'Identifier' &&
+                        member.typeAnnotation &&
+                        member.typeAnnotation.typeAnnotation &&
+                        member.typeAnnotation?.typeAnnotation?.typeName
+                          ?.name === 'Promise'
+                      ) {
+                        return
+                      }
+
+                      // Wrap the prop type in Promise<>
+                      if (
+                        member.typeAnnotation &&
+                        member.typeAnnotation.typeAnnotation &&
+                        // check if member name is in propNames
                         TARGET_PROP_NAMES.has(member.key.name)
                       ) {
-                        // if it's already a Promise, don't wrap it again, return
-                        if (
-                          member.typeAnnotation &&
-                          member.typeAnnotation.typeAnnotation &&
-                          member.typeAnnotation?.typeAnnotation?.typeName
-                            ?.name === 'Promise'
-                        ) {
-                          return
-                        }
-
-                        // Wrap the prop type in Promise<>
-                        if (
-                          member.typeAnnotation &&
-                          member.typeAnnotation.typeAnnotation &&
-                          // check if member name is in propNames
-                          TARGET_PROP_NAMES.has(member.key.name)
-                        ) {
-                          member.typeAnnotation.typeAnnotation =
-                            j.tsTypeReference(
-                              j.identifier('Promise'),
-                              j.tsTypeParameterInstantiation([
-                                member.typeAnnotation.typeAnnotation,
-                              ])
-                            )
-                        }
+                        member.typeAnnotation.typeAnnotation =
+                          j.tsTypeReference(
+                            j.identifier('Promise'),
+                            j.tsTypeParameterInstantiation([
+                              member.typeAnnotation.typeAnnotation,
+                            ])
+                          )
                       }
-                    })
-                  }
+                    }
+                  })
                 }
               }
             }
-
-            propsIdentifier.typeAnnotation = paramTypeAnnotation
           }
 
-          // Override the first param to `props`
-          params[i] = propsIdentifier
-
-          modified = true
+          propsIdentifier.typeAnnotation = paramTypeAnnotation
         }
+
+        // Override the first param to `props`
+        params[0] = propsIdentifier
+
+        modified = true
       }
 
       if (modified) {
