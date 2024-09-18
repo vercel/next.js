@@ -117,7 +117,7 @@ async function createTreeCodeFromPath(
     buildInfo,
     flyingShuttle,
     collectedDeclarations,
-    interceptors,
+    enableInterceptors,
     loaderContext,
   }: {
     page: string
@@ -133,7 +133,7 @@ async function createTreeCodeFromPath(
     pageExtensions: PageExtensions
     basePath: string
     collectedDeclarations: [string, string][]
-    interceptors?: boolean
+    enableInterceptors?: boolean
   }
 ): Promise<{
   treeCode: string
@@ -282,7 +282,7 @@ async function createTreeCodeFromPath(
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
         Object.values(FILE_TYPES)
-          .filter((file) => file !== 'interceptor' || interceptors)
+          .filter((file) => file !== 'interceptor' || enableInterceptors)
           .map(async (file) => {
             return [
               file,
@@ -492,6 +492,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
 
+  // Loader options are stringified.
+  const enableInterceptors = (interceptors as 'true' | undefined) === 'true'
+
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const collectedDeclarations: [string, string][] = []
   const page = name.replace(/^app/, '')
@@ -685,7 +688,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     collectedDeclarations,
     buildInfo,
     flyingShuttle,
-    interceptors,
+    enableInterceptors,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -737,7 +740,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         collectedDeclarations,
         buildInfo,
         flyingShuttle,
-        interceptors,
+        enableInterceptors,
       })
     }
   }
