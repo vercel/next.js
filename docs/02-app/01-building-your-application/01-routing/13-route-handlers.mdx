@@ -139,11 +139,7 @@ export async function GET() {
 }
 ```
 
-### Dynamic Functions
-
-Route Handlers can be used with dynamic functions from Next.js, like [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers).
-
-#### Cookies
+### Cookies
 
 You can read or set cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
 
@@ -193,7 +189,7 @@ export async function GET(request) {
 }
 ```
 
-#### Headers
+### Headers
 
 You can read headers with [`headers`](/docs/app/api-reference/functions/headers) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
 
