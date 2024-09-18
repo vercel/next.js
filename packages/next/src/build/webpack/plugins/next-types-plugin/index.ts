@@ -85,6 +85,7 @@ checkFields<Diff<{
   }
 }, TEntry, ''>>()
 
+${options.type === 'route' ? `type RouteContext = { params: Promise<SegmentParams> }` : ''}
 ${
   options.type === 'route'
     ? HTTP_METHODS.map(
@@ -103,7 +104,7 @@ if ('${method}' in entry) {
   >()
   checkFields<
     Diff<
-      ParamCheck<any>,
+      ParamCheck<RouteContext>,
       {
         __tag__: '${method}'
         __param_position__: 'second'

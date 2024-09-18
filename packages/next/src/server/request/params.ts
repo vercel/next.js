@@ -68,6 +68,18 @@ export function reifyClientRenderParams(
 export type CreateServerParamsForMetadata = typeof createServerParamsForMetadata
 export const createServerParamsForMetadata = createServerParamsForServerSegment
 
+// routes always runs in RSC context so it is equivalent to a Server Page Component
+export function createServerParamsForRoute(
+  underlying: Params,
+  staticGenerationStore: StaticGenerationStore
+) {
+  if (staticGenerationStore.isStaticGeneration) {
+    return createPrerenderParams(underlying, undefined, staticGenerationStore)
+  } else {
+    return createRenderParams(underlying, staticGenerationStore)
+  }
+}
+
 export function createServerParamsForServerSegment(
   underlying: Params,
   fallbackParamNamesAtThisLevel: undefined | Set<string>,
