@@ -18,6 +18,10 @@ const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
 
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "19.0.0-rc-a99d8e8d-20240916";
+
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
   .string('test-pattern')
@@ -408,7 +412,8 @@ ${ENDGROUP}`)
     // a starter Next.js install to re-use to speed up tests to avoid having to
     // run `pnpm install` each time.
     console.log(`${GROUP}Creating shared Next.js install`)
-    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
+    const reactVersion =
+      process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {

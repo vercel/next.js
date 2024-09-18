@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use serde_json::{Map, Number, Value};
-use turbopack_binding::swc::core::{
+use swc_core::{
     common::{Mark, SyntaxContext},
     ecma::{
         ast::{

@@ -8,15 +8,16 @@ use napi::{
 };
 use serde::Serialize;
 use turbo_tasks::{ReadRef, TaskId, TryJoinIterExt, TurboTasks, Vc};
-use turbopack_binding::{
-    turbo::{tasks_fs::FileContent, tasks_memory::MemoryBackend},
-    turbopack::core::{
-        diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
-        error::PrettyPrintError,
-        issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
-        source_pos::SourcePos,
-    },
+use turbo_tasks_fs::FileContent;
+use turbo_tasks_memory::MemoryBackend;
+use turbopack_core::{
+    diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
+    error::PrettyPrintError,
+    issue::{IssueDescriptionExt, PlainIssue, PlainIssueSource, PlainSource, StyledString},
+    source_pos::SourcePos,
 };
+
+use crate::util::log_internal_error_and_inform;
 
 /// A helper type to hold both a Vc operation and the TurboTasks root process.
 /// Without this, we'd need to pass both individually all over the place
@@ -82,9 +83,9 @@ pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainI
     Ok(Arc::new(issues.get_plain_issues().await?))
 }
 
-/// Reads the [turbopack_binding::turbopack::core::diagnostics::Diagnostic] held
+/// Reads the [turbopack_core::diagnostics::Diagnostic] held
 /// by the given source and returns it as a
-/// [turbopack_binding::turbopack::core::diagnostics::PlainDiagnostic]. It does
+/// [turbopack_core::diagnostics::PlainDiagnostic]. It does
 /// not consume any Diagnostics held by the source.
 pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
@@ -313,7 +314,11 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             let result = handler().await;
 
             let status = func.call(
-                result.map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string())),
+                result.map_err(|e| {
+                    let error = PrettyPrintError(&e).to_string();
+                    log_internal_error_and_inform(&error);
+                    napi::Error::from_reason(error)
+                }),
                 ThreadsafeFunctionCallMode::NonBlocking,
             );
             if !matches!(status, Status::Ok) {

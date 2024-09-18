@@ -5,10 +5,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::core::issue::{IssueExt, IssueSeverity, StyledString},
-};
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
 use super::options::NextFontGoogleOptions;
 use crate::{
@@ -46,16 +44,18 @@ struct Fallback {
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallback(
-    context: Vc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     options_vc: Vc<NextFontGoogleOptions>,
 ) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
     Ok(match &options.fallback {
         Some(fallback) => FontFallback::Manual(fallback.clone()).cell(),
         None => {
-            let metrics_json =
-                load_next_js_templateon(context, "dist/server/capsize-font-metrics.json".into())
-                    .await?;
+            let metrics_json = load_next_js_templateon(
+                lookup_path,
+                "dist/server/capsize-font-metrics.json".into(),
+            )
+            .await?;
             let fallback = lookup_fallback(
                 &options.font_family,
                 metrics_json,
@@ -74,7 +74,7 @@ pub(super) async fn get_font_fallback(
                 .cell(),
                 Err(_) => {
                     NextFontIssue {
-                        path: context,
+                        path: lookup_path,
                         title: StyledString::Text(
                             format!(
                                 "Failed to find font override values for font `{}`",
@@ -170,7 +170,7 @@ fn lookup_fallback(
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbopack_binding::turbo::tasks_fs::json::parse_json_with_source_context;
+    use turbo_tasks_fs::json::parse_json_with_source_context;
 
     use super::{FontAdjustment, FontMetricsMap};
     use crate::next_font::google::font_fallback::{lookup_fallback, Fallback};

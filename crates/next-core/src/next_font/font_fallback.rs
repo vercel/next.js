@@ -1,8 +1,7 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{RcStr, Vc};
-use turbopack_binding::turbo::tasks::trace::TraceRawVcs;
+use turbo_tasks::{trace::TraceRawVcs, RcStr, Vc};
 
 pub(crate) struct DefaultFallbackFont {
     pub name: RcStr,

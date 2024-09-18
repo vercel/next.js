@@ -1,3 +1,6 @@
+import { canParseUrl } from '../../../../../lib/url'
+import { normalizedAssetPrefix } from '../../../../../shared/lib/normalized-asset-prefix'
+
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = window.location.protocol
 
@@ -6,21 +9,19 @@ function getSocketProtocol(assetPrefix: string): string {
     protocol = new URL(assetPrefix).protocol
   } catch {}
 
-  return protocol === 'http:' ? 'ws' : 'wss'
+  return protocol === 'http:' ? 'ws:' : 'wss:'
 }
 
-export function getSocketUrl(assetPrefix: string): string {
-  const { hostname, port } = window.location
-  const protocol = getSocketProtocol(assetPrefix)
-  const normalizedAssetPrefix = assetPrefix.replace(/^\/+/, '')
+export function getSocketUrl(assetPrefix: string | undefined): string {
+  const prefix = normalizedAssetPrefix(assetPrefix)
+  const protocol = getSocketProtocol(assetPrefix || '')
 
-  let url = `${protocol}://${hostname}:${port}${
-    normalizedAssetPrefix ? `/${normalizedAssetPrefix}` : ''
-  }`
-
-  if (normalizedAssetPrefix.startsWith('http')) {
-    url = `${protocol}://${normalizedAssetPrefix.split('://', 2)[1]}`
+  if (canParseUrl(prefix)) {
+    // since normalized asset prefix is ensured to be a URL format,
+    // we can safely replace the protocol
+    return prefix.replace(/^http/, 'ws')
   }
 
-  return url
+  const { hostname, port } = window.location
+  return `${protocol}//${hostname}${port ? `:${port}` : ''}${prefix}`
 }

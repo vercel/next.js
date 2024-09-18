@@ -2,12 +2,10 @@ use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::AssetBinding};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TryFlatJoinIterExt, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::FileSystemPath,
-    turbopack::core::{
-        asset::{Asset, AssetContent},
-        output::{OutputAsset, OutputAssets},
-    },
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::{
+    asset::{Asset, AssetContent},
+    output::{OutputAsset, OutputAssets},
 };
 
 /// A reference to a server file with content hash for change detection
@@ -158,6 +156,16 @@ pub(crate) fn wasm_paths_to_bindings(paths: Vec<RcStr>) -> Vec<AssetBinding> {
                 name: format!("wasm_{}", escaped).into(),
                 file_path: path,
             }
+        })
+        .collect()
+}
+
+pub(crate) fn paths_to_bindings(paths: Vec<RcStr>) -> Vec<AssetBinding> {
+    paths
+        .into_iter()
+        .map(|path| AssetBinding {
+            name: path.clone(),
+            file_path: path,
         })
         .collect()
 }

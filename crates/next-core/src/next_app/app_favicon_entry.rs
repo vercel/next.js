@@ -4,13 +4,17 @@ use anyhow::{bail, Result};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::writedoc;
 use turbo_tasks::{ValueToString, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
-    turbopack::{
-        core::{asset::AssetContent, virtual_source::VirtualSource},
-        ecmascript::utils::StringifyJs,
-        turbopack::ModuleAssetContext,
-    },
+use turbo_tasks_fs::{self, DiskFileSystem, FileContent, FileSystem, FileSystemPath};
+use turbo_tasks_memory::MemoryBackend;
+use turbopack_core::{
+    asset::AssetContent,
+    diagnostics::PlainDiagnostic,
+    error::PrettyPrintError,
+    issue::PlainIssue,
+    source_map::Token,
+    version::{PartialUpdate, TotalUpdate, Update, VersionState},
+    virtual_source::VirtualSource,
+    SOURCE_MAP_PREFIX,
 };
 
 use super::app_route_entry::get_app_route_entry;

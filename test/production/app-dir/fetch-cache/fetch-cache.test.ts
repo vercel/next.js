@@ -2,6 +2,7 @@ import glob from 'glob'
 import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
+import rawBody from 'next/dist/compiled/raw-body'
 import { FileRef, NextInstance, createNext } from 'e2e-utils'
 import {
   retry,
@@ -18,6 +19,7 @@ describe('fetch-cache', () => {
   let nextInstance: any
   let fetchGetReqIndex = 0
   let revalidateReqIndex = 0
+  let revalidateReqShouldTimeout = false
   let fetchGetShouldError = false
   let fetchCacheServer: http.Server
   let fetchCacheRequests: Array<{
@@ -25,6 +27,8 @@ describe('fetch-cache', () => {
     method: string
     headers: Record<string, string | string[]>
   }> = []
+  let storeCacheItems = false
+  const fetchCacheStore = new Map<string, any>()
   let fetchCacheEnv: Record<string, string> = {
     SUSPENSE_CACHE_PROTO: 'http',
   }
@@ -107,8 +111,10 @@ describe('fetch-cache', () => {
     fetchGetReqIndex = 0
     revalidateReqIndex = 0
     fetchCacheRequests = []
+    storeCacheItems = false
     fetchGetShouldError = false
-    fetchCacheServer = http.createServer((req, res) => {
+    revalidateReqShouldTimeout = false
+    fetchCacheServer = http.createServer(async (req, res) => {
       console.log(`fetch cache request ${req.url} ${req.method}`, req.headers)
       const parsedUrl = new URL(req.url || '/', 'http://n')
 
@@ -121,7 +127,8 @@ describe('fetch-cache', () => {
       if (parsedUrl.pathname === '/v1/suspense-cache/revalidate') {
         revalidateReqIndex += 1
         // timeout unless it's 3rd retry
-        const shouldTimeout = revalidateReqIndex % 3 !== 0
+        const shouldTimeout =
+          revalidateReqShouldTimeout && revalidateReqIndex % 3 !== 0
 
         if (shouldTimeout) {
           console.log('not responding for', req.url, { revalidateReqIndex })
@@ -148,6 +155,19 @@ describe('fetch-cache', () => {
             res.end('internal server error')
             return
           }
+
+          if (storeCacheItems && fetchCacheStore.has(key)) {
+            console.log(`returned cache for ${key}`)
+            res.statusCode = 200
+            res.end(JSON.stringify(fetchCacheStore.get(key)))
+            return
+          }
+        }
+
+        if (type === 'post' && storeCacheItems) {
+          const body = await rawBody(req, { encoding: 'utf8' })
+          fetchCacheStore.set(key, JSON.parse(body.toString()))
+          console.log(`set cache for ${key}`)
         }
         res.statusCode = type === 'post' ? 200 : 404
         res.end(`${type} for ${key}`)
@@ -214,10 +234,26 @@ describe('fetch-cache', () => {
   })
 
   it('should retry 3 times when revalidate times out', async () => {
-    await fetchViaHTTP(appPort, '/api/revalidate')
+    revalidateReqShouldTimeout = true
+    try {
+      await fetchViaHTTP(appPort, '/api/revalidate')
+
+      await retry(() => {
+        expect(revalidateReqIndex).toBe(3)
+      })
+      expect(cliOuptut).not.toContain('Failed to revalidate')
+      expect(cliOuptut).not.toContain('Error')
+    } finally {
+      revalidateReqShouldTimeout = false
+    }
+  })
+
+  it('should batch revalidate tag requests if > 64', async () => {
+    const revalidateReqIndexStart = revalidateReqIndex
+    await fetchViaHTTP(appPort, '/api/revalidate-alot')
 
     await retry(() => {
-      expect(revalidateReqIndex).toBe(3)
+      expect(revalidateReqIndex).toBe(revalidateReqIndexStart + 3)
     })
     expect(cliOuptut).not.toContain('Failed to revalidate')
     expect(cliOuptut).not.toContain('Error')
@@ -235,6 +271,41 @@ describe('fetch-cache', () => {
       expect(fetchGetReqIndex).toBe(fetchGetReqIndexStart + 2)
     } finally {
       fetchGetShouldError = false
+    }
+  })
+
+  it('should update cache TTL even if cache data does not change', async () => {
+    storeCacheItems = true
+    const fetchCacheRequestsIndex = fetchCacheRequests.length
+
+    try {
+      for (let i = 0; i < 3; i++) {
+        const res = await fetchViaHTTP(appPort, '/not-changed')
+        expect(res.status).toBe(200)
+        // give time for revalidate period to pass
+        await new Promise((resolve) => setTimeout(resolve, 3_000))
+      }
+
+      const newCacheGets = []
+      const newCacheSets = []
+
+      for (
+        let i = fetchCacheRequestsIndex - 1;
+        i < fetchCacheRequests.length;
+        i++
+      ) {
+        const requestItem = fetchCacheRequests[i]
+        if (requestItem.method === 'get') {
+          newCacheGets.push(requestItem)
+        }
+        if (requestItem.method === 'post') {
+          newCacheSets.push(requestItem)
+        }
+      }
+      expect(newCacheGets.length).toBeGreaterThanOrEqual(2)
+      expect(newCacheSets.length).toBeGreaterThanOrEqual(2)
+    } finally {
+      storeCacheItems = false
     }
   })
 })

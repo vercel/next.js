@@ -259,6 +259,23 @@ impl AppPage {
         )
     }
 
+    pub fn is_intercepting(&self) -> bool {
+        let segment = if self.is_complete() {
+            // The `PageType` is the last segment for completed pages.
+            self.0.iter().nth_back(1)
+        } else {
+            self.0.last()
+        };
+
+        matches!(
+            segment,
+            Some(PageSegment::Static(segment))
+                if segment.starts_with("(.)")
+                    || segment.starts_with("(..)")
+                    || segment.starts_with("(...)")
+        )
+    }
+
     pub fn complete(&self, page_type: PageType) -> Result<Self> {
         self.clone_push(PageSegment::PageType(page_type))
     }

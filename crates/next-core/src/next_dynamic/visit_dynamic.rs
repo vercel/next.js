@@ -6,7 +6,7 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc,
 };
-use turbopack_binding::turbopack::core::{
+use turbopack_core::{
     module::{Module, Modules},
     reference::primary_referenced_modules,
 };

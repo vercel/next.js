@@ -1,9 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    ecmascript_plugin::transform::styled_components::StyledComponentsTransformer,
-    turbopack::module_options::ModuleRule,
-};
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript_plugins::transform::styled_components::StyledComponentsTransformer;
 
 use crate::{
     next_config::{NextConfig, StyledComponentsTransformOptionsOrBoolean},

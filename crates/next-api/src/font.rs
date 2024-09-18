@@ -1,13 +1,11 @@
 use anyhow::Result;
 use next_core::{all_assets_from_entries, next_manifests::NextFontManifest};
 use turbo_tasks::{RcStr, ValueToString, Vc};
-use turbopack_binding::{
-    turbo::tasks_fs::{File, FileSystemPath},
-    turbopack::core::{
-        asset::AssetContent,
-        output::{OutputAsset, OutputAssets},
-        virtual_output::VirtualOutputAsset,
-    },
+use turbo_tasks_fs::{File, FileSystemPath};
+use turbopack_core::{
+    asset::AssetContent,
+    output::{OutputAsset, OutputAssets},
+    virtual_output::VirtualOutputAsset,
 };
 
 use crate::paths::get_font_paths_from_root;

@@ -2,5 +2,7 @@
 .vscode
 
 e2e/**/tsconfig.json
+production/**/tsconfig.json
+
 test-junit-report/
 turbopack-test-junit-report/

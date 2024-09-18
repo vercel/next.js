@@ -1,0 +1,13 @@
+[package]
+name = "auto-hash-map"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+smallvec = { workspace = true }
