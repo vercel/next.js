@@ -6,15 +6,20 @@ import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 
 import * as userland from 'VAR_USERLAND'
+import type { ModuleTuple } from '../webpack/loaders/metadata/types'
 
 // These are injected by the loader afterwards. This is injected as a variable
 // instead of a replacement because this could also be `undefined` instead of
 // an empty string.
 declare const nextConfigOutput: AppRouteRouteModuleOptions['nextConfigOutput']
+declare const interceptors: ModuleTuple[]
 
-// We inject the nextConfigOutput here so that we can use them in the route
-// module.
+// We inject the nextConfigOutput and the interceptors here so that we can use
+// them in the route module.
 // INJECT:nextConfigOutput
+// INJECT:interceptors
+
+export { interceptors }
 
 const routeModule = new AppRouteRouteModule({
   definition: {

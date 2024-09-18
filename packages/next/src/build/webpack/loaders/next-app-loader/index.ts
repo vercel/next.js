@@ -33,6 +33,7 @@ import type { PageExtensions } from '../../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/parallel-route-default'
 import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
+import { createImportDeclarations } from './create-import-declarations'
 
 export type AppLoaderOptions = {
   name: string
@@ -72,10 +73,7 @@ const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
 const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
 const defaultLayoutPath = 'next/dist/client/components/default-layout'
 
-type DirResolver = (pathToResolve: string) => string
-type PathResolver = (
-  pathname: string
-) => Promise<string | undefined> | string | undefined
+type PathResolver = (pathname: string) => Promise<string | undefined>
 export type MetadataResolver = (
   dir: string,
   filename: string,
@@ -108,28 +106,28 @@ async function createTreeCodeFromPath(
   pagePath: string,
   {
     page,
-    resolveDir,
+    resolveAppRoute,
     resolver,
     resolveParallelSegments,
     metadataResolver,
+    createRelativePath,
     pageExtensions,
     basePath,
     buildInfo,
     flyingShuttle,
     collectedDeclarations,
     enableInterceptors,
-    loaderContext,
   }: {
     page: string
     flyingShuttle?: boolean
     buildInfo: ReturnType<typeof getModuleBuildInfo>
-    resolveDir: DirResolver
+    resolveAppRoute: (pathname: string) => string
     resolver: PathResolver
     metadataResolver: MetadataResolver
     resolveParallelSegments: (
       pathname: string
     ) => [key: string, segment: string | string[]][]
-    loaderContext: webpack.LoaderContext<AppLoaderOptions>
+    createRelativePath: (absolutePath: string) => string
     pageExtensions: PageExtensions
     basePath: string
     collectedDeclarations: [string, string][]
@@ -157,9 +155,7 @@ async function createTreeCodeFromPath(
   async function resolveAdjacentParallelSegments(
     segmentPath: string
   ): Promise<string[]> {
-    const absoluteSegmentPath = await resolveDir(
-      `${appDirPrefix}${segmentPath}`
-    )
+    const absoluteSegmentPath = resolveAppRoute(`${appDirPrefix}${segmentPath}`)
 
     if (!absoluteSegmentPath) {
       return []
@@ -214,7 +210,7 @@ async function createTreeCodeFromPath(
     // For default not-found, don't traverse the directory to find metadata.
     const resolvedRouteDir = isDefaultNotFound
       ? ''
-      : await resolveDir(routerDirPath)
+      : resolveAppRoute(routerDirPath)
 
     if (resolvedRouteDir) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
@@ -386,7 +382,7 @@ async function createTreeCodeFromPath(
             const varName = `module${nestedCollectedDeclarations.length}`
             nestedCollectedDeclarations.push([varName, filePath])
             return `'${file}': [${varName}, ${JSON.stringify(filePath)}, ${JSON.stringify(
-              path.relative(loaderContext.context || '', filePath)
+              createRelativePath(filePath)
             )}],`
           })
           .join('\n')}
@@ -494,6 +490,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   // Loader options are stringified.
   const enableInterceptors = (interceptors as 'true' | undefined) === 'true'
+  const useEarlyImport =
+    (nextConfigExperimentalUseEarlyImport as 'true' | undefined) === 'true'
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const collectedDeclarations: [string, string][] = []
@@ -577,13 +575,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     return Object.entries(matched)
   }
 
-  const resolveDir: DirResolver = (pathToResolve) => {
-    return createAbsolutePath(appDir, pathToResolve)
-  }
+  const resolveAppRoute = (pathToResolve: string) =>
+    createAbsolutePath(appDir, pathToResolve)
 
-  const resolveAppRoute: PathResolver = (pathToResolve) => {
-    return createAbsolutePath(appDir, pathToResolve)
-  }
+  const createRelativePath = (absolutePath: string) =>
+    path.relative(this._compiler?.context || appDir, absolutePath)
 
   // Cached checker to see if a file exists in a given directory.
   // This can be more efficient than checking them with `fs.stat` one by one
@@ -670,19 +666,23 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       page: loaderOptions.page,
       name,
       pagePath,
+      createRelativePath,
+      resolver,
       resolveAppRoute,
       pageExtensions,
       nextConfigOutput,
+      enableInterceptors,
+      useEarlyImport,
     })
   }
 
   let treeCodeResult = await createTreeCodeFromPath(pagePath, {
     page,
-    resolveDir,
+    createRelativePath,
+    resolveAppRoute,
     resolver,
     metadataResolver,
     resolveParallelSegments,
-    loaderContext: this,
     pageExtensions,
     basePath,
     collectedDeclarations,
@@ -716,7 +716,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
         if (rootLayoutPath) {
           message += `We tried to create ${bold(
-            path.relative(this._compiler?.context ?? '', rootLayoutPath)
+            createRelativePath(rootLayoutPath)
           )} for you but something went wrong.`
         } else {
           message +=
@@ -730,11 +730,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       if (this._compilation) filesInDirMapMap.get(this._compilation)?.clear()
       treeCodeResult = await createTreeCodeFromPath(pagePath, {
         page,
-        resolveDir,
+        resolveAppRoute,
         resolver,
         metadataResolver,
         resolveParallelSegments,
-        loaderContext: this,
+        createRelativePath,
         pageExtensions,
         basePath,
         collectedDeclarations,
@@ -764,25 +764,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   )
 
-  const header =
-    nextConfigExperimentalUseEarlyImport &&
-    process.env.NODE_ENV === 'production'
-      ? // Evaluate the imported modules early in the generated code
-        collectedDeclarations
-          .map(([varName, modulePath]) => {
-            return `import * as ${varName}_ from ${JSON.stringify(
-              modulePath
-            )};\nconst ${varName} = () => ${varName}_;\n`
-          })
-          .join('')
-      : // Lazily evaluate the imported modules in the generated code
-        collectedDeclarations
-          .map(([varName, modulePath]) => {
-            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-              modulePath
-            )});\n`
-          })
-          .join('')
+  const header = createImportDeclarations(collectedDeclarations, {
+    useEarlyImport,
+  })
 
   return header + code
 }
