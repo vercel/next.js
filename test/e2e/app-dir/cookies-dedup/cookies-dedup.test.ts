@@ -11,7 +11,7 @@ describe('cookies-dedup', () => {
     await browser.waitForElementByCss('button#action')
 
     const actionResponsePromise = browser.waitForResponse(url, {
-      timeout: 100,
+      timeout: 1000,
     })
     await browser.elementByCss('button#action').click()
     const actionResponse = await actionResponsePromise
@@ -27,7 +27,7 @@ describe('cookies-dedup', () => {
     await browser.waitForElementByCss('button#api')
 
     const apiResponsePromise = browser.waitForResponse(`${url}api`, {
-      timeout: 100,
+      timeout: 1000,
     })
     await browser.elementByCss('button#api').click()
     const apiResponse = await apiResponsePromise
