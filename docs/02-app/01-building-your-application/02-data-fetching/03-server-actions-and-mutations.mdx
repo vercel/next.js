@@ -870,9 +870,13 @@ See [additional examples](/docs/app/api-reference/functions/cookies#deleting-coo
 
 ## Security
 
+When you add the `"use server"` directive to the top of a file, it marks all the exports in that file as API endpoints. By default, exported but unused functions are tree-shaken. That is, Next.js evaluates your codebase and removes references to unused Server Actions from the client-side JavaScript bundle.
+
+In addition, the IDs that link the client-side reference to the server-side code is re-encrypted on each new deployment. This means Server Actions can only be invoked internally by the application.
+
 ### Authentication and authorization
 
-You should treat Server Actions as you would public-facing API endpoints, and ensure that the user is authorized to perform the action. For example:
+You should treat Server Actions as public-facing API endpoints, and ensure that the user is authorized to perform the action. For example:
 
 ```tsx filename="app/actions.ts"
 'use server'
