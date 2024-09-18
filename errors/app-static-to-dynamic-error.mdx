@@ -5,7 +5,7 @@ description: This document explains the "app/ Static to Dynamic Error" in Next.j
 
 ## Why This Error Occurred
 
-The "`app/` Static to Dynamic Error" happens when one of your routes in the `app/` directory is initially generated statically at build time, but during runtime it attempts to use dynamic server values (such as `cookies()` or `headers()`) either for a fallback path or while a path is being revalidated.
+The "`app/` Static to Dynamic Error" happens when one of your routes in the `app/` directory is initially generated statically at build time, but during runtime it attempts to use dynamic server values (such as `cookies` or `headers`) either for a fallback path or while a path is being revalidated.
 
 Currently, Next.js does not support switching between static and dynamic types during runtime, so the system throws an error.
 
@@ -20,4 +20,4 @@ To resolve this issue, you have two main options:
 ## Useful Links
 
 - [Static and Dynamic Rendering](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies) - Learn more about the differences between static and dynamic rendering in Next.js.
-- [Dynamic Functions](/docs/app/building-your-application/rendering/server-components#dynamic-functions) - Understand more about the usage of dynamic server functions in your Next.js application.
+- [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis) - Understand more about the usage of dynamic server functions in your Next.js application.
