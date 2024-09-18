@@ -41,13 +41,13 @@ bun add next@rc react@rc react-dom@rc eslint-config-next@rc
 
 Previously synchronous Dynamic APIs that rely on runtime information are now **asynchronous**:
 
-- [`cookies`](https://www.notion.so/docs/app/api-reference/functions/cookies)
-- [`headers`](https://www.notion.so/docs/app/api-reference/functions/headers)
-- [`draftMode`](https://www.notion.so/docs/app/api-reference/functions/draft-mode)
-- `params` in [`layout.js`](https://www.notion.so/docs/app/api-reference/file-conventions/layout), [`page.js`](https://www.notion.so/docs/app/api-reference/file-conventions/page), [`route.js`](https://www.notion.so/docs/app/api-reference/file-conventions/route), [`default.js`](https://www.notion.so/docs/app/api-reference/file-conventions/default), [`opengraph-image`](https://www.notion.so/docs/app/api-reference/file-conventions/metadata/opengraph-image), [`twitter-image`](https://www.notion.so/docs/app/api-reference/file-conventions/metadata/opengraph-image), [`icon`](https://www.notion.so/docs/app/api-reference/file-conventions/metadata/app-icons), and [`apple-icon`](https://www.notion.so/docs/app/api-reference/file-conventions/metadata/app-icons).
-- `searchParams` in [`page.js`](https://www.notion.so/docs/app/api-reference/file-conventions/page)
+- [`cookies`](/docs/app/api-reference/functions/cookies)
+- [`headers`](/docs/app/api-reference/functions/headers)
+- [`draftMode`](/docs/app/api-reference/functions/draft-mode)
+- `params` in [`layout.js`](/docs/app/api-reference/file-conventions/layout), [`page.js`](/docs/app/api-reference/file-conventions/page), [`route.js`](/docs/app/api-reference/file-conventions/route), [`default.js`](/docs/app/api-reference/file-conventions/default), [`opengraph-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), [`twitter-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), [`icon`](/docs/app/api-reference/file-conventions/metadata/app-icons), and [`apple-icon`](/docs/app/api-reference/file-conventions/metadata/app-icons).
+- `searchParams` in [`page.js`](/docs/app/api-reference/file-conventions/page)
 
-To ease the burden of migration, a [codemod is available](https://www.notion.so/docs/app/building-your-application/upgrading/codemods#150) to automate the process and the APIs can temporarily be accessed synchronously.
+To ease the burden of migration, a [codemod is available](/docs/app/building-your-application/upgrading/codemods#150) to automate the process and the APIs can temporarily be accessed synchronously.
 
 ### `cookies`
 
@@ -632,7 +632,7 @@ To continue using Speed Insights, follow the [Vercel Speed Insights Quickstart](
 
 ## `NextRequest` Geolocation
 
-The `geo` and `ip` properties on `NextRequest` have been removed. These values had to be provided by your hosting provider.
+The `geo` and `ip` properties on `NextRequest` have been removed as these values are provided by your hosting provider. A [codemod](/docs/app/building-your-application/upgrading/codemods#150) is available to automate this migration.
 
 If you are using Vercel, you can alternatively use the `geolocation` and `ipAddress` functions from [`@vercel/functions](https://vercel.com/docs/functions/vercel-functions-package) instead:
 
