@@ -159,6 +159,10 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     name: 'built-in-next-font: Uninstall `@next/font` and transform imports to `next/font`',
     value: 'built-in-next-font',
   },
+  {
+    name: 'next-async-request-api: Transforms usage of Next.js async Request APIs',
+    value: 'next-async-request-api',
+  },
 ]
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {

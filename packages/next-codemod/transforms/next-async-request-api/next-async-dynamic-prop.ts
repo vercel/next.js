@@ -84,6 +84,7 @@ export function transformDynamicProps(
   api: API,
   _filePath: string
 ) {
+  let modified = false
   const j = api.jscodeshift.withParser('tsx')
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported
@@ -94,15 +95,13 @@ export function transformDynamicProps(
     function renameAsyncPropIfExisted(
       path: ASTPath<FunctionalExportDeclaration>
     ) {
-      let found = false
-
       const decl = path.value.declaration
       if (
         decl.type !== 'FunctionDeclaration' &&
         decl.type !== 'FunctionExpression' &&
         decl.type !== 'ArrowFunctionExpression'
       ) {
-        return found
+        return
       }
 
       const params = decl.params
@@ -110,7 +109,7 @@ export function transformDynamicProps(
 
       // If there's no first param, return
       if (params.length === 0) {
-        return false
+        return
       }
 
       for (let i = 0; i < params.length; i++) {
@@ -239,16 +238,14 @@ export function transformDynamicProps(
           // Override the first param to `props`
           params[i] = propsIdentifier
 
-          found = true
+          modified = true
         }
       }
 
-      if (found) {
+      if (modified) {
         needsReactUseImport = !isAsyncFunctionDeclaration(path)
         resolveAsyncProp(path, objectPropNames)
       }
-
-      return found
     }
 
     function getBodyOfFunctionDeclaration(
@@ -383,7 +380,7 @@ export function transformDynamicProps(
     insertReactUseImport(root, j)
   }
 
-  return root.toSource()
+  return modified ? root.toSource() : null
 }
 
 function findAllTypes(

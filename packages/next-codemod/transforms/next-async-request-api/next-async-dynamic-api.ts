@@ -161,6 +161,7 @@ export function transformDynamicAPI(
 ) {
   const j = api.jscodeshift.withParser('tsx')
   const root = j(source)
+  let modified = false
 
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
@@ -221,6 +222,7 @@ export function transformDynamicAPI(
                 j.callExpression(j.identifier(asyncRequestApiName), [])
               )
             )
+            modified = true
           }
         } else {
           // Determine if the function is an export
@@ -267,6 +269,8 @@ export function transformDynamicAPI(
                     j.callExpression(j.identifier(asyncRequestApiName), [])
                   )
                 )
+
+                modified = true
               }
             }
           } else {
@@ -304,6 +308,7 @@ export function transformDynamicAPI(
                 filePath
               )
             }
+            modified = true
           }
         }
       })
@@ -323,7 +328,7 @@ export function transformDynamicAPI(
     }
   }
 
-  return root.toSource()
+  return modified ? root.toSource() : null
 }
 
 // TODO: fix detection of client component
