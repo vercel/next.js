@@ -4,8 +4,8 @@
   "license": "MIT",
   "dependencies": {
     "next": "latest",
-    "react": "19.0.0-rc-206df66e-20240912",
-    "react-dom": "19.0.0-rc-206df66e-20240912"
+    "react": "19.0.0-rc-a99d8e8d-20240916",
+    "react-dom": "19.0.0-rc-a99d8e8d-20240916"
   },
   "engines": {
     "node": ">=18.18.0"

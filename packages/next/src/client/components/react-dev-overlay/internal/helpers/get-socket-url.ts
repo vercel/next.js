@@ -1,3 +1,4 @@
+import { canParseUrl } from '../../../../../lib/url'
 import { normalizedAssetPrefix } from '../../../../../shared/lib/normalized-asset-prefix'
 
 function getSocketProtocol(assetPrefix: string): string {
@@ -15,7 +16,7 @@ export function getSocketUrl(assetPrefix: string | undefined): string {
   const prefix = normalizedAssetPrefix(assetPrefix)
   const protocol = getSocketProtocol(assetPrefix || '')
 
-  if (URL.canParse(prefix)) {
+  if (canParseUrl(prefix)) {
     // since normalized asset prefix is ensured to be a URL format,
     // we can safely replace the protocol
     return prefix.replace(/^http/, 'ws')
