@@ -16612,7 +16612,8 @@
         "required server files app router should send cache tags in minimal mode for ISR",
         "required server files app router should still render when postponed is corrupted",
         "required server files app router should still render when postponed is corrupted with Next-Resume",
-        "required server files app router should still render when postponed is corrupted without Next-Resume"
+        "required server files app router should still render when postponed is corrupted without Next-Resume",
+        "required server files app router should handle revalidating the fallback page"
       ],
       "pending": [],
       "flakey": [],
