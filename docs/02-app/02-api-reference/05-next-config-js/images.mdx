@@ -247,7 +247,7 @@ export default function thumborLoader({ src, width, quality }) {
 ```js
 // Docs: https://docs.n7.io/aio/intergrations/
 export default function aioLoader({ src, width, quality }) {
-  const url = new URL(src)
+  const url = new URL(src, window.location.href)
   const params = url.searchParams
   const aioParams = params.getAll('aio')
   aioParams.push(`w-${width}`)
