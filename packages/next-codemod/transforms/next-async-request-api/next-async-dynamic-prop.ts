@@ -79,7 +79,11 @@ function isAsyncFunctionDeclaration(
 
 const TARGET_PROP_NAMES = new Set(['params', 'searchParams'])
 
-export function transformDynamicProps(source: string, api: API) {
+export function transformDynamicProps(
+  source: string,
+  api: API,
+  _filePath: string
+) {
   const j = api.jscodeshift.withParser('tsx')
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported

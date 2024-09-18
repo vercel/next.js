@@ -154,7 +154,11 @@ function findImportedIdentifier(
   return importedAlias
 }
 
-export function transformDynamicAPI(source: string, api: API) {
+export function transformDynamicAPI(
+  source: string,
+  api: API,
+  filePath: string
+) {
   const j = api.jscodeshift.withParser('tsx')
   const root = j(source)
 
@@ -171,8 +175,8 @@ export function transformDynamicAPI(source: string, api: API) {
     return closestDef.size() === 0
   }
 
-  function processAsyncApiCalls(functionName: AsyncAPIName) {
-    const importedAlias = findImportedIdentifier(root, j, functionName)
+  function processAsyncApiCalls(asyncRequestApiName: AsyncAPIName) {
+    const importedAlias = findImportedIdentifier(root, j, asyncRequestApiName)
 
     if (!importedAlias) {
       // Skip the transformation if the function is not imported from 'next/headers'
@@ -184,7 +188,7 @@ export function transformDynamicAPI(source: string, api: API) {
       .find(j.CallExpression, {
         callee: {
           type: 'Identifier',
-          name: functionName,
+          name: asyncRequestApiName,
         },
       })
       .forEach((path) => {
@@ -214,7 +218,7 @@ export function transformDynamicAPI(source: string, api: API) {
             // Add 'await' in front of cookies() call
             j(path).replaceWith(
               j.awaitExpression(
-                j.callExpression(j.identifier(functionName), [])
+                j.callExpression(j.identifier(asyncRequestApiName), [])
               )
             )
           }
@@ -260,7 +264,7 @@ export function transformDynamicAPI(source: string, api: API) {
               if (canConvertToAsync) {
                 j(path).replaceWith(
                   j.awaitExpression(
-                    j.callExpression(j.identifier(functionName), [])
+                    j.callExpression(j.identifier(asyncRequestApiName), [])
                   )
                 )
               }
@@ -278,13 +282,27 @@ export function transformDynamicAPI(source: string, api: API) {
               if (isParentFunctionHook) {
                 j(path).replaceWith(
                   j.callExpression(j.identifier('use'), [
-                    j.callExpression(j.identifier(functionName), []),
+                    j.callExpression(j.identifier(asyncRequestApiName), []),
                   ])
                 )
                 needsReactUseImport = true
+              } else {
+                castTypesOrAddComment(
+                  j,
+                  path,
+                  asyncRequestApiName,
+                  root,
+                  filePath
+                )
               }
             } else {
-              // TODO: Otherwise, leave a message to the user to manually handle the transformation
+              castTypesOrAddComment(
+                j,
+                path,
+                asyncRequestApiName,
+                root,
+                filePath
+              )
             }
           }
         }
@@ -338,4 +356,75 @@ function isClientComponentAst(j: API['j'], root: Collection<any>) {
       .size() > 0
 
   return hasStringDirective || hasStringDirectiveWithSemicolon
+}
+
+// cast to unknown first, then the specific type
+const API_CAST_TYPE_MAP = {
+  cookies: 'DangerouslyUnwrapCookie',
+  headers: 'DangerouslyUnwrapHeaders',
+  draftMode: 'DangerouslyUnwrapDraftMode',
+}
+
+function castTypesOrAddComment(
+  j: API['jscodeshift'],
+  path: ASTPath<any>,
+  asyncRequestApiName: string,
+  root: Collection<any>,
+  filePath: string
+) {
+  const isTsFile = filePath.endsWith('.ts') || filePath.endsWith('.tsx')
+  if (isTsFile) {
+    /* Do type cast for headers, cookies, draftMode
+      import {
+        type DangerouslyUnwrapHeaders,
+        type DangerouslyUnwrapCookie,
+        type DangerouslyUnwrapDraftMode
+      } from 'next/headers'
+      
+      cookies() as unknown as DangerouslyUnwrapCookie
+      headers() as unknown as DangerouslyUnwrapHeaders
+      draftMode() as unknown as DangerouslyUnwrapDraftMode
+      
+      e.g. `<path>` is cookies(), convert it to `(<path> as unknown as DangerouslyUnwrapCookie)`
+    */
+
+    const targetType = API_CAST_TYPE_MAP[asyncRequestApiName]
+
+    const newCastExpression = j.tsAsExpression(
+      j.tsAsExpression(path.node, j.tsUnknownKeyword()),
+      j.tsTypeReference(j.identifier(targetType))
+    )
+    // Replace the original expression with the new cast expression,
+    // also wrap () around the new cast expression.
+    j(path).replaceWith(j.parenthesizedExpression(newCastExpression))
+
+    // If cast types are not imported, add them to the import list
+    const importDeclaration = root.find(j.ImportDeclaration, {
+      source: { value: 'next/headers' },
+    })
+    if (importDeclaration.size() > 0) {
+      const hasImportedType =
+        importDeclaration
+          .find(j.TSTypeAliasDeclaration, {
+            id: { name: targetType },
+          })
+          .size() > 0
+
+      if (!hasImportedType) {
+        importDeclaration
+          .get()
+          .node.specifiers.push(
+            j.importSpecifier(j.identifier(`type ${targetType}`))
+          )
+      }
+    }
+  } else {
+    // Otherwise for JS file, leave a message to the user to manually handle the transformation
+    path.node.comments = [
+      j.commentBlock(
+        ' TODO: await this async call and propagate the async correctly '
+      ),
+      ...(path.node.comments || []),
+    ]
+  }
 }

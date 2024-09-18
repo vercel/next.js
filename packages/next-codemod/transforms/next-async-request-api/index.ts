@@ -6,7 +6,7 @@ export default function transform(file: FileInfo, api: API) {
   const transforms = [transformDynamicProps, transformDynamicAPI]
 
   return transforms.reduce<string>(
-    (source, transformFn) => transformFn(source, api),
+    (source, transformFn) => transformFn(source, api, file.path),
     file.source
   )
 }

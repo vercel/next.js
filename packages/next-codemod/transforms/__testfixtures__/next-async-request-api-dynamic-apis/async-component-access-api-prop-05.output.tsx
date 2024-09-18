@@ -1,8 +1,8 @@
 import { use } from "react";
-import { draftMode } from 'next/headers'
+import { draftMode, type DangerouslyUnwrapDraftMode } from 'next/headers';
 
 export function MyComponent2() {
-  draftMode().enable()
+  (draftMode() as unknown as DangerouslyUnwrapDraftMode).enable()
 }
 
 export function useDraftModeEnabled() {
