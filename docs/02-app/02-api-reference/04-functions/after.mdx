@@ -39,7 +39,7 @@ export default function Layout({ children }) {
 > **Good to know**:
 >
 > - `after` will be executed even if the response didn't complete successfully. Including when an error is thrown or when `notFound` or `redirect` is called.
-> - `after` is a [dynamic function](/docs/app/building-your-application/rendering/server-components#dynamic-functions) that will opt a route into dynamic rendering. This behavior can be overridden with the [`export dynamic = "force-static"`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) segment config.
+> - `after` is a [Dynamic API](/docs/app/building-your-application/rendering/server-components#dynamic-apis) that will opt a route into dynamic rendering. This behavior can be overridden with the [`export dynamic = "force-static"`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) segment config.
 > - You can use React `cache` to deduplicate functions called inside `after`.
 > - [`cookies`](/docs/app/api-reference/functions/cookies) cannot be set inside `after` since the response has already been sent.
 > - `after` can be nested inside other `after` calls.

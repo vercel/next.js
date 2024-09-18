@@ -82,14 +82,14 @@ Dynamic rendering is useful when a route has data that is personalized to the us
 
 #### Switching to Dynamic Rendering
 
-During rendering, if a [Dynamic API](#dynamic-apis) or uncached data request is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
+During rendering, if a [Dynamic API](#dynamic-apis) or uncached data request is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how Dynamic APIs and data caching affect whether a route is statically or dynamically rendered:
 
-| Dynamic Functions | Data       | Route                |
-| ----------------- | ---------- | -------------------- |
-| No                | Cached     | Statically Rendered  |
-| Yes               | Cached     | Dynamically Rendered |
-| No                | Not Cached | Dynamically Rendered |
-| Yes               | Not Cached | Dynamically Rendered |
+| Dynamic APIs | Data       | Route                |
+| ------------ | ---------- | -------------------- |
+| No           | Cached     | Statically Rendered  |
+| Yes          | Cached     | Dynamically Rendered |
+| No           | Not Cached | Dynamically Rendered |
+| Yes          | Not Cached | Dynamically Rendered |
 
 In the table above, for a route to be fully static, all data must be cached. However, you can have a dynamically rendered route that uses both cached and uncached data fetches.
 
