@@ -5,6 +5,7 @@ import path from 'path'
 import { outdent } from 'outdent'
 import { getRedboxTotalErrorCount } from 'next-test-utils'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
 describe('Error overlay for hydration errors in Pages router', () => {
@@ -39,10 +40,13 @@ describe('Error overlay for hydration errors in Pages router', () => {
     expect(logs).toEqual(
       expect.arrayContaining([
         {
-          // TODO: Should probably link to https://nextjs.org/docs/messages/react-hydration-error instead.
-          message: expect.stringContaining(
-            'https://react.dev/link/hydration-mismatch'
-          ),
+          message: isReact18
+            ? // React 18 has no link in the hydration message
+              expect.stringContaining('Warning: Text content did not match.')
+            : // TODO: Should probably link to https://nextjs.org/docs/messages/react-hydration-error instead.
+              expect.stringContaining(
+                'https://react.dev/link/hydration-mismatch'
+              ),
           source: 'error',
         },
       ])

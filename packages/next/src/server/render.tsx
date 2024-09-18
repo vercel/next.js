@@ -40,7 +40,7 @@ import type { Revalidate, SwrDelta } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
-import ReactDOMServerEdge from 'react-dom/server.edge'
+import ReactDOMServerBrowser from 'react-dom/server.browser'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -127,7 +127,8 @@ function noRouter() {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServerEdge.renderToReadableStream(element)
+  const renderStream =
+    await ReactDOMServerBrowser.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -1326,7 +1327,7 @@ export async function renderToHTMLImpl(
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialFizzStream({
-        ReactDOMServer: ReactDOMServerEdge,
+        ReactDOMServer: ReactDOMServerBrowser,
         element: content,
       })
     }

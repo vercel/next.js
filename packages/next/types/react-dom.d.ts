@@ -70,6 +70,10 @@ declare module 'react-dom/server.edge' {
   >
 }
 
+declare module 'react-dom/server.browser' {
+  export * from 'react-dom/server.edge'
+}
+
 declare module 'react-dom/static.edge' {
   import type { JSX } from 'react'
   /**
