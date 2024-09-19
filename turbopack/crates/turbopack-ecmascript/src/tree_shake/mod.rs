@@ -325,7 +325,7 @@ pub(crate) enum Key {
     Export(RcStr),
     Exports,
     /// Star-reexports, excluding known exports
-    Reexports,
+    StarReexports,
 }
 
 /// Converts [Vc<ModulePart>] to the index.
@@ -337,7 +337,7 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
         ModulePart::Evaluation => Key::ModuleEvaluation,
         ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
         ModulePart::Exports => Key::Exports,
-        ModulePart::Reexports => Key::Reexports,
+        ModulePart::StarReexports => Key::StarReexports,
         ModulePart::Internal(part_id) => return Ok(*part_id),
         ModulePart::Locals
         | ModulePart::Facade
@@ -362,7 +362,7 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
 
     // This is required to handle `export * from 'foo'`
     if let ModulePart::Export(..) = &*part {
-        if let Some(&v) = entrypoints.get(&Key::Reexports) {
+        if let Some(&v) = entrypoints.get(&Key::StarReexports) {
             return Ok(v);
         }
     }

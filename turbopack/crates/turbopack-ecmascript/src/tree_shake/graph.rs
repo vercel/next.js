@@ -561,7 +561,7 @@ impl DepGraph {
                     .push(ModuleItem::ModuleDecl(ModuleDecl::ExportAll(star.clone())));
             }
 
-            results.insert(Key::Reexports, modules.len() as u32);
+            results.insert(Key::StarReexports, modules.len() as u32);
             modules.push(reexports_module);
 
             // `Exports` module should export everything from the re-exported modules
@@ -571,7 +571,9 @@ impl DepGraph {
                     span: DUMMY_SP,
                     src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                     type_only: false,
-                    with: Some(Box::new(create_turbopack_part_id_assert(PartId::Reexports))),
+                    with: Some(Box::new(create_turbopack_part_id_assert(
+                        PartId::StarReexports,
+                    ))),
                 })));
         }
 
@@ -1304,7 +1306,7 @@ pub(crate) enum PartId {
     Exports,
     Export(RcStr),
     Internal(u32),
-    Reexports,
+    StarReexports,
 }
 
 pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
@@ -1318,7 +1320,7 @@ pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
                 PartId::Exports => "exports".into(),
                 PartId::Export(e) => format!("export {e}").into(),
                 PartId::Internal(dep) => (dep as f64).into(),
-                PartId::Reexports => "reexports".into(),
+                PartId::StarReexports => "reexports".into(),
             },
         })))],
     }
@@ -1337,7 +1339,7 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
         })) if &*key.sym == ASSERT_CHUNK_KEY => match &*s.value {
             "module evaluation" => Some(PartId::ModuleEvaluation),
             "exports" => Some(PartId::Exports),
-            "reexports" => Some(PartId::Reexports),
+            "reexports" => Some(PartId::StarReexports),
             _ if s.value.starts_with("export ") => Some(PartId::Export(s.value[7..].into())),
             _ => None,
         },
