@@ -4,60 +4,10 @@ import {
   isFunctionType,
   isMatchedFunctionExported,
   turnFunctionReturnTypeToAsync,
+  insertReactUseImport,
 } from './utils'
 
 type AsyncAPIName = 'cookies' | 'headers' | 'draftMode'
-
-function insertReactUseImport(root: Collection<any>, j: API['j']) {
-  const hasReactUseImport =
-    root
-      .find(j.ImportSpecifier, {
-        imported: {
-          type: 'Identifier',
-          name: 'use',
-        },
-      })
-      .size() > 0
-
-  if (!hasReactUseImport) {
-    const reactImportDeclaration = root.find(j.ImportDeclaration, {
-      source: {
-        type: 'Literal',
-        value: 'react',
-      },
-    })
-
-    if (reactImportDeclaration.size() > 0) {
-      // Add 'use' to existing 'react' import declaration
-      reactImportDeclaration
-        .get()
-        .node.specifiers.push(j.importSpecifier(j.identifier('use')))
-    } else {
-      // Create new import declaration for 'use' from 'react'
-      const newImport = j.importDeclaration(
-        [j.importSpecifier(j.identifier('use'))],
-        j.literal('react')
-      )
-
-      // append after "use client" directive if there's any
-      const clientDirectives = root.find(j.Literal, { value: 'use client' })
-      if (clientDirectives.size() > 0) {
-        const parent = clientDirectives.get().parentPath
-        if (parent) {
-          parent.insertAfter(newImport)
-        } else {
-          if (root.length > 0) {
-            root.at(0).insertAfter(newImport)
-          } else {
-            root.get().node.program.body.unshift(newImport)
-          }
-        }
-      } else {
-        root.get().node.program.body.unshift(newImport)
-      }
-    }
-  }
-}
 
 function wrapParathnessIfNeeded(
   hasChainAccess: boolean,
@@ -210,13 +160,13 @@ export function transformDynamicAPI(
                   wrapParathnessIfNeeded(hasChainAccess, j, expr)
                 )
 
-                turnFunctionReturnTypeToAsync(closetScopePath, j)
+                turnFunctionReturnTypeToAsync(closetScopePath.node, j)
 
                 modified = true
               }
             }
           } else {
-            // if parent is function function and it's a hook, which starts with 'use', wrap the api call with 'use()'
+            // if parent is function and it's a hook, which starts with 'use', wrap the api call with 'use()'
             const parentFunction =
               j(path).closest(j.FunctionDeclaration) ||
               j(path).closest(j.FunctionExpression) ||

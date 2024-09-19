@@ -8,6 +8,7 @@ import type {
 } from 'jscodeshift'
 import {
   determineClientDirective,
+  insertReactUseImport,
   isFunctionType,
   TARGET_NAMED_EXPORTS,
   TARGET_PROP_NAMES,
@@ -19,59 +20,6 @@ const PAGE_PROPS = 'props'
 type FunctionalExportDeclaration =
   | ExportDefaultDeclaration
   | ExportNamedDeclaration
-
-function insertReactUseImport(root: Collection<any>, j: API['j']) {
-  const hasReactUseImport =
-    root
-      .find(j.ImportSpecifier, {
-        imported: {
-          type: 'Identifier',
-          name: 'use',
-        },
-      })
-      .size() > 0
-
-  if (!hasReactUseImport) {
-    const reactImportDeclaration = root.find(j.ImportDeclaration, {
-      source: {
-        type: 'Literal',
-        value: 'react',
-      },
-    })
-
-    if (reactImportDeclaration.size() > 0) {
-      // Add 'use' to existing 'react' import declaration
-      reactImportDeclaration
-        .get()
-        .node.specifiers.push(j.importSpecifier(j.identifier('use')))
-    } else {
-      // Final all type imports to 'react'
-
-      const reactImport = root.find(j.ImportDeclaration, {
-        source: {
-          type: 'Literal',
-          value: 'react',
-        },
-      })
-
-      if (reactImport.size() > 0) {
-        reactImport
-          .get()
-          .node.specifiers.push(j.importSpecifier(j.identifier('use')))
-      } else {
-        // Add new import declaration for 'react' and 'use'
-        root
-          .get()
-          .node.program.body.unshift(
-            j.importDeclaration(
-              [j.importSpecifier(j.identifier('use'))],
-              j.literal('react')
-            )
-          )
-      }
-    }
-  }
-}
 
 function isAsyncFunctionDeclaration(
   path: ASTPath<FunctionalExportDeclaration>
@@ -298,14 +246,13 @@ export function transformDynamicProps(
       ) {
         if ('async' in path.value.declaration) {
           path.value.declaration.async = true
-          turnFunctionReturnTypeToAsync(path, j)
+          turnFunctionReturnTypeToAsync(path.value.declaration, j)
         }
       }
 
       const isAsyncFunc = isAsyncFunctionDeclaration(path)
       // @ts-ignore quick way to check if it's a function and it has a name
       const functionName = path.value.declaration.id?.name || 'default'
-      needsReactUseImport = !isAsyncFunc
 
       const functionBody = getBodyOfFunctionDeclaration(path)
       const propsIdentifier = j.identifier(PAGE_PROPS)
@@ -380,6 +327,7 @@ export function transformDynamicProps(
               'async' in path.value.declaration
             ) {
               path.value.declaration.async = true
+              turnFunctionReturnTypeToAsync(path.value.declaration, j)
 
               // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
               const paramAssignment = j.variableDeclaration('const', [
@@ -407,6 +355,7 @@ export function transformDynamicProps(
               !insertedRenamedPropFunctionNames.has(functionName) &&
               functionBody
             ) {
+              needsReactUseImport = true
               functionBody.unshift(paramAssignment)
               insertedRenamedPropFunctionNames.add(functionName)
             }

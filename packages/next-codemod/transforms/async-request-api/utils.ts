@@ -4,6 +4,7 @@ import type {
   Collection,
   FunctionDeclaration,
   JSCodeshift,
+  Node,
 } from 'jscodeshift'
 
 export const TARGET_NAMED_EXPORTS = new Set([
@@ -152,10 +153,9 @@ export function isPromiseType(typeAnnotation) {
 }
 
 export function turnFunctionReturnTypeToAsync(
-  path: ASTPath<any>,
+  node: Node,
   j: API['jscodeshift']
 ) {
-  const node = path.node
   if (
     j.FunctionDeclaration.check(node) ||
     j.FunctionExpression.check(node) ||
@@ -182,6 +182,59 @@ export function turnFunctionReturnTypeToAsync(
             j.tsTypeParameterInstantiation([returnTypeAnnotation])
           )
         }
+      }
+    }
+  }
+}
+
+export function insertReactUseImport(root: Collection<any>, j: API['j']) {
+  const hasReactUseImport =
+    root
+      .find(j.ImportSpecifier, {
+        imported: {
+          type: 'Identifier',
+          name: 'use',
+        },
+      })
+      .size() > 0
+
+  if (!hasReactUseImport) {
+    const reactImportDeclaration = root.find(j.ImportDeclaration, {
+      source: {
+        type: 'Literal',
+        value: 'react',
+      },
+    })
+
+    if (reactImportDeclaration.size() > 0) {
+      // Add 'use' to existing 'react' import declaration
+      reactImportDeclaration
+        .get()
+        .node.specifiers.push(j.importSpecifier(j.identifier('use')))
+    } else {
+      // Final all type imports to 'react'
+
+      const reactImport = root.find(j.ImportDeclaration, {
+        source: {
+          type: 'Literal',
+          value: 'react',
+        },
+      })
+
+      if (reactImport.size() > 0) {
+        reactImport
+          .get()
+          .node.specifiers.push(j.importSpecifier(j.identifier('use')))
+      } else {
+        // Add new import declaration for 'react' and 'use'
+        root
+          .get()
+          .node.program.body.unshift(
+            j.importDeclaration(
+              [j.importSpecifier(j.identifier('use'))],
+              j.literal('react')
+            )
+          )
       }
     }
   }
