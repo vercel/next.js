@@ -11,7 +11,6 @@ class Plan extends React.Component {
           onLogout={() => onUser(null)}
           onLogoRightClick={() => Router.push('/logos')}
         />
-
         <SubMenu
           subscription={subscription}
           teamsAndUser={teamsAndUser}
