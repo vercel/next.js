@@ -17,9 +17,10 @@ import { prerenderAsyncStorage } from './prerender-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
 import { ClientPageRoot } from '../../client/components/client-page'
 import {
-  createUntrackedSearchParams,
-  createDynamicallyTrackedSearchParams,
-} from '../../client/components/search-params'
+  createServerSearchParamsForServerPage,
+  createServerSearchParamsForClientPage,
+  createServerSearchParamsForMetadata,
+} from '../request/search-params'
 import { createDynamicallyTrackedParams } from '../../client/components/fallback-params'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { NotFoundBoundary } from '../../client/components/not-found-boundary'
@@ -51,8 +52,9 @@ export {
   staticGenerationAsyncStorage,
   requestAsyncStorage,
   actionAsyncStorage,
-  createUntrackedSearchParams,
-  createDynamicallyTrackedSearchParams,
+  createServerSearchParamsForServerPage,
+  createServerSearchParamsForClientPage,
+  createServerSearchParamsForMetadata,
   createDynamicallyTrackedParams,
   serverHooks,
   preloadStyle,

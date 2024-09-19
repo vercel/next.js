@@ -90,8 +90,8 @@ async function createComponentTreeInternal({
       LayoutRouter,
       RenderFromTemplateContext,
       ClientPageRoot,
-      createUntrackedSearchParams,
-      createDynamicallyTrackedSearchParams,
+      createServerSearchParamsForServerPage,
+      createServerSearchParamsForClientPage,
       createDynamicallyTrackedParams,
       serverHooks: { DynamicServerError },
       Postpone,
@@ -568,20 +568,27 @@ async function createComponentTreeInternal({
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
     if (isClientComponent) {
-      // When we are passing searchParams to a client component Page we don't want to track the dynamic access
-      // here in the RSC layer because the serialization will trigger a dynamic API usage.
-      // Instead we pass the searchParams untracked but we wrap the Page in a root client component
-      // which can among other things adds the dynamic tracking before rendering the page.
-      // @TODO make the root wrapper part of next-app-loader so we don't need the extra client component
-      props.params = currentParams
-      props.searchParams = createUntrackedSearchParams(query)
-      pageElement = <ClientPageRoot props={props} Component={Component} />
+      const params = currentParams
+      const searchParams = createServerSearchParamsForClientPage(
+        query,
+        staticGenerationStore
+      )
+      pageElement = (
+        <ClientPageRoot
+          params={params}
+          searchParams={searchParams}
+          Component={Component}
+        />
+      )
     } else {
       // If we are passing searchParams to a server component Page we need to track their usage in case
       // the current render mode tracks dynamic API usage.
-      props.params = createDynamicallyTrackedParams(currentParams)
-      props.searchParams = createDynamicallyTrackedSearchParams(query)
-      pageElement = <Component {...props} />
+      const params = createDynamicallyTrackedParams(currentParams)
+      const searchParams = createServerSearchParamsForServerPage(
+        query,
+        staticGenerationStore
+      )
+      pageElement = <Component params={params} searchParams={searchParams} />
     }
     return [
       actualSegment,

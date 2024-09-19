@@ -459,3 +459,17 @@ export function createPostponedAbortSignal(reason: string): AbortSignal {
   }
   return controller.signal
 }
+
+export function annotateDynamicAccess(
+  expression: string,
+  dynamicTracking: null | DynamicTrackingState
+) {
+  if (dynamicTracking) {
+    dynamicTracking.dynamicAccesses.push({
+      stack: dynamicTracking.isDebugDynamicAccesses
+        ? new Error().stack
+        : undefined,
+      expression,
+    })
+  }
+}

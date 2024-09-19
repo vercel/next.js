@@ -84,24 +84,20 @@ export function createTrackedMetadataContext(
 // and the error will be caught by the error boundary and trigger fallbacks.
 export function createMetadataComponents({
   tree,
-  query,
+  searchParams,
   metadataContext,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
   errorType,
-  createDynamicallyTrackedSearchParams,
   createDynamicallyTrackedParams,
 }: {
   tree: LoaderTree
-  query: ParsedUrlQuery
+  searchParams: Promise<ParsedUrlQuery>
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
   createDynamicallyTrackedParams: CreateDynamicallyTrackedParams
-  createDynamicallyTrackedSearchParams: (
-    searchParams: ParsedUrlQuery
-  ) => ParsedUrlQuery
 }): [React.ComponentType, () => Promise<void>] {
   let currentMetadataReady:
     | null
@@ -113,10 +109,9 @@ export function createMetadataComponents({
   async function MetadataTree() {
     const pendingMetadata = getResolvedMetadata(
       tree,
-      query,
+      searchParams,
       getDynamicParamFromSegment,
       metadataContext,
-      createDynamicallyTrackedSearchParams,
       createDynamicallyTrackedParams,
       errorType
     )
@@ -177,18 +172,14 @@ export function createMetadataComponents({
 
 async function getResolvedMetadata(
   tree: LoaderTree,
-  query: ParsedUrlQuery,
+  searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
-  createDynamicallyTrackedSearchParams: (
-    searchParams: ParsedUrlQuery
-  ) => ParsedUrlQuery,
   createDynamicallyTrackedParams: CreateDynamicallyTrackedParams,
   errorType?: 'not-found' | 'redirect'
 ): Promise<[any, Array<React.ReactNode>]> {
   const errorMetadataItem: [null, null, null] = [null, null, null]
   const errorConvention = errorType === 'redirect' ? undefined : errorType
-  const searchParams = createDynamicallyTrackedSearchParams(query)
 
   const [error, metadata, viewport] = await resolveMetadata({
     tree,
