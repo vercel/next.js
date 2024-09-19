@@ -158,6 +158,33 @@ impl AggregationContext for NodeAggregationContext {
         unsafe { NodeGuard::new(guard, r) }
     }
 
+    fn node_pair<'b>(
+        &'b self,
+        id1: &Self::NodeRef,
+        id2: &Self::NodeRef,
+    ) -> (Self::Guard<'b>, Self::Guard<'b>) {
+        let r1 = id1.0.clone();
+        let r2 = id2.0.clone();
+        loop {
+            {
+                let guard1 = id1.0.inner.lock().unwrap();
+                if let Ok(guard2) = id2.0.inner.try_lock() {
+                    return (unsafe { NodeGuard::new(guard1, r1) }, unsafe {
+                        NodeGuard::new(guard2, r2)
+                    });
+                }
+            }
+            {
+                let guard2 = id2.0.inner.lock().unwrap();
+                if let Ok(guard1) = id1.0.inner.try_lock() {
+                    return (unsafe { NodeGuard::new(guard1, r1) }, unsafe {
+                        NodeGuard::new(guard2, r2)
+                    });
+                }
+            }
+        }
+    }
+
     fn atomic_in_progress_counter<'l>(&self, id: &'l NodeRef) -> &'l AtomicU32
     where
         Self: 'l,

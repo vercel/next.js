@@ -222,6 +222,29 @@ impl<'a> AggregationContext for TaskAggregationContext<'a> {
         TaskGuard::new(*reference, task.state_mut())
     }
 
+    fn node_pair<'l>(
+        &'l self,
+        id1: &Self::NodeRef,
+        id2: &Self::NodeRef,
+    ) -> (Self::Guard<'l>, Self::Guard<'l>) {
+        let task1 = self.backend.task(*id1);
+        let task2 = self.backend.task(*id2);
+        loop {
+            {
+                let state1 = task1.state_mut();
+                if let Some(state2) = task2.try_state_mut() {
+                    return (TaskGuard::new(*id1, state1), TaskGuard::new(*id2, state2));
+                }
+            }
+            {
+                let state2 = task2.state_mut();
+                if let Some(state1) = task1.try_state_mut() {
+                    return (TaskGuard::new(*id1, state1), TaskGuard::new(*id2, state2));
+                }
+            }
+        }
+    }
+
     fn atomic_in_progress_counter<'l>(&self, id: &'l TaskId) -> &'l AtomicU32
     where
         Self: 'l,
