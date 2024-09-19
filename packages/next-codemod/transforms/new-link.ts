@@ -1,6 +1,10 @@
-import type { API, FileInfo } from 'jscodeshift'
+import type { API, FileInfo, Options } from 'jscodeshift'
 
-export default function transformer(file: FileInfo, api: API) {
+export default function transformer(
+  file: FileInfo,
+  api: API,
+  options: Options
+) {
   const j = api.jscodeshift.withParser('tsx')
 
   const $j = j(file.source)
@@ -108,5 +112,5 @@ export default function transformer(file: FileInfo, api: API) {
         $childrenWithA.replaceWith(childrenProps.value)
       })
     })
-    .toSource()
+    .toSource(options)
 }
