@@ -1,0 +1,8 @@
+.rowContainer {
+  &.header {
+    /* Correct syntax: &.darktheme */
+    &:darktheme {
+      border-bottom-color: var(--accents-2);
+    }
+  }
+}

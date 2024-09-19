@@ -19,8 +19,24 @@ describe('app dir - css', () => {
     ;(process.env.TURBOPACK ? describe : describe.skip)(
       'error handling',
       () => {
-        it('should report human-readable error message for css', async () => {
-          const browser = await next.browser('/css-error')
+        it('should report human-readable error message for wrong pseudo class', async () => {
+          const browser = await next.browser('/css-error-1')
+
+          const source = await getRedboxSource(browser)
+
+          expect(source).toMatchInlineSnapshot()
+        })
+
+        it('should report human-readable error message for wrong global class', async () => {
+          const browser = await next.browser('/css-error-2')
+
+          const source = await getRedboxSource(browser)
+
+          expect(source).toMatchInlineSnapshot()
+        })
+
+        it('should report human-readable error message for wrong css module', async () => {
+          const browser = await next.browser('/css-error-3')
 
           const source = await getRedboxSource(browser)
 
