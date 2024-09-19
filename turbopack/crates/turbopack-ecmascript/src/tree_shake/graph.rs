@@ -894,7 +894,7 @@ impl DepGraph {
                         // One item for the import for re-export
                         let id = ItemId::Item {
                             index,
-                            kind: ItemIdItemKind::ImportOfModule,
+                            kind: ItemIdItemKind::Normal,
                         };
                         ids.push(id.clone());
                         items.insert(
