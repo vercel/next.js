@@ -11,6 +11,7 @@ import {
   isFunctionType,
   TARGET_NAMED_EXPORTS,
   TARGET_PROP_NAMES,
+  turnFunctionReturnTypeToAsync,
 } from './utils'
 
 const PAGE_PROPS = 'props'
@@ -295,8 +296,10 @@ export function transformDynamicProps(
         !isClientComponent &&
         !isAsyncFunctionDeclaration(path)
       ) {
-        if ('async' in path.value.declaration)
+        if ('async' in path.value.declaration) {
           path.value.declaration.async = true
+          turnFunctionReturnTypeToAsync(path, j)
+        }
       }
 
       const isAsyncFunc = isAsyncFunctionDeclaration(path)

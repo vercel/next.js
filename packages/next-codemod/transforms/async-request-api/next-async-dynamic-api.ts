@@ -3,6 +3,7 @@ import {
   determineClientDirective,
   isFunctionType,
   isMatchedFunctionExported,
+  turnFunctionReturnTypeToAsync,
 } from './utils'
 
 type AsyncAPIName = 'cookies' | 'headers' | 'draftMode'
@@ -163,9 +164,10 @@ export function transformDynamicAPI(
           }
         } else {
           // Determine if the function is an export
-          const isFromExport = isMatchedFunctionExported(closetScope.get(), j)
+          const closetScopePath = closetScope.get()
+          const isFromExport = isMatchedFunctionExported(closetScopePath, j)
           const closestFunctionNode = closetScope.size()
-            ? closetScope.get().node
+            ? closetScopePath.node
             : null
 
           // If it's exporting a function directly, exportFunctionNode is same as exportNode
@@ -207,6 +209,8 @@ export function transformDynamicAPI(
                 j(path).replaceWith(
                   wrapParathnessIfNeeded(hasChainAccess, j, expr)
                 )
+
+                turnFunctionReturnTypeToAsync(closetScopePath, j)
 
                 modified = true
               }

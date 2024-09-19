@@ -143,3 +143,46 @@ export function determineClientDirective(
 
   return containsClientDirective
 }
+
+export function isPromiseType(typeAnnotation) {
+  return (
+    typeAnnotation.type === 'TSTypeReference' &&
+    typeAnnotation.typeName.name === 'Promise'
+  )
+}
+
+export function turnFunctionReturnTypeToAsync(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  const node = path.node
+  if (
+    j.FunctionDeclaration.check(node) ||
+    j.FunctionExpression.check(node) ||
+    j.ArrowFunctionExpression.check(node)
+  ) {
+    if (node.returnType) {
+      const returnTypeAnnotation = node.returnType.typeAnnotation
+      const isReturnTypePromise = isPromiseType(returnTypeAnnotation)
+      // Turn <return type> to Promise<return type>
+      // e.g. () => { slug: string } to () => Promise<{ slug: string }>
+      // e.g. Anything to Promise<Anything>
+      if (!isReturnTypePromise) {
+        if (
+          node.returnType &&
+          j.TSTypeAnnotation.check(node.returnType) &&
+          (j.TSTypeReference.check(node.returnType.typeAnnotation) ||
+            j.TSUnionType.check(node.returnType.typeAnnotation) ||
+            j.TSTypePredicate.check(node.returnType.typeAnnotation))
+        ) {
+          // Change the return type to Promise<void>
+          node.returnType.typeAnnotation = j.tsTypeReference(
+            j.identifier('Promise'),
+            // @ts-ignore ignore the super strict type checking on the type annotation
+            j.tsTypeParameterInstantiation([returnTypeAnnotation])
+          )
+        }
+      }
+    }
+  }
+}
