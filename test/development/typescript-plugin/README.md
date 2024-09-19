@@ -15,3 +15,6 @@ The plugin only applies to VSCode so manual testing in VSCode is required.
 
 `app/client.tsx#ClientComponent` has props that can and can't be serialized.
 Ensure the current comments still describe the observed behavior.
+
+`app/error.tsx#Error` and `app/global-error.tsx#GlobalError` have a `reset` prop
+that should be excluded from the serialization check.

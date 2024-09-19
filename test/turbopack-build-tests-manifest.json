@@ -15688,6 +15688,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/actions-tree-shaking/client-actions-tree-shaking/client-actions-tree-shaking.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - client-actions-tree-shaking should not bundle unused server reference id in client bundles"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/app-edge-middleware/app-edge-middleware.test.ts": {
       "passed": [
         "app edge middleware without node.js modules should not have any errors about using Node.js modules if not present in middleware"
@@ -15792,7 +15801,8 @@
         "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
         "fetch-cache should not retry for failed fetch-cache GET",
         "fetch-cache should retry 3 times when revalidate times out",
-        "fetch-cache should update cache TTL even if cache data does not change"
+        "fetch-cache should update cache TTL even if cache data does not change",
+        "fetch-cache should batch revalidate tag requests if > 64"
       ],
       "pending": [],
       "flakey": [],
@@ -16602,7 +16612,8 @@
         "required server files app router should send cache tags in minimal mode for ISR",
         "required server files app router should still render when postponed is corrupted",
         "required server files app router should still render when postponed is corrupted with Next-Resume",
-        "required server files app router should still render when postponed is corrupted without Next-Resume"
+        "required server files app router should still render when postponed is corrupted without Next-Resume",
+        "required server files app router should handle revalidating the fallback page"
       ],
       "pending": [],
       "flakey": [],

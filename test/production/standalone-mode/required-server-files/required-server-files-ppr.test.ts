@@ -379,4 +379,27 @@ describe('required server files app router', () => {
     expect(res.headers.get('content-type')).toEqual('text/x-component')
     expect(res.headers.has('x-nextjs-postponed')).toBeTrue()
   })
+
+  it('should handle revalidating the fallback page', async () => {
+    const res = await fetchViaHTTP(appPort, '/postpone/isr/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/postpone/isr/[slug]',
+        // We don't include the `x-now-route-matches` header because we want to
+        // test that the fallback route params are correctly set.
+      },
+    })
+
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+
+    expect(html).not.toContain('</html>')
+
+    const $ = cheerio.load(html)
+
+    expect($('#page').text()).toBeEmpty()
+    expect($('#params').text()).toBeEmpty()
+    expect($('#now').text()).toBeEmpty()
+    expect($('#loading').text()).toBe('/postpone/isr/[slug]')
+  })
 })
