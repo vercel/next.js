@@ -77,7 +77,8 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::Evaluation
                 | ModulePart::Facade
                 | ModulePart::RenamedExport { .. }
-                | ModulePart::RenamedNamespace { .. } => {
+                | ModulePart::RenamedNamespace { .. }
+                | ModulePart::Reexports => {
                     Vc::upcast(EcmascriptModuleFacadeModule::new(self.module, part))
                 }
                 ModulePart::Export(..) | ModulePart::Internal(..) => {

@@ -2879,6 +2879,8 @@ pub enum ModulePart {
     Locals,
     /// The whole exports of a module.
     Exports,
+    /// The whole reexports of a module.
+    Reexports,
     /// A facade of the module behaving like the original, but referencing
     /// internal parts.
     Facade,
@@ -2922,6 +2924,10 @@ impl ModulePart {
         ModulePart::Exports.cell()
     }
     #[turbo_tasks::function]
+    pub fn reexports() -> Vc<Self> {
+        ModulePart::Reexports.cell()
+    }
+    #[turbo_tasks::function]
     pub fn facade() -> Vc<Self> {
         ModulePart::Facade.cell()
     }
@@ -2948,6 +2954,7 @@ impl ValueToString for ModulePart {
             ModulePart::Internal(id) => format!("internal part {}", id).into(),
             ModulePart::Locals => "locals".into(),
             ModulePart::Exports => "exports".into(),
+            ModulePart::Reexports => "reexports".into(),
             ModulePart::Facade => "facade".into(),
         }))
     }

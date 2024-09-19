@@ -324,7 +324,7 @@ pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
     Exports,
-    /// Reexports, excluding local exports
+    /// Star-reexports, excluding known exports
     Reexports,
 }
 
@@ -337,6 +337,7 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
         ModulePart::Evaluation => Key::ModuleEvaluation,
         ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
         ModulePart::Exports => Key::Exports,
+        ModulePart::Reexports => Key::Reexports,
         ModulePart::Internal(part_id) => return Ok(*part_id),
         ModulePart::Locals
         | ModulePart::Facade

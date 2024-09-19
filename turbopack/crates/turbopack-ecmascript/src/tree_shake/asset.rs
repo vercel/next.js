@@ -223,6 +223,7 @@ impl Module for EcmascriptModulePartAsset {
                         match part_id {
                             PartId::Internal(part_id) => ModulePart::internal(*part_id),
                             PartId::Export(name) => ModulePart::export(name.clone()),
+                            PartId::Reexports => ModulePart::reexports(),
                             _ => unreachable!(
                                 "PartId other than Internal and Export should not be used here"
                             ),
