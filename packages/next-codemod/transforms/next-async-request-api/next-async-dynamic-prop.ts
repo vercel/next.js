@@ -5,6 +5,11 @@ import type {
   ExportDefaultDeclaration,
   ExportNamedDeclaration,
 } from 'jscodeshift'
+import {
+  isFunctionType,
+  TARGET_NAMED_EXPORTS,
+  TARGET_PROP_NAMES,
+} from './utils'
 
 const PAGE_PROPS = 'props'
 
@@ -76,8 +81,6 @@ function isAsyncFunctionDeclaration(
     decl.async
   return isAsyncFunction
 }
-
-const TARGET_PROP_NAMES = new Set(['params', 'searchParams'])
 
 export function transformDynamicProps(
   source: string,
@@ -303,14 +306,37 @@ export function transformDynamicProps(
             functionBody.unshift(paramAssignment)
           }
         } else {
-          const paramAssignment = j.variableDeclaration('const', [
-            j.variableDeclarator(
-              j.identifier(propName),
-              j.callExpression(j.identifier('use'), [accessedPropId])
-            ),
-          ])
-          if (functionBody) {
-            functionBody.unshift(paramAssignment)
+          const isFromExport = path.value.type === 'ExportNamedDeclaration'
+          if (isFromExport) {
+            // If it's export function, populate the function to async
+            if (
+              isFunctionType(path.value.declaration.type) &&
+              // Make TS happy
+              'async' in path.value.declaration
+            ) {
+              path.value.declaration.async = true
+
+              // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
+              const paramAssignment = j.variableDeclaration('const', [
+                j.variableDeclarator(
+                  j.identifier(propName),
+                  j.awaitExpression(accessedPropId)
+                ),
+              ])
+              if (functionBody) {
+                functionBody.unshift(paramAssignment)
+              }
+            }
+          } else {
+            const paramAssignment = j.variableDeclaration('const', [
+              j.variableDeclarator(
+                j.identifier(propName),
+                j.callExpression(j.identifier('use'), [accessedPropId])
+              ),
+            ])
+            if (functionBody) {
+              functionBody.unshift(paramAssignment)
+            }
           }
         }
       }
@@ -335,35 +361,33 @@ export function transformDynamicProps(
         renameAsyncPropIfExisted(path)
       })
 
-      // Matching functional metadata export:
-      // - export function generateMetadata(...) { ... }
-      // - export const generateMetadata = ...
-      const generateMetadataExportDeclarations = root.find(
+      // Matching Next.js functional named export of route entry:
+      // - export function <named>(...) { ... }
+      // - export const <named> = ...
+      const targetNamedExportDeclarations = root.find(
         j.ExportNamedDeclaration,
+        // Filter the name is in TARGET_NAMED_EXPORTS
         {
           declaration: {
-            declarations: [
-              {
-                // match both variable and function declarations
-                type(declaration: ExportNamedDeclaration['declaration']) {
-                  return (
-                    declaration.type === 'VariableDeclaration' ||
-                    declaration.type === 'FunctionDeclaration'
-                  )
-                },
-                id: {
-                  type: 'Identifier',
-                  name: 'generateMetadata',
-                },
+            id: {
+              name: (idName: string) => {
+                return TARGET_NAMED_EXPORTS.has(idName)
               },
-            ],
+            },
           },
         }
       )
 
-      generateMetadataExportDeclarations.forEach((path) => {
+      targetNamedExportDeclarations.forEach((path) => {
         renameAsyncPropIfExisted(path)
       })
+      // TDOO: handle targetNamedDeclarators
+      // const targetNamedDeclarators = root.find(
+      //   j.VariableDeclarator,
+      //   (node) =>
+      //     node.id.type === 'Identifier' &&
+      //     TARGET_NAMED_EXPORTS.has(node.id.name)
+      // )
     }
   }
 

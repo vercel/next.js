@@ -1,20 +1,7 @@
-import type {
-  API,
-  ASTPath,
-  CallExpression,
-  Collection,
-  FunctionDeclaration,
-} from 'jscodeshift'
+import type { API, ASTPath, CallExpression, Collection } from 'jscodeshift'
+import { isFunctionType, isMatchedFunctionExported } from './utils'
 
 type AsyncAPIName = 'cookies' | 'headers' | 'draftMode'
-
-function isFunctionType(type: string) {
-  return (
-    type === 'FunctionDeclaration' ||
-    type === 'FunctionExpression' ||
-    type === 'ArrowFunctionExpression'
-  )
-}
 
 function insertReactUseImport(root: Collection<any>, j: API['j']) {
   const hasReactUseImport =
@@ -65,74 +52,6 @@ function insertReactUseImport(root: Collection<any>, j: API['j']) {
       }
     }
   }
-}
-
-function isMatchedFunctionExported(
-  path: ASTPath<FunctionDeclaration>,
-  j: API['jscodeshift']
-): boolean {
-  const GENERATE_METADATA_FUNCTION_NAME = 'generateMetadata'
-  // Check for direct export (`export function generateMetadata() {}`)
-  const directMetadataAPIExport = j(path).closest(j.ExportNamedDeclaration, {
-    declaration: {
-      type: 'FunctionDeclaration',
-      id: {
-        name: GENERATE_METADATA_FUNCTION_NAME,
-      },
-    },
-  })
-
-  if (directMetadataAPIExport.size() > 0) {
-    return true
-  }
-
-  // Check for default export (`export default function() {}`)
-  const isDefaultExport = j(path).closest(j.ExportDefaultDeclaration).size() > 0
-  if (isDefaultExport) {
-    return true
-  }
-
-  // Look for named export elsewhere in the file (`export { generateMetadata }`)
-  const root = j(path).closestScope().closest(j.Program)
-  const isNamedExport =
-    root
-      .find(j.ExportNamedDeclaration, {
-        specifiers: [
-          {
-            type: 'ExportSpecifier',
-            exported: {
-              name: GENERATE_METADATA_FUNCTION_NAME,
-            },
-          },
-        ],
-      })
-      .size() > 0
-
-  // Look for variable export but still function, e.g. `export const generateMetadata = function() {}`,
-  // also check if variable is a function or arrow function
-  const isVariableExport =
-    root
-      .find(j.ExportNamedDeclaration, {
-        declaration: {
-          declarations: [
-            {
-              type: 'VariableDeclarator',
-              id: {
-                type: 'Identifier',
-                name: GENERATE_METADATA_FUNCTION_NAME,
-              },
-              init: {
-                type: isFunctionType,
-              },
-            },
-          ],
-        },
-      })
-      .size() > 0
-
-  if (isVariableExport) return true
-
-  return isNamedExport
 }
 
 function findImportedIdentifier(
