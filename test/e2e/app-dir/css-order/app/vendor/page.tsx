@@ -11,9 +11,15 @@ export default function Page() {
       <MyLink className={styles.my_button} id="vendor1">
         hello world
       </MyLink>
-      <SideEffectsArrayComponent id="vendor-side-effects-array" />
-      <SideEffectsComponent id="vendor-side-effects-true" />
-      <SideEffectsFalseComponent id="vendor-side-effects-false" />
+      <SideEffectsArrayComponent id="vendor-side-effects-array">
+        side effects: array
+      </SideEffectsArrayComponent>
+      <SideEffectsComponent id="vendor-side-effects-true">
+        side effects: true
+      </SideEffectsComponent>
+      <SideEffectsFalseComponent id="vendor-side-effects-false">
+        side effects: false
+      </SideEffectsFalseComponent>
       <Nav />
     </div>
   )
