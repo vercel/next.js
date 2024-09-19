@@ -45,6 +45,7 @@ export type HtmlProps = {
   hasConcurrentFeatures?: boolean
   largePageDataBytes?: number
   nextFontManifest?: DeepReadonly<NextFontManifest>
+  experimentalClientTraceMetadata?: string[]
 }
 
 export const HtmlContext = createContext<HtmlProps | undefined>(undefined)

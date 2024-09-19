@@ -314,10 +314,10 @@ pub struct ImageConfig {
     pub loader_file: Option<String>,
     pub domains: Vec<String>,
     pub disable_static_images: bool,
-    #[serde(rename(deserialize = "minimumCacheTTL"))]
+    #[serde(rename = "minimumCacheTTL")]
     pub minimum_cache_ttl: u64,
     pub formats: Vec<ImageFormat>,
-    #[serde(rename(deserialize = "dangerouslyAllowSVG"))]
+    #[serde(rename = "dangerouslyAllowSVG")]
     pub dangerously_allow_svg: bool,
     pub content_security_policy: String,
     pub remote_patterns: Vec<RemotePattern>,
@@ -1149,9 +1149,13 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn tree_shaking_mode_for_user_code(
         self: Vc<Self>,
-        _is_development: bool,
+        is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
-        Ok(Vc::cell(Some(TreeShakingMode::ReexportsOnly)))
+        Ok(Vc::cell(Some(if is_development {
+            TreeShakingMode::ReexportsOnly
+        } else {
+            TreeShakingMode::ModuleFragments
+        })))
     }
 
     #[turbo_tasks::function]

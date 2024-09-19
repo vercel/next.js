@@ -7,6 +7,7 @@ import {
   getUrlFromPagesDirectories,
   normalizeURL,
   execOnce,
+  getUrlFromAppDirectory,
 } from '../utils/url'
 
 const pagesDirWarning = execOnce((pagesDirs) => {
@@ -93,6 +94,9 @@ export = defineRule({
     }
 
     const pageUrls = getUrlFromPagesDirectories('/', foundPagesDirs)
+    const appDirUrls = getUrlFromAppDirectory('/', foundAppDirs)
+    const allUrls = [...pageUrls, ...appDirUrls]
+
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'a') {
@@ -134,8 +138,8 @@ export = defineRule({
           return
         }
 
-        pageUrls.forEach((pageUrl) => {
-          if (pageUrl.test(normalizeURL(hrefPath))) {
+        allUrls.forEach((foundUrl) => {
+          if (foundUrl.test(normalizeURL(hrefPath))) {
             context.report({
               node,
               message: `Do not use an \`<a>\` element to navigate to \`${hrefPath}\`. Use \`<Link />\` from \`next/link\` instead. See: ${url}`,

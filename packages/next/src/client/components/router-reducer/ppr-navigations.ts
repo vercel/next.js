@@ -3,7 +3,6 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   Segment,
-  FetchServerResponseResult,
 } from '../../../server/app-render/types'
 import type {
   CacheNode,
@@ -16,6 +15,7 @@ import {
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 import { createRouterCacheKey } from './create-router-cache-key'
+import type { FetchServerResponseResult } from './fetch-server-response'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -125,6 +125,12 @@ export function updateCacheNodeOnNavigation(
     const oldSegmentChild =
       oldRouterStateChild !== undefined ? oldRouterStateChild[0] : undefined
 
+    // A dynamic segment will be an array, and doesn't correspond with a page segment.
+    const isPageSegment = Array.isArray(newSegmentChild)
+      ? false
+      : // A page segment might contain search parameters, so we verify that it starts with the page segment key.
+        newSegmentChild.startsWith(PAGE_SEGMENT_KEY)
+
     const oldCacheNodeChild =
       oldSegmentMapChild !== undefined
         ? oldSegmentMapChild.get(newSegmentKeyChild)
@@ -136,7 +142,7 @@ export function updateCacheNodeOnNavigation(
       // We spawn a "task" just to keep track of the updated router state; unlike most, it's
       // already fulfilled and won't be affected by the dynamic response.
       taskChild = spawnReusedTask(oldRouterStateChild)
-    } else if (newSegmentChild === PAGE_SEGMENT_KEY) {
+    } else if (isPageSegment) {
       // This is a leaf segment — a page, not a shared layout. We always apply
       // its data.
       taskChild = spawnPendingTask(
@@ -354,16 +360,25 @@ export function listenForDynamicRequest(
 ) {
   responsePromise.then(
     ({ flightData }: FetchServerResponseResult) => {
-      for (const flightDataPath of flightData) {
-        const segmentPath = flightDataPath.slice(0, -3)
-        const serverRouterState = flightDataPath[flightDataPath.length - 3]
-        const dynamicData = flightDataPath[flightDataPath.length - 2]
-        const dynamicHead = flightDataPath[flightDataPath.length - 1]
-
-        if (typeof segmentPath === 'string') {
+      for (const normalizedFlightData of flightData) {
+        if (typeof normalizedFlightData === 'string') {
           // Happens when navigating to page in `pages` from `app`. We shouldn't
           // get here because should have already handled this during
           // the prefetch.
+          continue
+        }
+
+        const {
+          segmentPath,
+          tree: serverRouterState,
+          seedData: dynamicData,
+          head: dynamicHead,
+        } = normalizedFlightData
+
+        if (!dynamicData) {
+          // This shouldn't happen. PPR should always send back a response.
+          // However, `FlightDataPath` is a shared type and the pre-PPR handling of
+          // this might return null.
           continue
         }
 

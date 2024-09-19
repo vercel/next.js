@@ -119,7 +119,7 @@ export async function resolveExternal(
       // Same as above: if the package, when required from the root,
       // would be different from what the real resolution would use, we
       // cannot externalize it.
-      // if request is pointing to a symlink it could point to the the same file,
+      // if request is pointing to a symlink it could point to the same file,
       // the resolver will resolve symlinks so this is handled
       if (baseRes !== res || isEsm !== baseIsEsm) {
         res = null

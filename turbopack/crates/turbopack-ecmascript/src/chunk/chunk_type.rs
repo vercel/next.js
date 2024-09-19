@@ -24,6 +24,11 @@ impl ValueToString for EcmascriptChunkType {
 #[turbo_tasks::value_impl]
 impl ChunkType for EcmascriptChunkType {
     #[turbo_tasks::function]
+    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    #[turbo_tasks::function]
     async fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,

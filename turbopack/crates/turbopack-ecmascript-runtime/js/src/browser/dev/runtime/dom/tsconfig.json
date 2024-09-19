@@ -2,7 +2,7 @@
   "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
     // environment
-    "lib": ["ESNext", "DOM"]
+    "lib": ["ESNext", "DOM", "WebWorker.ImportScripts"]
   },
   "include": ["*.ts"]
 }

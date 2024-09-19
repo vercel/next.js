@@ -50,6 +50,7 @@ jobs:
     with:
       afterBuild: NEXT_TEST_MODE=deploy NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'
+      skipNativeInstall: 'no'
       stepName: 'test-deploy-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'

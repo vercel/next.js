@@ -4,6 +4,9 @@ use turbo_tasks::Vc;
 
 use crate::{asset::Asset, ident::AssetIdent};
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionOutputAsset(Option<Vc<Box<dyn OutputAsset>>>);
+
 /// An asset that should be outputted, e. g. written to disk or served from a
 /// server.
 #[turbo_tasks::value_trait]

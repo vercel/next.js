@@ -6,6 +6,7 @@ const {
   exec,
   execAsyncWithOutput,
   glob,
+  namedValueArg,
   packageFiles,
 } = require('./pack-util.cjs')
 const fs = require('fs')
@@ -16,8 +17,9 @@ const args = process.argv.slice(2)
 const TARBALLS = `${NEXT_DIR}/tarballs`
 const NEXT_PACKAGES = `${NEXT_DIR}/packages`
 const noBuild = booleanArg(args, '--no-build')
+const projectPath = namedValueArg(args, '--project')
 
-;(async () => {
+async function main() {
   // the debuginfo on macos is much smaller, so we don't typically need to strip
   const DEFAULT_PACK_NEXT_COMPRESS =
     process.platform === 'darwin' ? 'none' : 'strip'
@@ -135,28 +137,51 @@ const noBuild = booleanArg(args, '--no-build')
     ),
   ])
 
-  console.log('Add the following overrides to your workspace package.json:')
-  console.log(`  "pnpm": {`)
-  console.log(`    "overrides": {`)
-  console.log(`      "next": ${JSON.stringify(`file:${NEXT_TARBALL}`)},`)
-  console.log(
-    `      "@next/mdx": ${JSON.stringify(`file:${NEXT_MDX_TARBALL}`)},`
-  )
-  console.log(
-    `      "@next/env": ${JSON.stringify(`file:${NEXT_ENV_TARBALL}`)},`
-  )
-  console.log(
-    `      "@next/bundle-analyzer": ${JSON.stringify(
-      `file:${NEXT_BA_TARBALL}`
-    )}`
-  )
-  console.log(`    }`)
-  console.log(`  }`)
-  console.log()
-  console.log('Add the following dependencies to your workspace package.json:')
-  console.log(`  "dependencies": {`)
-  console.log(`    "@next/swc": ${JSON.stringify(`file:${NEXT_SWC_TARBALL}`)},`)
-  console.log(`    ...`)
-  console.log(`  }`)
-  console.log()
-})()
+  if (projectPath != null) {
+    await execAsyncWithOutput(`Update package.json for ${projectPath}`, [
+      'cargo',
+      'xtask',
+      'patch-package-json',
+      projectPath,
+      `--next-tarball=${NEXT_TARBALL}`,
+      `--next-mdx-tarball=${NEXT_MDX_TARBALL}`,
+      `--next-env-tarball=${NEXT_ENV_TARBALL}`,
+      `--next-bundle-analyzer-tarball=${NEXT_BA_TARBALL}`,
+      `--next-swc-tarball=${NEXT_SWC_TARBALL}`,
+    ])
+  } else {
+    console.log('Add the following overrides to your workspace package.json:')
+    console.log(`  "pnpm": {`)
+    console.log(`    "overrides": {`)
+    console.log(`      "next": ${JSON.stringify(`file:${NEXT_TARBALL}`)},`)
+    console.log(
+      `      "@next/mdx": ${JSON.stringify(`file:${NEXT_MDX_TARBALL}`)},`
+    )
+    console.log(
+      `      "@next/env": ${JSON.stringify(`file:${NEXT_ENV_TARBALL}`)},`
+    )
+    console.log(
+      `      "@next/bundle-analyzer": ${JSON.stringify(
+        `file:${NEXT_BA_TARBALL}`
+      )}`
+    )
+    console.log(`    }`)
+    console.log(`  }`)
+    console.log()
+    console.log(
+      'Add the following dependencies to your workspace package.json:'
+    )
+    console.log(`  "dependencies": {`)
+    console.log(
+      `    "@next/swc": ${JSON.stringify(`file:${NEXT_SWC_TARBALL}`)},`
+    )
+    console.log(`    ...`)
+    console.log(`  }`)
+    console.log()
+  }
+}
+
+main().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})

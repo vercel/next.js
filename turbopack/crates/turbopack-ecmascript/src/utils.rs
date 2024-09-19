@@ -9,7 +9,8 @@ use swc_core::{
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{
-    ConstantNumber, ConstantValue, JsValue, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
+    ConstantNumber, ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+    WellKnownObjectKind,
 };
 
 pub fn unparen(expr: &Expr) -> &Expr {
@@ -34,6 +35,7 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             ConstantValue::Regex(exp, flags) => format!("/{exp}/{flags}").into(),
             ConstantValue::Undefined => "undefined".into(),
         }),
+        JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_str().into()),
         JsValue::Alternatives {
             total_nodes: _,
             values,
@@ -53,9 +55,21 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
     result
 }
 
+const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
+
 pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
     Expr::Lit(match module_id {
-        ModuleId::Number(n) => Lit::Num((*n as f64).into()),
+        ModuleId::Number(n) => {
+            if *n <= JS_MAX_SAFE_INTEGER {
+                Lit::Num((*n as f64).into())
+            } else {
+                Lit::Str(Str {
+                    span: DUMMY_SP,
+                    value: n.to_string().into(),
+                    raw: None,
+                })
+            }
+        }
         ModuleId::String(s) => Lit::Str(Str {
             span: DUMMY_SP,
             value: (s as &str).into(),

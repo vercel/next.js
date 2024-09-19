@@ -94,6 +94,7 @@ impl EcmascriptChunkItemContent {
             "P: __turbopack_resolve_absolute_path__",
             "U: __turbopack_relative_url__",
             "R: __turbopack_resolve_module_id_path__",
+            "b: __turbopack_worker_blob_url__",
             "g: global",
             // HACK
             "__dirname",
