@@ -1,7 +1,7 @@
 
-import {flag }from '@vercel/flags/next'
+import {unstable_flag }from '@vercel/flags/next'
 
-export const myFlag = flag({
+export const myFlag = unstable_flag({
     key:'custom-key',
     decide:()=>false,
 })
