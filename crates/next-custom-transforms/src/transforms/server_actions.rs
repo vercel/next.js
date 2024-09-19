@@ -462,6 +462,7 @@ impl<C: Comments> ServerActions<C> {
             if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
                 block.visit_mut_with(&mut ClosureReplacer {
                     used_ids: &ids_from_closure,
+                    private_ctxt: self.private_ctxt,
                 });
             }
 
@@ -608,6 +609,7 @@ impl<C: Comments> ServerActions<C> {
 
             f.body.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
+                private_ctxt: self.private_ctxt,
             });
 
             // export async function $ACTION_myAction () {}
