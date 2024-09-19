@@ -46,7 +46,7 @@ export default function Page() {
 
 ### Client Components
 
-To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
+To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All exported functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -66,7 +66,7 @@ export async function create() {}
 import { create } from '@/app/actions'
 
 export function Button() {
-  return <button onClick={create}>Create</button>
+  return <button onClick={() => create()}>Create</button>
 }
 ```
 
@@ -76,7 +76,7 @@ export function Button() {
 import { create } from '@/app/actions'
 
 export function Button() {
-  return <button onClick={create}>Create</button>
+  return <button onClick={() => create()}>Create</button>
 }
 ```
 
@@ -450,7 +450,7 @@ The [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus)
 ```tsx filename="app/submit-button.tsx" highlight={6} switcher
 'use client'
 
-import { useFormStatus } from 'react'
+import { useFormStatus } from 'react-dom'
 
 export function SubmitButton() {
   const { pending } = useFormStatus()
@@ -466,7 +466,7 @@ export function SubmitButton() {
 ```jsx filename="app/submit-button.js" highlight={6} switcher
 'use client'
 
-import { useFormStatus } from 'react'
+import { useFormStatus } from 'react-dom'
 
 export function SubmitButton() {
   const { pending } = useFormStatus()

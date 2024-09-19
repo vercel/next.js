@@ -49,7 +49,9 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
     source_map::OptionSourceMap,
-    version::{Update, Version, VersionState, VersionedContent},
+    version::{
+        NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
+    },
     PROJECT_FILESYSTEM_NAME,
 };
 use turbopack_node::execution_context::ExecutionContext;
@@ -1155,12 +1157,10 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn hmr_content(
-        self: Vc<Self>,
-        identifier: RcStr,
-    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+    async fn hmr_content(self: Vc<Self>, identifier: RcStr) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
-            Ok(map.get(self.client_relative_path().join(identifier)))
+            let content = map.get(self.client_relative_path().join(identifier.clone()));
+            Ok(content)
         } else {
             bail!("must be in dev mode to hmr")
         }
@@ -1168,9 +1168,12 @@ impl Project {
 
     #[turbo_tasks::function]
     async fn hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
-        let content = self.hmr_content(identifier);
-
-        Ok(content.version())
+        let content = self.hmr_content(identifier).await?;
+        if let Some(content) = &*content {
+            Ok(content.version())
+        } else {
+            Ok(Vc::upcast(NotFoundVersion::new()))
+        }
     }
 
     /// Get the version state for a session. Initialized with the first seen
@@ -1190,12 +1193,13 @@ impl Project {
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
         // first seen version of the session.
-        VersionState::new(
+        let state = VersionState::new(
             version
                 .into_trait_ref_strongly_consistent_untracked()
                 .await?,
         )
-        .await
+        .await?;
+        Ok(state)
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group
@@ -1207,7 +1211,12 @@ impl Project {
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        Ok(self.hmr_content(identifier).update(from))
+        let content = self.hmr_content(identifier).await?;
+        if let Some(content) = *content {
+            Ok(content.update(from))
+        } else {
+            Ok(Update::Missing.cell())
+        }
     }
 
     /// Gets a list of all HMR identifiers that can be subscribed to. This is

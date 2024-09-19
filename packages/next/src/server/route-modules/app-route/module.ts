@@ -47,7 +47,10 @@ import {
   staticGenerationAsyncStorage,
   type StaticGenerationStore,
 } from '../../../client/components/static-generation-async-storage.external'
-import { prerenderAsyncStorage } from '../../app-render/prerender-async-storage.external'
+import {
+  prerenderAsyncStorage,
+  type PrerenderStore,
+} from '../../app-render/prerender-async-storage.external'
 import { actionAsyncStorage } from '../../../client/components/action-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsServerAction } from '../../lib/server-action-request-meta'
@@ -55,9 +58,16 @@ import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
-import { trackDynamicDataAccessed } from '../../app-render/dynamic-rendering'
+import {
+  trackDynamicDataAccessed,
+  createDynamicTrackingState,
+  getFirstDynamicReason,
+  isPrerenderInterruptedError,
+} from '../../app-render/dynamic-rendering'
 import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
 import type { RenderOptsPartial } from '../../app-render/types'
+import { CacheSignal } from '../../app-render/cache-signal'
+import { scheduleImmediate } from '../../../lib/scheduler'
 
 /**
  * The AppRouteModule is the type of the module exported by the bundled App
@@ -275,6 +285,8 @@ export class AppRouteRouteModule extends RouteModule<
       },
     }
 
+    const dynamicIOEnabled = !!context.renderOpts.experimental?.dynamicIO
+
     // Get the context for the static generation.
     const staticGenerationContext: StaticGenerationContext = {
       // App Routes don't support unknown route params.
@@ -388,11 +400,174 @@ export class AppRouteRouteModule extends RouteModule<
                       requestAsyncStorage: this.requestAsyncStorage,
                       prerenderAsyncStorage: this.prerenderAsyncStorage,
                     })
-                    const res = await handler(request, {
+
+                    const handlerContext = {
                       params: context.params
                         ? parsedUrlQueryToParams(context.params)
                         : undefined,
-                    })
+                    }
+
+                    let res
+                    if (isStaticGeneration && dynamicIOEnabled) {
+                      /**
+                       * When we are attempting to statically prerender the GET handler of a route.ts module
+                       * and dynamicIO is on we follow a similar pattern to rendering.
+                       *
+                       * We first run the handler letting caches fill. If something synchronously dynamic occurs
+                       * during this prospective render then we can infer it will happen on every render and we
+                       * just bail out of prerendering.
+                       *
+                       * Next we run the handler again and we check if we get a result back in a microtask.
+                       * Next.js expects the return value to be a Response or a Thenable that resolves to a Response.
+                       * Unfortunately Response's do not allow for acessing the response body synchronously or in
+                       * a microtask so we need to allow one more task to unwrap the response body. This is a slightly
+                       * different semantic than what we have when we render and it means that certain tasks can still
+                       * execute before a prerender completes such as a carefully timed setImmediate.
+                       *
+                       * Functionally though IO should still take longer than the time it takes to unwrap the response body
+                       * so our heuristic of excluding any IO should be preserved.
+                       */
+                      let prospectiveRenderIsDynamic = false
+                      const cacheSignal = new CacheSignal()
+                      let dynamicTracking =
+                        createDynamicTrackingState(undefined)
+                      const prospectiveRoutePrerenderStore: PrerenderStore = {
+                        cacheSignal,
+                        // During prospective render we don't use a controller
+                        // because we need to let all caches fill.
+                        controller: null,
+                        dynamicTracking,
+                      }
+                      let prospectiveResult
+                      try {
+                        prospectiveResult = this.prerenderAsyncStorage.run(
+                          prospectiveRoutePrerenderStore,
+                          handler,
+                          request,
+                          handlerContext
+                        )
+                      } catch (err) {
+                        if (isPrerenderInterruptedError(err)) {
+                          // the route handler called an API which is always dynamic
+                          // there is no need to try again
+                          prospectiveRenderIsDynamic = true
+                        }
+                      }
+                      if (
+                        typeof prospectiveResult === 'object' &&
+                        prospectiveResult !== null &&
+                        typeof (prospectiveResult as any).then === 'function'
+                      ) {
+                        // The handler returned a Thenable. We'll listen for rejections to determine
+                        // if the route is erroring for dynamic reasons.
+                        ;(prospectiveResult as any as Promise<unknown>).then(
+                          () => {},
+                          (err) => {
+                            if (isPrerenderInterruptedError(err)) {
+                              // the route handler called an API which is always dynamic
+                              // there is no need to try again
+                              prospectiveRenderIsDynamic = true
+                            }
+                          }
+                        )
+                      }
+                      await cacheSignal.cacheReady()
+
+                      if (prospectiveRenderIsDynamic) {
+                        // the route handler called an API which is always dynamic
+                        // there is no need to try again
+                        const dynamicReason =
+                          getFirstDynamicReason(dynamicTracking)
+                        if (dynamicReason) {
+                          throw new DynamicServerError(
+                            `Route ${staticGenerationStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+                          )
+                        } else {
+                          console.error(
+                            'Expected Next.js to keep track of reason for opting out of static rendering but one was not found. This is a bug in Next.js'
+                          )
+                          throw new DynamicServerError(
+                            `Route ${staticGenerationStore.route} couldn't be rendered statically because it used a dynamic API. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+                          )
+                        }
+                      }
+
+                      // TODO start passing this controller to the route handler. We should expose
+                      // it so the handler to abort inflight requests and other operations if we abort
+                      // the prerender.
+                      const controller = new AbortController()
+                      dynamicTracking = createDynamicTrackingState(undefined)
+
+                      const finalRoutePrerenderStore: PrerenderStore = {
+                        cacheSignal: null,
+                        controller,
+                        dynamicTracking,
+                      }
+
+                      let responseHandled = false
+                      res = await new Promise((resolve, reject) => {
+                        scheduleImmediate(async () => {
+                          try {
+                            const result =
+                              await (this.prerenderAsyncStorage.run(
+                                finalRoutePrerenderStore,
+                                handler,
+                                request,
+                                handlerContext
+                              ) as Promise<Response>)
+                            if (responseHandled) {
+                              // we already rejected in the followup task
+                              return
+                            } else if (!(result instanceof Response)) {
+                              // This is going to error but we let that happen below
+                              resolve(result)
+                              return
+                            }
+
+                            responseHandled = true
+
+                            let bodyHandled = false
+                            result.arrayBuffer().then((body) => {
+                              if (!bodyHandled) {
+                                bodyHandled = true
+
+                                resolve(
+                                  new Response(body, {
+                                    headers: result.headers,
+                                    status: result.status,
+                                    statusText: result.statusText,
+                                  })
+                                )
+                              }
+                            }, reject)
+                            scheduleImmediate(() => {
+                              if (!bodyHandled) {
+                                bodyHandled = true
+                                controller.abort()
+                                reject(
+                                  createDynamicIOError(
+                                    staticGenerationStore.route
+                                  )
+                                )
+                              }
+                            })
+                          } catch (err) {
+                            reject(err)
+                          }
+                        })
+                        scheduleImmediate(() => {
+                          if (!responseHandled) {
+                            responseHandled = true
+                            controller.abort()
+                            reject(
+                              createDynamicIOError(staticGenerationStore.route)
+                            )
+                          }
+                        })
+                      })
+                    } else {
+                      res = await handler(request, handlerContext)
+                    }
                     if (!(res instanceof Response)) {
                       throw new Error(
                         `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
@@ -829,4 +1004,10 @@ const requireStaticNextUrlHandlers = {
         return ReflectAdapter.get(target, prop, receiver)
     }
   },
+}
+
+function createDynamicIOError(route: string) {
+  return new DynamicServerError(
+    `Route ${route} couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/dynamic-io`
+  )
 }

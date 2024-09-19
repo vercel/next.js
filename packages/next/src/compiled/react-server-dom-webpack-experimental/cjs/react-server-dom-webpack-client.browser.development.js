@@ -1135,7 +1135,8 @@
                 owner: blockedValue._owner
               };
               erroredComponent.debugStack = blockedValue._debugStack;
-              erroredComponent.debugTask = blockedValue._debugTask;
+              supportsCreateTask &&
+                (erroredComponent.debugTask = blockedValue._debugTask);
               (chunk._debugInfo || (chunk._debugInfo = [])).push(
                 erroredComponent
               );
@@ -1408,14 +1409,21 @@
       this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
       this._buffer = [];
       this._tempRefs = temporaryReferences;
-      bundlerConfig = void 0 === environmentName ? "Server" : environmentName;
+      this._debugRootOwner = bundlerConfig =
+        void 0 === ReactSharedInteralsServer ||
+        null === ReactSharedInteralsServer.A
+          ? null
+          : ReactSharedInteralsServer.A.getOwner();
+      this._debugRootStack =
+        null !== bundlerConfig ? Error("react-stack-top-frame") : null;
+      environmentName = void 0 === environmentName ? "Server" : environmentName;
       supportsCreateTask &&
         (this._debugRootTask = console.createTask(
-          '"use ' + bundlerConfig.toLowerCase() + '"'
+          '"use ' + environmentName.toLowerCase() + '"'
         ));
       this._debugFindSourceMapURL = findSourceMapURL;
       this._replayConsole = replayConsole;
-      this._rootEnvironmentName = bundlerConfig;
+      this._rootEnvironmentName = environmentName;
       this._fromJSON = createFromJSONCallback(this);
     }
     function resolveBuffer(response, id, buffer) {
@@ -2028,7 +2036,10 @@
             buffer,
             void 0 === buffer.env ? response._rootEnvironmentName : buffer.env
           );
-          initializeFakeStack(response, buffer);
+          null === buffer.owner && null != response._debugRootOwner
+            ? ((buffer.owner = response._debugRootOwner),
+              (buffer.debugStack = response._debugRootStack))
+            : initializeFakeStack(response, buffer);
           response = getChunk(response, id);
           (response._debugInfo || (response._debugInfo = [])).push(buffer);
           break;
@@ -2107,7 +2118,7 @@
               type: type,
               key: value[2],
               props: value[3],
-              _owner: key
+              _owner: null === key ? response._debugRootOwner : key
             };
             Object.defineProperty(value, "ref", {
               enumerable: !1,
@@ -2129,12 +2140,14 @@
             validated = response._rootEnvironmentName;
             null !== key && null != key.env && (validated = key.env);
             var normalizedStackTrace = null;
-            null !== stack &&
-              (normalizedStackTrace = createFakeJSXCallStackInDEV(
-                response,
-                stack,
-                validated
-              ));
+            null === key && null != response._debugRootStack
+              ? (normalizedStackTrace = response._debugRootStack)
+              : null !== stack &&
+                (normalizedStackTrace = createFakeJSXCallStackInDEV(
+                  response,
+                  stack,
+                  validated
+                ));
             Object.defineProperty(value, "_debugStack", {
               configurable: !1,
               enumerable: !1,
@@ -2177,7 +2190,7 @@
                       owner: value._owner
                     }),
                     (stack.debugStack = value._debugStack),
-                    (stack.debugTask = value._debugTask),
+                    supportsCreateTask && (stack.debugTask = value._debugTask),
                     (key._debugInfo = [stack]),
                     (value = createLazyChunkWrapper(key)))
                   : 0 < stack.deps &&
@@ -2352,9 +2365,11 @@
       prefix,
       suffix;
     new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var ReactSharedInternals =
-      React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
-      React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+    var ReactSharedInteralsServer =
+        React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+      ReactSharedInternals =
+        React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
+        ReactSharedInteralsServer;
     ReactPromise.prototype = Object.create(Promise.prototype);
     ReactPromise.prototype.then = function (resolve, reject) {
       switch (this.status) {
@@ -2414,7 +2429,7 @@
         ) {
           var prevStack = ReactSharedInternals.getCurrentStack;
           ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
-          currentOwnerInDEV = owner;
+          currentOwnerInDEV = null === owner ? response._debugRootOwner : owner;
           try {
             a: {
               var offset = 0;
@@ -2492,10 +2507,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-experimental-94e652d5-20240912",
+      version: "19.0.0-experimental-5dcb0097-20240918",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-experimental-94e652d5-20240912",
+      reconcilerVersion: "19.0.0-experimental-5dcb0097-20240918",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
