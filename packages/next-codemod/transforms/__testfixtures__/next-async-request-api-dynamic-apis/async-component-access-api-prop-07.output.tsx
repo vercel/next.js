@@ -1,5 +1,5 @@
-import { draftMode, type DangerouslyUnwrapDraftMode } from 'next/headers';
+import { draftMode, type UnsafeUnwrappedDraftMode } from 'next/headers';
 
 export function MyComponent2() {
-  (draftMode() as unknown as DangerouslyUnwrapDraftMode).enable()
+  (draftMode() as unknown as UnsafeUnwrappedDraftMode).enable()
 }

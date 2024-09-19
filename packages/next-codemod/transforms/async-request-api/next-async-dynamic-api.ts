@@ -275,9 +275,9 @@ export function transformDynamicAPI(
 
 // cast to unknown first, then the specific type
 const API_CAST_TYPE_MAP = {
-  cookies: 'DangerouslyUnwrapCookies',
-  headers: 'DangerouslyUnwrapHeaders',
-  draftMode: 'DangerouslyUnwrapDraftMode',
+  cookies: 'UnsafeUnwrappedCookies',
+  headers: 'UnsafeUnwrappedHeaders',
+  draftMode: 'UnsafeUnwrappedDraftMode',
 }
 
 function castTypesOrAddComment(
@@ -291,16 +291,16 @@ function castTypesOrAddComment(
   if (isTsFile) {
     /* Do type cast for headers, cookies, draftMode
       import {
-        type DangerouslyUnwrapHeaders,
-        type DangerouslyUnwrapCookies,
-        type DangerouslyUnwrapDraftMode
+        type UnsafeUnwrappedHeaders,
+        type UnsafeUnwrappedCookies,
+        type UnsafeUnwrappedDraftMode
       } from 'next/headers'
       
-      cookies() as unknown as DangerouslyUnwrapCookies
-      headers() as unknown as DangerouslyUnwrapHeaders
-      draftMode() as unknown as DangerouslyUnwrapDraftMode
+      cookies() as unknown as UnsafeUnwrappedCookies
+      headers() as unknown as UnsafeUnwrappedHeaders
+      draftMode() as unknown as UnsafeUnwrappedDraftMode
       
-      e.g. `<path>` is cookies(), convert it to `(<path> as unknown as DangerouslyUnwrapCookies)`
+      e.g. `<path>` is cookies(), convert it to `(<path> as unknown as UnsafeUnwrappedCookies)`
     */
 
     const targetType = API_CAST_TYPE_MAP[asyncRequestApiName]
