@@ -157,7 +157,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         let mut star_exports = Vec::new();
 
         match &*self.ty.await? {
-            ModulePart::Exports => {
+            ModulePart::Exports | ModulePart::Reexports => {
                 let EcmascriptExports::EsmExports(esm_exports) = *self.module.get_exports().await?
                 else {
                     bail!(
@@ -271,10 +271,11 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {
         Ok(match *self.ty.await? {
-            ModulePart::Evaluation | ModulePart::Facade | ModulePart::Reexports => self
+            ModulePart::Evaluation | ModulePart::Facade => self
                 .module
                 .is_marked_as_side_effect_free(side_effect_free_packages),
             ModulePart::Exports
+            | ModulePart::Reexports
             | ModulePart::RenamedExport { .. }
             | ModulePart::RenamedNamespace { .. } => Vc::cell(true),
             _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),
