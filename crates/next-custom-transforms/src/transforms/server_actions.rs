@@ -1551,61 +1551,59 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             new.rotate_right(1);
         }
 
-        if self.has_action || self.has_cache {
-            if self.config.is_react_server_layer {
-                // Inlined actions are only allowed on the server layer.
-                // import { registerServerReference } from 'private-next-rsc-server-reference'
-                // registerServerReference("action_id")
-                new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+        if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
+            // Inlined actions are only allowed on the server layer.
+            // import { registerServerReference } from 'private-next-rsc-server-reference'
+            // registerServerReference("action_id")
+            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                span: DUMMY_SP,
+                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                    local: quote_ident!("registerServerReference").into(),
+                    imported: None,
+                    is_type_only: false,
+                })],
+                src: Box::new(Str {
+                    span: DUMMY_SP,
+                    value: "private-next-rsc-server-reference".into(),
+                    raw: None,
+                }),
+                type_only: false,
+                with: None,
+                phase: Default::default(),
+            })));
+
+            // Encryption and decryption only happens on the server layer.
+            // import { encryptActionBoundArgs, decryptActionBoundArgs } from
+            // 'private-next-rsc-action-encryption'
+            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                span: DUMMY_SP,
+                specifiers: vec![
+                    ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
-                        local: quote_ident!("registerServerReference").into(),
+                        local: quote_ident!("encryptActionBoundArgs").into(),
                         imported: None,
                         is_type_only: false,
-                    })],
-                    src: Box::new(Str {
-                        span: DUMMY_SP,
-                        value: "private-next-rsc-server-reference".into(),
-                        raw: None,
                     }),
-                    type_only: false,
-                    with: None,
-                    phase: Default::default(),
-                })));
-
-                // Encryption and decryption only happens on the server layer.
-                // import { encryptActionBoundArgs, decryptActionBoundArgs } from
-                // 'private-next-rsc-action-encryption'
-                new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: quote_ident!("decryptActionBoundArgs").into(),
+                        imported: None,
+                        is_type_only: false,
+                    }),
+                ],
+                src: Box::new(Str {
                     span: DUMMY_SP,
-                    specifiers: vec![
-                        ImportSpecifier::Named(ImportNamedSpecifier {
-                            span: DUMMY_SP,
-                            local: quote_ident!("encryptActionBoundArgs").into(),
-                            imported: None,
-                            is_type_only: false,
-                        }),
-                        ImportSpecifier::Named(ImportNamedSpecifier {
-                            span: DUMMY_SP,
-                            local: quote_ident!("decryptActionBoundArgs").into(),
-                            imported: None,
-                            is_type_only: false,
-                        }),
-                    ],
-                    src: Box::new(Str {
-                        span: DUMMY_SP,
-                        value: "private-next-rsc-action-encryption".into(),
-                        raw: None,
-                    }),
-                    type_only: false,
-                    with: None,
-                    phase: Default::default(),
-                })));
+                    value: "private-next-rsc-action-encryption".into(),
+                    raw: None,
+                }),
+                type_only: false,
+                with: None,
+                phase: Default::default(),
+            })));
 
-                // Make it the first item
-                new.rotate_right(2);
-            }
+            // Make it the first item
+            new.rotate_right(2);
         }
 
         *stmts = new;
