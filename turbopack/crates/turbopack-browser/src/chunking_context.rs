@@ -352,13 +352,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn chunk_group(
         self: Vc<Self>,
+        ident: Vc<AssetIdent>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!(
-            "chunking",
-            module = module.ident().to_string().await?.to_string()
-        );
+        let span = tracing::info_span!("chunking", ident = ident.to_string().await?.to_string());
         async move {
             let this = self.await?;
             let input_availability_info = availability_info.into_value();
@@ -378,7 +376,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 .collect();
 
             if this.enable_hot_module_replacement {
-                let mut ident = module.ident();
+                let mut ident = ident;
                 match input_availability_info {
                     AvailabilityInfo::Root => {}
                     AvailabilityInfo::Untracked => {

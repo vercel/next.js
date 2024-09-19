@@ -51,7 +51,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-7771d3a7-20240827";
+const nextjsReactPeerVersion = "19.0.0-rc-a99d8e8d-20240916";
 
 export class NextInstance {
   protected files: FileRef | { [filename: string]: string | FileRef }
@@ -78,8 +78,6 @@ export class NextInstance {
   constructor(opts: NextInstanceOpts) {
     this.env = {}
     Object.assign(this, opts)
-
-    require('console').log('packageJson??', this.packageJson)
 
     if (!isNextDeploy) {
       this.env = {
@@ -173,7 +171,9 @@ export class NextInstance {
           'react-dom': reactVersion,
           '@types/react': 'latest',
           '@types/react-dom': 'latest',
-          typescript: 'latest',
+          // TODO: fix the TS error with the TS 5.6
+          // x-ref: https://github.com/vercel/next.js/actions/runs/10777104696/job/29887663970?pr=69784
+          typescript: '5.5.4',
           '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,

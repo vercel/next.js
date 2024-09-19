@@ -178,7 +178,7 @@ export async function fetchServerResponse(
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
+    let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {

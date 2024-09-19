@@ -11,14 +11,6 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import type { ClientTraceDataEntry } from '../lib/trace/tracer'
 
-export function getTracedMetadata(
-  traceData: ClientTraceDataEntry[],
-  clientTraceMetadata: string[] | undefined
-): ClientTraceDataEntry[] | undefined {
-  if (!clientTraceMetadata) return undefined
-  return traceData.filter(({ key }) => clientTraceMetadata.includes(key))
-}
-
 export function makeGetServerInsertedHTML({
   polyfills,
   renderServerInsertedHTML,

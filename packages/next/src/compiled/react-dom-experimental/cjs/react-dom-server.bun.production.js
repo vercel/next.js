@@ -10,7 +10,7 @@
 
 "use strict";
 var React = require("next/dist/compiled/react-experimental"),
-  ReactDOM = require("react-dom"),
+  ReactDOM = require("next/dist/compiled/react-dom-experimental"),
   REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_PORTAL_TYPE = Symbol.for("react.portal"),
   REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
@@ -3609,7 +3609,6 @@ function defaultErrorHandler(error) {
 }
 function noop() {}
 function RequestInstance(
-  children,
   resumableState,
   renderState,
   rootFormatContext,
@@ -3622,8 +3621,7 @@ function RequestInstance(
   onPostpone,
   formState
 ) {
-  var pingedTasks = [],
-    abortSet = new Set();
+  var abortSet = new Set();
   this.destination = null;
   this.flushScheduled = !1;
   this.resumableState = resumableState;
@@ -3636,7 +3634,7 @@ function RequestInstance(
   this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
   this.completedRootSegment = null;
   this.abortableTasks = abortSet;
-  this.pingedTasks = pingedTasks;
+  this.pingedTasks = [];
   this.clientRenderedBoundaries = [];
   this.completedBoundaries = [];
   this.partialBoundaries = [];
@@ -3648,33 +3646,6 @@ function RequestInstance(
   this.onShellError = void 0 === onShellError ? noop : onShellError;
   this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
   this.formState = void 0 === formState ? null : formState;
-  resumableState = createPendingSegment(
-    this,
-    0,
-    null,
-    rootFormatContext,
-    !1,
-    !1
-  );
-  resumableState.parentFlushed = !0;
-  children = createRenderTask(
-    this,
-    null,
-    children,
-    -1,
-    null,
-    resumableState,
-    null,
-    abortSet,
-    null,
-    rootFormatContext,
-    null,
-    emptyTreeContext,
-    null,
-    !1
-  );
-  pushComponentStack(children);
-  pingedTasks.push(children);
 }
 function createRequest(
   children,
@@ -3690,8 +3661,7 @@ function createRequest(
   onPostpone,
   formState
 ) {
-  return new RequestInstance(
-    children,
+  resumableState = new RequestInstance(
     resumableState,
     renderState,
     rootFormatContext,
@@ -3704,6 +3674,34 @@ function createRequest(
     onPostpone,
     formState
   );
+  renderState = createPendingSegment(
+    resumableState,
+    0,
+    null,
+    rootFormatContext,
+    !1,
+    !1
+  );
+  renderState.parentFlushed = !0;
+  children = createRenderTask(
+    resumableState,
+    null,
+    children,
+    -1,
+    null,
+    renderState,
+    null,
+    resumableState.abortableTasks,
+    null,
+    rootFormatContext,
+    null,
+    emptyTreeContext,
+    null,
+    !1
+  );
+  pushComponentStack(children);
+  resumableState.pingedTasks.push(children);
+  return resumableState;
 }
 var currentRequest = null;
 function pingTask(request, task) {
@@ -4516,6 +4514,7 @@ function retryNode(request, task) {
                       resumedBoundary.rootSegmentID = ref;
                       task.blockedBoundary = resumedBoundary;
                       task.hoistableState = resumedBoundary.contentState;
+                      task.keyPath = key;
                       task.replay = {
                         nodes: replay,
                         slots: name,
@@ -6068,13 +6067,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_783 = React.version;
 if (
-  "19.0.0-experimental-7771d3a7-20240827" !==
+  "19.0.0-experimental-a99d8e8d-20240916" !==
   isomorphicReactPackageVersion$jscomp$inline_783
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_783 +
-        "\n  - react-dom:  19.0.0-experimental-7771d3a7-20240827\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.0.0-experimental-a99d8e8d-20240916\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6162,4 +6161,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-experimental-7771d3a7-20240827";
+exports.version = "19.0.0-experimental-a99d8e8d-20240916";
