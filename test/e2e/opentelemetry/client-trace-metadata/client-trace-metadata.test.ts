@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-jest.setTimeout(300000)
-
 describe('clientTraceMetadata', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

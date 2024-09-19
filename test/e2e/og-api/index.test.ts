@@ -4,8 +4,6 @@ import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
 
-jest.setTimeout(300000)
-
 describe('og-api', () => {
   let next: NextInstance
 

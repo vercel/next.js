@@ -1,8 +1,6 @@
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-jest.setTimeout(180000)
-
 describe('app-dir - fetch warnings', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     skipDeployment: true,

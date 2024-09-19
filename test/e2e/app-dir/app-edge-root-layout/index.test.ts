@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-jest.setTimeout(450000)
-
 describe('app-dir edge runtime root layout', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
