@@ -175,7 +175,7 @@ function makeAbortingExoticSearchParams(
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
       if (Object.hasOwn(promise, prop)) {
-        // The promise has this propery directly. we must return it.
+        // The promise has this property directly. we must return it.
         // We know it isn't a dynamic access because it can only be something
         // that was previously written to the promise and thus not an underlying searchParam value
         return ReflectAdapter.get(target, prop, receiver)
@@ -212,7 +212,7 @@ function makeAbortingExoticSearchParams(
     has(target, prop) {
       // We don't expect key checking to be used except for testing the existence of
       // searchParams so we make all has tests trigger dynamic. this means that `promise.then`
-      // can resolve to the then function on the Promise prototyep but 'then' in promise will assume
+      // can resolve to the then function on the Promise prototype but 'then' in promise will assume
       // you are testing whether the searchParams has a 'then' property.
       if (typeof prop === 'string') {
         const expression = describeHasCheckingStringProperty(prop)
@@ -258,7 +258,7 @@ function makeErroringExoticSearchParams(
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
       if (Object.hasOwn(promise, prop)) {
-        // The promise has this propery directly. we must return it.
+        // The promise has this property directly. we must return it.
         // We know it isn't a dynamic access because it can only be something
         // that was previously written to the promise and thus not an underlying searchParam value
         return ReflectAdapter.get(target, prop, receiver)
@@ -328,7 +328,7 @@ function makeErroringExoticSearchParams(
     has(target, prop) {
       // We don't expect key checking to be used except for testing the existence of
       // searchParams so we make all has tests trigger dynamic. this means that `promise.then`
-      // can resolve to the then function on the Promise prototyep but 'then' in promise will assume
+      // can resolve to the then function on the Promise prototype but 'then' in promise will assume
       // you are testing whether the searchParams has a 'then' property.
       if (typeof prop === 'string') {
         const expression = describeHasCheckingStringProperty(prop)
@@ -565,7 +565,7 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
 function warnForSyncAccess(route: undefined | string, expression: string) {
   const prefix = route ? ` In route ${route} a ` : 'A '
   console.error(
-    `${prefix}searchParam property was accessed directly with ${expression}. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to faciliate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
+    `${prefix}searchParam property was accessed directly with ${expression}. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
   )
 }
 
@@ -578,11 +578,11 @@ function warnForEnumeration(
     const describedMissingProperties =
       describeListOfPropertyNames(missingProperties)
     console.error(
-      `${prefix}searchParams are being enumerated incompletely with \`{...searchParams}\`, \`Object.keys(searchParams)\`, or similar. The following properties were not copied: ${describedMissingProperties}. \`searchParams\` is now a Promise, however in the current version of Next.js direct access to the underlying searchParams object is still supported to faciliate migration to the new type. search parameter names that conflict with Promise properties cannot be accessed directly and must be accessed by first awaiting the \`searchParams\` promise.`
+      `${prefix}searchParams are being enumerated incompletely with \`{...searchParams}\`, \`Object.keys(searchParams)\`, or similar. The following properties were not copied: ${describedMissingProperties}. \`searchParams\` is now a Promise, however in the current version of Next.js direct access to the underlying searchParams object is still supported to facilitate migration to the new type. search parameter names that conflict with Promise properties cannot be accessed directly and must be accessed by first awaiting the \`searchParams\` promise.`
     )
   } else {
     console.error(
-      `${prefix}searchParams are being enumerated with \`{...searchParams}\`, \`Object.keys(searchParams)\`, or similar. \`searchParams\` is now a Promise, however in the current version of Next.js direct access to the underlying searchParams object is still supported to faciliate migration to the new type. You should update your code to await \`searchParams\` before accessing its properties.`
+      `${prefix}searchParams are being enumerated with \`{...searchParams}\`, \`Object.keys(searchParams)\`, or similar. \`searchParams\` is now a Promise, however in the current version of Next.js direct access to the underlying searchParams object is still supported to facilitate migration to the new type. You should update your code to await \`searchParams\` before accessing its properties.`
     )
   }
 }
@@ -613,10 +613,10 @@ function describeListOfPropertyNames(properties: Array<string>) {
 // about why a page bailed out of some or all prerendering and we can use bracket notation
 // for example while `ಠ_ಠ` is a valid identifier it's ok to print `searchParams['ಠ_ಠ']`
 // even if this would have been fine too `searchParams.ಠ_ಠ`
-const isDefinitelyAValidIdentifer = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+const isDefinitelyAValidIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 
 function describeStringPropertyAccess(prop: string) {
-  if (isDefinitelyAValidIdentifer.test(prop)) {
+  if (isDefinitelyAValidIdentifier.test(prop)) {
     return `\`searchParams.${prop}\``
   }
   return `\`searchParams[${JSON.stringify(prop)}]\``

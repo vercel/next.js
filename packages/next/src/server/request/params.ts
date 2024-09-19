@@ -19,7 +19,7 @@ export type Params = Record<string, string | Array<string> | undefined>
 
 /**
  * In this version of Next.js the `params` prop passed to Layouts, Pages, and other Segments is a Promise.
- * However to faciliate migration to this new Promise type you can currently still access params directly on the Promise instance passed to these Segments.
+ * However to facilitate migration to this new Promise type you can currently still access params directly on the Promise instance passed to these Segments.
  * The `UnsafeUnwrappedParams` type is available if you need to temporarily access the underlying params without first awaiting or `use`ing the Promise.
  *
  * In a future version of Next.js the `params` prop will be a plain Promise and this type will be removed.
@@ -154,7 +154,7 @@ function createPassthroughPrerenderParams(
     if (prerenderStore.controller || prerenderStore.cacheSignal) {
       if (fallbackParamNamesAtThisLevel.size) {
         // This params object has one of more fallback params so we need to consider
-        // the awaiting of this params object "dyanmic". Since we are in dynamicIO mode
+        // the awaiting of this params object "dynamic". Since we are in dynamicIO mode
         // we encode this as a promise that never resolves
         return new Promise(hangForever)
       }
@@ -259,8 +259,8 @@ function makeErroringExoticParams(
     return cachedParams
   }
 
-  const agumentedUnderyling = { ...underlying }
-  const promise = Promise.resolve(agumentedUnderyling)
+  const augmentedUnderyling = { ...underlying }
+  const promise = Promise.resolve(augmentedUnderyling)
   CachedParams.set(underlying, promise)
 
   // We reserve properties on the promise that are part of ReactPromise
@@ -272,7 +272,7 @@ function makeErroringExoticParams(
       writable: true,
     },
     value: {
-      value: agumentedUnderyling,
+      value: augmentedUnderyling,
       writable: true,
     },
   })
@@ -288,7 +288,7 @@ function makeErroringExoticParams(
       }
       default: {
         if (fallbackRouteParamsAtThisLevel.has(prop)) {
-          Object.defineProperty(agumentedUnderyling, prop, {
+          Object.defineProperty(augmentedUnderyling, prop, {
             get() {
               const expression = describeStringPropertyAccess(prop)
               if (staticGenerationStore.dynamicShouldError) {
@@ -452,7 +452,7 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
 function warnForSyncAccess(route: undefined | string, expression: string) {
   const prefix = route ? ` In route ${route} a ` : 'A '
   console.error(
-    `${prefix}param property was accessed directly with ${expression}. \`params\` is now a Promise and should be awaited before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to faciliate migration but in a future version you will be required to await \`params\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
+    `${prefix}param property was accessed directly with ${expression}. \`params\` is now a Promise and should be awaited before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to await \`params\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
   )
 }
 
@@ -465,11 +465,11 @@ function warnForEnumeration(
     const describedMissingProperties =
       describeListOfPropertyNames(missingProperties)
     console.error(
-      `${prefix}params are being enumerated incompletely with \`{...params}\`, \`Object.keys(params)\`, or similar. The following properties were not copied: ${describedMissingProperties}. \`params\` is now a Promise, however in the current version of Next.js direct access to the underlying params object is still supported to faciliate migration to the new type. param names that conflict with Promise properties cannot be accessed directly and must be accessed by first awaiting the \`params\` promise.`
+      `${prefix}params are being enumerated incompletely with \`{...params}\`, \`Object.keys(params)\`, or similar. The following properties were not copied: ${describedMissingProperties}. \`params\` is now a Promise, however in the current version of Next.js direct access to the underlying params object is still supported to facilitate migration to the new type. param names that conflict with Promise properties cannot be accessed directly and must be accessed by first awaiting the \`params\` promise.`
     )
   } else {
     console.error(
-      `${prefix}params are being enumerated with \`{...params}\`, \`Object.keys(params)\`, or similar. \`params\` is now a Promise, however in the current version of Next.js direct access to the underlying params object is still supported to faciliate migration to the new type. You should update your code to await \`params\` before accessing its properties.`
+      `${prefix}params are being enumerated with \`{...params}\`, \`Object.keys(params)\`, or similar. \`params\` is now a Promise, however in the current version of Next.js direct access to the underlying params object is still supported to facilitate migration to the new type. You should update your code to await \`params\` before accessing its properties.`
     )
   }
 }
@@ -500,10 +500,10 @@ function describeListOfPropertyNames(properties: Array<string>) {
 // about why a page bailed out of some or all prerendering and we can use bracket notation
 // for example while `ಠ_ಠ` is a valid identifier it's ok to print `params['ಠ_ಠ']`
 // even if this would have been fine too `params.ಠ_ಠ`
-const isDefinitelyAValidIdentifer = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+const isDefinitelyAValidIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 
 function describeStringPropertyAccess(prop: string) {
-  if (isDefinitelyAValidIdentifer.test(prop)) {
+  if (isDefinitelyAValidIdentifier.test(prop)) {
     return `\`params.${prop}\``
   }
   return `\`params[${JSON.stringify(prop)}]\``

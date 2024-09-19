@@ -18,15 +18,15 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 
 /**
  * In this version of Next.js `headers()` returns a Promise however you can still reference the properties of the underlying Headers instance
- * synchronously to faciliate migration. The `UnsafeUnwrappedHeaders` type is added to your code by a codemod that attempts to automatically
+ * synchronously to facilitate migration. The `UnsafeUnwrappedHeaders` type is added to your code by a codemod that attempts to automatically
  * updates callsites to reflect the new Promise return type. There are some cases where `headers()` cannot be automatically converted, namely
- * when it is used inside a synchronous function and we can't be sure the function can be made async automtically. In these cases we add an
+ * when it is used inside a synchronous function and we can't be sure the function can be made async automatically. In these cases we add an
  * explicit type case to `UnsafeUnwrappedHeaders` to enable typescript to allow for the synchronous usage only where it is actually necessary.
  *
  * You should should update these callsites to either be async functions where the `headers()` value can be awaited or you should call `headers()`
  * from outside and await the return value before passing it into this function.
  *
- * You can find intsances that require manual migration by searching for `UnsafeUnwrappedHeaders` in your codebase or by search for a comment that
+ * You can find instances that require manual migration by searching for `UnsafeUnwrappedHeaders` in your codebase or by search for a comment that
  * starts with:
  *
  * ```
@@ -91,7 +91,7 @@ export function headers(): Promise<ReadonlyHeaders> {
       } else {
         // We are prerendering with PPR. We need track dynamic access here eagerly
         // to keep continuity with how headers has worked in PPR without dynamicIO.
-        // TODO consider switching the semantic to throw on property access intead
+        // TODO consider switching the semantic to throw on property access instead
         postponeWithTracking(
           staticGenerationStore.route,
           'headers',
@@ -444,13 +444,13 @@ function describeNameArg(arg: unknown) {
 function warnForSyncIteration(route?: string) {
   const prefix = route ? ` In route ${route} ` : ''
   console.error(
-    `${prefix}headers were iterated implicitly with something like \`for...of headers())\` or \`[...headers()]\`, or explicitly with \`headers()[Symbol.iterator]()\`. \`headers()\` now returns a Promise and the return value should be awaited before attempting to iterate over headers. In this version of Next.js iterating headers without awaiting first is still supported to faciliate migration but in a future version you will be required to await the result. If this \`headers()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
+    `${prefix}headers were iterated implicitly with something like \`for...of headers())\` or \`[...headers()]\`, or explicitly with \`headers()[Symbol.iterator]()\`. \`headers()\` now returns a Promise and the return value should be awaited before attempting to iterate over headers. In this version of Next.js iterating headers without awaiting first is still supported to facilitate migration but in a future version you will be required to await the result. If this \`headers()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
   )
 }
 
 function warnForSyncAccess(route: undefined | string, expression: string) {
   const prefix = route ? ` In route ${route} a ` : 'A '
   console.error(
-    `${prefix}header property was accessed directly with \`${expression}\`. \`headers()\` now returns a Promise and the return value should be awaited before accessing properties of the underlying headers instance. In this version of Next.js direct access to \`${expression}\` is still supported to faciliate migration but in a future version you will be required to await the result. If this \`headers()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
+    `${prefix}header property was accessed directly with \`${expression}\`. \`headers()\` now returns a Promise and the return value should be awaited before accessing properties of the underlying headers instance. In this version of Next.js direct access to \`${expression}\` is still supported to facilitate migration but in a future version you will be required to await the result. If this \`headers()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
   )
 }

@@ -7,9 +7,9 @@ import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
 
 /**
  * In this version of Next.js `draftMode()` returns a Promise however you can still reference the properties of the underlying draftMode object
- * synchronously to faciliate migration. The `UnsafeUnwrappedDraftMode` type is added to your code by a codemod that attempts to automatically
+ * synchronously to facilitate migration. The `UnsafeUnwrappedDraftMode` type is added to your code by a codemod that attempts to automatically
  * updates callsites to reflect the new Promise return type. There are some cases where `draftMode()` cannot be automatically converted, namely
- * when it is used inside a synchronous function and we can't be sure the function can be made async automtically. In these cases we add an
+ * when it is used inside a synchronous function and we can't be sure the function can be made async automatically. In these cases we add an
  * explicit type case to `UnsafeUnwrappedDraftMode` to enable typescript to allow for the synchronous usage only where it is actually necessary.
  *
  * You should should update these callsites to either be async functions where the `draftMode()` value can be awaited or you should call `draftMode()`
@@ -163,6 +163,6 @@ class DraftMode {
 function warnForSyncAccess(route: undefined | string, expression: string) {
   const prefix = route ? ` In route ${route} a ` : 'A '
   console.error(
-    `${prefix}\`draftMode()\` property was accessed directly with \`${expression}\`. \`draftMode()\` now returns a Promise and the return value should be awaited before accessing properties of the underlying draftMode object. In this version of Next.js direct access to \`${expression}\` is still supported to faciliate migration but in a future version you will be required to await the result. If this \`draftMode()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
+    `${prefix}\`draftMode()\` property was accessed directly with \`${expression}\`. \`draftMode()\` now returns a Promise and the return value should be awaited before accessing properties of the underlying draftMode object. In this version of Next.js direct access to \`${expression}\` is still supported to facilitate migration but in a future version you will be required to await the result. If this \`draftMode()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
   )
 }

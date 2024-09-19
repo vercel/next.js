@@ -9,7 +9,7 @@ export default async function Page() {
     <>
       <p>
         This page uses `(await draftMode()).isEnabled`. This is now a promise
-        however reading it during prerender is fine becuase it is always false
+        however reading it during prerender is fine because it is always false
         during prerender so we don't expect it to trigger any dynamic behavior
       </p>
       <Component />

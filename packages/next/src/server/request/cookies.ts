@@ -21,15 +21,15 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 
 /**
  * In this version of Next.js `cookies()` returns a Promise however you can still reference the properties of the underlying cookies object
- * synchronously to faciliate migration. The `UnsafeUnwrappedCookies` type is added to your code by a codemod that attempts to automatically
+ * synchronously to facilitate migration. The `UnsafeUnwrappedCookies` type is added to your code by a codemod that attempts to automatically
  * updates callsites to reflect the new Promise return type. There are some cases where `cookies()` cannot be automatically converted, namely
- * when it is used inside a synchronous function and we can't be sure the function can be made async automtically. In these cases we add an
+ * when it is used inside a synchronous function and we can't be sure the function can be made async automatically. In these cases we add an
  * explicit type case to `UnsafeUnwrappedCookies` to enable typescript to allow for the synchronous usage only where it is actually necessary.
  *
  * You should should update these callsites to either be async functions where the `cookies()` value can be awaited or you should call `cookies()`
  * from outside and await the return value before passing it into this function.
  *
- * You can find intsances that require manual migration by searching for `UnsafeUnwrappedCookies` in your codebase or by search for a comment that
+ * You can find instances that require manual migration by searching for `UnsafeUnwrappedCookies` in your codebase or by search for a comment that
  * starts with:
  *
  * ```
@@ -86,7 +86,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       } else {
         // We are prerendering with PPR. We need track dynamic access here eagerly
         // to keep continuity with how cookies has worked in PPR without dynamicIO.
-        // TODO consider switching the semantic to throw on property access intead
+        // TODO consider switching the semantic to throw on property access instead
         postponeWithTracking(
           staticGenerationStore.route,
           'cookies',
@@ -109,7 +109,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
 
   let underlyingCookies: ReadonlyRequestCookies
 
-  // The current implmenetation of cookies will return Response cookies
+  // The current implementation of cookies will return Response cookies
   // for a server action during the render phase of a server action.
   // This is not correct b/c the type of cookies during render is ReadOnlyRequestCookies
   // where as the type of cookies during action is ResponseCookies
@@ -286,7 +286,7 @@ function makeDynamicallyTrackedExoticCookies(
           controller,
           dynamicTracking
         )
-        // @ts-ignore clear is deined in RequestCookies implementation but not in the type
+        // @ts-ignore clear is denied in RequestCookies implementation but not in the type
         underlying.clear.apply(underlying, arguments)
       },
     },
@@ -333,7 +333,7 @@ function makeUntrackedExoticCookies(
           // but that's already a hard thing to debug so we may as well implement it consistently. The biggest problem with
           // implementing this in this way is the underlying cookie type is a ResponseCookie and not a RequestCookie and so it
           // has extra properties not available on RequestCookie instances.
-          polfyilledResponseCookiesIterator.bind(underlying),
+          polyfilledResponseCookiesIterator.bind(underlying),
     },
     size: {
       get(): number {
@@ -357,9 +357,9 @@ function makeUntrackedExoticCookies(
     },
     clear: {
       value:
-        // @ts-ignore clear is deined in RequestCookies implementation but not in the type
+        // @ts-ignore clear is denied in RequestCookies implementation but not in the type
         typeof underlying.clear === 'function'
-          ? // @ts-ignore clear is deined in RequestCookies implementation but not in the type
+          ? // @ts-ignore clear is denied in RequestCookies implementation but not in the type
             underlying.clear.bind(underlying)
           : // TODO this is a polyfill for when the underlying type is ResponseCookies
             // We should remove this and unify our cookies types. We could just let this continue to throw lazily
@@ -407,7 +407,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
             // but that's already a hard thing to debug so we may as well implement it consistently. The biggest problem with
             // implementing this in this way is the underlying cookie type is a ResponseCookie and not a RequestCookie and so it
             // has extra properties not available on RequestCookie instances.
-            polfyilledResponseCookiesIterator.call(underlying)
+            polyfilledResponseCookiesIterator.call(underlying)
       },
       writable: false,
     },
@@ -494,9 +494,9 @@ function makeUntrackedExoticCookiesWithDevWarnings(
       value: function clear() {
         const expression = 'cookies().clear()'
         warnForSyncAccess(route, expression)
-        // @ts-ignore clear is deined in RequestCookies implementation but not in the type
+        // @ts-ignore clear is denied in RequestCookies implementation but not in the type
         return typeof underlying.clear === 'function'
-          ? // @ts-ignore clear is deined in RequestCookies implementation but not in the type
+          ? // @ts-ignore clear is denied in RequestCookies implementation but not in the type
             underlying.clear.apply(underlying, arguments)
           : // TODO this is a polyfill for when the underlying type is ResponseCookies
             // We should remove this and unify our cookies types. We could just let this continue to throw lazily
@@ -533,18 +533,18 @@ function describeNameArg(arg: unknown) {
 function warnForSyncIteration(route?: string) {
   const prefix = route ? ` In route ${route} ` : ''
   console.error(
-    `${prefix}cookies were iterated implicitly with something like \`for...of cookies())\` or \`[...cookies()]\`, or explicitly with \`cookies()[Symbol.iterator]()\`. \`cookies()\` now returns a Promise and the return value should be awaited before attempting to iterate over cookies. In this version of Next.js iterating cookies without awaiting first is still supported to faciliate migration but in a future version you will be required to await the result. If this \`cookies()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
+    `${prefix}cookies were iterated implicitly with something like \`for...of cookies())\` or \`[...cookies()]\`, or explicitly with \`cookies()[Symbol.iterator]()\`. \`cookies()\` now returns a Promise and the return value should be awaited before attempting to iterate over cookies. In this version of Next.js iterating cookies without awaiting first is still supported to facilitate migration but in a future version you will be required to await the result. If this \`cookies()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
   )
 }
 
 function warnForSyncAccess(route: undefined | string, expression: string) {
   const prefix = route ? ` In route ${route} a ` : 'A '
   console.error(
-    `${prefix}cookie property was accessed directly with \`${expression}\`. \`cookies()\` now returns a Promise and the return value should be awaited before accessing properties of the underlying cookies instance. In this version of Next.js direct access to \`${expression}\` is still supported to faciliate migration but in a future version you will be required to await the result. If this \`cookies()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
+    `${prefix}cookie property was accessed directly with \`${expression}\`. \`cookies()\` now returns a Promise and the return value should be awaited before accessing properties of the underlying cookies instance. In this version of Next.js direct access to \`${expression}\` is still supported to facilitate migration but in a future version you will be required to await the result. If this \`cookies()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
   )
 }
 
-function polfyilledResponseCookiesIterator(
+function polyfilledResponseCookiesIterator(
   this: ResponseCookies
 ): ReturnType<ReadonlyRequestCookies[typeof Symbol.iterator]> {
   return this.getAll()

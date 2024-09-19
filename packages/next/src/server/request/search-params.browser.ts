@@ -112,13 +112,13 @@ function makeUntrackedExoticSearchParams(
 
 function warnForSyncAccess(expression: string) {
   console.error(
-    `A searchParam property was accessed directly with ${expression}. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to faciliate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
+    `A searchParam property was accessed directly with ${expression}. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
   )
 }
 
 function warnForSyncSpread() {
   console.error(
-    `the keys of \`searchParams\` were accessed through something like \`Object.keys(searchParams)\` or \`{...searchParams}\`. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to faciliate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
+    `the keys of \`searchParams\` were accessed through something like \`Object.keys(searchParams)\` or \`{...searchParams}\`. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
   )
 }
 
@@ -127,10 +127,10 @@ function warnForSyncSpread() {
 // about why a page bailed out of some or all prerendering and we can use bracket notation
 // for example while `ಠ_ಠ` is a valid identifier it's ok to print `searchParams['ಠ_ಠ']`
 // even if this would have been fine too `searchParams.ಠ_ಠ`
-const isDefinitelyAValidIdentifer = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+const isDefinitelyAValidIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 
 function describeStringPropertyAccess(prop: string) {
-  if (isDefinitelyAValidIdentifer.test(prop)) {
+  if (isDefinitelyAValidIdentifier.test(prop)) {
     return `\`searchParams.${prop}\``
   }
   return `\`searchParams[${JSON.stringify(prop)}]\``

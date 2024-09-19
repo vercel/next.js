@@ -362,7 +362,7 @@ async function createComponentTreeInternal({
           // prefetch everything up to the first route segment that defines a
           // loading.tsx boundary. (We do the same if there's no loading
           // boundary in the entire tree, because we don't want to prefetch too
-          // much) The rest of the tree is defered until the actual navigation.
+          // much) The rest of the tree is deferred until the actual navigation.
           // It does not take into account whether the data is dynamic — even if
           // the tree is completely static, it will still defer everything
           // inside the loading boundary.
