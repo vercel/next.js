@@ -1,1 +1,1 @@
-export { default } from './next-async-request-api/index'
+export { default } from './async-request-api/index'
