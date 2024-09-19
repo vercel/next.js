@@ -332,6 +332,11 @@ function castTypesOrAddComment(
           .find(j.TSTypeAliasDeclaration, {
             id: { name: targetType },
           })
+          .size() > 0 ||
+        importDeclaration
+          .find(j.ImportSpecifier, {
+            imported: { name: targetType },
+          })
           .size() > 0
 
       if (!hasImportedType) {
