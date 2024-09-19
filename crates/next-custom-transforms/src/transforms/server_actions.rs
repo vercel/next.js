@@ -69,6 +69,7 @@ pub fn server_actions<C: Comments>(
 
         annotations: Default::default(),
         extra_items: Default::default(),
+        hoisted_extra_items: Default::default(),
         export_actions: Default::default(),
 
         private_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
@@ -116,6 +117,7 @@ struct ServerActions<C: Comments> {
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
+    hoisted_extra_items: Vec<ModuleItem>,
     export_actions: Vec<String>,
 
     private_ctxt: SyntaxContext,
@@ -434,6 +436,7 @@ impl<C: Comments> ServerActions<C> {
     fn maybe_hoist_and_create_proxy_to_cache(
         &mut self,
         ids_from_closure: Vec<Name>,
+        fn_name: Option<Ident>,
         function: Option<&mut Box<Function>>,
         arrow: Option<&mut ArrowExpr>,
     ) -> Option<Box<Expr>> {
@@ -553,7 +556,7 @@ impl<C: Comments> ServerActions<C> {
 
             // Create the action export decl from the arrow function
             // export var cache_ident = async function() {}
-            self.extra_items
+            self.hoisted_extra_items
                 .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                     span: DUMMY_SP,
                     decl: VarDecl {
@@ -564,7 +567,7 @@ impl<C: Comments> ServerActions<C> {
                             name: Pat::Ident(cache_ident.clone().into()),
                             init: Some(Box::new(wrap_cache_expr(
                                 Expr::Fn(FnExpr {
-                                    ident: None,
+                                    ident: fn_name,
                                     function: Box::new(Function {
                                         params: new_params,
                                         body: match new_body {
@@ -685,7 +688,7 @@ impl<C: Comments> ServerActions<C> {
             }
 
             // export var cache_ident = async function() {}
-            self.extra_items
+            self.hoisted_extra_items
                 .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                     span: DUMMY_SP,
                     decl: VarDecl {
@@ -696,7 +699,7 @@ impl<C: Comments> ServerActions<C> {
                             name: Pat::Ident(cache_ident.clone().into()),
                             init: Some(Box::new(wrap_cache_expr(
                                 Expr::Fn(FnExpr {
-                                    ident: None,
+                                    ident: fn_name,
                                     function: Box::new(Function {
                                         params: new_params,
                                         body: new_body,
@@ -809,6 +812,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             let maybe_new_expr = self.maybe_hoist_and_create_proxy_to_cache(
                 child_names.clone(),
+                f.ident.clone(),
                 Some(&mut f.function),
                 None,
             );
@@ -911,6 +915,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             let maybe_new_expr = self.maybe_hoist_and_create_proxy_to_cache(
                 [].to_vec(),
+                Some(f.ident.clone()),
                 Some(&mut f.function),
                 None,
             );
@@ -1054,7 +1059,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let maybe_new_expr = if is_action_fn {
             self.maybe_hoist_and_create_proxy(child_names, None, Some(a))
         } else {
-            self.maybe_hoist_and_create_proxy_to_cache(child_names, None, Some(a))
+            self.maybe_hoist_and_create_proxy_to_cache(child_names, None, None, Some(a))
         };
 
         self.rewrite_expr_to_proxy_expr = maybe_new_expr;
@@ -1328,6 +1333,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
 
             if self.config.is_react_server_layer || !self.in_action_file {
+                new.append(&mut self.hoisted_extra_items);
                 new.push(new_stmt);
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
                 new.append(&mut self.extra_items);
@@ -1700,6 +1706,31 @@ fn wrap_cache_expr(expr: Expr, name: &str, id: &str) -> Expr {
         ..Default::default()
     })
 }
+
+// fn create_api_imports(apis: Vec<&str>, src: &str) -> ModuleItem {
+//     ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+//         span: DUMMY_SP,
+//         specifiers: apis
+//             .iter()
+//             .map(|api| {
+//                 ImportSpecifier::Named(ImportNamedSpecifier {
+//                     span: DUMMY_SP,
+//                     local: quote_ident!(api).into(),
+//                     imported: None,
+//                     is_type_only: false,
+//                 })
+//             })
+//             .collect(),
+//         src: Box::new(Str {
+//             span: DUMMY_SP,
+//             value: src.into(),
+//             raw: None,
+//         }),
+//         type_only: false,
+//         with: None,
+//         phase: Default::default(),
+//     }))
+// }
 
 fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleItem>) -> Expr {
     // Create the variable `var $$ACTION_0;`

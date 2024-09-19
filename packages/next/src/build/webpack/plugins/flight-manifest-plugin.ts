@@ -341,6 +341,7 @@ export class ClientReferenceManifestPlugin {
         function addSSRIdMapping() {
           const exportName = resource
           if (
+            // TODO: Add mapping from client module IDs to RSC module IDs
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
             moduleIdMapping[modId] = moduleIdMapping[modId] || {}

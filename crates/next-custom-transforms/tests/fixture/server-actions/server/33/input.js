@@ -1,6 +1,8 @@
+const v = 'world'
+
 async function fn() {
   'use cache'
-  return 'hello'
+  return 'hello, ' + v
 }
 
 export async function Component() {
