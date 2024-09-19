@@ -1,5 +1,5 @@
 import type { FallbackRouteParams } from '../../client/components/fallback-params'
-import type { Params } from '../../client/components/params'
+import type { Params } from '../request/params'
 
 export enum DynamicState {
   /**

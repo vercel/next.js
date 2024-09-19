@@ -400,7 +400,8 @@ function makeUntrackedExoticSearchParams(
   Object.keys(underlying).forEach((prop) => {
     switch (prop) {
       case 'then':
-      case 'value': {
+      case 'value':
+      case 'status': {
         // These properties cannot be shadowed with a search param because they
         // are necessary for ReactPromise's to work correctly with `use`
         break
@@ -418,7 +419,6 @@ function makeUntrackedExoticSearchParams(
               enumerable: true,
             })
           },
-          writable: true,
           enumerable: true,
           configurable: true,
         })
@@ -582,7 +582,7 @@ function warnForEnumeration(
     )
   } else {
     console.error(
-      `${prefix}searchParams are being enumerated with \`{...searchParams}\`, \`Object.keys(searchParams)\`, or similar. \`searchParams\` is now a Promise, however in the current version of Next.js direct access to the underlying searchParams object is still supported to faciliate migration to the new type. You should update your code to await \`searchParams\` before accessing it's properties.`
+      `${prefix}searchParams are being enumerated with \`{...searchParams}\`, \`Object.keys(searchParams)\`, or similar. \`searchParams\` is now a Promise, however in the current version of Next.js direct access to the underlying searchParams object is still supported to faciliate migration to the new type. You should update your code to await \`searchParams\` before accessing its properties.`
     )
   }
 }
@@ -623,7 +623,8 @@ function describeStringPropertyAccess(prop: string) {
 }
 
 function describeHasCheckingStringProperty(prop: string) {
-  return `\`${JSON.stringify(prop)} in searchParams\` or similar`
+  const stringifiedProp = JSON.stringify(prop)
+  return `\`Reflect.has(searchParams, ${stringifiedProp}\`, \`${stringifiedProp} in searchParams\`, or similar`
 }
 
 function interruptWithStaticGenerationBailoutError(

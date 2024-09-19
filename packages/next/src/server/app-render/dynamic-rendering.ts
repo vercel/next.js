@@ -28,6 +28,7 @@ import React from 'react'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { prerenderAsyncStorage } from './prerender-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -305,7 +306,6 @@ export function postponeWithTracking(
   expression: string,
   dynamicTracking: null | DynamicTrackingState
 ): never {
-  console.log('postponeWithTracking', Error().stack)
   assertPostpone()
   if (dynamicTracking) {
     dynamicTracking.dynamicAccesses.push({
@@ -471,5 +471,42 @@ export function annotateDynamicAccess(
         : undefined,
       expression,
     })
+  }
+}
+
+function hangForever() {}
+export function useDynamicAccess(expression: string) {
+  if (typeof window === 'undefined') {
+    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+
+    if (
+      staticGenerationStore &&
+      staticGenerationStore.isStaticGeneration &&
+      staticGenerationStore.fallbackRouteParams &&
+      staticGenerationStore.fallbackRouteParams.size > 0
+    ) {
+      // There are fallback route params, we should track these as dynamic
+      // accesses.
+      const prerenderStore = prerenderAsyncStorage.getStore()
+      if (prerenderStore) {
+        // We're prerendering with dynamicIO or PPR or both
+        if (prerenderStore.controller || prerenderStore.cacheSignal) {
+          // We are in a prerender with dynamicIO semantics
+          // We are going to hang here and never resolve. This will cause the currently
+          // rendering component to effectively be a dynamic hole
+          React.use(new Promise(hangForever))
+        } else {
+          // We're prerendering with PPR
+          postponeWithTracking(
+            staticGenerationStore.route,
+            expression,
+            prerenderStore.dynamicTracking
+          )
+        }
+      } else {
+        // We're prerendering in legacy mode
+        interruptStaticGeneration(expression, staticGenerationStore)
+      }
+    }
   }
 }

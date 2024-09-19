@@ -40,7 +40,7 @@ import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
-import type { Params } from '../client/components/params'
+import type { Params } from '../server/request/params'
 import {
   getFallbackRouteParams,
   type FallbackRouteParams,

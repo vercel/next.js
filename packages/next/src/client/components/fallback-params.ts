@@ -1,9 +1,5 @@
-import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
-import { ReflectAdapter } from '../../server/web/spec-extension/adapters/reflect'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import type { Params } from './params'
-import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
 export type FallbackRouteParams = ReadonlyMap<string, string>
 
@@ -40,58 +36,4 @@ export function getFallbackRouteParams(
   }
 
   return params
-}
-
-export type CreateDynamicallyTrackedParams =
-  typeof createDynamicallyTrackedParams
-
-export function createDynamicallyTrackedParams(params: Params): Params {
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-  if (
-    !staticGenerationStore ||
-    !staticGenerationStore.isStaticGeneration ||
-    !staticGenerationStore.fallbackRouteParams ||
-    staticGenerationStore.fallbackRouteParams.size === 0
-  ) {
-    return params
-  }
-
-  // If there are no unknown route params, we can just return the params.
-  const { fallbackRouteParams } = staticGenerationStore
-
-  return new Proxy(params as Params, {
-    get(target, prop, receiver) {
-      // If the property is in the params object, we should track the access if
-      // it's an unknown dynamic param.
-      if (
-        typeof prop === 'string' &&
-        prop in params &&
-        fallbackRouteParams.has(prop)
-      ) {
-        trackFallbackParamAccessed(staticGenerationStore, `params.${prop}`)
-      }
-
-      return ReflectAdapter.get(target, prop, receiver)
-    },
-    has(target, prop) {
-      if (
-        typeof prop === 'string' &&
-        prop in params &&
-        fallbackRouteParams.has(prop)
-      ) {
-        trackFallbackParamAccessed(staticGenerationStore, `params.${prop}`)
-      }
-
-      return ReflectAdapter.has(target, prop)
-    },
-    ownKeys(target) {
-      for (const key in params) {
-        if (fallbackRouteParams.has(key)) {
-          trackFallbackParamAccessed(staticGenerationStore, 'params')
-        }
-      }
-
-      return Reflect.ownKeys(target)
-    },
-  })
 }

@@ -153,6 +153,7 @@ export async function walkTreeWithFlightRouterState({
           createSegmentPath,
           loaderTree: loaderTreeToFilter,
           parentParams: currentParams,
+          parentFallbackParamNames: new Set(),
           firstItem: isFirst,
           injectedCSS,
           injectedJS,

@@ -89,7 +89,7 @@ import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
-import type { Params } from '../client/components/params'
+import type { Params } from '../server/request/params'
 import { FallbackMode } from '../lib/fallback'
 import {
   fallbackModeToStaticPathsResult,
