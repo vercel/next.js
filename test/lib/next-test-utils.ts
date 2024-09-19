@@ -892,35 +892,30 @@ type Redbox = {
 }
 
 export function normalizeCodeLocInfo(str: string): string | undefined {
-  if (!str) return
-
   return str.replace(/\n +(?:at|in) ([\S]+)[^\n]*/g, function (m, name) {
     return '\n    at ' + name + ' (**)'
   })
 }
 
-export async function assertRedbox(browser: BrowserInterface, redbox: Redbox) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function normalizeRedbox(redbox: Redbox) {
+  // if the received redbox contains "**" wildcard, then we will
+  // allow that certain values to be passed without exact matching
+}
+
+export async function assertRedbox(
+  browser: BrowserInterface,
+  expectedRedbox: Redbox
+) {
   try {
     await retry(
       async () => {
         await assertHasRedbox(browser)
+        await expandCallStackDetails(browser)
 
         await browser.waitForElementByCss('[data-nextjs-frame-source]')
-        // get innerText of each element
-        const callStackFrameSources = await browser.elementsByCss(
-          '[data-nextjs-frame-source]'
-        )
-        const callStackFrameSourceTexts = await Promise.all(
-          callStackFrameSources.map((f) => f.innerText())
-        )
 
-        let expanded = await getRedboxCallStack(browser)
-
-        for (const source of callStackFrameSourceTexts) {
-          expanded = expanded.replace(source, '** (**)')
-        }
-
-        const expectedRedbox = {
+        const redbox = {
           category: await getRedboxCategory(browser),
           description: await getRedboxDescription(browser),
           location: await getRedboxLocation(browser),
@@ -929,18 +924,19 @@ export async function assertRedbox(browser: BrowserInterface, redbox: Redbox) {
             copied: normalizeCodeLocInfo(
               await getRedboxOriginalCallStack(browser)
             ),
-            expanded,
+            expanded: normalizeCodeLocInfo(await getRedboxCallStack(browser)),
           },
         }
 
-        expect(expectedRedbox).toMatchInlineSnapshot(redbox)
+        expect(redbox).toMatchInlineSnapshot(expectedRedbox)
       },
       5000,
-      200
+      200,
+      'assertRedbox'
     )
   } catch (errorCause) {
     const error = new Error('Expected Redbox but found none')
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, assertRedbox)
     throw error
   }
 }
