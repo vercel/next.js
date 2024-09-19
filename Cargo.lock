@@ -1888,6 +1888,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "default-from-serde"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c5155e51d19a68bb8bc3b1a1ec0d5aff5c24791343dc15fa051424316c267e7"
+dependencies = [
+ "derive-default-from-serde",
+ "serde",
+]
+
+[[package]]
 name = "deranged"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1906,6 +1916,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "derive-default-from-serde"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d87f19b90ebc996d8100cabf45b0b177772844c8a911533f55239a430a964f06"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.58",
 ]
 
 [[package]]
@@ -4186,6 +4207,7 @@ dependencies = [
  "swc_core",
  "swc_emotion",
  "swc_relay",
+ "swc_sdk",
  "testing",
  "tracing",
  "turbopack-ecmascript-plugins",
@@ -7747,6 +7769,21 @@ dependencies = [
  "swc_ecma_utils",
  "swc_ecma_visit",
  "tracing",
+]
+
+[[package]]
+name = "swc_sdk"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c6899ad6685193c4c8db2e17da45e343bce4688c1c975b9b481039f64ff0e214"
+dependencies = [
+ "default-from-serde",
+ "serde",
+ "swc_atoms",
+ "swc_common",
+ "swc_ecma_ast",
+ "swc_ecma_utils",
+ "swc_ecma_visit",
 ]
 
 [[package]]
