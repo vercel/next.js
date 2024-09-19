@@ -203,6 +203,25 @@ const PAGES: Record<
     selector: '#vendor1',
     color: 'rgb(0, 255, 0)',
   },
+  'vendor-side-effects-array': {
+    group: 'vendor',
+    url: '/vendor',
+    selector: '#vendor-side-effects-array',
+    background: 'rgb(0, 254, 0)',
+    color: 'rgb(254, 0, 0)',
+  },
+  'vendor-side-effects-true': {
+    group: 'vendor',
+    url: '/vendor',
+    selector: '#vendor-side-effects-true',
+    color: 'rgb(253, 0, 0)',
+  },
+  'vendor-side-effects-false': {
+    group: 'vendor',
+    url: '/vendor',
+    selector: '#vendor-side-effects-false',
+    color: 'rgb(252, 0, 0)',
+  },
 }
 
 const allPairs = getPairs(Object.keys(PAGES))
