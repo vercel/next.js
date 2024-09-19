@@ -8,7 +8,7 @@ import {
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
   RSC_ACTION_ENCRYPTION_ALIAS,
-  RSC_CACHE_WRAPPER_ALIAS
+  RSC_CACHE_WRAPPER_ALIAS,
   type WebpackLayerName,
 } from '../lib/constants'
 import type { NextConfigComplete } from '../server/config-shared'
