@@ -1213,5 +1213,5 @@ function getModuleResource(mod: webpack.NormalModule): string {
 
 // x-ref crates/next-custom-transforms/src/transforms/server_actions.rs `gen_ident` funcition
 function isInlineActionIdentifier(name: string) {
-  return name.startsWith('$$ACTION_')
+  return name.startsWith('$$ACTION_') || name.startsWith('$$CACHE_')
 }
