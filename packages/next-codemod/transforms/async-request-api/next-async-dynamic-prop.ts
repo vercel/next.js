@@ -43,8 +43,12 @@ export function transformDynamicProps(
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
-  let insertedDestructorFunctionNames = new Set<string>() // { [export function name]: boolean }
-  let insertedRenamedPropFunctionNames = new Set<string>() // { [export function name]: boolean }
+  // Based on the prop names
+  // e.g. destruct `params` { slug } = params
+  // e.g. destruct `searchParams `{ search } = searchParams
+  let insertedDestructPropNames = new Set<string>()
+  // Rename props to `prop` argument for the function
+  let insertedRenamedPropFunctionNames = new Set<string>()
 
   function processAsyncPropOfEntryFile(isClientComponent: boolean) {
     // find `params` and `searchParams` in file, and transform the access to them
@@ -128,11 +132,12 @@ export function transformDynamicProps(
                 if (
                   member.typeAnnotation &&
                   member.typeAnnotation.typeAnnotation &&
-                  member.typeAnnotation.typeAnnotation.type === 'TSTypeLiteral'
+                  j.TSType.check(member.typeAnnotation.typeAnnotation)
                 ) {
                   member.typeAnnotation.typeAnnotation = j.tsTypeReference(
                     j.identifier('Promise'),
                     j.tsTypeParameterInstantiation([
+                      // @ts-ignore
                       member.typeAnnotation.typeAnnotation,
                     ])
                   )
@@ -196,6 +201,8 @@ export function transformDynamicProps(
                   })
                 }
               }
+            } else {
+              console.log('typeReference', typeReference)
             }
           }
 
@@ -268,6 +275,8 @@ export function transformDynamicProps(
         // e.g.
         // input: Page({ params: { slug } })
         // output: const { slug } = await props.params; rather than const props = await props.params;
+        const uid = functionName + ':' + propName
+
         if (paramsProperty?.type === 'ObjectPattern') {
           const objectPattern = paramsProperty
           const objectPatternProperties = objectPattern.properties
@@ -293,12 +302,9 @@ export function transformDynamicProps(
             ),
           ])
 
-          if (
-            !insertedDestructorFunctionNames.has(functionName) &&
-            functionBody
-          ) {
+          if (!insertedDestructPropNames.has(uid) && functionBody) {
             functionBody.unshift(destructedObjectPattern)
-            insertedDestructorFunctionNames.add(functionName)
+            insertedDestructPropNames.add(uid)
           }
         }
 
@@ -310,12 +316,9 @@ export function transformDynamicProps(
               j.awaitExpression(accessedPropId)
             ),
           ])
-          if (
-            !insertedRenamedPropFunctionNames.has(functionName) &&
-            functionBody
-          ) {
+          if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
             functionBody.unshift(paramAssignment)
-            insertedRenamedPropFunctionNames.add(functionName)
+            insertedRenamedPropFunctionNames.add(uid)
           }
         } else {
           const isFromExport = path.value.type === 'ExportNamedDeclaration'
@@ -336,12 +339,9 @@ export function transformDynamicProps(
                   j.awaitExpression(accessedPropId)
                 ),
               ])
-              if (
-                !insertedRenamedPropFunctionNames.has(functionName) &&
-                functionBody
-              ) {
+              if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
                 functionBody.unshift(paramAssignment)
-                insertedRenamedPropFunctionNames.add(functionName)
+                insertedRenamedPropFunctionNames.add(uid)
               }
             }
           } else {
@@ -351,13 +351,10 @@ export function transformDynamicProps(
                 j.callExpression(j.identifier('use'), [accessedPropId])
               ),
             ])
-            if (
-              !insertedRenamedPropFunctionNames.has(functionName) &&
-              functionBody
-            ) {
+            if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
               needsReactUseImport = true
               functionBody.unshift(paramAssignment)
-              insertedRenamedPropFunctionNames.add(functionName)
+              insertedRenamedPropFunctionNames.add(uid)
             }
           }
         }
