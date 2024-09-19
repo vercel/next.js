@@ -272,8 +272,8 @@ export interface ExperimentalConfig {
    * An alternative is 'strict', which will try to keep correct ordering as
    * much as possible, even when this leads to many requests.
    *
-   * minChunkSize: Minimum size of a chunk in bytes. Defaults to 30 KB.
-   * maxChunkSize: Maximum size of a chunk in bytes. Defaults to 100 KB.
+   * minChunkSize: Minimum size of a CSS chunk in kb. Defaults to 30 kb (MIN_CSS_CHUNK_SIZE).
+   * maxChunkSize: Maximum size of a CSS chunk in kb. Defaults to 100 kb (MAX_CSS_CHUNK_SIZE).
    */
   cssChunking?: {
     style?: 'loose' | 'strict'

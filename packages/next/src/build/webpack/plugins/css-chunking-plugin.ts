@@ -24,10 +24,10 @@ type ChunkState = {
 
 export class CssChunkingPlugin {
   private strict: boolean
-  private minChunkSize: number
-  private maxChunkSize: number
+  private minChunkSize: number | undefined
+  private maxChunkSize: number | undefined
 
-  constructor(strict: boolean, minChunkSize: number, maxChunkSize: number) {
+  constructor(strict: boolean, minChunkSize?: number, maxChunkSize?: number) {
     this.strict = strict
     this.minChunkSize = minChunkSize ?? MIN_CSS_CHUNK_SIZE
     this.maxChunkSize = maxChunkSize ?? MAX_CSS_CHUNK_SIZE
