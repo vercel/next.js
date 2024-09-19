@@ -49,6 +49,7 @@ export function transformDynamicAPI(
 
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
+  const insertedTypes = new Set<string>()
 
   function isImportedInModule(
     path: ASTPath<CallExpression>,
@@ -188,7 +189,8 @@ export function transformDynamicAPI(
                   path,
                   asyncRequestApiName,
                   root,
-                  filePath
+                  filePath,
+                  insertedTypes
                 )
               }
             } else {
@@ -197,7 +199,8 @@ export function transformDynamicAPI(
                 path,
                 asyncRequestApiName,
                 root,
-                filePath
+                filePath,
+                insertedTypes
               )
             }
             modified = true
@@ -235,7 +238,8 @@ function castTypesOrAddComment(
   path: ASTPath<any>,
   asyncRequestApiName: string,
   root: Collection<any>,
-  filePath: string
+  filePath: string,
+  insertedTypes: Set<string>
 ) {
   const isTsFile = filePath.endsWith('.ts') || filePath.endsWith('.tsx')
   if (isTsFile) {
@@ -280,12 +284,13 @@ function castTypesOrAddComment(
           })
           .size() > 0
 
-      if (!hasImportedType) {
+      if (!hasImportedType && !insertedTypes.has(targetType)) {
         importDeclaration
           .get()
           .node.specifiers.push(
             j.importSpecifier(j.identifier(`type ${targetType}`))
           )
+        insertedTypes.add(targetType)
       }
     }
   } else {

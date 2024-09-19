@@ -201,8 +201,6 @@ export function transformDynamicProps(
                   })
                 }
               }
-            } else {
-              console.log('typeReference', typeReference)
             }
           }
 
