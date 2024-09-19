@@ -95,8 +95,8 @@ export function transformDynamicProps(
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
-  let insertedDestructor = false // should be based on function name
-  let insertedRenamedProp = false // should be based on function name
+  let insertedDestructorFunctionNames = new Set<string>() // { [export function name]: boolean }
+  let insertedRenamedPropFunctionNames = new Set<string>() // { [export function name]: boolean }
 
   function processAsyncPropOfEntryFile(isClientComponent: boolean) {
     // find `params` and `searchParams` in file, and transform the access to them
@@ -303,7 +303,8 @@ export function transformDynamicProps(
       }
 
       const isAsyncFunc = isAsyncFunctionDeclaration(path)
-
+      // @ts-ignore quick way to check if it's a function and it has a name
+      const functionName = path.value.declaration.id?.name || 'default'
       needsReactUseImport = !isAsyncFunc
 
       const functionBody = getBodyOfFunctionDeclaration(path)
@@ -345,10 +346,12 @@ export function transformDynamicProps(
             ),
           ])
 
-          if (!insertedDestructor && functionBody) {
+          if (
+            !insertedDestructorFunctionNames.has(functionName) &&
+            functionBody
+          ) {
             functionBody.unshift(destructedObjectPattern)
-            // TODO: move it to by name of export function
-            // insertedDestructor = true
+            insertedDestructorFunctionNames.add(functionName)
           }
         }
 
@@ -360,9 +363,12 @@ export function transformDynamicProps(
               j.awaitExpression(accessedPropId)
             ),
           ])
-          if (!insertedRenamedProp && functionBody) {
+          if (
+            !insertedRenamedPropFunctionNames.has(functionName) &&
+            functionBody
+          ) {
             functionBody.unshift(paramAssignment)
-            insertedRenamedProp = true
+            insertedRenamedPropFunctionNames.add(functionName)
           }
         } else {
           const isFromExport = path.value.type === 'ExportNamedDeclaration'
@@ -382,9 +388,12 @@ export function transformDynamicProps(
                   j.awaitExpression(accessedPropId)
                 ),
               ])
-              if (!insertedRenamedProp && functionBody) {
+              if (
+                !insertedRenamedPropFunctionNames.has(functionName) &&
+                functionBody
+              ) {
                 functionBody.unshift(paramAssignment)
-                insertedRenamedProp = true
+                insertedRenamedPropFunctionNames.add(functionName)
               }
             }
           } else {
@@ -394,9 +403,12 @@ export function transformDynamicProps(
                 j.callExpression(j.identifier('use'), [accessedPropId])
               ),
             ])
-            if (!insertedRenamedProp && functionBody) {
+            if (
+              !insertedRenamedPropFunctionNames.has(functionName) &&
+              functionBody
+            ) {
               functionBody.unshift(paramAssignment)
-              insertedRenamedProp = true
+              insertedRenamedPropFunctionNames.add(functionName)
             }
           }
         }
