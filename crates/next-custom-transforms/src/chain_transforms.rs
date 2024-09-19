@@ -180,7 +180,7 @@ where
                     strict: false,
                     import_sources: vec![swc_sdk::config::ImportItem {
                         module: Atom::new("@vercel/flags/next"),
-                        name: Atom::new("flag"),
+                        name: Atom::new("unstable_flag"),
                     }],
                 },
                 remove_imports_from: vec![],
