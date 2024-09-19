@@ -1,5 +1,9 @@
 import type { API, ASTPath, CallExpression, Collection } from 'jscodeshift'
-import { isFunctionType, isMatchedFunctionExported } from './utils'
+import {
+  determineClientDirective,
+  isFunctionType,
+  isMatchedFunctionExported,
+} from './utils'
 
 type AsyncAPIName = 'cookies' | 'headers' | 'draftMode'
 
@@ -52,6 +56,14 @@ function insertReactUseImport(root: Collection<any>, j: API['j']) {
       }
     }
   }
+}
+
+function wrapParathnessIfNeeded(
+  hasChainAccess: boolean,
+  j: API['jscodeshift'],
+  expression
+) {
+  return hasChainAccess ? j.parenthesizedExpression(expression) : expression
 }
 
 function findImportedIdentifier(
@@ -132,18 +144,21 @@ export function transformDynamicAPI(
           .nodes()
           .some((node) => node.async)
 
-        const isCallAwaited =
-          closestFunction.closest(j.AwaitExpression).size() > 0
+        const isCallAwaited = path.parentPath?.node?.type === 'AwaitExpression'
+
+        const hasChainAccess =
+          path.parentPath.value.type === 'MemberExpression' &&
+          path.parentPath.value.object === path.node
 
         // For cookies/headers API, only transform server and shared components
         if (isAsyncFunction) {
           if (!isCallAwaited) {
             // Add 'await' in front of cookies() call
-            j(path).replaceWith(
-              j.awaitExpression(
-                j.callExpression(j.identifier(asyncRequestApiName), [])
-              )
+            const expr = j.awaitExpression(
+              // add parentheses to wrap the function call
+              j.callExpression(j.identifier(asyncRequestApiName), [])
             )
+            j(path).replaceWith(wrapParathnessIfNeeded(hasChainAccess, j, expr))
             modified = true
           }
         } else {
@@ -186,10 +201,11 @@ export function transformDynamicAPI(
               }
 
               if (canConvertToAsync) {
+                const expr = j.awaitExpression(
+                  j.callExpression(j.identifier(asyncRequestApiName), [])
+                )
                 j(path).replaceWith(
-                  j.awaitExpression(
-                    j.callExpression(j.identifier(asyncRequestApiName), [])
-                  )
+                  wrapParathnessIfNeeded(hasChainAccess, j, expr)
                 )
 
                 modified = true
@@ -236,7 +252,7 @@ export function transformDynamicAPI(
       })
   }
 
-  const isClientComponent = isClientComponentAst(j, root)
+  const isClientComponent = determineClientDirective(root, j, source)
 
   // Only transform the valid calls in server or shared components
   if (!isClientComponent) {
@@ -251,38 +267,6 @@ export function transformDynamicAPI(
   }
 
   return modified ? root.toSource() : null
-}
-
-// TODO: fix detection of client component
-function isClientComponentAst(j: API['j'], root: Collection<any>) {
-  // 'use client' without `;` at the end
-  const hasStringDirective =
-    root
-      .find(j.Literal)
-      .filter((path) => {
-        const expr = path.node
-
-        return (
-          expr.value === 'use client' && path.parentPath.node.type === 'Program'
-        )
-      })
-      .size() > 0
-
-  // 'use client';
-  const hasStringDirectiveWithSemicolon =
-    root
-      .find(j.StringLiteral)
-      .filter((path) => {
-        const expr = path.node
-        return (
-          expr.type === 'StringLiteral' &&
-          expr.value === 'use client' &&
-          path.parentPath.node.type === 'Program'
-        )
-      })
-      .size() > 0
-
-  return hasStringDirective || hasStringDirectiveWithSemicolon
 }
 
 // cast to unknown first, then the specific type

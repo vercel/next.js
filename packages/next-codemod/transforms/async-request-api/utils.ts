@@ -1,4 +1,10 @@
-import type { API, ASTPath, FunctionDeclaration } from 'jscodeshift'
+import type {
+  API,
+  ASTPath,
+  Collection,
+  FunctionDeclaration,
+  JSCodeshift,
+} from 'jscodeshift'
 
 export const TARGET_NAMED_EXPORTS = new Set([
   // For custom route
@@ -94,4 +100,46 @@ export function isMatchedFunctionExported(
   if (isVariableExport) return true
 
   return isNamedExport
+}
+
+export function determineClientDirective(
+  root: Collection<any>,
+  j: JSCodeshift,
+  source: string
+) {
+  const hasStringDirective =
+    root
+      .find(j.Literal)
+      .filter((path) => {
+        const expr = path.node
+
+        return (
+          expr.value === 'use client' && path.parentPath.node.type === 'Program'
+        )
+      })
+      .size() > 0
+
+  // 'use client';
+  const hasStringDirectiveWithSemicolon =
+    root
+      .find(j.StringLiteral)
+      .filter((path) => {
+        const expr = path.node
+        return (
+          expr.type === 'StringLiteral' &&
+          expr.value === 'use client' &&
+          path.parentPath.node.type === 'Program'
+        )
+      })
+      .size() > 0
+
+  if (hasStringDirective || hasStringDirectiveWithSemicolon) return true
+
+  // Since the client detection is not reliable with AST in jscodeshift,
+  // determine if 'use client' or "use client" is leading in the source code.
+  const trimmedSource = source.trim()
+  const containsClientDirective =
+    /^'use client'/.test(trimmedSource) || /^"use client"/g.test(trimmedSource)
+
+  return containsClientDirective
 }

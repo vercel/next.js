@@ -4,8 +4,10 @@ import type {
   ASTPath,
   ExportDefaultDeclaration,
   ExportNamedDeclaration,
+  ObjectPattern,
 } from 'jscodeshift'
 import {
+  determineClientDirective,
   isFunctionType,
   TARGET_NAMED_EXPORTS,
   TARGET_PROP_NAMES,
@@ -92,6 +94,8 @@ export function transformDynamicProps(
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
+  let insertedDestructor = false // should be based on function name
+  let insertedRenamedProp = false // should be based on function name
 
   function processAsyncPropOfEntryFile(isClientComponent: boolean) {
     // find `params` and `searchParams` in file, and transform the access to them
@@ -108,7 +112,7 @@ export function transformDynamicProps(
       }
 
       const params = decl.params
-      const objectPropNames = []
+      const propertiesMap = new Map<string, any>()
 
       // If there's no first param, return
       if (params.length !== 1) {
@@ -117,6 +121,7 @@ export function transformDynamicProps(
 
       const currentParam = params[0]
 
+      // Argument destructuring case
       if (currentParam.type === 'ObjectPattern') {
         // change pageProps to pageProps.<propName>
         const propsIdentifier = j.identifier(PAGE_PROPS)
@@ -138,7 +143,8 @@ export function transformDynamicProps(
             'key' in prop &&
             prop.key.type === 'Identifier'
           ) {
-            objectPropNames.push(prop.key.name)
+            const value = 'value' in prop ? prop.value : null
+            propertiesMap.set(prop.key.name, value)
           }
         })
 
@@ -153,7 +159,7 @@ export function transformDynamicProps(
               if (
                 member.type === 'TSPropertySignature' &&
                 member.key.type === 'Identifier' &&
-                objectPropNames.includes(member.key.name)
+                propertiesMap.has(member.key.name)
               ) {
                 // if it's already a Promise, don't wrap it again, return
                 if (
@@ -254,8 +260,7 @@ export function transformDynamicProps(
       }
 
       if (modified) {
-        needsReactUseImport = !isAsyncFunctionDeclaration(path)
-        resolveAsyncProp(path, objectPropNames)
+        resolveAsyncProp(path, propertiesMap)
       }
     }
 
@@ -281,18 +286,68 @@ export function transformDynamicProps(
     // Helper function to insert `const params = await asyncParams;` at the beginning of the function body
     function resolveAsyncProp(
       path: ASTPath<FunctionalExportDeclaration>,
-      propNames: string[]
+      propertiesMap: Map<string, ObjectPattern | undefined>
     ) {
-      const isAsyncFunc = isAsyncFunctionDeclaration(path)
-      const functionBody = getBodyOfFunctionDeclaration(path)
+      const isDefaultExport = path.value.type === 'ExportDefaultDeclaration'
+      // If it's sync default export, and it's also server component, make the function async
+      if (
+        isDefaultExport &&
+        !isClientComponent &&
+        !isAsyncFunctionDeclaration(path)
+      ) {
+        if ('async' in path.value.declaration)
+          path.value.declaration.async = true
+      }
 
+      const isAsyncFunc = isAsyncFunctionDeclaration(path)
+
+      needsReactUseImport = !isAsyncFunc
+
+      const functionBody = getBodyOfFunctionDeclaration(path)
       const propsIdentifier = j.identifier(PAGE_PROPS)
 
-      for (const propName of propNames) {
+      for (const [propName, paramsProperty] of propertiesMap) {
+        const propNameIdentifier = j.identifier(propName)
         const accessedPropId = j.memberExpression(
           propsIdentifier,
-          j.identifier(propName)
+          propNameIdentifier
         )
+
+        // Check param property value, if it's destructed, we need to destruct it as well
+        // e.g.
+        // input: Page({ params: { slug } })
+        // output: const { slug } = await props.params; rather than const props = await props.params;
+        if (paramsProperty?.type === 'ObjectPattern') {
+          const objectPattern = paramsProperty
+          const objectPatternProperties = objectPattern.properties
+
+          // destruct the object pattern, e.g. { slug } => const { slug } = params;
+          const destructedObjectPattern = j.variableDeclaration('const', [
+            j.variableDeclarator(
+              j.objectPattern(
+                objectPatternProperties.map((prop) => {
+                  if (
+                    prop.type === 'Property' &&
+                    prop.key.type === 'Identifier'
+                  ) {
+                    return j.objectProperty(
+                      j.identifier(prop.key.name),
+                      j.identifier(prop.key.name)
+                    )
+                  }
+                  return prop
+                })
+              ),
+              propNameIdentifier
+            ),
+          ])
+
+          if (!insertedDestructor && functionBody) {
+            functionBody.unshift(destructedObjectPattern)
+            // TODO: move it to by name of export function
+            // insertedDestructor = true
+          }
+        }
 
         if (isAsyncFunc) {
           // If it's async function, add await to the async props.<propName>
@@ -302,8 +357,9 @@ export function transformDynamicProps(
               j.awaitExpression(accessedPropId)
             ),
           ])
-          if (functionBody) {
+          if (!insertedRenamedProp && functionBody) {
             functionBody.unshift(paramAssignment)
+            insertedRenamedProp = true
           }
         } else {
           const isFromExport = path.value.type === 'ExportNamedDeclaration'
@@ -323,8 +379,9 @@ export function transformDynamicProps(
                   j.awaitExpression(accessedPropId)
                 ),
               ])
-              if (functionBody) {
+              if (!insertedRenamedProp && functionBody) {
                 functionBody.unshift(paramAssignment)
+                insertedRenamedProp = true
               }
             }
           } else {
@@ -334,75 +391,63 @@ export function transformDynamicProps(
                 j.callExpression(j.identifier('use'), [accessedPropId])
               ),
             ])
-            if (functionBody) {
+            if (!insertedRenamedProp && functionBody) {
               functionBody.unshift(paramAssignment)
+              insertedRenamedProp = true
             }
           }
         }
       }
     }
 
-    if (!isClientComponent) {
-      // Process Function Declarations
-      // Matching: default export function XXX(...) { ... }
-      const defaultExportFunctionDeclarations = root.find(
-        j.ExportDefaultDeclaration,
-        {
-          declaration: {
-            type: (type) =>
-              type === 'FunctionDeclaration' ||
-              type === 'FunctionExpression' ||
-              type === 'ArrowFunctionExpression',
-          },
-        }
-      )
+    // Process Function Declarations
+    // Matching: default export function XXX(...) { ... }
+    const defaultExportFunctionDeclarations = root.find(
+      j.ExportDefaultDeclaration,
+      {
+        declaration: {
+          type: (type) =>
+            type === 'FunctionDeclaration' ||
+            type === 'FunctionExpression' ||
+            type === 'ArrowFunctionExpression',
+        },
+      }
+    )
 
-      defaultExportFunctionDeclarations.forEach((path) => {
-        renameAsyncPropIfExisted(path)
-      })
+    defaultExportFunctionDeclarations.forEach((path) => {
+      renameAsyncPropIfExisted(path)
+    })
 
-      // Matching Next.js functional named export of route entry:
-      // - export function <named>(...) { ... }
-      // - export const <named> = ...
-      const targetNamedExportDeclarations = root.find(
-        j.ExportNamedDeclaration,
-        // Filter the name is in TARGET_NAMED_EXPORTS
-        {
-          declaration: {
-            id: {
-              name: (idName: string) => {
-                return TARGET_NAMED_EXPORTS.has(idName)
-              },
+    // Matching Next.js functional named export of route entry:
+    // - export function <named>(...) { ... }
+    // - export const <named> = ...
+    const targetNamedExportDeclarations = root.find(
+      j.ExportNamedDeclaration,
+      // Filter the name is in TARGET_NAMED_EXPORTS
+      {
+        declaration: {
+          id: {
+            name: (idName: string) => {
+              return TARGET_NAMED_EXPORTS.has(idName)
             },
           },
-        }
-      )
+        },
+      }
+    )
 
-      targetNamedExportDeclarations.forEach((path) => {
-        renameAsyncPropIfExisted(path)
-      })
-      // TDOO: handle targetNamedDeclarators
-      // const targetNamedDeclarators = root.find(
-      //   j.VariableDeclarator,
-      //   (node) =>
-      //     node.id.type === 'Identifier' &&
-      //     TARGET_NAMED_EXPORTS.has(node.id.name)
-      // )
-    }
+    targetNamedExportDeclarations.forEach((path) => {
+      renameAsyncPropIfExisted(path)
+    })
+    // TDOO: handle targetNamedDeclarators
+    // const targetNamedDeclarators = root.find(
+    //   j.VariableDeclarator,
+    //   (node) =>
+    //     node.id.type === 'Identifier' &&
+    //     TARGET_NAMED_EXPORTS.has(node.id.name)
+    // )
   }
 
-  const isClientComponent =
-    root
-      .find(j.ExpressionStatement)
-      .filter((path) => {
-        const expr = path.node.expression
-        return (
-          expr.type === 'Literal' &&
-          expr.value === 'use client' &&
-          path.parentPath.node.type === 'Program'
-        )
-      })
-      .size() > 0
+  const isClientComponent = determineClientDirective(root, j, source)
 
   // Apply to `params` and `searchParams`
   processAsyncPropOfEntryFile(isClientComponent)
