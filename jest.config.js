@@ -13,6 +13,7 @@ const customJestConfig = {
     '<rootDir>',
     '<rootDir>/../packages/next/src/',
     '<rootDir>/../packages/font/src/',
+    '<rootDir>/../packages/next-codemod',
   ],
   modulePathIgnorePatterns: ['/\\.next/'],
   modulePaths: ['<rootDir>/lib'],
