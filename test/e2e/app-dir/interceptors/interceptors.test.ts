@@ -165,15 +165,11 @@ describe('interceptors', () => {
     )
   })
 
-  it('should run interceptors for parallel routes at the same level concurrently', async () => {
+  it('should run interceptors for parallel routes at the same segment concurrently', async () => {
     await next.browser('/action')
     const cliOutput = next.cliOutput.slice(cliOutputLength)
 
-    // SlotInterceptor and ActionInterceptor should start at the same time.
-    // TODO(interceptors): Should ActionPage be allowed to render before
-    // SlotInterceptor has finished, i.e. do we need to await sibling
-    // interceptors for parallel routes?
-    expect(cliOutput.replace(timeStampRegExp, '')).toMatch(outdent`
+    const createExpectedPossibleOutput = (concurrentOutput: string) => outdent`
       RootLayout, start
       RootLayout, start
       RootInterceptor, start
@@ -182,34 +178,64 @@ describe('interceptors', () => {
       RootLayout, finish
       RootLayout, finish
       RootInterceptor, finish
-      SlotInterceptor, start
-      ActionInterceptor, start
+      ${concurrentOutput}
       ActionInterceptor, finish
       ActionPage, start
       ActionPage, finish
       SlotInterceptor, finish
       SlotPage, start
       SlotPage, finish
-    `)
+    `
+
+    // TODO(interceptors): Should ActionPage be allowed to render before
+    // SlotInterceptor has finished, i.e. do we need to await sibling
+    // interceptors for parallel routes?
+
+    // We don't know whether SlotInterceptor or ActionInterceptor starts first,
+    // because they run concurrently within the same segment.
+    expect(cliOutput.replace(timeStampRegExp, '').trim()).toBeOneOf([
+      createExpectedPossibleOutput(outdent`
+        ActionInterceptor, start
+        SlotInterceptor, start
+    `),
+      createExpectedPossibleOutput(outdent`
+        SlotInterceptor, start
+        ActionInterceptor, start
+    `),
+    ])
   })
 
   it('should intercept requests for server actions', async () => {
     const browser = await next.browser('/action')
     cliOutputLength = next.cliOutput.length
     await browser.elementByCss('button').click()
-    await browser.waitForIdleNetwork()
-    const cliOutput = next.cliOutput.slice(cliOutputLength)
 
-    expect(cliOutput.replace(timeStampRegExp, '')).toMatch(outdent`
+    const createExpectedPossibleOutput = (concurrentOutput: string) => outdent`
       RootInterceptor, start
       URL: http://localhost:${next.appPort}/action
       RootInterceptor, finish
-      SlotInterceptor, start
-      ActionInterceptor, start
+      ${concurrentOutput}
       ActionInterceptor, finish
       SlotInterceptor, finish
       Action!
-    `)
+    `
+
+    await retry(() => {
+      const cliOutput = next.cliOutput.slice(cliOutputLength)
+
+      // We don't know whether SlotInterceptor or ActionInterceptor starts
+      // first, because they run concurrently within the same segment.
+      expect(cliOutput.replace(timeStampRegExp, '').trim()).toBeOneOf([
+        createExpectedPossibleOutput(outdent`
+          ActionInterceptor, start
+          SlotInterceptor, start
+        `),
+        createExpectedPossibleOutput(outdent`
+          SlotInterceptor, start
+          ActionInterceptor, start
+      `),
+      ])
+    })
   })
 
   it('should intercept requests for route handlers', async () => {

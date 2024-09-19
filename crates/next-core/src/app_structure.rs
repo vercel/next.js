@@ -508,6 +508,7 @@ pub enum Entrypoint {
         page: AppPage,
         path: ResolvedVc<FileSystemPath>,
         root_layouts: ResolvedVc<FileSystemPathVec>,
+        interceptors: ResolvedVc<FileSystemPathVec>,
     },
     AppMetadata {
         page: AppPage,
@@ -636,6 +637,7 @@ fn add_app_route(
     page: AppPage,
     path: ResolvedVc<FileSystemPath>,
     root_layouts: ResolvedVc<FileSystemPathVec>,
+    interceptors: ResolvedVc<FileSystemPathVec>,
 ) {
     let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
@@ -644,6 +646,7 @@ fn add_app_route(
                 page,
                 path,
                 root_layouts,
+                interceptors,
             });
             return;
         }
@@ -721,6 +724,7 @@ pub fn get_entrypoints(
         get_directory_tree(app_dir, next_config),
         get_global_metadata(app_dir, next_config),
         Default::default(),
+        Default::default(),
     )
 }
 
@@ -730,6 +734,7 @@ fn directory_tree_to_entrypoints(
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
     root_layouts: Vc<FileSystemPathVec>,
+    interceptors: Vc<FileSystemPathVec>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints_internal(
         app_dir,
@@ -738,6 +743,7 @@ fn directory_tree_to_entrypoints(
         directory_tree,
         AppPage::new(),
         root_layouts,
+        interceptors,
     )
 }
 
@@ -1068,6 +1074,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     root_layouts: ResolvedVc<FileSystemPathVec>,
+    interceptors: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
     let span = tracing::info_span!("build layout trees", name = display(&app_page));
     directory_tree_to_entrypoints_internal_untraced(
@@ -1077,6 +1084,7 @@ async fn directory_tree_to_entrypoints_internal(
         directory_tree,
         app_page,
         root_layouts,
+        interceptors,
     )
     .instrument(span)
     .await
@@ -1089,6 +1097,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     root_layouts: ResolvedVc<FileSystemPathVec>,
+    interceptors: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
     let mut result = IndexMap::new();
 
@@ -1106,6 +1115,14 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         ResolvedVc::cell(layouts)
     } else {
         root_layouts
+    };
+
+    let interceptors = if let Some(interceptor) = modules.interceptor {
+        let mut preceding_interceptors = interceptors.await?.clone_value();
+        preceding_interceptors.push(interceptor.to_resolved().await?);
+        ResolvedVc::cell(preceding_interceptors)
+    } else {
+        interceptors
     };
 
     if modules.page.is_some() {
@@ -1139,6 +1156,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_page.complete(PageType::Route)?,
             route.to_resolved().await?,
             root_layouts,
+            interceptors,
         );
     }
 
@@ -1248,6 +1266,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 subdirectory,
                 child_app_page.clone(),
                 *root_layouts,
+                *interceptors,
             )
             .await?;
 
@@ -1312,8 +1331,16 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     ref page,
                     path,
                     root_layouts,
+                    interceptors,
                 } => {
-                    add_app_route(app_dir, &mut result, page.clone(), path, root_layouts);
+                    add_app_route(
+                        app_dir,
+                        &mut result,
+                        page.clone(),
+                        path,
+                        root_layouts,
+                        interceptors,
+                    );
                 }
                 Entrypoint::AppMetadata { ref page, metadata } => {
                     add_app_metadata_route(app_dir, &mut result, page.clone(), metadata);

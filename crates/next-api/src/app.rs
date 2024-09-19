@@ -655,6 +655,7 @@ pub fn app_entry_point_to_route(
             page,
             path,
             root_layouts,
+            interceptors,
         } => Route::AppRoute {
             original_name: page.to_string(),
             endpoint: Vc::upcast(
@@ -662,6 +663,7 @@ pub fn app_entry_point_to_route(
                     ty: AppEndpointType::Route {
                         path: *path,
                         root_layouts: *root_layouts,
+                        interceptors: *interceptors,
                     },
                     app_project,
                     page,
@@ -709,6 +711,7 @@ enum AppEndpointType {
     Route {
         path: Vc<FileSystemPath>,
         root_layouts: Vc<FileSystemPathVec>,
+        interceptors: Vc<FileSystemPathVec>,
     },
     Metadata {
         metadata: MetadataItem,
@@ -741,6 +744,7 @@ impl AppEndpoint {
         &self,
         path: Vc<FileSystemPath>,
         root_layouts: Vc<FileSystemPathVec>,
+        interceptors: Vc<FileSystemPathVec>,
         next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
         let root_layouts = root_layouts.await?;
@@ -766,6 +770,7 @@ impl AppEndpoint {
             self.app_project.project().project_path(),
             config,
             next_config,
+            interceptors,
         ))
     }
 
@@ -793,9 +798,11 @@ impl AppEndpoint {
         let next_config = self.await?.app_project.project().next_config();
         let app_entry = match this.ty {
             AppEndpointType::Page { loader_tree, .. } => self.app_page_entry(loader_tree),
-            AppEndpointType::Route { path, root_layouts } => {
-                self.app_route_entry(path, root_layouts, next_config)
-            }
+            AppEndpointType::Route {
+                path,
+                root_layouts,
+                interceptors,
+            } => self.app_route_entry(path, root_layouts, interceptors, next_config),
             AppEndpointType::Metadata { metadata } => {
                 self.app_metadata_entry(metadata, next_config)
             }
