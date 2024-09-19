@@ -85,6 +85,21 @@ export default function Nav() {
             Vendor
           </Link>
         </li>
+        <li>
+          <Link href={'/vendor/a'} id="vendor-a">
+            Vendor A
+          </Link>
+        </li>
+        <li>
+          <Link href={'/vendor/b'} id="vendor-b">
+            Vendor B
+          </Link>
+        </li>
+        <li>
+          <Link href={'/vendor/c'} id="vendor-c">
+            Vendor C
+          </Link>
+        </li>
       </ul>
       <h3>Pages</h3>
       <ul>
