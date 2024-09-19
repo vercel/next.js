@@ -324,6 +324,8 @@ pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
     Exports,
+    /// Reexports, excluding local exports
+    Reexports,
 }
 
 /// Converts [Vc<ModulePart>] to the index.
@@ -359,7 +361,7 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
 
     // This is required to handle `export * from 'foo'`
     if let ModulePart::Export(..) = &*part {
-        if let Some(&v) = entrypoints.get(&Key::Exports) {
+        if let Some(&v) = entrypoints.get(&Key::Reexports) {
             return Ok(v);
         }
     }
@@ -509,6 +511,11 @@ pub(super) async fn split(
                 modules,
                 star_reexports,
             } = dep_graph.split_module(&directives, &items);
+
+            eprintln!("# Program ({name})\n{}", to_code(&program));
+            for (idx, m) in modules.iter().enumerate() {
+                eprintln!("# Module {idx}\n{}", to_code(m));
+            }
 
             assert_ne!(modules.len(), 0, "modules.len() == 0;\nModule: {module:?}",);
 
