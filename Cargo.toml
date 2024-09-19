@@ -118,7 +118,6 @@ tungstenite = "0.20.1"
 
 # flate2_zlib requires zlib, use flate2_rust
 allsorts = { version = "0.14.0", default-features = false, features = [
-  "outline",
   "flate2_rust",
 ] }
 anyhow = "1.0.69"
@@ -169,8 +168,6 @@ owo-colors = "3.5.0"
 parcel_selectors = "0.27.0"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
-# Temporary: Reference the latest git minor version of pathfinder_simd until it's published.
-pathfinder_simd = "0.5.3"
 petgraph = "0.6.3"
 pin-project-lite = "0.2.9"
 postcard = "1.0.4"
@@ -216,8 +213,3 @@ unsize = "1.1.0"
 url = "2.2.2"
 urlencoding = "2.1.2"
 webbrowser = "0.8.7"
-
-# Sync with the entries in turbo's Cargo.toml
-[patch.crates-io]
-# TODO: Use upstream when https://github.com/servo/pathfinder/pull/566 lands
-pathfinder_simd = { git = "https://github.com/vercel/pathfinder", branch = "rm-stdarch_arm_crc32"}
