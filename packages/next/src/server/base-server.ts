@@ -2638,10 +2638,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       opts.experimental.ppr
     ) {
       revalidate = 0
-    } else if (
-      typeof cacheEntry.revalidate !== 'undefined' &&
-      (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest))
-    ) {
+    } else if (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest)) {
       // If this is a preview mode request, we shouldn't cache it. We also don't
       // cache 404 pages.
       if (isPreviewMode || (is404Page && !isNextDataRequest)) {
