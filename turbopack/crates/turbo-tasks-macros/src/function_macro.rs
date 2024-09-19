@@ -1,7 +1,6 @@
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, ExprPath, ItemFn};
+use syn::{parse_macro_input, parse_quote, ItemFn};
 use turbo_tasks_macros_shared::{get_native_function_id_ident, get_native_function_ident};
 
 use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
@@ -40,7 +39,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         .unwrap_or_default();
     let local_cells = args.local_cells.is_some();
 
-    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
+    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args, *block) else {
         return quote! {
             // An error occurred while parsing the function signature.
         }
@@ -49,14 +48,13 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let ident = &sig.ident;
 
-    let inline_function_ident = Ident::new(&format!("{ident}_inline_function"), ident.span());
-    let inline_function_path: ExprPath = parse_quote! { #inline_function_ident };
-    let mut inline_signature = sig.clone();
-    inline_signature.ident = inline_function_ident;
+    let inline_function_ident = turbo_fn.inline_ident();
+    let inline_signature = turbo_fn.inline_signature();
+    let inline_block = turbo_fn.inline_block();
 
     let native_fn = NativeFn::new(
         &ident.to_string(),
-        &inline_function_path,
+        &parse_quote! { #inline_function_ident },
         turbo_fn.is_method(),
         local_cells,
     );
@@ -77,7 +75,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
 
         #(#attrs)*
         #[doc(hidden)]
-        #inline_signature #block
+        #inline_signature #inline_block
 
         #[doc(hidden)]
         pub(crate) static #native_function_ident: #native_function_ty = #native_function_def;

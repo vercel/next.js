@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, iter};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
@@ -9,15 +9,14 @@ use syn::{
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
     token::Paren,
-    AngleBracketedGenericArguments, Block, Expr, ExprPath, FnArg, GenericArgument, Meta, Pat,
-    PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType, Signature, Token,
-    Type, TypeGroup, TypePath, TypeTuple,
+    AngleBracketedGenericArguments, Block, Expr, ExprBlock, ExprLet, ExprPath, FnArg,
+    GenericArgument, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver,
+    ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
 };
 
 #[derive(Debug)]
 pub struct TurboFn {
-    // signature: Signature,
-    // block: Block,
+    /// Identifier of the exposed function (same as the original function's name).
     ident: Ident,
     output: Type,
     this: Option<Input>,
@@ -26,6 +25,21 @@ pub struct TurboFn {
     resolved: Option<Span>,
     /// Should this function use `TaskPersistence::LocalCells`?
     local_cells: bool,
+
+    /// Signature for the "inline" function. The inline function is the function with minimal
+    /// changes that's called by the turbo-tasks framework during scheduling.
+    ///
+    /// This is in contrast to the "exposed" function, which is the public function that the user
+    /// should call.
+    ///
+    /// This function signature should match the name given by [`Self::inline_ident`].
+    inline_signature: Signature,
+
+    /// Identifier of the inline function (a mangled version of the original function's name).
+    inline_ident: Ident,
+
+    /// A minimally wrapped version of the original function block.
+    inline_block: Block,
 }
 
 #[derive(Debug)]
@@ -36,12 +50,13 @@ pub struct Input {
 
 impl TurboFn {
     pub fn new(
-        original_signature: &Signature,
+        orig_signature: &Signature,
         definition_context: DefinitionContext,
         args: FunctionArguments,
+        orig_block: Block,
     ) -> Option<TurboFn> {
-        if !original_signature.generics.params.is_empty() {
-            original_signature
+        if !orig_signature.generics.params.is_empty() {
+            orig_signature
                 .generics
                 .span()
                 .unwrap()
@@ -53,8 +68,8 @@ impl TurboFn {
             return None;
         }
 
-        if original_signature.generics.where_clause.is_some() {
-            original_signature
+        if orig_signature.generics.where_clause.is_some() {
+            orig_signature
                 .generics
                 .where_clause
                 .span()
@@ -67,7 +82,7 @@ impl TurboFn {
             return None;
         }
 
-        let mut raw_inputs = original_signature.inputs.iter();
+        let mut raw_inputs = orig_signature.inputs.iter();
         let mut this = None;
         let mut inputs = Vec::with_capacity(raw_inputs.len());
 
@@ -251,15 +266,104 @@ impl TurboFn {
             }
         }
 
-        let output = return_type_to_type(&original_signature.output);
+        let output = return_type_to_type(&orig_signature.output);
+
+        let original_ident = &orig_signature.ident;
+        let inline_ident = Ident::new(
+            // Hygiene: This should use `.resolved_at(Span::def_site())`, but that's unstable, so
+            // instead we just pick a long, unique name
+            &format!("{original_ident}_turbo_tasks_function_inline"),
+            original_ident.span(),
+        );
+        let inline_signature = Signature {
+            ident: inline_ident.clone(),
+            inputs: orig_signature
+                .inputs
+                .iter()
+                .enumerate()
+                .map(|(idx, arg)| match arg {
+                    FnArg::Receiver(_) => arg.clone(),
+                    FnArg::Typed(pat_type) => {
+                        // arbitrary self types aren't `FnArg::Receiver` on syn 1.x (fixed in 2.x)
+                        if let Pat::Ident(pat_id) = &*pat_type.pat {
+                            // TODO: Support `self: ResolvedVc<Self>`
+                            if pat_id.ident == "self" {
+                                return arg.clone();
+                            }
+                        }
+                        FnArg::Typed(PatType {
+                            pat: Box::new(Pat::Ident(PatIdent {
+                                attrs: Vec::new(),
+                                by_ref: None,
+                                mutability: None,
+                                ident: Ident::new(&format!("arg{idx}"), pat_type.pat.span()),
+                                subpat: None,
+                            })),
+                            ty: Box::new(expand_task_input_type(&pat_type.ty)),
+                            ..pat_type.clone()
+                        })
+                    }
+                })
+                .collect(),
+            ..orig_signature.clone()
+        };
+
+        let inline_block = {
+            let stmts: Vec<Stmt> = orig_signature
+                .inputs
+                .iter()
+                .enumerate()
+                .filter_map(|(idx, arg)| match arg {
+                    FnArg::Receiver(_) => None,
+                    FnArg::Typed(pat_type) => {
+                        if let Pat::Ident(pat_id) = &*pat_type.pat {
+                            // TODO: Support `self: ResolvedVc<Self>`
+                            if pat_id.ident == "self" {
+                                return None;
+                            }
+                        }
+                        let arg_ident = Ident::new(&format!("arg{idx}"), pat_type.span());
+                        let ty = &*pat_type.ty;
+                        Some(Stmt::Semi(
+                            Expr::Let(ExprLet {
+                                attrs: Vec::new(),
+                                let_token: Default::default(),
+                                pat: *pat_type.pat.clone(),
+                                eq_token: Default::default(),
+                                expr: parse_quote! {
+                                    {
+                                        use turbo_tasks::task::FromTaskInput;
+                                        turbo_tasks::macro_helpers::AutoFromTaskInput::<#ty>
+                                            ::from_task_input(#arg_ident).0
+                                    }
+                                },
+                            }),
+                            Default::default(),
+                        ))
+                    }
+                })
+                .chain(iter::once(Stmt::Expr(Expr::Block(ExprBlock {
+                    attrs: Vec::new(),
+                    label: None,
+                    block: orig_block,
+                }))))
+                .collect();
+            Block {
+                brace_token: Default::default(),
+                stmts,
+            }
+        };
 
         Some(TurboFn {
-            ident: original_signature.ident.clone(),
+            ident: original_ident.clone(),
             output,
             this,
             inputs,
             resolved: args.resolved,
             local_cells: args.local_cells.is_some(),
+            inline_signature,
+            inline_block,
+            inline_ident,
         })
     }
 
@@ -273,8 +377,7 @@ impl TurboFn {
             .chain(self.inputs.iter())
             .map(|input| {
                 FnArg::Typed(PatType {
-                    attrs: Default::default(),
-                    ty: Box::new(input.ty.clone()),
+                    attrs: Vec::new(),
                     pat: Box::new(Pat::Ident(PatIdent {
                         attrs: Default::default(),
                         by_ref: None,
@@ -283,6 +386,7 @@ impl TurboFn {
                         subpat: None,
                     })),
                     colon_token: Default::default(),
+                    ty: Box::new(expand_task_input_type(&input.ty)),
                 })
             })
             .collect();
@@ -302,6 +406,18 @@ impl TurboFn {
         parse_quote! {
             #signature where Self: Sized
         }
+    }
+
+    pub fn inline_signature(&self) -> &Signature {
+        &self.inline_signature
+    }
+
+    pub fn inline_ident(&self) -> &Ident {
+        &self.inline_ident
+    }
+
+    pub fn inline_block(&self) -> &Block {
+        &self.inline_block
     }
 
     fn input_idents(&self) -> impl Iterator<Item = &Ident> {
@@ -557,6 +673,96 @@ fn return_type_to_type(return_type: &ReturnType) -> Type {
     match return_type {
         ReturnType::Default => parse_quote! { () },
         ReturnType::Type(_, ref return_type) => (**return_type).clone(),
+    }
+}
+
+/// Approximates the conversion of type `T` to `<T as FromTaskInput>::TaskInput` (in combination
+/// with the `AutoFromTaskInput` specialization hack).
+///
+/// This expansion happens manually here for a couple reasons:
+/// - While it's possible to simulate specialization of methods (with inherent impls, autoref, or
+///   autoderef) there's currently no way to simulate specialization of type aliases on stable rust.
+/// - Replacing arguments with types like `<T as FromTaskInput>::TaskInput` would make function
+///   signatures illegible in the resulting rustdocs.
+fn expand_task_input_type(orig_input: &Type) -> Type {
+    match orig_input {
+        Type::Group(TypeGroup { elem, .. }) => expand_task_input_type(elem),
+        Type::Path(TypePath {
+            qself: None,
+            path: Path {
+                leading_colon,
+                segments,
+            },
+        }) => {
+            enum PathMatch {
+                Empty,
+                StdMod,
+                VecMod,
+                Vec,
+                OptionMod,
+                Option,
+                TurboTasksMod,
+                ResolvedVc,
+            }
+
+            let mut path_match = PathMatch::Empty;
+            let has_leading_colon = leading_colon.is_some();
+            for segment in segments {
+                path_match = match (has_leading_colon, path_match, &segment.ident) {
+                    (_, PathMatch::Empty, id) if id == "std" || id == "core" || id == "alloc" => {
+                        PathMatch::StdMod
+                    }
+
+                    (_, PathMatch::StdMod, id) if id == "vec" => PathMatch::VecMod,
+                    (false, PathMatch::Empty | PathMatch::VecMod, id) if id == "Vec" => {
+                        PathMatch::Vec
+                    }
+
+                    (_, PathMatch::StdMod, id) if id == "option" => PathMatch::OptionMod,
+                    (false, PathMatch::Empty | PathMatch::OptionMod, id) if id == "Option" => {
+                        PathMatch::Option
+                    }
+
+                    (_, PathMatch::Empty, id) if id == "turbo_tasks" => PathMatch::TurboTasksMod,
+                    (false, PathMatch::Empty | PathMatch::TurboTasksMod, id)
+                        if id == "ResolvedVc" =>
+                    {
+                        PathMatch::ResolvedVc
+                    }
+
+                    // some type we don't have an expansion for
+                    _ => return orig_input.clone(),
+                }
+            }
+
+            let mut segments = segments.clone();
+            let last_segment = segments.last_mut().expect("segments is non-empty");
+            match path_match {
+                PathMatch::Vec | PathMatch::Option => {
+                    if let PathArguments::AngleBracketed(AngleBracketedGenericArguments {
+                        args,
+                        ..
+                    }) = &mut last_segment.arguments
+                    {
+                        if let Some(GenericArgument::Type(first_arg)) = args.first_mut() {
+                            *first_arg = expand_task_input_type(first_arg);
+                        }
+                    }
+                }
+                PathMatch::ResolvedVc => {
+                    last_segment.ident = Ident::new("Vc", last_segment.ident.span())
+                }
+                _ => {}
+            }
+            Type::Path(TypePath {
+                qself: None,
+                path: Path {
+                    leading_colon: *leading_colon,
+                    segments,
+                },
+            })
+        }
+        _ => orig_input.clone(),
     }
 }
 

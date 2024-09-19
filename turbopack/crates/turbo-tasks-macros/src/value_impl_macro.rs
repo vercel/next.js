@@ -6,7 +6,7 @@ use syn::{
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
-    Attribute, Error, ExprPath, Generics, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
+    Attribute, Error, Generics, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
     MetaNameValue, Path, Result, Token, Type,
 };
 use turbo_tasks_macros_shared::{
@@ -121,24 +121,23 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .unwrap_or_default();
                 let local_cells = func_args.local_cells.is_some();
 
-                // TODO(alexkirsz) These should go into their own utilities.
-                let inline_function_ident: Ident =
-                    Ident::new(&format!("{}_inline", ident), ident.span());
-                let inline_function_path: ExprPath = parse_quote! { <#ty>::#inline_function_ident };
-                let mut inline_signature = sig.clone();
-                inline_signature.ident = inline_function_ident;
-
-                let Some(turbo_fn) =
-                    TurboFn::new(sig, DefinitionContext::ValueInherentImpl, func_args)
-                else {
+                let Some(turbo_fn) = TurboFn::new(
+                    sig,
+                    DefinitionContext::ValueInherentImpl,
+                    func_args,
+                    block.clone(),
+                ) else {
                     return quote! {
                         // An error occurred while parsing the function signature.
                     };
                 };
+                let inline_function_ident = turbo_fn.inline_ident();
+                let inline_signature = turbo_fn.inline_signature();
+                let inline_block = turbo_fn.inline_block();
 
                 let native_fn = NativeFn::new(
                     &format!("{ty}::{ident}", ty = ty.to_token_stream()),
-                    &inline_function_path,
+                    &parse_quote! { <#ty>::#inline_function_ident },
                     turbo_fn.is_method(),
                     local_cells,
                 );
@@ -175,7 +174,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #(#attrs)*
                         #[doc(hidden)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
-                        pub(self) #inline_signature #block
+                        pub(self) #inline_signature #inline_block
                     }
 
                     #[doc(hidden)]
@@ -227,25 +226,24 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .unwrap_or_default();
                 let local_cells = func_args.local_cells.is_some();
 
-                let Some(turbo_fn) =
-                    TurboFn::new(sig, DefinitionContext::ValueTraitImpl, func_args)
-                else {
+                let Some(turbo_fn) = TurboFn::new(
+                    sig,
+                    DefinitionContext::ValueTraitImpl,
+                    func_args,
+                    block.clone(),
+                ) else {
                     return quote! {
                         // An error occurred while parsing the function signature.
                     };
                 };
 
-                // TODO(alexkirsz) These should go into their own utilities.
-                let inline_function_ident: Ident =
-                    Ident::new(&format!("{}_inline", ident), ident.span());
+                let inline_function_ident = turbo_fn.inline_ident();
                 let inline_extension_trait_ident = Ident::new(
                     &format!("{}_{}_{}_inline", ty_ident, trait_ident, ident),
                     ident.span(),
                 );
-                let inline_function_path: ExprPath =
-                    parse_quote! { <#ty as #inline_extension_trait_ident>::#inline_function_ident };
-                let mut inline_signature = sig.clone();
-                inline_signature.ident = inline_function_ident;
+                let inline_signature = turbo_fn.inline_signature();
+                let inline_block = turbo_fn.inline_block();
 
                 let native_fn = NativeFn::new(
                     &format!(
@@ -253,7 +251,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         ty = ty.to_token_stream(),
                         trait_path = trait_path.to_token_stream()
                     ),
-                    &inline_function_path,
+                    &parse_quote! {
+                        <#ty as #inline_extension_trait_ident>::#inline_function_ident
+                    },
                     turbo_fn.is_method(),
                     local_cells,
                 );
@@ -306,7 +306,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #(#attrs)*
                         #[doc(hidden)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
-                        #inline_signature #block
+                        #inline_signature #inline_block
                     }
 
                     #[doc(hidden)]

@@ -92,6 +92,9 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             sig,
             DefinitionContext::ValueTrait,
             FunctionArguments::default(),
+            default.clone().unwrap_or_else(|| {
+                parse_quote!({ ::std::compile_error!("default block should not exist") })
+            }),
         ) else {
             return quote! {
                 // An error occurred while parsing the function signature.
@@ -106,15 +109,14 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             #turbo_signature #dynamic_block
         });
 
-        let default = if let Some(block) = default {
+        let default = if default.is_some() {
             // TODO(alexkirsz) These should go into their own utilities.
-            let inline_function_ident: Ident =
-                Ident::new(&format!("{}_inline", ident), ident.span());
+            let inline_function_ident = turbo_fn.inline_ident();
             let inline_extension_trait_ident =
                 Ident::new(&format!("{}_{}_inline", trait_ident, ident), ident.span());
             let inline_function_path: ExprPath = parse_quote! { <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident };
-            let mut inline_signature = sig.clone();
-            inline_signature.ident = inline_function_ident;
+            let inline_signature = turbo_fn.inline_signature();
+            let inline_block = turbo_fn.inline_block();
 
             let native_function = NativeFn::new(
                 &format!("{trait_ident}::{ident}"),
@@ -164,7 +166,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     const #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
 
                     #(#attrs)*
-                    #inline_signature #block
+                    #inline_signature #inline_block
                 }
 
                 #[doc(hidden)]
