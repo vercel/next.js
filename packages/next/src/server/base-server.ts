@@ -3119,10 +3119,7 @@ export default abstract class Server<
       isRoutePPREnabled
     ) {
       revalidate = 0
-    } else if (
-      typeof cacheEntry.revalidate !== 'undefined' &&
-      (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest))
-    ) {
+    } else if (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest)) {
       // If this is a preview mode request, we shouldn't cache it
       if (isPreviewMode) {
         revalidate = 0
