@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
 
+// cSpell:words lowcard highcard
 describe('dynamic-io', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
@@ -578,7 +579,7 @@ describe('dynamic-io', () => {
           expect(getLines('In route /params')).toEqual([])
         } else {
           // When dynamicIO is on and PPR is off the search params passed to a client page
-          // are enough to mark the whole route as dynamic. This is becuase we can't know if
+          // are enough to mark the whole route as dynamic. This is because we can't know if
           // you are going to use those searchParams in an update on the client so we can't infer
           // anything about your lack of use during SSR. In the future we will update searchParams
           // written to the client to actually derive those params from location and thus not
@@ -659,7 +660,7 @@ describe('dynamic-io', () => {
           expect(getLines('In route /params')).toEqual([])
         } else {
           // When dynamicIO is on and PPR is off the search params passed to a client page
-          // are enough to mark the whole route as dynamic. This is becuase we can't know if
+          // are enough to mark the whole route as dynamic. This is because we can't know if
           // you are going to use those searchParams in an update on the client so we can't infer
           // anything about your lack of use during SSR. In the future we will update searchParams
           // written to the client to actually derive those params from location and thus not
@@ -1395,7 +1396,7 @@ describe('dynamic-io', () => {
         }
       })
 
-      it('should render pages that access params synchronouslyin a server component when not prebuilt', async () => {
+      it('should render pages that access params synchronously in a server component when not prebuilt', async () => {
         expect(getLines('In route /params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/run/sync/layout-access/server'
@@ -1556,7 +1557,7 @@ describe('dynamic-io', () => {
         expect(getLines('In route /params')).toEqual([])
       } else {
         if (WITH_PPR) {
-          // With PPR fallbacks the first visit is fulluy prerendered
+          // With PPR fallbacks the first visit is fully prerendered
           // because has-checking doesn't postpone even with ppr fallbacks
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -1591,7 +1592,7 @@ describe('dynamic-io', () => {
         expect(getLines('In route /params')).toEqual([])
       } else {
         if (WITH_PPR) {
-          // With PPR fallbacks the first visit is fulluy prerendered
+          // With PPR fallbacks the first visit is fully prerendered
           // because has-checking doesn't postpone even with ppr fallbacks
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -1662,7 +1663,7 @@ describe('dynamic-io', () => {
           expect(getLines('In route /params')).toEqual([])
         } else {
           // When dynamicIO is on and PPR is off the search params passed to a client page
-          // are enough to mark the whole route as dynamic. This is becuase we can't know if
+          // are enough to mark the whole route as dynamic. This is because we can't know if
           // you are going to use those searchParams in an update on the client so we can't infer
           // anything about your lack of use during SSR. In the future we will update searchParams
           // written to the client to actually derive those params from location and thus not
@@ -1690,7 +1691,7 @@ describe('dynamic-io', () => {
         expect(getLines('In route /params')).toEqual([])
       } else {
         if (WITH_PPR) {
-          // With PPR fallbacks the first visit is fulluy prerendered
+          // With PPR fallbacks the first visit is fully prerendered
           // because has-checking doesn't postpone even with ppr fallbacks
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -1739,7 +1740,7 @@ describe('dynamic-io', () => {
           expect(getLines('In route /params')).toEqual([])
         } else {
           // When dynamicIO is on and PPR is off the search params passed to a client page
-          // are enough to mark the whole route as dynamic. This is becuase we can't know if
+          // are enough to mark the whole route as dynamic. This is because we can't know if
           // you are going to use those searchParams in an update on the client so we can't infer
           // anything about your lack of use during SSR. In the future we will update searchParams
           // written to the client to actually derive those params from location and thus not
