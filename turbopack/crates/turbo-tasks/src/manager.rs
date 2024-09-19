@@ -1044,15 +1044,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
         }
     }
 
-    pub async fn wait_primary_jobs_done(&self) {
-        let listener = self
-            .event
-            .listen_with_note(|| "wait_primary_jobs_done".to_string());
-        if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
-            listener.await;
-        }
-    }
-
     pub async fn wait_background_done(&self) {
         let listener = self.event_background.listen();
         if self
