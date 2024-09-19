@@ -12,7 +12,7 @@ export default function Page() {
         hello world
       </MyLink>
       <SideEffectsArrayComponent id="vendor-side-effects-array" />
-      <SideEffectsComponent id="vendor-side-effect-true" />
+      <SideEffectsComponent id="vendor-side-effects-true" />
       <SideEffectsFalseComponent id="vendor-side-effects-false" />
       <Nav />
     </div>

@@ -214,12 +214,14 @@ const PAGES: Record<
     group: 'vendor',
     url: '/vendor',
     selector: '#vendor-side-effects-true',
+    background: 'rgb(0, 253, 0)',
     color: 'rgb(253, 0, 0)',
   },
   'vendor-side-effects-false': {
     group: 'vendor',
     url: '/vendor',
     selector: '#vendor-side-effects-false',
+    background: 'rgb(0, 252, 0)',
     color: 'rgb(252, 0, 0)',
   },
 }
