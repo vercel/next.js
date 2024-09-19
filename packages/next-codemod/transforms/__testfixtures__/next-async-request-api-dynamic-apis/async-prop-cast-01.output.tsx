@@ -3,7 +3,7 @@ import {
   headers,
   cookies,
   draftMode,
-  type DangerouslyUnwrapCookie,
+  type DangerouslyUnwrapCookies,
   type DangerouslyUnwrapHeaders,
   type DangerouslyUnwrapDraftMode,
 } from 'next/headers';
@@ -17,7 +17,7 @@ if ((draftMode() as unknown as DangerouslyUnwrapDraftMode).isEnabled) {
 }
 
 export function MyCookiesComponent() {
-  const c = (cookies() as unknown as DangerouslyUnwrapCookie)
+  const c = (cookies() as unknown as DangerouslyUnwrapCookies)
   return c.get('name')
 }
 

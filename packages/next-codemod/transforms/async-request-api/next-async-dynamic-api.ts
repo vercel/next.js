@@ -65,7 +65,9 @@ function findImportedIdentifier(
       source: { value: 'next/headers' },
     })
     .find(j.ImportSpecifier, {
-      imported: { name: functionName },
+      imported: {
+        name: functionName,
+      },
     })
     .forEach((importSpecifier) => {
       importedAlias = importSpecifier.node.local.name
@@ -130,7 +132,8 @@ export function transformDynamicAPI(
           .nodes()
           .some((node) => node.async)
 
-        const isCallAwaited = j(path).closest(j.AwaitExpression).size() > 0
+        const isCallAwaited =
+          closestFunction.closest(j.AwaitExpression).size() > 0
 
         // For cookies/headers API, only transform server and shared components
         if (isAsyncFunction) {
@@ -284,7 +287,7 @@ function isClientComponentAst(j: API['j'], root: Collection<any>) {
 
 // cast to unknown first, then the specific type
 const API_CAST_TYPE_MAP = {
-  cookies: 'DangerouslyUnwrapCookie',
+  cookies: 'DangerouslyUnwrapCookies',
   headers: 'DangerouslyUnwrapHeaders',
   draftMode: 'DangerouslyUnwrapDraftMode',
 }
@@ -301,15 +304,15 @@ function castTypesOrAddComment(
     /* Do type cast for headers, cookies, draftMode
       import {
         type DangerouslyUnwrapHeaders,
-        type DangerouslyUnwrapCookie,
+        type DangerouslyUnwrapCookies,
         type DangerouslyUnwrapDraftMode
       } from 'next/headers'
       
-      cookies() as unknown as DangerouslyUnwrapCookie
+      cookies() as unknown as DangerouslyUnwrapCookies
       headers() as unknown as DangerouslyUnwrapHeaders
       draftMode() as unknown as DangerouslyUnwrapDraftMode
       
-      e.g. `<path>` is cookies(), convert it to `(<path> as unknown as DangerouslyUnwrapCookie)`
+      e.g. `<path>` is cookies(), convert it to `(<path> as unknown as DangerouslyUnwrapCookies)`
     */
 
     const targetType = API_CAST_TYPE_MAP[asyncRequestApiName]
