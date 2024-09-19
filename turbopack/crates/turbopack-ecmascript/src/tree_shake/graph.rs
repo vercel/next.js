@@ -209,8 +209,6 @@ pub(super) struct SplitModuleResult {
     /// Dependency between parts.
     pub part_deps: FxHashMap<u32, Vec<PartId>>,
     pub modules: Vec<Module>,
-
-    pub star_reexports: Vec<ExportAll>,
 }
 
 impl DepGraph {
@@ -554,6 +552,20 @@ impl DepGraph {
             modules.push(chunk);
         }
 
+        if !star_reexports.is_empty() {
+            // `Exports` module should export everything from the re-exported modules
+            exports_module
+                .body
+                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportAll(ExportAll {
+                    span: DUMMY_SP,
+                    src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                    type_only: false,
+                    with: Some(Box::new(create_turbopack_part_id_assert(
+                        PartId::StarReexports,
+                    ))),
+                })));
+        }
+
         for star in &star_reexports {
             reexports_module
                 .body
@@ -563,18 +575,6 @@ impl DepGraph {
         results.insert(Key::StarReexports, modules.len() as u32);
         modules.push(reexports_module);
 
-        // `Exports` module should export everything from the re-exported modules
-        exports_module
-            .body
-            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportAll(ExportAll {
-                span: DUMMY_SP,
-                src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                type_only: false,
-                with: Some(Box::new(create_turbopack_part_id_assert(
-                    PartId::StarReexports,
-                ))),
-            })));
-
         results.insert(Key::Exports, modules.len() as u32);
         modules.push(exports_module);
 
@@ -582,7 +582,6 @@ impl DepGraph {
             entrypoints: results,
             part_deps,
             modules,
-            star_reexports,
         }
     }
 

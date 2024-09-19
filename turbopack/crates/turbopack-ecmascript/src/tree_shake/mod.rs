@@ -7,8 +7,8 @@ use swc_core::{
     common::{comments::Comments, util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
     ecma::{
         ast::{
-            ExportAll, ExportNamedSpecifier, Expr, ExprStmt, Id, Ident, ImportDecl, Lit, Module,
-            ModuleDecl, ModuleExportName, ModuleItem, NamedExport, Program, Stmt,
+            ExportNamedSpecifier, Expr, ExprStmt, Id, Ident, ImportDecl, Lit, Module, ModuleDecl,
+            ModuleExportName, ModuleItem, NamedExport, Program, Stmt,
         },
         codegen::to_code,
     },
@@ -402,9 +402,6 @@ pub(crate) enum SplitResult {
 
         #[turbo_tasks(trace_ignore)]
         deps: FxHashMap<u32, Vec<PartId>>,
-
-        #[turbo_tasks(debug_ignore, trace_ignore)]
-        star_reexports: Vec<ExportAll>,
     },
     Failed {
         parse_result: Vc<ParseResult>,
@@ -510,7 +507,6 @@ pub(super) async fn split(
                 entrypoints,
                 part_deps,
                 modules,
-                star_reexports,
             } = dep_graph.split_module(&directives, &items);
 
             eprintln!("# Program ({name})\n{}", to_code(&program));
@@ -555,7 +551,6 @@ pub(super) async fn split(
                 entrypoints,
                 deps: part_deps,
                 modules,
-                star_reexports,
             }
             .cell())
         }
@@ -580,7 +575,6 @@ pub(crate) async fn part_of_module(
             modules,
             entrypoints,
             deps,
-            star_reexports,
             ..
         } => {
             debug_assert_ne!(modules.len(), 0, "modules.len() == 0");
@@ -650,10 +644,6 @@ pub(crate) async fn part_of_module(
                                 ))),
                             },
                         )));
-
-                    module.body.extend(star_reexports.iter().map(|export_all| {
-                        ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export_all.clone()))
-                    }));
 
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(
