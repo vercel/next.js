@@ -4,7 +4,7 @@ class Plan extends React.Component {
     const { router} = this.props
 
     return (
-      <Page>
+      (<Page>
         <Header
           user={user}
           pathname={router.pathname}
@@ -19,7 +19,7 @@ class Plan extends React.Component {
           user={user}
           url={router}
         />
-      </Page>
+      </Page>)
     );
   }
 }
