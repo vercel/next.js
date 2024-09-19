@@ -199,10 +199,25 @@ impl Module for EcmascriptModulePartAsset {
                 }
             }
 
+            let reference = Vc::upcast(SingleModuleReference::new(
+                Vc::upcast(EcmascriptModulePartAsset::new(
+                    self.full_module,
+                    ModulePart::reexports(),
+                )),
+                Vc::cell("reexport".into()),
+            ));
+
+            references.push(reference);
+
             references.extend(analyze.references.await?.iter().cloned());
 
             return Ok(Vc::cell(references));
         }
+
+        if matches!(&*self.part.await?, ModulePart::Reexports) {
+            return Ok(analyze.references);
+        }
+
         let deps = {
             let part_id = get_part_id(&split_data, self.part)
                 .await

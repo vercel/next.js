@@ -294,6 +294,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
             &*module.await?.part.await?,
             ModulePart::Evaluation
                 | ModulePart::Exports
+                | ModulePart::Reexports
                 | ModulePart::Facade
                 | ModulePart::Internal(..)
         ) {

@@ -104,7 +104,14 @@ impl Module for EcmascriptModuleFacadeModule {
                     self.module,
                     ModulePart::locals(),
                 )));
+                references.push(Vc::upcast(EcmascriptModulePartReference::new_part(
+                    self.module,
+                    ModulePart::reexports(),
+                )));
                 references
+            }
+            ModulePart::Reexports { .. } => {
+                vec![]
             }
             ModulePart::Facade => {
                 vec![
@@ -264,7 +271,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {
         Ok(match *self.ty.await? {
-            ModulePart::Evaluation | ModulePart::Facade => self
+            ModulePart::Evaluation | ModulePart::Facade | ModulePart::Reexports => self
                 .module
                 .is_marked_as_side_effect_free(side_effect_free_packages),
             ModulePart::Exports
