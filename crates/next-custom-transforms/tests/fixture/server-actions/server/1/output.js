@@ -2,7 +2,7 @@
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import deleteFromDb from 'db';
 export function Item({ id1, id2 }) {
-    var deleteItem = $$ACTION_0.bind(null, encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
+    var deleteItem = registerServerReference("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0).bind(null, encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         id1,
         id2
     ]));
@@ -13,10 +13,6 @@ export async function $$ACTION_0($$ACTION_CLOSURE_BOUND) {
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb($$ACTION_ARG_1);
 }
-export const foo = Item()
-
-registerServerReference("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0);
-
 export default function Home() {
     const info = {
         name: 'John',

@@ -1,7 +1,9 @@
 'use cache'
 
-const my_fn = async () => {
-  return 'data'
+export async function foo() {
+  return 'data A'
 }
 
-export { my_fn }
+export async function bar() {
+  return 'data B'
+}

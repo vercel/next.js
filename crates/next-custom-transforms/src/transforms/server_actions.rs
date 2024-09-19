@@ -771,7 +771,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
-        if !(self.in_cache_file && self.in_export_decl) {
+        if is_cache_fn && !(self.in_cache_file && self.in_export_decl) {
             // It's an action function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
                 None => {
@@ -806,7 +806,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        if !(self.in_action_file && self.in_export_decl) {
+        if is_action_fn && !(self.in_action_file && self.in_export_decl) {
             // It's an action function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
                 None => {
@@ -1881,6 +1881,7 @@ fn remove_server_directive_index_in_module(
                                     .emit()
                             });
                         }
+                        return false;
                     } else {
                         HANDLER.with(|handler| {
                             handler
@@ -1895,6 +1896,7 @@ fn remove_server_directive_index_in_module(
                     if is_directive {
                         *in_cache_file = true;
                         *has_cache = true;
+                        return false;
                     } else {
                         HANDLER.with(|handler| {
                             handler
