@@ -16,7 +16,7 @@ const IP_ADDRESS = 'ipAddress'
 const GEO_TYPE = 'Geo'
 
 export default function (fileInfo: FileInfo, api: API) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const ast = j(fileInfo.source)
 
   if (!ast.length) {
