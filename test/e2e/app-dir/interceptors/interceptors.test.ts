@@ -119,14 +119,9 @@ describe('interceptors', () => {
 
     const cliOutput = next.cliOutput.slice(cliOutputLength)
 
-    const cleanedOutput = cliOutput
-      .replace(timeStampRegExp, '')
-      // TODO(interceptors): the _rsc query param should not be exposed here.
-      .replace(/\?_rsc=\w+/, '')
-
     // We expect the full interceptor chain to be executed again, even if only
-    // the page is rendered because the layouts are shared.
-    expect(cleanedOutput).toMatch(outdent`
+    // the page is rendered (because the layouts are shared).
+    expect(cliOutput.replace(timeStampRegExp, '')).toMatch(outdent`
       RootInterceptor, start
       URL: http://localhost:${next.appPort}/nested/bar
       RootInterceptor, finish

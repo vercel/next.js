@@ -7,6 +7,7 @@ import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
 import { isNodeNextRequest, isWebNextRequest } from '../../../base-http/helpers'
+import { stripInternalSearchParams } from '../../../internal-utils'
 
 export const ResponseAbortedName = 'ResponseAborted'
 export class ResponseAborted extends Error {
@@ -88,7 +89,7 @@ export class NextRequestAdapter {
       body = request.body
     }
 
-    return new NextRequest(createUrl(request), {
+    return new NextRequest(createUrl(request, { isEdge: false }), {
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -115,7 +116,7 @@ export class NextRequestAdapter {
       body = request.body
     }
 
-    return new NextRequest(createUrl(request), {
+    return new NextRequest(createUrl(request, { isEdge: true }), {
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -136,7 +137,10 @@ export class NextRequestAdapter {
   }
 }
 
-function createUrl(request: BaseNextRequest): URL {
+function createUrl(
+  request: BaseNextRequest,
+  options: { isEdge: boolean }
+): URL {
   let url: URL
 
   if (request.url.startsWith('http')) {
@@ -154,5 +158,5 @@ function createUrl(request: BaseNextRequest): URL {
     }
   }
 
-  return url
+  return stripInternalSearchParams(url, options)
 }

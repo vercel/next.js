@@ -21,7 +21,7 @@ export function stripInternalQueries(query: NextParsedUrlQuery) {
 
 export function stripInternalSearchParams<T extends string | URL>(
   url: T,
-  isEdge: boolean
+  { isEdge }: { isEdge: boolean }
 ): T {
   const isStringUrl = typeof url === 'string'
   const instance = isStringUrl ? new URL(url) : (url as URL)

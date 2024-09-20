@@ -134,8 +134,6 @@ export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
     draftMode?: DraftModeProvider
   } = {}
 
-  // TODO(interceptors): This may not be needed. Use same request as for route
-  // handlers instead.
   const nextRequest =
     req instanceof NextRequest
       ? req
