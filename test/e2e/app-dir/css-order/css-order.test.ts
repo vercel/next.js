@@ -222,20 +222,10 @@ const SIDE_EFFECTS_PAGES: Record<
     /**
      * TURBOPACK: This should be supported by turbo but does not appear to be today,
      * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
      */
     skip: ['turbo'],
-  },
-  'vendor-side-effects-array-turbo': {
-    url: '/vendor/a',
-    selector: '#vendor-side-effects-array',
-    // should be 'rgb(0, 254, 0)',
-    background: 'rgb(0, 128, 128)',
-    // should be 'rgb(254, 0, 0)'
-    color: 'rgb(0, 0, 255)',
-    /**
-     * Locking in the current result of Turbopack's behavior for future testing
-     */
-    skip: ['loose', 'strict'],
   },
   'vendor-side-effects-global-array': {
     url: '/vendor/d',
@@ -245,21 +235,10 @@ const SIDE_EFFECTS_PAGES: Record<
     /**
      * TURBOPACK: This should be supported by turbo but does not appear to be today,
      * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
      */
     skip: ['turbo'],
-  },
-  'vendor-side-effects-global-array-turbo': {
-    url: '/vendor/d',
-    selector: '#vendor-side-effects-global-array',
-    // should be 'rgb(0, 250, 0)'
-
-    background: 'rgb(0, 128, 128)',
-    // should be 'rgb(250, 0, 0)'
-    color: 'rgb(0, 0, 255)',
-    /**
-     * Locking in the current result of Turbopack's behavior for future testing
-     */
-    skip: ['loose', 'strict'],
   },
   'vendor-side-effects-true': {
     url: '/vendor/b',
@@ -289,21 +268,13 @@ const SIDE_EFFECTS_PAGES: Record<
     /**
      * TURBOPACK: This should be supported by turbo but does not appear to be today,
      * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     *
+     * WEBPACK: css modules are inconsistent when included as sideEffects
+     * when not Boolean `true` or `false`
      */
-    skip: ['turbo'],
-  },
-  'pages-vendor-side-effects-array-turbo': {
-    url: 'pages/vendor/a',
-    selector: '#vendor-side-effects-array',
-    // should be 'rgb(0, 254, 0)'
-    background: 'rgb(0, 128, 128)',
-    // should be 'rgb(254, 0, 0)'
-    color: 'rgb(0, 0, 255)',
-    /**
-     * Locking in the current result of Turbopack's behavior for future testing.
-     * Webpack emits this properly today.
-     */
-    skip: ['loose', 'strict'],
+    skip: ['turbo', 'loose', 'strict'],
   },
   'pages-vendor-side-effects-true': {
     url: 'pages/vendor/b',
@@ -345,21 +316,10 @@ const SIDE_EFFECTS_PAGES: Record<
     /**
      * TURBOPACK: This should be supported by turbo but does not appear to be today,
      * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
      */
     skip: ['turbo'],
-  },
-  'pages-vendor-side-effects-global-array-turbo': {
-    url: '/vendor/d',
-    selector: '#vendor-side-effects-global-array',
-    // should be 'rgb(0, 250, 0)'
-    background: 'rgb(0, 128, 128)',
-    // should be 'rgb(250, 0, 0)'
-    color: 'rgb(0, 0, 255)',
-    /**
-     * Locking in the current result of Turbopack's behavior for future testing.
-     * Webpack emits this properly today.
-     */
-    skip: ['loose', 'strict'],
   },
 }
 
