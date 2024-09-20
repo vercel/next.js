@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function IndexPage() {
+export default function Home() {
   return (
     <div className="main">
       <Link href="/birds">Birds Example</Link>
