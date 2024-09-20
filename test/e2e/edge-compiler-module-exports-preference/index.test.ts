@@ -5,6 +5,13 @@ import { fetchViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
 describe('Edge compiler module exports preference', () => {
   let next: NextInstance
 
+  if ((global as any).isNextDeploy) {
+    // this test is skipped when deployed because it manually creates a package in the node_modules directory
+    // which is unsupported
+    it('should skip next deploy', () => {})
+    return
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: {

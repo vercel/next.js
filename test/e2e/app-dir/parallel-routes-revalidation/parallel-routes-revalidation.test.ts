@@ -2,43 +2,46 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 
 describe('parallel-routes-revalidation', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
-  it('should submit the action and revalidate the page data', async () => {
-    const browser = await next.browser('/')
-    await check(() => browser.hasElementByCssSelector('#create-entry'), false)
+  // This test is skipped when deployed as it relies on a shared data store
+  // For testing purposes we just use an in-memory object, but when deployed
+  // this could hit a separate lambda instance that won't share the same reference
+  if (!isNextDeploy) {
+    it('should submit the action and revalidate the page data', async () => {
+      const browser = await next.browser('/')
+      await check(() => browser.hasElementByCssSelector('#create-entry'), false)
 
-    // there shouldn't be any data yet
-    expect((await browser.elementsByCss('#entries li')).length).toBe(0)
+      // there shouldn't be any data yet
+      expect((await browser.elementsByCss('#entries li')).length).toBe(0)
 
-    await browser.elementByCss("[href='/revalidate-modal']").click()
+      await browser.elementByCss("[href='/revalidate-modal']").click()
 
-    await check(() => browser.hasElementByCssSelector('#create-entry'), true)
+      await check(() => browser.hasElementByCssSelector('#create-entry'), true)
 
-    await browser.elementById('create-entry').click()
+      await browser.elementById('create-entry').click()
 
-    // we created an entry and called revalidate, so we should have 1 entry
-    await check(
-      async () => (await browser.elementsByCss('#entries li')).length,
-      1
-    )
+      // we created an entry and called revalidate, so we should have 1 entry
+      await retry(async () => {
+        expect((await browser.elementsByCss('#entries li')).length).toBe(1)
+      })
 
-    await browser.elementById('create-entry').click()
+      await browser.elementById('create-entry').click()
 
-    // we created an entry and called revalidate, so we should have 2 entries
-    await check(
-      async () => (await browser.elementsByCss('#entries li')).length,
-      2
-    )
+      // we created an entry and called revalidate, so we should have 2 entries
+      await retry(async () => {
+        expect((await browser.elementsByCss('#entries li')).length).toBe(2)
+      })
 
-    await browser.elementByCss("[href='/']").click()
+      await browser.elementByCss("[href='/']").click()
 
-    // following a link back to `/` should close the modal
-    await check(() => browser.hasElementByCssSelector('#create-entry'), false)
-    await check(() => browser.elementByCss('body').text(), /Current Data/)
-  })
+      // following a link back to `/` should close the modal
+      await check(() => browser.hasElementByCssSelector('#create-entry'), false)
+      await check(() => browser.elementByCss('body').text(), /Current Data/)
+    })
+  }
 
   it('should handle router.refresh() when called in a slot', async () => {
     const browser = await next.browser('/')
@@ -182,28 +185,33 @@ describe('parallel-routes-revalidation', () => {
     )
   })
 
-  it('should refresh the correct page when a server action triggers a redirect', async () => {
-    const browser = await next.browser('/redirect')
-    await browser.elementByCss('button').click()
+  // This test is skipped when deployed as it relies on a shared data store
+  // For testing purposes we just use an in-memory object, but when deployed
+  // this could hit a separate lambda instance that won't share the same reference
+  if (!isNextDeploy) {
+    it('should refresh the correct page when a server action triggers a redirect', async () => {
+      const browser = await next.browser('/redirect')
+      await browser.elementByCss('button').click()
 
-    await browser.elementByCss("[href='/revalidate-modal']").click()
+      await browser.elementByCss("[href='/revalidate-modal']").click()
 
-    await check(() => browser.hasElementByCssSelector('#create-entry'), true)
+      await check(() => browser.hasElementByCssSelector('#create-entry'), true)
 
-    await browser.elementById('clear-entries').click()
+      await browser.elementById('clear-entries').click()
 
-    await retry(async () => {
-      // confirm there aren't any entries yet
-      expect((await browser.elementsByCss('#entries li')).length).toBe(0)
+      await retry(async () => {
+        // confirm there aren't any entries yet
+        expect((await browser.elementsByCss('#entries li')).length).toBe(0)
+      })
+
+      await browser.elementById('create-entry').click()
+
+      await retry(async () => {
+        // we created an entry and called revalidate, so we should have 1 entry
+        expect((await browser.elementsByCss('#entries li')).length).toBe(1)
+      })
     })
-
-    await browser.elementById('create-entry').click()
-
-    await retry(async () => {
-      // we created an entry and called revalidate, so we should have 1 entry
-      expect((await browser.elementsByCss('#entries li')).length).toBe(1)
-    })
-  })
+  }
 
   describe.each([
     { basePath: '/refreshing', label: 'regular', withSearchParams: false },
@@ -411,6 +419,41 @@ describe('parallel-routes-revalidation', () => {
         expect(await browser.elementById('page-now').text()).not.toEqual(
           currentPageTime
         )
+      })
+    })
+
+    it('should not trigger a refresh for the page that is being redirected to', async () => {
+      const rscRequests = []
+      const prefetchRequests = []
+      const browser = await next.browser('/redirect', {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              const pathname = new URL(req.url()).pathname
+
+              if (headers['next-router-prefetch']) {
+                prefetchRequests.push(pathname)
+              } else {
+                rscRequests.push(pathname)
+              }
+            }
+          })
+        },
+      })
+
+      await browser.elementByCss('button').click()
+      await browser.waitForElementByCss('#root-page')
+      await browser.waitForIdleNetwork()
+
+      await retry(async () => {
+        if (!isNextDev) {
+          expect(rscRequests.length).toBe(0)
+        }
+
+        if (isNextStart) {
+          expect(prefetchRequests.length).toBe(4)
+        }
       })
     })
   })

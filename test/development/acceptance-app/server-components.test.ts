@@ -541,7 +541,7 @@ describe('Error Overlay for server components', () => {
         ])
       )
 
-      expect(await session.hasRedbox()).toBe(true)
+      await session.assertHasRedbox()
       // In webpack when the message too long it gets truncated with `  | ` with new lines.
       // So we need to check for the first part of the message.
       const normalizedSource = await session.getRedboxSource()

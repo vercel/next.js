@@ -12,6 +12,7 @@ const customJestConfig = {
   roots: [
     '<rootDir>',
     '<rootDir>/../packages/next/src/',
+    '<rootDir>/../packages/next-codemod/',
     '<rootDir>/../packages/font/src/',
   ],
   modulePathIgnorePatterns: ['/\\.next/'],
@@ -20,6 +21,8 @@ const customJestConfig = {
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
+  // Re-add support for inline snapshots using prettier v2:
+  prettierPath: require.resolve('prettier-2'),
 }
 
 if (process.env.RECORD_REPLAY) {

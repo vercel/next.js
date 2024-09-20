@@ -20,7 +20,6 @@ import {
   SUBRESOURCE_INTEGRITY_MANIFEST,
   NEXT_FONT_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
-  PRERENDER_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
 } from '../../../shared/lib/constants'
 import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
@@ -28,7 +27,10 @@ import type { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
-import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
+import {
+  INSTRUMENTATION_HOOK_FILENAME,
+  WEBPACK_LAYERS,
+} from '../../../lib/constants'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import { getDynamicCodeEvaluationError } from './wellknown-errors-plugin/parse-dynamic-code-evaluation-error'
@@ -133,10 +135,6 @@ function getEntryFiles(
 
   if (hasInstrumentationHook) {
     files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
-  }
-
-  if (process.env.NODE_ENV === 'production') {
-    files.push(PRERENDER_MANIFEST.replace('json', 'js'))
   }
 
   files.push(
@@ -272,7 +270,8 @@ function buildWebpackError({
 }
 
 function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
-  return parser.state.module?.layer === 'middleware'
+  const layer = parser.state.module?.layer
+  return layer === WEBPACK_LAYERS.middleware || layer === WEBPACK_LAYERS.api
 }
 
 function isNodeJsModule(moduleName: string) {
@@ -849,7 +848,8 @@ export async function handleWebpackExternalForEdgeRuntime({
   getResolve: () => any
 }) {
   if (
-    contextInfo.issuerLayer === 'middleware' &&
+    (contextInfo.issuerLayer === WEBPACK_LAYERS.middleware ||
+      contextInfo.issuerLayer === WEBPACK_LAYERS.api) &&
     isNodeJsModule(request) &&
     !supportedEdgePolyfills.has(request)
   ) {

@@ -245,8 +245,12 @@ export function getFormattedNodeOptionsWithoutInspect() {
   return formatNodeOptions(args)
 }
 
-export function myParseInt(value: string) {
-  // parseInt takes a string and a radix
+/**
+ * Check if the value is a valid positive integer and parse it. If it's not, it will throw an error.
+ *
+ * @param value The value to be parsed.
+ */
+export function parseValidPositiveInteger(value: string): number {
   const parsedValue = parseInt(value, 10)
 
   if (isNaN(parsedValue) || !isFinite(parsedValue) || parsedValue < 0) {
@@ -257,10 +261,12 @@ export function myParseInt(value: string) {
 
 export const RESTART_EXIT_CODE = 77
 
+export type NodeInspectType = 'inspect' | 'inspect-brk' | undefined
+
 /**
  * Get the debug type from the `NODE_OPTIONS` environment variable.
  */
-export function getNodeDebugType() {
+export function getNodeDebugType(): NodeInspectType {
   const args = [...process.execArgv, ...getNodeOptionsArgs()]
   if (args.length === 0) return
 

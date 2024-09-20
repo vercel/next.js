@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, findAllTelemetryEvents } from 'next-test-utils'
+import { retry, findAllTelemetryEvents } from 'next-test-utils'
 
 describe('ppr', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
@@ -10,12 +10,10 @@ describe('ppr', () => {
   })
 
   it('should indicate the feature is experimental', async () => {
-    await check(() => {
-      return next.cliOutput.includes('Experiments (use with caution)') &&
-        next.cliOutput.includes('ppr')
-        ? 'success'
-        : 'fail'
-    }, 'success')
+    await retry(() => {
+      expect(next.cliOutput).toContain('Experiments (use with caution)')
+      expect(next.cliOutput).toContain('ppr')
+    })
   })
   if (isNextStart) {
     describe('build output', () => {

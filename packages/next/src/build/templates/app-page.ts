@@ -27,7 +27,6 @@ declare const __next_app_load_chunk__: any
 // INJECT:__next_app_require__
 // INJECT:__next_app_load_chunk__
 
-export const originalPathname = 'VAR_ORIGINAL_PATHNAME'
 export const __next_app__ = {
   require: __next_app_require__,
   loadChunk: __next_app_load_chunk__,

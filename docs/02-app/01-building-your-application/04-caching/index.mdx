@@ -6,7 +6,7 @@ description: An overview of caching mechanisms in Next.js.
 
 Next.js improves your application's performance and reduces costs by caching rendering work and data requests. This page provides an in-depth look at Next.js caching mechanisms, the APIs you can use to configure them, and how they interact with each other.
 
-> **Good to know**: This page helps you understand how Next.js works under the hood but is **not** essential knowledge to be productive with Next.js. Most of Next.js' caching heuristics are determined by your API usage and have defaults for the best performance with zero or minimal configuration.
+> **Good to know**: This page helps you understand how Next.js works under the hood but is **not** essential knowledge to be productive with Next.js. Most of Next.js' caching heuristics are determined by your API usage and have defaults for the best performance with zero or minimal configuration. If you instead want to jump to examples, [start here](/docs/app/building-your-application/data-fetching/fetching).
 
 ## Overview
 
@@ -124,7 +124,7 @@ Next.js has a built-in Data Cache that **persists** the result of data fetches a
 
 > **Good to know**: In the browser, the `cache` option of `fetch` indicates how a request will interact with the browser's HTTP cache, in Next.js, the `cache` option indicates how a server-side request will interact with the server's Data Cache.
 
-By default, data requests that use `fetch` are **cached**. You can use the [`cache`](#fetch-optionscache) and [`next.revalidate`](#fetch-optionsnextrevalidate) options of `fetch` to configure the caching behavior.
+You can use the [`cache`](#fetch-optionscache) and [`next.revalidate`](#fetch-optionsnextrevalidate) options of `fetch` to configure the caching behavior.
 
 **How the Data Cache Works**
 
@@ -136,17 +136,15 @@ By default, data requests that use `fetch` are **cached**. You can use the [`cac
   height="661"
 />
 
-- The first time a `fetch` request is called during rendering, Next.js checks the Data Cache for a cached response.
+- The first time a `fetch` request with the `'force-cache'` option is called during rendering, Next.js checks the Data Cache for a cached response.
 - If a cached response is found, it's returned immediately and [memoized](#request-memoization).
 - If a cached response is not found, the request is made to the data source, the result is stored in the Data Cache, and memoized.
-- For uncached data (e.g. `{ cache: 'no-store' }`), the result is always fetched from the data source, and memoized.
+- For uncached data (e.g. no `cache` option defined or using `{ cache: 'no-store' }`), the result is always fetched from the data source, and memoized.
 - Whether the data is cached or uncached, the requests are always memoized to avoid making duplicate requests for the same data during a React render pass.
 
 > **Differences between the Data Cache and Request Memoization**
 >
 > While both caching mechanisms help improve performance by re-using cached data, the Data Cache is persistent across incoming requests and deployments, whereas memoization only lasts the lifetime of a request.
->
-> With memoization, we reduce the number of **duplicate** requests in the same render pass that have to cross the network boundary from the rendering server to the Data Cache server (e.g. a CDN or Edge Network) or data source (e.g. a database or CMS). With the Data Cache, we reduce the number of requests made to our origin data source.
 
 ### Duration
 
@@ -210,25 +208,11 @@ Data can be revalidated on-demand by path ([`revalidatePath`](#revalidatepath)) 
 
 ### Opting out
 
-For individual data fetches, you can opt out of caching by setting the [`cache`](#fetch-optionscache) option to `no-store`. This means data will be fetched whenever `fetch` is called.
+If you do _not_ want to cache the response from `fetch`, you can do the following:
 
-```jsx
-// Opt out of caching for an individual `fetch` request
-fetch(`https://...`, { cache: 'no-store' })
+```js
+let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
 ```
-
-Alternatively, you can also use the [Route Segment Config options](#segment-config-options) to opt out of caching for a specific route segment. This will affect all data requests in the route segment, including third-party libraries.
-
-```jsx
-// Opt out of caching for all data requests in the route segment
-export const dynamic = 'force-dynamic'
-```
-
-> **Note**: Data Cache is currently only available in pages/routes, not middleware. Any fetches done inside of your middleware will be uncached by default.
-
-> **Vercel Data Cache**
->
-> If your Next.js application is deployed to Vercel, we recommend reading the [Vercel Data Cache](https://vercel.com/docs/infrastructure/data-cache) documentation for a better understanding of Vercel specific features.
 
 ## Full Route Cache
 
@@ -330,7 +314,7 @@ You can opt out of the Full Route Cache, or in other words, dynamically render c
 
 Next.js has an in-memory client-side router cache that stores the RSC payload of route segments, split by layouts, loading states, and pages.
 
-When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to.This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
+When a user navigates between routes, Next.js caches the visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to. This results in instant back/forward navigation, no full-page reload between navigations, and preservation of React state and browser state.
 
 With the Router Cache:
 
@@ -347,13 +331,13 @@ With the Router Cache:
 The cache is stored in the browser's temporary memory. Two factors determine how long the router cache lasts:
 
 - **Session**: The cache persists across navigation. However, it's cleared on page refresh.
-- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch):
-  - **Default Prefetching** (`prefetch={null}` or unspecified): 0 seconds
-  - **Full Prefetching**: (`prefetch={true}` or `router.prefetch`): 5 minutes
+- **Automatic Invalidation Period**: The cache of layouts and loading states is automatically invalidated after a specific time. The duration depends on how the resource was [prefetched](/docs/app/api-reference/components/link#prefetch), and if the resource was [statically generated](/docs/app/building-your-application/rendering/server-components#static-rendering-default):
+  - **Default Prefetching** (`prefetch={null}` or unspecified): not cached for dynamic pages, 5 minutes for static pages.
+  - **Full Prefetching** (`prefetch={true}` or `router.prefetch`): 5 minutes for both static & dynamic pages.
 
 While a page refresh will clear **all** cached segments, the automatic invalidation period only affects the individual segment from the time it was prefetched.
 
-> **Good to know**: The experimental [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option can be used to enable caching of page segments.
+> **Good to know**: The experimental [`staleTimes`](/docs/app/api-reference/next-config-js/staleTimes) config option can be used to adjust the automatic invalidation times mentioned above.
 
 ### Invalidation
 
@@ -361,7 +345,7 @@ There are two ways you can invalidate the Router Cache:
 
 - In a **Server Action**:
   - Revalidating data on-demand by path with ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag with ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag))
-  - Using [`cookies.set`](/docs/app/api-reference/functions/cookies#cookiessetname-value-options) or [`cookies.delete`](/docs/app/api-reference/functions/cookies#deleting-cookies) invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
+  - Using [`cookies.set`](/docs/app/api-reference/functions/cookies#methods) or [`cookies.delete`](/docs/app/api-reference/functions/cookies#methods) invalidates the Router Cache to prevent routes that use cookies from becoming stale (e.g. authentication).
 - Calling [`router.refresh`](/docs/app/api-reference/functions/use-router) will invalidate the Router Cache and make a new request to the server for the current route.
 
 ### Opting out
@@ -433,23 +417,22 @@ See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API ref
 
 Data returned from `fetch` is automatically cached in the Data Cache.
 
-```jsx
-// Cached by default. `force-cache` is the default option and can be omitted.
-fetch(`https://...`, { cache: 'force-cache' })
+If you do _not_ want to cache the response from `fetch`, you can do the following:
+
+```js
+let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
 ```
 
 See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch) for more options.
 
 ### `fetch options.cache`
 
-You can opt out individual `fetch` requests of data caching by setting the `cache` option to `no-store`:
+You can opt individual `fetch` into caching by setting the `cache` option to `force-cache`:
 
 ```jsx
 // Opt out of caching
-fetch(`https://...`, { cache: 'no-store' })
+fetch(`https://...`, { cache: 'force-cache' })
 ```
-
-Since the render output depends on data, using `cache: 'no-store'` will also skip the Full Route Cache for the route where the `fetch` request is used. That is, the route will be dynamically rendered every request, but you can still have other cached data requests in the same route.
 
 See the [`fetch` API Reference](/docs/app/api-reference/functions/fetch) for more options.
 
@@ -525,10 +508,15 @@ See the [`cookies`](/docs/app/api-reference/functions/cookies) API reference.
 
 The Route Segment Config options can be used to override the route segment defaults or when you're not able to use the `fetch` API (e.g. database client or 3rd party libraries).
 
-The following Route Segment Config options will opt out of the Data Cache and Full Route Cache:
+The following Route Segment Config options will opt out of the Full Route Cache:
 
 - `const dynamic = 'force-dynamic'`
-- `const revalidate = 0`
+
+This config option will opt all fetches out of the Data Cache (i.e. `no-store`):
+
+- `const fetchCache = 'default-no-store'`
+
+See the [`fetchCache`](/docs/app/api-reference/file-conventions/route-segment-config#fetchcache) to see more advanced options.
 
 See the [Route Segment Config](/docs/app/api-reference/file-conventions/route-segment-config) documentation for more options.
 
@@ -536,9 +524,46 @@ See the [Route Segment Config](/docs/app/api-reference/file-conventions/route-se
 
 For [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes) (e.g. `app/blog/[slug]/page.js`), paths provided by `generateStaticParams` are cached in the Full Route Cache at build time. At request time, Next.js will also cache paths that weren't known at build time the first time they're visited.
 
-You can disable caching at request time by using `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
+To statically render all paths at build time, supply the full list of paths to `generateStaticParams`:
 
-See the [`generateStaticParams` API reference](/docs/app/api-reference/functions/generate-static-params).
+```jsx filename="app/blog/[slug]/page.js"
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  return posts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
+To statically render a subset of paths at build time, and the rest the first time they're visited at runtime, return a partial list of paths:
+
+```jsx filename="app/blog/[slug]/page.js"
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  // Render the first 10 posts at build time
+  return posts.slice(0, 10).map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
+To statically render all paths the first time they're visited, return an empty array (no paths will be rendered at build time) or utilize [`export const dynamic = 'force-static'`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic):
+
+```jsx filename="app/blog/[slug]/page.js"
+export async function generateStaticParams() {
+  return []
+}
+```
+
+> **Good to know:** You must return an array from `generateStaticParams`, even if it's empty. Otherwise, the route will be dynamically rendered.
+
+```jsx filename="app/changelog/[slug]/page.js"
+export const dynamic = 'force-static'
+```
+
+To disable caching at request time, add the `export const dynamicParams = false` option in a route segment. When this config option is used, only paths provided by `generateStaticParams` will be served, and other routes will 404 or match (in the case of [catch-all routes](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments)).
 
 ### React `cache` function
 
@@ -546,7 +571,7 @@ The React `cache` function allows you to memoize the return value of a function,
 
 Since `fetch` requests are automatically memoized, you do not need to wrap it in React `cache`. However, you can use `cache` to manually memoize data requests for use cases when the `fetch` API is not suitable. For example, some database clients, CMS clients, or GraphQL clients.
 
-```tsx filename="utils/get-item.ts" switcher
+```ts filename="utils/get-item.ts" switcher
 import { cache } from 'react'
 import db from '@/lib/db'
 
@@ -556,7 +581,7 @@ export const getItem = cache(async (id: string) => {
 })
 ```
 
-```jsx filename="utils/get-item.js" switcher
+```js filename="utils/get-item.js" switcher
 import { cache } from 'react'
 import db from '@/lib/db'
 

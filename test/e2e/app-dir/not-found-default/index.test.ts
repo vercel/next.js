@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, getRedboxDescription, hasRedbox } from 'next-test-utils'
+import { assertHasRedbox, check, getRedboxDescription } from 'next-test-utils'
 
 describe('app dir - not found with default 404 page', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -18,7 +18,7 @@ describe('app dir - not found with default 404 page', () => {
 
     if (isNextDev) {
       await check(async () => {
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxDescription(browser)).toMatch(
           /notFound\(\) is not allowed to use in root layout/
         )
@@ -45,7 +45,7 @@ describe('app dir - not found with default 404 page', () => {
     const browser = await next.browser('/?root-not-found=1')
 
     if (isNextDev) {
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxDescription(browser)).toBe(
         'Error: notFound() is not allowed to use in root layout'
       )

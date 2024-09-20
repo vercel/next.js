@@ -1,0 +1,438 @@
+[
+    (
+        "array",
+        Array {
+            total_nodes: 4,
+            items: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            3.0,
+                        ),
+                    ),
+                ),
+            ],
+            mutable: true,
+        },
+    ),
+    (
+        "arrays",
+        Alternatives {
+            total_nodes: 9,
+            values: [
+                Array {
+                    total_nodes: 4,
+                    items: [
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    1.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    2.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    3.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+                Array {
+                    total_nodes: 4,
+                    items: [
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    4.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    5.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    6.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "concatenated_array",
+        MemberCall(
+            13,
+            Variable(
+                (
+                    "array",
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "concat",
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            4.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            5.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            6.0,
+                        ),
+                    ),
+                ),
+                Array {
+                    total_nodes: 4,
+                    items: [
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    8.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    9.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+                Concat(
+                    3,
+                    [
+                        Constant(
+                            Str(
+                                Atom(
+                                    "hello ",
+                                ),
+                            ),
+                        ),
+                        Variable(
+                            (
+                                "item",
+                                #2,
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+    ),
+    (
+        "concatenated_array_options",
+        MemberCall(
+            7,
+            Variable(
+                (
+                    "array",
+                    #2,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "concat",
+                    ),
+                ),
+            ),
+            [
+                Array {
+                    total_nodes: 4,
+                    items: [
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    7.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    8.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    9.0,
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+            ],
+        ),
+    ),
+    (
+        "item",
+        Member(
+            3,
+            Variable(
+                (
+                    "array",
+                    #2,
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "item_options",
+        Member(
+            3,
+            Variable(
+                (
+                    "arrays",
+                    #2,
+                ),
+            ),
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "pick_array1",
+        MemberCall(
+            14,
+            Member(
+                7,
+                Array {
+                    total_nodes: 5,
+                    items: [
+                        Array {
+                            total_nodes: 4,
+                            items: [
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            1.0,
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            2.0,
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            3.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                            mutable: true,
+                        },
+                    ],
+                    mutable: true,
+                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "concat",
+                    ),
+                ),
+            ),
+            [
+                Array {
+                    total_nodes: 5,
+                    items: [
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    4.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    5.0,
+                                ),
+                            ),
+                        ),
+                        Constant(
+                            Num(
+                                ConstantNumber(
+                                    6.0,
+                                ),
+                            ),
+                        ),
+                        FreeVar(
+                            "unknown",
+                        ),
+                    ],
+                    mutable: true,
+                },
+            ],
+        ),
+    ),
+    (
+        "pick_array2",
+        MemberCall(
+            13,
+            Member(
+                7,
+                Array {
+                    total_nodes: 5,
+                    items: [
+                        Array {
+                            total_nodes: 4,
+                            items: [
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            1.0,
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            2.0,
+                                        ),
+                                    ),
+                                ),
+                                Constant(
+                                    Num(
+                                        ConstantNumber(
+                                            3.0,
+                                        ),
+                                    ),
+                                ),
+                            ],
+                            mutable: true,
+                        },
+                    ],
+                    mutable: true,
+                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "concat",
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            4.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            5.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            6.0,
+                        ),
+                    ),
+                ),
+                FreeVar(
+                    "unknown",
+                ),
+            ],
+        ),
+    ),
+]

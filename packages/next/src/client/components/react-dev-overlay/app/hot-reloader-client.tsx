@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, startTransition, useMemo } from 'react'
+import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
-import { useRouter } from '../../navigation'
+import { usePathname, useRouter } from '../../navigation'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
+  ACTION_DEBUG_INFO,
   ACTION_REFRESH,
+  ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
@@ -33,12 +35,16 @@ import type {
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
-interface Dispatcher {
+import type { DebugInfo } from '../types'
+
+export interface Dispatcher {
   onBuildOk(): void
   onBuildError(message: string): void
   onVersionInfo(versionInfo: VersionInfo): void
+  onDebugInfo(debugInfo: DebugInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
+  onStaticIndicator(status: boolean): void
 }
 
 let mostRecentCompilationHash: any = null
@@ -46,19 +52,36 @@ let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
 let startLatency: number | null = null
 
-function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+let pendingHotUpdateWebpack = Promise.resolve()
+let resolvePendingHotUpdateWebpack: () => void = () => {}
+function setPendingHotUpdateWebpack() {
+  pendingHotUpdateWebpack = new Promise((resolve) => {
+    resolvePendingHotUpdateWebpack = () => {
+      resolve()
+    }
+  })
+}
+
+export function waitForWebpackRuntimeHotUpdate() {
+  return pendingHotUpdateWebpack
+}
+
+function handleBeforeHotUpdateWebpack(
+  dispatcher: Dispatcher,
+  hasUpdates: boolean
+) {
   if (hasUpdates) {
     dispatcher.onBeforeRefresh()
   }
 }
 
-function onFastRefresh(
+function handleSuccessfulHotUpdateWebpack(
   dispatcher: Dispatcher,
   sendMessage: (message: string) => void,
   updatedModules: ReadonlyArray<string>
 ) {
+  resolvePendingHotUpdateWebpack()
   dispatcher.onBuildOk()
-
   reportHmrLatency(sendMessage, updatedModules)
 
   dispatcher.onRefresh()
@@ -159,7 +182,9 @@ function tryApplyUpdates(
   dispatcher: Dispatcher
 ) {
   if (!isUpdateAvailable() || !canApplyUpdates()) {
+    resolvePendingHotUpdateWebpack()
     dispatcher.onBuildOk()
+    reportHmrLatency(sendMessage, [])
     return
   }
 
@@ -241,7 +266,9 @@ function processMessage(
   sendMessage: (message: string) => void,
   processTurbopackMessage: (msg: TurbopackMsgToBrowser) => void,
   router: ReturnType<typeof useRouter>,
-  dispatcher: Dispatcher
+  dispatcher: Dispatcher,
+  appIsrManifestRef: ReturnType<typeof useRef>,
+  pathnameRef: ReturnType<typeof useRef>
 ) {
   if (!('action' in obj)) {
     return
@@ -278,12 +305,16 @@ function processMessage(
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
-          onBeforeFastRefresh(dispatcher, hasUpdates)
+          handleBeforeHotUpdateWebpack(dispatcher, hasUpdates)
         },
         function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
           // Only dismiss it when we're sure it's a hot update.
           // Otherwise it would flicker right before the reload.
-          onFastRefresh(dispatcher, sendMessage, webpackUpdatedModules)
+          handleSuccessfulHotUpdateWebpack(
+            dispatcher,
+            sendMessage,
+            webpackUpdatedModules
+          )
         },
         sendMessage,
         dispatcher
@@ -292,8 +323,29 @@ function processMessage(
   }
 
   switch (obj.action) {
+    case HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST: {
+      if (process.env.__NEXT_APP_ISR_INDICATOR) {
+        if (appIsrManifestRef) {
+          appIsrManifestRef.current = obj.data
+
+          // handle initial status on receiving manifest
+          // navigation is handled in useEffect for pathname changes
+          // as we'll receive the updated manifest before usePathname
+          // triggers for new value
+          if ((pathnameRef.current as string) in obj.data) {
+            dispatcher.onStaticIndicator(true)
+          } else {
+            dispatcher.onStaticIndicator(false)
+          }
+        }
+      }
+      break
+    }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
+      if (!process.env.TURBOPACK) {
+        setPendingHotUpdateWebpack()
+      }
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -307,6 +359,7 @@ function processMessage(
 
       // Is undefined when it's a 'built' event
       if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
+      if ('debug' in obj && obj.debug) dispatcher.onDebugInfo(obj.debug)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -369,6 +422,9 @@ function processMessage(
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
       processTurbopackMessage({
         type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+        data: {
+          sessionId: obj.data.sessionId,
+        },
       })
       break
     }
@@ -400,8 +456,9 @@ function processMessage(
         reloading = true
         return window.location.reload()
       }
+      resolvePendingHotUpdateWebpack()
       startTransition(() => {
-        router.fastRefresh()
+        router.hmrRefresh()
         dispatcher.onRefresh()
       })
 
@@ -428,7 +485,7 @@ function processMessage(
     case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
     case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
-      return router.fastRefresh()
+      return router.hmrRefresh()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj
@@ -474,6 +531,12 @@ export default function HotReload({
       onVersionInfo(versionInfo) {
         dispatch({ type: ACTION_VERSION_INFO, versionInfo })
       },
+      onStaticIndicator(status: boolean) {
+        dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
+      },
+      onDebugInfo(debugInfo) {
+        dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
+      },
     }
   }, [dispatch])
 
@@ -482,7 +545,7 @@ export default function HotReload({
       const errorDetails = (error as any).details as
         | HydrationErrorState
         | undefined
-      // Component stack is added to the error in use-error-handler in case there was a hydration errror
+      // Component stack is added to the error in use-error-handler in case there was a hydration error
       const componentStackTrace =
         (error as any)._componentStack || errorDetails?.componentStack
       const warning = errorDetails?.warning
@@ -522,6 +585,28 @@ export default function HotReload({
   )
 
   const router = useRouter()
+  const pathname = usePathname()
+  const appIsrManifestRef = useRef<Record<string, false | number>>({})
+  const pathnameRef = useRef(pathname)
+
+  if (process.env.__NEXT_APP_ISR_INDICATOR) {
+    // this conditional is only for dead-code elimination which
+    // isn't a runtime conditional only build-time so ignore hooks rule
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      pathnameRef.current = pathname
+
+      const appIsrManifest = appIsrManifestRef.current
+
+      if (appIsrManifest) {
+        if (pathname in appIsrManifest) {
+          dispatcher.onStaticIndicator(true)
+        } else {
+          dispatcher.onStaticIndicator(false)
+        }
+      }
+    }, [pathname, dispatcher])
+  }
 
   useEffect(() => {
     const websocket = webSocketRef.current
@@ -535,21 +620,37 @@ export default function HotReload({
           sendMessage,
           processTurbopackMessage,
           router,
-          dispatcher
+          dispatcher,
+          appIsrManifestRef,
+          pathnameRef
         )
       } catch (err: any) {
         console.warn(
-          '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
+          '[HMR] Invalid message: ' +
+            JSON.stringify(event.data) +
+            '\n' +
+            (err?.stack ?? '')
         )
       }
     }
 
     websocket.addEventListener('message', handler)
     return () => websocket.removeEventListener('message', handler)
-  }, [sendMessage, router, webSocketRef, dispatcher, processTurbopackMessage])
+  }, [
+    sendMessage,
+    router,
+    webSocketRef,
+    dispatcher,
+    processTurbopackMessage,
+    appIsrManifestRef,
+  ])
 
   return (
-    <ReactDevOverlay onReactError={handleOnReactError} state={state}>
+    <ReactDevOverlay
+      onReactError={handleOnReactError}
+      state={state}
+      dispatcher={dispatcher}
+    >
       {children}
     </ReactDevOverlay>
   )

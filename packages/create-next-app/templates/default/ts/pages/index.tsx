@@ -37,7 +37,7 @@ export default function Home() {
           />
           <ol>
             <li>
-              Get started by editing <code>pages/index.tsx</code>
+              Get started by editing <code>pages/index.tsx</code>.
             </li>
             <li>Save and see your changes instantly.</li>
           </ol>
@@ -76,7 +76,7 @@ export default function Home() {
           >
             <Image
               aria-hidden
-              src="/file-text.svg"
+              src="/file.svg"
               alt="File icon"
               width={16}
               height={16}
