@@ -9,9 +9,9 @@ export function ClientPageRoot({
 }) {
   if (typeof window === 'undefined') {
     const { createDynamicallyTrackedParams } =
-      require('./fallback-params') as typeof import('./fallback-params')
+      require('../../server/request/fallback-params') as typeof import('../../server/request/fallback-params')
     const { createDynamicallyTrackedSearchParams } =
-      require('./search-params') as typeof import('./search-params')
+      require('../../server/request/search-params') as typeof import('../../server/request/search-params')
 
     // We expect to be passed searchParams but even if we aren't we can construct one from
     // an empty object. We only do this if we are in a static generation as a performance
