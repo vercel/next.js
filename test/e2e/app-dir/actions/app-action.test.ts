@@ -185,13 +185,17 @@ describe('app-dir action handling', () => {
   it('should replace current route when redirecting with type set to replace', async () => {
     const browser = await next.browser('/header')
 
+    let historyLen = await browser.eval('window.history.length')
+    // chromium's about:blank page is the first item in history
+    expect(historyLen).toBe(2)
+
     await browser.elementByCss('#setCookieAndRedirectReplace').click()
     await check(async () => {
       return (await browser.elementByCss('#redirected').text()) || ''
     }, 'redirected')
 
     // Ensure we cannot navigate back
-    const historyLen = await browser.eval('window.history.length')
+    historyLen = await browser.eval('window.history.length')
     // chromium's about:blank page is the first item in history
     expect(historyLen).toBe(2)
   })
