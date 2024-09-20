@@ -211,10 +211,9 @@ export async function copy_vercel_og(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // Refers to copied satori types
-      file.data = source.replace(
-        /['"]satori['"]/g,
-        '"next/dist/compiled/@vercel/og/satori"'
-      )
+      file.data = source
+        .replace(/['"]satori['"]/g, '"next/dist/compiled/@vercel/og/satori"')
+        .replace("typeof import('@resvg/resvg-wasm')", 'any')
     })
     .target('src/compiled/@vercel/og')
 

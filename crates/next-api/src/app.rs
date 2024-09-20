@@ -4,8 +4,8 @@ use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
     app_structure::{
-        get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
-        MetadataItem,
+        get_entrypoints, AppPageLoaderTree, Entrypoint as AppEntrypoint,
+        Entrypoints as AppEntrypoints, MetadataItem,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
@@ -696,7 +696,7 @@ enum AppPageEndpointType {
 enum AppEndpointType {
     Page {
         ty: AppPageEndpointType,
-        loader_tree: Vc<LoaderTree>,
+        loader_tree: Vc<AppPageLoaderTree>,
     },
     Route {
         path: Vc<FileSystemPath>,
@@ -717,7 +717,7 @@ struct AppEndpoint {
 #[turbo_tasks::value_impl]
 impl AppEndpoint {
     #[turbo_tasks::function]
-    fn app_page_entry(&self, loader_tree: Vc<LoaderTree>) -> Vc<AppEntry> {
+    fn app_page_entry(&self, loader_tree: Vc<AppPageLoaderTree>) -> Vc<AppEntry> {
         get_app_page_entry(
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),
