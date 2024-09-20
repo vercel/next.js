@@ -1,7 +1,7 @@
 'use client';
 import { use } from "react";
 
-import { useState } from "react";
+import { useState } from 'react'
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -10,9 +10,9 @@ interface PageProps {
 
 export default function Page(props: PageProps) {
   const params = use(props.params);
-  const [text, setText] = useState("");
+  const [text, setText] = useState('')
   // usage of `params`
-  globalThis.f1(params);
-  globalThis.f2(params);
+  globalThis.f1(params)
+  globalThis.f2(params)
 }
 

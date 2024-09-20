@@ -13,6 +13,6 @@ export default async function Page(props: PageProps) {
     name
   } = params;
 
-  globalThis.f1(id);
-  globalThis.f2(name);
+  globalThis.f1(id)
+  globalThis.f2(name)
 }
