@@ -1,4 +1,4 @@
-use std::{collections::HashSet, iter};
+use std::{borrow::Cow, collections::HashSet};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
@@ -9,15 +9,21 @@ use syn::{
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
     token::Paren,
-    AngleBracketedGenericArguments, Block, Expr, ExprBlock, ExprLet, ExprPath, FnArg,
-    GenericArgument, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver,
-    ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
+    AngleBracketedGenericArguments, Block, Expr, ExprBlock, ExprPath, FnArg, GenericArgument,
+    Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType,
+    Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
 };
 
 #[derive(Debug)]
-pub struct TurboFn {
+pub struct TurboFn<'a> {
+    orig_signature: &'a Signature,
+
     /// Identifier of the exposed function (same as the original function's name).
-    ident: Ident,
+    ident: &'a Ident,
+
+    /// Identifier of the inline function (a mangled version of the original function's name).
+    inline_ident: Ident,
+
     output: Type,
     this: Option<Input>,
     inputs: Vec<Input>,
@@ -25,21 +31,6 @@ pub struct TurboFn {
     resolved: Option<Span>,
     /// Should this function use `TaskPersistence::LocalCells`?
     local_cells: bool,
-
-    /// Signature for the "inline" function. The inline function is the function with minimal
-    /// changes that's called by the turbo-tasks framework during scheduling.
-    ///
-    /// This is in contrast to the "exposed" function, which is the public function that the user
-    /// should call.
-    ///
-    /// This function signature should match the name given by [`Self::inline_ident`].
-    inline_signature: Signature,
-
-    /// Identifier of the inline function (a mangled version of the original function's name).
-    inline_ident: Ident,
-
-    /// A minimally wrapped version of the original function block.
-    inline_block: Block,
 }
 
 #[derive(Debug)]
@@ -48,12 +39,11 @@ pub struct Input {
     pub ty: Type,
 }
 
-impl TurboFn {
+impl TurboFn<'_> {
     pub fn new(
         orig_signature: &Signature,
         definition_context: DefinitionContext,
         args: FunctionArguments,
-        orig_block: Block,
     ) -> Option<TurboFn> {
         if !orig_signature.generics.params.is_empty() {
             orig_signature
@@ -268,101 +258,22 @@ impl TurboFn {
 
         let output = return_type_to_type(&orig_signature.output);
 
-        let original_ident = &orig_signature.ident;
+        let orig_ident = &orig_signature.ident;
         let inline_ident = Ident::new(
             // Hygiene: This should use `.resolved_at(Span::def_site())`, but that's unstable, so
             // instead we just pick a long, unique name
-            &format!("{original_ident}_turbo_tasks_function_inline"),
-            original_ident.span(),
+            &format!("{orig_ident}_turbo_tasks_function_inline"),
+            orig_ident.span(),
         );
-        let inline_signature = Signature {
-            ident: inline_ident.clone(),
-            inputs: orig_signature
-                .inputs
-                .iter()
-                .enumerate()
-                .map(|(idx, arg)| match arg {
-                    FnArg::Receiver(_) => arg.clone(),
-                    FnArg::Typed(pat_type) => {
-                        // arbitrary self types aren't `FnArg::Receiver` on syn 1.x (fixed in 2.x)
-                        if let Pat::Ident(pat_id) = &*pat_type.pat {
-                            // TODO: Support `self: ResolvedVc<Self>`
-                            if pat_id.ident == "self" {
-                                return arg.clone();
-                            }
-                        }
-                        FnArg::Typed(PatType {
-                            pat: Box::new(Pat::Ident(PatIdent {
-                                attrs: Vec::new(),
-                                by_ref: None,
-                                mutability: None,
-                                ident: Ident::new(&format!("arg{idx}"), pat_type.pat.span()),
-                                subpat: None,
-                            })),
-                            ty: Box::new(expand_task_input_type(&pat_type.ty)),
-                            ..pat_type.clone()
-                        })
-                    }
-                })
-                .collect(),
-            ..orig_signature.clone()
-        };
-
-        let inline_block = {
-            let stmts: Vec<Stmt> = orig_signature
-                .inputs
-                .iter()
-                .enumerate()
-                .filter_map(|(idx, arg)| match arg {
-                    FnArg::Receiver(_) => None,
-                    FnArg::Typed(pat_type) => {
-                        if let Pat::Ident(pat_id) = &*pat_type.pat {
-                            // TODO: Support `self: ResolvedVc<Self>`
-                            if pat_id.ident == "self" {
-                                return None;
-                            }
-                        }
-                        let arg_ident = Ident::new(&format!("arg{idx}"), pat_type.span());
-                        let ty = &*pat_type.ty;
-                        Some(Stmt::Semi(
-                            Expr::Let(ExprLet {
-                                attrs: Vec::new(),
-                                let_token: Default::default(),
-                                pat: *pat_type.pat.clone(),
-                                eq_token: Default::default(),
-                                expr: parse_quote! {
-                                    {
-                                        use turbo_tasks::task::FromTaskInput;
-                                        turbo_tasks::macro_helpers::AutoFromTaskInput::<#ty>
-                                            ::from_task_input(#arg_ident).0
-                                    }
-                                },
-                            }),
-                            Default::default(),
-                        ))
-                    }
-                })
-                .chain(iter::once(Stmt::Expr(Expr::Block(ExprBlock {
-                    attrs: Vec::new(),
-                    label: None,
-                    block: orig_block,
-                }))))
-                .collect();
-            Block {
-                brace_token: Default::default(),
-                stmts,
-            }
-        };
 
         Some(TurboFn {
-            ident: original_ident.clone(),
+            orig_signature,
+            ident: orig_ident,
             output,
             this,
             inputs,
             resolved: args.resolved,
             local_cells: args.local_cells.is_some(),
-            inline_signature,
-            inline_block,
             inline_ident,
         })
     }
@@ -408,16 +319,100 @@ impl TurboFn {
         }
     }
 
-    pub fn inline_signature(&self) -> &Signature {
-        &self.inline_signature
+    /// Signature for the "inline" function. The inline function is the function with minimal
+    /// changes that's called by the turbo-tasks framework during scheduling.
+    ///
+    /// This is in contrast to the "exposed" function, which is the public function that the user
+    /// should call.
+    ///
+    /// This function signature should match the name given by [`Self::inline_ident`].
+    ///
+    /// A minimally wrapped version of the original function block.
+    pub fn inline_signature_and_block<'a>(
+        &self,
+        orig_block: &'a Block,
+    ) -> (Signature, Cow<'a, Block>) {
+        let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
+            .orig_signature
+            .inputs
+            .iter()
+            .enumerate()
+            .map(|(idx, arg)| match arg {
+                FnArg::Receiver(_) => (arg.clone(), None),
+                FnArg::Typed(pat_type) => {
+                    // arbitrary self types aren't `FnArg::Receiver` on syn 1.x (fixed in 2.x)
+                    if let Pat::Ident(pat_id) = &*pat_type.pat {
+                        // TODO: Support `self: ResolvedVc<Self>`
+                        if pat_id.ident == "self" {
+                            return (arg.clone(), None);
+                        }
+                    }
+                    let arg_ident = Ident::new(
+                        &format!("arg{idx}"),
+                        pat_type.span().resolved_at(Span::mixed_site()),
+                    );
+                    let arg = FnArg::Typed(PatType {
+                        pat: Box::new(Pat::Ident(PatIdent {
+                            attrs: Vec::new(),
+                            by_ref: None,
+                            mutability: None,
+                            ident: arg_ident.clone(),
+                            subpat: None,
+                        })),
+                        ty: Box::new(expand_task_input_type(&pat_type.ty)),
+                        ..pat_type.clone()
+                    });
+                    // convert an argument of type `FromTaskInput<T>::TaskInput` into `T`.
+                    // essentially, replace any instances of `Vc` with `ResolvedVc`.
+                    let orig_ty = &*pat_type.ty;
+                    let transform_stmt = Some(Stmt::Local(Local {
+                        attrs: Vec::new(),
+                        let_token: Default::default(),
+                        pat: *pat_type.pat.clone(),
+                        init: Some((
+                            Default::default(),
+                            parse_quote! {
+                                {
+                                    use turbo_tasks::task::FromTaskInput;
+                                    turbo_tasks::macro_helpers::AutoFromTaskInput::<#orig_ty>
+                                        ::from_task_input(#arg_ident).0
+                                }
+                            },
+                        )),
+                        semi_token: Default::default(),
+                    }));
+                    (arg, transform_stmt)
+                }
+            })
+            .unzip();
+        let transform_stmts: Vec<Stmt> = transform_stmts.into_iter().flatten().collect();
+
+        let inline_signature = Signature {
+            ident: self.inline_ident.clone(),
+            inputs,
+            ..self.orig_signature.clone()
+        };
+
+        let inline_block = if transform_stmts.is_empty() {
+            Cow::Borrowed(orig_block)
+        } else {
+            let mut stmts = transform_stmts;
+            stmts.push(Stmt::Expr(Expr::Block(ExprBlock {
+                attrs: Vec::new(),
+                label: None,
+                block: orig_block.clone(),
+            })));
+            Cow::Owned(Block {
+                brace_token: Default::default(),
+                stmts,
+            })
+        };
+
+        (inline_signature, inline_block)
     }
 
     pub fn inline_ident(&self) -> &Ident {
         &self.inline_ident
-    }
-
-    pub fn inline_block(&self) -> &Block {
-        &self.inline_block
     }
 
     fn input_idents(&self) -> impl Iterator<Item = &Ident> {

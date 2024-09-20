@@ -39,7 +39,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         .unwrap_or_default();
     let local_cells = args.local_cells.is_some();
 
-    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args, *block) else {
+    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
         return quote! {
             // An error occurred while parsing the function signature.
         }
@@ -49,8 +49,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let ident = &sig.ident;
 
     let inline_function_ident = turbo_fn.inline_ident();
-    let inline_signature = turbo_fn.inline_signature();
-    let inline_block = turbo_fn.inline_block();
+    let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(&*block);
 
     let native_fn = NativeFn::new(
         &ident.to_string(),

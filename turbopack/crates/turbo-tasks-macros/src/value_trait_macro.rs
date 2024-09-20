@@ -2,8 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
 use syn::{
-    parse_macro_input, parse_quote, spanned::Spanned, ExprPath, ItemTrait, TraitItem,
-    TraitItemMethod,
+    parse_macro_input, parse_quote, spanned::Spanned, ItemTrait, TraitItem, TraitItemMethod,
 };
 use turbo_tasks_macros_shared::{
     get_trait_default_impl_function_id_ident, get_trait_default_impl_function_ident,
@@ -92,9 +91,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             sig,
             DefinitionContext::ValueTrait,
             FunctionArguments::default(),
-            default.clone().unwrap_or_else(|| {
-                parse_quote!({ ::std::compile_error!("default block should not exist") })
-            }),
         ) else {
             return quote! {
                 // An error occurred while parsing the function signature.
@@ -109,18 +105,17 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             #turbo_signature #dynamic_block
         });
 
-        let default = if default.is_some() {
-            // TODO(alexkirsz) These should go into their own utilities.
+        let default = if let Some(default) = default {
             let inline_function_ident = turbo_fn.inline_ident();
             let inline_extension_trait_ident =
                 Ident::new(&format!("{}_{}_inline", trait_ident, ident), ident.span());
-            let inline_function_path: ExprPath = parse_quote! { <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident };
-            let inline_signature = turbo_fn.inline_signature();
-            let inline_block = turbo_fn.inline_block();
+            let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
 
             let native_function = NativeFn::new(
                 &format!("{trait_ident}::{ident}"),
-                &inline_function_path,
+                &parse_quote! {
+                    <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
+                },
                 turbo_fn.is_method(),
                 // `inline_cells` is currently unsupported here because:
                 // - The `#[turbo_tasks::function]` macro needs to be present for us to read this

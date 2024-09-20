@@ -121,19 +121,15 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .unwrap_or_default();
                 let local_cells = func_args.local_cells.is_some();
 
-                let Some(turbo_fn) = TurboFn::new(
-                    sig,
-                    DefinitionContext::ValueInherentImpl,
-                    func_args,
-                    block.clone(),
-                ) else {
+                let Some(turbo_fn) =
+                    TurboFn::new(sig, DefinitionContext::ValueInherentImpl, func_args)
+                else {
                     return quote! {
                         // An error occurred while parsing the function signature.
                     };
                 };
                 let inline_function_ident = turbo_fn.inline_ident();
-                let inline_signature = turbo_fn.inline_signature();
-                let inline_block = turbo_fn.inline_block();
+                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
 
                 let native_fn = NativeFn::new(
                     &format!("{ty}::{ident}", ty = ty.to_token_stream()),
@@ -226,12 +222,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .unwrap_or_default();
                 let local_cells = func_args.local_cells.is_some();
 
-                let Some(turbo_fn) = TurboFn::new(
-                    sig,
-                    DefinitionContext::ValueTraitImpl,
-                    func_args,
-                    block.clone(),
-                ) else {
+                let Some(turbo_fn) =
+                    TurboFn::new(sig, DefinitionContext::ValueTraitImpl, func_args)
+                else {
                     return quote! {
                         // An error occurred while parsing the function signature.
                     };
@@ -242,8 +235,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     &format!("{}_{}_{}_inline", ty_ident, trait_ident, ident),
                     ident.span(),
                 );
-                let inline_signature = turbo_fn.inline_signature();
-                let inline_block = turbo_fn.inline_block();
+                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
 
                 let native_fn = NativeFn::new(
                     &format!(
