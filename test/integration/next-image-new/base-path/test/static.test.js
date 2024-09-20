@@ -207,8 +207,8 @@ describe('Static Image Component Tests for basePath', () => {
         $ = cheerio.load(html)
         browser = await webdriver(appPort, '/docs/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests(false)
     }
@@ -223,8 +223,8 @@ describe('Static Image Component Tests for basePath', () => {
         $ = cheerio.load(html)
         browser = await webdriver(appPort, '/docs/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests(true)
     }

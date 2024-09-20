@@ -37,18 +37,21 @@ export function getRedirectError(
  *
  * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
  * - In a Route Handler or Server Action, it will serve a 307/303 to the caller.
+ * - In a Server Action, type defaults to 'push' and 'replace' elsewhere.
  *
  * Read more: [Next.js Docs: `redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect)
  */
 export function redirect(
   /** The URL to redirect to */
   url: string,
-  type: RedirectType = RedirectType.replace
+  type?: RedirectType
 ): never {
   const actionStore = actionAsyncStorage.getStore()
+  const redirectType =
+    type || (actionStore?.isAction ? RedirectType.push : RedirectType.replace)
   throw getRedirectError(
     url,
-    type,
+    redirectType,
     // If we're in an action, we want to use a 303 redirect
     // as we don't want the POST request to follow the redirect,
     // as it could result in erroneous re-submissions.
