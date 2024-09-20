@@ -111,19 +111,7 @@ impl Module for EcmascriptModuleFacadeModule {
                 references
             }
             ModulePart::StarReexports { .. } => {
-                let Some(module) =
-                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module).await?
-                else {
-                    bail!(
-                        "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
-                         ModulePart::Evaluation"
-                    );
-                };
-
-                let result = module.analyze().await?;
-                let references = result.reexport_references;
-
-                references
+                vec![]
             }
             ModulePart::Facade => {
                 vec![
@@ -169,7 +157,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         let mut star_exports = Vec::new();
 
         match &*self.ty.await? {
-            ModulePart::Exports => {
+            ModulePart::Exports | ModulePart::StarReexports => {
                 let EcmascriptExports::EsmExports(esm_exports) = *self.module.get_exports().await?
                 else {
                     bail!(
@@ -211,17 +199,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                         }
                     }
                 }
-                star_exports.extend(esm_exports.star_exports.iter().copied());
-            }
-            ModulePart::StarReexports => {
-                let EcmascriptExports::EsmExports(esm_exports) = *self.module.get_exports().await?
-                else {
-                    bail!(
-                        "EcmascriptModuleFacadeModule must only be used on modules with EsmExports"
-                    );
-                };
-                let esm_exports = esm_exports.await?;
-
                 star_exports.extend(esm_exports.star_exports.iter().copied());
             }
             ModulePart::Facade => {
