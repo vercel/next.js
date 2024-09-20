@@ -18,10 +18,10 @@ use turbopack_ecmascript::{magic_identifier, text::TextContentFileSource, utils:
 
 use crate::{
     app_structure::{
-        get_metadata_route_name, AppPageLoaderTree, Components, GlobalMetadata, Metadata,
+        get_metadata_route_name, AppDirModules, AppPageLoaderTree, GlobalMetadata, Metadata,
         MetadataItem, MetadataWithAltItem,
     },
-    base_loader_tree::{BaseLoaderTreeBuilder, ComponentType},
+    base_loader_tree::{AppDirModuleType, BaseLoaderTreeBuilder},
     next_app::{
         metadata::{get_content_type, image::dynamic_image_metadata_source},
         AppPage,
@@ -51,25 +51,25 @@ impl AppPageLoaderTreeBuilder {
         }
     }
 
-    async fn write_component(
+    async fn write_modules_entry(
         &mut self,
-        component_type: ComponentType,
+        module_type: AppDirModuleType,
         path: Option<Vc<FileSystemPath>>,
     ) -> Result<()> {
         if let Some(path) = path {
-            if matches!(component_type, ComponentType::Page) {
+            if matches!(module_type, AppDirModuleType::Page) {
                 self.pages.push(path);
             }
 
             let tuple_code = self
                 .base
-                .create_component_tuple_code(component_type, path)
+                .create_module_tuple_code(module_type, path)
                 .await?;
 
             writeln!(
                 self.loader_tree_code,
                 "  {name}: {tuple_code},",
-                name = StringifyJs(component_type.name())
+                name = StringifyJs(module_type.name())
             )?;
         }
         Ok(())
@@ -314,7 +314,7 @@ impl AppPageLoaderTreeBuilder {
             page: app_page,
             segment,
             parallel_routes,
-            components,
+            modules,
             global_metadata,
         } = loader_tree;
 
@@ -324,10 +324,9 @@ impl AppPageLoaderTreeBuilder {
             segment = StringifyJs(segment)
         )?;
 
-        // Components need to be referenced first
         let temp_loader_tree_code = take(&mut self.loader_tree_code);
-        // add components
-        let Components {
+
+        let AppDirModules {
             page,
             default,
             error,
@@ -338,19 +337,24 @@ impl AppPageLoaderTreeBuilder {
             not_found,
             metadata,
             route: _,
-        } = &components;
-        self.write_component(ComponentType::Layout, *layout).await?;
-        self.write_component(ComponentType::Page, *page).await?;
-        self.write_component(ComponentType::DefaultPage, *default)
+        } = &modules;
+
+        self.write_modules_entry(AppDirModuleType::Layout, *layout)
             .await?;
-        self.write_component(ComponentType::Error, *error).await?;
-        self.write_component(ComponentType::Loading, *loading)
+        self.write_modules_entry(AppDirModuleType::Page, *page)
             .await?;
-        self.write_component(ComponentType::Template, *template)
+        self.write_modules_entry(AppDirModuleType::DefaultPage, *default)
             .await?;
-        self.write_component(ComponentType::NotFound, *not_found)
+        self.write_modules_entry(AppDirModuleType::Error, *error)
             .await?;
-        let components_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
+        self.write_modules_entry(AppDirModuleType::Loading, *loading)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::Template, *template)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::NotFound, *not_found)
+            .await?;
+
+        let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
 
         // add parallel_routes
         for (key, parallel_route) in parallel_routes.iter() {
@@ -360,7 +364,7 @@ impl AppPageLoaderTreeBuilder {
         }
         writeln!(self.loader_tree_code, "}}, {{")?;
 
-        self.loader_tree_code += &components_code;
+        self.loader_tree_code += &modules_code;
 
         // Ensure global metadata being written only once at the root level
         // Otherwise child pages will have redundant metadata
@@ -382,8 +386,8 @@ impl AppPageLoaderTreeBuilder {
     ) -> Result<AppPageLoaderTreeModule> {
         let loader_tree = &*loader_tree.await?;
 
-        let components = &loader_tree.components;
-        if let Some(global_error) = components.global_error {
+        let modules = &loader_tree.modules;
+        if let Some(global_error) = modules.global_error {
             let module = self.base.process_module(global_error);
             self.base.inner_assets.insert(GLOBAL_ERROR.into(), module);
         };
