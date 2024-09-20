@@ -5,29 +5,69 @@ import type {
   FunctionDeclaration,
   Collection,
   Node,
+  ImportSpecifier,
 } from 'jscodeshift'
 
 const GEO = 'geo'
 const IP = 'ip'
+const GEOLOCATION = 'geolocation'
+const IP_ADDRESS = 'ipAddress'
+const GEO_TYPE = 'Geo'
 
 export default function (fileInfo: FileInfo, api: API) {
   const j = api.jscodeshift
   const ast = j(fileInfo.source)
 
+  const vercelFuncImports = ast
+    .find(j.ImportDeclaration, {
+      source: {
+        value: '@vercel/functions',
+      },
+    })
+    .find(j.ImportSpecifier)
+    .nodes()
+
+  const vercelFuncImportNames = new Set(
+    vercelFuncImports.map((node) => node.imported.name)
+  )
+
+  const hasGeolocation = vercelFuncImportNames.has(GEOLOCATION)
+  const hasIpAddress = vercelFuncImportNames.has(IP_ADDRESS)
+  const hasGeoType = vercelFuncImportNames.has(GEO_TYPE)
+
   const allIdentifiers = ast.find(j.Identifier).nodes()
   const identifierNames = new Set(allIdentifiers.map((node) => node.name))
 
-  let geoIdentifier = getUniqueIdentifier(identifierNames, 'geolocation')
-  let ipIdentifier = getUniqueIdentifier(identifierNames, 'ipAddress')
-  let geoTypeIdentifier = getUniqueIdentifier(identifierNames, 'Geo')
+  let geoIdentifier = hasGeolocation
+    ? getExistingIdentifier(vercelFuncImports, GEOLOCATION)
+    : getUniqueIdentifier(identifierNames, GEOLOCATION)
 
-  const { needImportGeolocation, needImportIpAddress } = replaceGeoIpValues(
+  let ipIdentifier = hasIpAddress
+    ? getExistingIdentifier(vercelFuncImports, IP_ADDRESS)
+    : getUniqueIdentifier(identifierNames, IP_ADDRESS)
+
+  let geoTypeIdentifier = hasGeoType
+    ? getExistingIdentifier(vercelFuncImports, GEO_TYPE)
+    : getUniqueIdentifier(identifierNames, GEO_TYPE)
+
+  let { needImportGeolocation, needImportIpAddress } = replaceGeoIpValues(
     j,
     ast,
     geoIdentifier,
     ipIdentifier
   )
-  const { needImportGeoType } = replaceGeoIpTypes(j, ast, geoTypeIdentifier)
+  let { needImportGeoType } = replaceGeoIpTypes(j, ast, geoTypeIdentifier)
+
+  const needChanges =
+    needImportGeolocation || needImportIpAddress || needImportGeoType
+
+  if (!needChanges) {
+    return fileInfo.source
+  }
+
+  needImportGeolocation = !hasGeolocation && needImportGeolocation
+  needImportIpAddress = !hasIpAddress && needImportIpAddress
+  needImportGeoType = !hasGeoType && needImportGeoType
 
   insertImportDeclarations(
     j,
@@ -39,10 +79,31 @@ export default function (fileInfo: FileInfo, api: API) {
     ipIdentifier,
     geoTypeIdentifier
   )
-
   return ast.toSource()
 }
 
+/**
+ * Returns an existing identifier from the Vercel functions import declaration.
+ */
+function getExistingIdentifier(
+  vercelFuncImports: ImportSpecifier[],
+  identifier: string
+) {
+  const existingIdentifier = vercelFuncImports.find(
+    (node) => node.imported.name === identifier
+  )
+
+  return (
+    existingIdentifier?.local?.name ||
+    existingIdentifier.imported.name ||
+    identifier
+  )
+}
+
+/**
+ * Returns a unique identifier by adding a suffix to the original identifier
+ * if it already exists in the set.
+ */
 function getUniqueIdentifier(identifierNames: Set<string>, identifier: string) {
   let suffix = 1
   let uniqueIdentifier = identifier
@@ -53,13 +114,22 @@ function getUniqueIdentifier(identifierNames: Set<string>, identifier: string) {
   return uniqueIdentifier
 }
 
+/**
+ * Replaces accessors `geo` and `ip` of NextRequest with corresponding
+ * function calls from `@vercel/functions`.
+ *
+ * Creates new variable declarations for destructuring assignments.
+ */
 function replaceGeoIpValues(
   j: API['jscodeshift'],
   ast: Collection<Node>,
   geoIdentifier: string,
   ipIdentifier: string
-) {
-  const nextReqIdentifier = ast
+): {
+  needImportGeolocation: boolean
+  needImportIpAddress: boolean
+} {
+  const nextReqType = ast
     .find(j.FunctionDeclaration)
     .find(j.Identifier, (id) => {
       if (id.typeAnnotation?.type !== 'TSTypeAnnotation') {
@@ -77,8 +147,9 @@ function replaceGeoIpValues(
   let needImportGeolocation = false
   let needImportIpAddress = false
 
-  for (const param of nextReqIdentifier.paths()) {
-    const fnPath: ASTPath<FunctionDeclaration> = param.parentPath.parentPath
+  for (const nextReqPath of nextReqType.paths()) {
+    const fnPath: ASTPath<FunctionDeclaration> =
+      nextReqPath.parentPath.parentPath
     const fn = j(fnPath)
     const blockStatement = fn.find(j.BlockStatement)
     const varDeclarators = fn.find(j.VariableDeclarator)
@@ -88,7 +159,7 @@ function replaceGeoIpValues(
       j.MemberExpression,
       (me) =>
         me.object.type === 'Identifier' &&
-        me.object.name === param.node.name &&
+        me.object.name === nextReqPath.node.name &&
         me.property.type === 'Identifier' &&
         me.property.name === GEO
     )
@@ -96,7 +167,7 @@ function replaceGeoIpValues(
       j.MemberExpression,
       (me) =>
         me.object.type === 'Identifier' &&
-        me.object.name === param.node.name &&
+        me.object.name === nextReqPath.node.name &&
         me.property.type === 'Identifier' &&
         me.property.name === IP
     )
@@ -126,13 +197,13 @@ function replaceGeoIpValues(
     // geolocation(req), ipAddress(req)
     const geoCall = j.callExpression(j.identifier(geoIdentifier), [
       {
-        ...param.node,
+        ...nextReqPath.node,
         typeAnnotation: null,
       },
     ])
     const ipCall = j.callExpression(j.identifier(ipIdentifier), [
       {
-        ...param.node,
+        ...nextReqPath.node,
         typeAnnotation: null,
       },
     ])
@@ -140,22 +211,24 @@ function replaceGeoIpValues(
     geoAccesses.replaceWith(geoCall)
     ipAccesses.replaceWith(ipCall)
 
-    /*
-      For each destructuring assignment, we create a new variable
-      declaration and insert it after the current block statement.
-
-      Before:
-      ```
-      var { buildId, geo, ip } = req;
-      ```
-
-      After:
-      ```
-      var { buildId } = req;
-      const geo = geolocation(req);
-      const ip = ipAddress(req);
-      ```
-    */
+    /**
+     * For each destructuring assignment, we create a new variable
+     * declaration and insert it after the current block statement.
+     *
+     * Before:
+     *
+     * ```
+     * const { buildId, geo, ip } = req;
+     * ```
+     *
+     * After:
+     *
+     * ```
+     * const { buildId } = req;
+     * const geo = geolocation(req);
+     * const ip = ipAddress(req);
+     * ```
+     */
     geoDestructuring.forEach((path) => {
       if (path.node.id.type === 'ObjectPattern') {
         const properties = path.node.id.properties
@@ -234,11 +307,17 @@ function replaceGeoIpValues(
   }
 }
 
+/**
+ * Replaces the types of `NextRequest["geo"]` and `NextRequest["ip"]` with
+ * corresponding types from `@vercel/functions`.
+ */
 function replaceGeoIpTypes(
   j: API['jscodeshift'],
   ast: Collection<Node>,
   geoTypeIdentifier: string
-) {
+): {
+  needImportGeoType: boolean
+} {
   let needImportGeoType = false
 
   // get the type of NextRequest that has accessed for ip and geo
@@ -307,7 +386,7 @@ function insertImportDeclarations(
       [
         needImportGeolocation
           ? j.importSpecifier(
-              j.identifier('geolocation'),
+              j.identifier(GEOLOCATION),
               // If there was a duplicate identifier, we add an
               // incremental number suffix to it and we use alias:
               // `import { geolocation as geolocation1 } from ...`
@@ -316,7 +395,7 @@ function insertImportDeclarations(
           : null,
         needImportIpAddress
           ? j.importSpecifier(
-              j.identifier('ipAddress'),
+              j.identifier(IP_ADDRESS),
               // If there was a duplicate identifier, we add an
               // incremental number suffix to it and we use alias:
               // `import { ipAddress as ipAddress1 } from ...`
@@ -335,12 +414,17 @@ function insertImportDeclarations(
       [
         needImportGeoType
           ? j.importSpecifier(
-              j.identifier('Geo'),
+              j.identifier(GEO_TYPE),
+              // If there was a duplicate identifier, we add an
+              // incremental number suffix to it and we use alias:
+              // `import { Geo as Geo1 } from ...`
               j.identifier(geoTypeIdentifier)
             )
           : null,
       ].filter(Boolean),
       j.literal('@vercel/functions'),
+      // Not using inline type import because it violates:
+      // https://typescript-eslint.io/rules/no-import-type-side-effects
       'type'
     )
     nextServerImport.insertAfter(geoTypeImportDeclaration)
