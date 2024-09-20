@@ -86,8 +86,6 @@ pub fn make_task_dirty_internal(
     queue: &mut AggregationUpdateQueue,
     ctx: &mut ExecuteContext,
 ) {
-    println!("make_task_dirty {:?}", task_id);
-
     if make_stale {
         if let Some(InProgressState::InProgress { stale, .. }) = get_mut!(task, InProgress) {
             *stale = true;
@@ -111,7 +109,5 @@ pub fn make_task_dirty_internal(
                 ctx.schedule(task_id);
             }
         }
-    } else {
-        println!("already dirty");
     }
 }
