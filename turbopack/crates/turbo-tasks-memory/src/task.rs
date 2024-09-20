@@ -669,6 +669,10 @@ impl Task {
         self.state.write().into()
     }
 
+    fn try_state_mut(&self) -> Option<TaskMetaStateWriteGuard<'_>> {
+        self.state.try_write().map(|guard| guard.into())
+    }
+
     fn full_state_mut(&self) -> FullTaskWriteGuard<'_> {
         TaskMetaStateWriteGuard::full_from(self.state.write())
     }

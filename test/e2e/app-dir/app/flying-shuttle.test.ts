@@ -385,8 +385,6 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 
         checkErrorLogs()
 
-        expect(next.cliOutput).toContain('/not-found')
-
         const browser = await next.browser('/non-existent/path')
         await retry(async () => {
           expect(

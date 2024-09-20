@@ -631,7 +631,7 @@
         pingedTasks = [],
         hints = new Set();
       this.type = type;
-      this.status = 10;
+      this.status = OPENING;
       this.flushScheduled = !1;
       this.destination = this.fatalError = null;
       this.bundlerConfig = bundlerConfig;
@@ -1171,7 +1171,7 @@
       pingedTasks.push(task);
       1 === pingedTasks.length &&
         ((request.flushScheduled = null !== request.destination),
-        request.type === PRERENDER
+        request.type === PRERENDER || request.status === OPENING
           ? scheduleMicrotask(function () {
               return performWork(request);
             })
@@ -1290,8 +1290,14 @@
                 '" in the React Client Manifest. This is probably a bug in the React Server Components bundler.'
             );
         }
+        if (!0 === resolvedModuleData.async && !0 === clientReference.$$async)
+          throw Error(
+            'The module "' +
+              modulePath +
+              '" is marked as an async ESM module but was loaded as a CJS proxy. This is probably a bug in the React Server Components bundler.'
+          );
         var clientReferenceMetadata =
-          !0 === clientReference.$$async
+          !0 === resolvedModuleData.async || !0 === clientReference.$$async
             ? [resolvedModuleData.id, resolvedModuleData.chunks, existingId, 1]
             : [resolvedModuleData.id, resolvedModuleData.chunks, existingId];
         request.pendingChunks++;
@@ -2148,13 +2154,15 @@
             );
             var currentEnv = (0, request.environmentName)();
             currentEnv !== task.environmentName &&
-              emitDebugChunk(request, task.id, { env: currentEnv });
+              (request.pendingChunks++,
+              emitDebugChunk(request, task.id, { env: currentEnv }));
             emitChunk(request, task, resolvedModel);
           } else {
             var json = stringify(resolvedModel),
               _currentEnv = (0, request.environmentName)();
             _currentEnv !== task.environmentName &&
-              emitDebugChunk(request, task.id, { env: _currentEnv });
+              (request.pendingChunks++,
+              emitDebugChunk(request, task.id, { env: _currentEnv }));
             emitModelChunk(request, task.id, json);
           }
           request.abortableTasks.delete(task);
@@ -2291,13 +2299,12 @@
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
-      request.type === PRERENDER
-        ? scheduleMicrotask(function () {
-            requestStorage.run(request, performWork, request);
-          })
-        : setImmediate(function () {
-            return requestStorage.run(request, performWork, request);
-          });
+      scheduleMicrotask(function () {
+        requestStorage.run(request, performWork, request);
+      });
+      setImmediate(function () {
+        request.status === OPENING && (request.status = 11);
+      });
     }
     function enqueueFlush(request) {
       !1 === request.flushScheduled &&
@@ -2324,7 +2331,7 @@
     }
     function abort(request, reason) {
       try {
-        10 === request.status && (request.status = ABORTING);
+        11 >= request.status && (request.status = ABORTING);
         var abortableTasks = request.abortableTasks;
         if (0 < abortableTasks.size) {
           var error =
@@ -3540,9 +3547,10 @@
       ABORTED = 3,
       ERRORED$1 = 4,
       RENDERING = 5,
-      ABORTING = 11,
-      CLOSING = 12,
-      CLOSED = 13,
+      OPENING = 10,
+      ABORTING = 12,
+      CLOSING = 13,
+      CLOSED = 14,
       PRERENDER = 21,
       currentRequest = null,
       debugID = null,
