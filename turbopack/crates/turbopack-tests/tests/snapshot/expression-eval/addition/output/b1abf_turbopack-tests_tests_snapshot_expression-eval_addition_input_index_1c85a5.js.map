@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/expression-eval/addition/input/index.js"],"sourcesContent":["console.log(\"side effect: before\")\n\nif(1 +2 !==3){\n  throw new Error(\"1 + 2 !== 3\");\n}\n\nconsole.log(\"side effect: after\");\n"],"names":[],"mappings":"AAAA,QAAQ,GAAG,CAAC;AAEZ,uCAAa;;AAEb;AAEA,QAAQ,GAAG,CAAC"}},
+    {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
