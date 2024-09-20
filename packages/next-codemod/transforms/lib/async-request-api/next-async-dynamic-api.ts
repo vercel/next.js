@@ -85,12 +85,15 @@ export function transformDynamicAPI(
 
         const closetScope = j(path).closestScope()
 
-        // Check if available to apply transform
-        const closestFunction =
-          j(path).closest(j.FunctionDeclaration) ||
-          j(path).closest(j.FunctionExpression) ||
-          j(path).closest(j.ArrowFunctionExpression) ||
-          j(path).closest(j.VariableDeclaration)
+        // First search the closed function of the current path
+        let closestFunction: Collection<any>
+        closestFunction = j(path).closest(j.FunctionDeclaration)
+        if (closestFunction.size() === 0) {
+          closestFunction = j(path).closest(j.FunctionExpression)
+        }
+        if (closestFunction.size() === 0) {
+          closestFunction = j(path).closest(j.ArrowFunctionExpression)
+        }
 
         const isAsyncFunction = closestFunction
           .nodes()
