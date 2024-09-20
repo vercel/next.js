@@ -42,17 +42,18 @@ export default function (fileInfo: FileInfo, api: API) {
     return fileInfo.source
   }
 
-  const vercelFuncImports = root
-    .find(j.ImportDeclaration, {
-      source: {
-        value: '@vercel/functions',
-      },
-    })
+  const vercelFuncImports = root.find(j.ImportDeclaration, {
+    source: {
+      value: '@vercel/functions',
+    },
+  })
+
+  const vercelFuncImportSpecifiers = vercelFuncImports
     .find(j.ImportSpecifier)
     .nodes()
 
   const vercelFuncImportNames = new Set(
-    vercelFuncImports.map((node) => node.imported.name)
+    vercelFuncImportSpecifiers.map((node) => node.imported.name)
   )
 
   const hasGeolocation = vercelFuncImportNames.has(GEOLOCATION)
@@ -70,15 +71,15 @@ export default function (fileInfo: FileInfo, api: API) {
   }
 
   let geoIdentifier = hasGeolocation
-    ? getExistingIdentifier(vercelFuncImports, GEOLOCATION)
+    ? getExistingIdentifier(vercelFuncImportSpecifiers, GEOLOCATION)
     : getUniqueIdentifier(identifierNames, GEOLOCATION)
 
   let ipIdentifier = hasIpAddress
-    ? getExistingIdentifier(vercelFuncImports, IP_ADDRESS)
+    ? getExistingIdentifier(vercelFuncImportSpecifiers, IP_ADDRESS)
     : getUniqueIdentifier(identifierNames, IP_ADDRESS)
 
   let geoTypeIdentifier = hasGeoType
-    ? getExistingIdentifier(vercelFuncImports, GEO_TYPE)
+    ? getExistingIdentifier(vercelFuncImportSpecifiers, GEO_TYPE)
     : getUniqueIdentifier(identifierNames, GEO_TYPE)
 
   let { needImportGeolocation, needImportIpAddress } = replaceGeoIpValues(
@@ -103,6 +104,7 @@ export default function (fileInfo: FileInfo, api: API) {
   insertImportDeclarations(
     j,
     root,
+    vercelFuncImports,
     needImportGeolocation,
     needImportIpAddress,
     needImportGeoType,
@@ -117,10 +119,10 @@ export default function (fileInfo: FileInfo, api: API) {
  * Returns an existing identifier from the Vercel functions import declaration.
  */
 function getExistingIdentifier(
-  vercelFuncImports: ImportSpecifier[],
+  vercelFuncImportSpecifiers: ImportSpecifier[],
   identifier: string
 ) {
-  const existingIdentifier = vercelFuncImports.find(
+  const existingIdentifier = vercelFuncImportSpecifiers.find(
     (node) => node.imported.name === identifier
   )
 
@@ -384,6 +386,7 @@ function replaceGeoIpTypes(
 function insertImportDeclarations(
   j: API['jscodeshift'],
   root: Collection<Node>,
+  vercelFuncImports: Collection<Node>,
   needImportGeolocation: boolean,
   needImportIpAddress: boolean,
   needImportGeoType: boolean,
@@ -399,6 +402,7 @@ function insertImportDeclarations(
     })
     // get the first import declaration
     .at(0)
+  const firstVercelFuncImport = vercelFuncImports.at(0)
 
   if (needImportGeolocation || needImportIpAddress) {
     const importDeclaration = j.importDeclaration(
@@ -425,7 +429,13 @@ function insertImportDeclarations(
       j.literal('@vercel/functions')
     )
 
-    firstNextServerImport.insertAfter(importDeclaration)
+    if (firstVercelFuncImport.length > 0) {
+      firstVercelFuncImport
+        .get()
+        .node.specifiers.push(...importDeclaration.specifiers)
+    } else {
+      firstNextServerImport.insertAfter(importDeclaration)
+    }
   }
 
   if (needImportGeoType) {
