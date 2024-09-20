@@ -7,6 +7,7 @@
 mod app_page_loader_tree;
 pub mod app_segment_config;
 pub mod app_structure;
+mod base_loader_tree;
 mod bootstrap;
 mod embed_js;
 mod emit;
