@@ -91,13 +91,29 @@ describe('app-dir - client-actions-tree-shaking', () => {
       const bundle2Files = appBuildManifest.pages['/route-2/page']
       const bundle3Files = appBuildManifest.pages['/route-3/page']
 
-      const bundle1Ids = bundle1Files.flatMap((file: string) =>
+      const bundle1Contents = await Promise.all(
+        bundle1Files.map((file: string) =>
+          fs.readFile(join(appDir, file), 'utf8')
+        )
+      )
+      const bundle2Contents = await Promise.all(
+        bundle2Files.map((file: string) =>
+          fs.readFile(join(appDir, file), 'utf8')
+        )
+      )
+      const bundle3Contents = await Promise.all(
+        bundle3Files.map((file: string) =>
+          fs.readFile(join(appDir, file), 'utf8')
+        )
+      )
+
+      const bundle1Ids = bundle1Contents.flatMap((file: string) =>
         getServerReferenceIdsFromBundle(file)
       )
-      const bundle2Ids = bundle2Files.flatMap((file: string) =>
+      const bundle2Ids = bundle2Contents.flatMap((file: string) =>
         getServerReferenceIdsFromBundle(file)
       )
-      const bundle3Ids = bundle3Files.flatMap((file: string) =>
+      const bundle3Ids = bundle3Contents.flatMap((file: string) =>
         getServerReferenceIdsFromBundle(file)
       )
 
