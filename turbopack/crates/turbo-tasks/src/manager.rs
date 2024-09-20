@@ -493,7 +493,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             event_background: Event::new(|| "TurboTasks::event_background".to_string()),
             program_start: Instant::now(),
         });
-        TURBO_TASKS.sync_scope(this.pin(), || this.backend.startup(&*this));
+        this.backend.startup(&*this);
         this
     }
 
