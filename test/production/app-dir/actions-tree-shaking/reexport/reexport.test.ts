@@ -18,14 +18,17 @@ describe('actions-tree-shaking - reexport', () => {
 
     expect(actionsRoutesState).toMatchObject({
       'app/namespace-reexport/server/page': {
-        rsc: 1,
+        // Turbopack does not tree-shake server side chunks
+        rsc: process.env.TURBOPACK ? 3 : 1,
       },
       'app/namespace-reexport/client/page': {
-        'action-browser': 1,
+        // Turbopack does not support tree-shaking export * as we don't have global information
+        'action-browser': process.env.TURBOPACK ? 3 : 1,
       },
-      // We're not able to tree-shake these re-exports here
+      // We're not able to tree-shake these re-exports here in webpack mode
       'app/named-reexport/server/page': {
-        rsc: 3,
+        // Turbopack supports tree-shaking these re-exports
+        rsc: process.env.TURBOPACK ? 1 : 3,
       },
       'app/named-reexport/client/page': {
         'action-browser': 3,
