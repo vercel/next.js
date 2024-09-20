@@ -36,6 +36,8 @@ Do note that our [Code of Conduct](https://github.com/vercel/next.js/blob/canary
 
 ## Contributing
 
+[![Open in DevZero](https://assets.devzero.io/open-in-devzero.svg)](https://www.devzero.io/dashboard/recipes/new?repo-url=https://github.com/vercel/next.js)
+
 Contributions to Next.js are welcome and highly appreciated. However, before you jump right into it, we would like you to review our [Contribution Guidelines](/contributing.md) to make sure you have a smooth experience contributing to Next.js.
 
 ### Good First Issues:
