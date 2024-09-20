@@ -125,7 +125,7 @@ struct ServerActions<C: Comments> {
 
 impl<C: Comments> ServerActions<C> {
     // Check if the function or arrow function is an action function
-    fn get_action_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, bool) {
+    fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, bool) {
         let mut is_action_fn = false;
         let mut is_cache_fn = false;
 
@@ -471,7 +471,7 @@ impl<C: Comments> ServerActions<C> {
 
             // export const $ACTION_myAction = async () => {}
             let mut new_params: Vec<Param> = vec![];
-            let mut new_body: BlockStmtOrExpr = *a.body.clone();
+            let mut new_body: BlockStmtOrExpr = *a.body.take();
 
             if !ids_from_closure.is_empty() {
                 // First argument is the encrypted closure variables
@@ -565,8 +565,8 @@ impl<C: Comments> ServerActions<C> {
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
                             name: Pat::Ident(cache_ident.clone().into()),
-                            init: Some(Box::new(wrap_cache_expr(
-                                Expr::Fn(FnExpr {
+                            init: Some(wrap_cache_expr(
+                                Box::new(Expr::Fn(FnExpr {
                                     ident: fn_name,
                                     function: Box::new(Function {
                                         params: new_params,
@@ -587,10 +587,10 @@ impl<C: Comments> ServerActions<C> {
                                         is_async: true,
                                         ..Default::default()
                                     }),
-                                }),
+                                })),
                                 "default",
                                 &reference_id,
-                            ))),
+                            )),
                             definite: false,
                         }],
                         ..Default::default()
@@ -697,18 +697,18 @@ impl<C: Comments> ServerActions<C> {
                         decls: vec![VarDeclarator {
                             span: DUMMY_SP,
                             name: Pat::Ident(cache_ident.clone().into()),
-                            init: Some(Box::new(wrap_cache_expr(
-                                Expr::Fn(FnExpr {
+                            init: Some(wrap_cache_expr(
+                                Box::new(Expr::Fn(FnExpr {
                                     ident: fn_name,
                                     function: Box::new(Function {
                                         params: new_params,
                                         body: new_body,
                                         ..*f.take()
                                     }),
-                                }),
+                                })),
                                 "default",
                                 &reference_id,
-                            ))),
+                            )),
                             definite: false,
                         }],
                         ..Default::default()
@@ -753,7 +753,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
-        let (is_action_fn, is_cache_fn) = self.get_action_info(f.function.body.as_mut());
+        let (is_action_fn, is_cache_fn) = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -793,7 +793,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if is_cache_fn && !(self.in_cache_file && self.in_export_decl) {
-            // It's an action function. If it doesn't have a name, give it one.
+            // It's a cache function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
                 None => {
                     let action_name = gen_cache_ident(&mut self.reference_index);
@@ -804,7 +804,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             };
 
             // Collect all the identifiers defined inside the closure and used
-            // in the action function. With deduplication.
+            // in the cache function. With deduplication.
             retain_names_from_declared_idents(
                 &mut child_names,
                 &self.declared_idents[..declared_idents_until],
@@ -873,7 +873,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
-        let (is_action_fn, is_cache_fn) = self.get_action_info(f.function.body.as_mut());
+        let (is_action_fn, is_cache_fn) = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -997,7 +997,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
         let (is_action_fn, is_cache_fn) =
-            self.get_action_info(if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+            self.get_body_info(if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
                 Some(block)
             } else {
                 None
@@ -1533,7 +1533,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 span: DUMMY_SP,
                 specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
-                    local: quote_ident!("$cache").into(),
+                    local: quote_ident!("$$cache__").into(),
                     imported: Some(quote_ident!("cache").into()),
                     is_type_only: false,
                 })],
@@ -1674,22 +1674,22 @@ fn retain_names_from_declared_idents(child_names: &mut Vec<Name>, current_declar
 }
 
 fn gen_action_ident(cnt: &mut u32) -> JsWord {
-    let id: JsWord = format!("$$ACTION_{cnt}").into();
+    let id: JsWord = format!("$$RSC_SERVER_ACTION_{cnt}").into();
     *cnt += 1;
     id
 }
 
 fn gen_cache_ident(cnt: &mut u32) -> JsWord {
-    let id: JsWord = format!("$$CACHE_{cnt}").into();
+    let id: JsWord = format!("$$RSC_SERVER_CACHE_{cnt}").into();
     *cnt += 1;
     id
 }
 
-fn wrap_cache_expr(expr: Expr, name: &str, id: &str) -> Expr {
-    // expr -> $cache("name", "id", expr)
-    Expr::Call(CallExpr {
+fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str) -> Box<Expr> {
+    // expr -> $$cache__("name", "id", expr)
+    Box::new(Expr::Call(CallExpr {
         span: DUMMY_SP,
-        callee: quote_ident!("$cache").as_callee(),
+        callee: quote_ident!("$$cache__").as_callee(),
         args: vec![
             ExprOrSpread {
                 spread: None,
@@ -1702,33 +1702,8 @@ fn wrap_cache_expr(expr: Expr, name: &str, id: &str) -> Expr {
             expr.as_arg(),
         ],
         ..Default::default()
-    })
+    }))
 }
-
-// fn create_api_imports(apis: Vec<&str>, src: &str) -> ModuleItem {
-//     ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-//         span: DUMMY_SP,
-//         specifiers: apis
-//             .iter()
-//             .map(|api| {
-//                 ImportSpecifier::Named(ImportNamedSpecifier {
-//                     span: DUMMY_SP,
-//                     local: quote_ident!(api).into(),
-//                     imported: None,
-//                     is_type_only: false,
-//                 })
-//             })
-//             .collect(),
-//         src: Box::new(Str {
-//             span: DUMMY_SP,
-//             value: src.into(),
-//             raw: None,
-//         }),
-//         type_only: false,
-//         with: None,
-//         phase: Default::default(),
-//     }))
-// }
 
 fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleItem>) -> Expr {
     // Create the variable `var $$ACTION_0;`
