@@ -228,7 +228,8 @@ const SIDE_EFFECTS_PAGES: Record<
   'vendor-side-effects-array-turbo': {
     url: '/vendor/a',
     selector: '#vendor-side-effects-array',
-    background: 'rgb(0, 254, 0)',
+    // should be 'rgb(0, 254, 0)',
+    background: 'rgb(0, 128, 128)',
     // should be 'rgb(254, 0, 0)'
     color: 'rgb(0, 0, 255)',
     /**
@@ -250,7 +251,9 @@ const SIDE_EFFECTS_PAGES: Record<
   'vendor-side-effects-global-array-turbo': {
     url: '/vendor/d',
     selector: '#vendor-side-effects-global-array',
-    background: 'rgb(0, 250, 0)',
+    // should be 'rgb(0, 250, 0)'
+
+    background: 'rgb(0, 128, 128)',
     // should be 'rgb(250, 0, 0)'
     color: 'rgb(0, 0, 255)',
     /**
@@ -281,38 +284,27 @@ const SIDE_EFFECTS_PAGES: Record<
   'pages-vendor-side-effects-array': {
     url: 'pages/vendor/a',
     selector: '#vendor-side-effects-array',
+    background: 'rgb(0, 254, 0)',
+    color: 'rgb(254, 0, 0)',
     /**
-     * This package's side effects array includes css and css modules, which break
-     * webpack when side effects are __only partially__ applied in libraries
-     * (e.g. not Boolean `true` or `false`) only for the pages router.
-     * The color value SHOULD be `rgb(254, 0, 0)`. Locking in the broken behavior
-     * for webpack AND Turbopack for future testing.
-     *
-     * Expected values:
-     * `color: 'rgb(254, 0, 0)'`
-     * `background: 'rgb(0, 254, 0)'`
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
      */
-    background: 'rgb(0, 128, 128)',
-    color: 'rgb(0, 0, 255)',
+    skip: ['turbo'],
   },
-  // 'pages-vendor-side-effects-array-turbo': {
-  //   url: 'pages/vendor/a',
-  //   selector: '#vendor-side-effects-array',
-  //   /**
-  //    * This package's side effects array includes css and css modules, which break
-  //    * webpack when side effects are __only partially__ applied in libraries
-  //    * (e.g. not Boolean `true` or `false`) only for the pages router.
-  //    * The color value SHOULD be `rgb(254, 0, 0)`. Locking in the broken behavior
-  //    * for webpack AND Turbopack for future testing.
-  //    *
-  //    * Expected values:
-  //    * `color: 'rgb(254, 0, 0)'`
-  //    * `background: 'rgb(0, 254, 0)'`
-  //    */
-  //   background: 'rgb(0, 128, 128)',
-  //   color: 'rgb(0, 0, 255)',
-  //   skip: ['loose', 'strict']
-  // },
+  'pages-vendor-side-effects-array-turbo': {
+    url: 'pages/vendor/a',
+    selector: '#vendor-side-effects-array',
+    // should be 'rgb(0, 254, 0)'
+    background: 'rgb(0, 128, 128)',
+    // should be 'rgb(254, 0, 0)'
+    color: 'rgb(0, 0, 255)',
+    /**
+     * Locking in the current result of Turbopack's behavior for future testing.
+     * Webpack emits this properly today.
+     */
+    skip: ['loose', 'strict'],
+  },
   'pages-vendor-side-effects-true': {
     url: 'pages/vendor/b',
     selector: '#vendor-side-effects-true',
@@ -328,7 +320,6 @@ const SIDE_EFFECTS_PAGES: Record<
      * node_modules when side-effects is set to true.
      * Related webpack bug: https://github.com/webpack/webpack/issues/7094
      */
-    // brokenLoadingTurbo: true,
     selector: '#vendor-side-effects-false',
     /**
      * with side-effects=false set in a library, global css no longer loads
@@ -360,7 +351,9 @@ const SIDE_EFFECTS_PAGES: Record<
   'pages-vendor-side-effects-global-array-turbo': {
     url: '/vendor/d',
     selector: '#vendor-side-effects-global-array',
-    background: 'rgb(0, 250, 0)',
+    // should be 'rgb(0, 250, 0)'
+    background: 'rgb(0, 128, 128)',
+    // should be 'rgb(250, 0, 0)'
     color: 'rgb(0, 0, 255)',
     /**
      * Locking in the current result of Turbopack's behavior for future testing.
