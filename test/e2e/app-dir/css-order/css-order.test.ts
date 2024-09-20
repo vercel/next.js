@@ -227,19 +227,6 @@ const SIDE_EFFECTS_PAGES: Record<
      */
     skip: ['turbo'],
   },
-  'vendor-side-effects-global-array': {
-    url: '/vendor/d',
-    selector: '#vendor-side-effects-global-array',
-    background: 'rgb(0, 250, 0)',
-    color: 'rgb(250, 0, 0)',
-    /**
-     * TURBOPACK: This should be supported by turbo but does not appear to be today,
-     * because the emitted rules are not in the correct order when this is set.
-     * Results are inconsistent so we cannot reliably test against without
-     * removing this skip...
-     */
-    skip: ['turbo'],
-  },
   'vendor-side-effects-true': {
     url: '/vendor/b',
     selector: '#vendor-side-effects-true',
@@ -252,11 +239,24 @@ const SIDE_EFFECTS_PAGES: Record<
     background: 'rgb(0, 252, 0)',
     color: 'rgb(252, 0, 0)',
     /**
-     * TURBOPACK: This is 'broken' in the sense that turbopack has buttoned up a webpack bug.
+     * Turbopack has buttoned up a webpack bug.
      * Packages *should* side-effect css modules, but webpack doesn't retain
      * the proper import order context of css modules in libraries within
      * node_modules when side-effects is set to true.
      * Related webpack bug: https://github.com/webpack/webpack/issues/7094
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-global-array': {
+    url: '/vendor/d',
+    selector: '#vendor-side-effects-global-array',
+    background: 'rgb(0, 250, 0)',
+    color: 'rgb(250, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
      */
     skip: ['turbo'],
   },
@@ -284,13 +284,6 @@ const SIDE_EFFECTS_PAGES: Record<
   },
   'pages-vendor-side-effects-false': {
     url: 'pages/vendor/c',
-    /**
-     * This is 'broken' in the sense that turbopack has buttoned up a webpack bug.
-     * Packages *should* side-effect css modules, but webpack doesn't retain
-     * the proper import order context of css modules in libraries within
-     * node_modules when side-effects is set to true.
-     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
-     */
     selector: '#vendor-side-effects-false',
     /**
      * with side-effects=false set in a library, global css no longer loads
@@ -300,7 +293,7 @@ const SIDE_EFFECTS_PAGES: Record<
     // background: 'rgb(0, 252, 0),
     color: 'rgb(252, 0, 0)',
     /**
-     * This is 'broken' in the sense that turbopack has buttoned up a webpack bug.
+     * Turbopack has buttoned up a webpack bug.
      * Packages *should* side-effect css modules, but webpack doesn't retain
      * the proper import order context of css modules in libraries within
      * node_modules when side-effects is set to true.
