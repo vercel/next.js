@@ -19,8 +19,8 @@ use turbopack_ecmascript::{magic_identifier, text::TextContentFileSource, utils:
 
 use crate::{
     app_structure::{
-        get_metadata_route_name, Components, GlobalMetadata, LoaderTree, Metadata, MetadataItem,
-        MetadataWithAltItem,
+        get_metadata_route_name, AppPageLoaderTree, Components, GlobalMetadata, Metadata,
+        MetadataItem, MetadataWithAltItem,
     },
     next_app::{
         metadata::{get_content_type, image::dynamic_image_metadata_source},
@@ -29,7 +29,7 @@ use crate::{
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
 
-pub struct LoaderTreeBuilder {
+pub struct AppPageLoaderTreeBuilder {
     inner_assets: IndexMap<RcStr, Vc<Box<dyn Module>>>,
     counter: usize,
     imports: Vec<RcStr>,
@@ -66,13 +66,13 @@ impl ComponentType {
     }
 }
 
-impl LoaderTreeBuilder {
+impl AppPageLoaderTreeBuilder {
     fn new(
         module_asset_context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
     ) -> Self {
-        LoaderTreeBuilder {
+        AppPageLoaderTreeBuilder {
             inner_assets: IndexMap::new(),
             counter: 0,
             imports: Vec::new(),
@@ -354,10 +354,10 @@ impl LoaderTreeBuilder {
         Ok(())
     }
 
-    async fn walk_tree(&mut self, loader_tree: &LoaderTree, root: bool) -> Result<()> {
+    async fn walk_tree(&mut self, loader_tree: &AppPageLoaderTree, root: bool) -> Result<()> {
         use std::fmt::Write;
 
-        let LoaderTree {
+        let AppPageLoaderTree {
             page: app_page,
             segment,
             parallel_routes,
@@ -423,7 +423,10 @@ impl LoaderTreeBuilder {
         Ok(())
     }
 
-    async fn build(mut self, loader_tree: Vc<LoaderTree>) -> Result<LoaderTreeModule> {
+    async fn build(
+        mut self,
+        loader_tree: Vc<AppPageLoaderTree>,
+    ) -> Result<AppPageLoaderTreeModule> {
         let loader_tree = &*loader_tree.await?;
 
         let components = &loader_tree.components;
@@ -437,7 +440,7 @@ impl LoaderTreeBuilder {
         };
 
         self.walk_tree(loader_tree, true).await?;
-        Ok(LoaderTreeModule {
+        Ok(AppPageLoaderTreeModule {
             imports: self.imports,
             loader_tree_code: self.loader_tree_code.into(),
             inner_assets: self.inner_assets,
@@ -446,21 +449,21 @@ impl LoaderTreeBuilder {
     }
 }
 
-pub struct LoaderTreeModule {
+pub struct AppPageLoaderTreeModule {
     pub imports: Vec<RcStr>,
     pub loader_tree_code: RcStr,
     pub inner_assets: IndexMap<RcStr, Vc<Box<dyn Module>>>,
     pub pages: Vec<Vc<FileSystemPath>>,
 }
 
-impl LoaderTreeModule {
+impl AppPageLoaderTreeModule {
     pub async fn build(
-        loader_tree: Vc<LoaderTree>,
+        loader_tree: Vc<AppPageLoaderTree>,
         module_asset_context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
         base_path: Option<RcStr>,
     ) -> Result<Self> {
-        LoaderTreeBuilder::new(module_asset_context, server_component_transition, base_path)
+        AppPageLoaderTreeBuilder::new(module_asset_context, server_component_transition, base_path)
             .build(loader_tree)
             .await
     }
