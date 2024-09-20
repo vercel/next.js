@@ -1,37 +1,29 @@
 import type { API, ASTPath, FileInfo, FunctionDeclaration } from 'jscodeshift'
 
+const GEO = 'geo'
+const IP = 'ip'
+
 export default function (fileInfo: FileInfo, api: API) {
   const j = api.jscodeshift
-  const root = api.jscodeshift(fileInfo.source)
-
-  const params = root.find(j.FunctionDeclaration).find(j.Identifier, (id) => {
-    if (id.typeAnnotation?.type !== 'TSTypeAnnotation') return false
-
-    const typeAnn = id.typeAnnotation.typeAnnotation
-    return (
-      typeAnn.type === 'TSTypeReference' &&
-      typeAnn.typeName.type === 'Identifier' &&
-      typeAnn.typeName.name === 'NextRequest'
-    )
-  })
-
-  const GEO = 'geo'
-  const IP = 'ip'
-
-  let needImportGeolocation = false
-  let needImportIpAddress = false
+  const ast = j(fileInfo.source)
 
   let geoIdentifier = 'geolocation'
   let ipIdentifier = 'ipAddress'
+  let geoTypeIdentifier = 'Geo'
 
-  // avoid duplicate identifiers for `geolocation` and `ipAddress`
-  const allIdentifiers = root.find(j.Identifier).nodes()
+  let needImportGeolocation = false
+  let needImportIpAddress = false
+  let needImportGeoType = false
+
+  // Avoid duplicate identifiers within the file.
+  const allIdentifiers = ast.find(j.Identifier).nodes()
   const identifierNames = new Set(allIdentifiers.map((node) => node.name))
 
   let suffix = 1
   while (
     identifierNames.has(geoIdentifier) ||
-    identifierNames.has(ipIdentifier)
+    identifierNames.has(ipIdentifier) ||
+    identifierNames.has(geoTypeIdentifier)
   ) {
     if (identifierNames.has(geoIdentifier)) {
       geoIdentifier = `geolocation${suffix}`
@@ -39,10 +31,68 @@ export default function (fileInfo: FileInfo, api: API) {
     if (identifierNames.has(ipIdentifier)) {
       ipIdentifier = `ipAddress${suffix}`
     }
+    if (identifierNames.has(geoTypeIdentifier)) {
+      geoTypeIdentifier = `Geo${suffix}`
+    }
     suffix++
   }
 
-  for (const param of params.paths()) {
+  const nextReqIdentifier = ast
+    .find(j.FunctionDeclaration)
+    .find(j.Identifier, (id) => {
+      if (id.typeAnnotation?.type !== 'TSTypeAnnotation') {
+        return false
+      }
+
+      const typeAnn = id.typeAnnotation.typeAnnotation
+      return (
+        typeAnn.type === 'TSTypeReference' &&
+        typeAnn.typeName.type === 'Identifier' &&
+        typeAnn.typeName.name === 'NextRequest'
+      )
+    })
+
+  // get the type of NextRequest that has accessed for ip and geo
+  // NextRequest['geo'], NextRequest['ip']
+  const nextReqGeoType = ast.find(
+    j.TSIndexedAccessType,
+    (tsIndexedAccessType) => {
+      return (
+        tsIndexedAccessType.objectType.type === 'TSTypeReference' &&
+        tsIndexedAccessType.objectType.typeName.type === 'Identifier' &&
+        tsIndexedAccessType.objectType.typeName.name === 'NextRequest' &&
+        tsIndexedAccessType.indexType.type === 'TSLiteralType' &&
+        tsIndexedAccessType.indexType.literal.type === 'StringLiteral' &&
+        tsIndexedAccessType.indexType.literal.value === 'geo'
+      )
+    }
+  )
+  const nextReqIpType = ast.find(
+    j.TSIndexedAccessType,
+    (tsIndexedAccessType) => {
+      return (
+        tsIndexedAccessType.objectType.type === 'TSTypeReference' &&
+        tsIndexedAccessType.objectType.typeName.type === 'Identifier' &&
+        tsIndexedAccessType.objectType.typeName.name === 'NextRequest' &&
+        tsIndexedAccessType.indexType.type === 'TSLiteralType' &&
+        tsIndexedAccessType.indexType.literal.type === 'StringLiteral' &&
+        tsIndexedAccessType.indexType.literal.value === 'ip'
+      )
+    }
+  )
+
+  if (nextReqGeoType.length > 0) {
+    needImportGeoType = true
+  }
+
+  // replace with type Geo
+  nextReqGeoType.replaceWith(j.identifier(geoTypeIdentifier))
+  // replace with type string | undefined
+  nextReqIpType.replaceWith(
+    j.tsUnionType([j.tsStringKeyword(), j.tsUndefinedKeyword()])
+  )
+
+  for (const param of nextReqIdentifier.paths()) {
     const fnPath: ASTPath<FunctionDeclaration> = param.parentPath.parentPath
     const fn = j(fnPath)
     const blockStatement = fn.find(j.BlockStatement)
@@ -193,6 +243,12 @@ export default function (fileInfo: FileInfo, api: API) {
       needImportIpAddress || ipAccesses.length > 0 || ipDestructuring.length > 0
   }
 
+  const nextServerImport = ast.find(j.ImportDeclaration, {
+    source: {
+      value: 'next/server',
+    },
+  })
+
   if (needImportGeolocation || needImportIpAddress) {
     const importDeclaration = j.importDeclaration(
       [
@@ -218,14 +274,24 @@ export default function (fileInfo: FileInfo, api: API) {
       j.literal('@vercel/functions')
     )
 
-    root
-      .find(j.ImportDeclaration, {
-        source: {
-          value: 'next/server',
-        },
-      })
-      .insertAfter(importDeclaration)
+    nextServerImport.insertAfter(importDeclaration)
   }
 
-  return root.toSource()
+  if (needImportGeoType) {
+    const geoTypeImportDeclaration = j.importDeclaration(
+      [
+        needImportGeoType
+          ? j.importSpecifier(
+              j.identifier('Geo'),
+              j.identifier(geoTypeIdentifier)
+            )
+          : null,
+      ].filter(Boolean),
+      j.literal('@vercel/functions'),
+      'type'
+    )
+    nextServerImport.insertAfter(geoTypeImportDeclaration)
+  }
+
+  return ast.toSource()
 }
