@@ -25,6 +25,7 @@ import {
   getModuleReferencesInOrder,
 } from '../utils'
 import type { ChunkGroup } from 'webpack'
+import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 
 interface Options {
   dev: boolean
@@ -117,7 +118,10 @@ function getAppPathRequiredChunks(
         // previously done for dynamic chunks by patching the webpack runtime but we want
         // these filenames to be managed by React's Flight runtime instead and so we need
         // to implement any special handling of the file name here.
-        return chunks.push(chunkId, encodeURI(file + deploymentIdChunkQuery))
+        return chunks.push(
+          chunkId,
+          encodeURIPath(file) + deploymentIdChunkQuery
+        )
       })
     }
   })
@@ -143,7 +147,7 @@ function entryNameToGroupName(entryName: string) {
     // Remove catch-all routes since they should be part of the parent group that the catch-all would apply to.
     // This is necessary to support parallel routes since multiple page components can be rendered on the same page.
     // In order to do that, we need to ensure that the manifests are merged together by putting them in the same group.
-    .replace(/\/\[?\[\.\.\.[^\]]*\]\]?/g, '')
+    .replace(/\/\[?\[\.\.\.[^\]]*]]?/g, '')
 
   // Interception routes
   groupName = groupName
