@@ -17,13 +17,13 @@ const GEO_TYPE = 'Geo'
 
 export default function (fileInfo: FileInfo, api: API) {
   const j = api.jscodeshift.withParser('tsx')
-  const ast = j(fileInfo.source)
+  const root = j(fileInfo.source)
 
-  if (!ast.length) {
+  if (!root.length) {
     return fileInfo.source
   }
 
-  const nextReqType = ast
+  const nextReqType = root
     .find(j.FunctionDeclaration)
     .find(j.Identifier, (id) => {
       if (id.typeAnnotation?.type !== 'TSTypeAnnotation') {
@@ -42,7 +42,7 @@ export default function (fileInfo: FileInfo, api: API) {
     return fileInfo.source
   }
 
-  const vercelFuncImports = ast
+  const vercelFuncImports = root
     .find(j.ImportDeclaration, {
       source: {
         value: '@vercel/functions',
@@ -65,7 +65,7 @@ export default function (fileInfo: FileInfo, api: API) {
   // a unique identifier for them, therefore we don't look for all
   // identifier names in the file
   if (!hasGeolocation || !hasIpAddress || !hasGeoType) {
-    const allIdentifiers = ast.find(j.Identifier).nodes()
+    const allIdentifiers = root.find(j.Identifier).nodes()
     identifierNames = new Set(allIdentifiers.map((node) => node.name))
   }
 
@@ -87,7 +87,7 @@ export default function (fileInfo: FileInfo, api: API) {
     geoIdentifier,
     ipIdentifier
   )
-  let { needImportGeoType } = replaceGeoIpTypes(j, ast, geoTypeIdentifier)
+  let { needImportGeoType } = replaceGeoIpTypes(j, root, geoTypeIdentifier)
 
   const needChanges =
     needImportGeolocation || needImportIpAddress || needImportGeoType
@@ -102,7 +102,7 @@ export default function (fileInfo: FileInfo, api: API) {
 
   insertImportDeclarations(
     j,
-    ast,
+    root,
     needImportGeolocation,
     needImportIpAddress,
     needImportGeoType,
@@ -110,7 +110,7 @@ export default function (fileInfo: FileInfo, api: API) {
     ipIdentifier,
     geoTypeIdentifier
   )
-  return ast.toSource()
+  return root.toSource()
 }
 
 /**
@@ -329,7 +329,7 @@ function replaceGeoIpValues(
  */
 function replaceGeoIpTypes(
   j: API['jscodeshift'],
-  ast: Collection<Node>,
+  root: Collection<Node>,
   geoTypeIdentifier: string
 ): {
   needImportGeoType: boolean
@@ -338,7 +338,7 @@ function replaceGeoIpTypes(
 
   // get the type of NextRequest that has accessed for ip and geo
   // NextRequest['geo'], NextRequest['ip']
-  const nextReqGeoType = ast.find(
+  const nextReqGeoType = root.find(
     j.TSIndexedAccessType,
     (tsIndexedAccessType) => {
       return (
@@ -351,7 +351,7 @@ function replaceGeoIpTypes(
       )
     }
   )
-  const nextReqIpType = ast.find(
+  const nextReqIpType = root.find(
     j.TSIndexedAccessType,
     (tsIndexedAccessType) => {
       return (
@@ -383,7 +383,7 @@ function replaceGeoIpTypes(
 
 function insertImportDeclarations(
   j: API['jscodeshift'],
-  ast: Collection<Node>,
+  root: Collection<Node>,
   needImportGeolocation: boolean,
   needImportIpAddress: boolean,
   needImportGeoType: boolean,
@@ -391,7 +391,7 @@ function insertImportDeclarations(
   ipIdentifier: string,
   geoTypeIdentifier: string
 ) {
-  const firstNextServerImport = ast
+  const firstNextServerImport = root
     .find(j.ImportDeclaration, {
       source: {
         value: 'next/server',
