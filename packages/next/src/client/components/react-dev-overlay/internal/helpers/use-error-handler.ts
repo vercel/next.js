@@ -53,23 +53,23 @@ export function patchEventListeners() {
       }
     )
 
-  window.addEventListener(
-    'unhandledrejection',
-    (ev: WindowEventMap['unhandledrejection']): void => {
-      const reason = ev?.reason
-      if (isNextRouterError(reason)) {
-        ev.preventDefault()
-        return
-      }
+    window.addEventListener(
+      'unhandledrejection',
+      (ev: WindowEventMap['unhandledrejection']): void => {
+        const reason = ev?.reason
+        if (isNextRouterError(reason)) {
+          ev.preventDefault()
+          return
+        }
 
-      if (
-        !reason ||
-        !(reason instanceof Error) ||
-        typeof reason.stack !== 'string'
-      ) {
-        // A non-error was thrown, we don't have anything to show. :-(
-        return
-      }
+        if (
+          !reason ||
+          !(reason instanceof Error) ||
+          typeof reason.stack !== 'string'
+        ) {
+          // A non-error was thrown, we don't have anything to show. :-(
+          return
+        }
 
         const e = reason
         rejectionQueue.push(e)
