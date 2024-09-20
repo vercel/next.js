@@ -272,19 +272,24 @@ struct AllExportNamesResult {
 async fn get_all_export_names(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<AllExportNamesResult>> {
+    dbg!(1);
     let exports = module.get_exports().await?;
+    dbg!(2);
     let EcmascriptExports::EsmExports(exports) = &*exports else {
+        dbg!(3);
         return Ok(AllExportNamesResult {
             esm_exports: IndexMap::new(),
             dynamic_exporting_modules: vec![module],
         }
         .cell());
     };
-
+    dbg!(4);
     let exports = exports.await?;
+    dbg!(5);
     let mut esm_exports = IndexMap::new();
     let mut dynamic_exporting_modules = Vec::new();
     esm_exports.extend(exports.exports.keys().cloned().map(|n| (n, module)));
+    dbg!(6);
     let star_export_names = exports
         .star_exports
         .iter()
@@ -301,8 +306,10 @@ async fn get_all_export_names(
         })
         .try_flat_join()
         .await?;
+    dbg!(7);
     for star_export_names in star_export_names {
         let star_export_names = star_export_names.await?;
+        dbg!(8);
         esm_exports.extend(
             star_export_names
                 .esm_exports
@@ -312,7 +319,7 @@ async fn get_all_export_names(
         dynamic_exporting_modules
             .extend(star_export_names.dynamic_exporting_modules.iter().copied());
     }
-
+    dbg!(9);
     Ok(AllExportNamesResult {
         esm_exports,
         dynamic_exporting_modules,

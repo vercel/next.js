@@ -2924,7 +2924,7 @@ impl ModulePart {
         ModulePart::Exports.cell()
     }
     #[turbo_tasks::function]
-    pub fn reexports() -> Vc<Self> {
+    pub fn star_reexports() -> Vc<Self> {
         ModulePart::StarReexports.cell()
     }
     #[turbo_tasks::function]
@@ -2954,7 +2954,7 @@ impl ValueToString for ModulePart {
             ModulePart::Internal(id) => format!("internal part {}", id).into(),
             ModulePart::Locals => "locals".into(),
             ModulePart::Exports => "exports".into(),
-            ModulePart::StarReexports => "reexports".into(),
+            ModulePart::StarReexports => "star reexports".into(),
             ModulePart::Facade => "facade".into(),
         }))
     }

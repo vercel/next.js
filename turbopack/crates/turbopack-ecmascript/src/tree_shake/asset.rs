@@ -202,7 +202,7 @@ impl Module for EcmascriptModulePartAsset {
             let reference = Vc::upcast(SingleModuleReference::new(
                 Vc::upcast(EcmascriptModulePartAsset::new(
                     self.full_module,
-                    ModulePart::reexports(),
+                    ModulePart::star_reexports(),
                 )),
                 Vc::cell("reexport".into()),
             ));
@@ -238,7 +238,7 @@ impl Module for EcmascriptModulePartAsset {
                         match part_id {
                             PartId::Internal(part_id) => ModulePart::internal(*part_id),
                             PartId::Export(name) => ModulePart::export(name.clone()),
-                            PartId::StarReexports => ModulePart::reexports(),
+                            PartId::StarReexports => ModulePart::star_reexports(),
                             _ => unreachable!(
                                 "PartId other than Internal and Export should not be used here"
                             ),
