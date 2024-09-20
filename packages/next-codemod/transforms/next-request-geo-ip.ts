@@ -6,6 +6,7 @@ import type {
   Collection,
   Node,
   ImportSpecifier,
+  Identifier,
 } from 'jscodeshift'
 
 const GEO = 'geo'
@@ -17,6 +18,29 @@ const GEO_TYPE = 'Geo'
 export default function (fileInfo: FileInfo, api: API) {
   const j = api.jscodeshift
   const ast = j(fileInfo.source)
+
+  if (!ast.length) {
+    return fileInfo.source
+  }
+
+  const nextReqType = ast
+    .find(j.FunctionDeclaration)
+    .find(j.Identifier, (id) => {
+      if (id.typeAnnotation?.type !== 'TSTypeAnnotation') {
+        return false
+      }
+
+      const typeAnn = id.typeAnnotation.typeAnnotation
+      return (
+        typeAnn.type === 'TSTypeReference' &&
+        typeAnn.typeName.type === 'Identifier' &&
+        typeAnn.typeName.name === 'NextRequest'
+      )
+    })
+
+  if (!nextReqType.length) {
+    return fileInfo.source
+  }
 
   const vercelFuncImports = ast
     .find(j.ImportDeclaration, {
@@ -52,7 +76,7 @@ export default function (fileInfo: FileInfo, api: API) {
 
   let { needImportGeolocation, needImportIpAddress } = replaceGeoIpValues(
     j,
-    ast,
+    nextReqType,
     geoIdentifier,
     ipIdentifier
   )
@@ -122,28 +146,13 @@ function getUniqueIdentifier(identifierNames: Set<string>, identifier: string) {
  */
 function replaceGeoIpValues(
   j: API['jscodeshift'],
-  ast: Collection<Node>,
+  nextReqType: Collection<Identifier>,
   geoIdentifier: string,
   ipIdentifier: string
 ): {
   needImportGeolocation: boolean
   needImportIpAddress: boolean
 } {
-  const nextReqType = ast
-    .find(j.FunctionDeclaration)
-    .find(j.Identifier, (id) => {
-      if (id.typeAnnotation?.type !== 'TSTypeAnnotation') {
-        return false
-      }
-
-      const typeAnn = id.typeAnnotation.typeAnnotation
-      return (
-        typeAnn.type === 'TSTypeReference' &&
-        typeAnn.typeName.type === 'Identifier' &&
-        typeAnn.typeName.name === 'NextRequest'
-      )
-    })
-
   let needImportGeolocation = false
   let needImportIpAddress = false
 
