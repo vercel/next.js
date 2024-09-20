@@ -2,7 +2,10 @@ use std::mem::take;
 
 use swc_core::ecma::atoms::js_word;
 
-use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
+use super::{
+    BinaryOperator, ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty,
+    ObjectPart,
+};
 use crate::analyzer::JsValueUrlKind;
 
 /// Replaces some builtin values with their resulting values. Called early
@@ -97,6 +100,70 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
 /// processed.
 pub fn replace_builtin(value: &mut JsValue) -> bool {
     match value {
+        JsValue::Add(_, list) => {
+            if list.iter().all(|arg| arg.is_string() == Some(false)) {
+                // numeric addition
+                let mut sum = 0f64;
+                for arg in list {
+                    if let JsValue::Constant(ConstantValue::Num(num)) = arg {
+                        sum += num.0;
+                    } else {
+                        return false;
+                    }
+                }
+                *value = JsValue::Constant(ConstantValue::Num(ConstantNumber(sum)));
+                return true;
+            }
+
+            false
+        }
+
+        JsValue::Binary(
+            _,
+            l,
+            op @ BinaryOperator::StrictEqual
+            | op @ BinaryOperator::Equal
+            | op @ BinaryOperator::StrictNotEqual
+            | op @ BinaryOperator::NotEqual,
+            r,
+        ) => {
+            if let (
+                JsValue::Constant(ConstantValue::Str(l)),
+                JsValue::Constant(ConstantValue::Str(r)),
+            ) = (&**l, &**r)
+            {
+                let v = if *op == BinaryOperator::StrictEqual || *op == BinaryOperator::Equal {
+                    l == r
+                } else {
+                    l != r
+                };
+                *value = JsValue::Constant(if v {
+                    ConstantValue::True
+                } else {
+                    ConstantValue::False
+                });
+                return true;
+            } else if let (
+                JsValue::Constant(ConstantValue::Num(l)),
+                JsValue::Constant(ConstantValue::Num(r)),
+            ) = (&**l, &**r)
+            {
+                let v = if *op == BinaryOperator::StrictEqual || *op == BinaryOperator::Equal {
+                    l == r
+                } else {
+                    l != r
+                };
+                *value = JsValue::Constant(if v {
+                    ConstantValue::True
+                } else {
+                    ConstantValue::False
+                });
+                return true;
+            }
+
+            false
+        }
+
         // matching property access like `obj.prop`
         // Accessing a property on something can be handled in some cases
         JsValue::Member(_, box ref mut obj, ref mut prop) => match obj {
