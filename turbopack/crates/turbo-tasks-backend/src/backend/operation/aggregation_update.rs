@@ -312,7 +312,6 @@ impl AggregationUpdateQueue {
     }
 
     pub fn push(&mut self, job: AggregationUpdateJob) {
-        println!("push {:?}", job);
         self.jobs.push_back(job);
     }
 
