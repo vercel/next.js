@@ -136,7 +136,6 @@ const PAGES: Record<
     selector: '#hello3',
     color: 'rgb(0, 128, 128)',
   },
-
   'pages-interleaved-a': {
     group: 'pages-interleaved',
     brokenLoadingDev: true,
@@ -183,61 +182,6 @@ const PAGES: Record<
     color: 'rgb(255, 55, 255)',
     background: 'rgba(0, 0, 0, 0)',
   },
-  'pages-vendor-side-effects-array': {
-    group: 'pages-side-effects-array',
-    url: 'pages/vendor/a',
-    /**
-     * TURBOPACK: This should be supported by turbo but does not appear to be today,
-     * because the emitted rules are not in the correct order.
-     * WEBPACK: This package's side effects array includes css modules, which
-     * break when side effects are only partially applied in libraries.
-     */
-    selector: '#vendor-side-effects-array',
-    background: 'rgb(0, 254, 0)',
-    color: 'rgb(254, 0, 0)',
-  },
-  'pages-vendor-side-effects-true': {
-    group: 'pages-side-effects-true',
-    url: 'pages/vendor/b',
-    selector: '#vendor-side-effects-true',
-    background: 'rgb(0, 253, 0)',
-    color: 'rgb(253, 0, 0)',
-  },
-  'pages-vendor-side-effects-false': {
-    group: 'pages-side-effects-false',
-    url: 'pages/vendor/c',
-    /**
-     * This is 'broken' in the sense that turbopack has buttoned up a webpack bug.
-     * Packages *should* side-effect css modules, but webpack doesn't retain
-     * the proper import order context of css modules in libraries within
-     * node_modules when side-effects is set to true.
-     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
-     */
-    // brokenLoadingTurbo: true,
-    selector: '#vendor-side-effects-false',
-    /**
-     * with side-effects=false set in a library, global css no longer loads
-     * in the correct order.
-     * `background` assertions will be unstable in turbo AND webpack
-     */
-    // background: 'rgb(0, 252, 0),
-    color: 'rgb(252, 0, 0)',
-  },
-  'pages-vendor-side-effects-global-array': {
-    group: 'pages-side-effects-global-array',
-    url: '/vendor/d',
-    /**
-     * This is 'broken' in the sense that turbopack has buttoned up a webpack bug.
-     * Packages *should* side-effect css modules, but webpack doesn't retain
-     * the proper import order context of css modules in libraries within
-     * node_modules when side-effects is set to true.
-     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
-     */
-    // brokenLoadingTurbo: true,
-    selector: '#vendor-side-effects-global-array',
-    background: 'rgb(0, 250, 0)',
-    color: 'rgb(250, 0, 0)',
-  },
   'global-first': {
     group: 'global',
     conflict: true,
@@ -258,51 +202,171 @@ const PAGES: Record<
     selector: '#vendor1',
     color: 'rgb(0, 255, 0)',
   },
-  /**
-   * TURBOPACK: This should be supported by turbo but does not appear to be today,
-   * because the emitted rules are not in the correct order.
-   */
+}
+
+const SIDE_EFFECTS_PAGES: Record<
+  string,
+  {
+    url: string
+    selector: string
+    color: string
+    background?: string
+    skip?: Array<'turbo' | 'loose' | 'strict'>
+  }
+> = {
   'vendor-side-effects-array': {
-    group: 'side-effects-array',
     url: '/vendor/a',
     selector: '#vendor-side-effects-array',
     background: 'rgb(0, 254, 0)',
     color: 'rgb(254, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     */
+    skip: ['turbo'],
   },
-  /**
-   * TURBOPACK: This is 'broken' in the sense that turbopack has buttoned up a webpack bug.
-   * Packages *should* side-effect css modules, but webpack doesn't retain
-   * the proper import order context of css modules in libraries within
-   * node_modules when side-effects is set to true.
-   * Related webpack bug: https://github.com/webpack/webpack/issues/7094
-   */
+  'vendor-side-effects-array-turbo': {
+    url: '/vendor/a',
+    selector: '#vendor-side-effects-array',
+    background: 'rgb(0, 254, 0)',
+    // should be 'rgb(254, 0, 0)'
+    color: 'rgb(0, 0, 255)',
+    /**
+     * Locking in the current result of Turbopack's behavior for future testing
+     */
+    skip: ['loose', 'strict'],
+  },
   'vendor-side-effects-global-array': {
-    group: 'side-effects-global-array',
     url: '/vendor/d',
     selector: '#vendor-side-effects-global-array',
     background: 'rgb(0, 250, 0)',
     color: 'rgb(250, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-global-array-turbo': {
+    url: '/vendor/d',
+    selector: '#vendor-side-effects-global-array',
+    background: 'rgb(0, 250, 0)',
+    // should be 'rgb(250, 0, 0)'
+    color: 'rgb(0, 0, 255)',
+    /**
+     * Locking in the current result of Turbopack's behavior for future testing
+     */
+    skip: ['loose', 'strict'],
   },
   'vendor-side-effects-true': {
-    group: 'side-effects-true',
     url: '/vendor/b',
     selector: '#vendor-side-effects-true',
     background: 'rgb(0, 253, 0)',
     color: 'rgb(253, 0, 0)',
   },
-  /**
-   * TURBOPACK: This is 'broken' in the sense that turbopack has buttoned up a webpack bug.
-   * Packages *should* side-effect css modules, but webpack doesn't retain
-   * the proper import order context of css modules in libraries within
-   * node_modules when side-effects is set to true.
-   * Related webpack bug: https://github.com/webpack/webpack/issues/7094
-   */
   'vendor-side-effects-false': {
-    group: 'side-effects-false',
     url: '/vendor/c',
     selector: '#vendor-side-effects-false',
     background: 'rgb(0, 252, 0)',
     color: 'rgb(252, 0, 0)',
+    /**
+     * TURBOPACK: This is 'broken' in the sense that turbopack has buttoned up a webpack bug.
+     * Packages *should* side-effect css modules, but webpack doesn't retain
+     * the proper import order context of css modules in libraries within
+     * node_modules when side-effects is set to true.
+     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
+     */
+    skip: ['turbo'],
+  },
+  'pages-vendor-side-effects-array': {
+    url: 'pages/vendor/a',
+    selector: '#vendor-side-effects-array',
+    /**
+     * This package's side effects array includes css and css modules, which break
+     * webpack when side effects are __only partially__ applied in libraries
+     * (e.g. not Boolean `true` or `false`) only for the pages router.
+     * The color value SHOULD be `rgb(254, 0, 0)`. Locking in the broken behavior
+     * for webpack AND Turbopack for future testing.
+     *
+     * Expected values:
+     * `color: 'rgb(254, 0, 0)'`
+     * `background: 'rgb(0, 254, 0)'`
+     */
+    background: 'rgb(0, 128, 128)',
+    color: 'rgb(0, 0, 255)',
+  },
+  // 'pages-vendor-side-effects-array-turbo': {
+  //   url: 'pages/vendor/a',
+  //   selector: '#vendor-side-effects-array',
+  //   /**
+  //    * This package's side effects array includes css and css modules, which break
+  //    * webpack when side effects are __only partially__ applied in libraries
+  //    * (e.g. not Boolean `true` or `false`) only for the pages router.
+  //    * The color value SHOULD be `rgb(254, 0, 0)`. Locking in the broken behavior
+  //    * for webpack AND Turbopack for future testing.
+  //    *
+  //    * Expected values:
+  //    * `color: 'rgb(254, 0, 0)'`
+  //    * `background: 'rgb(0, 254, 0)'`
+  //    */
+  //   background: 'rgb(0, 128, 128)',
+  //   color: 'rgb(0, 0, 255)',
+  //   skip: ['loose', 'strict']
+  // },
+  'pages-vendor-side-effects-true': {
+    url: 'pages/vendor/b',
+    selector: '#vendor-side-effects-true',
+    background: 'rgb(0, 253, 0)',
+    color: 'rgb(253, 0, 0)',
+  },
+  'pages-vendor-side-effects-false': {
+    url: 'pages/vendor/c',
+    /**
+     * This is 'broken' in the sense that turbopack has buttoned up a webpack bug.
+     * Packages *should* side-effect css modules, but webpack doesn't retain
+     * the proper import order context of css modules in libraries within
+     * node_modules when side-effects is set to true.
+     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
+     */
+    // brokenLoadingTurbo: true,
+    selector: '#vendor-side-effects-false',
+    /**
+     * with side-effects=false set in a library, global css no longer loads
+     * in the correct order.
+     * `background` assertions will be unstable in turbo AND webpack
+     */
+    // background: 'rgb(0, 252, 0),
+    color: 'rgb(252, 0, 0)',
+    /**
+     * This is 'broken' in the sense that turbopack has buttoned up a webpack bug.
+     * Packages *should* side-effect css modules, but webpack doesn't retain
+     * the proper import order context of css modules in libraries within
+     * node_modules when side-effects is set to true.
+     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
+     */
+    skip: ['turbo'],
+  },
+  'pages-vendor-side-effects-global-array': {
+    url: '/vendor/d',
+    selector: '#vendor-side-effects-global-array',
+    background: 'rgb(0, 250, 0)',
+    color: 'rgb(250, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     */
+    skip: ['turbo'],
+  },
+  'pages-vendor-side-effects-global-array-turbo': {
+    url: '/vendor/d',
+    selector: '#vendor-side-effects-global-array',
+    background: 'rgb(0, 250, 0)',
+    color: 'rgb(0, 0, 255)',
+    /**
+     * Locking in the current result of Turbopack's behavior for future testing.
+     * Webpack emits this properly today.
+     */
+    skip: ['loose', 'strict'],
   },
 }
 
@@ -327,6 +391,7 @@ const options = (mode: string) => ({
   },
   skipDeployment: true,
 })
+
 describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
   'css-order %s',
   (mode: string) => {
@@ -451,6 +516,36 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
       const name = `should load correct styles on ${page}`
       if (mode === 'loose' && pageInfo.conflict) {
         // Conflict scenarios won't support that case
+        continue
+      }
+      it(name, async () => {
+        const browser = await next.browser(pageInfo.url)
+        expect(
+          await browser
+            .waitForElementByCss(pageInfo.selector)
+            .getComputedCss('color')
+        ).toBe(pageInfo.color)
+        if (pageInfo.background) {
+          expect(
+            await browser
+              .waitForElementByCss(pageInfo.selector)
+              .getComputedCss('background-color')
+          ).toBe(pageInfo.background)
+        }
+        await browser.close()
+      })
+    }
+  }
+)
+
+describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
+  'css-order %s',
+  (mode: 'turbo' | 'strict' | 'loose') => {
+    const { next } = nextTestSetup(options(mode))
+    for (const [page, pageInfo] of Object.entries(SIDE_EFFECTS_PAGES)) {
+      const name = `should load correct styles on ${page}`
+      if (pageInfo.skip?.includes(mode)) {
+        // Allow skip for valid (and documented) reasons.
         continue
       }
       it(name, async () => {
