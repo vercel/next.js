@@ -29,8 +29,8 @@ describe('Configuration', () => {
     ])
   })
 
-  afterAll(() => {
-    killApp(context.server)
+  afterAll(async () => {
+    await killApp(context.server)
   })
 
   async function get$(path, query) {
