@@ -257,7 +257,8 @@ export const css = curry(async function css(
   /**
    * CSS modules & SASS modules support.
    * They are allowed to be imported in anywhere.
-   * CSS Modules must NOT be restricted by package.json `sideEffects`.
+   * CSS Modules must NOT be restricted by package.json `sideEffects` due to a webpack bug.
+   * See https://github.com/webpack/webpack/issues/7094.
    * Allows for unused stylesheets to be excluded from production builds.
    */
   fns.push(

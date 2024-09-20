@@ -87,17 +87,22 @@ export default function Nav() {
         </li>
         <li>
           <Link href={'/vendor/a'} id="vendor-a">
-            Vendor A
+            Vendor Side Effects All CSS Array
           </Link>
         </li>
         <li>
           <Link href={'/vendor/b'} id="vendor-b">
-            Vendor B
+            Vendor Side Effects True
           </Link>
         </li>
         <li>
           <Link href={'/vendor/c'} id="vendor-c">
-            Vendor C
+            Vendor Side Effects False
+          </Link>
+        </li>
+        <li>
+          <Link href={'/vendor/d'} id="vendor-d">
+            Vendor Side Effects Global CSS Only Array
           </Link>
         </li>
       </ul>
@@ -152,6 +157,26 @@ export default function Nav() {
             id="pages-partial-reversed-b"
           >
             Partial Reversed B
+          </Link>
+        </li>
+        <li>
+          <Link href={'pages/vendor/a'} id="pages-vendor-a">
+            Vendor Side Effects All CSS Array
+          </Link>
+        </li>
+        <li>
+          <Link href={'pages/vendor/b'} id="pages-vendor-b">
+            Vendor Side Effects True
+          </Link>
+        </li>
+        <li>
+          <Link href={'pages/vendor/c'} id="pages-vendor-c">
+            Vendor Side Effects False
+          </Link>
+        </li>
+        <li>
+          <Link href={'pages/vendor/d'} id="pages-vendor-d">
+            Vendor Side Effects Global CSS Only Array
           </Link>
         </li>
       </ul>
