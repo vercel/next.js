@@ -495,12 +495,12 @@ pub async fn parse_segment_config_from_loader_tree_internal(
         config.apply_parallel_config(&tree)?;
     }
 
-    let components = &loader_tree.components;
-    for component in [components.page, components.default, components.layout]
+    let modules = &loader_tree.modules;
+    for path in [modules.page, modules.default, modules.layout]
         .into_iter()
         .flatten()
     {
-        let source = Vc::upcast(FileSource::new(component));
+        let source = Vc::upcast(FileSource::new(path));
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 

@@ -20,7 +20,7 @@ pub struct BaseLoaderTreeBuilder {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ComponentType {
+pub enum AppDirModuleType {
     Page,
     DefaultPage,
     Error,
@@ -30,16 +30,16 @@ pub enum ComponentType {
     NotFound,
 }
 
-impl ComponentType {
+impl AppDirModuleType {
     pub fn name(&self) -> &'static str {
         match self {
-            ComponentType::Page => "page",
-            ComponentType::DefaultPage => "defaultPage",
-            ComponentType::Error => "error",
-            ComponentType::Layout => "layout",
-            ComponentType::Loading => "loading",
-            ComponentType::Template => "template",
-            ComponentType::NotFound => "not-found",
+            AppDirModuleType::Page => "page",
+            AppDirModuleType::DefaultPage => "defaultPage",
+            AppDirModuleType::Error => "error",
+            AppDirModuleType::Layout => "layout",
+            AppDirModuleType::Loading => "loading",
+            AppDirModuleType::Template => "template",
+            AppDirModuleType::NotFound => "not-found",
         }
     }
 }
@@ -76,19 +76,19 @@ impl BaseLoaderTreeBuilder {
             .module()
     }
 
-    pub async fn create_component_tuple_code(
+    pub async fn create_module_tuple_code(
         &mut self,
-        component_type: ComponentType,
+        module_type: AppDirModuleType,
         path: Vc<FileSystemPath>,
     ) -> Result<String> {
-        let name = component_type.name();
+        let name = module_type.name();
         let i = self.unique_number();
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
 
         self.imports.push(
             formatdoc!(
                 r#"
-                import * as {} from "COMPONENT_{}";
+                import * as {} from "MODULE_{}";
                 "#,
                 identifier,
                 i
@@ -99,7 +99,7 @@ impl BaseLoaderTreeBuilder {
         let module = self.process_module(path);
 
         self.inner_assets
-            .insert(format!("COMPONENT_{i}").into(), module);
+            .insert(format!("MODULE_{i}").into(), module);
 
         let module_path = module.ident().path().to_string().await?;
 
