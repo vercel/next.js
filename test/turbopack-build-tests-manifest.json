@@ -2881,13 +2881,12 @@
     },
     "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
       "passed": [
+        "parallel-routes-catchall should match both the catch-all page & slot",
         "parallel-routes-catchall should match correctly when defining an explicit page & slot",
+        "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
         "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
       ],
-      "failed": [
-        "parallel-routes-catchall should match both the catch-all page & slot",
-        "parallel-routes-catchall should match correctly when defining an explicit page but no slot"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
