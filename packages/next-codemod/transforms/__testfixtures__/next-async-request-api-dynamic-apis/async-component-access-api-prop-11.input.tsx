@@ -7,4 +7,3 @@ export function MyComp() {
 export function generateContentfulMetadata() {
   headers()
 }
-

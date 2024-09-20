@@ -1,9 +1,5 @@
 import React from 'react'
-import { 
-  headers,
-  cookies, 
-  draftMode, 
-} from 'next/headers'
+import { headers, cookies, draftMode } from 'next/headers'
 
 export function MyDraftComponent() {
   if (draftMode().isEnabled) {
@@ -20,8 +16,5 @@ export function MyCookiesComponent() {
 
 export function MyHeadersComponent() {
   const h = headers()
-  return (
-    <p>{h.get('x-foo')}</p>
-  )
+  return <p>{h.get('x-foo')}</p>
 }
-

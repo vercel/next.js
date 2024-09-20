@@ -23,8 +23,6 @@ export function MyCookiesComponent() {
 
 export function MyHeadersComponent() {
   const h = (headers() as unknown as UnsafeUnwrappedHeaders)
-  return (
-    <p>{h.get('x-foo')}</p>
-  )
+  return <p>{h.get('x-foo')}</p>
 }
 
