@@ -43,12 +43,14 @@ export function getRedirectError(
 export function redirect(
   /** The URL to redirect to */
   url: string,
-  type: RedirectType = RedirectType.replace
+  type?: RedirectType
 ): never {
   const actionStore = actionAsyncStorage.getStore()
+  const redirectType =
+    type || (actionStore?.isAction ? RedirectType.push : RedirectType.replace)
   throw getRedirectError(
     url,
-    type,
+    redirectType,
     // If we're in an action, we want to use a 303 redirect
     // as we don't want the POST request to follow the redirect,
     // as it could result in erroneous re-submissions.
