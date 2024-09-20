@@ -1,4 +1,11 @@
-import type { API, ASTPath, FileInfo, FunctionDeclaration } from 'jscodeshift'
+import type {
+  API,
+  ASTPath,
+  FileInfo,
+  FunctionDeclaration,
+  Collection,
+  Node,
+} from 'jscodeshift'
 
 const GEO = 'geo'
 const IP = 'ip'
@@ -7,36 +14,51 @@ export default function (fileInfo: FileInfo, api: API) {
   const j = api.jscodeshift
   const ast = j(fileInfo.source)
 
-  let geoIdentifier = 'geolocation'
-  let ipIdentifier = 'ipAddress'
-  let geoTypeIdentifier = 'Geo'
-
-  let needImportGeolocation = false
-  let needImportIpAddress = false
-  let needImportGeoType = false
-
-  // Avoid duplicate identifiers within the file.
   const allIdentifiers = ast.find(j.Identifier).nodes()
   const identifierNames = new Set(allIdentifiers.map((node) => node.name))
 
+  let geoIdentifier = getUniqueIdentifier(identifierNames, 'geolocation')
+  let ipIdentifier = getUniqueIdentifier(identifierNames, 'ipAddress')
+  let geoTypeIdentifier = getUniqueIdentifier(identifierNames, 'Geo')
+
+  const { needImportGeolocation, needImportIpAddress } = replaceGeoIpValues(
+    j,
+    ast,
+    geoIdentifier,
+    ipIdentifier
+  )
+  const { needImportGeoType } = replaceGeoIpTypes(j, ast, geoTypeIdentifier)
+
+  insertImportDeclarations(
+    j,
+    ast,
+    needImportGeolocation,
+    needImportIpAddress,
+    needImportGeoType,
+    geoIdentifier,
+    ipIdentifier,
+    geoTypeIdentifier
+  )
+
+  return ast.toSource()
+}
+
+function getUniqueIdentifier(identifierNames: Set<string>, identifier: string) {
   let suffix = 1
-  while (
-    identifierNames.has(geoIdentifier) ||
-    identifierNames.has(ipIdentifier) ||
-    identifierNames.has(geoTypeIdentifier)
-  ) {
-    if (identifierNames.has(geoIdentifier)) {
-      geoIdentifier = `geolocation${suffix}`
-    }
-    if (identifierNames.has(ipIdentifier)) {
-      ipIdentifier = `ipAddress${suffix}`
-    }
-    if (identifierNames.has(geoTypeIdentifier)) {
-      geoTypeIdentifier = `Geo${suffix}`
-    }
+  let uniqueIdentifier = identifier
+  while (identifierNames.has(uniqueIdentifier)) {
+    uniqueIdentifier = `${identifier}${suffix}`
     suffix++
   }
+  return uniqueIdentifier
+}
 
+function replaceGeoIpValues(
+  j: API['jscodeshift'],
+  ast: Collection<Node>,
+  geoIdentifier: string,
+  ipIdentifier: string
+) {
   const nextReqIdentifier = ast
     .find(j.FunctionDeclaration)
     .find(j.Identifier, (id) => {
@@ -52,45 +74,8 @@ export default function (fileInfo: FileInfo, api: API) {
       )
     })
 
-  // get the type of NextRequest that has accessed for ip and geo
-  // NextRequest['geo'], NextRequest['ip']
-  const nextReqGeoType = ast.find(
-    j.TSIndexedAccessType,
-    (tsIndexedAccessType) => {
-      return (
-        tsIndexedAccessType.objectType.type === 'TSTypeReference' &&
-        tsIndexedAccessType.objectType.typeName.type === 'Identifier' &&
-        tsIndexedAccessType.objectType.typeName.name === 'NextRequest' &&
-        tsIndexedAccessType.indexType.type === 'TSLiteralType' &&
-        tsIndexedAccessType.indexType.literal.type === 'StringLiteral' &&
-        tsIndexedAccessType.indexType.literal.value === 'geo'
-      )
-    }
-  )
-  const nextReqIpType = ast.find(
-    j.TSIndexedAccessType,
-    (tsIndexedAccessType) => {
-      return (
-        tsIndexedAccessType.objectType.type === 'TSTypeReference' &&
-        tsIndexedAccessType.objectType.typeName.type === 'Identifier' &&
-        tsIndexedAccessType.objectType.typeName.name === 'NextRequest' &&
-        tsIndexedAccessType.indexType.type === 'TSLiteralType' &&
-        tsIndexedAccessType.indexType.literal.type === 'StringLiteral' &&
-        tsIndexedAccessType.indexType.literal.value === 'ip'
-      )
-    }
-  )
-
-  if (nextReqGeoType.length > 0) {
-    needImportGeoType = true
-  }
-
-  // replace with type Geo
-  nextReqGeoType.replaceWith(j.identifier(geoTypeIdentifier))
-  // replace with type string | undefined
-  nextReqIpType.replaceWith(
-    j.tsUnionType([j.tsStringKeyword(), j.tsUndefinedKeyword()])
-  )
+  let needImportGeolocation = false
+  let needImportIpAddress = false
 
   for (const param of nextReqIdentifier.paths()) {
     const fnPath: ASTPath<FunctionDeclaration> = param.parentPath.parentPath
@@ -243,6 +228,74 @@ export default function (fileInfo: FileInfo, api: API) {
       needImportIpAddress || ipAccesses.length > 0 || ipDestructuring.length > 0
   }
 
+  return {
+    needImportGeolocation,
+    needImportIpAddress,
+  }
+}
+
+function replaceGeoIpTypes(
+  j: API['jscodeshift'],
+  ast: Collection<Node>,
+  geoTypeIdentifier: string
+) {
+  let needImportGeoType = false
+
+  // get the type of NextRequest that has accessed for ip and geo
+  // NextRequest['geo'], NextRequest['ip']
+  const nextReqGeoType = ast.find(
+    j.TSIndexedAccessType,
+    (tsIndexedAccessType) => {
+      return (
+        tsIndexedAccessType.objectType.type === 'TSTypeReference' &&
+        tsIndexedAccessType.objectType.typeName.type === 'Identifier' &&
+        tsIndexedAccessType.objectType.typeName.name === 'NextRequest' &&
+        tsIndexedAccessType.indexType.type === 'TSLiteralType' &&
+        tsIndexedAccessType.indexType.literal.type === 'StringLiteral' &&
+        tsIndexedAccessType.indexType.literal.value === GEO
+      )
+    }
+  )
+  const nextReqIpType = ast.find(
+    j.TSIndexedAccessType,
+    (tsIndexedAccessType) => {
+      return (
+        tsIndexedAccessType.objectType.type === 'TSTypeReference' &&
+        tsIndexedAccessType.objectType.typeName.type === 'Identifier' &&
+        tsIndexedAccessType.objectType.typeName.name === 'NextRequest' &&
+        tsIndexedAccessType.indexType.type === 'TSLiteralType' &&
+        tsIndexedAccessType.indexType.literal.type === 'StringLiteral' &&
+        tsIndexedAccessType.indexType.literal.value === IP
+      )
+    }
+  )
+
+  if (nextReqGeoType.length > 0) {
+    needImportGeoType = true
+  }
+
+  // replace with type Geo
+  nextReqGeoType.replaceWith(j.identifier(geoTypeIdentifier))
+  // replace with type string | undefined
+  nextReqIpType.replaceWith(
+    j.tsUnionType([j.tsStringKeyword(), j.tsUndefinedKeyword()])
+  )
+
+  return {
+    needImportGeoType,
+  }
+}
+
+function insertImportDeclarations(
+  j: API['jscodeshift'],
+  ast: Collection<Node>,
+  needImportGeolocation: boolean,
+  needImportIpAddress: boolean,
+  needImportGeoType: boolean,
+  geoIdentifier: string,
+  ipIdentifier: string,
+  geoTypeIdentifier: string
+) {
   const nextServerImport = ast.find(j.ImportDeclaration, {
     source: {
       value: 'next/server',
@@ -292,6 +345,4 @@ export default function (fileInfo: FileInfo, api: API) {
     )
     nextServerImport.insertAfter(geoTypeImportDeclaration)
   }
-
-  return ast.toSource()
 }
