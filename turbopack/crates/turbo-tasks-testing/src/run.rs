@@ -90,19 +90,30 @@ where
     F: Future<Output = Result<T>> + Send + 'static,
     T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
 {
+    run_with_tt(registration, move |tt| run_once(tt, fut())).await
+}
+
+pub async fn run_with_tt<T, F>(
+    registration: &Registration,
+    fut: impl Fn(Arc<dyn TurboTasksApi>) -> F + Send + 'static,
+) -> Result<()>
+where
+    F: Future<Output = Result<T>> + Send + 'static,
+    T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
+{
     registration.ensure_registered();
 
     let name = closure_to_name(&fut);
     let tt = registration.create_turbo_tasks(&name, true);
     println!("Run #1 (without cache)");
-    let first = run_once(tt.clone(), fut()).await?;
+    let first = fut(tt.clone()).await?;
     println!("Run #2 (with memory cache, same TurboTasks instance)");
-    let second = run_once(tt.clone(), fut()).await?;
+    let second = fut(tt.clone()).await?;
     assert_eq!(first, second);
     tt.stop_and_wait().await;
     let tt = registration.create_turbo_tasks(&name, false);
     println!("Run #3 (with persistent cache if available, new TurboTasks instance)");
-    let third = run_once(tt.clone(), fut()).await?;
+    let third = fut(tt.clone()).await?;
     tt.stop_and_wait().await;
     assert_eq!(first, third);
     Ok(())
