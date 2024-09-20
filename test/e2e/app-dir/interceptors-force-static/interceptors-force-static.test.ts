@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
 import { assertHasRedbox, getRedboxDescription } from 'next-test-utils'
 
-describe('interceptors-force-static', () => {
+describe('interceptors', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
