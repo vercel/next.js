@@ -1,5 +1,4 @@
 import {
-  isThenable,
   type AppRouterState,
   type ReducerActions,
   type ReducerState,
@@ -11,6 +10,7 @@ import {
 import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
 import { startTransition } from 'react'
+import { isThenable } from '../is-thenable'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
