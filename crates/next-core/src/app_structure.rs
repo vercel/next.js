@@ -398,15 +398,15 @@ async fn get_directory_tree_internal(
 
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
-pub struct LoaderTree {
+pub struct AppPageLoaderTree {
     pub page: AppPage,
     pub segment: RcStr,
-    pub parallel_routes: IndexMap<RcStr, LoaderTree>,
+    pub parallel_routes: IndexMap<RcStr, AppPageLoaderTree>,
     pub components: Components,
     pub global_metadata: Vc<GlobalMetadata>,
 }
 
-impl LoaderTree {
+impl AppPageLoaderTree {
     /// Returns true if there's a page match in this loader tree.
     pub fn has_page(&self) -> bool {
         if &*self.segment == "__PAGE__" {
@@ -485,7 +485,7 @@ impl LoaderTree {
 pub enum Entrypoint {
     AppPage {
         pages: Vec<AppPage>,
-        loader_tree: Vc<LoaderTree>,
+        loader_tree: Vc<AppPageLoaderTree>,
     },
     AppRoute {
         page: AppPage,
@@ -558,7 +558,7 @@ fn add_app_page(
     app_dir: Vc<FileSystemPath>,
     result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
-    loader_tree: Vc<LoaderTree>,
+    loader_tree: Vc<AppPageLoaderTree>,
 ) {
     let mut e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
@@ -752,7 +752,7 @@ impl Issue for DuplicateParallelRouteIssue {
     }
 }
 
-fn page_path_except_parallel(loader_tree: &LoaderTree) -> Option<AppPage> {
+fn page_path_except_parallel(loader_tree: &AppPageLoaderTree) -> Option<AppPage> {
     if loader_tree.page.iter().any(|v| {
         matches!(
             v,
@@ -777,7 +777,7 @@ fn page_path_except_parallel(loader_tree: &LoaderTree) -> Option<AppPage> {
 
 fn check_duplicate(
     duplicate: &mut FxHashMap<AppPath, AppPage>,
-    loader_tree: &LoaderTree,
+    loader_tree: &AppPageLoaderTree,
     app_dir: Vc<FileSystemPath>,
 ) {
     let page_path = page_path_except_parallel(loader_tree);
@@ -806,7 +806,7 @@ async fn directory_tree_to_loader_tree(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
-) -> Result<Vc<Option<Vc<LoaderTree>>>> {
+) -> Result<Vc<Option<Vc<AppPageLoaderTree>>>> {
     let plain_tree = &*directory_tree.into_plain().await?;
 
     let tree = directory_tree_to_loader_tree_internal(
@@ -829,7 +829,7 @@ fn directory_tree_to_loader_tree_internal(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
-) -> Result<Option<LoaderTree>> {
+) -> Result<Option<AppPageLoaderTree>> {
     let app_path = AppPath::from(app_page.clone());
 
     if !for_app_path.contains(&app_path) {
@@ -854,7 +854,7 @@ fn directory_tree_to_loader_tree_internal(
         );
     }
 
-    let mut tree = LoaderTree {
+    let mut tree = AppPageLoaderTree {
         page: app_page.clone(),
         segment: directory_name.clone(),
         parallel_routes: IndexMap::new(),
@@ -874,7 +874,7 @@ fn directory_tree_to_loader_tree_internal(
     {
         tree.parallel_routes.insert(
             "children".into(),
-            LoaderTree {
+            AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: "__PAGE__".into(),
                 parallel_routes: IndexMap::new(),
@@ -1017,8 +1017,8 @@ fn default_route_tree(
     global_metadata: Vc<GlobalMetadata>,
     app_page: AppPage,
     default_component: Option<Vc<FileSystemPath>>,
-) -> LoaderTree {
-    LoaderTree {
+) -> AppPageLoaderTree {
+    AppPageLoaderTree {
         page: app_page.clone(),
         segment: "__DEFAULT__".into(),
         parallel_routes: IndexMap::new(),
@@ -1168,15 +1168,15 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
-        let not_found_tree = LoaderTree {
+        let not_found_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
                 parallel_routes: indexmap! {
-                    "children".into() => LoaderTree {
+                    "children".into() => AppPageLoaderTree {
                         page: app_page.clone(),
                         segment: "/_not-found".into(),
                         parallel_routes: indexmap! {
-                            "children".into() => LoaderTree {
+                            "children".into() => AppPageLoaderTree {
                                 page: app_page.clone(),
                                 segment: "__PAGE__".into(),
                                 parallel_routes: IndexMap::new(),

@@ -4,6 +4,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(iter_intersperse)]
 
+mod app_page_loader_tree;
 pub mod app_segment_config;
 pub mod app_structure;
 mod bootstrap;
@@ -11,7 +12,6 @@ mod embed_js;
 mod emit;
 pub mod hmr_entry;
 pub mod instrumentation;
-mod loader_tree;
 pub mod middleware;
 pub mod mode;
 pub mod next_app;
