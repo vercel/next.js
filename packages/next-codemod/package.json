@@ -19,6 +19,7 @@
   },
   "files": [
     "transforms/*.js",
+    "transforms/lib/**/*.js",
     "bin/*.js",
     "lib/**/*.js",
     "lib/cra-to-next/gitignore"

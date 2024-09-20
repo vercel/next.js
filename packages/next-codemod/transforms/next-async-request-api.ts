@@ -1,1 +1,1 @@
-export { default } from './async-request-api/index'
+export { default } from './lib/async-request-api/index'
