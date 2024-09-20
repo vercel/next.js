@@ -1,4 +1,4 @@
-/* Correct syntax: input::placeholder */ 
+/* Correct syntax: input::placeholder */
 input:placeholder {
   color: red;
 }
@@ -16,4 +16,3 @@ input:placeholder {
     background: linear-gradient(transparent 0%, rgba(0, 0, 0, 0.5) 100%);
   }
 }
-
