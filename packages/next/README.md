@@ -1,3 +1,5 @@
+[![Open in DevZero](https://assets.devzero.io/open-in-devzero.svg)](https://www.devzero.io/dashboard/recipes/new?repo-url=https://github.com/vercel/next.js)
+
 <p align="center">
   <a href="https://nextjs.org">
     <picture>
