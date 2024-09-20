@@ -27,14 +27,8 @@ export async function sendResponse(
     res.statusCode = response.status
     res.statusMessage = response.statusText
 
-    const headersWithNoMultipleValuesAllowed = [
-      'content-type',
-      'content-length',
-      'content-encoding',
-      'cache-control',
-      'expires',
-      'etag',
-    ]
+    // can add more headers to this list if needed
+    const headersWithMultipleValuesAllowed = ['set-cookie']
 
     // Copy over the response headers.
     response.headers?.forEach((value, name) => {
@@ -45,16 +39,16 @@ export async function sendResponse(
           res.appendHeader(name, cookie)
         }
       } else {
-        // if there is a common header from the list of headers which should not
-        // have multiple values do not overwrite it
-        const isHeaderPresentInRes = typeof res.getHeader(name) !== 'undefined'
+        // if there is a common header from the list of headers that allow multiple values
+        // and it is already present in the response, we should append the new
+        // value to the existing value
+        const isHeaderPresent = typeof res.getHeader(name) !== 'undefined'
         if (
-          headersWithNoMultipleValuesAllowed.includes(name.toLowerCase()) &&
-          isHeaderPresentInRes
+          headersWithMultipleValuesAllowed.includes(name.toLowerCase()) &&
+          isHeaderPresent
         ) {
-          return
+          res.appendHeader(name, value)
         }
-        res.appendHeader(name, value)
       }
     })
 
