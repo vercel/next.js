@@ -384,11 +384,14 @@ function insertImportDeclarations(
   ipIdentifier: string,
   geoTypeIdentifier: string
 ) {
-  const nextServerImport = ast.find(j.ImportDeclaration, {
-    source: {
-      value: 'next/server',
-    },
-  })
+  const firstNextServerImport = ast
+    .find(j.ImportDeclaration, {
+      source: {
+        value: 'next/server',
+      },
+    })
+    // get the first import declaration
+    .at(0)
 
   if (needImportGeolocation || needImportIpAddress) {
     const importDeclaration = j.importDeclaration(
@@ -415,7 +418,7 @@ function insertImportDeclarations(
       j.literal('@vercel/functions')
     )
 
-    nextServerImport.insertAfter(importDeclaration)
+    firstNextServerImport.insertAfter(importDeclaration)
   }
 
   if (needImportGeoType) {
@@ -436,6 +439,6 @@ function insertImportDeclarations(
       // https://typescript-eslint.io/rules/no-import-type-side-effects
       'type'
     )
-    nextServerImport.insertAfter(geoTypeImportDeclaration)
+    firstNextServerImport.insertAfter(geoTypeImportDeclaration)
   }
 }
