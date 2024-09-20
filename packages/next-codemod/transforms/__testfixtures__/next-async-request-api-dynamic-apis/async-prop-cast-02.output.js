@@ -6,7 +6,7 @@ import {
 } from 'next/headers'
 
 export function MyDraftComponent() {
-if (/* TODO: await this async call and propagate the async correctly */
+if (/* TODO: please manually await this call, codemod cannot transform due to undetermined async scope */
 draftMode().isEnabled) {
     return null
   }
@@ -15,13 +15,13 @@ draftMode().isEnabled) {
 }
 
 export function MyCookiesComponent() {
-  const c = /* TODO: await this async call and propagate the async correctly */
+  const c = /* TODO: please manually await this call, codemod cannot transform due to undetermined async scope */
   cookies()
   return c.get('name')
 }
 
 export function MyHeadersComponent() {
-  const h = /* TODO: await this async call and propagate the async correctly */
+  const h = /* TODO: please manually await this call, codemod cannot transform due to undetermined async scope */
   headers()
   return (
     <p>{h.get('x-foo')}</p>

@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 
 async function MyComponent() {
   function asyncFunction() {
-    callSomething(/* TODO: await this async call and propagate the async correctly */
+    callSomething(/* TODO: please manually await this call, codemod cannot transform due to undetermined async scope */
     cookies());
   }
 }

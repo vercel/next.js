@@ -297,7 +297,7 @@ function castTypesOrAddComment(
     // Otherwise for JS file, leave a message to the user to manually handle the transformation
     path.node.comments = [
       j.commentBlock(
-        ' TODO: await this async call and propagate the async correctly '
+        ' TODO: please manually await this call, codemod cannot transform due to undetermined async scope '
       ),
       ...(path.node.comments || []),
     ]
