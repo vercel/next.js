@@ -93,17 +93,17 @@ describe('app-dir - client-actions-tree-shaking', () => {
 
       const bundle1Contents = await Promise.all(
         bundle1Files.map((file: string) =>
-          fs.readFile(join(appDir, file), 'utf8')
+          fs.readFile(join(appDir, '.next', file), 'utf8')
         )
       )
       const bundle2Contents = await Promise.all(
         bundle2Files.map((file: string) =>
-          fs.readFile(join(appDir, file), 'utf8')
+          fs.readFile(join(appDir, '.next', file), 'utf8')
         )
       )
       const bundle3Contents = await Promise.all(
         bundle3Files.map((file: string) =>
-          fs.readFile(join(appDir, file), 'utf8')
+          fs.readFile(join(appDir, '.next', file), 'utf8')
         )
       )
 
