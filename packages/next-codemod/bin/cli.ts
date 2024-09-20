@@ -110,7 +110,6 @@ export function runTransform({ files, flags, transformer }) {
   }
 
   if (!dry && transformer === 'next-request-geo-ip') {
-    console.log('Note: This Codemod expects your app to be deployed on Vercel.')
     console.log('Installing `@vercel/functions`...')
     installPackage('@vercel/functions')
   }
