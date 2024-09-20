@@ -20,8 +20,8 @@ use auto_hash_map::{AutoMap, AutoSet};
 use dashmap::DashMap;
 pub use operation::AnyOperation;
 use operation::{
-    is_root_node, AggregationUpdateJob, AggregationUpdateQueue, CleanupOldEdgesOperation,
-    ConnectChildOperation, OutdatedEdge,
+    is_root_node, AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
+    CleanupOldEdgesOperation, ConnectChildOperation, OutdatedEdge,
 };
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
@@ -858,12 +858,20 @@ impl Backend for TurboTasksBackend {
                 .collect::<Vec<_>>();
 
             let was_dirty = task.remove(&CachedDataItemKey::Dirty {}).is_some();
+            let data_update = was_dirty
+                .then(|| {
+                    AggregationUpdateJob::data_update(
+                        &mut task,
+                        AggregatedDataUpdate::no_longer_dirty_task(task_id),
+                    )
+                })
+                .flatten();
 
             drop(task);
 
             done_event.notify(usize::MAX);
 
-            CleanupOldEdgesOperation::run(task_id, old_edges, was_dirty, ctx);
+            CleanupOldEdgesOperation::run(task_id, old_edges, data_update, ctx);
 
             drop(removed_data)
         }

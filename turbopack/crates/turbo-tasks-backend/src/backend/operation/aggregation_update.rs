@@ -75,10 +75,6 @@ pub enum AggregationUpdateJob {
         upper_ids: Vec<TaskId>,
         update: AggregatedDataUpdate,
     },
-    DataUpdate {
-        task_id: TaskId,
-        update: AggregatedDataUpdate,
-    },
     ScheduleWhenDirty {
         task_ids: Vec<TaskId>,
     },
@@ -86,6 +82,23 @@ pub enum AggregationUpdateJob {
         upper_id: TaskId,
         task_id: TaskId,
     },
+}
+
+impl AggregationUpdateJob {
+    pub fn data_update(
+        task: &mut TaskGuard<'_>,
+        update: AggregatedDataUpdate,
+    ) -> Option<AggregationUpdateJob> {
+        let upper_ids: Vec<_> = get_uppers(&task);
+        if !upper_ids.is_empty() {
+            Some(AggregationUpdateJob::AggregatedDataUpdate {
+                upper_ids,
+                update: update.clone(),
+            })
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
@@ -258,6 +271,10 @@ impl AggregationUpdateQueue {
 
     pub fn push(&mut self, job: AggregationUpdateJob) {
         self.jobs.push_back(job);
+    }
+
+    pub fn extend(&mut self, jobs: impl IntoIterator<Item = AggregationUpdateJob>) {
+        self.jobs.extend(jobs);
     }
 
     pub fn run(job: AggregationUpdateJob, ctx: &ExecuteContext<'_>) {
@@ -454,20 +471,29 @@ impl AggregationUpdateQueue {
                     lost_follower_id,
                 } => {
                     let mut follower = ctx.task(lost_follower_id);
-                    let mut upper_ids_as_follower = Vec::new();
+                    let mut follower_in_upper_ids = Vec::new();
                     upper_ids.retain(|&upper_id| {
-                        if update_count!(follower, Upper { task: upper_id }, -1) {
-                            // It was an inner
-                            true
-                        } else {
-                            // It is a follower
-                            upper_ids_as_follower.push(upper_id);
-                            false
-                        }
+                        let mut keep_upper = false;
+                        update!(follower, Upper { task: upper_id }, |old| {
+                            let Some(old) = old else {
+                                follower_in_upper_ids.push(upper_id);
+                                return None;
+                            };
+                            if old < 0 {
+                                follower_in_upper_ids.push(upper_id);
+                                return Some(old);
+                            }
+                            if old == 1 {
+                                keep_upper = true;
+                                return None;
+                            }
+                            Some(old - 1)
+                        });
+                        keep_upper
                     });
                     if !upper_ids.is_empty() {
                         let data = AggregatedDataUpdate::from_task(&mut follower).invert();
-                        let children: Vec<_> = get_followers(&follower);
+                        let followers: Vec<_> = get_followers(&follower);
                         drop(follower);
 
                         if !data.is_empty() {
@@ -484,17 +510,17 @@ impl AggregationUpdateQueue {
                                 }
                             }
                         }
-                        if !children.is_empty() {
+                        if !followers.is_empty() {
                             self.push(AggregationUpdateJob::InnerLostFollowers {
                                 upper_ids: upper_ids.clone(),
-                                lost_follower_ids: children,
+                                lost_follower_ids: followers,
                             });
                         }
                     } else {
                         drop(follower);
                     }
 
-                    for upper_id in upper_ids_as_follower {
+                    for upper_id in follower_in_upper_ids {
                         let mut upper = ctx.task(upper_id);
                         if update_count!(
                             upper,
@@ -503,8 +529,9 @@ impl AggregationUpdateQueue {
                             },
                             -1
                         ) {
+                            let upper_ids = get_uppers(&upper);
                             self.push(AggregationUpdateJob::InnerLostFollower {
-                                upper_ids: vec![upper_id],
+                                upper_ids,
                                 lost_follower_id,
                             })
                         }
@@ -523,16 +550,6 @@ impl AggregationUpdateQueue {
                                 });
                             }
                         }
-                    }
-                }
-                AggregationUpdateJob::DataUpdate { task_id, update } => {
-                    let task = ctx.task(task_id);
-                    let upper_ids: Vec<_> = get_uppers(&task);
-                    if !upper_ids.is_empty() {
-                        self.push(AggregationUpdateJob::AggregatedDataUpdate {
-                            upper_ids,
-                            update: update.clone(),
-                        });
                     }
                 }
                 AggregationUpdateJob::ScheduleWhenDirty { task_ids } => {

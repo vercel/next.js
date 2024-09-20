@@ -5,8 +5,8 @@ use turbo_tasks::TaskId;
 
 use super::{
     aggregation_update::{
-        get_aggregation_number, get_uppers, is_aggregating_node, AggregatedDataUpdate,
-        AggregationUpdateJob, AggregationUpdateQueue,
+        get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
+        AggregationUpdateQueue,
     },
     invalidate::make_task_dirty,
     ExecuteContext, Operation,
@@ -40,16 +40,11 @@ impl CleanupOldEdgesOperation {
     pub fn run(
         task_id: TaskId,
         outdated: Vec<OutdatedEdge>,
-        was_dirty: bool,
+        data_update: Option<AggregationUpdateJob>,
         ctx: ExecuteContext<'_>,
     ) {
         let mut queue = AggregationUpdateQueue::new();
-        if was_dirty {
-            queue.push(AggregationUpdateJob::DataUpdate {
-                task_id,
-                update: AggregatedDataUpdate::no_longer_dirty_task(task_id),
-            });
-        }
+        queue.extend(data_update);
         CleanupOldEdgesOperation::RemoveEdges {
             task_id,
             outdated,

@@ -323,7 +323,7 @@ impl_operation!(Invalidate invalidate::InvalidateOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 
-pub use aggregation_update::{is_root_node, AggregationUpdateJob};
+pub use aggregation_update::{is_root_node, AggregatedDataUpdate, AggregationUpdateJob};
 pub use cleanup_old_edges::OutdatedEdge;
 pub use update_cell::UpdateCellOperation;
 pub use update_output::UpdateOutputOperation;
