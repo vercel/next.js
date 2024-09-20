@@ -1,7 +1,8 @@
-import Player from "../components/Player";
-import PlayerCSS from "../components/PlayerCss";
+// app/page.tsx
+import Player from "./_components/Player";
+import PlayerCSS from "./_components/PlayerCss";
 
-export default function Index() {
+export default function Home() {
   const videoJsOptions = {
     techOrder: ["youtube"],
     autoplay: false,

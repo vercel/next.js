@@ -1149,9 +1149,13 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn tree_shaking_mode_for_user_code(
         self: Vc<Self>,
-        _is_development: bool,
+        is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
-        Ok(Vc::cell(Some(TreeShakingMode::ReexportsOnly)))
+        Ok(Vc::cell(Some(if is_development {
+            TreeShakingMode::ReexportsOnly
+        } else {
+            TreeShakingMode::ModuleFragments
+        })))
     }
 
     #[turbo_tasks::function]

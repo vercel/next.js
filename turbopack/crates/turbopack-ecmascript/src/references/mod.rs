@@ -126,7 +126,8 @@ use crate::{
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
-    magic_identifier, parse,
+    magic_identifier,
+    parse::parse,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
@@ -451,7 +452,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let parsed = if let Some(part) = part {
         let parsed = parse(source, ty, transforms);
-        let split_data = split(source.ident(), source, parsed);
+        let split_data = split(source.ident(), source, parsed, options.special_exports);
         part_of_module(split_data, part)
     } else {
         module.failsafe_parse()
