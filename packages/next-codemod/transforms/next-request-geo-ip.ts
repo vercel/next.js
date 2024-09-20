@@ -59,8 +59,15 @@ export default function (fileInfo: FileInfo, api: API) {
   const hasIpAddress = vercelFuncImportNames.has(IP_ADDRESS)
   const hasGeoType = vercelFuncImportNames.has(GEO_TYPE)
 
-  const allIdentifiers = ast.find(j.Identifier).nodes()
-  const identifierNames = new Set(allIdentifiers.map((node) => node.name))
+  let identifierNames = new Set<string>()
+
+  // if all identifiers are already imported, we don't need to create
+  // a unique identifier for them, therefore we don't look for all
+  // identifier names in the file
+  if (!hasGeolocation || !hasIpAddress || !hasGeoType) {
+    const allIdentifiers = ast.find(j.Identifier).nodes()
+    identifierNames = new Set(allIdentifiers.map((node) => node.name))
+  }
 
   let geoIdentifier = hasGeolocation
     ? getExistingIdentifier(vercelFuncImports, GEOLOCATION)
