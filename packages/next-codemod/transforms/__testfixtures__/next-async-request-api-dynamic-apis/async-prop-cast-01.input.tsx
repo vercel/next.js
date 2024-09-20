@@ -6,7 +6,7 @@ import {
 } from 'next/headers'
 
 export function MyDraftComponent() {
-if (draftMode().isEnabled) {
+  if (draftMode().isEnabled) {
     return null
   }
 

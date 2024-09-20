@@ -7,6 +7,7 @@ export default function Page(
     searchParams: any
   }
 ): JSX.Element {
+  // Access to the destructed properties
   slug
   search
 

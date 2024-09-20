@@ -16,6 +16,7 @@ export default async function Page(
     slug
   } = params;
 
+  // Access to the destructed properties
   slug
   search
 

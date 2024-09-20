@@ -9,7 +9,7 @@ import {
 } from 'next/headers';
 
 export function MyDraftComponent() {
-if ((draftMode() as unknown as UnsafeUnwrappedDraftMode).isEnabled) {
+  if ((draftMode() as unknown as UnsafeUnwrappedDraftMode).isEnabled) {
     return null
   }
 

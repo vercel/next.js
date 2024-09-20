@@ -174,8 +174,8 @@ export function transformDynamicAPI(
               j(path).closest(j.ArrowFunctionExpression)
 
             if (parentFunction.size() > 0) {
-              const parentFUnctionName = parentFunction.get().node.id?.name
-              const isParentFunctionHook = parentFUnctionName?.startsWith('use')
+              const parentFunctionName = parentFunction.get().node.id?.name
+              const isParentFunctionHook = parentFunctionName?.startsWith('use')
               if (isParentFunctionHook) {
                 j(path).replaceWith(
                   j.callExpression(j.identifier('use'), [
