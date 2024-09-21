@@ -1,12 +1,11 @@
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
-import { patchConsoleError } from './components/react-dev-overlay/patch-console'
-
+import './components/react-dev-overlay/patch-console'
+import './components/react-dev-overlay/internal/helpers/patch-event-listeners'
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
-
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import {
   onRecoverableError,
@@ -22,12 +21,8 @@ import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
-import { patchEventListeners } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 
 /// <reference types="react-dom/experimental" />
-
-patchConsoleError()
-patchEventListeners()
 
 const isReactOwnerStackEnabled = !!process.env.__NEXT_REACT_OWNER_STACK
 

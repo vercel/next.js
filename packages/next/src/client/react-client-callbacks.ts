@@ -1,7 +1,7 @@
 import type { HydrationOptions } from 'react-dom/client'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 import { getReactStitchedError } from './components/react-dev-overlay/internal/helpers/stitched-error'
-import { originConsoleError } from './components/react-dev-overlay/patch-console'
+import { originConsoleError } from './components/react-dev-overlay/original-console-error'
 import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 import isError from '../lib/is-error'
 
@@ -11,6 +11,7 @@ const reportGlobalError =
       // emulating an uncaught JavaScript error.
       reportError
     : (error: any) => {
+        console.log('reportGlobalError', error)
         window.console.error(error)
       }
 

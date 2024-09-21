@@ -13,6 +13,7 @@ import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
+  REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
   useErrorOverlayReducer,
 } from '../shared'
 import { parseStack } from '../internal/helpers/parseStack'
@@ -33,7 +34,6 @@ import type {
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
-import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
 import type { DebugInfo } from '../types'
 

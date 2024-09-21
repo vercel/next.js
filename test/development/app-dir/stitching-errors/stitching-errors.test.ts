@@ -1,9 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 import { assertHasRedbox, assertNoRedbox } from 'next-test-utils'
 
-// Remove the location `()` part in every line of stack trace
-function normalizeStackTrace(trace) {
-  return trace.replace(/\(.*\)/g, '')
+// Remove the location `()` part in every line of stack trace;
+// Remove the leading spaces in every line of stack trace;
+// Remove the trailing spaces in every line of stack trace;
+function normalizeStackTrace(trace: string) {
+  return trace
+    .replace(/\(.*\)/g, '')
+    .replace(/^\s+/gm, '')
+    .trim()
 }
 
 async function getStackFramesContent(browser) {
@@ -18,6 +23,8 @@ async function getStackFramesContent(browser) {
 
   return normalizeStackTrace(stackFramesContent)
 }
+
+// Remove leading spaces in every line of stack trace
 
 describe('stitching errors', () => {
   const { next } = nextTestSetup({
@@ -35,7 +42,7 @@ describe('stitching errors', () => {
         "useErrorHook
         app/browser/uncaught/page.js 
         Page
-        app/browser/uncaught/page.js "
+        app/browser/uncaught/page.js"
       `)
     } else {
       expect(stackFramesContent).toMatchInlineSnapshot(`
@@ -50,7 +57,7 @@ describe('stitching errors', () => {
         actionQueue
         ../src/client/components/app-router.tsx 
         AppRouter
-        ../src/client/app-index.tsx "
+        ../src/client/app-index.tsx"
       `)
     }
 
@@ -62,41 +69,39 @@ describe('stitching errors', () => {
     if (process.env.TURBOPACK) {
       expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
         "Error: browser error
-            at useThrowError 
-            at useErrorHook 
-            at Page 
-            at react-stack-bottom-frame 
-            at renderWithHooks 
-            at updateFunctionComponent 
-            at beginWork 
-            at runWithFiberInDEV 
-            at performUnitOfWork 
-            at workLoopSync 
-            at renderRootSync 
-            at recoverFromConcurrentError 
-            at performConcurrentWorkOnRoot 
-            at MessagePort.performWorkUntilDeadline 
-
+        at useThrowError 
+        at useErrorHook 
+        at Page 
+        at react-stack-bottom-frame 
+        at renderWithHooks 
+        at updateFunctionComponent 
+        at beginWork 
+        at runWithFiberInDEV 
+        at performUnitOfWork 
+        at workLoopSync 
+        at renderRootSync 
+        at recoverFromConcurrentError 
+        at performConcurrentWorkOnRoot 
+        at MessagePort.performWorkUntilDeadline 
         The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
       `)
     } else {
       expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
         "Error: browser error
-            at useThrowError 
-            at useErrorHook 
-            at Page 
-            at react-stack-bottom-frame 
-            at renderWithHooks 
-            at updateFunctionComponent 
-            at beginWork 
-            at runWithFiberInDEV 
-            at performUnitOfWork 
-            at workLoopSync 
-            at renderRootSync 
-            at recoverFromConcurrentError 
-            at performConcurrentWorkOnRoot 
-            at MessagePort.performWorkUntilDeadline 
-  
+        at useThrowError 
+        at useErrorHook 
+        at Page 
+        at react-stack-bottom-frame 
+        at renderWithHooks 
+        at updateFunctionComponent 
+        at beginWork 
+        at runWithFiberInDEV 
+        at performUnitOfWork 
+        at workLoopSync 
+        at renderRootSync 
+        at recoverFromConcurrentError 
+        at performConcurrentWorkOnRoot 
+        at MessagePort.performWorkUntilDeadline 
         The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
       `)
     }
@@ -114,21 +119,20 @@ describe('stitching errors', () => {
 
     expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
       "Error: browser error
-          at useThrowError 
-          at useErrorHook 
-          at Thrower 
-          at react-stack-bottom-frame 
-          at renderWithHooks 
-          at updateFunctionComponent 
-          at beginWork 
-          at runWithFiberInDEV 
-          at performUnitOfWork 
-          at workLoopSync 
-          at renderRootSync 
-          at recoverFromConcurrentError 
-          at performConcurrentWorkOnRoot 
-          at MessagePort.performWorkUntilDeadline 
-
+      at useThrowError 
+      at useErrorHook 
+      at Thrower 
+      at react-stack-bottom-frame 
+      at renderWithHooks 
+      at updateFunctionComponent 
+      at beginWork 
+      at runWithFiberInDEV 
+      at performUnitOfWork 
+      at workLoopSync 
+      at renderRootSync 
+      at recoverFromConcurrentError 
+      at performConcurrentWorkOnRoot 
+      at MessagePort.performWorkUntilDeadline 
       The above error occurred in the <Thrower> component. It was handled by the <MyErrorBoundary> error boundary."
     `)
   })
@@ -140,10 +144,18 @@ describe('stitching errors', () => {
 
     const stackFramesContent = await getStackFramesContent(browser)
     expect(stackFramesContent).toMatchInlineSnapshot(`
-      "useErrorHook
+      "useThrowError
       app/ssr/page.js 
-      Page
-      app/ssr/page.js "
+      useErrorHook
+      app/ssr/page.js 
+      ReactDevOverlay
+      ../src/client/components/react-dev-overlay/app/hot-reloader-client.tsx 
+      assetPrefix
+      ../src/client/components/app-router.tsx 
+      actionQueue
+      ../src/client/components/app-router.tsx 
+      AppRouter
+      ../src/client/app-index.tsx"
     `)
 
     const logs = await browser.log()
@@ -153,21 +165,20 @@ describe('stitching errors', () => {
 
     expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
       "Error: ssr error
-          at useThrowError 
-          at useErrorHook 
-          at Page 
-          at react-stack-bottom-frame 
-          at renderWithHooks 
-          at updateFunctionComponent 
-          at beginWork 
-          at runWithFiberInDEV 
-          at performUnitOfWork 
-          at workLoopSync 
-          at renderRootSync 
-          at recoverFromConcurrentError 
-          at performConcurrentWorkOnRoot 
-          at MessagePort.performWorkUntilDeadline 
-
+      at useThrowError 
+      at useErrorHook 
+      at Page 
+      at react-stack-bottom-frame 
+      at renderWithHooks 
+      at updateFunctionComponent 
+      at beginWork 
+      at runWithFiberInDEV 
+      at performUnitOfWork 
+      at workLoopSync 
+      at renderRootSync 
+      at recoverFromConcurrentError 
+      at performConcurrentWorkOnRoot 
+      at MessagePort.performWorkUntilDeadline 
       The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
     `)
   })
