@@ -141,6 +141,7 @@ export function getDefineEnv({
 }: DefineEnvPluginOptions): SerializedDefineEnv {
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
+  const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -182,9 +183,9 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
       config.devIndicators.appIsrStatus
     ),
-    'process.env.__NEXT_PPR': checkIsAppPPREnabled(config.experimental.ppr),
+    'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_REACT_OWNER_STACK': Boolean(
-      config.experimental.reactOwnerStack
+      config.experimental.reactOwnerStack || isPPREnabled
     ),
     'process.env.__NEXT_AFTER': config.experimental.after ?? false,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,

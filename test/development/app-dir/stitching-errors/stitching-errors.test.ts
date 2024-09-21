@@ -143,20 +143,29 @@ describe('stitching errors', () => {
     await assertHasRedbox(browser)
 
     const stackFramesContent = await getStackFramesContent(browser)
-    expect(stackFramesContent).toMatchInlineSnapshot(`
-      "useThrowError
-      app/ssr/page.js 
-      useErrorHook
-      app/ssr/page.js 
-      ReactDevOverlay
-      ../src/client/components/react-dev-overlay/app/hot-reloader-client.tsx 
-      assetPrefix
-      ../src/client/components/app-router.tsx 
-      actionQueue
-      ../src/client/components/app-router.tsx 
-      AppRouter
-      ../src/client/app-index.tsx"
-    `)
+    if (process.env.TURBOPACK) {
+      expect(stackFramesContent).toMatchInlineSnapshot(`
+        "useThrowError
+        app/ssr/page.js 
+        Page
+        app/ssr/page.js
+      `)
+    } else {
+      expect(stackFramesContent).toMatchInlineSnapshot(`
+        "useThrowError
+        app/ssr/page.js 
+        useErrorHook
+        app/ssr/page.js 
+        ReactDevOverlay
+        ../src/client/components/react-dev-overlay/app/hot-reloader-client.tsx 
+        assetPrefix
+        ../src/client/components/app-router.tsx 
+        actionQueue
+        ../src/client/components/app-router.tsx 
+        AppRouter
+        ../src/client/app-index.tsx"
+      `)
+    }
 
     const logs = await browser.log()
     const errorLog = logs.find((log) => {

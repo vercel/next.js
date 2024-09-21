@@ -4,6 +4,7 @@ import { getReactStitchedError } from './components/react-dev-overlay/internal/h
 import { originConsoleError } from './components/react-dev-overlay/original-console-error'
 import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 import isError from '../lib/is-error'
+import { isNextRouterError } from './components/is-next-router-error'
 
 const reportGlobalError =
   typeof reportError === 'function'
@@ -11,7 +12,6 @@ const reportGlobalError =
       // emulating an uncaught JavaScript error.
       reportError
     : (error: any) => {
-        console.log('reportGlobalError', error)
         window.console.error(error)
       }
 
@@ -36,7 +36,7 @@ export const onCaughtError: HydrationOptions['onCaughtError'] = (
   errorInfo
 ) => {
   // Skip certain custom errors which are not expected to be reported on client
-  if (isBailoutToCSRError(err)) return
+  if (isBailoutToCSRError(err) || isNextRouterError(err)) return
 
   const stitchedError = getReactStitchedError(err)
 
@@ -77,7 +77,7 @@ export const onUncaughtError: HydrationOptions['onUncaughtError'] = (
   errorInfo
 ) => {
   // Skip certain custom errors which are not expected to be reported on client
-  if (isBailoutToCSRError(err)) return
+  if (isBailoutToCSRError(err) || isNextRouterError(err)) return
 
   const stitchedError = getReactStitchedError(err)
 
