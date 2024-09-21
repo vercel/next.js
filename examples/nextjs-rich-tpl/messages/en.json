@@ -1,0 +1,107 @@
+{
+  "Metadata": {
+    "title": "Next.js Rich Template",
+    "description": "This project is a Next.js template aimed at providing a robust starting point for building modern web applications. It comes with pre-configured localization support, theme toggling, and various other features to streamline development."
+  },
+  "PageError": {
+    "title": "Unknown error",
+    "retry": "Retry"
+  },
+  "PageNotFound": {
+    "title": "Page not found"
+  },
+  "Theme": {
+    "Toggle theme": "Toggle theme",
+    "Mode": "Mode",
+    "Light": "Light",
+    "Dark": "Dark",
+    "System": "System"
+  },
+  "Languages": {
+    "Language": "Language",
+    "Select a language": "Select a language"
+  },
+  "SearchCommand": {
+    "Search website&#46;&#46;&#46;": "Search website...",
+    "Search&#46;&#46;&#46;": "Search...",
+    "No results found&#46;": "No results found.",
+    "Type a command or search&#46;&#46;&#46;": "Type a command or search...",
+    "items": {
+      "Pages": "Pages",
+      "Home": "Home",
+      "About": "About"
+    }
+  },
+  "Footer": {
+    "footerText": "Copyright © 2024 Fun117. All rights reserved.",
+    "items": {
+      "Resources": "Resources",
+      "Docs": "Docs",
+      "Learn": "Learn",
+      "Showcase": "Showcase",
+      "Blog": "Blog",
+      "Analytics": "Analytics",
+      "Next&#46;js Conf": "Next.js Conf",
+      "Previews": "Previews",
+      "More": "More",
+      "Next&#46;js Commerce": "Next.js Commerce",
+      "Contact Sales": "Contact Sales",
+      "Releases": "Releases",
+      "Telemetry": "Telemetry",
+      "Governance": "Governance",
+      "About Vercel": "About Vercel",
+      "Next&#46;js + Vercel": "Next.js + Vercel",
+      "Open Source Software": "Open Source Software"
+    }
+  },
+  "PageHome": {
+    "Get started by editing": "Get started by editing",
+    "By": "By",
+    "Docs": "Docs",
+    "Find in-depth information about Next&#46;js features and API&#46;": "Find in-depth information about Next.js features and API.",
+    "Learn": "Learn",
+    "Learn about Next&#46;js in an interactive course with quizzes!": "Learn about Next.js in an interactive course with quizzes!",
+    "Templates": "Templates",
+    "Explore starter templates for Next&#46;js&#46;": "Explore starter templates for Next.js.",
+    "Deploy": "Deploy",
+    "Instantly deploy your Next&#46;js site to a shareable URL with Vercel&#46;": "Instantly deploy your Next.js site to a shareable URL with Vercel."
+  },
+  "PageAbout": {
+    "About This Project": {
+      "title": "About This Project",
+      "description": "This project is a Next.js template aimed at providing a robust starting point for building modern web applications. It comes with pre-configured localization support, theme toggling, and various other features to streamline development."
+    },
+    "Project Details": {
+      "title": "Project Details",
+      "description": "This template is designed to help developers quickly set up a new Next.js project with best practices and commonly needed features. It includes:"
+    },
+    "Localization with next-intl": "Localization with next-intl",
+    "Dark mode support with next-themes": "Dark mode support with next-themes",
+    "Responsive design with Tailwind CSS": "Responsive design with Tailwind CSS",
+    "Optimized performance with modern web standards": "Optimized performance with modern web standards",
+    "Contributors": {
+      "title": "Contributors",
+      "description": "This project wouldn't be possible without the contributions of the following individuals:"
+    },
+    "Project Lead": "Project Lead",
+    "Modules & Packages Used": "Modules & Packages Used",
+    "Acknowledgments": {
+      "title": "Acknowledgments",
+      "description": "We would like to thank the Next.js community and the various open-source projects that have inspired and supported this template."
+    },
+    "Call for Contributions": {
+      "title": "Call for Contributions",
+      "description": "The documentation for this template is not comprehensive, and we welcome anyone who is willing to help improve it. Contributors will be acknowledged on this page."
+    },
+    "Contact": {
+      "title": "Contact",
+      "For any inquiries or contributions, please reach out to us via our": {
+        "text_1": "For any inquiries or contributions, please reach out to us via our",
+        "text_2": "GitHub repository",
+        "text_3": "."
+      }
+    }
+  },
+  "Home": "Home",
+  "About": "About"
+}
