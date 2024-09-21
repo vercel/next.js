@@ -439,23 +439,46 @@ function insertImportDeclarations(
   }
 
   if (needImportGeoType) {
-    const geoTypeImportDeclaration = j.importDeclaration(
-      [
-        needImportGeoType
-          ? j.importSpecifier(
-              j.identifier(GEO_TYPE),
-              // If there was a duplicate identifier, we add an
-              // incremental number suffix to it and we use alias:
-              // `import { Geo as Geo1 } from ...`
-              j.identifier(geoTypeIdentifier)
-            )
-          : null,
-      ].filter(Boolean),
-      j.literal('@vercel/functions'),
-      // Not using inline type import because it violates:
+    if (firstVercelFuncImport.length > 0) {
+      // insert the Geo identifier first then make it inline
+      // type import as we cannot directly push as inline type
+      firstVercelFuncImport
+        .get()
+        .node.specifiers.push(
+          j.importSpecifier(
+            j.identifier(GEO_TYPE),
+            j.identifier(geoTypeIdentifier)
+          )
+        )
+      const targetGeo = firstVercelFuncImport
+        .get()
+        .node.specifiers.find(
+          (specifier) => specifier.imported.name === GEO_TYPE
+        )
+      if (targetGeo) {
+        targetGeo.importKind = 'type'
+      }
+    } else {
+      // if there's no vercel func import, we create one as
+      // type import: import type { Geo } from '@vercel/functions'
+      // to avoid side effect with `verbatimModuleSyntax`:
       // https://typescript-eslint.io/rules/no-import-type-side-effects
-      'type'
-    )
-    firstNextServerImport.insertAfter(geoTypeImportDeclaration)
+      const geoTypeImportDeclaration = j.importDeclaration(
+        [
+          needImportGeoType
+            ? j.importSpecifier(
+                j.identifier(GEO_TYPE),
+                // If there was a duplicate identifier, we add an
+                // incremental number suffix to it and we use alias:
+                // `import { Geo as Geo1 } from ...`
+                j.identifier(geoTypeIdentifier)
+              )
+            : null,
+        ].filter(Boolean),
+        j.literal('@vercel/functions'),
+        'type'
+      )
+      firstNextServerImport.insertAfter(geoTypeImportDeclaration)
+    }
   }
 }

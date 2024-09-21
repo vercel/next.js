@@ -1,7 +1,6 @@
 // @ts-nocheck
 import { type NextRequest, NextResponse } from "next/server";
-import type { Geo } from "@vercel/functions";
-import { waitUntil, geolocation, ipAddress } from "@vercel/functions";
+import { waitUntil, geolocation, ipAddress, type Geo } from "@vercel/functions";
 
 export function GET(request: NextRequest) {
   waitUntil(Promise.resolve())
