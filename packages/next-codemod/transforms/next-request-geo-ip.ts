@@ -97,6 +97,8 @@ export default function (fileInfo: FileInfo, api: API) {
     return fileInfo.source
   }
 
+  // Even if there was a change above, if there's an existing import,
+  // we don't need to import them again.
   needImportGeolocation = !hasGeolocation && needImportGeolocation
   needImportIpAddress = !hasIpAddress && needImportIpAddress
   needImportGeoType = !hasGeoType && needImportGeoType
@@ -383,6 +385,22 @@ function replaceGeoIpTypes(
   }
 }
 
+/**
+ * Inserts import declarations from `"@vercel/functions"`.
+ *
+ * For the `Geo` type that needs to be imported to replace `NextRequest["geo"]`,
+ * if it is the only import needed, we import it as a type.
+ *
+ * ```ts
+ * import type { Geo } from "@vercel/functions";
+ * ```
+ *
+ * Otherwise, we import it as an inline type import.
+ *
+ * ```ts
+ * import { type Geo, ... } from "@vercel/functions";
+ * ```
+ */
 function insertImportDeclarations(
   j: API['jscodeshift'],
   root: Collection<Node>,
@@ -393,63 +411,81 @@ function insertImportDeclarations(
   geoIdentifier: string,
   ipIdentifier: string,
   geoTypeIdentifier: string
-) {
+): void {
+  // No need inserting import.
+  if (!needImportGeolocation && !needImportIpAddress && !needImportGeoType) {
+    return
+  }
+
+  // As we run this only when `NextRequest` is imported, there should be
+  // a "next/server" import.
   const firstNextServerImport = root
-    .find(j.ImportDeclaration, {
-      source: {
-        value: 'next/server',
-      },
-    })
-    // get the first import declaration
+    .find(j.ImportDeclaration, { source: { value: 'next/server' } })
     .at(0)
   const firstVercelFuncImport = vercelFuncImports.at(0)
 
-  if (needImportGeolocation || needImportIpAddress) {
-    const importDeclaration = j.importDeclaration(
+  const hasVercelFuncImport = firstVercelFuncImport.length > 0
+
+  // If there's no "@vercel/functions" import, and we only need to import
+  // `Geo` type, we create a type import to avoid side effect with
+  // `verbatimModuleSyntax`.
+  // x-ref: https://typescript-eslint.io/rules/no-import-type-side-effects
+  if (
+    !hasVercelFuncImport &&
+    !needImportGeolocation &&
+    !needImportIpAddress &&
+    needImportGeoType
+  ) {
+    const geoTypeImportDeclaration = j.importDeclaration(
       [
-        needImportGeolocation
+        needImportGeoType
           ? j.importSpecifier(
-              j.identifier(GEOLOCATION),
-              // If there was a duplicate identifier, we add an
-              // incremental number suffix to it and we use alias:
-              // `import { geolocation as geolocation1 } from ...`
-              j.identifier(geoIdentifier)
-            )
-          : null,
-        needImportIpAddress
-          ? j.importSpecifier(
-              j.identifier(IP_ADDRESS),
-              // If there was a duplicate identifier, we add an
-              // incremental number suffix to it and we use alias:
-              // `import { ipAddress as ipAddress1 } from ...`
-              j.identifier(ipIdentifier)
+              j.identifier(GEO_TYPE),
+              j.identifier(geoTypeIdentifier)
             )
           : null,
       ].filter(Boolean),
-      j.literal('@vercel/functions')
+      j.literal('@vercel/functions'),
+      // import type { Geo } ...
+      'type'
     )
-
-    if (firstVercelFuncImport.length > 0) {
-      firstVercelFuncImport
-        .get()
-        .node.specifiers.push(...importDeclaration.specifiers)
-    } else {
-      firstNextServerImport.insertAfter(importDeclaration)
-    }
+    firstNextServerImport.insertAfter(geoTypeImportDeclaration)
+    return
   }
 
-  if (needImportGeoType) {
-    if (firstVercelFuncImport.length > 0) {
-      // insert the Geo identifier first then make it inline
-      // type import as we cannot directly push as inline type
-      firstVercelFuncImport
-        .get()
-        .node.specifiers.push(
-          j.importSpecifier(
+  const importDeclaration = j.importDeclaration(
+    [
+      // If there was a duplicate identifier, we add an
+      // incremental number suffix to it and we use alias:
+      // `import { geolocation as geolocation1 } from ...`
+      needImportGeolocation
+        ? j.importSpecifier(
+            j.identifier(GEOLOCATION),
+            j.identifier(geoIdentifier)
+          )
+        : null,
+      needImportIpAddress
+        ? j.importSpecifier(
+            j.identifier(IP_ADDRESS),
+            j.identifier(ipIdentifier)
+          )
+        : null,
+      needImportGeoType
+        ? j.importSpecifier(
             j.identifier(GEO_TYPE),
             j.identifier(geoTypeIdentifier)
           )
-        )
+        : null,
+    ].filter(Boolean),
+    j.literal('@vercel/functions')
+  )
+
+  if (hasVercelFuncImport) {
+    firstVercelFuncImport
+      .get()
+      .node.specifiers.push(...importDeclaration.specifiers)
+
+    if (needImportGeoType) {
       const targetGeo = firstVercelFuncImport
         .get()
         .node.specifiers.find(
@@ -458,27 +494,19 @@ function insertImportDeclarations(
       if (targetGeo) {
         targetGeo.importKind = 'type'
       }
-    } else {
-      // if there's no vercel func import, we create one as
-      // type import: import type { Geo } from '@vercel/functions'
-      // to avoid side effect with `verbatimModuleSyntax`:
-      // https://typescript-eslint.io/rules/no-import-type-side-effects
-      const geoTypeImportDeclaration = j.importDeclaration(
-        [
-          needImportGeoType
-            ? j.importSpecifier(
-                j.identifier(GEO_TYPE),
-                // If there was a duplicate identifier, we add an
-                // incremental number suffix to it and we use alias:
-                // `import { Geo as Geo1 } from ...`
-                j.identifier(geoTypeIdentifier)
-              )
-            : null,
-        ].filter(Boolean),
-        j.literal('@vercel/functions'),
-        'type'
-      )
-      firstNextServerImport.insertAfter(geoTypeImportDeclaration)
     }
+  } else {
+    if (needImportGeoType) {
+      const targetGeo = importDeclaration.specifiers.find(
+        (specifier) =>
+          specifier.type === 'ImportSpecifier' &&
+          specifier.imported.name === GEO_TYPE
+      )
+      if (targetGeo) {
+        // @ts-expect-error -- Missing types in jscodeshift.
+        targetGeo.importKind = 'type'
+      }
+    }
+    firstNextServerImport.insertAfter(importDeclaration)
   }
 }

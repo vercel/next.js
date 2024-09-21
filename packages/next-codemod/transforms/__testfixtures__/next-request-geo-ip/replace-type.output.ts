@@ -1,8 +1,7 @@
 // @ts-nocheck
 import { type NextRequest, NextResponse } from "next/server";
 
-import type { Geo } from "@vercel/functions";
-import { geolocation, ipAddress } from "@vercel/functions";
+import { geolocation, ipAddress, type Geo } from "@vercel/functions";
 
 const mockGeo = {
   city: 'London',
