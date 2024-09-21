@@ -20,7 +20,7 @@
     "cmdk": "^1.0.0",
     "framer-motion": "^11.5.4",
     "lucide-react": "^0.441.0",
-    "next": "14.2.12",
+    "next": "latest",
     "next-intl": "^3.19.4",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
