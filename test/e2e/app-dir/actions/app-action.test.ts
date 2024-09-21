@@ -1702,4 +1702,24 @@ describe('app-dir action handling', () => {
       }, 'success')
     })
   })
+
+  it('should keep actions that are behind export * and nested cases bundled', async () => {
+    const browser = await next.browser('/reexport', {
+      pushErrorAsConsoleLog: true,
+    })
+
+    await browser.elementByCss('#test-1').click()
+
+    const logs = await browser.log()
+    expect(
+      logs.some((log) => log.message.includes('action: test-1'))
+    ).toBeTruthy()
+
+    await browser.elementByCss('#test-2').click()
+
+    const logs2 = await browser.log()
+    expect(
+      logs2.some((log) => log.message.includes('action: test-2'))
+    ).toBeTruthy()
+  })
 })
