@@ -91,10 +91,6 @@ describe('required server files app router', () => {
         cwd: next.testDir,
       }
     )
-
-    if (process.platform === 'darwin') {
-      appPort = `http://127.0.0.1:${appPort}`
-    }
   }
 
   beforeAll(async () => {

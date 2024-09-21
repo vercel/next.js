@@ -254,6 +254,7 @@ export function getImgProps(
     placeholder = 'empty',
     blurDataURL,
     fetchPriority,
+    decoding = 'async',
     layout,
     objectFit,
     objectPosition,
@@ -399,9 +400,6 @@ export function getImgProps(
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     unoptimized = true
-  }
-  if (priority) {
-    fetchPriority = 'high'
   }
 
   const qualityInt = getInt(quality)
@@ -687,7 +685,7 @@ export function getImgProps(
     fetchPriority,
     width: widthInt,
     height: heightInt,
-    decoding: 'async',
+    decoding,
     className,
     style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,

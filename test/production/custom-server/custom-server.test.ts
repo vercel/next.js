@@ -4,6 +4,7 @@ describe('custom server', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.js',
+    serverReadyPattern: /^- Local:/,
     dependencies: {
       'get-port': '5.1.1',
     },
@@ -36,6 +37,7 @@ describe('custom server with quiet setting', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.js',
+    serverReadyPattern: /^- Local:/,
     env: { USE_QUIET: 'true' },
     dependencies: {
       'get-port': '5.1.1',

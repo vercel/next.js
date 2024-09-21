@@ -51,7 +51,7 @@ export default class WebResponseCache {
       this.pendingResponses.set(pendingResponseKey, promise)
     }
 
-    let resolved = false
+    let hasResolved = false
     const resolve = (cacheEntry: ResponseCacheEntry | null) => {
       if (pendingResponseKey) {
         // Ensure all reads from the cache get the latest value.
@@ -60,8 +60,8 @@ export default class WebResponseCache {
           Promise.resolve(cacheEntry)
         )
       }
-      if (!resolved) {
-        resolved = true
+      if (!hasResolved) {
+        hasResolved = true
         resolver(cacheEntry)
       }
     }
@@ -84,7 +84,7 @@ export default class WebResponseCache {
     // same promise until we've fully finished our work.
     ;(async () => {
       try {
-        const cacheEntry = await responseGenerator(resolved)
+        const cacheEntry = await responseGenerator({ hasResolved })
         const resolveValue =
           cacheEntry === null
             ? null
@@ -114,7 +114,7 @@ export default class WebResponseCache {
       } catch (err) {
         // while revalidating in the background we can't reject as
         // we already resolved the cache entry so log the error here
-        if (resolved) {
+        if (hasResolved) {
           console.error(err)
         } else {
           rejecter(err as Error)

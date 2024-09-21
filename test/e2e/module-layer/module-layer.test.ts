@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getRedboxSource, hasRedbox, retry } from 'next-test-utils'
+import { assertHasRedbox, getRedboxSource, retry } from 'next-test-utils'
 
 describe('module layer', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
@@ -115,7 +115,7 @@ describe('module layer', () => {
         )
 
         await retry(async () => {
-          expect(await hasRedbox(browser)).toBe(true)
+          await assertHasRedbox(browser)
           const source = await getRedboxSource(browser)
           expect(source).toContain(
             `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client"`

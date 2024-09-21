@@ -27,6 +27,7 @@ import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers
 import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import type { Params } from '../../client/components/params'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -36,13 +37,13 @@ export const enum ExportedAppRouteFiles {
 export async function exportAppRoute(
   req: MockedRequest,
   res: MockedResponse,
-  params: { [key: string]: string | string[] } | undefined,
+  params: Params | undefined,
   page: string,
   incrementalCache: IncrementalCache | undefined,
   distDir: string,
   htmlFilepath: string,
   fileWriter: FileWriter,
-  experimental: Required<Pick<ExperimentalConfig, 'after'>>
+  experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -95,7 +96,15 @@ export async function exportAppRoute(
     const normalizedPage = normalizeAppPath(page)
     const isMetadataRoute = isMetadataRouteFile(normalizedPage, [], false)
 
-    if (!isStaticGenEnabled(userland) && !isMetadataRoute) {
+    if (
+      !isStaticGenEnabled(userland) &&
+      !isMetadataRoute &&
+      // We don't disable static gen when dynamicIO is enabled because we
+      // expect that anything dynamic in the GET handler will make it dynamic
+      // and thus avoid the cache surprises that led to us removing static gen
+      // unless specifically opted into
+      experimental.dynamicIO !== true
+    ) {
       return { revalidate: 0 }
     }
 

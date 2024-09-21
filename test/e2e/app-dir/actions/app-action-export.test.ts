@@ -6,6 +6,7 @@ describe('app-dir action handling - next export', () => {
     skipStart: true,
     skipDeployment: true,
     dependencies: {
+      nanoid: '4.0.1',
       'server-only': 'latest',
     },
   })

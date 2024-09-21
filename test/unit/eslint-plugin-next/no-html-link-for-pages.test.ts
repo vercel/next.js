@@ -5,12 +5,16 @@ import assert from 'assert'
 import path from 'path'
 
 const withCustomPagesDirectory = path.join(__dirname, 'with-custom-pages-dir')
+const withNestedPagesDirectory = path.join(__dirname, 'with-nested-pages-dir')
 
 const withoutPagesLinter = new Linter({
   cwd: path.join(__dirname, 'without-pages-dir'),
 })
 const withAppLinter = new Linter({
   cwd: path.join(__dirname, 'with-app-dir'),
+})
+const withNestedPagesLinter = new Linter({
+  cwd: withNestedPagesDirectory,
 })
 const withCustomPagesLinter = new Linter({
   cwd: withCustomPagesDirectory,
@@ -50,11 +54,22 @@ const linterConfigWithMultipleDirectories = {
     ],
   },
 }
+const linterConfigWithNestedContentRootDirDirectory = {
+  ...linterConfig,
+  settings: {
+    next: {
+      rootDir: path.join(withNestedPagesDirectory, 'demos/with-nextjs'),
+    },
+  },
+}
 
 withoutPagesLinter.defineRules({
   'no-html-link-for-pages': rule,
 })
 withAppLinter.defineRules({
+  'no-html-link-for-pages': rule,
+})
+withNestedPagesLinter.defineRules({
   'no-html-link-for-pages': rule,
 })
 withCustomPagesLinter.defineRules({
@@ -210,8 +225,47 @@ export class Blah extends Head {
   }
 }
 `
+const validInterceptedRouteCode = `
+import Link from 'next/link';
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <Link href='/photo/1/'>Photo</Link>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
 
+const invalidInterceptedRouteCode = `
+import Link from 'next/link';
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/photo/1/'>Photo</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
 describe('no-html-link-for-pages', function () {
+  it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
+    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
+    withNestedPagesLinter.verify(
+      validCode,
+      linterConfigWithNestedContentRootDirDirectory,
+      {
+        filename: 'foo.js',
+      }
+    )
+    expect(consoleSpy).not.toHaveBeenCalled()
+
+    consoleSpy.mockRestore()
+  })
   it('prints warning when there are no "pages" or "app" directories', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
     withoutPagesLinter.verify(validCode, linterConfig, {
@@ -368,6 +422,131 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       thirdReport.message,
       'Do not use an `<a>` element to navigate to `/list/lorem-ipsum/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  it('valid link element with appDir', function () {
+    const report = withAppLinter.verify(validCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid link element with multiple directories with appDir', function () {
+    const report = withAppLinter.verify(validCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid anchor element with appDir', function () {
+    const report = withAppLinter.verify(validAnchorCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid external link element with appDir', function () {
+    const report = withAppLinter.verify(validExternalLinkCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid download link element with appDir', function () {
+    const report = withAppLinter.verify(validDownloadLinkCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('valid target="_blank" link element with appDir', function () {
+    const report = withAppLinter.verify(
+      validTargetBlankLinkCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.deepEqual(report, [])
+  })
+
+  it('valid public file link element with appDir', function () {
+    const report = withAppLinter.verify(validPublicFile, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.deepEqual(report, [])
+  })
+
+  it('invalid static route with appDir', function () {
+    const [report] = withAppLinter.verify(invalidStaticCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  it('invalid dynamic route with appDir', function () {
+    const [report] = withAppLinter.verify(invalidDynamicCode, linterConfig, {
+      filename: 'foo.js',
+    })
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/list/foo/bar/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+    const [secondReport] = withAppLinter.verify(
+      secondInvalidDynamicCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.notEqual(secondReport, undefined, 'No lint errors found.')
+    assert.equal(
+      secondReport.message,
+      'Do not use an `<a>` element to navigate to `/list/foo/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+    const [thirdReport] = withAppLinter.verify(
+      thirdInvalidDynamicCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.notEqual(thirdReport, undefined, 'No lint errors found.')
+    assert.equal(
+      thirdReport.message,
+      'Do not use an `<a>` element to navigate to `/list/lorem-ipsum/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  it('valid intercepted route with appDir', function () {
+    const report = withAppLinter.verify(
+      validInterceptedRouteCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.deepEqual(report, [])
+  })
+
+  it('invalid intercepted route with appDir', function () {
+    const [report] = withAppLinter.verify(
+      invalidInterceptedRouteCode,
+      linterConfig,
+      {
+        filename: 'foo.js',
+      }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })

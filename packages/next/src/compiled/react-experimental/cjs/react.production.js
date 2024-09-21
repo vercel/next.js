@@ -373,6 +373,9 @@ exports.cache = function (fn) {
     return fn.apply(null, arguments);
   };
 };
+exports.captureOwnerStack = function () {
+  return null;
+};
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
     throw Error(
@@ -469,13 +472,13 @@ exports.memo = function (type, compare) {
 };
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
-    transition = {};
-  ReactSharedInternals.T = transition;
+    currentTransition = {};
+  ReactSharedInternals.T = currentTransition;
   try {
     var returnValue = scope(),
       onStartTransitionFinish = ReactSharedInternals.S;
     null !== onStartTransitionFinish &&
-      onStartTransitionFinish(transition, returnValue);
+      onStartTransitionFinish(currentTransition, returnValue);
     "object" === typeof returnValue &&
       null !== returnValue &&
       "function" === typeof returnValue.then &&
@@ -559,4 +562,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.0.0-experimental-6230622a1a-20240610";
+exports.version = "19.0.0-experimental-e740d4b1-20240919";

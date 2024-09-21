@@ -44,6 +44,7 @@ describe('required server files app router', () => {
         cacheHandler: './cache-handler.js',
         experimental: {
           ppr: true,
+          pprFallbacks: true,
         },
         eslint: {
           ignoreDuringBuilds: true,
@@ -101,10 +102,6 @@ describe('required server files app router', () => {
         cwd: next.testDir,
       }
     )
-
-    if (process.platform === 'darwin') {
-      appPort = `http://127.0.0.1:${appPort}`
-    }
   }
 
   beforeAll(async () => {
@@ -119,14 +116,26 @@ describe('required server files app router', () => {
     expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
   })
 
-  it('should properly stream resume', async () => {
-    const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
+  it.each([
+    {
+      name: 'with Next-Resume',
       headers: {
-        'x-matched-path': '/_next/postponed/resume/delayed',
+        'x-matched-path': '/delayed',
+        'next-resume': '1',
       },
+    },
+    {
+      name: 'without Next-Resume',
+      headers: { 'x-matched-path': '/_next/postponed/resume/delayed' },
+    },
+  ])('should properly stream resume $name', async ({ headers }) => {
+    const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
+      headers,
       method: 'POST',
       body: delayedPostpone,
     })
+
+    expect(res.status).toBe(200)
 
     let chunks = []
 
@@ -205,7 +214,21 @@ describe('required server files app router', () => {
   })
 
   describe('middleware rewrite', () => {
-    it('should work with a dynamic path', async () => {
+    it.each([
+      {
+        name: 'with Next-Resume',
+        headers: {
+          'x-matched-path': '/rewrite/first-cookie',
+          'next-resume': '1',
+        },
+      },
+      {
+        name: 'without Next-Resume',
+        headers: {
+          'x-matched-path': '/_next/postponed/resume/rewrite/first-cookie',
+        },
+      },
+    ])('should work with a dynamic path ($name)', async ({ headers }) => {
       const res = await fetchViaHTTP(
         appPort,
         '/rewrite-with-cookie',
@@ -213,7 +236,8 @@ describe('required server files app router', () => {
         {
           method: 'POST',
           headers: {
-            'x-matched-path': '/_next/postponed/resume/rewrite/first-cookie',
+            'x-matched-path': '/rewrite/first-cookie',
+            'next-resume': '1',
           },
           body: rewritePostpone,
         }
@@ -227,6 +251,42 @@ describe('required server files app router', () => {
       expect($('#params').text()).toBe(JSON.stringify({ slug: 'first-cookie' }))
     })
   })
+
+  it.each([
+    {
+      name: 'with Next-Resume',
+      headers: () => ({
+        'x-matched-path': '/dyn/[slug]',
+        'next-resume': '1',
+      }),
+    },
+    {
+      name: 'without Next-Resume',
+      headers: (random) => ({
+        'x-matched-path': '/_next/postponed/resume/dyn/' + random,
+      }),
+    },
+  ])(
+    'should still render when postponed is corrupted $name',
+    async ({ headers }) => {
+      const random = Math.random().toString(36).substring(2)
+
+      const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
+        method: 'POST',
+        headers: headers(random),
+        // This is a corrupted postponed JSON payload.
+        body: '{',
+      })
+
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+
+      // Expect that the closing HTML tag is still present, indicating a
+      // successful render.
+      expect(html).toContain('</html>')
+    }
+  )
 
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
@@ -294,7 +354,7 @@ describe('required server files app router', () => {
   it('should handle RSC requests', async () => {
     const res = await fetchViaHTTP(appPort, '/dyn/first.rsc', undefined, {
       headers: {
-        'x-matched-path': '/dyn/first',
+        'x-matched-path': '/dyn/[slug]',
       },
     })
 
@@ -310,7 +370,7 @@ describe('required server files app router', () => {
       undefined,
       {
         headers: {
-          'x-matched-path': '/dyn/first',
+          'x-matched-path': '/dyn/[slug]',
         },
       }
     )
@@ -318,5 +378,28 @@ describe('required server files app router', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toEqual('text/x-component')
     expect(res.headers.has('x-nextjs-postponed')).toBeTrue()
+  })
+
+  it('should handle revalidating the fallback page', async () => {
+    const res = await fetchViaHTTP(appPort, '/postpone/isr/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/postpone/isr/[slug]',
+        // We don't include the `x-now-route-matches` header because we want to
+        // test that the fallback route params are correctly set.
+      },
+    })
+
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+
+    expect(html).not.toContain('</html>')
+
+    const $ = cheerio.load(html)
+
+    expect($('#page').text()).toBeEmpty()
+    expect($('#params').text()).toBeEmpty()
+    expect($('#now').text()).toBeEmpty()
+    expect($('#loading').text()).toBe('/postpone/isr/[slug]')
   })
 })

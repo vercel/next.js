@@ -2,7 +2,11 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { getRedboxSource, hasRedbox } from 'next-test-utils'
+import {
+  assertHasRedbox,
+  assertNoRedbox,
+  getRedboxSource,
+} from 'next-test-utils'
 
 // TODO: The error overlay is not closed when restoring the working code.
 describe.skip('next/font build-errors', () => {
@@ -32,7 +36,7 @@ export default function Page() {
 `
     )
 
-    expect(await hasRedbox(browser)).toBeTrue()
+    await assertHasRedbox(browser)
     expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
       "app/page.js
       \`next/font\` error:
@@ -40,7 +44,7 @@ export default function Page() {
     `)
 
     await next.patchFile('app/page.js', content)
-    expect(await hasRedbox(browser)).toBeFalse()
+    await assertNoRedbox(browser)
   })
 
   it("should show a module not found error if local font file can' be resolved", async () => {
@@ -60,7 +64,7 @@ export default function Page() {
 `
     )
 
-    expect(await hasRedbox(browser)).toBeTrue()
+    await assertHasRedbox(browser)
     const sourceLines = (await getRedboxSource(browser)).split('\n')
 
     // Should display the file name correctly
@@ -71,6 +75,6 @@ export default function Page() {
     )
 
     await next.patchFile('app/page.js', content)
-    expect(await hasRedbox(browser)).toBeFalse()
+    await assertNoRedbox(browser)
   })
 })

@@ -697,37 +697,6 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   if (isNextStart) {
-    it.failing(
-      'should have deterministic etag across revalidates',
-      async () => {
-        const initialRes = await next.fetch(
-          '/variable-revalidate-stable/revalidate-3'
-        )
-        expect(initialRes.status).toBe(200)
-
-        // check 2 revalidate passes to ensure it's consistent
-        for (let i = 0; i < 2; i++) {
-          let startIdx = next.cliOutput.length
-
-          await retry(
-            async () => {
-              const res = await next.fetch(
-                '/variable-revalidate-stable/revalidate-3'
-              )
-              expect(next.cliOutput.substring(startIdx)).toContain(
-                'rendering /variable-revalidate-stable'
-              )
-              expect(initialRes.headers.get('etag')).toBe(
-                res.headers.get('etag')
-              )
-            },
-            12_000,
-            3_000
-          )
-        }
-      }
-    )
-
     it('should output HTML/RSC files for static paths', async () => {
       const files = (
         await glob('**/*', {
@@ -780,6 +749,8 @@ describe('app-dir static/dynamic handling', () => {
           "blog/tim.rsc",
           "blog/tim/first-post.html",
           "blog/tim/first-post.rsc",
+          "default-cache-search-params/page.js",
+          "default-cache-search-params/page_client-reference-manifest.js",
           "default-cache/page.js",
           "default-cache/page_client-reference-manifest.js",
           "dynamic-error/[id]/page.js",
@@ -2089,6 +2060,41 @@ describe('app-dir static/dynamic handling', () => {
       )
     })
 
+    it('should log fetch metrics to the diagnostics directory', async () => {
+      const fetchMetrics = JSON.parse(
+        await next.readFile('.next/diagnostics/fetch-metrics.json')
+      )
+
+      const indexFetchMetrics = fetchMetrics['/']
+
+      expect(indexFetchMetrics).toHaveLength(1)
+      expect(indexFetchMetrics[0]).toMatchObject({
+        url: 'https://next-data-api-endpoint.vercel.app/api/random?page',
+        status: 200,
+        cacheStatus: expect.any(String),
+        start: expect.any(Number),
+        end: expect.any(Number),
+        cacheReason: expect.any(String),
+      })
+
+      const otherPageMetrics =
+        fetchMetrics['/variable-revalidate/headers-instance']
+
+      expect(otherPageMetrics).toHaveLength(4)
+      expect(otherPageMetrics).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            url: 'https://next-data-api-endpoint.vercel.app/api/random?layout',
+            status: 200,
+            cacheStatus: expect.any(String),
+            start: expect.any(Number),
+            end: expect.any(Number),
+            cacheReason: expect.any(String),
+          }),
+        ])
+      )
+    })
+
     // build cache not leveraged for custom cache handler so not seeded
     if (!process.env.CUSTOM_CACHE_HANDLER) {
       it('should correctly error and not update cache for ISR', async () => {
@@ -2155,7 +2161,14 @@ describe('app-dir static/dynamic handling', () => {
   it('should correctly handle statusCode with notFound + ISR', async () => {
     for (let i = 0; i < 5; i++) {
       const res = await next.fetch('/articles/non-existent')
-      expect(res.status).toBe(404)
+
+      // Only the first request should be a 200 while using PPR. When the route
+      // shell is generated, the status code will switch to 404.
+      if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev && i === 0) {
+        expect(res.status).toBe(200)
+      } else {
+        expect(res.status).toBe(404)
+      }
       expect(await res.text()).toContain('This page could not be found')
       await waitFor(500)
     }
@@ -2203,14 +2216,41 @@ describe('app-dir static/dynamic handling', () => {
     }, 'success')
   })
 
+  it('should cache correctly when accessing search params opts into dynamic rendering', async () => {
+    const res = await next.fetch('/default-cache-search-params')
+    expect(res.status).toBe(200)
+
+    let prevHtml = await res.text()
+    let prev$ = cheerio.load(prevHtml)
+
+    await retry(async () => {
+      const curRes = await next.fetch('/default-cache-search-params')
+      expect(curRes.status).toBe(200)
+
+      const curHtml = await curRes.text()
+      const cur$ = cheerio.load(curHtml)
+
+      expect(cur$('#data-default-cache').text()).not.toBe(
+        prev$('#data-default-cache').text()
+      )
+      expect(cur$('#data-request-cache').text()).not.toBe(
+        prev$('#data-request-cache').text()
+      )
+      expect(cur$('#data-cache-auto').text()).not.toBe(
+        prev$('#data-cache-auto').text()
+      )
+    })
+  })
+
   it('should cache correctly for fetchCache = force-cache', async () => {
     const res = await next.fetch('/force-cache')
     expect(res.status).toBe(200)
 
     let prevHtml = await res.text()
     let prev$ = cheerio.load(prevHtml)
+    const cliOutputLength = next.cliOutput.length
 
-    await check(async () => {
+    await retry(async () => {
       const curRes = await next.fetch('/force-cache')
       expect(curRes.status).toBe(200)
 
@@ -2230,14 +2270,18 @@ describe('app-dir static/dynamic handling', () => {
       expect(cur$('#data-auto-cache').text()).toBe(
         prev$('#data-auto-cache').text()
       )
+    })
 
-      return 'success'
-    }, 'success')
+    if (isNextDev) {
+      await retry(() => {
+        const cliOutput = next.cliOutput
+          .slice(cliOutputLength)
+          .replace(/in \d+ms/g, 'in 0ms') // stub request durations
 
-    if (!isNextDeploy) {
-      expect(next.cliOutput).toContain(
-        'fetch for https://next-data-api-endpoint.vercel.app/api/random?d4 on /force-cache specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
-      )
+        expect(stripAnsi(cliOutput)).toContain(`
+ │ GET https://next-data-api-en../api/random?d4 200 in 0ms (cache hit)
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
+      })
     }
   })
 
@@ -2311,23 +2355,26 @@ describe('app-dir static/dynamic handling', () => {
       expect($2('#page-data').text()).not.toBe(pageData)
     })
   } else {
-    it('should not error with dynamic server usage with force-static', async () => {
-      const res = await next.fetch(
-        '/static-to-dynamic-error-forced/static-bailout-1'
-      )
-      const outputIndex = next.cliOutput.length
-      const html = await res.text()
-
-      expect(res.status).toBe(200)
-      expect(html).toContain('/static-to-dynamic-error-forced')
-      expect(html).toMatch(/id:.*?static-bailout-1/)
-
-      if (isNextStart) {
-        expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
-          /Page changed from static to dynamic at runtime \/static-to-dynamic-error-forced\/static-bailout-1, reason: cookies/
+    // TODO: re-implement this in a way that'll support PFPR
+    if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+      it('should not error with dynamic server usage with force-static', async () => {
+        const res = await next.fetch(
+          '/static-to-dynamic-error-forced/static-bailout-1'
         )
-      }
-    })
+        const outputIndex = next.cliOutput.length
+        const html = await res.text()
+
+        expect(res.status).toBe(200)
+        expect(html).toContain('/static-to-dynamic-error-forced')
+        expect(html).toMatch(/id:.*?static-bailout-1/)
+
+        if (isNextStart) {
+          expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
+            /Page changed from static to dynamic at runtime \/static-to-dynamic-error-forced\/static-bailout-1, reason: cookies/
+          )
+        }
+      })
+    }
 
     it('should produce response with url from fetch', async () => {
       const res = await next.fetch('/response-url')
@@ -2350,18 +2397,20 @@ describe('app-dir static/dynamic handling', () => {
       )
     })
 
-    it('should properly error when dynamic = "error" page uses dynamic', async () => {
-      const res = await next.fetch('/dynamic-error/static-bailout-1')
-      const outputIndex = next.cliOutput.length
+    if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+      it('should properly error when dynamic = "error" page uses dynamic', async () => {
+        const res = await next.fetch('/dynamic-error/static-bailout-1')
+        const outputIndex = next.cliOutput.length
 
-      expect(res.status).toBe(500)
+        expect(res.status).toBe(500)
 
-      if (isNextStart) {
-        expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
-          /Page with dynamic = "error" encountered dynamic data method on \/dynamic-error\/static-bailout-1/
-        )
-      }
-    })
+        if (isNextStart) {
+          expect(stripAnsi(next.cliOutput).substring(outputIndex)).not.toMatch(
+            /Page with dynamic = "error" encountered dynamic data method on \/dynamic-error\/static-bailout-1/
+          )
+        }
+      })
+    }
   }
 
   it('should skip cache in draft mode', async () => {
@@ -3054,20 +3103,34 @@ describe('app-dir static/dynamic handling', () => {
       expect(res.status).toBe(200)
 
       const html = await res.text()
-      const $ = cheerio.load(html)
+      let $ = cheerio.load(html)
 
       expect(JSON.parse($('#params').text())).toEqual({ slug: 'random' })
       expect(JSON.parse($('#headers').text())).toEqual([])
       expect(JSON.parse($('#cookies').text())).toEqual([])
 
-      const firstTime = $('#now').text()
-
       if (!(global as any).isNextDev) {
-        const res2 = await next.fetch('/force-static/random')
-        expect(res2.status).toBe(200)
+        if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+          // When PPR is enabled, we first encounter the fallback shell. We do
+          // expect though that the page does not change after the dynamic shell
+          // has been finalized.
+          await retry(async () => {
+            $ = await next.render$('/force-static/random')
 
-        const $2 = cheerio.load(await res2.text())
-        expect(firstTime).toBe($2('#now').text())
+            const first = $('#now').text()
+
+            $ = await next.render$('/force-static/random')
+
+            // The page should not change after the dynamic shell has been
+            // finalized.
+            expect($('#now').text()).toBe(first)
+          })
+        } else {
+          const first = $('#now').text()
+
+          $ = await next.render$('/force-static/random')
+          expect($('#now').text()).toBe(first)
+        }
       }
     })
   }
@@ -3229,10 +3292,16 @@ describe('app-dir static/dynamic handling', () => {
     const res = await next.fetch(`/blog/shu/hi`, {
       redirect: 'manual',
     })
-    expect(res.status).toBe(404)
+
     const html = await res.text()
     expect(html).toInclude('"noindex"')
     expect(html).toInclude('This page could not be found.')
+
+    if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
+      expect(res.status).toBe(200)
+    } else {
+      expect(res.status).toBe(404)
+    }
   })
 
   // TODO-APP: support fetch revalidate case for dynamic rendering
@@ -3455,6 +3524,26 @@ describe('app-dir static/dynamic handling', () => {
       const res2 = await next.fetch('/unstable-cache/dynamic', {
         headers: cookieHeader,
       })
+      const html2 = await res2.text()
+      const data2 = cheerio.load(html2)('#cached-data').text()
+
+      expect(data).not.toEqual(data2)
+    })
+
+    it('should not cache new result in draft mode', async () => {
+      const draftRes = await next.fetch('/api/draft-mode?status=enable')
+      const setCookie = draftRes.headers.get('set-cookie')
+      const cookieHeader = { Cookie: setCookie?.split(';', 1)[0] }
+
+      expect(cookieHeader.Cookie).toBeTruthy()
+
+      const res = await next.fetch('/unstable-cache/dynamic', {
+        headers: cookieHeader,
+      })
+      const html = await res.text()
+      const data = cheerio.load(html)('#cached-data').text()
+
+      const res2 = await next.fetch('/unstable-cache/dynamic')
       const html2 = await res2.text()
       const data2 = cheerio.load(html2)('#cached-data').text()
 

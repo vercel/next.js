@@ -3,41 +3,29 @@ import {
   requestAsyncStorage,
   type RequestStore,
 } from '../../client/components/request-async-storage.external'
-import type { CacheScope } from './react-cache-scope'
 import { ResponseCookies } from '../web/spec-extension/cookies'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
-
-export interface AfterContext {
-  run<T>(requestStore: RequestStore, callback: () => T): T
-  after(task: AfterTask): void
-}
+import { isThenable } from '../../shared/lib/is-thenable'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   onClose: RequestLifecycleOpts['onClose'] | undefined
-  cacheScope: CacheScope | undefined
 }
 
-export function createAfterContext(opts: AfterContextOpts): AfterContext {
-  return new AfterContextImpl(opts)
-}
-
-export class AfterContextImpl implements AfterContext {
+export class AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   private onClose: RequestLifecycleOpts['onClose'] | undefined
-  private cacheScope: CacheScope | undefined
 
   private requestStore: RequestStore | undefined
 
   private runCallbacksOnClosePromise: Promise<void> | undefined
   private callbackQueue: PromiseQueue
 
-  constructor({ waitUntil, onClose, cacheScope }: AfterContextOpts) {
+  constructor({ waitUntil, onClose }: AfterContextOpts) {
     this.waitUntil = waitUntil
     this.onClose = onClose
-    this.cacheScope = cacheScope
 
     this.callbackQueue = new PromiseQueue()
     this.callbackQueue.pause()
@@ -45,15 +33,11 @@ export class AfterContextImpl implements AfterContext {
 
   public run<T>(requestStore: RequestStore, callback: () => T): T {
     this.requestStore = requestStore
-    if (this.cacheScope) {
-      return this.cacheScope.run(() => callback())
-    } else {
-      return callback()
-    }
+    return callback()
   }
 
   public after(task: AfterTask): void {
-    if (isPromise(task)) {
+    if (isThenable(task)) {
       task.catch(() => {}) // avoid unhandled rejection crashes
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
@@ -87,6 +71,10 @@ export class AfterContextImpl implements AfterContext {
 
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
+      // NOTE: We're creating a promise here, which means that
+      // we will propagate any AsyncLocalStorage contexts we're currently in
+      // to the callbacks that'll execute later.
+      // This includes e.g. `requestAsyncStorage` and React's `requestStorage` (which backs `React.cache()`).
       this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
       this.waitUntil(this.runCallbacksOnClosePromise)
     }
@@ -114,20 +102,12 @@ export class AfterContextImpl implements AfterContext {
   private async runCallbacks(requestStore: RequestStore): Promise<void> {
     if (this.callbackQueue.size === 0) return
 
-    const runCallbacksImpl = async () => {
-      this.callbackQueue.start()
-      return this.callbackQueue.onIdle()
-    }
-
     const readonlyRequestStore: RequestStore =
       wrapRequestStoreForAfterCallbacks(requestStore)
 
     return requestAsyncStorage.run(readonlyRequestStore, () => {
-      if (this.cacheScope) {
-        return this.cacheScope.run(runCallbacksImpl)
-      } else {
-        return runCallbacksImpl()
-      }
+      this.callbackQueue.start()
+      return this.callbackQueue.onIdle()
     })
   }
 }
@@ -158,14 +138,7 @@ function wrapRequestStoreForAfterCallbacks(
     assetPrefix: requestStore.assetPrefix,
     reactLoadableManifest: requestStore.reactLoadableManifest,
     afterContext: requestStore.afterContext,
+    isHmrRefresh: requestStore.isHmrRefresh,
+    serverComponentsHmrCache: requestStore.serverComponentsHmrCache,
   }
-}
-
-function isPromise(p: unknown): p is Promise<unknown> {
-  return (
-    p !== null &&
-    typeof p === 'object' &&
-    'then' in p &&
-    typeof p.then === 'function'
-  )
 }

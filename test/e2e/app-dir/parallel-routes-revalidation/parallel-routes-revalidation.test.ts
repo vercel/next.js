@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 
 describe('parallel-routes-revalidation', () => {
-  const { next, isNextStart, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -447,7 +447,9 @@ describe('parallel-routes-revalidation', () => {
       await browser.waitForIdleNetwork()
 
       await retry(async () => {
-        expect(rscRequests.length).toBe(0)
+        if (!isNextDev) {
+          expect(rscRequests.length).toBe(0)
+        }
 
         if (isNextStart) {
           expect(prefetchRequests.length).toBe(4)

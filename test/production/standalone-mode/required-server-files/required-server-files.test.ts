@@ -24,14 +24,9 @@ describe('required server files', () => {
   let errors = []
   let stderr = ''
   let requiredFilesManifest
+  let minimalMode = true
 
-  const setupNext = async ({
-    nextEnv,
-    minimalMode,
-  }: {
-    nextEnv?: boolean
-    minimalMode?: boolean
-  }) => {
+  const setupNext = async ({ nextEnv }: { nextEnv?: boolean }) => {
     // test build against environment with next support
     process.env.NOW_BUILDER = nextEnv ? '1' : ''
 
@@ -109,18 +104,31 @@ describe('required server files', () => {
         await fs.remove(join(next.testDir, '.next/server', file))
       }
     }
+  }
 
-    const testServer = join(next.testDir, 'standalone/server.js')
+  beforeAll(async () => {
+    await setupNext({ nextEnv: true })
+  })
+
+  beforeEach(async () => {
+    errors = []
+    stderr = ''
+
+    const testServerFilename = join(next.testDir, 'standalone/server.js')
+    const testServerContent = await fs.readFile(testServerFilename, 'utf8')
+
     await fs.writeFile(
-      testServer,
-      (await fs.readFile(testServer, 'utf8')).replace(
-        'port:',
-        `minimalMode: ${minimalMode},port:`
+      testServerFilename,
+      testServerContent.replace(
+        /(startServer\({\s*)(minimalMode: (true|false),\n {2})?/,
+        `$1minimalMode: ${minimalMode},\n  `
       )
     )
+
     appPort = await findPort()
+
     server = await initNextServerScript(
-      testServer,
+      testServerFilename,
       /- Local:/,
       {
         ...process.env,
@@ -134,26 +142,17 @@ describe('required server files', () => {
           errors.push(msg)
           stderr += msg
         },
+        shouldRejectOnError: true,
       }
     )
-
-    if (process.platform === 'darwin') {
-      appPort = `http://127.0.0.1:${appPort}`
-    }
-  }
-
-  beforeAll(async () => {
-    await setupNext({ nextEnv: true, minimalMode: true })
   })
 
-  beforeEach(() => {
-    errors = []
-    stderr = ''
+  afterEach(async () => {
+    await killApp(server)
   })
 
   afterAll(async () => {
     await next.destroy()
-    if (server) await killApp(server)
   })
 
   it('should resolve correctly when a redirect is returned', async () => {
@@ -635,12 +634,16 @@ describe('required server files', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]',
-        'x-now-route-matches': '1=second&nxtPslug=second',
-      },
-    })
+    const html3 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?nxtPslug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]',
+        },
+      }
+    )
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 
@@ -1279,51 +1282,29 @@ describe('required server files', () => {
     expect(envVariables.envFromHost).toBe('FOOBAR')
   })
 
-  // FIXME: update to not mutate the global state
-  it('should run middleware correctly (without minimalMode, with wasm)', async () => {
-    const standaloneDir = join(next.testDir, 'standalone')
+  describe('without minimalMode, with wasm', () => {
+    beforeAll(() => {
+      minimalMode = false
+    })
 
-    const testServer = join(standaloneDir, 'server.js')
-    await fs.writeFile(
-      testServer,
-      (await fs.readFile(testServer, 'utf8')).replace(
-        'minimalMode: true',
-        'minimalMode: false'
+    it('should run middleware correctly', async () => {
+      const standaloneDir = join(next.testDir, 'standalone')
+      const res = await fetchViaHTTP(appPort, '/')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('index page')
+
+      expect(
+        fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
+      ).toBe(true)
+
+      const resImageResponse = await fetchViaHTTP(
+        appPort,
+        '/a-non-existent-page/to-test-with-middleware'
       )
-    )
-    appPort = await findPort()
-    server = await initNextServerScript(
-      testServer,
-      /- Local:/,
-      {
-        ...process.env,
-        PORT: `${appPort}`,
-      },
-      undefined,
-      {
-        cwd: next.testDir,
-        onStderr(msg) {
-          errors.push(msg)
-          stderr += msg
-        },
-      }
-    )
 
-    const res = await fetchViaHTTP(appPort, '/')
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('index page')
-
-    expect(fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))).toBe(
-      true
-    )
-
-    const resImageResponse = await fetchViaHTTP(
-      appPort,
-      '/a-non-existent-page/to-test-with-middleware'
-    )
-
-    expect(resImageResponse.status).toBe(200)
-    expect(resImageResponse.headers.get('content-type')).toBe('image/png')
+      expect(resImageResponse.status).toBe(200)
+      expect(resImageResponse.headers.get('content-type')).toBe('image/png')
+    })
   })
 
   it('should correctly handle a mismatch in buildIds when normalizing next data', async () => {

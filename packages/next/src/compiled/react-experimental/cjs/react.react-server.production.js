@@ -404,6 +404,9 @@ exports.cache = function (fn) {
     }
   };
 };
+exports.captureOwnerStack = function () {
+  return null;
+};
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
     throw Error(formatProdErrorMessage(267, element));
@@ -520,13 +523,13 @@ exports.memo = function (type, compare) {
 };
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
-    transition = {};
-  ReactSharedInternals.T = transition;
+    currentTransition = {};
+  ReactSharedInternals.T = currentTransition;
   try {
     var returnValue = scope(),
       onStartTransitionFinish = ReactSharedInternals.S;
     null !== onStartTransitionFinish &&
-      onStartTransitionFinish(transition, returnValue);
+      onStartTransitionFinish(currentTransition, returnValue);
     "object" === typeof returnValue &&
       null !== returnValue &&
       "function" === typeof returnValue.then &&
@@ -564,4 +567,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.0.0-experimental-6230622a1a-20240610";
+exports.version = "19.0.0-experimental-e740d4b1-20240919";

@@ -7,6 +7,10 @@ export type BuildManifest = {
   polyfillFiles: readonly string[]
   lowPriorityFiles: readonly string[]
   rootMainFiles: readonly string[]
+  // this is a separate field for flying shuttle to allow
+  // different root main files per entries/build (ideally temporary)
+  // until we can stitch the runtime chunks together safely
+  rootMainFilesTree: { [appRoute: string]: readonly string[] }
   pages: {
     '/_app': readonly string[]
     [page: string]: readonly string[]
