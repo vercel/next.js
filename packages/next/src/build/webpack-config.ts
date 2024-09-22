@@ -1197,6 +1197,7 @@ export default async function getBaseWebpackConfig(
         'next-metadata-route-loader',
         'modularize-import-loader',
         'next-barrel-loader',
+        'next-error-browser-binary-loader',
       ].reduce(
         (alias, loader) => {
           // using multiple aliases to replace `resolveLoader.modules`
@@ -1283,6 +1284,10 @@ export default async function getBaseWebpackConfig(
           issuerLayer: {
             or: WEBPACK_LAYERS.GROUP.neutralTarget,
           },
+        },
+        {
+          test: [/[\\/].*?\.node$/],
+          loader: 'next-error-browser-binary-loader',
         },
         ...(hasAppDir
           ? [
