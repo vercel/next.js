@@ -1,9 +1,9 @@
-import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
-import { ReflectAdapter } from '../../server/web/spec-extension/adapters/reflect'
+import { trackFallbackParamAccessed } from '../app-render/dynamic-rendering'
+import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { Params } from './params'
-import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 
 export type FallbackRouteParams = ReadonlyMap<string, string>
 
