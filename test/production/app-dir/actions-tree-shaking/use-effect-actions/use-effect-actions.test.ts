@@ -4,8 +4,7 @@ import {
   markLayoutAsEdge,
 } from '../_testing/utils'
 
-// TODO: revisit when we have a better side-effect free transform approach for server action
-describe.skip('actions-tree-shaking - use-effect-actions', () => {
+describe('actions-tree-shaking - use-effect-actions', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
