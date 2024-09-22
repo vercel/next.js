@@ -39,13 +39,12 @@ export async function sendResponse(
           res.appendHeader(name, cookie)
         }
       } else {
-        // if there is a common header from the list of headers that allow multiple values
-        // and it is already present in the response, we should append the new
-        // value to the existing value
+        // only append the header if it is either not present in the outbound response
+        // or if the header supports multiple values
         const isHeaderPresent = typeof res.getHeader(name) !== 'undefined'
         if (
-          headersWithMultipleValuesAllowed.includes(name.toLowerCase()) &&
-          isHeaderPresent
+          headersWithMultipleValuesAllowed.includes(name.toLowerCase()) ||
+          !isHeaderPresent
         ) {
           res.appendHeader(name, value)
         }
