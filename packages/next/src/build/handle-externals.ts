@@ -24,6 +24,7 @@ const externalPattern = new RegExp(
 )
 
 const nodeModulesRegex = /node_modules[/\\].*\.[mc]?js$/
+const nodeBinaryRegex = /[/\\].*\.node$/
 
 export function isResourceInPackages(
   resource: string,
@@ -271,6 +272,19 @@ export function makeExternalHandler({
       isLocal ? resolveNextExternal : undefined
     )
 
+    // Externalize node binary files from node_modules, don't bundle them for app router.
+    // This needs to be done before `resolveExternal`, since we cannot resolve the absolute path,
+    // we need to ensure resolveResult is not valid.
+    if (
+      nodeBinaryRegex.test(request) &&
+      isAppLayer &&
+      // Invalid resolved result for this request
+      !resolveResult.res &&
+      !resolveResult.localRes
+    ) {
+      return `${isEsmRequested ? 'module' : 'commonjs'} ${request}`
+    }
+
     if ('localRes' in resolveResult) {
       return resolveResult.localRes
     }
@@ -320,6 +334,15 @@ export function makeExternalHandler({
       /node_modules[/\\]css-loader/.test(res)
     ) {
       return
+    }
+
+    if (res.includes('binary')) {
+      console.log('res', res, nodeBinaryRegex.test(res))
+    }
+
+    // Externalize node binary files from node_modules, don't bundle them for app router
+    if (nodeBinaryRegex.test(res) && isAppLayer) {
+      return `${externalType} ${request}`
     }
 
     // If a package should be transpiled by Next.js, we skip making it external.
