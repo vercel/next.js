@@ -14,6 +14,11 @@ describe('app dir - basepath', () => {
     const browser = await next.browser('/base/pages-path')
     await browser.elementByCss('#to-another').click()
     await browser.waitForElementByCss('#page-2')
+
+    const logs = await browser.log()
+
+    // Expect no errors when doing a hard navigation between the routers.
+    expect(logs.find((log) => log.source === 'error')).toBeUndefined()
   })
 
   it('should support `basePath`', async () => {
