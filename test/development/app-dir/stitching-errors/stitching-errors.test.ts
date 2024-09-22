@@ -145,10 +145,10 @@ describe('stitching errors', () => {
     const stackFramesContent = await getStackFramesContent(browser)
     if (process.env.TURBOPACK) {
       expect(stackFramesContent).toMatchInlineSnapshot(`
-        "useThrowError
+        "useErrorHook
         app/ssr/page.js 
         Page
-        app/ssr/page.js
+        app/ssr/page.js"
       `)
     } else {
       expect(stackFramesContent).toMatchInlineSnapshot(`
