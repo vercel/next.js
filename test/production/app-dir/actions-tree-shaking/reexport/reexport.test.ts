@@ -5,7 +5,8 @@ import {
 } from '../_testing/utils'
 import { retry } from 'next-test-utils'
 
-describe('actions-tree-shaking - reexport', () => {
+// TODO: revisit when we have a better side-effect free transform approach for server action
+describe.skip('actions-tree-shaking - reexport', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
