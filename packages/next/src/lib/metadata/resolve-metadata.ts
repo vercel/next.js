@@ -10,7 +10,7 @@ import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/t
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
-import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type {
@@ -371,9 +371,9 @@ async function getDefinedMetadata(
 }
 
 async function collectStaticImagesFiles(
-  metadata: ComponentsType['metadata'],
+  metadata: AppDirModules['metadata'],
   props: any,
-  type: keyof NonNullable<ComponentsType['metadata']>
+  type: keyof NonNullable<AppDirModules['metadata']>
 ) {
   if (!metadata?.[type]) return undefined
 
@@ -388,10 +388,10 @@ async function collectStaticImagesFiles(
 }
 
 async function resolveStaticMetadata(
-  components: ComponentsType,
+  modules: AppDirModules,
   props: any
 ): Promise<StaticMetadata> {
-  const { metadata } = components
+  const { metadata } = modules
   if (!metadata) return null
 
   const [icon, apple, openGraph, twitter] = await Promise.all([

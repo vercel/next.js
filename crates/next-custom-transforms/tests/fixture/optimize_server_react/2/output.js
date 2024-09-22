@@ -16,7 +16,7 @@ export default function FilterItemDropdown({ list }) {
         ()=>null
     ];
     const ref = useRef(null);
-    process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE && useEffect(()=>{
+    process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE && useEffect(()=>{
         const handleClickOutside = (event)=>{
             if (ref.current && !ref.current.contains(event.target)) {
                 setOpenSelect(false);
@@ -25,7 +25,7 @@ export default function FilterItemDropdown({ list }) {
         window.addEventListener('click', handleClickOutside);
         return ()=>window.removeEventListener('click', handleClickOutside);
     }, []);
-    process.env.__NEXT_PRIVATE_MINIMIZE_MARCO_FALSE && useEffect(()=>{
+    process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE && useEffect(()=>{
         list.forEach((listItem)=>{
             if ('path' in listItem && pathname === listItem.path || 'slug' in listItem && searchParams.get('sort') === listItem.slug) {
                 setActive(listItem.title);

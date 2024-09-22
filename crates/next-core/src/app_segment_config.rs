@@ -24,7 +24,7 @@ use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
 };
 
-use crate::{app_structure::LoaderTree, util::NextRuntime};
+use crate::{app_structure::AppPageLoaderTree, util::NextRuntime};
 
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -468,7 +468,7 @@ fn parse_config_value(
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
-    loader_tree: Vc<LoaderTree>,
+    loader_tree: Vc<AppPageLoaderTree>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = &*loader_tree.await?;
 
@@ -478,7 +478,7 @@ pub async fn parse_segment_config_from_loader_tree(
 }
 
 pub async fn parse_segment_config_from_loader_tree_internal(
-    loader_tree: &LoaderTree,
+    loader_tree: &AppPageLoaderTree,
 ) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
 
@@ -495,12 +495,12 @@ pub async fn parse_segment_config_from_loader_tree_internal(
         config.apply_parallel_config(&tree)?;
     }
 
-    let components = &loader_tree.components;
-    for component in [components.page, components.default, components.layout]
+    let modules = &loader_tree.modules;
+    for path in [modules.page, modules.default, modules.layout]
         .into_iter()
         .flatten()
     {
-        let source = Vc::upcast(FileSource::new(component));
+        let source = Vc::upcast(FileSource::new(path));
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 

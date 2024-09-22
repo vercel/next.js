@@ -102,10 +102,10 @@ async function createComponentTreeInternal({
     query,
   } = ctx
 
-  const { page, layoutOrPagePath, segment, components, parallelRoutes } =
+  const { page, layoutOrPagePath, segment, modules, parallelRoutes } =
     parseLoaderTree(tree)
 
-  const { layout, template, error, loading, 'not-found': notFound } = components
+  const { layout, template, error, loading, 'not-found': notFound } = modules
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
@@ -294,6 +294,7 @@ async function createComponentTreeInternal({
           notFound={
             NotFoundComponent ? (
               <Segment
+                isDynamicIO={experimental.dynamicIO}
                 isStaticGeneration={isStaticGeneration}
                 ready={getMetadataReady}
               >
@@ -500,6 +501,7 @@ async function createComponentTreeInternal({
       actualSegment,
       <Segment
         key={cacheNodeKey}
+        isDynamicIO={experimental.dynamicIO}
         isStaticGeneration={isStaticGeneration}
         ready={getMetadataReady}
       >
@@ -530,6 +532,7 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <Segment
+        isDynamicIO={experimental.dynamicIO}
         key={cacheNodeKey}
         isStaticGeneration={isStaticGeneration}
         ready={getMetadataReady}
@@ -585,6 +588,7 @@ async function createComponentTreeInternal({
       <React.Fragment key={cacheNodeKey}>
         <MetadataOutlet ready={getMetadataReady} />
         <Segment
+          isDynamicIO={experimental.dynamicIO}
           isStaticGeneration={isStaticGeneration}
           ready={getMetadataReady}
         >
@@ -608,6 +612,7 @@ async function createComponentTreeInternal({
       // a lazy hole rather than null
       <Segment
         key={cacheNodeKey}
+        isDynamicIO={experimental.dynamicIO}
         isStaticGeneration={isStaticGeneration}
         ready={getMetadataReady}
       >
@@ -636,15 +641,17 @@ async function MetadataOutlet({
 }
 
 async function Segment({
+  isDynamicIO,
   isStaticGeneration,
   ready,
   children,
 }: {
+  isDynamicIO: boolean
   isStaticGeneration: boolean
   ready?: () => Promise<void>
   children: React.ReactNode
 }) {
-  if (isStaticGeneration && ready) {
+  if (isDynamicIO && isStaticGeneration && ready) {
     // During static generation we wait for metadata to complete before rendering segments.
     // This is slower but it allows us to ensure that metadata is finished before we start
     // rendering the segment which can synchronously abort the render in certain circumstances
