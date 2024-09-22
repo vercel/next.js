@@ -1291,8 +1291,8 @@ export default async function getBaseWebpackConfig(
           loader: isNodeServer
             ? 'next-server-binary-loader'
             : 'next-error-browser-binary-loader',
-          // On server side bundling, only apply to app router;
-          // On client side bundling, always error.
+          // On server side bundling, only apply to app router, do not apply to pages router;
+          // On client side or edge runtime bundling, always error.
           ...(isNodeServer && {
             issuerLayer: isWebpackBundledLayer,
           }),

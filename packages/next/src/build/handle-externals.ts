@@ -271,10 +271,6 @@ export function makeExternalHandler({
       isLocal ? resolveNextExternal : undefined
     )
 
-    // Externalize node binary files from node_modules, don't bundle them for app router.
-    // This needs to be done before `resolveExternal`, since we cannot resolve the absolute path,
-    // we need to ensure resolveResult is not valid.
-
     if ('localRes' in resolveResult) {
       return resolveResult.localRes
     }
