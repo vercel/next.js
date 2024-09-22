@@ -16,8 +16,8 @@ use turbopack_core::{
         handle_resolve_error,
         node::node_cjs_resolve_options,
         options::{
-            ConditionValue, ExcludedExtensions, ImportMap, ImportMapping, ResolveIntoPackage,
-            ResolveModules, ResolveOptions,
+            ConditionValue, ImportMap, ImportMapping, ResolveIntoPackage, ResolveModules,
+            ResolveOptions,
         },
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
@@ -363,7 +363,7 @@ pub async fn apply_tsconfig_resolve_options(
             ResolveModules::Path {
                 dir: base_url,
                 // tsconfig basepath doesn't apply to json requests
-                excluded_extensions: ExcludedExtensions(IndexSet::from([".json".into()])).cell(),
+                excluded_extensions: Vc::cell(IndexSet::from([".json".into()])),
             },
         );
     }
