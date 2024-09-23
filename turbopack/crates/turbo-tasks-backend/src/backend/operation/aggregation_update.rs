@@ -1,11 +1,11 @@
-use std::collections::VecDeque;
+use std::{cmp::max, collections::VecDeque, num::NonZeroU32};
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
 use super::{ExecuteContext, Operation, TaskGuard};
 use crate::{
-    data::{ActiveType, CachedDataItem, CachedDataItemKey, RootState},
+    data::{ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, RootState},
     get, get_many, iter_many, remove, update, update_count,
 };
 
@@ -43,14 +43,17 @@ fn iter_uppers<'a>(task: &'a TaskGuard<'a>) -> impl Iterator<Item = TaskId> + 'a
 }
 
 pub fn get_aggregation_number(task: &TaskGuard<'_>) -> u32 {
-    get!(task, AggregationNumber).copied().unwrap_or_default()
+    get!(task, AggregationNumber)
+        .map(|a| a.effective)
+        .unwrap_or_default()
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum AggregationUpdateJob {
     UpdateAggregationNumber {
         task_id: TaskId,
-        aggregation_number: u32,
+        base_aggregation_number: u32,
+        distance: Option<NonZeroU32>,
     },
     InnerHasNewFollower {
         upper_ids: Vec<TaskId>,
@@ -252,13 +255,35 @@ impl AggregationUpdateQueue {
             match job {
                 AggregationUpdateJob::UpdateAggregationNumber {
                     task_id,
-                    aggregation_number,
+                    base_aggregation_number,
+                    distance: base_effective_distance,
                 } => {
                     let mut task = ctx.task(task_id);
-                    let old = get_aggregation_number(&task);
-                    if old < aggregation_number {
+                    let current = get!(task, AggregationNumber).copied().unwrap_or_default();
+                    // The wanted new distance is either the provided one or the old distance
+                    let distance = base_effective_distance.map_or(current.distance, |d| d.get());
+                    // The base aggregation number can only increase
+                    let base_aggregation_number = max(current.base, base_aggregation_number);
+                    let old = current.effective;
+                    // The new target effecive aggregation number is base + distance
+                    let aggregation_number = base_aggregation_number.saturating_add(distance);
+                    if old >= aggregation_number {
+                        if base_aggregation_number != current.base && distance != current.distance {
+                            task.insert(CachedDataItem::AggregationNumber {
+                                value: AggregationNumber {
+                                    base: base_aggregation_number,
+                                    distance,
+                                    effective: old,
+                                },
+                            });
+                        }
+                    } else {
                         task.insert(CachedDataItem::AggregationNumber {
-                            value: aggregation_number,
+                            value: AggregationNumber {
+                                base: base_aggregation_number,
+                                distance,
+                                effective: aggregation_number,
+                            },
                         });
 
                         if !is_aggregating_node(old) && is_aggregating_node(aggregation_number) {
@@ -293,7 +318,8 @@ impl AggregationUpdateQueue {
                             for child_id in children {
                                 self.push(AggregationUpdateJob::UpdateAggregationNumber {
                                     task_id: child_id,
-                                    aggregation_number: aggregation_number + 1,
+                                    base_aggregation_number: aggregation_number + 1,
+                                    distance: None,
                                 });
                             }
                         }
@@ -636,10 +662,11 @@ impl AggregationUpdateQueue {
                     } else {
                         // both nodes have the same aggregation number
                         // We need to change the aggregation number of the task
-                        let new_aggregation_number = upper_aggregation_number + 1;
+                        let current = get!(task, AggregationNumber).copied().unwrap_or_default();
                         self.push(AggregationUpdateJob::UpdateAggregationNumber {
                             task_id,
-                            aggregation_number: new_aggregation_number,
+                            base_aggregation_number: current.base + 1,
+                            distance: None,
                         });
                     }
                 }
