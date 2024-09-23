@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_tasks::Vc;
+use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
@@ -281,6 +282,26 @@ impl EcmascriptChunkPlaceable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
         Ok(self.analyze().await?.exports)
+    }
+
+    #[turbo_tasks::function]
+    async fn is_marked_as_side_effect_free(
+        &self,
+        side_effect_free_packages: Vc<Glob>,
+    ) -> Result<Vc<bool>> {
+        Ok(match *self.part.await? {
+            ModulePart::Evaluation
+            | ModulePart::Facade
+            | ModulePart::Locals
+            | ModulePart::Internal(..) => self
+                .full_module
+                .is_marked_as_side_effect_free(side_effect_free_packages),
+            ModulePart::Export(..)
+            | ModulePart::Exports
+            | ModulePart::StarReexports
+            | ModulePart::RenamedExport { .. }
+            | ModulePart::RenamedNamespace { .. } => Vc::cell(true),
+        })
     }
 }
 
