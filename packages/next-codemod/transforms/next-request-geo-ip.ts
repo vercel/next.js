@@ -38,10 +38,6 @@ export default function (fileInfo: FileInfo, api: API) {
       )
     })
 
-  if (!nextReqType.length) {
-    return fileInfo.source
-  }
-
   const vercelFuncImports = root.find(j.ImportDeclaration, {
     source: {
       value: '@vercel/functions',
@@ -88,10 +84,17 @@ export default function (fileInfo: FileInfo, api: API) {
     geoIdentifier,
     ipIdentifier
   )
-  let { needImportGeoType } = replaceGeoIpTypes(j, root, geoTypeIdentifier)
+  let { needImportGeoType, hasChangedIpType } = replaceGeoIpTypes(
+    j,
+    root,
+    geoTypeIdentifier
+  )
 
-  const needChanges =
-    needImportGeolocation || needImportIpAddress || needImportGeoType
+  let needChanges =
+    needImportGeolocation ||
+    needImportIpAddress ||
+    needImportGeoType ||
+    hasChangedIpType
 
   if (!needChanges) {
     return fileInfo.source
@@ -337,8 +340,10 @@ function replaceGeoIpTypes(
   geoTypeIdentifier: string
 ): {
   needImportGeoType: boolean
+  hasChangedIpType: boolean
 } {
   let needImportGeoType = false
+  let hasChangedIpType = false
 
   // get the type of NextRequest that has accessed for ip and geo
   // NextRequest['geo'], NextRequest['ip']
@@ -371,17 +376,23 @@ function replaceGeoIpTypes(
 
   if (nextReqGeoType.length > 0) {
     needImportGeoType = true
+
+    // replace with type Geo
+    nextReqGeoType.replaceWith(j.identifier(geoTypeIdentifier))
   }
 
-  // replace with type Geo
-  nextReqGeoType.replaceWith(j.identifier(geoTypeIdentifier))
-  // replace with type string | undefined
-  nextReqIpType.replaceWith(
-    j.tsUnionType([j.tsStringKeyword(), j.tsUndefinedKeyword()])
-  )
+  if (nextReqIpType.length > 0) {
+    hasChangedIpType = true
+
+    // replace with type string | undefined
+    nextReqIpType.replaceWith(
+      j.tsUnionType([j.tsStringKeyword(), j.tsUndefinedKeyword()])
+    )
+  }
 
   return {
     needImportGeoType,
+    hasChangedIpType,
   }
 }
 
