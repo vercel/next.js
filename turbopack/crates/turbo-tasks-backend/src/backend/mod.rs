@@ -572,9 +572,12 @@ impl TurboTasksBackendInner {
         // They can't be interrupted by a snapshot since the snapshotting job has not been scheduled
         // yet.
         let uncompleted_operations = self.backing_storage.uncompleted_operations();
-        let ctx = self.execute_context(turbo_tasks);
-        for op in uncompleted_operations {
-            op.execute(&ctx);
+        if !uncompleted_operations.is_empty() {
+            let _span = tracing::trace_span!("continue uncompleted operations").entered();
+            let ctx = self.execute_context(turbo_tasks);
+            for op in uncompleted_operations {
+                op.execute(&ctx);
+            }
         }
 
         // Schedule the snapshot job

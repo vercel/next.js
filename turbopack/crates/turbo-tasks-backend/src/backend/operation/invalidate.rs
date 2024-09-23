@@ -49,10 +49,25 @@ impl Operation for InvalidateOperation {
                     }
                     continue;
                 }
-                InvalidateOperation::AggregationUpdate { ref mut queue } => {
-                    if queue.process(ctx) {
-                        self = InvalidateOperation::Done
-                    }
+                InvalidateOperation::AggregationUpdate { .. } => {
+                    let span = tracing::trace_span!(
+                        "aggregation update queue in invalidate",
+                        processed_jobs = tracing::field::Empty
+                    )
+                    .entered();
+                    let processed_jobs = loop {
+                        ctx.operation_suspend_point(&self);
+                        let InvalidateOperation::AggregationUpdate { ref mut queue, .. } = self
+                        else {
+                            unreachable!();
+                        };
+                        if queue.process(ctx) {
+                            let processed_jobs = queue.processed_jobs;
+                            self = InvalidateOperation::Done;
+                            break processed_jobs;
+                        }
+                    };
+                    span.record("processed_jobs", processed_jobs);
                 }
                 InvalidateOperation::Done => {
                     return;

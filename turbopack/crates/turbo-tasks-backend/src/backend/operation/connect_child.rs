@@ -131,12 +131,28 @@ impl Operation for ConnectChildOperation {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
-                ConnectChildOperation::UpdateAggregation {
-                    ref mut aggregation_update,
-                } => {
-                    if aggregation_update.process(ctx) {
-                        self = ConnectChildOperation::Done
-                    }
+                ConnectChildOperation::UpdateAggregation { .. } => {
+                    let span = tracing::trace_span!(
+                        "aggregation update queue in connect child",
+                        processed_jobs = tracing::field::Empty
+                    )
+                    .entered();
+                    let processed_jobs = loop {
+                        ctx.operation_suspend_point(&self);
+                        let ConnectChildOperation::UpdateAggregation {
+                            ref mut aggregation_update,
+                            ..
+                        } = self
+                        else {
+                            unreachable!();
+                        };
+                        if aggregation_update.process(ctx) {
+                            let processed_jobs = aggregation_update.processed_jobs;
+                            self = ConnectChildOperation::Done;
+                            break processed_jobs;
+                        }
+                    };
+                    span.record("processed_jobs", processed_jobs);
                 }
 
                 ConnectChildOperation::Done => {
