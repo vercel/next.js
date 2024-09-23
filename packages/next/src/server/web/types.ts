@@ -24,6 +24,8 @@ export interface RequestData {
   url: string
   body?: ReadableStream<Uint8Array>
   signal: AbortSignal
+  /** passed in when running in edge runtime sandbox */
+  waitUntil?: (promise: Promise<any>) => void
 }
 
 export type NodejsRequestData = Omit<RequestData, 'body'> & {
