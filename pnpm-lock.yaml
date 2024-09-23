@@ -134,6 +134,9 @@ importers:
       '@swc/types':
         specifier: 0.1.7
         version: 0.1.7
+      '@taskr/esnext':
+        specifier: 1.1.0
+        version: 1.1.0
       '@testing-library/jest-dom':
         specifier: 6.1.2
         version: 6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.12.3)(babel-plugin-macros@3.1.0))
@@ -10686,10 +10689,6 @@ packages:
     resolution: {integrity: sha512-NbJtWIE2QEVbr9xQHXBY92fxX0Tu8EsS9NBwz7Qn3zoeuvcbP3LzBJw3EUJDpfb9IY8qnZvFSWIepeEFQga28w==}
     engines: {node: '>=4'}
 
-  mri@1.1.4:
-    resolution: {integrity: sha512-6y7IjGPm8AzlvoUrwAaw1tLnUBudaS3752vcd8JtrpGGQn+rXIe63LFVHm/YMwtqAuh+LJPCFdlLYPWM1nYn6w==}
-    engines: {node: '>=4'}
-
   mri@1.2.0:
     resolution: {integrity: sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA==}
     engines: {node: '>=4'}
@@ -13895,8 +13894,8 @@ packages:
     resolution: {integrity: sha512-ApGvZ6vVvTNdsmt676grvCkUCGwzG9IqXma5Z07xJgiC5L7akUMof5U8G2JTI9Rz/ovtVhJBlY6mNhEvtjzOIg==}
     engines: {node: '>=6'}
 
-  tinydate@1.2.0:
-    resolution: {integrity: sha512-3GwPk8VhDFnUZ2TrgkhXJs6hcMAIIw4x/xkz+ayK6dGoQmp2nUwKzBXK0WnMsqkh6vfUhpqQicQF3rbshfyJkg==}
+  tinydate@1.3.0:
+    resolution: {integrity: sha512-7cR8rLy2QhYHpsBDBVYnnWXm8uRTr38RoZakFSW7Bs7PzfMPNZthuMLkwqZv7MTu8lhQ91cOFYS5a7iFj2oR3w==}
     engines: {node: '>=4'}
 
   title-case@3.0.3:
@@ -26721,8 +26720,6 @@ snapshots:
 
   mri@1.1.0: {}
 
-  mri@1.1.4: {}
-
   mri@1.2.0: {}
 
   mrmime@2.0.0: {}
@@ -30224,8 +30221,8 @@ snapshots:
       clor: 5.2.0
       glob: 7.1.7
       mk-dirs: 1.0.0
-      mri: 1.1.4
-      tinydate: 1.2.0
+      mri: 1.2.0
+      tinydate: 1.3.0
 
   temp-dir@1.0.0: {}
 
@@ -30356,7 +30353,7 @@ snapshots:
 
   tiny-lru@8.0.2: {}
 
-  tinydate@1.2.0: {}
+  tinydate@1.3.0: {}
 
   title-case@3.0.3:
     dependencies:

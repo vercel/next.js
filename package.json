@@ -101,6 +101,7 @@
     "@swc/core": "1.6.13",
     "@swc/helpers": "0.5.13",
     "@swc/types": "0.1.7",
+    "@taskr/esnext": "1.1.0",
     "@testing-library/jest-dom": "6.1.2",
     "@testing-library/react": "^15.0.5",
     "@types/busboy": "1.5.3",
