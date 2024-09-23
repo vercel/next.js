@@ -175,10 +175,13 @@ impl ModuleReference for EsmAssetReference {
                             .await?
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
-                    return Ok(ModuleResolveResult::module(
-                        EcmascriptModulePartAsset::select_part(module, part),
-                    )
-                    .cell());
+                    let part_module = *EcmascriptModulePartAsset::select_part(module, part).await?;
+
+                    return match part_module {
+                        Some(part_module) => Ok(ModuleResolveResult::module(part_module).cell()),
+                        // TODO: Check if this is implcit reexport
+                        None => Ok(ModuleResolveResult::ignored().cell()),
+                    };
                 }
 
                 bail!("export_name is required for part import")

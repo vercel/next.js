@@ -13,7 +13,7 @@ use swc_core::{
         codegen::to_code,
     },
 };
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, RcStr, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
@@ -329,8 +329,8 @@ pub(crate) enum Key {
 }
 
 /// Converts [Vc<ModulePart>] to the index.
-async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> {
-    let part = part.await?;
+async fn get_part_id(result: &SplitResult, part_vc: Vc<ModulePart>) -> Result<Option<u32>> {
+    let part = part_vc.await?;
 
     // TODO implement ModulePart::Facade
     let key = match &*part {
@@ -338,12 +338,15 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
         ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
         ModulePart::Exports => Key::Exports,
         ModulePart::StarReexports => Key::StarReexports,
-        ModulePart::Internal(part_id) => return Ok(*part_id),
+        ModulePart::Internal(part_id) => return Ok(Some(*part_id)),
         ModulePart::Locals
         | ModulePart::Facade
         | ModulePart::RenamedExport { .. }
         | ModulePart::RenamedNamespace { .. } => {
-            bail!("invalid module part")
+            bail!(
+                "invalid module part: {:?}",
+                part_vc.value_debug_format(10).try_to_string().await?
+            )
         }
     };
 
@@ -356,15 +359,16 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
         bail!("split failed")
     };
 
-    if let Some(id) = entrypoints.get(&key) {
-        return Ok(*id);
+    if let Some(&id) = entrypoints.get(&key) {
+        return Ok(Some(id));
     }
 
     // This is required to handle `export * from 'foo'`
     if let ModulePart::Export(..) = &*part {
         if let Some(&v) = entrypoints.get(&Key::StarReexports) {
-            return Ok(v);
+            return Ok(Some(v));
         }
+        return Ok(None);
     }
 
     let mut dump = String::new();
@@ -668,6 +672,10 @@ pub(crate) async fn part_of_module(
             }
 
             let part_id = get_part_id(&split_data, part).await?;
+
+            let Some(part_id) = part_id else {
+                bail!("part_id is None");
+            };
 
             if part_id as usize >= modules.len() {
                 bail!(

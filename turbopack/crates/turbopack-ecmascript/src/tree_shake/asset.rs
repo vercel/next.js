@@ -4,7 +4,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, OptionModule},
     reference::{ModuleReferences, SingleModuleReference},
     resolve::ModulePart,
 };
@@ -103,14 +103,23 @@ impl EcmascriptModulePartAsset {
     pub async fn select_part(
         module: Vc<EcmascriptModuleAsset>,
         part: Vc<ModulePart>,
-    ) -> Result<Vc<Box<dyn Module>>> {
+    ) -> Result<Vc<OptionModule>> {
         let split_result = split_module(module).await?;
 
-        Ok(if matches!(&*split_result, SplitResult::Failed { .. }) {
-            Vc::upcast(module)
-        } else {
-            Vc::upcast(EcmascriptModulePartAsset::new(module, part))
-        })
+        Ok(Vc::cell(
+            if matches!(&*split_result, SplitResult::Failed { .. }) {
+                Some(Vc::upcast(module))
+            } else if matches!(&*part.await?, ModulePart::Export(..)) {
+                let part_id = get_part_id(&split_result, part).await?;
+                if part_id.is_some() {
+                    Some(Vc::upcast(EcmascriptModulePartAsset::new(module, part)))
+                } else {
+                    None
+                }
+            } else {
+                Some(Vc::upcast(EcmascriptModulePartAsset::new(module, part)))
+            },
+        ))
     }
 
     #[turbo_tasks::function]
@@ -221,7 +230,11 @@ impl Module for EcmascriptModulePartAsset {
         let deps = {
             let part_id = get_part_id(&split_data, self.part)
                 .await
-                .with_context(|| format!("part {:?} is not found in the module", self.part))?;
+                .with_context(|| format!("part {:?} is not found in the module", self.part))?
+                .expect(
+                    "get_part_id should not return None for a part used by \
+                     EcmascriptModulePartAsset",
+                );
 
             match deps.get(&part_id) {
                 Some(v) => &**v,

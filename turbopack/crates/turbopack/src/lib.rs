@@ -190,10 +190,16 @@ async fn apply_module_type(
                 let options = options.await?;
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
-                        Vc::upcast(EcmascriptModulePartAsset::select_part(
+                        let part_module = EcmascriptModulePartAsset::select_part(
                             module,
                             part.unwrap_or(ModulePart::facade()),
-                        ))
+                        );
+                        if let Some(part_module) = *part_module.await? {
+                            Vc::upcast(part_module)
+                        } else {
+                            // TODO: Check if this is implcit reexport
+                            return Ok(ProcessResult::Ignore.cell());
+                        }
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
                         if let Some(part) = part {
