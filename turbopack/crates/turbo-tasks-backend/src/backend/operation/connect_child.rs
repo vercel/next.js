@@ -3,7 +3,7 @@ use turbo_tasks::TaskId;
 
 use super::{
     aggregation_update::{
-        get_uppers, is_aggregating_node, is_root_node, AggregationUpdateJob, AggregationUpdateQueue,
+        get_uppers, is_aggregating_node, AggregationUpdateJob, AggregationUpdateQueue,
     },
     ExecuteContext, Operation,
 };
@@ -44,18 +44,19 @@ impl ConnectChildOperation {
             let parent_aggregation = get!(parent_task, AggregationNumber)
                 .copied()
                 .unwrap_or_default();
+            let is_aggregating_node = is_aggregating_node(parent_aggregation);
             if parent_task_id.is_transient() && !child_task_id.is_transient() {
                 queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                     task_id: child_task_id,
                     aggregation_number: u32::MAX,
                 });
-            } else if !is_root_node(parent_aggregation) {
+            } else if !is_aggregating_node {
                 queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                     task_id: child_task_id,
                     aggregation_number: parent_aggregation + AGGREGATION_NUMBER_BUFFER_SPACE + 1,
                 });
             }
-            if is_aggregating_node(parent_aggregation) {
+            if is_aggregating_node {
                 queue.push(AggregationUpdateJob::InnerHasNewFollower {
                     upper_ids: vec![parent_task_id],
                     new_follower_id: child_task_id,
