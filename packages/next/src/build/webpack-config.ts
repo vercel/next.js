@@ -2277,6 +2277,10 @@ export default async function getBaseWebpackConfig(
     }
   }
 
+  if (isFullFlyingShuttle && !dev) {
+    webpack5Config.cache = false
+  }
+
   const rules = webpackConfig.module?.rules || []
 
   const customSvgRule = rules.find(
