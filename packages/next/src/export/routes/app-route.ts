@@ -28,6 +28,7 @@ import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { Params } from '../../server/request/params'
+import { warnOnce } from '../../build/output/log'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -140,6 +141,29 @@ export async function exportAppRoute(
       body,
       'utf8'
     )
+
+    const routeName = normalizedPage.split('/').pop()
+    const isTwitter = routeName?.startsWith('twitter-image')
+    const isOpenGraph = routeName?.startsWith('opengraph-image')
+    // Twitter image file size limit is 5MB.
+    // General Open Graph image file size limit is 8MB.
+    // x-ref: https://developer.x.com/en/docs/x-for-websites/cards/overview/summary
+    // x-ref(facebook): https://developers.facebook.com/docs/sharing/webmasters/images
+    const fileSizeLimit = isTwitter ? 5 : 8
+    const imgName = isTwitter ? 'Twitter' : 'Open Graph'
+
+    if (isTwitter || isOpenGraph) {
+      const fileSize = body.byteLength / 1024 / 1024 // in MB
+      if (fileSize > fileSizeLimit) {
+        const imageUrl = join('app', normalizedPage)
+        warnOnce(
+          `File size for ${imgName} image "${imageUrl}" exceeds ${fileSizeLimit}MB. ` +
+            `(Current: ${fileSize.toFixed(2)}MB)` +
+            '\n' +
+            'See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
+        )
+      }
+    }
 
     // Write the request metadata to a file.
     const meta = { status: response.status, headers }
