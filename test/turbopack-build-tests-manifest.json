@@ -16019,10 +16019,10 @@
     },
     "test/production/edge-config-validations/index.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Edge config validations fails to build when unstable_allowDynamic is not a string"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16030,10 +16030,10 @@
       "passed": [
         "Dynamic Code Evaluation (DCE) should not fail when \"function-bind\" package is used"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Dynamic Code Evaluation (DCE) should show the user's import trace"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
