@@ -8,7 +8,7 @@
       "id": "appDirname",
       "type": "promptString",
       "description": "Enter an app dirname from examples or test/e2e",
-      "default": "examples/hello-world"
+      "default": "test/e2e/app-dir/resolve-client-references-in-server-actions"
     },
     {
       "id": "nextCommand",
