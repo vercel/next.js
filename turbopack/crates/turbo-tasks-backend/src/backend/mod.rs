@@ -41,8 +41,8 @@ use turbo_tasks::{
 use self::{operation::ExecuteContext, storage::Storage};
 use crate::{
     data::{
-        CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate, CellRef,
-        InProgressCellState, InProgressState, OutputValue, RootState, RootType,
+        ActiveType, CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate,
+        CellRef, InProgressCellState, InProgressState, OutputValue, RootState,
     },
     get, get_many, remove,
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
@@ -271,7 +271,7 @@ impl TurboTasksBackend {
             }
 
             // Check the dirty count of the root node
-            let dirty_tasks = get!(task, AggregatedDirtyTaskCount)
+            let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
                 .copied()
                 .unwrap_or_default();
             let root = get!(task, AggregateRoot);
@@ -280,11 +280,11 @@ impl TurboTasksBackend {
                 let root = if let Some(root) = root {
                     root
                 } else {
-                    // If we don't have a root state, add one
-                    // This also makes sure all tasks stay active, so we need to remove that after
-                    // reading again
+                    // If we don't have a root state, add one. This also makes sure all tasks stay
+                    // active and this task won't stale. CachedActiveUntilClean
+                    // is automatically removed when this task is clean.
                     task.add_new(CachedDataItem::AggregateRoot {
-                        value: RootState::new(RootType::ReadingStronglyConsistent),
+                        value: RootState::new(ActiveType::CachedActiveUntilClean),
                     });
                     get!(task, AggregateRoot).unwrap()
                 };
@@ -295,13 +295,6 @@ impl TurboTasksBackend {
                     )
                 });
                 return Ok(Err(listener));
-            } else {
-                // When there ain't dirty tasks, remove the reading strongly consistent root type
-                if let Some(root) = root {
-                    if matches!(root.ty, RootType::ReadingStronglyConsistent) {
-                        task.remove(&CachedDataItemKey::AggregateRoot {});
-                    }
-                }
             }
         }
 
@@ -858,14 +851,27 @@ impl Backend for TurboTasksBackend {
                 .collect::<Vec<_>>();
 
             let was_dirty = task.remove(&CachedDataItemKey::Dirty {}).is_some();
-            let data_update = was_dirty
-                .then(|| {
+            let data_update = if was_dirty {
+                let dirty_containers = get!(task, AggregatedDirtyContainerCount)
+                    .copied()
+                    .unwrap_or_default();
+                if dirty_containers == 0 {
+                    if let Some(root_state) = get!(task, AggregateRoot) {
+                        root_state.all_clean_event.notify(usize::MAX);
+                        if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
+                            task.remove(&CachedDataItemKey::AggregateRoot {});
+                        }
+                    }
                     AggregationUpdateJob::data_update(
                         &mut task,
-                        AggregatedDataUpdate::no_longer_dirty_task(task_id),
+                        AggregatedDataUpdate::no_longer_dirty_container(task_id),
                     )
-                })
-                .flatten();
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
 
             drop(task);
 
@@ -1002,8 +1008,8 @@ impl Backend for TurboTasksBackend {
     ) -> TaskId {
         let task_id = self.transient_task_id_factory.get();
         let root_type = match task_type {
-            TransientTaskType::Root(_) => RootType::RootTask,
-            TransientTaskType::Once(_) => RootType::OnceTask,
+            TransientTaskType::Root(_) => ActiveType::RootTask,
+            TransientTaskType::Once(_) => ActiveType::OnceTask,
         };
         self.transient_tasks.insert(
             task_id,
@@ -1019,8 +1025,8 @@ impl Backend for TurboTasksBackend {
                 value: RootState::new(root_type),
             });
             let _ = task.add(CachedDataItem::new_scheduled(move || match root_type {
-                RootType::RootTask => "Root Task".to_string(),
-                RootType::OnceTask => "Once Task".to_string(),
+                ActiveType::RootTask => "Root Task".to_string(),
+                ActiveType::OnceTask => "Once Task".to_string(),
                 _ => unreachable!(),
             }));
         }

@@ -6,7 +6,10 @@ use super::{
     aggregation_update::{AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue},
     ExecuteContext, Operation,
 };
-use crate::data::CachedDataItem;
+use crate::{
+    data::{CachedDataItem, CachedDataItemKey},
+    get,
+};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum InvalidateOperation {
@@ -66,9 +69,21 @@ pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx:
     let mut task = ctx.task(task_id);
 
     if task.add(CachedDataItem::Dirty { value: () }) {
-        queue.extend(AggregationUpdateJob::data_update(
-            &mut task,
-            AggregatedDataUpdate::dirty_task(task_id),
-        ));
+        let dirty_container = get!(task, AggregatedDirtyContainerCount)
+            .copied()
+            .unwrap_or_default();
+        if dirty_container == 0 {
+            queue.extend(AggregationUpdateJob::data_update(
+                &mut task,
+                AggregatedDataUpdate::dirty_container(task_id),
+            ));
+        }
+        let root = task.has_key(&CachedDataItemKey::AggregateRoot {});
+        if root {
+            let description = ctx.backend.get_task_desc_fn(task_id);
+            if task.add(CachedDataItem::new_scheduled(description)) {
+                ctx.schedule(task_id);
+            }
+        }
     }
 }
