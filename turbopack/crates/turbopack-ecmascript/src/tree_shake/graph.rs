@@ -390,13 +390,13 @@ impl DepGraph {
 
             // Workaround for implcit export issue of server actions.
             //
-            // Inline server actions require the generated `$$ACTION_0` to be **exported**.
+            // Inline server actions require the generated `$$RSC_SERVER_0` to be **exported**.
             //
-            // But tree shaking works by removing unused code, and the **export** of $$ACTION_0 is
-            // cleary not used from the external module as it does not exist at all in the user
-            // code.
+            // But tree shaking works by removing unused code, and the **export** of $$RSC_SERVER_0
+            // is cleary not used from the external module as it does not exist at all
+            // in the user code.
             //
-            // So we need to add an import for $$ACTION_0 to the module, so that the export is
+            // So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
             // preserved.
             if use_export_instead_of_declarator {
                 for (other_ix, other_group) in groups.graph_ix.iter().enumerate() {
@@ -408,7 +408,7 @@ impl DepGraph {
 
                     for other_item in other_group {
                         if let ItemId::Group(ItemIdGroupKind::Export(export, _)) = other_item {
-                            if !export.0.as_str().starts_with("$$ACTION_") {
+                            if !export.0.as_str().starts_with("$$RSC_SERVER_") {
                                 continue;
                             }
 

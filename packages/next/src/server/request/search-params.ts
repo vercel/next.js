@@ -1,8 +1,8 @@
 import type { ParsedUrlQuery } from 'querystring'
 
-import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
-import { trackDynamicDataAccessed } from '../../server/app-render/dynamic-rendering'
-import { ReflectAdapter } from '../../server/web/spec-extension/adapters/reflect'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
+import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 
 /**
  * Takes a ParsedUrlQuery object and either returns it unmodified or returns an empty object

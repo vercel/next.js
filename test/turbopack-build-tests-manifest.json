@@ -15637,7 +15637,9 @@
       "passed": [
         "actions-tree-shaking - reexport should not have the unused action in the manifest"
       ],
-      "failed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15646,7 +15648,9 @@
       "passed": [
         "actions-tree-shaking - reexport should not have the unused action in the manifest"
       ],
-      "failed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false

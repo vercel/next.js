@@ -8,6 +8,7 @@ import {
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
   RSC_ACTION_ENCRYPTION_ALIAS,
+  RSC_CACHE_WRAPPER_ALIAS,
   type WebpackLayerName,
 } from '../lib/constants'
 import type { NextConfigComplete } from '../server/config-shared'
@@ -150,6 +151,9 @@ export function createWebpackAliases({
       'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
 
     [RSC_ACTION_ENCRYPTION_ALIAS]: 'next/dist/server/app-render/encryption',
+
+    [RSC_CACHE_WRAPPER_ALIAS]:
+      'next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper',
 
     ...(isClient || isEdgeServer
       ? {
