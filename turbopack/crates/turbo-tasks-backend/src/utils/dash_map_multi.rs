@@ -136,8 +136,16 @@ where
             },
         )
     } else {
-        let mut guard1 = shards[s1].write();
-        let mut guard2 = shards[s2].write();
+        let (mut guard1, mut guard2) = loop {
+            let g1 = shards[s1].write();
+            if let Some(g2) = shards[s2].try_write() {
+                break (g1, g2);
+            }
+            let g2 = shards[s2].write();
+            if let Some(g1) = shards[s1].try_write() {
+                break (g1, g2);
+            }
+        };
         let e1 = guard1
             .raw_entry_mut()
             .from_key(&key1)
