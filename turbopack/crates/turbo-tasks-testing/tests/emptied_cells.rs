@@ -16,23 +16,23 @@ async fn recompute() {
         let output = compute(input);
         assert_eq!(*output.await?, 1);
 
-        println!("changing input");
+        println!("\n\nchanging input");
         input.await?.state.set(10);
         assert_eq!(*output.strongly_consistent().await?, 10);
 
-        println!("changing input");
+        println!("\n\nchanging input");
         input.await?.state.set(5);
         assert_eq!(*output.strongly_consistent().await?, 5);
 
-        println!("changing input");
+        println!("\n\nchanging input");
         input.await?.state.set(20);
         assert_eq!(*output.strongly_consistent().await?, 20);
 
-        println!("changing input");
+        println!("\n\nchanging input");
         input.await?.state.set(15);
         assert_eq!(*output.strongly_consistent().await?, 15);
 
-        println!("changing input");
+        println!("\n\nchanging input");
         input.await?.state.set(1);
         assert_eq!(*output.strongly_consistent().await?, 1);
 
@@ -50,12 +50,14 @@ struct ChangingInput {
 #[turbo_tasks::function]
 async fn compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     let value = *inner_compute(input).await?;
+    println!("compute {value}");
     Ok(Vc::cell(value))
 }
 
 #[turbo_tasks::function]
 async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     let state_value = *input.await?.state.get();
+    println!("inner_compute {state_value}");
     let mut last = None;
     for i in 0..=state_value {
         last = Some(compute2(Vc::cell(i)));
@@ -66,5 +68,6 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 #[turbo_tasks::function]
 async fn compute2(input: Vc<u32>) -> Result<Vc<u32>> {
     let value = *input.await?;
+    println!("compute2 {value}");
     Ok(Vc::cell(value))
 }
