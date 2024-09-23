@@ -200,6 +200,40 @@ pub(crate) enum ImportedSymbol {
     ModuleEvaluation,
     Symbol(JsWord),
     Exports,
+    /// We need a separate variant for `export * from 'package-star'`.
+    ///
+    /// `package-star/index.js`:
+    ///
+    /// ```
+    /// export { notCompiled } from "./not-compiled.js";
+    /// export { notExisting } from "./not-existing.js";
+    /// export { notExecuted } from "./not-executed.js";
+    /// export * from "./not-executed.js";
+    /// export * from "./a.js";
+    /// export * from "./b.js";
+    /// export const local = "local";
+    /// ```
+    ///
+    ///
+    /// `package-reexport/index.js`:
+    ///
+    /// ```
+    /// export * from "package-star";
+    /// export const outer = "outer";
+    /// ```
+    ///
+    /// `import { a } from 'package-reexport'` currently creates `ModulePart::Export("a")` for
+    /// `package-reexport` and `ModulePart::Exports` for `package-star`.
+    ///
+    /// To make side effect optimization work, we need to create `ModulePart::Export("a")`for
+    /// `export * from "package-star"`.
+    ///
+    /// But we cannot make `ImportAnalyzer` or `EvalContext` take the name of the target symbol,
+    /// because it will make them parameterized by the name of the target symbol and it's too bad
+    /// for caching.
+    ///
+    /// So we need to have a separate variant, and reuse the requested `ModulePart` for reexports.
+    ReexportAll,
     Part(u32),
     StarReexports,
 }
@@ -403,7 +437,7 @@ impl Visit for Analyzer<'_> {
         let i = self.ensure_reference(
             export.span,
             export.src.value.clone(),
-            symbol.unwrap_or(ImportedSymbol::Exports),
+            symbol.unwrap_or(ImportedSymbol::ReexportAll),
             annotations,
         );
         if let Some(i) = i {
