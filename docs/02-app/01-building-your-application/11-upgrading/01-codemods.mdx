@@ -26,6 +26,108 @@ Replacing `<transform>` and `<path>` with appropriate values.
 
 ### 15.0
 
+#### Migrate to async Dynamic APIs
+
+##### `next-async-request-api`
+
+```bash filename="Terminal"
+npx @next/codemod@latest next-async-request-api .
+```
+
+This codemod will transform APIs `cookies()`, `headers()` and `draftMode()` from `next/headers` to be properly awaited or wrapped with `React.use()` if needed.
+If it's not able to be migrated, will either add a type cast or a TODO comment based on the file is a TypeScript or JavaScript file.
+
+For example:
+
+```tsx
+import { cookies, headers } from 'next/headers'
+const token = cookies().get('token')
+
+function useToken() {
+  const token = cookies().get('token')
+  return token
+}
+
+export default function Page() {
+  const name = cookies().get('name')
+}
+
+function getHeader() {
+  return headers().get('x-foo')
+}
+```
+
+Transforms into:
+
+```tsx
+import { use } from 'react'
+import { cookies, headers, type UnsafeUnwrappedCookies } from 'next/headers'
+
+const token = (await cookies()).get('token')
+
+function useToken() {
+  const token = use(cookies()).get('token')
+  return token
+}
+
+export default function Page() {
+  const name = (await cookies()).get('name')
+}
+
+function getHeader() {
+  return (headers() as UnsafeUnwrappedCookies).get('x-foo')
+}
+```
+
+If there's access to the entry handler `params` and `searchParams` in the route entry default handler (`page.js`, `layout.js`, `route.js` or Metadata API routes) or `generateMetadata` export API,
+it will transform the access to the property from sync to async, and await or wrap these properties with `React.use()` if needed.
+
+For example:
+
+```tsx
+// page.tsx
+export default function Page({
+  params,
+  searchParams,
+}: {
+  params: { slug: string }
+  searchParams: { [key: string]: string | undefined }
+}) {
+  const { value } = searchParams
+  if (value === 'foo') {
+    // ...
+  }
+}
+
+export function generateMetadata({ params }: { params: { slug: string } }) {
+  return {
+    title: `My Page - ${slug}`,
+  }
+}
+```
+
+Transforms into:
+
+```tsx
+// page.tsx
+export default function Page(props: {
+  params: { slug: string }
+  searchParams: { [key: string]: string | undefined }
+}) {
+  const { value } = await props.searchParams
+  if (value === 'foo') {
+    // ...
+  }
+}
+
+export function generateMetadata(props: { params: { slug: string } }) {
+  const { slug } = await props.params
+  return {
+    title: `My Page - ${slug}`,
+  }
+}
+```
+
 #### Replace `geo` and `ip` properties of `NextRequest` with `@vercel/functions`
 
 ##### `next-request-geo-ip`
