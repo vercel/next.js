@@ -559,7 +559,12 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     relatedModules: [],
   }
 
-  const extensions = pageExtensions.map((extension) => `.${extension}`)
+  const normalizedPageExtensions =
+    typeof pageExtensions === 'string' ? [pageExtensions] : pageExtensions
+
+  const extensions = normalizedPageExtensions.map(
+    (extension) => `.${extension}`
+  )
 
   const normalizedAppPaths =
     typeof appPaths === 'string' ? [appPaths] : appPaths || []
