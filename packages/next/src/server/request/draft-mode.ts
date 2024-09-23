@@ -1,7 +1,7 @@
-import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
+import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 
-import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
-import { trackDynamicDataAccessed } from '../../server/app-render/dynamic-rendering'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
 
 export class DraftMode {
   /**

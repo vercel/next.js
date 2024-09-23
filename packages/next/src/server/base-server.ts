@@ -1,11 +1,11 @@
 import type { __ApiPreviewProps } from './api-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { Params } from '../client/components/params'
+import type { Params } from '../server/request/params'
 import {
   type FallbackRouteParams,
   getFallbackRouteParams,
-} from '../client/components/fallback-params'
+} from './request/fallback-params'
 import type { NextConfig, NextConfigComplete } from './config-shared'
 import type {
   NextParsedUrlQuery,

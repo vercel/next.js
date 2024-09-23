@@ -28,7 +28,7 @@ use crate::{
 };
 
 #[derive(Serialize, Deserialize)]
-#[serde(transparent)]
+#[serde(transparent, bound = "")]
 pub struct ResolvedVc<T>
 where
     T: ?Sized + Send,
