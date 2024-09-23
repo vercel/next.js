@@ -9,9 +9,8 @@ pub use super::{
     manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
 };
 use crate::{
-    debug::ValueDebugFormatString,
-    task::{FromTaskInput, TaskOutput},
-    RawVc, ResolvedValue, TaskInput, TaskPersistence, Vc,
+    debug::ValueDebugFormatString, task::TaskOutput, RawVc, ResolvedValue, TaskInput,
+    TaskPersistence, Vc,
 };
 
 #[inline(never)]
@@ -56,25 +55,4 @@ macro_rules! stringify_path {
     ($path:path) => {
         stringify!($path)
     };
-}
-
-pub struct AutoFromTaskInput<T>(pub T);
-
-impl<T> AutoFromTaskInput<T>
-where
-    T: TaskInput,
-{
-    pub fn from_task_input(from: T) -> Self {
-        AutoFromTaskInput(from)
-    }
-}
-
-impl<T> FromTaskInput for AutoFromTaskInput<T>
-where
-    T: FromTaskInput,
-{
-    type TaskInput = T::TaskInput;
-    fn from_task_input(from: T::TaskInput) -> Self {
-        AutoFromTaskInput(FromTaskInput::from_task_input(from))
-    }
 }

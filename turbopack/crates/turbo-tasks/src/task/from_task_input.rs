@@ -15,7 +15,6 @@ mod private {
     impl<T> Sealed for ResolvedVc<T> where T: Send {}
     impl<T> Sealed for Vec<T> where T: FromTaskInput {}
     impl<T> Sealed for Option<T> where T: FromTaskInput {}
-    impl<T> Sealed for crate::macro_helpers::AutoFromTaskInput<T> where T: FromTaskInput {}
 }
 
 impl<T> FromTaskInput for ResolvedVc<T>

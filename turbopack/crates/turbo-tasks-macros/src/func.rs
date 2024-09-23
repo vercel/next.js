@@ -5,7 +5,7 @@ use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
-    parse_quote,
+    parse_quote, parse_quote_spanned,
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
     token::Paren,
@@ -297,7 +297,7 @@ impl TurboFn<'_> {
                         subpat: None,
                     })),
                     colon_token: Default::default(),
-                    ty: Box::new(expand_task_input_type(&input.ty)),
+                    ty: Box::new(expand_task_input_type(&input.ty).into_owned()),
                 })
             })
             .collect();
@@ -347,6 +347,10 @@ impl TurboFn<'_> {
                             return (arg.clone(), None);
                         }
                     }
+                    let Cow::Owned(expanded_ty) = expand_task_input_type(&pat_type.ty) else {
+                        // common-case: skip if no type conversion is needed
+                        return (arg.clone(), None);
+                    };
                     let arg_ident = Ident::new(
                         &format!("arg{idx}"),
                         pat_type.span().resolved_at(Span::mixed_site()),
@@ -359,7 +363,7 @@ impl TurboFn<'_> {
                             ident: arg_ident.clone(),
                             subpat: None,
                         })),
-                        ty: Box::new(expand_task_input_type(&pat_type.ty)),
+                        ty: Box::new(expanded_ty),
                         ..pat_type.clone()
                     });
                     // convert an argument of type `FromTaskInput<T>::TaskInput` into `T`.
@@ -371,12 +375,12 @@ impl TurboFn<'_> {
                         pat: *pat_type.pat.clone(),
                         init: Some((
                             Default::default(),
+                            // we know the argument implements `FromTaskInput` because
+                            // `expand_task_input_type` returned `Cow::Owned`
                             parse_quote! {
-                                {
-                                    use turbo_tasks::task::FromTaskInput;
-                                    turbo_tasks::macro_helpers::AutoFromTaskInput::<#orig_ty>
-                                        ::from_task_input(#arg_ident).0
-                                }
+                                <#orig_ty as turbo_tasks::task::FromTaskInput>::from_task_input(
+                                    #arg_ident
+                                )
                             },
                         )),
                         semi_token: Default::default(),
@@ -679,7 +683,10 @@ fn return_type_to_type(return_type: &ReturnType) -> Type {
 ///   autoderef) there's currently no way to simulate specialization of type aliases on stable rust.
 /// - Replacing arguments with types like `<T as FromTaskInput>::TaskInput` would make function
 ///   signatures illegible in the resulting rustdocs.
-fn expand_task_input_type(orig_input: &Type) -> Type {
+///
+/// Returns `Cow::Owned` when a transformation was applied, and `Cow::Borrowed` when no change was
+/// made to the input type.
+fn expand_task_input_type(orig_input: &Type) -> Cow<'_, Type> {
     match orig_input {
         Type::Group(TypeGroup { elem, .. }) => expand_task_input_type(elem),
         Type::Path(TypePath {
@@ -726,38 +733,51 @@ fn expand_task_input_type(orig_input: &Type) -> Type {
                     }
 
                     // some type we don't have an expansion for
-                    _ => return orig_input.clone(),
+                    _ => return Cow::Borrowed(orig_input),
                 }
             }
 
-            let mut segments = segments.clone();
-            let last_segment = segments.last_mut().expect("segments is non-empty");
+            let last_segment = segments.last().expect("non-empty");
+            let mut segments = Cow::Borrowed(segments);
             match path_match {
                 PathMatch::Vec | PathMatch::Option => {
-                    if let PathArguments::AngleBracketed(AngleBracketedGenericArguments {
-                        args,
-                        ..
-                    }) = &mut last_segment.arguments
+                    if let PathArguments::AngleBracketed(
+                        bracketed_args @ AngleBracketedGenericArguments { args, .. },
+                    ) = &last_segment.arguments
                     {
-                        if let Some(GenericArgument::Type(first_arg)) = args.first_mut() {
-                            *first_arg = expand_task_input_type(first_arg);
+                        if let Some(GenericArgument::Type(first_arg)) = args.first() {
+                            match expand_task_input_type(first_arg) {
+                                Cow::Borrowed(_) => {} // was not transformed
+                                Cow::Owned(first_arg) => {
+                                    let mut bracketed_args = bracketed_args.clone();
+                                    *bracketed_args.args.first_mut().expect("non-empty") =
+                                        GenericArgument::Type(first_arg);
+                                    segments.to_mut().last_mut().expect("non-empty").arguments =
+                                        PathArguments::AngleBracketed(bracketed_args);
+                                }
+                            }
                         }
                     }
                 }
                 PathMatch::ResolvedVc => {
-                    last_segment.ident = Ident::new("Vc", last_segment.ident.span())
+                    let args = &last_segment.arguments;
+                    segments =
+                        Cow::Owned(parse_quote_spanned!(segments.span() => turbo_tasks::Vc #args));
                 }
                 _ => {}
             }
-            Type::Path(TypePath {
-                qself: None,
-                path: Path {
-                    leading_colon: *leading_colon,
-                    segments,
-                },
-            })
+            match segments {
+                Cow::Borrowed(_) => Cow::Borrowed(orig_input),
+                Cow::Owned(segments) => Cow::Owned(Type::Path(TypePath {
+                    qself: None,
+                    path: Path {
+                        leading_colon: *leading_colon,
+                        segments,
+                    },
+                })),
+            }
         }
-        _ => orig_input.clone(),
+        _ => Cow::Borrowed(orig_input),
     }
 }
 
