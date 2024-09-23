@@ -24,6 +24,40 @@ Replacing `<transform>` and `<path>` with appropriate values.
 
 ## Next.js Codemods
 
+### 15.0
+
+#### Replace `geo` and `ip` properties of `NextRequest` with `@vercel/functions`
+
+##### `next-request-geo-ip`
+
+```bash filename="Terminal"
+npx @next/codemod@latest next-request-geo-ip .
+```
+
+This codemod installs `@vercel/functions` and transforms `geo` and `ip` properties of `NextRequest` with corresponding `@vercel/functions` features.
+
+For example:
+
+```ts
+import type { NextRequest } from 'next/server'
+
+export function GET(req: NextRequest) {
+  const { geo, ip } = req
+}
+```
+
+Transforms into:
+
+```ts
+import type { NextRequest } from 'next/server'
+import { geolocation, ipAddress } from '@vercel/functions'
+
+export function GET(req: NextRequest) {
+  const geo = geolocation(req)
+  const ip = ipAddress(req)
+}
+```
+
 ### 14.0
 
 #### Migrate `ImageResponse` imports
