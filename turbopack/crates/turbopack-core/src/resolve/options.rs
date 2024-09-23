@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::{bail, Result};
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
@@ -19,6 +20,10 @@ use crate::resolve::{parse::Request, plugin::AfterResolvePlugin};
 #[derive(Hash, Debug)]
 pub struct LockedVersions {}
 
+#[turbo_tasks::value(transparent)]
+#[derive(Debug)]
+pub struct ExcludedExtensions(pub IndexSet<RcStr>);
+
 /// A location where to resolve modules.
 #[derive(
     TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, ValueDebugFormat,
@@ -27,8 +32,11 @@ pub enum ResolveModules {
     /// when inside of path, use the list of directories to
     /// resolve inside these
     Nested(Vc<FileSystemPath>, Vec<RcStr>),
-    /// look into that directory
-    Path(Vc<FileSystemPath>),
+    /// look into that directory, unless the request has an excluded extension
+    Path {
+        dir: Vc<FileSystemPath>,
+        excluded_extensions: Vc<ExcludedExtensions>,
+    },
     /// lookup versions based on lockfile in the registry filesystem
     /// registry filesystem is assumed to have structure like
     /// @scope/module/version/<path-in-package>
