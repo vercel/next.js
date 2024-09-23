@@ -87,7 +87,7 @@ export async function verifyTypeScriptSetup({
           bold(
             'If you are not trying to use TypeScript, please remove the ' +
               cyan('tsconfig.json') +
-              ' file from your package root (and any TypeScript files in your app and pages directory).'
+              ' file from your package root (and any TypeScript files in your app and pages directories).'
           ) +
           '\n'
       )
