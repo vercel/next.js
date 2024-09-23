@@ -106,15 +106,25 @@ where
     let name = closure_to_name(&fut);
     let tt = registration.create_turbo_tasks(&name, true);
     println!("Run #1 (without cache)");
+    let start = std::time::Instant::now();
     let first = fut(tt.clone()).await?;
+    println!("Run #1 took {:?}", start.elapsed());
     println!("Run #2 (with memory cache, same TurboTasks instance)");
+    let start = std::time::Instant::now();
     let second = fut(tt.clone()).await?;
+    println!("Run #2 took {:?}", start.elapsed());
     assert_eq!(first, second);
+    let start = std::time::Instant::now();
     tt.stop_and_wait().await;
+    println!("Stopping TurboTasks took {:?}", start.elapsed());
     let tt = registration.create_turbo_tasks(&name, false);
     println!("Run #3 (with persistent cache if available, new TurboTasks instance)");
+    let start = std::time::Instant::now();
     let third = fut(tt.clone()).await?;
+    println!("Run #3 took {:?}", start.elapsed());
+    let start = std::time::Instant::now();
     tt.stop_and_wait().await;
+    println!("Stopping TurboTasks took {:?}", start.elapsed());
     assert_eq!(first, third);
     Ok(())
 }
