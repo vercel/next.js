@@ -5,7 +5,7 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOptsPartial } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
-import type { FallbackRouteParams } from '../../client/components/fallback-params'
+import type { FallbackRouteParams } from '../../server/request/fallback-params'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 

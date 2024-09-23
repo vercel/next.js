@@ -1,12 +1,14 @@
+"use client";
+
 import { Suspense, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import Bird from "../components/Bird";
+import Bird from "../_components/Bird";
 
 export default function BirdsPage() {
   const birds = useMemo(
     () =>
-      new Array(10).fill().map((_, index) => {
+      new Array(10).fill(undefined).map((_, index) => {
         const x =
           (15 + Math.random() * 30) * (Math.round(Math.random()) ? -1 : 1);
         const y = -10 + Math.random() * 20;

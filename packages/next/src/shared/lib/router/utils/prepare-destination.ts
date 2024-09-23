@@ -13,7 +13,7 @@ import {
 } from '../../../../server/lib/interception-routes'
 import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
 import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
-import type { Params } from '../../../../client/components/params'
+import type { Params } from '../../../../server/request/params'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating

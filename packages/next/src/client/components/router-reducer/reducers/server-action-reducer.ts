@@ -52,6 +52,7 @@ import { hasBasePath } from '../../../has-base-path'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
+  redirectType: RedirectType | undefined
   actionResult?: ActionResult
   actionFlightData?: NormalizedFlightData[] | string
   isPrerender: boolean
@@ -91,7 +92,20 @@ async function fetchServerAction(
     body,
   })
 
-  const location = res.headers.get('x-action-redirect')
+  const redirectHeader = res.headers.get('x-action-redirect')
+  const [location, _redirectType] = redirectHeader?.split(';') || []
+  let redirectType: RedirectType | undefined
+  switch (_redirectType) {
+    case 'push':
+      redirectType = RedirectType.push
+      break
+    case 'replace':
+      redirectType = RedirectType.replace
+      break
+    default:
+      redirectType = undefined
+  }
+
   const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
   let revalidatedParts: FetchServerActionResult['revalidatedParts']
   try {
@@ -134,6 +148,7 @@ async function fetchServerAction(
       return {
         actionFlightData: normalizeFlightData(response.f),
         redirectLocation,
+        redirectType,
         revalidatedParts,
         isPrerender,
       }
@@ -143,6 +158,7 @@ async function fetchServerAction(
       actionResult: response.a,
       actionFlightData: normalizeFlightData(response.f),
       redirectLocation,
+      redirectType,
       revalidatedParts,
       isPrerender,
     }
@@ -162,6 +178,7 @@ async function fetchServerAction(
 
   return {
     redirectLocation,
+    redirectType,
     revalidatedParts,
     isPrerender,
   }
@@ -197,13 +214,18 @@ export function serverActionReducer(
       actionResult,
       actionFlightData: flightData,
       redirectLocation,
+      redirectType,
       isPrerender,
     }) => {
-      // Make sure the redirection is a push instead of a replace.
-      // Issue: https://github.com/vercel/next.js/issues/53911
+      // honor the redirect type instead of defaulting to push in case of server actions.
       if (redirectLocation) {
-        state.pushRef.pendingPush = true
-        mutable.pendingPush = true
+        if (redirectType === RedirectType.replace) {
+          state.pushRef.pendingPush = false
+          mutable.pendingPush = false
+        } else {
+          state.pushRef.pendingPush = true
+          mutable.pendingPush = true
+        }
       }
 
       if (!flightData) {
@@ -263,7 +285,7 @@ export function serverActionReducer(
         reject(
           getRedirectError(
             hasBasePath(newHref) ? removeBasePath(newHref) : newHref,
-            RedirectType.push
+            redirectType || RedirectType.push
           )
         )
 
