@@ -201,6 +201,7 @@ pub(crate) enum ImportedSymbol {
     Symbol(JsWord),
     Exports,
     Part(u32),
+    StarReexports,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -561,11 +562,14 @@ pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
 }
 
 fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
-    find_turbopack_part_id_in_asserts(with?).map(|v| match v {
+    let id = find_turbopack_part_id_in_asserts(with?)?;
+
+    Some(match id {
         PartId::Internal(index) => ImportedSymbol::Part(index),
         PartId::ModuleEvaluation => ImportedSymbol::ModuleEvaluation,
         PartId::Export(e) => ImportedSymbol::Symbol(e.as_str().into()),
-        PartId::Exports | PartId::StarReexports => ImportedSymbol::Exports,
+        PartId::Exports => ImportedSymbol::Exports,
+        PartId::StarReexports => ImportedSymbol::StarReexports,
     })
 }
 

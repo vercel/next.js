@@ -2954,7 +2954,7 @@ impl ValueToString for ModulePart {
             ModulePart::Internal(id) => format!("internal part {}", id).into(),
             ModulePart::Locals => "locals".into(),
             ModulePart::Exports => "exports".into(),
-            ModulePart::StarReexports => "star reexports".into(),
+            ModulePart::StarReexports => "reexports".into(),
             ModulePart::Facade => "facade".into(),
         }))
     }
