@@ -377,7 +377,8 @@ impl TurboFn<'_> {
                             Default::default(),
                             // we know the argument implements `FromTaskInput` because
                             // `expand_task_input_type` returned `Cow::Owned`
-                            parse_quote! {
+                            parse_quote_spanned! {
+                                pat_type.span() =>
                                 <#orig_ty as turbo_tasks::task::FromTaskInput>::from_task_input(
                                     #arg_ident
                                 )
