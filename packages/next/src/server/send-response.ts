@@ -28,7 +28,11 @@ export async function sendResponse(
     res.statusMessage = response.statusText
 
     // can add more headers to this list if needed
-    const headersWithMultipleValuesAllowed = ['set-cookie']
+    const headersWithMultipleValuesAllowed = [
+      'set-cookie',
+      'www-authenticate',
+      'proxy-authenticate',
+    ]
 
     // Copy over the response headers.
     response.headers?.forEach((value, name) => {
