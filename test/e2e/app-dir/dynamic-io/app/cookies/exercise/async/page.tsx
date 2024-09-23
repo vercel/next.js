@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 
 import { getSentinelValue } from '../../../getSentinelValue'
-import { AllComponents } from '../commponents'
+import { AllComponents } from '../components'
 
 export default async function Page() {
   const allCookies = await cookies()

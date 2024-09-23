@@ -515,4 +515,92 @@ describe('dynamic-io', () => {
       }
     })
   }
+
+  it('can prerender pages with parallel routes that are static', async () => {
+    const $ = await next.render$('/cases/parallel/static', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page-slot').text()).toBe('at runtime')
+      expect($('#page-children').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page-slot').text()).toBe('at buildtime')
+      expect($('#page-children').text()).toBe('at buildtime')
+    }
+  })
+
+  it('can prerender pages with parallel routes that resolve in a microtask', async () => {
+    const $ = await next.render$('/cases/parallel/microtask', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page-slot').text()).toBe('at runtime')
+      expect($('#page-children').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page-slot').text()).toBe('at buildtime')
+      expect($('#page-children').text()).toBe('at buildtime')
+    }
+  })
+
+  it('does not prerender pages with parallel routes that resolve in a task', async () => {
+    const $ = await next.render$('/cases/parallel/task', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page-slot').text()).toBe('at runtime')
+      expect($('#page-children').text()).toBe('at runtime')
+    } else {
+      if (WITH_PPR) {
+        expect($('#layout').text()).toBe('at buildtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at buildtime')
+      } else {
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at runtime')
+      }
+    }
+  })
+
+  it('does not prerender pages with parallel routes that uses a dynamic API', async () => {
+    let $ = await next.render$('/cases/parallel/no-store', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page-slot').text()).toBe('at runtime')
+      expect($('#page-children').text()).toBe('at runtime')
+    } else {
+      if (WITH_PPR) {
+        // When using a sync dynamic API like noStore the prerender aborts
+        // before the shell can complete
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at runtime')
+      } else {
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at runtime')
+      }
+    }
+
+    $ = await next.render$('/cases/parallel/cookies', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page-slot').text()).toBe('at runtime')
+      expect($('#page-children').text()).toBe('at runtime')
+    } else {
+      if (WITH_PPR) {
+        expect($('#layout').text()).toBe('at buildtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at buildtime')
+      } else {
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at runtime')
+      }
+    }
+  })
 })

@@ -1,7 +1,7 @@
 import { cookies, type UnsafeUnwrappedCookies } from 'next/headers'
 
 import { getSentinelValue } from '../../../getSentinelValue'
-import { AllComponents } from '../commponents'
+import { AllComponents } from '../components'
 
 export default async function Page() {
   const allCookies = cookies() as unknown as UnsafeUnwrappedCookies
