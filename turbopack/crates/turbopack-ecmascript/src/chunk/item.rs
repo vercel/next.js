@@ -54,6 +54,7 @@ impl EcmascriptChunkItemContent {
                     refresh,
                     externals,
                     async_module,
+                    stub_require: true,
                     ..Default::default()
                 }
             } else {
@@ -67,7 +68,6 @@ impl EcmascriptChunkItemContent {
                     // These things are not available in ESM
                     module: true,
                     exports: true,
-                    require: true,
                     this: true,
                     ..Default::default()
                 }
@@ -115,7 +115,9 @@ impl EcmascriptChunkItemContent {
         if this.options.exports {
             args.push("e: exports");
         }
-        if this.options.require {
+        if this.options.stub_require {
+            args.push("z: require");
+        } else {
             args.push("t: require");
         }
         if this.options.wasm {
@@ -173,9 +175,9 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module factory should include an `exports`
     /// argument.
     pub exports: bool,
-    /// Whether this chunk item's module factory should include a `require`
-    /// argument.
-    pub require: bool,
+    /// Whether this chunk item's module factory should include an argument for the real `require`,
+    /// or just a throwing stub (for ESM)
+    pub stub_require: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
     pub externals: bool,

@@ -1271,8 +1271,12 @@ async fn find_package(
                     lookup_path_value = new_context_value;
                 }
             }
-            ResolveModules::Path(context) => {
-                let package_dir = context.join(package_name.clone());
+            ResolveModules::Path {
+                dir,
+                excluded_extensions,
+            } => {
+                let excluded_extensions = excluded_extensions.await?;
+                let package_dir = dir.join(package_name.clone());
                 if let Some((ty, package_dir)) =
                     any_exists(package_dir, &mut affecting_sources).await?
                 {
@@ -1287,6 +1291,9 @@ async fn find_package(
                     }
                 }
                 for extension in &options.extensions {
+                    if excluded_extensions.contains(extension) {
+                        continue;
+                    }
                     let package_file = package_dir.append(extension.clone());
                     if let Some(package_file) = exists(package_file, &mut affecting_sources).await?
                     {

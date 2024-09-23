@@ -6,7 +6,7 @@
 exports.hello = "World";
 
 }.call(this) }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js [test] (ecmascript)": (({ r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, M: __turbopack_modules__, l: __turbopack_load__, j: __turbopack_dynamic__, P: __turbopack_resolve_absolute_path__, U: __turbopack_relative_url__, R: __turbopack_resolve_module_id_path__, b: __turbopack_worker_blob_url__, g: global, __dirname }) => (() => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js [test] (ecmascript)": (({ r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, M: __turbopack_modules__, l: __turbopack_load__, j: __turbopack_dynamic__, P: __turbopack_resolve_absolute_path__, U: __turbopack_relative_url__, R: __turbopack_resolve_module_id_path__, b: __turbopack_worker_blob_url__, g: global, __dirname, z: require }) => (() => {
 "use strict";
 
 // c.js
@@ -18,7 +18,7 @@ __turbopack_dynamic__(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$
  // This would be handled by existing logic
 
 })()),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js [test] (ecmascript)": (({ r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, M: __turbopack_modules__, l: __turbopack_load__, j: __turbopack_dynamic__, P: __turbopack_resolve_absolute_path__, U: __turbopack_relative_url__, R: __turbopack_resolve_module_id_path__, b: __turbopack_worker_blob_url__, g: global, __dirname }) => (() => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js [test] (ecmascript)": (({ r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, M: __turbopack_modules__, l: __turbopack_load__, j: __turbopack_dynamic__, P: __turbopack_resolve_absolute_path__, U: __turbopack_relative_url__, R: __turbopack_resolve_module_id_path__, b: __turbopack_worker_blob_url__, g: global, __dirname, z: require }) => (() => {
 "use strict";
 
 // b.js
@@ -31,7 +31,7 @@ __turbopack_dynamic__(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$
  // as there are properties dynamically added by __turbopack__cjs__ in c.js
 
 })()),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js [test] (ecmascript)": (({ r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, M: __turbopack_modules__, l: __turbopack_load__, j: __turbopack_dynamic__, P: __turbopack_resolve_absolute_path__, U: __turbopack_relative_url__, R: __turbopack_resolve_module_id_path__, b: __turbopack_worker_blob_url__, g: global, __dirname }) => (() => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js [test] (ecmascript)": (({ r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_import__, s: __turbopack_esm__, v: __turbopack_export_value__, n: __turbopack_export_namespace__, c: __turbopack_cache__, M: __turbopack_modules__, l: __turbopack_load__, j: __turbopack_dynamic__, P: __turbopack_resolve_absolute_path__, U: __turbopack_relative_url__, R: __turbopack_resolve_module_id_path__, b: __turbopack_worker_blob_url__, g: global, __dirname, z: require }) => (() => {
 "use strict";
 
 // a.js
