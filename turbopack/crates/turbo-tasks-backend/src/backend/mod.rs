@@ -615,6 +615,7 @@ impl TurboTasksBackendInner {
         // yet.
         let uncompleted_operations = self.backing_storage.uncompleted_operations();
         if !uncompleted_operations.is_empty() {
+            let _span = tracing::trace_span!("continue uncompleted operations").entered();
             let mut ctx = self.execute_context(turbo_tasks);
             for op in uncompleted_operations {
                 op.execute(&mut ctx);
