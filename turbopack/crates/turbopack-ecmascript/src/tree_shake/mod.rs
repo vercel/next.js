@@ -513,11 +513,6 @@ pub(super) async fn split(
                 modules,
             } = dep_graph.split_module(&directives, &items);
 
-            eprintln!("# Program ({name})\n{}", to_code(&program));
-            for (idx, m) in modules.iter().enumerate() {
-                eprintln!("# Module {idx}\n{}", to_code(m));
-            }
-
             assert_ne!(modules.len(), 0, "modules.len() == 0;\nModule: {module:?}",);
 
             for &v in entrypoints.values() {
