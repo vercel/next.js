@@ -8,6 +8,7 @@ import { compareVersions } from 'compare-versions'
 import chalk from 'chalk'
 import which from 'which'
 import { createRequire } from 'node:module'
+import { availableCodemods } from './codemods.js'
 
 type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
 type CustomVersionSpecifier = string
@@ -41,6 +42,8 @@ async function run(): Promise<void> {
       )
     }
   }
+
+  const installedNextVersion = await getInstalledNextVersion()
 
   if (!targetNextPackageJson) {
     let nextPackageJson: { [key: string]: any } = {}
@@ -87,7 +90,16 @@ async function run(): Promise<void> {
       description: `Production-ready release (${nextPackageJson['latest'].version})`,
     })
 
-    const initialVersionSpecifierIdx = await processCurrentVersion(showRc)
+    if (installedNextVersion) {
+      console.log(
+        `You are currently using ${chalk.blue('Next.js ' + installedNextVersion)}`
+      )
+    }
+
+    const initialVersionSpecifierIdx = await getVersionSpecifierIdx(
+      installedNextVersion,
+      showRc
+    )
 
     const response: Response = await prompts(
       {
@@ -104,9 +116,11 @@ async function run(): Promise<void> {
     targetVersionSpecifier = response.version
   }
 
+  const targetNextVersion = targetNextPackageJson.version
+
   if (
-    targetNextPackageJson.version &&
-    compareVersions(targetNextPackageJson.version, '15.0.0-canary') >= 0
+    targetNextVersion &&
+    compareVersions(targetNextVersion, '15.0.0-canary') >= 0
   ) {
     await suggestTurbopack(appPackageJson)
   }
@@ -114,13 +128,13 @@ async function run(): Promise<void> {
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
   const packageManager: PackageManager = await getPackageManager(appPackageJson)
+  const nextDependency = `next@${targetNextVersion}`
   const reactDependencies = [
     `react@${targetNextPackageJson.peerDependencies['react']}`,
     `@types/react@${targetNextPackageJson.devDependencies['@types/react']}`,
     `react-dom@${targetNextPackageJson.peerDependencies['react-dom']}`,
     `@types/react-dom@${targetNextPackageJson.devDependencies['@types/react-dom']}`,
   ]
-  const nextDependency = `next@${targetNextPackageJson.version}`
 
   let updateCommand
   switch (packageManager) {
@@ -148,6 +162,8 @@ async function run(): Promise<void> {
   execSync(updateCommand, {
     stdio: 'inherit',
   })
+
+  await suggestCodemods(installedNextVersion, targetNextVersion)
 
   console.log(
     `\n${chalk.green('✔')} Your Next.js project has been upgraded successfully. ${chalk.bold('Time to ship! 🚢')}`
@@ -180,11 +196,7 @@ async function detectWorkspace(appPackageJson: any): Promise<void> {
   }
 }
 
-/*
- * Logs the current version and returns the index of the current version specifier
- * in the array ['canary', 'rc', 'latest']
- */
-async function processCurrentVersion(showRc: boolean): Promise<number> {
+async function getInstalledNextVersion(): Promise<string> {
   const require = createRequire(import.meta.url)
   const installedNextPackageJsonDir = require.resolve('next/package.json', {
     paths: [process.cwd()],
@@ -192,23 +204,29 @@ async function processCurrentVersion(showRc: boolean): Promise<number> {
   const installedNextPackageJson = JSON.parse(
     fs.readFileSync(installedNextPackageJsonDir, 'utf8')
   )
-  let installedNextVersion = installedNextPackageJson.version
 
+  return installedNextPackageJson.version
+}
+
+/*
+ * Returns the index of the current version's specifier in the
+ * array ['canary', 'rc', 'latest'] or ['canary', 'latest']
+ */
+async function getVersionSpecifierIdx(
+  installedNextVersion: string,
+  showRc: boolean
+): Promise<number> {
   if (installedNextVersion == null) {
     return 0
   }
-
-  console.log(
-    `You are currently using ${chalk.blue('Next.js ' + installedNextVersion)}`
-  )
 
   if (installedNextVersion.includes('canary')) {
     return 0
   }
   if (installedNextVersion.includes('rc')) {
-    return 1 // If rc is not available, will default to latest's index
+    return 1
   }
-  return showRc ? 2 : 1 // "latest" is 1 or 2 depending on if rc is shown as an option
+  return showRc ? 2 : 1
 }
 
 async function getPackageManager(_packageJson: any): Promise<PackageManager> {
@@ -363,6 +381,70 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
 
   packageJson.scripts['dev'] =
     responseCustomDevScript.customDevScript || devScript
+}
+
+async function suggestCodemods(
+  initialNextVersion: string,
+  targetNextVersion: string
+): Promise<void> {
+  const initialVersionIndex = availableCodemods.findIndex(
+    (versionCodemods) =>
+      compareVersions(versionCodemods.version, initialNextVersion) > 0
+  )
+  if (initialVersionIndex === -1) {
+    return
+  }
+
+  let targetVersionIndex = availableCodemods.findIndex(
+    (versionCodemods) =>
+      compareVersions(versionCodemods.version, targetNextVersion) > 0
+  )
+  if (targetVersionIndex === -1) {
+    targetVersionIndex = availableCodemods.length
+  }
+
+  const relevantCodemods = availableCodemods
+    .slice(initialVersionIndex, targetVersionIndex)
+    .flatMap((versionCodemods) => versionCodemods.codemods)
+
+  if (relevantCodemods.length === 0) {
+    return
+  }
+
+  let codemodsString = `\nThe following ${chalk.blue('codemods')} are available for your upgrade:`
+  relevantCodemods.forEach((codemod) => {
+    codemodsString += `\n- ${codemod.title} ${chalk.gray(`(${codemod.value})`)}`
+  })
+  codemodsString += '\n'
+
+  console.log(codemodsString)
+
+  const responseCodemods = await prompts(
+    {
+      type: 'confirm',
+      name: 'apply',
+      message: `Do you want to apply these codemods?`,
+      initial: true,
+    },
+    {
+      onCancel: () => {
+        process.exit(0)
+      },
+    }
+  )
+
+  if (!responseCodemods.apply) {
+    return
+  }
+
+  for (const codemod of relevantCodemods) {
+    execSync(
+      `npx @next/codemod@latest ${codemod.value} ${process.cwd()} --force`,
+      {
+        stdio: 'inherit',
+      }
+    )
+  }
 }
 
 run().catch(console.error)
