@@ -16,7 +16,10 @@ use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
 use super::{storage::StorageWriteGuard, TurboTasksBackend};
 use crate::{
     backend::{OperationGuard, TransientTask},
-    data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate},
+    data::{
+        CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
+        CachedDataUpdate,
+    },
 };
 
 pub trait Operation:
@@ -141,7 +144,7 @@ impl<'a> Debug for TaskGuard<'a> {
         if let Some(task_type) = self.backend.task_cache.lookup_reverse(&self.task_id) {
             d.field("task_type", &task_type);
         };
-        for (key, value) in self.task.iter() {
+        for (key, value) in self.task.iter_all() {
             d.field(&format!("{:?}", key), &value);
         }
         d.finish()
@@ -159,6 +162,7 @@ impl<'a> TaskGuard<'a> {
             self.task.add(item)
         } else if self.task.add(item.clone()) {
             let (key, value) = item.into_key_and_value();
+            // TODO task.persistance_state.add_persisting_item();
             self.backend
                 .persisted_storage_log
                 .lock()
@@ -188,6 +192,7 @@ impl<'a> TaskGuard<'a> {
                 key.clone(),
                 value.clone(),
             ));
+            // TODO task.persistance_state.add_persisting_item();
             self.backend
                 .persisted_storage_log
                 .lock()
@@ -201,6 +206,7 @@ impl<'a> TaskGuard<'a> {
             let item = CachedDataItem::from_key_and_value(key.clone(), value);
             if let Some(old) = self.task.insert(item) {
                 if old.is_persistent() {
+                    // TODO task.persistance_state.add_persisting_item();
                     self.backend
                         .persisted_storage_log
                         .lock()
@@ -269,6 +275,7 @@ impl<'a> TaskGuard<'a> {
         if let Some(value) = old_value {
             if key.is_persistent() && value.is_persistent() {
                 let key = key.clone();
+                // TODO task.persistance_state.add_persisting_item();
                 self.backend
                     .persisted_storage_log
                     .lock()
@@ -292,8 +299,19 @@ impl<'a> TaskGuard<'a> {
         self.task.has_key(key)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
-        self.task.iter()
+    pub fn is_indexed(&self) -> bool {
+        self.task.is_indexed()
+    }
+
+    pub fn iter(
+        &self,
+        index: CachedDataItemIndex,
+    ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
+        self.task.iter(Some(index))
+    }
+
+    pub fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
+        self.task.iter_all()
     }
 }
 

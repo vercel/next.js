@@ -5,6 +5,8 @@ use turbo_tasks::{
     CellId, KeyValuePair, SharedReference, TaskId, ValueTypeId,
 };
 
+use crate::backend::indexed::Indexed;
+
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CellRef {
     pub task: TaskId,
@@ -323,6 +325,70 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedCellDependency { .. } => false,
             CachedDataItemKey::OutdatedChild { .. } => false,
             CachedDataItemKey::Error { .. } => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CachedDataItemIndex {
+    Children,
+    Follower,
+    Upper,
+    AggregatedDirtyContainer,
+    CellData,
+    CellTypeMaxIndex,
+    CellDependent,
+    OutputDependent,
+    Dependencies,
+}
+
+#[allow(non_upper_case_globals, dead_code)]
+pub mod indicies {
+    use super::CachedDataItemIndex;
+
+    pub const Child: CachedDataItemIndex = CachedDataItemIndex::Children;
+    pub const OutdatedChild: CachedDataItemIndex = CachedDataItemIndex::Children;
+    pub const Follower: CachedDataItemIndex = CachedDataItemIndex::Follower;
+    pub const Upper: CachedDataItemIndex = CachedDataItemIndex::Upper;
+    pub const AggregatedDirtyContainer: CachedDataItemIndex =
+        CachedDataItemIndex::AggregatedDirtyContainer;
+    pub const CellData: CachedDataItemIndex = CachedDataItemIndex::CellData;
+    pub const CellTypeMaxIndex: CachedDataItemIndex = CachedDataItemIndex::CellTypeMaxIndex;
+    pub const CellDependent: CachedDataItemIndex = CachedDataItemIndex::CellDependent;
+    pub const OutputDependent: CachedDataItemIndex = CachedDataItemIndex::OutputDependent;
+    pub const OutputDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
+    pub const CellDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
+    pub const OutdatedOutputDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
+    pub const OutdatedCellDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
+}
+
+impl Indexed for CachedDataItemKey {
+    type Index = Option<CachedDataItemIndex>;
+
+    fn index(&self) -> Option<CachedDataItemIndex> {
+        match self {
+            CachedDataItemKey::Child { .. } => Some(CachedDataItemIndex::Children),
+            CachedDataItemKey::OutdatedChild { .. } => Some(CachedDataItemIndex::Children),
+            CachedDataItemKey::Follower { .. } => Some(CachedDataItemIndex::Follower),
+            CachedDataItemKey::Upper { .. } => Some(CachedDataItemIndex::Upper),
+            CachedDataItemKey::AggregatedDirtyContainer { .. } => {
+                Some(CachedDataItemIndex::AggregatedDirtyContainer)
+            }
+            CachedDataItemKey::CellData { .. } => Some(CachedDataItemIndex::CellData),
+            CachedDataItemKey::CellTypeMaxIndex { .. } => {
+                Some(CachedDataItemIndex::CellTypeMaxIndex)
+            }
+            CachedDataItemKey::CellDependent { .. } => Some(CachedDataItemIndex::CellDependent),
+            CachedDataItemKey::OutputDependent { .. } => Some(CachedDataItemIndex::OutputDependent),
+            CachedDataItemKey::OutputDependency { .. } => Some(CachedDataItemIndex::Dependencies),
+            CachedDataItemKey::CellDependency { .. } => Some(CachedDataItemIndex::Dependencies),
+            CachedDataItemKey::OutdatedOutputDependency { .. } => {
+                Some(CachedDataItemIndex::Dependencies)
+            }
+            CachedDataItemKey::OutdatedCellDependency { .. } => {
+                Some(CachedDataItemIndex::Dependencies)
+            }
+            _ => None,
         }
     }
 }
