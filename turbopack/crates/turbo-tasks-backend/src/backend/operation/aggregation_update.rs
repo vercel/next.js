@@ -221,17 +221,28 @@ impl AggregatedDataUpdate {
     }
 }
 
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
+pub struct AggregationUpdateStats {
+    pub processed_jobs: usize,
+    pub update_aggregation_number: usize,
+    pub new_follower: usize,
+    pub lost_follower: usize,
+    pub data_update: usize,
+    pub find_and_schedule_dirty: usize,
+    pub balance: usize,
+}
+
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct AggregationUpdateQueue {
     jobs: VecDeque<AggregationUpdateJob>,
-    pub processed_jobs: usize,
+    pub stats: AggregationUpdateStats,
 }
 
 impl AggregationUpdateQueue {
     pub fn new() -> Self {
         Self {
             jobs: VecDeque::with_capacity(8),
-            processed_jobs: 0,
+            stats: AggregationUpdateStats::default(),
         }
     }
 
@@ -254,7 +265,7 @@ impl AggregationUpdateQueue {
     }
 
     pub fn process(&mut self, ctx: &ExecuteContext<'_>) -> bool {
-        self.processed_jobs += 1;
+        self.stats.processed_jobs += 1;
         if let Some(job) = self.jobs.pop_front() {
             match job {
                 AggregationUpdateJob::UpdateAggregationNumber {
@@ -262,6 +273,7 @@ impl AggregationUpdateQueue {
                     base_aggregation_number,
                     distance: base_effective_distance,
                 } => {
+                    self.stats.update_aggregation_number += 1;
                     let mut task = ctx.task(task_id, TaskDataCategory::Meta);
                     let current = get!(task, AggregationNumber).copied().unwrap_or_default();
                     // The wanted new distance is either the provided one or the old distance
@@ -358,6 +370,7 @@ impl AggregationUpdateQueue {
                     mut upper_ids,
                     new_follower_id,
                 } => {
+                    self.stats.new_follower += 1;
                     let follower_aggregation_number = {
                         let follower = ctx.task(new_follower_id, TaskDataCategory::Meta);
                         get_aggregation_number(&follower)
@@ -464,6 +477,7 @@ impl AggregationUpdateQueue {
                     mut upper_ids,
                     lost_follower_id,
                 } => {
+                    self.stats.lost_follower += 1;
                     let mut follower = ctx.task(lost_follower_id, TaskDataCategory::Meta);
                     let mut follower_in_upper_ids = Vec::new();
                     upper_ids.retain(|&upper_id| {
@@ -532,6 +546,7 @@ impl AggregationUpdateQueue {
                     }
                 }
                 AggregationUpdateJob::AggregatedDataUpdate { upper_ids, update } => {
+                    self.stats.data_update += 1;
                     for upper_id in upper_ids {
                         let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
                         let diff = update.apply(&mut upper, self);
@@ -547,6 +562,7 @@ impl AggregationUpdateQueue {
                     }
                 }
                 AggregationUpdateJob::FindAndScheduleDirty { mut task_ids } => {
+                    self.stats.find_and_schedule_dirty += 1;
                     let popped = task_ids.pop();
                     if !task_ids.is_empty() {
                         self.push(AggregationUpdateJob::FindAndScheduleDirty { task_ids });
@@ -576,6 +592,7 @@ impl AggregationUpdateQueue {
                     }
                 }
                 AggregationUpdateJob::BalanceEdge { upper_id, task_id } => {
+                    self.stats.balance += 1;
                     let (mut upper, mut task) =
                         ctx.task_pair(upper_id, task_id, TaskDataCategory::Meta);
                     let upper_aggregation_number = get_aggregation_number(&upper);
@@ -684,10 +701,13 @@ impl AggregationUpdateQueue {
 
 impl Operation for AggregationUpdateQueue {
     fn execute(mut self, ctx: &ExecuteContext<'_>) {
-        let _span = tracing::trace_span!("aggregation update queue").entered();
+        let span = tracing::trace_span!("aggregation update queue", stats = tracing::field::Empty)
+            .entered();
         loop {
             ctx.operation_suspend_point(&self);
             if self.process(ctx) {
+                let stats = self.stats;
+                span.record("stats", tracing::field::debug(stats));
                 return;
             }
         }
