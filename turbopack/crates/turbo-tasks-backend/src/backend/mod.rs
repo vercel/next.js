@@ -21,8 +21,8 @@ use auto_hash_map::{AutoMap, AutoSet};
 use dashmap::DashMap;
 pub use operation::AnyOperation;
 use operation::{
-    is_root_node, AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
-    CleanupOldEdgesOperation, ConnectChildOperation, OutdatedEdge,
+    get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
+    AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation, OutdatedEdge,
 };
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
@@ -42,8 +42,9 @@ use turbo_tasks::{
 use self::{operation::ExecuteContext, storage::Storage};
 use crate::{
     data::{
-        ActiveType, CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
-        CachedDataUpdate, CellRef, InProgressCellState, InProgressState, OutputValue, RootState,
+        ActiveType, AggregationNumber, CachedDataItem, CachedDataItemIndex, CachedDataItemKey,
+        CachedDataItemValue, CachedDataUpdate, CellRef, InProgressCellState, InProgressState,
+        OutputValue, RootState,
     },
     get, get_many, remove,
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
@@ -256,7 +257,7 @@ impl TurboTasksBackend {
         if matches!(consistency, ReadConsistency::Strong) {
             // Ensure it's an root node
             loop {
-                let aggregation_number = get!(task, AggregationNumber).copied().unwrap_or_default();
+                let aggregation_number = get_aggregation_number(&task);
                 if is_root_node(aggregation_number) {
                     break;
                 }
@@ -264,7 +265,8 @@ impl TurboTasksBackend {
                 AggregationUpdateQueue::run(
                     AggregationUpdateJob::UpdateAggregationNumber {
                         task_id,
-                        aggregation_number: u32::MAX,
+                        base_aggregation_number: u32::MAX,
+                        distance: None,
                     },
                     &ctx,
                 );
@@ -1058,7 +1060,13 @@ impl Backend for TurboTasksBackend {
         );
         {
             let mut task = self.storage.access_mut(task_id);
-            let _ = task.add(CachedDataItem::AggregationNumber { value: u32::MAX });
+            let _ = task.add(CachedDataItem::AggregationNumber {
+                value: AggregationNumber {
+                    base: u32::MAX,
+                    distance: 0,
+                    effective: u32::MAX,
+                },
+            });
             let _ = task.add(CachedDataItem::AggregateRoot {
                 value: RootState::new(root_type),
             });

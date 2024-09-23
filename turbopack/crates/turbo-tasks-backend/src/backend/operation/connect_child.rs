@@ -1,3 +1,5 @@
+use std::{cmp::max, num::NonZeroU32};
+
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
@@ -8,7 +10,8 @@ use super::{
     ExecuteContext, Operation,
 };
 use crate::{
-    data::{CachedDataItem, CachedDataItemKey},
+    backend::operation::is_root_node,
+    data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey},
     get,
 };
 
@@ -41,19 +44,52 @@ impl ConnectChildOperation {
             }
             // Update the task aggregation
             let mut queue = AggregationUpdateQueue::new();
-            let parent_aggregation = get!(parent_task, AggregationNumber)
+
+            // Compute new parent aggregation number based on the number of children
+            let current_parent_aggregation = get!(parent_task, AggregationNumber)
                 .copied()
                 .unwrap_or_default();
+            let parent_aggregation = if is_root_node(current_parent_aggregation.base) {
+                u32::MAX
+            } else {
+                let children_count = parent_task
+                    .iter(CachedDataItemIndex::Children)
+                    .filter(|(k, _)| {
+                        matches!(
+                            *k,
+                            CachedDataItemKey::Child { .. }
+                                | CachedDataItemKey::OutdatedChild { .. }
+                        )
+                    })
+                    .count();
+                let target_distance = children_count.ilog2() as u32 * 2;
+                let parent_aggregation = current_parent_aggregation
+                    .base
+                    .saturating_add(target_distance);
+                if target_distance != current_parent_aggregation.distance {
+                    queue.push(AggregationUpdateJob::UpdateAggregationNumber {
+                        task_id: parent_task_id,
+                        base_aggregation_number: 0,
+                        distance: NonZeroU32::new(target_distance),
+                    })
+                }
+                max(current_parent_aggregation.effective, parent_aggregation)
+            };
+
+            // Update child aggregation number based on parent aggregation number
             let is_aggregating_node = is_aggregating_node(parent_aggregation);
             if parent_task_id.is_transient() && !child_task_id.is_transient() {
                 queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                     task_id: child_task_id,
-                    aggregation_number: u32::MAX,
+                    base_aggregation_number: u32::MAX,
+                    distance: None,
                 });
             } else if !is_aggregating_node {
                 queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                     task_id: child_task_id,
-                    aggregation_number: parent_aggregation + AGGREGATION_NUMBER_BUFFER_SPACE + 1,
+                    base_aggregation_number: parent_aggregation
+                        .saturating_add(AGGREGATION_NUMBER_BUFFER_SPACE),
+                    distance: None,
                 });
             }
             if is_aggregating_node {
