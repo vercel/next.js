@@ -7,26 +7,79 @@ use std::{
 
 use auto_hash_map::{map::Entry, AutoMap};
 use dashmap::DashMap;
+use either::Either;
 use rustc_hash::FxHasher;
 use turbo_tasks::KeyValuePair;
 
+use super::indexed::Indexed;
 use crate::utils::dash_map_multi::{get_multiple_mut, RefMut};
 
-pub struct InnerStorage<T: KeyValuePair> {
-    // TODO consider adding some inline storage
-    map: AutoMap<T::Key, T::Value>,
+const INDEX_THRESHOLD: usize = 1024;
+
+pub enum InnerStorage<T: KeyValuePair>
+where
+    T::Key: Indexed,
+{
+    Plain {
+        // TODO use FxHasher
+        map: AutoMap<T::Key, T::Value>,
+    },
+    Indexed {
+        // TODO use FxHasher
+        map: AutoMap<<T::Key as Indexed>::Index, AutoMap<T::Key, T::Value>>,
+    },
 }
 
-impl<T: KeyValuePair> InnerStorage<T> {
+impl<T: KeyValuePair> InnerStorage<T>
+where
+    T::Key: Indexed,
+{
     fn new() -> Self {
-        Self {
+        Self::Plain {
             map: AutoMap::new(),
+        }
+    }
+
+    fn check_threshold(&mut self) {
+        let InnerStorage::Plain { map: plain_map } = self else {
+            return;
+        };
+        if plain_map.len() >= INDEX_THRESHOLD {
+            let mut map: AutoMap<<T::Key as Indexed>::Index, AutoMap<T::Key, T::Value>> =
+                AutoMap::new();
+            for (key, value) in take(plain_map).into_iter() {
+                let index = key.index();
+                map.entry(index).or_default().insert(key, value);
+            }
+            *self = InnerStorage::Indexed { map };
+        }
+    }
+
+    fn map_mut(&mut self, key: &T::Key) -> &mut AutoMap<T::Key, T::Value> {
+        self.check_threshold();
+        match self {
+            InnerStorage::Plain { map, .. } => map,
+            InnerStorage::Indexed { map, .. } => map.entry(key.index()).or_default(),
+        }
+    }
+
+    fn map(&self, key: &T::Key) -> Option<&AutoMap<T::Key, T::Value>> {
+        match self {
+            InnerStorage::Plain { map, .. } => Some(map),
+            InnerStorage::Indexed { map, .. } => map.get(&key.index()),
+        }
+    }
+
+    fn index_map(&self, index: <T::Key as Indexed>::Index) -> Option<&AutoMap<T::Key, T::Value>> {
+        match self {
+            InnerStorage::Plain { map, .. } => Some(map),
+            InnerStorage::Indexed { map, .. } => map.get(&index),
         }
     }
 
     pub fn add(&mut self, item: T) -> bool {
         let (key, value) = item.into_key_and_value();
-        match self.map.entry(key) {
+        match self.map_mut(&key).entry(key) {
             Entry::Occupied(_) => false,
             Entry::Vacant(e) => {
                 e.insert(value);
@@ -37,28 +90,50 @@ impl<T: KeyValuePair> InnerStorage<T> {
 
     pub fn insert(&mut self, item: T) -> Option<T::Value> {
         let (key, value) = item.into_key_and_value();
-        self.map.insert(key, value)
+        self.map_mut(&key).insert(key, value)
     }
 
     pub fn remove(&mut self, key: &T::Key) -> Option<T::Value> {
-        self.map.remove(key)
+        self.map_mut(key).remove(key)
     }
 
     pub fn get(&self, key: &T::Key) -> Option<&T::Value> {
-        self.map.get(key)
+        self.map(key).and_then(|m| m.get(key))
     }
 
     pub fn has_key(&self, key: &T::Key) -> bool {
-        self.map.contains_key(key)
+        self.map(key)
+            .map(|m| m.contains_key(key))
+            .unwrap_or_default()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&T::Key, &T::Value)> {
-        self.map.iter()
+    pub fn is_indexed(&self) -> bool {
+        matches!(self, InnerStorage::Indexed { .. })
+    }
+
+    pub fn iter(
+        &self,
+        index: <T::Key as Indexed>::Index,
+    ) -> impl Iterator<Item = (&T::Key, &T::Value)> {
+        self.index_map(index)
+            .map(|m| m.iter())
+            .into_iter()
+            .flatten()
+    }
+
+    pub fn iter_all(&self) -> impl Iterator<Item = (&T::Key, &T::Value)> {
+        match self {
+            InnerStorage::Plain { map, .. } => Either::Left(map.iter()),
+            InnerStorage::Indexed { map, .. } => {
+                Either::Right(map.iter().flat_map(|(_, m)| m.iter()))
+            }
+        }
     }
 }
 
 impl<T: KeyValuePair> InnerStorage<T>
 where
+    T::Key: Indexed,
     T::Value: Default,
     T::Key: Clone,
 {
@@ -67,26 +142,28 @@ where
         key: &T::Key,
         update: impl FnOnce(Option<T::Value>) -> Option<T::Value>,
     ) {
-        if let Some(value) = self.map.get_mut(key) {
+        let map = self.map_mut(key);
+        if let Some(value) = map.get_mut(key) {
             let v = take(value);
             if let Some(v) = update(Some(v)) {
                 *value = v;
             } else {
-                self.map.remove(key);
+                map.remove(key);
             }
         } else if let Some(v) = update(None) {
-            self.map.insert(key.clone(), v);
+            map.insert(key.clone(), v);
         }
     }
 }
 
 impl<T: KeyValuePair + Default> InnerStorage<T>
 where
+    T::Key: Indexed,
     T::Value: PartialEq,
 {
     pub fn has(&self, item: &mut T) -> bool {
         let (key, value) = take(item).into_key_and_value();
-        let result = if let Some(stored_value) = self.map.get(&key) {
+        let result = if let Some(stored_value) = self.get(&key) {
             *stored_value == value
         } else {
             false
@@ -96,14 +173,18 @@ where
     }
 }
 
-pub struct Storage<K, T: KeyValuePair> {
+pub struct Storage<K, T: KeyValuePair>
+where
+    T::Key: Indexed,
+{
     map: DashMap<K, InnerStorage<T>, BuildHasherDefault<FxHasher>>,
 }
 
-impl<K, T: KeyValuePair> Storage<K, T>
+impl<K, T> Storage<K, T>
 where
-    K: Eq + std::hash::Hash + Clone,
     T: KeyValuePair,
+    T::Key: Indexed,
+    K: Eq + std::hash::Hash + Clone,
 {
     pub fn new() -> Self {
         let shard_amount =
@@ -140,11 +221,20 @@ where
     }
 }
 
-pub struct StorageWriteGuard<'a, K, T: KeyValuePair> {
+pub struct StorageWriteGuard<'a, K, T>
+where
+    T: KeyValuePair,
+    T::Key: Indexed,
+{
     inner: RefMut<'a, K, InnerStorage<T>, BuildHasherDefault<FxHasher>>,
 }
 
-impl<'a, K: Eq + Hash, T: KeyValuePair> Deref for StorageWriteGuard<'a, K, T> {
+impl<'a, K, T> Deref for StorageWriteGuard<'a, K, T>
+where
+    T: KeyValuePair,
+    T::Key: Indexed,
+    K: Eq + Hash,
+{
     type Target = InnerStorage<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -152,7 +242,12 @@ impl<'a, K: Eq + Hash, T: KeyValuePair> Deref for StorageWriteGuard<'a, K, T> {
     }
 }
 
-impl<'a, K: Eq + Hash, T: KeyValuePair> DerefMut for StorageWriteGuard<'a, K, T> {
+impl<'a, K, T> DerefMut for StorageWriteGuard<'a, K, T>
+where
+    T: KeyValuePair,
+    T::Key: Indexed,
+    K: Eq + Hash,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
@@ -180,7 +275,7 @@ macro_rules! get {
 macro_rules! iter_many {
     ($task:ident, $key:ident $input:tt => $value:ident) => {
         $task
-            .iter()
+            .iter($crate::data::indicies::$key)
             .filter_map(|(key, _)| match *key {
                 $crate::data::CachedDataItemKey::$key $input => Some($value),
                 _ => None,
@@ -188,7 +283,7 @@ macro_rules! iter_many {
     };
     ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
         $task
-            .iter()
+            .iter($crate::data::indicies::$key)
             .filter_map(|(key, value)| match (key, value) {
                 (&$crate::data::CachedDataItemKey::$key $input, &$crate::data::CachedDataItemValue::$key { value: $value_ident }) => Some($value),
                 _ => None,
@@ -196,18 +291,9 @@ macro_rules! iter_many {
     };
     ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
         $task
-            .iter()
+            .iter($crate::data::indicies::$key)
             .filter_map(|(key, value)| match (key, value) {
                 (&$crate::data::CachedDataItemKey::$key $input, &$crate::data::CachedDataItemValue::$key { value: $value_ident }) if $cond => Some($value),
-                _ => None,
-            })
-    };
-    ($task:ident, $key1:ident $input1:tt => $value1:ident, $key2:ident $input2:tt => $value2:ident) => {
-        $task
-            .iter()
-            .filter_map(|(key, _)| match *key {
-                $crate::data::CachedDataItemKey::$key1 $input1 => Some($value1),
-                $crate::data::CachedDataItemKey::$key2 $input2 => Some($value2),
                 _ => None,
             })
     };
@@ -223,9 +309,6 @@ macro_rules! get_many {
     };
     ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
         $crate::iter_many!($task, $key $input $value_ident if $cond => $value).collect()
-    };
-    ($task:ident, $key1:ident $input1:tt => $value1:ident, $key2:ident $input2:tt => $value2:ident) => {
-        $crate::iter_many!($task, $key1 $input1 => $value1, $key2 $input2 => $value2).collect()
     };
 }
 

@@ -3,7 +3,7 @@ use turbo_tasks::{backend::CellContent, CellId, TaskId};
 use super::{ExecuteContext, InvalidateOperation};
 use crate::{
     data::{CachedDataItem, CachedDataItemKey},
-    remove,
+    get_many, remove,
 };
 
 pub struct UpdateCellOperation;
@@ -35,20 +35,12 @@ impl UpdateCellOperation {
             return;
         }
 
-        let dependent = task
-            .iter()
-            .filter_map(|(key, _)| {
-                if let CachedDataItemKey::CellDependent {
-                    cell: dependent_cell,
-                    task,
-                } = *key
-                {
-                    (dependent_cell == cell).then_some(task)
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let dependent = get_many!(
+            task,
+            CellDependent { cell: dependent_cell, task } _value
+            if dependent_cell == cell
+            => task
+        );
 
         drop(task);
         drop(old_content);

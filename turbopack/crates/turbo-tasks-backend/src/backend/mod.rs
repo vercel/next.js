@@ -1,3 +1,4 @@
+pub mod indexed;
 mod operation;
 mod storage;
 
@@ -41,8 +42,8 @@ use turbo_tasks::{
 use self::{operation::ExecuteContext, storage::Storage};
 use crate::{
     data::{
-        ActiveType, CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate,
-        CellRef, InProgressCellState, InProgressState, OutputValue, RootState,
+        ActiveType, CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
+        CachedDataUpdate, CellRef, InProgressCellState, InProgressState, OutputValue, RootState,
     },
     get, get_many, remove,
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
@@ -591,7 +592,7 @@ impl Backend for TurboTasksBackend {
                 Outdated(TaskId),
             }
             let children = task
-                .iter()
+                .iter(CachedDataItemIndex::Children)
                 .filter_map(|(key, _)| match *key {
                     CachedDataItemKey::Child { task } => Some(Child::Current(task)),
                     CachedDataItemKey::OutdatedChild { task } => Some(Child::Outdated(task)),
@@ -622,7 +623,7 @@ impl Backend for TurboTasksBackend {
                 OutdatedOutput(TaskId),
             }
             let dependencies = task
-                .iter()
+                .iter(CachedDataItemIndex::Dependencies)
                 .filter_map(|(key, _)| match *key {
                     CachedDataItemKey::CellDependency { target } => Some(Dep::CurrentCell(target)),
                     CachedDataItemKey::OutputDependency { target } => {
@@ -829,26 +830,63 @@ impl Backend for TurboTasksBackend {
             }
 
             // find all outdated data items (removed cells, outdated edges)
-            let old_edges = task
-                .iter()
-                .filter_map(|(key, _)| match *key {
-                    CachedDataItemKey::OutdatedChild { task } => Some(OutdatedEdge::Child(task)),
-                    CachedDataItemKey::OutdatedCellDependency { target } => {
-                        Some(OutdatedEdge::CellDependency(target))
-                    }
-                    CachedDataItemKey::OutdatedOutputDependency { target } => {
-                        Some(OutdatedEdge::OutputDependency(target))
-                    }
-                    CachedDataItemKey::CellDependent { cell, task }
-                        if removed_cells
-                            .get(&cell.type_id)
-                            .map_or(false, |range| range.contains(&cell.index)) =>
-                    {
-                        Some(OutdatedEdge::RemovedCellDependent(task))
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
+            let old_edges = if task.is_indexed() {
+                task.iter(CachedDataItemIndex::Children)
+                    .filter_map(|(key, _)| match *key {
+                        CachedDataItemKey::OutdatedChild { task } => {
+                            Some(OutdatedEdge::Child(task))
+                        }
+                        _ => None,
+                    })
+                    .chain(
+                        task.iter(CachedDataItemIndex::Dependencies)
+                            .filter_map(|(key, _)| match *key {
+                                CachedDataItemKey::OutdatedCellDependency { target } => {
+                                    Some(OutdatedEdge::CellDependency(target))
+                                }
+                                CachedDataItemKey::OutdatedOutputDependency { target } => {
+                                    Some(OutdatedEdge::OutputDependency(target))
+                                }
+                                _ => None,
+                            }),
+                    )
+                    .chain(
+                        task.iter(CachedDataItemIndex::CellDependent)
+                            .filter_map(|(key, _)| match *key {
+                                CachedDataItemKey::CellDependent { cell, task }
+                                    if removed_cells
+                                        .get(&cell.type_id)
+                                        .map_or(false, |range| range.contains(&cell.index)) =>
+                                {
+                                    Some(OutdatedEdge::RemovedCellDependent(task))
+                                }
+                                _ => None,
+                            }),
+                    )
+                    .collect::<Vec<_>>()
+            } else {
+                task.iter_all()
+                    .filter_map(|(key, _)| match *key {
+                        CachedDataItemKey::OutdatedChild { task } => {
+                            Some(OutdatedEdge::Child(task))
+                        }
+                        CachedDataItemKey::OutdatedCellDependency { target } => {
+                            Some(OutdatedEdge::CellDependency(target))
+                        }
+                        CachedDataItemKey::OutdatedOutputDependency { target } => {
+                            Some(OutdatedEdge::OutputDependency(target))
+                        }
+                        CachedDataItemKey::CellDependent { cell, task }
+                            if removed_cells
+                                .get(&cell.type_id)
+                                .map_or(false, |range| range.contains(&cell.index)) =>
+                        {
+                            Some(OutdatedEdge::RemovedCellDependent(task))
+                        }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+            };
 
             let was_dirty = task.remove(&CachedDataItemKey::Dirty {}).is_some();
             let data_update = if was_dirty {

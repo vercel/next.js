@@ -4,7 +4,10 @@ use anyhow::{anyhow, Result};
 use turbo_tasks::{util::SharedError, RawVc, TaskId};
 
 use super::{ExecuteContext, InvalidateOperation};
-use crate::data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, OutputValue};
+use crate::{
+    data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, OutputValue},
+    get_many,
+};
 
 pub struct UpdateOutputOperation;
 
@@ -70,16 +73,7 @@ impl UpdateOutputOperation {
             value: output_value,
         });
 
-        let dependent = task
-            .iter()
-            .filter_map(|(key, _)| {
-                if let CachedDataItemKey::OutputDependent { task } = *key {
-                    Some(task)
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let dependent = get_many!(task, OutputDependent { task } _value => task);
 
         drop(task);
         drop(old_content);

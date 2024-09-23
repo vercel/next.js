@@ -8576,6 +8576,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "dashmap",
+ "either",
  "hashbrown 0.14.5",
  "indexmap 1.9.3",
  "once_cell",
