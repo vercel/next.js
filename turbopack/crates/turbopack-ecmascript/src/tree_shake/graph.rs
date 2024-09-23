@@ -258,8 +258,10 @@ impl DepGraph {
         let mut exports_module = Module::dummy();
         exports_module.body.extend(directives.iter().cloned());
 
-        let mut reexports_module = Module::dummy();
-        reexports_module.body.extend(directives.iter().cloned());
+        let mut star_reexports_module = Module::dummy();
+        star_reexports_module
+            .body
+            .extend(directives.iter().cloned());
 
         if groups.graph_ix.is_empty() {
             // If there's no dependency, all nodes are in the module evaluaiotn group.
@@ -566,13 +568,13 @@ impl DepGraph {
                 })));
 
             for star in &star_reexports {
-                reexports_module
+                star_reexports_module
                     .body
                     .push(ModuleItem::ModuleDecl(ModuleDecl::ExportAll(star.clone())));
             }
 
             results.insert(Key::StarReexports, modules.len() as u32);
-            modules.push(reexports_module);
+            modules.push(star_reexports_module);
         }
 
         results.insert(Key::Exports, modules.len() as u32);
