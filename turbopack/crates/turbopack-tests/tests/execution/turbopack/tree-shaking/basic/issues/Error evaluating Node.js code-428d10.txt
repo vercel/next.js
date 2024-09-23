@@ -1,0 +1,12 @@
+error - [transform] [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/input/index.js  Error evaluating Node.js code
+  Error: Module should not be executed
+      at Object.<anonymous> (turbopack/crates/turbopack-tests/tests/execution/turbopack/side-effects-optimization/basic/input/node_modules/package-star/not-executed.js:1:7) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/output/8ee47_093215._.js:1343:7]
+      [at [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/side-effects-optimization/basic/input/node_modules/package-star/not-executed.js [test] (ecmascript) (WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/output/8ee47_093215._.js:1345:3)]
+      at instantiateModule (turbopack://[turbopack]/nodejs/runtime.ts:234:19) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/output/[turbopack]_runtime.js:575:23]
+      at getOrInstantiateModuleFromParent (turbopack://[turbopack]/nodejs/runtime.ts:295:10) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/output/[turbopack]_runtime.js:628:12]
+      at esmImport (turbopack://[turbopack]/shared/runtime-utils.ts:228:18) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/output/[turbopack]_runtime.js:132:20]
+      [at WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/output/8ee47_093215._.js:1458:281]
+      [at [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/side-effects-optimization/basic/input/node_modules/package-star/index.js [test] (ecmascript) <export a> (WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/output/8ee47_093215._.js:1465:3)]
+      at instantiateModule (turbopack://[turbopack]/nodejs/runtime.ts:234:19) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/output/[turbopack]_runtime.js:575:23]
+      at getOrInstantiateModuleFromParent (turbopack://[turbopack]/nodejs/runtime.ts:295:10) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/output/[turbopack]_runtime.js:628:12]
+      at esmImport (turbopack://[turbopack]/shared/runtime-utils.ts:228:18) [WORKSPACE_ROOT/turbopack/crates/turbopack-tests/tests/execution/turbopack/tree-shaking/basic/output/[turbopack]_runtime.js:132:20]
