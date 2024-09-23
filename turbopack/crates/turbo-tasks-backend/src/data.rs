@@ -37,12 +37,12 @@ impl OutputValue {
 
 #[derive(Debug)]
 pub struct RootState {
-    pub ty: RootType,
+    pub ty: ActiveType,
     pub all_clean_event: Event,
 }
 
 impl RootState {
-    pub fn new(ty: RootType) -> Self {
+    pub fn new(ty: ActiveType) -> Self {
         Self {
             ty,
             all_clean_event: Event::new(|| "RootState::all_clean_event".to_string()),
@@ -51,10 +51,13 @@ impl RootState {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum RootType {
+pub enum ActiveType {
     RootTask,
     OnceTask,
-    ReadingStronglyConsistent,
+    /// The aggregated task graph was scheduled because it has reached an AggregatedRoot while
+    /// propagating the dirty container or is read strongly consistent. This state is reset when
+    /// all this sub graph becomes clean again.
+    CachedActiveUntilClean,
 }
 
 impl Clone for RootState {
@@ -182,7 +185,7 @@ pub enum CachedDataItem {
     },
 
     // Aggregated Data
-    AggregatedDirtyTask {
+    AggregatedDirtyContainer {
         task: TaskId,
         value: i32,
     },
@@ -190,7 +193,7 @@ pub enum CachedDataItem {
         collectible: CellRef,
         value: i32,
     },
-    AggregatedDirtyTaskCount {
+    AggregatedDirtyContainerCount {
         value: i32,
     },
 
@@ -249,11 +252,11 @@ impl CachedDataItem {
             CachedDataItem::AggregationNumber { .. } => true,
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
-            CachedDataItem::AggregatedDirtyTask { task, .. } => !task.is_transient(),
+            CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.task.is_transient()
             }
-            CachedDataItem::AggregatedDirtyTaskCount { .. } => true,
+            CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
             CachedDataItem::AggregateRoot { .. } => false,
             CachedDataItem::InProgress { .. } => false,
             CachedDataItem::InProgressCell { .. } => false,
@@ -307,11 +310,11 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregationNumber { .. } => true,
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
-            CachedDataItemKey::AggregatedDirtyTask { task, .. } => !task.is_transient(),
+            CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.task.is_transient()
             }
-            CachedDataItemKey::AggregatedDirtyTaskCount { .. } => true,
+            CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
             CachedDataItemKey::AggregateRoot { .. } => false,
             CachedDataItemKey::InProgress { .. } => false,
             CachedDataItemKey::InProgressCell { .. } => false,

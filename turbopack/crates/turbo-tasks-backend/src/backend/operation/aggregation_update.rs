@@ -1,14 +1,11 @@
-use std::{
-    collections::{hash_map::Entry, HashMap, VecDeque},
-    ops::Add,
-};
+use std::collections::VecDeque;
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
 use super::{ExecuteContext, Operation, TaskGuard};
 use crate::{
-    data::{CachedDataItem, CachedDataItemKey},
+    data::{ActiveType, CachedDataItem, CachedDataItemKey, RootState},
     get, get_many, iter_many, remove, update, update_count,
 };
 
@@ -75,7 +72,7 @@ pub enum AggregationUpdateJob {
         upper_ids: Vec<TaskId>,
         update: AggregatedDataUpdate,
     },
-    ScheduleWhenDirty {
+    FindAndScheduleDirty {
         task_ids: Vec<TaskId>,
     },
     BalanceEdge {
@@ -103,42 +100,31 @@ impl AggregationUpdateJob {
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct AggregatedDataUpdate {
-    dirty_task_count: i32,
-    dirty_tasks_update: HashMap<TaskId, i32>,
+    dirty_container_update: Option<(TaskId, i32)>,
     // TODO collectibles
 }
 
 impl AggregatedDataUpdate {
     fn from_task(task: &mut TaskGuard<'_>) -> Self {
         let aggregation = get_aggregation_number(task);
-        let dirty = get!(task, Dirty).is_some();
+        let mut dirty = get!(task, Dirty).is_some();
         if is_aggregating_node(aggregation) {
-            let mut dirty_task_count = get!(task, AggregatedDirtyTaskCount).copied().unwrap_or(0);
-            let mut dirty_tasks_update = task
-                .iter()
-                .filter_map(|(key, _)| match *key {
-                    CachedDataItemKey::AggregatedDirtyTask { task } => Some((task, 1)),
-                    _ => None,
-                })
-                .collect::<HashMap<_, _>>();
-            if dirty {
-                dirty_task_count += 1;
-                dirty_tasks_update.insert(task.id(), 1);
+            let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
+                .copied()
+                .unwrap_or(0);
+            if dirty_container_count > 0 {
+                dirty = true;
             }
-            Self {
-                dirty_task_count,
-                dirty_tasks_update,
-            }
-        } else if dirty {
-            Self::dirty_task(task.id())
+        }
+        if dirty {
+            Self::dirty_container(task.id())
         } else {
             Self::default()
         }
     }
 
     fn invert(mut self) -> Self {
-        self.dirty_task_count = -self.dirty_task_count;
-        for value in self.dirty_tasks_update.values_mut() {
+        if let Some((_, value)) = self.dirty_container_update.as_mut() {
             *value = -*value;
         }
         self
@@ -150,53 +136,62 @@ impl AggregatedDataUpdate {
         queue: &mut AggregationUpdateQueue,
     ) -> AggregatedDataUpdate {
         let Self {
-            dirty_task_count,
-            dirty_tasks_update,
+            dirty_container_update,
         } = self;
         let mut result = Self::default();
-        if *dirty_task_count != 0 {
-            update!(task, AggregatedDirtyTaskCount, |old: Option<i32>| {
+        if let Some((dirty_container_id, count)) = dirty_container_update {
+            let mut added = false;
+            let mut removed = false;
+            update!(
+                task,
+                AggregatedDirtyContainer {
+                    task: *dirty_container_id
+                },
+                |old: Option<i32>| {
+                    let old = old.unwrap_or(0);
+                    let new = old + *count;
+                    if old <= 0 && new > 0 {
+                        added = true;
+                    } else if old > 0 && new <= 0 {
+                        removed = true;
+                    }
+                    (new != 0).then_some(new)
+                }
+            );
+            let mut count_update = 0;
+            if added {
+                if task.has_key(&CachedDataItemKey::AggregateRoot {}) {
+                    queue.push(AggregationUpdateJob::FindAndScheduleDirty {
+                        task_ids: vec![*dirty_container_id],
+                    })
+                }
+                count_update += 1;
+            } else if removed {
+                count_update -= 1;
+            }
+            let dirty = task.has_key(&CachedDataItemKey::Dirty {});
+            let task_id = task.id();
+            update!(task, AggregatedDirtyContainerCount, |old: Option<i32>| {
                 let old = old.unwrap_or(0);
-                let new = old + *dirty_task_count;
-                if old <= 0 && new > 0 {
-                    result.dirty_task_count = 1;
-                } else if old > 0 && new <= 0 {
-                    result.dirty_task_count = -1;
+                let new = old + count_update;
+                if !dirty {
+                    if old <= 0 && new > 0 {
+                        result.dirty_container_update = Some((task_id, 1));
+                    } else if old > 0 && new <= 0 {
+                        result.dirty_container_update = Some((task_id, -1));
+                    }
                 }
                 (new != 0).then_some(new)
             });
-            if result.dirty_task_count == -1 {
+            if let Some((_, count)) = result.dirty_container_update.as_ref() {
                 if let Some(root_state) = get!(task, AggregateRoot) {
-                    root_state.all_clean_event.notify(usize::MAX);
-                }
-            }
-        }
-        if !dirty_tasks_update.is_empty() {
-            let mut task_to_schedule = Vec::new();
-            let root = get!(task, AggregateRoot).is_some();
-            for (task_id, count) in dirty_tasks_update {
-                update!(
-                    task,
-                    AggregatedDirtyTask { task: *task_id },
-                    |old: Option<i32>| {
-                        let old = old.unwrap_or(0);
-                        let new = old + *count;
-                        if old <= 0 && new > 0 {
-                            if root {
-                                task_to_schedule.push(*task_id);
-                            }
-                            result.dirty_tasks_update.insert(*task_id, 1);
-                        } else if old > 0 && new <= 0 {
-                            result.dirty_tasks_update.insert(*task_id, -1);
+                    if *count < 0 {
+                        root_state.all_clean_event.notify(usize::MAX);
+                        if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
+                            task.remove(&CachedDataItemKey::AggregateRoot {});
                         }
-                        (new != 0).then_some(new)
                     }
-                );
-            }
-            if !task_to_schedule.is_empty() {
-                queue.push(AggregationUpdateJob::ScheduleWhenDirty {
-                    task_ids: task_to_schedule,
-                })
+                }
             }
         }
         result
@@ -204,51 +199,20 @@ impl AggregatedDataUpdate {
 
     fn is_empty(&self) -> bool {
         let Self {
-            dirty_task_count,
-            dirty_tasks_update,
+            dirty_container_update,
         } = self;
-        *dirty_task_count == 0 && dirty_tasks_update.is_empty()
+        dirty_container_update.is_none()
     }
 
-    pub fn dirty_task(task_id: TaskId) -> Self {
+    pub fn dirty_container(task_id: TaskId) -> Self {
         Self {
-            dirty_task_count: 1,
-            dirty_tasks_update: HashMap::from([(task_id, 1)]),
+            dirty_container_update: Some((task_id, 1)),
         }
     }
 
-    pub fn no_longer_dirty_task(task_id: TaskId) -> Self {
+    pub fn no_longer_dirty_container(task_id: TaskId) -> Self {
         Self {
-            dirty_task_count: -1,
-            dirty_tasks_update: HashMap::from([(task_id, -1)]),
-        }
-    }
-}
-
-impl Add for AggregatedDataUpdate {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        let mut dirty_tasks_update = self.dirty_tasks_update;
-        for (task, count) in rhs.dirty_tasks_update {
-            match dirty_tasks_update.entry(task) {
-                Entry::Occupied(mut entry) => {
-                    let value = entry.get_mut();
-                    *value += count;
-                    if *value == 0 {
-                        entry.remove();
-                    }
-                }
-                Entry::Vacant(entry) => {
-                    if count != 0 {
-                        entry.insert(count);
-                    }
-                }
-            }
-        }
-        Self {
-            dirty_task_count: self.dirty_task_count + rhs.dirty_task_count,
-            dirty_tasks_update,
+            dirty_container_update: Some((task_id, -1)),
         }
     }
 }
@@ -552,14 +516,31 @@ impl AggregationUpdateQueue {
                         }
                     }
                 }
-                AggregationUpdateJob::ScheduleWhenDirty { task_ids } => {
-                    for task_id in task_ids {
-                        let description = ctx.backend.get_task_desc_fn(task_id);
+                AggregationUpdateJob::FindAndScheduleDirty { mut task_ids } => {
+                    let popped = task_ids.pop();
+                    if !task_ids.is_empty() {
+                        self.push(AggregationUpdateJob::FindAndScheduleDirty { task_ids });
+                    }
+                    if let Some(task_id) = popped {
                         let mut task = ctx.task(task_id);
                         #[allow(clippy::collapsible_if, reason = "readablility")]
                         if task.has_key(&CachedDataItemKey::Dirty {}) {
+                            let description = ctx.backend.get_task_desc_fn(task_id);
                             if task.add(CachedDataItem::new_scheduled(description)) {
                                 ctx.turbo_tasks.schedule(task_id);
+                            }
+                        }
+                        if is_aggregating_node(get_aggregation_number(&task)) {
+                            if !task.has_key(&CachedDataItemKey::AggregateRoot {}) {
+                                task.insert(CachedDataItem::AggregateRoot {
+                                    value: RootState::new(ActiveType::CachedActiveUntilClean),
+                                });
+                            }
+                            let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count > 0 => task);
+                            if !dirty_containers.is_empty() {
+                                self.push(AggregationUpdateJob::FindAndScheduleDirty {
+                                    task_ids: dirty_containers,
+                                });
                             }
                         }
                     }

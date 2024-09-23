@@ -17,11 +17,7 @@ const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 2;
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum ConnectChildOperation {
     UpdateAggregation {
-        task_id: TaskId,
         aggregation_update: AggregationUpdateQueue,
-    },
-    ScheduleTask {
-        task_id: TaskId,
     },
     #[default]
     Done,
@@ -37,6 +33,12 @@ impl ConnectChildOperation {
             task: child_task_id,
             value: (),
         }) {
+            // When task is added to a AggregateRoot is need to be scheduled,
+            // indirect connections are handled by the aggregation update.
+            let mut should_schedule = false;
+            if parent_task.has_key(&CachedDataItemKey::AggregateRoot {}) {
+                should_schedule = true;
+            }
             // Update the task aggregation
             let mut queue = AggregationUpdateQueue::new();
             let parent_aggregation = get!(parent_task, AggregationNumber)
@@ -66,8 +68,20 @@ impl ConnectChildOperation {
                 });
             }
             drop(parent_task);
+
+            {
+                let mut task = ctx.task(child_task_id);
+                should_schedule = should_schedule || !task.has_key(&CachedDataItemKey::Output {});
+                if should_schedule {
+                    let description = ctx.backend.get_task_desc_fn(child_task_id);
+                    should_schedule = task.add(CachedDataItem::new_scheduled(description));
+                }
+            }
+            if should_schedule {
+                ctx.schedule(child_task_id);
+            }
+
             ConnectChildOperation::UpdateAggregation {
-                task_id: child_task_id,
                 aggregation_update: queue,
             }
             .execute(&ctx);
@@ -81,30 +95,11 @@ impl Operation for ConnectChildOperation {
             ctx.operation_suspend_point(&self);
             match self {
                 ConnectChildOperation::UpdateAggregation {
-                    task_id,
                     ref mut aggregation_update,
                 } => {
                     if aggregation_update.process(ctx) {
-                        // TODO check for active
-                        self = ConnectChildOperation::ScheduleTask { task_id }
+                        self = ConnectChildOperation::Done
                     }
-                }
-                ConnectChildOperation::ScheduleTask { task_id } => {
-                    let mut should_schedule;
-                    {
-                        let mut task = ctx.task(task_id);
-                        should_schedule = !task.has_key(&CachedDataItemKey::Output {});
-                        if should_schedule {
-                            should_schedule = task.add(CachedDataItem::new_scheduled(
-                                task.backend.get_task_desc_fn(task_id),
-                            ));
-                        }
-                    }
-                    if should_schedule {
-                        ctx.schedule(task_id);
-                    }
-
-                    self = ConnectChildOperation::Done;
                 }
 
                 ConnectChildOperation::Done => {
