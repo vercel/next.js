@@ -176,7 +176,7 @@ export function AppleWebAppMeta({
 
   return MetaFilter([
     capable
-      ? Meta({ name: 'apple-mobile-web-app-capable', content: 'yes' })
+      ? Meta({ name: 'mobile-web-app-capable', content: 'yes' })
       : null,
     Meta({ name: 'apple-mobile-web-app-title', content: title }),
     startupImage
