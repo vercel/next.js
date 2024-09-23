@@ -1369,11 +1369,11 @@
       "ReactRefreshRegression app can fast refresh a page with static generation",
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
       "ReactRefreshRegression app shows an overlay for server-side error in client component",
-      "ReactRefreshRegression app shows an overlay for server-side error in server component"
+      "ReactRefreshRegression app shows an overlay for server-side error in server component",
+      "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled"
     ],
     "failed": [],
     "pending": [
-      "ReactRefreshRegression app Turbopack skipped tests custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression app styled-components hydration mismatch"
     ],
     "flakey": [],
@@ -1732,12 +1732,11 @@
       "ReactRefreshRegression can fast refresh a page with getServerSideProps",
       "ReactRefreshRegression can fast refresh a page with getStaticProps",
       "ReactRefreshRegression shows an overlay for a server-side error",
-      "ReactRefreshRegression styled-components hydration mismatch"
+      "ReactRefreshRegression styled-components hydration mismatch",
+      "ReactRefreshRegression custom loader mdx should have Fast Refresh enabled"
     ],
     "failed": [],
-    "pending": [
-      "ReactRefreshRegression Turbopack skipped tests custom loader (mdx) should have Fast Refresh enabled"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
