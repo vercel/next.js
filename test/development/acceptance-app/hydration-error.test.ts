@@ -7,7 +7,7 @@ import { getRedboxTotalErrorCount } from 'next-test-utils'
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
-describe('Error overlay for hydration errors', () => {
+describe('Error overlay for hydration errors in App router', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
