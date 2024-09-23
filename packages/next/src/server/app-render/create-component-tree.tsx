@@ -90,6 +90,7 @@ async function createComponentTreeInternal({
       LayoutRouter,
       RenderFromTemplateContext,
       ClientPageRoot,
+      ClientSegmentRoot,
       createUntrackedSearchParams,
       createDynamicallyTrackedSearchParams,
       createDynamicallyTrackedParams,
@@ -563,14 +564,19 @@ async function createComponentTreeInternal({
       loadingData,
     ]
   } else {
-    props.params = createDynamicallyTrackedParams(currentParams)
-
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
       rootLayoutAtThisLevel &&
       'children' in parallelRoutes &&
       Object.keys(parallelRoutes).length > 1
 
-    let serverSegment = <Component {...props} />
+    let serverSegment: React.ReactNode
+    if (isClientComponent) {
+      props.params = currentParams
+      serverSegment = <ClientSegmentRoot Component={Component} props={props} />
+    } else {
+      props.params = createDynamicallyTrackedParams(currentParams)
+      serverSegment = <Component {...props} />
+    }
 
     let segmentNode: React.ReactNode
     if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
