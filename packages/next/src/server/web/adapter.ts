@@ -2,11 +2,13 @@ import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { PageSignatureError } from './error'
 import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
-import { NextFetchEvent } from './spec-extension/fetch-event'
+import {
+  NextFetchEvent,
+  getWaitUntilPromiseFromEvent,
+} from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
 import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
-import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
@@ -199,7 +201,15 @@ export async function adapter(
     })
   }
 
-  const event = new NextFetchEvent({ request, page: params.page })
+  const event = new NextFetchEvent({
+    request,
+    page: params.page,
+    // if we're in an edge runtime sandbox, we should use the waitUntil
+    // that we receive from the enclosing NextServer
+    context: params.request.waitUntil
+      ? { waitUntil: params.request.waitUntil }
+      : undefined,
+  })
   let response
   let cookiesFromResponse
 
@@ -416,7 +426,7 @@ export async function adapter(
 
   return {
     response: finalResponse,
-    waitUntil: Promise.all(event[waitUntilSymbol]),
+    waitUntil: getWaitUntilPromiseFromEvent(event) ?? Promise.resolve(),
     fetchMetrics: request.fetchMetrics,
   }
 }
