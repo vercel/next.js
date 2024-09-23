@@ -564,16 +564,16 @@ impl DepGraph {
                         PartId::StarReexports,
                     ))),
                 })));
-        }
 
-        for star in &star_reexports {
-            reexports_module
-                .body
-                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportAll(star.clone())));
-        }
+            for star in &star_reexports {
+                reexports_module
+                    .body
+                    .push(ModuleItem::ModuleDecl(ModuleDecl::ExportAll(star.clone())));
+            }
 
-        results.insert(Key::StarReexports, modules.len() as u32);
-        modules.push(reexports_module);
+            results.insert(Key::StarReexports, modules.len() as u32);
+            modules.push(reexports_module);
+        }
 
         results.insert(Key::Exports, modules.len() as u32);
         modules.push(exports_module);
