@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "15.0.0-canary.162",
+  "version": "15.0.0-canary.163",
   "bin": "./bin/next-codemod.js",
   "scripts": {
     "dev": "pnpm tsc -w",

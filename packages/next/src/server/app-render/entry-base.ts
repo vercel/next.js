@@ -16,6 +16,7 @@ import { requestAsyncStorage } from '../../client/components/request-async-stora
 import { prerenderAsyncStorage } from './prerender-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
 import { ClientPageRoot } from '../../client/components/client-page'
+import { ClientSegmentRoot } from '../../client/components/client-segment'
 import {
   createUntrackedSearchParams,
   createDynamicallyTrackedSearchParams,
@@ -57,6 +58,7 @@ export {
   Postpone,
   taintObjectReference,
   ClientPageRoot,
+  ClientSegmentRoot,
   NotFoundBoundary,
   patchFetch,
 }
