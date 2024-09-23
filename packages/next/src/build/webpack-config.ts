@@ -1974,6 +1974,14 @@ export default async function getBaseWebpackConfig(
           )
         ),
     ].filter(Boolean as any as ExcludesFalse),
+    ignoreWarnings: [
+      (warning) => {
+        // require('react-dom/server.edge') is wrapped in try-catch so save to ignore.
+        return warning.message.startsWith(
+          'Module not found: Error: Package path ./server.edge is not exported from package'
+        )
+      },
+    ],
   }
 
   // Support tsconfig and jsconfig baseUrl
