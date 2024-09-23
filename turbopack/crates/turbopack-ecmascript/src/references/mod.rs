@@ -656,7 +656,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                 ModulePart::evaluation()
                             }
 
-                            ModulePart::Export(..) => part,
+                            ModulePart::Export(e, ..) => ModulePart::proxied_export(*e),
                             _ => ModulePart::exports(),
                         },
                         None => ModulePart::exports(),

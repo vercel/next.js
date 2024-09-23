@@ -2865,7 +2865,10 @@ pub enum ModulePart {
     /// all exports are unused.
     Evaluation,
     /// Represents an export of a module.
-    Export(Vc<RcStr>),
+    ///
+    ///
+    /// bool value is true if it's proxied for `export * from './foo'`
+    Export(Vc<RcStr>, Vc<bool>),
     /// Represents a renamed export of a module.
     RenamedExport {
         original_export: Vc<RcStr>,
@@ -2894,7 +2897,11 @@ impl ModulePart {
     }
     #[turbo_tasks::function]
     pub fn export(export: RcStr) -> Vc<Self> {
-        ModulePart::Export(Vc::cell(export)).cell()
+        ModulePart::Export(Vc::cell(export), Vc::cell(false)).cell()
+    }
+    #[turbo_tasks::function]
+    pub fn proxied_export(export: Vc<RcStr>) -> Vc<Self> {
+        ModulePart::Export(export, Vc::cell(true)).cell()
     }
     #[turbo_tasks::function]
     pub fn renamed_export(original_export: RcStr, export: RcStr) -> Vc<Self> {
@@ -2939,7 +2946,7 @@ impl ValueToString for ModulePart {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(match self {
             ModulePart::Evaluation => "module evaluation".into(),
-            ModulePart::Export(export) => format!("export {}", export.await?).into(),
+            ModulePart::Export(export, _) => format!("export {}", export.await?).into(),
             ModulePart::RenamedExport {
                 original_export,
                 export,

@@ -214,7 +214,7 @@ async fn apply_module_type(
                                         Vc::upcast(module)
                                     }
                                 }
-                                ModulePart::Export(_) => {
+                                ModulePart::Export(..) => {
                                     let side_effect_free_packages =
                                         module_asset_context.side_effect_free_packages();
 
@@ -296,7 +296,7 @@ async fn apply_reexport_tree_shaking(
     part: Vc<ModulePart>,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    if let ModulePart::Export(export) = *part.await? {
+    if let ModulePart::Export(export, ..) = *part.await? {
         let export = export.await?;
         let FollowExportsResult {
             module: final_module,

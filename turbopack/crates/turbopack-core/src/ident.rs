@@ -261,9 +261,10 @@ impl AssetIdent {
                 ModulePart::Evaluation => {
                     1_u8.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Export(export) => {
+                ModulePart::Export(export, is_proxy) => {
                     2_u8.deterministic_hash(&mut hasher);
                     export.await?.deterministic_hash(&mut hasher);
+                    is_proxy.await?.deterministic_hash(&mut hasher);
                 }
                 ModulePart::RenamedExport {
                     original_export,

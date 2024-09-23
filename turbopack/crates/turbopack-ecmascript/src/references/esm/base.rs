@@ -217,18 +217,22 @@ impl ModuleReference for EsmAssetReference {
 
         if let Some(part) = self.export_name {
             let part = part.await?;
-            if let &ModulePart::Export(export_name) = &*part {
-                for &module in result.primary_modules().await? {
-                    if let Some(module) = Vc::try_resolve_downcast(module).await? {
-                        let export = export_name.await?;
-                        if *is_export_missing(module, export.clone_value()).await? {
-                            InvalidExport {
-                                export: export_name,
-                                module,
-                                source: self.issue_source,
+            if let &ModulePart::Export(export_name, is_proxy) = &*part {
+                // If is_proxy true, user did not speicifed the exact export name in the direct
+                // import. Instead, they did `export * from './foo'`.
+                if !*is_proxy.await? {
+                    for &module in result.primary_modules().await? {
+                        if let Some(module) = Vc::try_resolve_downcast(module).await? {
+                            let export = export_name.await?;
+                            if *is_export_missing(module, export.clone_value()).await? {
+                                InvalidExport {
+                                    export: export_name,
+                                    module,
+                                    source: self.issue_source,
+                                }
+                                .cell()
+                                .emit();
                             }
-                            .cell()
-                            .emit();
                         }
                     }
                 }
