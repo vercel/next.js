@@ -9,5 +9,5 @@
     "target": "ES2018"
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "dist", "transforms/__testfixtures__/**"]
+  "exclude": ["node_modules", "dist", "test"]
 }
