@@ -1776,9 +1776,12 @@ export default async function build(
             {
               filter(item) {
                 // we copy page chunks separately to not copy stale entries
-                return !item.match(/^[/\\](pages|app)[/\\]/)
+                return (
+                  !item.startsWith('/middleware.js') &&
+                  !item.match(/^[/\\](pages|app)[/\\]/)
+                )
               },
-              overwrite: true,
+              overwrite: false,
             }
           )
         }
