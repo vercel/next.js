@@ -115,6 +115,13 @@ impl<'a> ExecuteContext<'a> {
                     let items = self.restore_task_data(task_id, category);
                     task = self.backend.storage.access_mut(task_id);
                     if !task.persistance_state().is_restored(category) {
+                        if items.len() > 10000 {
+                            println!(
+                                "{} restored {} items",
+                                self.backend.get_task_desc_fn(task_id)(),
+                                items.len()
+                            );
+                        }
                         for item in items {
                             task.add(item);
                         }
@@ -309,10 +316,24 @@ impl TaskGuard<'_> {
 
     pub fn add_new(&mut self, item: CachedDataItem) {
         let added = self.add(item);
+        if added {
+            if self.task.len() == 10000 {
+                println!(
+                    "{} has > 10000 items",
+                    self.backend.get_task_desc_fn(self.task_id)()
+                );
+            }
+        }
         assert!(added, "Item already exists");
     }
 
     pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
+        if self.task.len() == 10000 {
+            println!(
+                "{} has > 10000 items",
+                self.backend.get_task_desc_fn(self.task_id)()
+            );
+        }
         let (key, value) = item.into_key_and_value();
         if self.task_id.is_transient() || !key.is_persistent() {
             self.task

@@ -149,6 +149,13 @@ where
         }
     }
 
+    pub fn len(&self) -> usize {
+        match self {
+            InnerStorage::Plain { map, .. } => map.len(),
+            InnerStorage::Indexed { map, .. } => map.values().map(|m| m.len()).sum(),
+        }
+    }
+
     pub fn persistance_state(&self) -> &PersistanceState {
         match self {
             InnerStorage::Plain {
