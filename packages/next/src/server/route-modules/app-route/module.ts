@@ -276,6 +276,7 @@ export class AppRouteRouteModule extends RouteModule<
     // Get the context for the request.
     const requestContext: RequestContext = {
       req: rawRequest,
+      res: undefined,
       url: rawRequest.nextUrl,
       renderOpts: {
         previewProps: context.prerenderManifest.preview,
