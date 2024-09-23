@@ -497,18 +497,23 @@ impl DepGraph {
             }
 
             for g in group {
+                let item = &data[g].content;
                 // Skip directives, as we copy them to each modules.
                 if let ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     expr: box Expr::Lit(Lit::Str(s)),
                     ..
-                })) = &data[g].content
+                })) = item
                 {
                     if s.value.starts_with("use ") {
                         continue;
                     }
                 }
 
-                chunk.body.push(data[g].content.clone());
+                if let ModuleItem::ModuleDecl(ModuleDecl::ExportAll(..)) = item {
+                    continue;
+                }
+
+                chunk.body.push(item.clone());
             }
 
             for g in group {
