@@ -100,6 +100,7 @@ impl EcmascriptModulePartAsset {
         .cell()
     }
 
+    /// Returns `None` only if the part is a proxied export. (Which is allowed to not exist)
     #[turbo_tasks::function]
     pub async fn select_part(
         module: Vc<EcmascriptModuleAsset>,

@@ -197,7 +197,6 @@ async fn apply_module_type(
                         if let Some(part_module) = *part_module.await? {
                             Vc::upcast(part_module)
                         } else {
-                            // TODO: Check if this is implcit reexport
                             return Ok(ProcessResult::Ignore.cell());
                         }
                     }

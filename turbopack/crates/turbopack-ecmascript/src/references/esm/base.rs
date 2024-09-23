@@ -198,7 +198,6 @@ impl ModuleReference for EsmAssetReference {
 
                     return match part_module {
                         Some(part_module) => Ok(ModuleResolveResult::module(part_module).cell()),
-                        // TODO: Check if this is implcit reexport
                         None => Ok(ModuleResolveResult::ignored().cell()),
                     };
                 }
