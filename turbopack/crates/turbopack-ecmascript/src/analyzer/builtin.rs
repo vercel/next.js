@@ -98,20 +98,16 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
 pub fn replace_builtin(value: &mut JsValue) -> bool {
     match value {
         JsValue::Add(_, list) => {
-            if list.iter().all(|arg| arg.is_string() == Some(false)) {
-                // numeric addition
-                let mut sum = 0f64;
-                for arg in list {
-                    let JsValue::Constant(ConstantValue::Num(num)) = arg else {
-                        return false;
-                    };
-                    sum += num.0;
-                }
-                *value = JsValue::Constant(ConstantValue::Num(ConstantNumber(sum)));
-                return true;
+            // numeric addition
+            let mut sum = 0f64;
+            for arg in list {
+                let JsValue::Constant(ConstantValue::Num(num)) = arg else {
+                    return false;
+                };
+                sum += num.0;
             }
-
-            false
+            *value = JsValue::Constant(ConstantValue::Num(ConstantNumber(sum)));
+            return true;
         }
 
         // matching property access like `obj.prop`
