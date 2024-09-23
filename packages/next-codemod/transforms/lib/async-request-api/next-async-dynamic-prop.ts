@@ -8,6 +8,7 @@ import type {
 } from 'jscodeshift'
 import {
   determineClientDirective,
+  generateUniqueIdentifier,
   insertReactUseImport,
   isFunctionType,
   TARGET_NAMED_EXPORTS,
@@ -71,14 +72,12 @@ export function transformDynamicProps(
       if (params.length !== 1) {
         return
       }
+      const propsIdentifier = generateUniqueIdentifier(PAGE_PROPS, path, j)
 
       const currentParam = params[0]
 
       // Argument destructuring case
       if (currentParam.type === 'ObjectPattern') {
-        // change pageProps to pageProps.<propName>
-        const propsIdentifier = j.identifier(PAGE_PROPS)
-
         // Validate if the properties are not `params` and `searchParams`,
         // if they are, quit the transformation
         for (const prop of currentParam.properties) {
@@ -214,7 +213,7 @@ export function transformDynamicProps(
       }
 
       if (modified) {
-        resolveAsyncProp(path, propertiesMap)
+        resolveAsyncProp(path, propertiesMap, propsIdentifier.name)
       }
     }
 
@@ -240,7 +239,8 @@ export function transformDynamicProps(
     // Helper function to insert `const params = await asyncParams;` at the beginning of the function body
     function resolveAsyncProp(
       path: ASTPath<FunctionalExportDeclaration>,
-      propertiesMap: Map<string, ObjectPattern | undefined>
+      propertiesMap: Map<string, ObjectPattern | undefined>,
+      propsIdentifierName: string
     ) {
       const isDefaultExport = path.value.type === 'ExportDefaultDeclaration'
       // If it's sync default export, and it's also server component, make the function async
@@ -260,10 +260,10 @@ export function transformDynamicProps(
       const functionName = path.value.declaration.id?.name || 'default'
 
       const functionBody = getBodyOfFunctionDeclaration(path)
-      const propsIdentifier = j.identifier(PAGE_PROPS)
 
       for (const [propName, paramsProperty] of propertiesMap) {
         const propNameIdentifier = j.identifier(propName)
+        const propsIdentifier = j.identifier(propsIdentifierName)
         const accessedPropId = j.memberExpression(
           propsIdentifier,
           propNameIdentifier

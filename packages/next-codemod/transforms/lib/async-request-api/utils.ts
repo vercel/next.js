@@ -239,3 +239,29 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
     }
   }
 }
+
+function findSubScopeArgumentIdentifier(
+  path: ASTPath<any>,
+  j: API['j'],
+  argName: string
+) {
+  const defCount = j(path).find(j.Identifier, { name: argName }).size()
+
+  return defCount > 0
+}
+
+export function generateUniqueIdentifier(
+  defaultIdName: string,
+  path: ASTPath<any>,
+  j: API['j']
+): ReturnType<typeof j.identifier> {
+  let idName = defaultIdName
+  let idNameSuffix = 0
+  while (findSubScopeArgumentIdentifier(path, j, idName)) {
+    idName = defaultIdName + idNameSuffix
+    idNameSuffix++
+  }
+
+  const propsIdentifier = j.identifier(idName)
+  return propsIdentifier
+}
