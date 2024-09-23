@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "sourceMap": true,
+    "declaration": false,
     "esModuleInterop": true,
-    "target": "es2015",
     "downlevelIteration": true,
-    "preserveWatchOutput": true
+    "preserveWatchOutput": true,
+    "outDir": "./dist",
+    "module": "CommonJS",
+    "target": "ES2018"
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "transforms/__testfixtures__/**"]
+  "exclude": ["node_modules", "dist", "transforms/__testfixtures__/**"]
 }
