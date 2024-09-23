@@ -47,14 +47,11 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
         let ident_string = ident.to_string().await?.clone_value();
         if let Some(module_id) = self.module_id_map.get(&ident_string) {
             // dbg!(format!("Hit {}", ident.to_string().await?));
-            return Ok(*module_id);
+            // We need to create a new cell here since we want to avoid Vc changes to affect
+            // get_module_id
+            return Ok(module_id.await?.clone_value().cell());
         }
         // dbg!(format!("Miss {}", ident.to_string().await?));
-        Ok(ModuleId::String(
-            hash_xxh3_hash64(ident.to_string().await?)
-                .to_string()
-                .into(),
-        )
-        .cell())
+        Ok(ModuleId::String(hash_xxh3_hash64(ident_string).to_string().into()).cell())
     }
 }
