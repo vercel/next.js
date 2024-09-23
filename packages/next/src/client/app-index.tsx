@@ -1,6 +1,6 @@
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
-import './components/patch/handle-global-errors'
+import './components/globals/handle-global-errors'
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
 // eslint-disable-next-line import/no-extraneous-dependencies

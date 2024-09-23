@@ -7,12 +7,10 @@ import {
 
 function handleGlobalErrors() {
   if (typeof window !== 'undefined') {
-    if (typeof window !== 'undefined') {
-      try {
-        // Increase the number of stack frames on the client
-        Error.stackTraceLimit = 50
-      } catch {}
-    }
+    try {
+      // Increase the number of stack frames on the client
+      Error.stackTraceLimit = 50
+    } catch {}
 
     // These event handlers must be added outside of the hook because there is no
     // guarantee that the hook will be alive in a mounted component in time to
