@@ -341,6 +341,11 @@ relativeURL.prototype = URL.prototype;
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
 /**
+ * A stub function to make `require` available but non-functional in ESM.
+ */ function requireStub(_moduleId) {
+    throw new Error("dynamic usage of require is not supported");
+}
+/**
  * This file contains runtime types and functions that are shared between all
  * Turbopack *development* ECMAScript runtimes.
  *
@@ -586,6 +591,7 @@ function instantiateModule(id, source) {
                 k: refresh,
                 R: createResolvePathFromModule(r),
                 b: getWorkerBlobURL,
+                z: requireStub,
                 __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
             }));
         });

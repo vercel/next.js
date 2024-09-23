@@ -4,7 +4,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   type ValueOf,
 } from '../../../shared/lib/constants'
-import type { ModuleReference, CollectedMetadata } from './metadata/types'
+import type { ModuleTuple, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
 import { stringify } from 'querystring'
@@ -83,14 +83,14 @@ export type MetadataResolver = (
   extensions: readonly string[]
 ) => Promise<string | undefined>
 
-export type ComponentsType = {
-  readonly [componentKey in ValueOf<typeof FILE_TYPES>]?: ModuleReference
+export type AppDirModules = {
+  readonly [moduleKey in ValueOf<typeof FILE_TYPES>]?: ModuleTuple
 } & {
-  readonly page?: ModuleReference
+  readonly page?: ModuleTuple
 } & {
   readonly metadata?: CollectedMetadata
 } & {
-  readonly defaultPage?: ModuleReference
+  readonly defaultPage?: ModuleTuple
 }
 
 async function createAppRouteCode({
@@ -436,10 +436,10 @@ async function createTreeCodeFromPath(
         }`
       }
 
-      const componentsCode = `{
+      const modulesCode = `{
         ${definedFilePaths
           .map(([file, filePath]) => {
-            const varName = `component${nestedCollectedDeclarations.length}`
+            const varName = `module${nestedCollectedDeclarations.length}`
             nestedCollectedDeclarations.push([varName, filePath])
             return `'${file}': [${varName}, ${JSON.stringify(filePath)}],`
           })
@@ -460,7 +460,7 @@ async function createTreeCodeFromPath(
       props[normalizedParallelKey] = `[
         '${parallelSegmentKey}',
         ${subtreeCode},
-        ${componentsCode}
+        ${modulesCode}
       ]`
     }
 

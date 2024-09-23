@@ -2881,13 +2881,12 @@
     },
     "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
       "passed": [
+        "parallel-routes-catchall should match both the catch-all page & slot",
         "parallel-routes-catchall should match correctly when defining an explicit page & slot",
+        "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
         "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
       ],
-      "failed": [
-        "parallel-routes-catchall should match both the catch-all page & slot",
-        "parallel-routes-catchall should match correctly when defining an explicit page but no slot"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15638,7 +15637,9 @@
       "passed": [
         "actions-tree-shaking - reexport should not have the unused action in the manifest"
       ],
-      "failed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15647,7 +15648,9 @@
       "passed": [
         "actions-tree-shaking - reexport should not have the unused action in the manifest"
       ],
-      "failed": [],
+      "failed": [
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16030,10 +16033,10 @@
     },
     "test/production/edge-config-validations/index.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Edge config validations fails to build when unstable_allowDynamic is not a string"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16041,10 +16044,10 @@
       "passed": [
         "Dynamic Code Evaluation (DCE) should not fail when \"function-bind\" package is used"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Dynamic Code Evaluation (DCE) should show the user's import trace"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
