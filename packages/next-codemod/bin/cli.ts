@@ -165,6 +165,10 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'built-in-next-font',
   },
   {
+    name: 'next-async-request-api: Transforms usage of Next.js async Request APIs',
+    value: 'next-async-request-api',
+  },
+  {
     name: 'next-request-geo-ip: Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
     value: 'next-request-geo-ip',
   },
