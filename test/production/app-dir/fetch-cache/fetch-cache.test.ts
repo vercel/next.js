@@ -19,6 +19,7 @@ describe('fetch-cache', () => {
   let nextInstance: any
   let fetchGetReqIndex = 0
   let revalidateReqIndex = 0
+  let revalidateReqShouldTimeout = false
   let fetchGetShouldError = false
   let fetchCacheServer: http.Server
   let fetchCacheRequests: Array<{
@@ -112,6 +113,7 @@ describe('fetch-cache', () => {
     fetchCacheRequests = []
     storeCacheItems = false
     fetchGetShouldError = false
+    revalidateReqShouldTimeout = false
     fetchCacheServer = http.createServer(async (req, res) => {
       console.log(`fetch cache request ${req.url} ${req.method}`, req.headers)
       const parsedUrl = new URL(req.url || '/', 'http://n')
@@ -125,7 +127,8 @@ describe('fetch-cache', () => {
       if (parsedUrl.pathname === '/v1/suspense-cache/revalidate') {
         revalidateReqIndex += 1
         // timeout unless it's 3rd retry
-        const shouldTimeout = revalidateReqIndex % 3 !== 0
+        const shouldTimeout =
+          revalidateReqShouldTimeout && revalidateReqIndex % 3 !== 0
 
         if (shouldTimeout) {
           console.log('not responding for', req.url, { revalidateReqIndex })
@@ -231,10 +234,26 @@ describe('fetch-cache', () => {
   })
 
   it('should retry 3 times when revalidate times out', async () => {
-    await fetchViaHTTP(appPort, '/api/revalidate')
+    revalidateReqShouldTimeout = true
+    try {
+      await fetchViaHTTP(appPort, '/api/revalidate')
+
+      await retry(() => {
+        expect(revalidateReqIndex).toBe(3)
+      })
+      expect(cliOuptut).not.toContain('Failed to revalidate')
+      expect(cliOuptut).not.toContain('Error')
+    } finally {
+      revalidateReqShouldTimeout = false
+    }
+  })
+
+  it('should batch revalidate tag requests if > 64', async () => {
+    const revalidateReqIndexStart = revalidateReqIndex
+    await fetchViaHTTP(appPort, '/api/revalidate-alot')
 
     await retry(() => {
-      expect(revalidateReqIndex).toBe(3)
+      expect(revalidateReqIndex).toBe(revalidateReqIndexStart + 3)
     })
     expect(cliOuptut).not.toContain('Failed to revalidate')
     expect(cliOuptut).not.toContain('Error')

@@ -1,13 +1,13 @@
 import type { Dispatch } from 'react'
 import React, { use } from 'react'
 import { useRef, useEffect, useCallback } from 'react'
-import {
-  isThenable,
-  type AppRouterState,
-  type ReducerActions,
-  type ReducerState,
+import type {
+  AppRouterState,
+  ReducerActions,
+  ReducerState,
 } from './router-reducer/router-reducer-types'
 import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
+import { isThenable } from '../../shared/lib/is-thenable'
 
 export type ReduxDevtoolsSyncFn = (state: AppRouterState) => void
 

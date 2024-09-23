@@ -299,7 +299,8 @@ pub struct BrowserEnvironment {
 #[turbo_tasks::value(shared)]
 pub struct EdgeWorkerEnvironment {}
 
-#[turbo_tasks::value(transparent)]
+// TODO preset_env_base::Version implements Serialize/Deserialize incorrectly
+#[turbo_tasks::value(transparent, serialization = "none")]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
 #[turbo_tasks::function]

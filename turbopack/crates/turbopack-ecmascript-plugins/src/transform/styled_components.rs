@@ -14,7 +14,7 @@ pub struct OptionStyledComponentsTransformConfig(Option<Vc<StyledComponentsTrans
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct StyledComponentsTransformConfig {
     pub display_name: bool,
     pub ssr: bool,

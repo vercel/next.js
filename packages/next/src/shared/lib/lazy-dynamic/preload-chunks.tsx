@@ -1,7 +1,9 @@
 'use client'
 
-import { getExpectedRequestStore } from '../../../client/components/request-async-storage.external'
 import { preload } from 'react-dom'
+
+import { getExpectedRequestStore } from '../../../client/components/request-async-storage.external'
+import { encodeURIPath } from '../encode-uri-path'
 
 export function PreloadChunks({
   moduleIds,
@@ -34,7 +36,7 @@ export function PreloadChunks({
   return (
     <>
       {allFiles.map((chunk) => {
-        const href = `${requestStore.assetPrefix}/_next/${encodeURI(chunk)}`
+        const href = `${requestStore.assetPrefix}/_next/${encodeURIPath(chunk)}`
         const isCss = chunk.endsWith('.css')
         // If it's stylesheet we use `precedence` o help hoist with React Float.
         // For stylesheets we actually need to render the CSS because nothing else is going to do it so it needs to be part of the component tree.
