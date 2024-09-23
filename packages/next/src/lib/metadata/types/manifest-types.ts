@@ -1,4 +1,8 @@
-type ClientModeEnum = 'auto' | 'focus-existing' | 'navigate-existing' | 'navigate-new'
+type ClientModeEnum =
+  | 'auto'
+  | 'focus-existing'
+  | 'navigate-existing'
+  | 'navigate-new'
 
 type File = {
   name: string
@@ -61,7 +65,7 @@ export type Manifest = {
   screenshots?: {
     form_factor?: 'narrow' | 'wide'
     label?: string
-    platform?: 
+    platform?:
       | 'android'
       | 'chromeos'
       | 'ipados'
@@ -82,9 +86,7 @@ export type Manifest = {
   share_target?: {
     action: string
     method?: 'get' | 'post' | 'GET' | 'POST'
-    enctype?:
-      | 'application/x-www-form-urlencoded'
-      | 'multipart/form-data'
+    enctype?: 'application/x-www-form-urlencoded' | 'multipart/form-data'
     params: {
       title?: string
       text?: string
