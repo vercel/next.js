@@ -649,7 +649,16 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                     ImportedSymbol::Exports => Some(ModulePart::exports()),
                     ImportedSymbol::StarReexports => Some(ModulePart::star_reexports()),
-                    ImportedSymbol::ReexportAll => part,
+                    ImportedSymbol::ReexportAll => Some(match part {
+                        Some(part) => {
+                            if matches!(&*part.await?, ModulePart::Export(..)) {
+                                part
+                            } else {
+                                ModulePart::exports()
+                            }
+                        }
+                        None => ModulePart::exports(),
+                    }),
                 },
                 Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
