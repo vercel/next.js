@@ -57,6 +57,7 @@ describe('interceptors', () => {
       RootInterceptor, finish
       RootPage, start
       RootPage, finish
+      After
     `)
   })
 
@@ -97,6 +98,7 @@ describe('interceptors', () => {
       DeeplyNestedInterceptor, finish
       DeeplyNestedPage, start
       DeeplyNestedPage, finish
+      After
     `)
   })
 
@@ -131,6 +133,7 @@ describe('interceptors', () => {
       DeeplyNestedInterceptor, finish
       DeeplyNestedPage, start
       DeeplyNestedPage, finish
+      After
     `)
   })
 
@@ -180,6 +183,7 @@ describe('interceptors', () => {
       SlotInterceptor, finish
       SlotPage, start
       SlotPage, finish
+      After
     `
 
     // TODO(interceptors): Should ActionPage be allowed to render before
@@ -213,6 +217,7 @@ describe('interceptors', () => {
       ActionInterceptor, finish
       SlotInterceptor, finish
       Action!
+      After
     `
 
     await retry(() => {
@@ -246,6 +251,7 @@ describe('interceptors', () => {
         ApiNestedInterceptor, start
         ApiNestedInterceptor, finish
         GET http://localhost:${next.appPort}/api/nested
+        After
       `)
   })
 })
