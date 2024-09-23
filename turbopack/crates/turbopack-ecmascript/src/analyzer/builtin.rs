@@ -107,7 +107,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 sum += num.0;
             }
             *value = JsValue::Constant(ConstantValue::Num(ConstantNumber(sum)));
-            return true;
+            true
         }
 
         // matching property access like `obj.prop`
