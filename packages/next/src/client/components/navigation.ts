@@ -1,5 +1,5 @@
 import type { FlightRouterState } from '../../server/app-render/types'
-import type { Params } from './params'
+import type { Params } from '../../server/request/params'
 
 import { useContext, useMemo } from 'react'
 import {

@@ -40,11 +40,11 @@ import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
-import type { Params } from '../client/components/params'
+import type { Params } from '../server/request/params'
 import {
   getFallbackRouteParams,
   type FallbackRouteParams,
-} from '../client/components/fallback-params'
+} from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 const envConfig = require('../shared/lib/runtime-config.external')
