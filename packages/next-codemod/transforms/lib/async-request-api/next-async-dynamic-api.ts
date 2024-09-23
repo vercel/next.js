@@ -7,35 +7,12 @@ import {
   insertReactUseImport,
 } from './utils'
 
-type AsyncAPIName = 'cookies' | 'headers' | 'draftMode'
-
 function wrapParathnessIfNeeded(
   hasChainAccess: boolean,
   j: API['jscodeshift'],
   expression
 ) {
   return hasChainAccess ? j.parenthesizedExpression(expression) : expression
-}
-
-function findImportedIdentifier(
-  root: Collection<any>,
-  j: API['j'],
-  functionName: AsyncAPIName
-) {
-  let importedAlias: string | undefined
-  root
-    .find(j.ImportDeclaration, {
-      source: { value: 'next/headers' },
-    })
-    .find(j.ImportSpecifier, {
-      imported: {
-        name: functionName,
-      },
-    })
-    .forEach((importSpecifier) => {
-      importedAlias = importSpecifier.node.local.name
-    })
-  return importedAlias
 }
 
 export function transformDynamicAPI(
@@ -61,14 +38,10 @@ export function transformDynamicAPI(
     return closestDef.size() === 0
   }
 
-  function processAsyncApiCalls(asyncRequestApiName: AsyncAPIName) {
-    const importedAlias = findImportedIdentifier(root, j, asyncRequestApiName)
-
-    if (!importedAlias) {
-      // Skip the transformation if the function is not imported from 'next/headers'
-      return
-    }
-
+  function processAsyncApiCalls(
+    asyncRequestApiName: string,
+    originRequestApiName: string
+  ) {
     // Process each call to cookies() or headers()
     root
       .find(j.CallExpression, {
@@ -78,7 +51,7 @@ export function transformDynamicAPI(
         },
       })
       .forEach((path) => {
-        const isImportedTopLevel = isImportedInModule(path, importedAlias)
+        const isImportedTopLevel = isImportedInModule(path, asyncRequestApiName)
         if (!isImportedTopLevel) {
           return
         }
@@ -190,7 +163,7 @@ export function transformDynamicAPI(
                 castTypesOrAddComment(
                   j,
                   path,
-                  asyncRequestApiName,
+                  originRequestApiName,
                   root,
                   filePath,
                   insertedTypes
@@ -200,7 +173,7 @@ export function transformDynamicAPI(
               castTypesOrAddComment(
                 j,
                 path,
-                asyncRequestApiName,
+                originRequestApiName,
                 root,
                 filePath,
                 insertedTypes
@@ -214,11 +187,17 @@ export function transformDynamicAPI(
 
   const isClientComponent = determineClientDirective(root, j, source)
 
+  const importedNextAsyncRequestApisMapping = findImportMappingFromNextHeaders(
+    root,
+    j
+  )
+
   // Only transform the valid calls in server or shared components
   if (!isClientComponent) {
-    processAsyncApiCalls('cookies')
-    processAsyncApiCalls('headers')
-    processAsyncApiCalls('draftMode')
+    for (const originName in importedNextAsyncRequestApisMapping) {
+      const aliasName = importedNextAsyncRequestApisMapping[originName]
+      processAsyncApiCalls(aliasName, originName)
+    }
 
     // Add import { use } from 'react' if needed and not already imported
     if (needsReactUseImport) {
@@ -239,7 +218,7 @@ const API_CAST_TYPE_MAP = {
 function castTypesOrAddComment(
   j: API['jscodeshift'],
   path: ASTPath<any>,
-  asyncRequestApiName: string,
+  originRequestApiName: string,
   root: Collection<any>,
   filePath: string,
   insertedTypes: Set<string>
@@ -260,7 +239,7 @@ function castTypesOrAddComment(
       e.g. `<path>` is cookies(), convert it to `(<path> as unknown as UnsafeUnwrappedCookies)`
     */
 
-    const targetType = API_CAST_TYPE_MAP[asyncRequestApiName]
+    const targetType = API_CAST_TYPE_MAP[originRequestApiName]
 
     const newCastExpression = j.tsAsExpression(
       j.tsAsExpression(path.node, j.tsUnknownKeyword()),
@@ -305,4 +284,28 @@ function castTypesOrAddComment(
       ...(path.node.comments || []),
     ]
   }
+}
+
+function findImportMappingFromNextHeaders(root: Collection<any>, j: API['j']) {
+  const mappings = {}
+
+  // Find the import declaration from 'next/headers'
+  root
+    .find(j.ImportDeclaration, { source: { value: 'next/headers' } })
+    .forEach((importPath) => {
+      const importDeclaration = importPath.node
+
+      // Iterate over the specifiers and build the mappings
+      importDeclaration.specifiers.forEach((specifier) => {
+        if (j.ImportSpecifier.check(specifier)) {
+          const importedName = specifier.imported.name // Original name (e.g., cookies)
+          const localName = specifier.local.name // Local name (e.g., myCookies or same as importedName)
+
+          // Add to the mappings
+          mappings[importedName] = localName
+        }
+      })
+    })
+
+  return mappings
 }
