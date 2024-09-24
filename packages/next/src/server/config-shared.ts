@@ -229,6 +229,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  swcThirdPartyCode?: boolean
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
   flyingShuttle?: { mode?: 'full' | 'store-only' }

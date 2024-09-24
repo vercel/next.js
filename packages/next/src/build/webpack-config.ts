@@ -487,6 +487,7 @@ export default async function getBaseWebpackConfig(
         nextConfig: config,
         jsConfig,
         transpilePackages: finalTranspilePackages,
+        swcThirdPartyCode: config.experimental.swcThirdPartyCode,
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
         ...extraOptions,

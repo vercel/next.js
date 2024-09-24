@@ -36,8 +36,13 @@ import { isResourceInPackages } from '../../handle-externals'
 
 const maybeExclude = (
   excludePath: string,
-  transpilePackages: string[]
+  transpilePackages: string[],
+  swcThirdPartyCode?: boolean
 ): boolean => {
+  if (swcThirdPartyCode) {
+    return false
+  }
+
   if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
     return false
   }
@@ -63,6 +68,7 @@ export interface SWCLoaderOptions {
   bundleLayer?: WebpackLayerName
   esm?: boolean
   transpilePackages?: string[]
+  swcThirdPartyCode?: boolean
 }
 
 // these are exact code conditions checked
@@ -86,7 +92,8 @@ async function loaderTransform(
   let loaderOptions: SWCLoaderOptions = this.getOptions() || {}
   const shouldMaybeExclude = maybeExclude(
     filename,
-    loaderOptions.transpilePackages || []
+    loaderOptions.transpilePackages || [],
+    loaderOptions.swcThirdPartyCode
   )
 
   if (shouldMaybeExclude) {
@@ -193,7 +200,8 @@ export function pitch(this: any) {
 
   const shouldMaybeExclude = maybeExclude(
     this.resourcePath,
-    loaderOptions.transpilePackages || []
+    loaderOptions.transpilePackages || [],
+    loaderOptions.swcThirdPartyCode
   )
 
   ;(async () => {
