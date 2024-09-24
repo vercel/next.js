@@ -1,7 +1,7 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
-async function getData() {  
-  return new Date().toISOString()
+async function getData() {
+  return new Date().toISOString();
 }
 
 export default async function Page() {
@@ -12,5 +12,5 @@ export default async function Page() {
       <h1>SSR Caching with Next.js</h1>
       <time dateTime={time}>{time}</time>
     </main>
-  )
+  );
 }
