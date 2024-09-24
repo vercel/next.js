@@ -10,6 +10,7 @@ let currDataLayerName = 'dataLayer'
 export function GoogleTagManager(props: GTMParams) {
   const {
     gtmId,
+    gtmScriptUrl = 'https://www.googletagmanager.com/gtm.js',
     dataLayerName = 'dataLayer',
     auth,
     preview,
@@ -53,8 +54,7 @@ export function GoogleTagManager(props: GTMParams) {
       <Script
         id="_next-gtm"
         data-ntpc="GTM"
-        src={`https://www.googletagmanager.com/gtm.js?id=${gtmId}${gtmLayer}${gtmAuth}${gtmPreview}`}
-        nonce={nonce}
+        src={`${gtmScriptUrl}?id=${gtmId}${gtmLayer}${gtmAuth}${gtmPreview}`}
       />
     </>
   )
