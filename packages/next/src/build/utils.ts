@@ -1355,6 +1355,7 @@ export async function buildAppStaticPaths({
   dir,
   page,
   distDir,
+  dynamicIO,
   configFileName,
   generateParams,
   isrFlushToDisk,
@@ -1369,6 +1370,7 @@ export async function buildAppStaticPaths({
 }: {
   dir: string
   page: string
+  dynamicIO: boolean
   configFileName: string
   generateParams: GenerateParamsResults
   distDir: string
@@ -1397,6 +1399,7 @@ export async function buildAppStaticPaths({
   const incrementalCache = new IncrementalCache({
     fs: nodeFs,
     dev: true,
+    dynamicIO,
     flushToDisk: isrFlushToDisk,
     serverDistDir: path.join(distDir, 'server'),
     fetchCacheKeyPrefix,
@@ -1602,6 +1605,7 @@ export async function isPageStatic({
   pageRuntime,
   edgeInfo,
   pageType,
+  dynamicIO,
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
@@ -1613,6 +1617,7 @@ export async function isPageStatic({
   dir: string
   page: string
   distDir: string
+  dynamicIO: boolean
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
@@ -1743,6 +1748,7 @@ export async function isPageStatic({
             await buildAppStaticPaths({
               dir,
               page,
+              dynamicIO,
               configFileName,
               generateParams,
               distDir,

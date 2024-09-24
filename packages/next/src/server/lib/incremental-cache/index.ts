@@ -6,6 +6,7 @@ import {
   type IncrementalCache as IncrementalCacheType,
   IncrementalCacheKind,
   CachedRouteKind,
+  type CachedFetchValue,
 } from '../../response-cache'
 import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
@@ -76,10 +77,15 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly fetchCacheKeyPrefix?: string
   readonly revalidatedTags?: string[]
   readonly isOnDemandRevalidate?: boolean
+  readonly hasDynamicIO?: boolean
 
   private readonly locks = new Map<string, Promise<void>>()
   private readonly unlocks = new Map<string, () => Promise<void>>()
 
+  private readonly dynamicIOMemoryCache = new Map<
+    string,
+    CachedFetchValue | null
+  >()
   /**
    * The revalidate timings for routes. This will source the timings from the
    * prerender manifest until the in-memory cache is updated with new timings.
@@ -89,6 +95,7 @@ export class IncrementalCache implements IncrementalCacheType {
   constructor({
     fs,
     dev,
+    dynamicIO,
     flushToDisk,
     fetchCache,
     minimalMode,
@@ -103,6 +110,7 @@ export class IncrementalCache implements IncrementalCacheType {
   }: {
     fs?: CacheFs
     dev: boolean
+    dynamicIO: boolean
     fetchCache?: boolean
     minimalMode?: boolean
     serverDistDir?: string
@@ -143,6 +151,7 @@ export class IncrementalCache implements IncrementalCacheType {
       maxMemoryCacheSize = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
     }
     this.dev = dev
+    this.hasDynamicIO = dynamicIO
     this.disableForTestmode = process.env.NEXT_PRIVATE_TEST_PROXY === 'true'
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
     // because we replace this.minimalMode to true in production bundles.
@@ -216,6 +225,7 @@ export class IncrementalCache implements IncrementalCacheType {
 
   resetRequestCache() {
     this.cacheHandler?.resetRequestCache?.()
+    this.dynamicIOMemoryCache.clear()
   }
 
   /**
@@ -404,6 +414,19 @@ export class IncrementalCache implements IncrementalCacheType {
     let entry: IncrementalCacheEntry | null = null
     let revalidate = ctx.revalidate
 
+    if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
+      const memoryCacheData = this.dynamicIOMemoryCache.get(cacheKey)
+
+      if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
+        return {
+          isStale: false,
+          value: memoryCacheData,
+          revalidateAfter: false,
+          isFallback: false,
+        }
+      }
+    }
+
     const cacheData = await this.cacheHandler?.get(cacheKey, ctx)
 
     if (cacheData?.value?.kind === CachedRouteKind.FETCH) {
@@ -502,6 +525,13 @@ export class IncrementalCache implements IncrementalCacheType {
     }
   ) {
     if (this.disableForTestmode || (this.dev && !ctx.fetchCache)) return
+
+    pathname = this._getPathname(pathname, ctx.fetchCache)
+
+    if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
+      this.dynamicIOMemoryCache.set(pathname, data)
+    }
+
     // FetchCache has upper limit of 2MB per-entry currently
     const itemSize = JSON.stringify(data).length
     if (
@@ -518,8 +548,6 @@ export class IncrementalCache implements IncrementalCacheType {
       }
       return
     }
-
-    pathname = this._getPathname(pathname, ctx.fetchCache)
 
     try {
       // Set the value for the revalidate seconds so if it changes we can
