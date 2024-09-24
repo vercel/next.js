@@ -31,19 +31,13 @@ pub enum ConnectChildOperation {
 impl ConnectChildOperation {
     pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: ExecuteContext<'_>) {
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
+        parent_task.remove(&CachedDataItemKey::OutdatedChild {
+            task: child_task_id,
+        });
         if parent_task.add(CachedDataItem::Child {
             task: child_task_id,
             value: (),
         }) {
-            // Quick skip if the child was already connected before
-            if parent_task
-                .remove(&CachedDataItemKey::OutdatedChild {
-                    task: child_task_id,
-                })
-                .is_some()
-            {
-                return;
-            }
             // When task is added to a AggregateRoot is need to be scheduled,
             // indirect connections are handled by the aggregation update.
             let mut should_schedule = false;
