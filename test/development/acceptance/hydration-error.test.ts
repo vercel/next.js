@@ -13,6 +13,42 @@ describe('Error overlay for hydration errors in Pages router', () => {
     skipStart: true,
   })
 
+  it('includes a React docs link when hydration error does occur', async () => {
+    const { browser } = await sandbox(
+      next,
+      new Map([
+        [
+          'index.js',
+          outdent`
+              const isClient = typeof window !== 'undefined'
+              export default function Mismatch() {
+                  return (
+                    <div className="parent">
+                      <main className="child">{isClient ? "client" : "server"}</main>
+                    </div>
+                  );
+                }
+            `,
+        ],
+      ]),
+      '/',
+      { pushErrorAsConsoleLog: true }
+    )
+
+    const logs = await browser.log()
+    expect(logs).toEqual(
+      expect.arrayContaining([
+        {
+          // TODO: Should probably link to https://nextjs.org/docs/messages/react-hydration-error instead.
+          message: expect.stringContaining(
+            'https://react.dev/link/hydration-mismatch'
+          ),
+          source: 'error',
+        },
+      ])
+    )
+  })
+
   it('should show correct hydration error when client and server render different text', async () => {
     const { cleanup, session, browser } = await sandbox(
       next,
