@@ -1,4 +1,4 @@
-import { cookies } from 'next/dist/server/request/headers'
+import { cookies } from 'next/headers'
 
 export default function Page() {
   const redirectCookie = cookies().get('redirect')

@@ -1,10 +1,11 @@
 'use client'
 
+import { PageSentinel } from '../getSentinelValue'
+
 export default async function Page({ searchParams }) {
-  const { __TEST_SENTINEL } = process.env
   return (
     <div>
-      <div id="page">{__TEST_SENTINEL}</div>
+      <PageSentinel />
       <section>
         This example uses headers/cookies/searchParams directly in a Page
         configured with `dynamic = 'force-dynamic'`. This should cause the page
