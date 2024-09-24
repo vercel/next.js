@@ -1,4 +1,4 @@
-export const revalidate = 10;
+export const dynamic = 'force-dynamic'
 
 async function getData() {  
   return new Date().toISOString()
