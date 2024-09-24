@@ -6,7 +6,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.next({
       headers: {
         'Cache-Control': 'max-age=1234',
-        'Content-Type': 'image/vnd.microsoft.icon',
       },
     })
   }
