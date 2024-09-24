@@ -3,39 +3,36 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   type ValueOf,
-} from '../../../shared/lib/constants'
-import type { ModuleTuple, CollectedMetadata } from './metadata/types'
+} from '../../../../shared/lib/constants'
+import type { ModuleTuple, CollectedMetadata } from '../metadata/types'
 
 import path from 'path'
-import { stringify } from 'querystring'
-import { bold } from '../../../lib/picocolors'
-import { getModuleBuildInfo } from './get-module-build-info'
-import { verifyRootLayout } from '../../../lib/verify-root-layout'
-import * as Log from '../../output/log'
-import { APP_DIR_ALIAS, WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
+import { bold } from '../../../../lib/picocolors'
+import { getModuleBuildInfo } from '../get-module-build-info'
+import { verifyRootLayout } from '../../../../lib/verify-root-layout'
+import * as Log from '../../../output/log'
+import { APP_DIR_ALIAS } from '../../../../lib/constants'
 import {
   createMetadataExportsCode,
   createStaticMetadataFromRoute,
-} from './metadata/discover'
+} from '../metadata/discover'
 import { promises as fs } from 'fs'
-import { isAppRouteRoute } from '../../../lib/is-app-route-route'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
-import type { NextConfig } from '../../../server/config-shared'
-import { AppPathnameNormalizer } from '../../../server/normalizers/built/app/app-pathname-normalizer'
-import { AppBundlePathNormalizer } from '../../../server/normalizers/built/app/app-bundle-path-normalizer'
-import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
-import { getFilenameAndExtension } from './next-metadata-route-loader'
-import { isAppBuiltinNotFoundPage } from '../../utils'
-import { loadEntrypoint } from '../../load-entrypoint'
+import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
+import type { NextConfig } from '../../../../server/config-shared'
+import { AppPathnameNormalizer } from '../../../../server/normalizers/built/app/app-pathname-normalizer'
+import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import { isAppBuiltinNotFoundPage } from '../../../utils'
+import { loadEntrypoint } from '../../../load-entrypoint'
 import {
   isGroupSegment,
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
-} from '../../../shared/lib/segment'
-import { getFilesInDir } from '../../../lib/get-files-in-dir'
-import type { PageExtensions } from '../../page-extensions-type'
-import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../client/components/parallel-route-default'
+} from '../../../../shared/lib/segment'
+import { getFilesInDir } from '../../../../lib/get-files-in-dir'
+import type { PageExtensions } from '../../../page-extensions-type'
+import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/parallel-route-default'
 import type { Compilation } from 'webpack'
+import { createAppRouteCode } from './create-app-route-code'
 
 export type AppLoaderOptions = {
   name: string
@@ -91,66 +88,6 @@ export type AppDirModules = {
   readonly metadata?: CollectedMetadata
 } & {
   readonly defaultPage?: ModuleTuple
-}
-
-async function createAppRouteCode({
-  name,
-  page,
-  pagePath,
-  resolveAppRoute,
-  pageExtensions,
-  nextConfigOutput,
-}: {
-  name: string
-  page: string
-  pagePath: string
-  resolveAppRoute: PathResolver
-  pageExtensions: PageExtensions
-  nextConfigOutput: NextConfig['output']
-}): Promise<string> {
-  // routePath is the path to the route handler file,
-  // but could be aliased e.g. private-next-app-dir/favicon.ico
-  const routePath = pagePath.replace(/[\\/]/, '/')
-
-  // This, when used with the resolver will give us the pathname to the built
-  // route handler file.
-  let resolvedPagePath = await resolveAppRoute(routePath)
-  if (!resolvedPagePath) {
-    throw new Error(
-      `Invariant: could not resolve page path for ${name} at ${routePath}`
-    )
-  }
-
-  // If this is a metadata route, then we need to use the metadata loader for
-  // the route to ensure that the route is generated.
-  const fileBaseName = path.parse(resolvedPagePath).name
-  if (isMetadataRoute(name) && fileBaseName !== 'route') {
-    const { ext } = getFilenameAndExtension(resolvedPagePath)
-    const isDynamicRouteExtension = pageExtensions.includes(ext)
-
-    resolvedPagePath = `next-metadata-route-loader?${stringify({
-      filePath: resolvedPagePath,
-      isDynamicRouteExtension: isDynamicRouteExtension ? '1' : '0',
-    })}!?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
-  }
-
-  const pathname = new AppPathnameNormalizer().normalize(page)
-  const bundlePath = new AppBundlePathNormalizer().normalize(page)
-
-  return await loadEntrypoint(
-    'app-route',
-    {
-      VAR_USERLAND: resolvedPagePath,
-      VAR_DEFINITION_PAGE: page,
-      VAR_DEFINITION_PATHNAME: pathname,
-      VAR_DEFINITION_FILENAME: fileBaseName,
-      VAR_DEFINITION_BUNDLE_PATH: bundlePath,
-      VAR_RESOLVED_PAGE_PATH: resolvedPagePath,
-    },
-    {
-      nextConfigOutput: JSON.stringify(nextConfigOutput),
-    }
-  )
 }
 
 const normalizeParallelKey = (key: string) =>

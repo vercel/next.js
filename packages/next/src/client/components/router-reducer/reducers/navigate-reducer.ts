@@ -119,6 +119,12 @@ export function navigateReducer(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
+  // Handles case where `<meta http-equiv="refresh">` tag is present,
+  // which will trigger an MPA navigation.
+  if (document.getElementById('__next-page-redirect')) {
+    return handleExternalUrl(state, mutable, href, pendingPush)
+  }
+
   const prefetchValues = getOrCreatePrefetchCacheEntry({
     url,
     nextUrl: state.nextUrl,
@@ -143,12 +149,6 @@ export function navigateReducer(
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(state, mutable, flightData, pendingPush)
-      }
-
-      // Handles case where `<meta http-equiv="refresh">` tag is present,
-      // which will trigger an MPA navigation.
-      if (document.getElementById('__next-page-redirect')) {
-        return handleExternalUrl(state, mutable, href, pendingPush)
       }
 
       // When the server indicates an override for the canonical URL (such as a redirect in middleware)
