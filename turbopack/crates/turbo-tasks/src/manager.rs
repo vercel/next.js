@@ -1052,6 +1052,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn stop_and_wait(&self) {
+        self.backend.stopping(self);
         self.stopped.store(true, Ordering::Release);
         {
             let listener = self.event.listen_with_note(|| "wait for stop".to_string());
