@@ -1793,8 +1793,7 @@ export default abstract class Server<
       //
       // NOTE: for edge functions, `NextWebServer` always runs in minimal mode.
       // in next dev/start, it'll be in an edge runtime sandbox.
-      // but in that case, `waitUntil` will be passed in via `NodejsRequestData`
-      // and then directly into `WebNextResponse`, so we'll never hit this codepath
+      // but in that case, `waitUntil` will be passed in via `NodejsRequestData`.
       return undefined
     }
 
