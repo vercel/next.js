@@ -303,7 +303,7 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             _ => (format!("\"{source}\" is deprecated."), span),
         },
         RSCErrorKind::NextSsrDynamicFalseNotAllowed(span) => (
-            "{ ssr: false } is not allowed in Server Components. Use { ssr: true } instead."
+            "`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a client component."
                 .to_string(),
             span,
         ),
