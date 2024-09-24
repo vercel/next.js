@@ -497,3 +497,18 @@ export function createPostponedAbortSignal(reason: string): AbortSignal {
   }
   return controller.signal
 }
+
+export function annotateDynamicAccess(
+  expression: string,
+  prerenderStore: PrerenderStore
+) {
+  const dynamicTracking = prerenderStore.dynamicTracking
+  if (dynamicTracking) {
+    dynamicTracking.dynamicAccesses.push({
+      stack: dynamicTracking.isDebugDynamicAccesses
+        ? new Error().stack
+        : undefined,
+      expression,
+    })
+  }
+}

@@ -18,8 +18,9 @@ import { actionAsyncStorage } from '../../client/components/action-async-storage
 import { ClientPageRoot } from '../../client/components/client-page'
 import { ClientSegmentRoot } from '../../client/components/client-segment'
 import {
-  createUntrackedSearchParams,
-  createDynamicallyTrackedSearchParams,
+  createServerSearchParamsForServerPage,
+  createServerSearchParamsForClientPage,
+  createServerSearchParamsForMetadata,
 } from '../request/search-params'
 import { createDynamicallyTrackedParams } from '../request/fallback-params'
 import * as serverHooks from '../../client/components/hooks-server-context'
@@ -48,8 +49,9 @@ export {
   staticGenerationAsyncStorage,
   requestAsyncStorage,
   actionAsyncStorage,
-  createUntrackedSearchParams,
-  createDynamicallyTrackedSearchParams,
+  createServerSearchParamsForServerPage,
+  createServerSearchParamsForClientPage,
+  createServerSearchParamsForMetadata,
   createDynamicallyTrackedParams,
   serverHooks,
   preloadStyle,

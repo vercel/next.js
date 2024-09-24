@@ -165,7 +165,7 @@ if ('generateStaticParams' in entry) {
 type PageParams = any
 export interface PageProps {
   params?: any
-  searchParams?: any
+  searchParams?: Promise<any>
 }
 export interface LayoutProps {
   children?: React.ReactNode
