@@ -93,4 +93,17 @@ export const availableCodemods: VersionCodemods[] = [
       },
     ],
   },
+  {
+    version: '15.0',
+    codemods: [
+      {
+        title: 'Transforms usage of Next.js async Request APIs',
+        value: 'next-async-request-api',
+      },
+      {
+        title: 'Migrate `geo` and `ip` properties on `NextRequest`',
+        value: 'next-request-geo-ip',
+      },
+    ],
+  },
 ]
