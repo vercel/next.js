@@ -78,21 +78,6 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-### CSS Modules
-
-CSS Modules are a way to write component-scoped CSS in JavaScript. They allow you to import CSS as JavaScript modules and inject them into your React components.
-
-To enable CSS Modules, rename your `.css` or `.scss` files to `.module.css` or `.module.scss`.
-
-For example, rename `styles.css` to `styles.module.css`:
-
-````css filename="styles.module.css"
-.container {
-  color: red;
-}
-
-####
-
 ### Sass Variables
 
 Next.js supports Sass variables exported from CSS Module files.
@@ -105,7 +90,7 @@ $primary-color: #64ff00;
 :export {
   primaryColor: $primary-color;
 }
-````
+```
 
 <AppOnly>
 
