@@ -62,7 +62,8 @@
     "update-google-fonts": "node ./scripts/update-google-fonts.js",
     "patch-next": "node scripts/patch-next.cjs",
     "unpack-next": "node scripts/unpack-next.cjs",
-    "swc-build-native": "pnpm --filter=@next/swc build-native",
+    "swc-build-native": "node scripts/build-native.cjs",
+    "swc-build-wasm": "node scripts/build-wasm.cjs",
     "sweep": "node scripts/sweep.cjs"
   },
   "devDependencies": {

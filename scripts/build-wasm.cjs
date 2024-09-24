@@ -23,8 +23,8 @@ module.exports = (async () => {
   for (let i = 0; i < 2; i++) {
     try {
       await execAsyncWithOutput(
-        'Build native bindings',
-        ['pnpm', 'run', 'build-native', ...args],
+        'Build wasm bindings',
+        ['pnpm', 'run', 'build-wasm', ...args],
         {
           cwd: nextSwcDir,
           shell: process.platform === 'win32' ? 'powershell.exe' : false,
@@ -59,30 +59,24 @@ module.exports = (async () => {
   }
 
   execFn(
-    'Copy generated types to `next/src/build/swc/generated-native.d.ts`',
+    'Copy generated types to `next/src/build/swc/generated-wasm.d.ts`',
     () => writeTypes()
   )
 })()
 
 function writeTypes() {
-  const generatedTypesPath = path.join(
-    NEXT_DIR,
-    'packages/next-swc/native/index.d.ts'
-  )
+  const generatedTypesPath = path.join(NEXT_DIR, 'crates/wasm/pkg/wasm.d.ts')
   const vendoredTypesPath = path.join(
     NEXT_DIR,
-    'packages/next/src/build/swc/generated-native.d.ts'
+    'packages/next/src/build/swc/generated-wasm.d.ts'
   )
-  const generatedTypesMarker = '// GENERATED-TYPES-BELOW\n'
+
   const generatedNotice =
-    '// DO NOT MANUALLY EDIT THESE TYPES\n// You can regenerate this file by running `pnpm swc-build-native` in the root of the repo.\n\n'
+    '// DO NOT MANUALLY EDIT THESE TYPES\n// You can regenerate this file by running `pnpm swc-build-wasm` in the root of the repo.\n\n'
 
   const generatedTypes = fs.readFileSync(generatedTypesPath, 'utf8')
-  let vendoredTypes = fs.readFileSync(vendoredTypesPath, 'utf8')
 
-  vendoredTypes = vendoredTypes.split(generatedTypesMarker)[0]
-  vendoredTypes =
-    vendoredTypes + generatedTypesMarker + generatedNotice + generatedTypes
+  const vendoredTypes = generatedNotice + generatedTypes
 
   fs.writeFileSync(vendoredTypesPath, vendoredTypes)
 }
