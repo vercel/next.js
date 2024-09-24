@@ -101,6 +101,8 @@ pub fn make_task_dirty_internal(
     queue: &mut AggregationUpdateQueue,
     ctx: &mut ExecuteContext,
 ) {
+    println!("make_task_dirty {:?}", task_id);
+
     if make_stale {
         if let Some(InProgressState::InProgress { stale, .. }) = get_mut!(task, InProgress) {
             *stale = true;
@@ -121,8 +123,11 @@ pub fn make_task_dirty_internal(
         if root {
             let description = ctx.backend.get_task_desc_fn(task_id);
             if task.add(CachedDataItem::new_scheduled(description)) {
+                println!("scheduled from make_task_dirty {:?}", task_id);
                 ctx.schedule(task_id);
             }
         }
+    } else {
+        println!("already dirty");
     }
 }
