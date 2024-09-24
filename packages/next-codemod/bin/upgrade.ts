@@ -5,7 +5,7 @@ import path from 'path'
 import { compareVersions } from 'compare-versions'
 import chalk from 'chalk'
 import which from 'which'
-import { availableCodemods } from '../lib/codemods.js'
+import { availableCodemods } from '../lib/codemods'
 
 type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
 type CustomVersionSpecifier = string
