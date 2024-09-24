@@ -4,18 +4,6 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * @param {string} value
- * @param {any} opts
- * @returns {any}
- */
-export function mdxCompileSync(value: string, opts: any): any
-/**
- * @param {string} value
- * @param {any} opts
- * @returns {Promise<any>}
- */
-export function mdxCompile(value: string, opts: any): Promise<any>
-/**
  * @param {string} s
  * @param {any} opts
  * @returns {any}
@@ -51,3 +39,15 @@ export function parseSync(s: string, opts: any): any
  * @returns {Promise<any>}
  */
 export function parse(s: string, opts: any): Promise<any>
+/**
+ * @param {string} value
+ * @param {any} opts
+ * @returns {any}
+ */
+export function mdxCompileSync(value: string, opts: any): any
+/**
+ * @param {string} value
+ * @param {any} opts
+ * @returns {Promise<any>}
+ */
+export function mdxCompile(value: string, opts: any): Promise<any>
