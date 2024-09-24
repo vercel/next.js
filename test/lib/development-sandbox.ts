@@ -1,11 +1,18 @@
 import {
+  hasErrorToast,
+  getRedboxComponentStack,
   getRedboxDescription,
   getRedboxHeader,
   getRedboxSource,
-  hasRedbox,
+  getVersionCheckerText,
+  assertHasRedbox,
+  assertNoRedbox,
   waitFor,
+  waitForAndOpenRuntimeError,
+  getRedboxDescriptionWarning,
+  toggleCollapseComponentStack,
 } from './next-test-utils'
-import webdriver from './next-webdriver'
+import webdriver, { WebdriverOptions } from './next-webdriver'
 import { NextInstance } from './next-modes/base'
 import { BrowserInterface } from './browsers/base'
 
@@ -26,9 +33,9 @@ export function waitForHydration(browser: BrowserInterface): Promise<void> {
 
 export async function sandbox(
   next: NextInstance,
-  initialFiles?: Map<string, string>,
+  initialFiles?: Map<string, string | ((contents: string) => string)>,
   initialUrl: string = '/',
-  webDriverOptions: any = undefined
+  webDriverOptions: WebdriverOptions = undefined
 ) {
   await next.stop()
   await next.clean()
@@ -106,20 +113,23 @@ export async function sandbox(
           )
         }
       },
-      async hasRedbox(expected = false) {
-        return hasRedbox(browser, expected)
+      async assertHasRedbox() {
+        return assertHasRedbox(browser)
+      },
+      async assertNoRedbox() {
+        return assertNoRedbox(browser)
+      },
+      async waitForAndOpenRuntimeError() {
+        return waitForAndOpenRuntimeError(browser)
       },
       async hasErrorToast() {
-        return browser.eval(() => {
-          return Boolean(
-            Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-toast]')
-            )
-          )
-        })
+        return Boolean(await hasErrorToast(browser))
       },
       async getRedboxDescription() {
         return getRedboxDescription(browser)
+      },
+      async getRedboxDescriptionWarning() {
+        return getRedboxDescriptionWarning(browser)
       },
       async getRedboxSource(includeHeader = false) {
         const header = includeHeader ? await getRedboxHeader(browser) : ''
@@ -131,21 +141,13 @@ export async function sandbox(
         return source
       },
       async getRedboxComponentStack() {
-        await browser.waitForElementByCss(
-          '[data-nextjs-component-stack-frame]',
-          30000
-        )
-        const componentStackFrameElements = await browser.elementsByCss(
-          '[data-nextjs-component-stack-frame]'
-        )
-        const componentStackFrameTexts = await Promise.all(
-          componentStackFrameElements.map((f) => f.innerText())
-        )
-
-        return componentStackFrameTexts.join('\n')
+        return getRedboxComponentStack(browser)
       },
-      async waitForAndOpenRuntimeError() {
-        return browser.waitForElementByCss('[data-nextjs-toast]').click()
+      async toggleCollapseComponentStack() {
+        return toggleCollapseComponentStack(browser)
+      },
+      async getVersionCheckerText() {
+        return getVersionCheckerText(browser)
       },
     },
     async cleanup() {

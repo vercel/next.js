@@ -3,10 +3,8 @@ import { ImageResponse } from 'next/og'
 import { ImageResponse as ImageResponse2 } from '@vercel/og'
 
 // Edge: Using @vercel/og external package, and should be aliased to "next/server" ImageResponse
-if (ImageResponse.displayName !== 'NextImageResponse')
-  throw new Error('ImageResponse mismatch: ' + ImageResponse.displayName)
 // @ts-ignore
-if (ImageResponse2.displayName !== 'NextImageResponse')
+if (ImageResponse2.displayName !== ImageResponse.displayName)
   // @ts-ignore
   throw new Error('ImageResponse2 mismatch: ' + ImageResponse2.displayName)
 

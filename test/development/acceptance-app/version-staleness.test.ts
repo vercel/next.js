@@ -3,14 +3,17 @@ import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
+import { BrowserInterface } from 'next-webdriver'
 
-describe.skip('Error Overlay version staleness', () => {
+function getStaleness(browser: BrowserInterface) {
+  return browser
+    .waitForElementByCss('.nextjs-container-build-error-version-status')
+    .text()
+}
+
+describe('Error Overlay version staleness', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
@@ -43,11 +46,16 @@ describe.skip('Error Overlay version staleness', () => {
     )
 
     await session.waitForAndOpenRuntimeError()
-    expect(
-      await browser
-        .waitForElementByCss('.nextjs-container-build-error-version-status')
-        .text()
-    ).toMatchInlineSnapshot(`"Next.js (1.0.0) is outdated (learn more)"`)
+
+    if (process.env.TURBOPACK) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(
+        `"Next.js (1.0.0) is outdated (learn more) (turbo)"`
+      )
+    } else {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(
+        `"Next.js (1.0.0) is outdated (learn more)"`
+      )
+    }
 
     await cleanup()
   })
@@ -76,11 +84,15 @@ describe.skip('Error Overlay version staleness', () => {
       `
     )
 
-    expect(
-      await browser
-        .waitForElementByCss('.nextjs-container-build-error-version-status')
-        .text()
-    ).toMatchInlineSnapshot(`"Next.js (2.0.0) is outdated (learn more)"`)
+    if (process.env.TURBOPACK) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(
+        `"Next.js (2.0.0) is outdated (learn more) (turbo)"`
+      )
+    } else {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(
+        `"Next.js (2.0.0) is outdated (learn more)"`
+      )
+    }
 
     await cleanup()
   })
@@ -106,11 +118,15 @@ describe.skip('Error Overlay version staleness', () => {
       `
     )
 
-    expect(
-      await browser
-        .waitForElementByCss('.nextjs-container-build-error-version-status')
-        .text()
-    ).toMatchInlineSnapshot(`"Next.js (3.0.0) is outdated (learn more)"`)
+    if (process.env.TURBOPACK) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(
+        `"Next.js (3.0.0) is outdated (learn more) (turbo)"`
+      )
+    } else {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(
+        `"Next.js (3.0.0) is outdated (learn more)"`
+      )
+    }
 
     await cleanup()
   })

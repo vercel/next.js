@@ -35,7 +35,6 @@ module.exports = function () {
 	var currentUpdateApplyHandlers;
 	var queuedInvalidatedModules;
 
-	// eslint-disable-next-line no-unused-vars
 	$hmrModuleData$ = currentModuleData;
 
 	$interceptModuleExecution$.push(function (options) {
@@ -96,8 +95,8 @@ module.exports = function () {
 				Object.defineProperty(fn, name, createPropertyDescriptor(name));
 			}
 		}
-		fn.e = function (chunkId) {
-			return trackBlockingPromise(require.e(chunkId));
+		fn.e = function (chunkId, fetchPriority) {
+			return trackBlockingPromise(require.e(chunkId, fetchPriority));
 		};
 		return fn;
 	}
@@ -289,8 +288,7 @@ module.exports = function () {
 								updatedModules
 							);
 							return promises;
-						},
-						[])
+						}, [])
 					).then(function () {
 						return waitForBlockingPromises(function () {
 							if (applyOnUpdate) {

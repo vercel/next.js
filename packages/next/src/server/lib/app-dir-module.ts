@@ -1,4 +1,5 @@
-import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * LoaderTree is generated in next-app-loader.
@@ -6,7 +7,7 @@ import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader
 export type LoaderTree = [
   segment: string,
   parallelRoutes: { [parallelRouterKey: string]: LoaderTree },
-  components: ComponentsType
+  modules: AppDirModules,
 ]
 
 export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
@@ -14,7 +15,7 @@ export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
   const isDefaultPage =
-    typeof defaultPage !== 'undefined' && loaderTree[0] === '__DEFAULT__'
+    typeof defaultPage !== 'undefined' && loaderTree[0] === DEFAULT_SEGMENT_KEY
 
   let value = undefined
   let modType: 'layout' | 'page' | undefined = undefined
@@ -35,11 +36,11 @@ export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
 
 export async function getComponentTypeModule(
   loaderTree: LoaderTree,
-  componentType: 'layout' | 'not-found'
+  moduleType: 'layout' | 'not-found'
 ) {
-  const { [componentType]: component } = loaderTree[2]
-  if (typeof component !== 'undefined') {
-    return await component[0]()
+  const { [moduleType]: module } = loaderTree[2]
+  if (typeof module !== 'undefined') {
+    return await module[0]()
   }
   return undefined
 }

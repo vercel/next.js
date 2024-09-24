@@ -1,5 +1,5 @@
-import React, { ReactElement, ReactNode } from 'react'
-import { useRouter } from 'next/router'
+import React, { ReactElement, ReactNode } from "react";
+import { useRouter } from "next/router";
 import {
   Layout as RMDLayout,
   Configuration,
@@ -17,10 +17,10 @@ import {
   RemoveRedEyeSVGIcon,
   ArrowUpwardSVGIcon,
   CheckSVGIcon,
-} from 'react-md'
+} from "react-md";
 
-import LinkUnstyled from '../LinkUnstyled'
-import navItems from './navItems'
+import LinkUnstyled from "../LinkUnstyled";
+import navItems from "./navItems";
 
 const icons: ConfigurableIcons = {
   back: <KeyboardArrowLeftSVGIcon />,
@@ -35,16 +35,16 @@ const icons: ConfigurableIcons = {
   password: <RemoveRedEyeSVGIcon />,
   selected: <CheckSVGIcon />,
   sort: <ArrowUpwardSVGIcon />,
-}
+};
 
 interface LayoutProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 // Check out the documentation for Configuring your Layout for more information:
 // - https://react-md.dev/guides/configuring-your-layout
 export default function Layout({ children }: LayoutProps): ReactElement {
-  const { pathname } = useRouter()
+  const { pathname } = useRouter();
 
   return (
     <Configuration icons={icons}>
@@ -60,5 +60,5 @@ export default function Layout({ children }: LayoutProps): ReactElement {
         {children}
       </RMDLayout>
     </Configuration>
-  )
+  );
 }

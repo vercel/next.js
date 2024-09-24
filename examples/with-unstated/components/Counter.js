@@ -1,7 +1,7 @@
-import CounterContainer from '../containers/counter'
+import CounterContainer from "../containers/counter";
 
 export default function Counter() {
-  const counter = CounterContainer.useContainer()
+  const counter = CounterContainer.useContainer();
 
   return (
     <div>
@@ -12,5 +12,5 @@ export default function Counter() {
       <button onClick={() => counter.increment()}>+1</button>
       <button onClick={() => counter.reset()}>Reset</button>
     </div>
-  )
+  );
 }

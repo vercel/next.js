@@ -1,4 +1,4 @@
-import { CMS_NAME, CMS_URL } from '@/lib/constants'
+import { CMS_NAME, CMS_URL } from "@/lib/constants";
 
 export default function Intro() {
   return (
@@ -7,14 +7,14 @@ export default function Intro() {
         Blog.
       </h1>
       <h4 className="text-center md:text-left text-lg mt-5 md:pl-8">
-        A statically generated blog example using{' '}
+        A statically generated blog example using{" "}
         <a
           href="https://nextjs.org/"
           className="underline hover:text-success duration-200 transition-colors"
         >
           Next.js
-        </a>{' '}
-        and{' '}
+        </a>{" "}
+        and{" "}
         <a
           href={CMS_URL}
           className="underline hover:text-success duration-200 transition-colors"
@@ -24,5 +24,5 @@ export default function Intro() {
         .
       </h4>
     </section>
-  )
+  );
 }

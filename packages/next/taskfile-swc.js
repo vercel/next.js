@@ -47,16 +47,15 @@ module.exports = function (task) {
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
-            importAssertions: true,
+            importAttributes: true,
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
             keepImportAttributes,
-            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
-              pragma: 'React.createElement',
+              runtime: 'automatic',
               pragmaFrag: 'React.Fragment',
               throwIfNamespace: true,
               development: false,
@@ -93,16 +92,15 @@ module.exports = function (task) {
           parser: {
             syntax: 'typescript',
             dynamicImport: true,
-            importAssertions: true,
+            importAttributes: true,
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
             keepImportAttributes,
-            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
-              pragma: 'React.createElement',
+              runtime: 'automatic',
               pragmaFrag: 'React.Fragment',
               throwIfNamespace: true,
               development: false,
@@ -125,7 +123,7 @@ module.exports = function (task) {
       const options = {
         filename: path.join(file.dir, file.base),
         sourceMaps: true,
-        inlineSourcesContent: false,
+        inlineSourcesContent: true,
         sourceFileName: path.relative(distFilePath, fullFilePath),
 
         ...swcOptions,
@@ -189,6 +187,10 @@ function setNextVersion(code) {
     .replace(
       /process\.env\.__NEXT_VERSION/g,
       `"${require('./package.json').version}"`
+    )
+    .replace(
+      /process\.env\.__NEXT_REQUIRED_NODE_VERSION/g,
+      `"${require('./package.json').engines.node.replace('>=', '')}"`
     )
     .replace(
       /process\.env\.REQUIRED_APP_REACT_VERSION/,

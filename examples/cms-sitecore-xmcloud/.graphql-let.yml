@@ -1,6 +1,6 @@
 schema:
-  - './src/temp/GraphQLIntrospectionResult.json'
-documents: 'src/**/*.graphql'
+  - "./src/temp/GraphQLIntrospectionResult.json"
+documents: "src/**/*.graphql"
 plugins:
   - typescript-operations
   - typed-document-node

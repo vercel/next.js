@@ -1,16 +1,16 @@
-import { useState } from 'react'
-import { analytics } from '@/lib/segment'
+import { useState } from "react";
+import { analytics } from "@/lib/segment";
 
 export default function Form() {
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    analytics.track('Form Submitted', {
+    e.preventDefault();
+    analytics.track("Form Submitted", {
       message,
-    })
-    setMessage('')
-  }
+    });
+    setMessage("");
+  };
 
   return (
     <>
@@ -42,5 +42,5 @@ export default function Form() {
         }
       `}</style>
     </>
-  )
+  );
 }

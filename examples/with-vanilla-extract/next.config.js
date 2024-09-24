@@ -1,4 +1,4 @@
-const { createVanillaExtractPlugin } = require('@vanilla-extract/next-plugin')
-const withVanillaExtract = createVanillaExtractPlugin()
+const { createVanillaExtractPlugin } = require("@vanilla-extract/next-plugin");
+const withVanillaExtract = createVanillaExtractPlugin();
 
-module.exports = withVanillaExtract()
+module.exports = withVanillaExtract();

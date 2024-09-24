@@ -1,45 +1,45 @@
-import { useState, useEffect } from 'react'
-import Router from 'next/router'
-import Link from 'next/link'
-import { useUser } from '../lib/hooks'
+import { useState, useEffect } from "react";
+import Router from "next/router";
+import Link from "next/link";
+import { useUser } from "../lib/hooks";
 
 export default function SignupPage() {
-  const [user, { mutate }] = useUser()
-  const [errorMsg, setErrorMsg] = useState('')
+  const [user, { mutate }] = useUser();
+  const [errorMsg, setErrorMsg] = useState("");
 
   async function onSubmit(e) {
-    e.preventDefault()
+    e.preventDefault();
 
     const body = {
       username: e.currentTarget.username.value,
       password: e.currentTarget.password.value,
       name: e.currentTarget.name.value,
-    }
+    };
 
     if (body.password !== e.currentTarget.rpassword.value) {
-      setErrorMsg(`The passwords don't match`)
-      return
+      setErrorMsg(`The passwords don't match`);
+      return;
     }
 
-    const res = await fetch('/api/users', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    })
+    });
 
     if (res.status === 201) {
-      const userObj = await res.json()
+      const userObj = await res.json();
       // set user to useSWR state
-      mutate(userObj)
+      mutate(userObj);
     } else {
-      setErrorMsg(await res.text())
+      setErrorMsg(await res.text());
     }
   }
 
   useEffect(() => {
     // redirect to home if user is authenticated
-    if (user) Router.push('/')
-  }, [user])
+    if (user) Router.push("/");
+  }, [user]);
 
   return (
     <>
@@ -70,5 +70,5 @@ export default function SignupPage() {
         </form>
       </div>
     </>
-  )
+  );
 }

@@ -1,16 +1,16 @@
-import Head from 'next/head'
-import Link from 'next/link'
-import useSWR from 'swr'
-import fetcher from '../lib/fetcher'
-import Header from '../components/header'
-import Footer from '../components/footer'
+import Head from "next/head";
+import Link from "next/link";
+import useSWR from "swr";
+import fetcher from "../lib/fetcher";
+import Header from "../components/header";
+import Footer from "../components/footer";
 
 export default function Home() {
-  const { data, error, isLoading } = useSWR('/api/movies', fetcher)
+  const { data, error, isLoading } = useSWR("/api/movies", fetcher);
 
-  if (error) return <div>failed to load</div>
-  if (isLoading) return <div>loading...</div>
-  if (!data) return null
+  if (error) return <div>failed to load</div>;
+  if (isLoading) return <div>loading...</div>;
+  if (!data) return null;
 
   return (
     <div className="container">
@@ -132,5 +132,5 @@ export default function Home() {
         }
       `}</style>
     </div>
-  )
+  );
 }

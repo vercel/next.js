@@ -1,5 +1,5 @@
 import Router from '../router'
-import { sendMessage } from './error-overlay/websocket'
+import { sendMessage } from '../components/react-dev-overlay/pages/websocket'
 
 export default async (page?: string) => {
   if (page) {

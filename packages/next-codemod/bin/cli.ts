@@ -15,7 +15,8 @@ import path from 'path'
 import execa from 'execa'
 import { yellow } from 'picocolors'
 import isGitClean from 'is-git-clean'
-import { uninstallPackage } from '../lib/uninstall-package'
+import { installPackage, uninstallPackage } from '../lib/handle-package'
+import { runUpgrade } from './upgrade'
 
 export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
 export const transformerDirectory = path.join(__dirname, '../', 'transforms')
@@ -108,6 +109,11 @@ export function runTransform({ files, flags, transformer }) {
       )
     }
   }
+
+  if (!dry && transformer === 'next-request-geo-ip') {
+    console.log('Installing `@vercel/functions`...')
+    installPackage('@vercel/functions')
+  }
 }
 
 const TRANSFORMER_INQUIRER_CHOICES = [
@@ -136,6 +142,18 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'new-link',
   },
   {
+    name: 'next-og-import: Transforms imports from `next/server` to `next/og` for usage of Dynamic OG Image Generation.',
+    value: 'next-og-import',
+  },
+  {
+    name: 'metadata-to-viewport-export: Migrates certain viewport related metadata from the `metadata` export to a new `viewport` export.',
+    value: 'metadata-to-viewport-export',
+  },
+  {
+    name: 'next-dynamic-access-named-export: Transforms dynamic imports that return the named export itself to a module like object.',
+    value: 'next-dynamic-access-named-export',
+  },
+  {
     name: 'next-image-to-legacy-image: safely migrate Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13',
     value: 'next-image-to-legacy-image',
   },
@@ -146,6 +164,14 @@ const TRANSFORMER_INQUIRER_CHOICES = [
   {
     name: 'built-in-next-font: Uninstall `@next/font` and transform imports to `next/font`',
     value: 'built-in-next-font',
+  },
+  {
+    name: 'next-async-request-api: Transforms usage of Next.js async Request APIs',
+    value: 'next-async-request-api',
+  },
+  {
+    name: 'next-request-geo-ip: Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
+    value: 'next-request-geo-ip',
   },
 ]
 
@@ -183,6 +209,12 @@ export function run() {
 
   if (!cli.flags.dry) {
     checkGitStatus(cli.flags.force)
+  }
+
+  const isUpgrade = cli.input[0] === 'upgrade' || cli.input[0] === 'up'
+
+  if (isUpgrade) {
+    return runUpgrade().catch(console.error)
   }
 
   if (

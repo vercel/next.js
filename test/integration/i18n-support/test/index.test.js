@@ -38,57 +38,62 @@ describe('i18n Support', () => {
     })
   })
   afterAll(() => ctx.externalApp.close())
-
-  describe('dev mode', () => {
-    const curCtx = {
-      ...ctx,
-      isDev: true,
-    }
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
-      curCtx.appPort = await findPort()
-      curCtx.app = await launchApp(appDir, curCtx.appPort)
-      curCtx.buildId = 'development'
-    })
-    afterAll(async () => {
-      await killApp(curCtx.app)
-      nextConfig.restore()
-    })
-
-    runTests(curCtx)
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
-      await nextBuild(appDir)
-      ctx.appPort = await findPort()
-      ctx.app = await nextStart(appDir, ctx.appPort)
-      ctx.buildPagesDir = join(appDir, '.next/server/pages')
-      ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      await killApp(ctx.app)
-      nextConfig.restore()
-    })
-
-    runTests(ctx)
-
-    it('should have pre-rendered /500 correctly', async () => {
-      for (const locale of locales) {
-        const content = await fs.readFile(
-          join(appDir, '.next/server/pages/', locale, '500.html'),
-          'utf8'
-        )
-        expect(content).toContain('500')
-        expect(content).toMatch(/Internal Server Error/i)
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      const curCtx = {
+        ...ctx,
+        isDev: true,
       }
-    })
-  })
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
+        curCtx.appPort = await findPort()
+        curCtx.app = await launchApp(appDir, curCtx.appPort)
+        curCtx.buildId = 'development'
+      })
+      afterAll(async () => {
+        await killApp(curCtx.app)
+        nextConfig.restore()
+      })
+
+      runTests(curCtx)
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
+        await nextBuild(appDir)
+        ctx.appPort = await findPort()
+        ctx.app = await nextStart(appDir, ctx.appPort)
+        ctx.buildPagesDir = join(appDir, '.next/server/pages')
+        ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
+      afterAll(async () => {
+        await killApp(ctx.app)
+        nextConfig.restore()
+      })
+
+      runTests(ctx)
+
+      it('should have pre-rendered /500 correctly', async () => {
+        for (const locale of locales) {
+          const content = await fs.readFile(
+            join(appDir, '.next/server/pages/', locale, '500.html'),
+            'utf8'
+          )
+          expect(content).toContain('500')
+          expect(content).toMatch(/Internal Server Error/i)
+        }
+      })
+    }
+  )
 
   describe('with localeDetection disabled', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {
@@ -418,26 +423,29 @@ describe('i18n Support', () => {
       })
     }
 
-    describe('dev mode', () => {
-      const curCtx = {
-        ...ctx,
-        isDev: true,
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        const curCtx = {
+          ...ctx,
+          isDev: true,
+        }
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          nextConfig.replace('// trailingSlash', 'trailingSlash')
+
+          curCtx.appPort = await findPort()
+          curCtx.app = await launchApp(appDir, curCtx.appPort)
+        })
+        afterAll(async () => {
+          nextConfig.restore()
+          await killApp(curCtx.app)
+        })
+
+        runSlashTests(curCtx)
       }
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        nextConfig.replace('// trailingSlash', 'trailingSlash')
-
-        curCtx.appPort = await findPort()
-        curCtx.app = await launchApp(appDir, curCtx.appPort)
-      })
-      afterAll(async () => {
-        nextConfig.restore()
-        await killApp(curCtx.app)
-      })
-
-      runSlashTests(curCtx)
-    })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         const curCtx = {
@@ -485,26 +493,29 @@ describe('i18n Support', () => {
       })
     }
 
-    describe('dev mode', () => {
-      const curCtx = {
-        ...ctx,
-        isDev: true,
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        const curCtx = {
+          ...ctx,
+          isDev: true,
+        }
+        beforeAll(async () => {
+          await fs.remove(join(appDir, '.next'))
+          nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
+
+          curCtx.appPort = await findPort()
+          curCtx.app = await launchApp(appDir, curCtx.appPort)
+        })
+        afterAll(async () => {
+          nextConfig.restore()
+          await killApp(curCtx.app)
+        })
+
+        runSlashTests(curCtx)
       }
-      beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
-        nextConfig.replace('// trailingSlash: true', 'trailingSlash: false')
-
-        curCtx.appPort = await findPort()
-        curCtx.app = await launchApp(appDir, curCtx.appPort)
-      })
-      afterAll(async () => {
-        nextConfig.restore()
-        await killApp(curCtx.app)
-      })
-
-      runSlashTests(curCtx)
-    })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         const curCtx = { ...ctx }
@@ -525,9 +536,11 @@ describe('i18n Support', () => {
       }
     )
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('should show proper error for duplicate defaultLocales', async () => {
-      nextConfig.write(`
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it('should show proper error for duplicate defaultLocales', async () => {
+        nextConfig.write(`
       module.exports = {
         i18n: {
           locales: ['en', 'fr', 'nl'],
@@ -550,18 +563,18 @@ describe('i18n Support', () => {
       }
     `)
 
-      const { code, stderr } = await nextBuild(appDir, undefined, {
-        stderr: true,
+        const { code, stderr } = await nextBuild(appDir, undefined, {
+          stderr: true,
+        })
+        nextConfig.restore()
+        expect(code).toBe(1)
+        expect(stderr).toContain(
+          'Both fr.example.com and french.example.com configured the defaultLocale fr but only one can'
+        )
       })
-      nextConfig.restore()
-      expect(code).toBe(1)
-      expect(stderr).toContain(
-        'Both fr.example.com and french.example.com configured the defaultLocale fr but only one can'
-      )
-    })
 
-    it('should show proper error for duplicate locales', async () => {
-      nextConfig.write(`
+      it('should show proper error for duplicate locales', async () => {
+        nextConfig.write(`
       module.exports = {
         i18n: {
           locales: ['en', 'fr', 'nl', 'eN', 'fr'],
@@ -570,19 +583,19 @@ describe('i18n Support', () => {
       }
     `)
 
-      const { code, stderr } = await nextBuild(appDir, undefined, {
-        stderr: true,
+        const { code, stderr } = await nextBuild(appDir, undefined, {
+          stderr: true,
+        })
+        nextConfig.restore()
+        expect(code).toBe(1)
+        expect(stderr).toContain(
+          'Specified i18n.locales contains the following duplicate locales:'
+        )
+        expect(stderr).toContain(`eN, fr`)
       })
-      nextConfig.restore()
-      expect(code).toBe(1)
-      expect(stderr).toContain(
-        'Specified i18n.locales contains the following duplicate locales:'
-      )
-      expect(stderr).toContain(`eN, fr`)
-    })
 
-    it('should show proper error for invalid locale domain', async () => {
-      nextConfig.write(`
+      it('should show proper error for invalid locale domain', async () => {
+        nextConfig.write(`
       module.exports = {
         i18n: {
           locales: ['en', 'fr', 'nl', 'eN', 'fr'],
@@ -597,14 +610,15 @@ describe('i18n Support', () => {
       }
     `)
 
-      const { code, stderr } = await nextBuild(appDir, undefined, {
-        stderr: true,
+        const { code, stderr } = await nextBuild(appDir, undefined, {
+          stderr: true,
+        })
+        nextConfig.restore()
+        expect(code).toBe(1)
+        expect(stderr).toContain(
+          `i18n domain: "hello:3000" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
+        )
       })
-      nextConfig.restore()
-      expect(code).toBe(1)
-      expect(stderr).toContain(
-        `i18n domain: "hello:3000" is invalid it should be a valid domain without protocol (https://) or port (:3000) e.g. example.vercel.sh`
-      )
-    })
-  })
+    }
+  )
 })

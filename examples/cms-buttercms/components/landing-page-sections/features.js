@@ -1,4 +1,4 @@
-import Feature from './feature'
+import Feature from "./feature";
 
 export default function Features({
   headline,
@@ -32,5 +32,5 @@ export default function Features({
         </div>
       </div>
     </section>
-  )
+  );
 }

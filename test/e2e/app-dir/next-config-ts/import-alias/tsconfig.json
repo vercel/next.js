@@ -1,0 +1,13 @@
+/**
+ * comment
+ */
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    /* comment */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"] // comment
+    }
+  }
+}

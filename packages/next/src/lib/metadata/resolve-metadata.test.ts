@@ -16,6 +16,8 @@ function accumulateMetadata(metadataItems: MetadataItems) {
   ])
   return originAccumulateMetadata(fullMetadataItems, {
     pathname: '/test',
+    trailingSlash: false,
+    isStandaloneMode: false,
   })
 }
 
@@ -339,6 +341,42 @@ describe('accumulateMetadata', () => {
       })
     })
 
+    it('should prefer title and description from openGraph rather than metadata for twitter', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            title: 'doc title',
+            openGraph: {
+              title: 'og-title',
+              description: 'og-description',
+              images: 'https://test.com',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        openGraph: {
+          title: {
+            absolute: 'og-title',
+            template: null,
+          },
+          description: 'og-description',
+          images: [{ url: new URL('https://test.com') }],
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: {
+            absolute: 'og-title',
+            template: null,
+          },
+          description: 'og-description',
+          images: [{ url: new URL('https://test.com') }],
+        },
+      })
+    })
+
     it('should fill only the existing props from openGraph to twitter', async () => {
       const metadataItems: MetadataItems = [
         [
@@ -461,6 +499,92 @@ describe('accumulateMetadata', () => {
         },
       })
     })
+
+    it('should inherit metadata title description into openGraph or twitter if they are configured', async () => {
+      const metadataItems1: MetadataItems = [
+        [
+          {
+            title: 'My title',
+            description: 'My description',
+            openGraph: {
+              images: 'https://test.com/og.png',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata1 = await accumulateMetadata(metadataItems1)
+      expect(metadata1).toMatchObject({
+        openGraph: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
+        twitter: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
+      })
+
+      const metadataItems2: MetadataItems = [
+        [
+          {
+            title: 'My title',
+            description: 'My description',
+            twitter: {
+              images: 'https://test.com/twitter.png',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata2 = await accumulateMetadata(metadataItems2)
+      expect(metadata2).toMatchObject({
+        openGraph: null,
+        twitter: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
+      })
+
+      // Don't override if there's already a title in twitter
+      const metadataItems3: MetadataItems = [
+        [
+          {
+            title: 'My title',
+            description: 'My description',
+            twitter: {
+              title: 'My twitter title',
+              images: 'https://test.com/twitter.png',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata3 = await accumulateMetadata(metadataItems3)
+      expect(metadata3).toMatchObject({
+        openGraph: null,
+        title: {
+          absolute: 'My title',
+          template: null,
+        },
+        twitter: {
+          title: {
+            absolute: 'My twitter title',
+            template: null,
+          },
+          description: 'My description',
+        },
+      })
+    })
   })
 
   describe('alternate', () => {
@@ -489,6 +613,84 @@ describe('accumulateMetadata', () => {
       expect(metadata).toMatchObject({
         alternates: {
           canonical: { url: '/relative' },
+          languages: {
+            'en-US': [{ url: 'https://example.com/en-US' }],
+            'de-DE': [{ url: 'https://example.com/de-DE' }],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [{ url: '/mobile' }],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
+      })
+    })
+
+    it('should support string alternate canonical with search params', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: 'https://localhost:3000/test?foo=bar',
+              languages: {
+                'en-US': 'https://example.com/en-US',
+                'de-DE': 'https://example.com/de-DE',
+              },
+              media: {
+                'only screen and (max-width: 600px)': '/mobile',
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: 'https://localhost:3000/test?foo=bar' },
+          languages: {
+            'en-US': [{ url: 'https://example.com/en-US' }],
+            'de-DE': [{ url: 'https://example.com/de-DE' }],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [{ url: '/mobile' }],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
+      })
+    })
+
+    it('should support URL alternate canonical with search params', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: new URL('https://localhost:3000/test?foo=bar'),
+              languages: {
+                'en-US': 'https://example.com/en-US',
+                'de-DE': 'https://example.com/de-DE',
+              },
+              media: {
+                'only screen and (max-width: 600px)': '/mobile',
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: 'https://localhost:3000/test?foo=bar' },
           languages: {
             'en-US': [{ url: 'https://example.com/en-US' }],
             'de-DE': [{ url: 'https://example.com/de-DE' }],

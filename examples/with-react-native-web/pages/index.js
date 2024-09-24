@@ -1,24 +1,24 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from "react-native";
 
 const styles = StyleSheet.create({
   container: {
-    alignItems: 'center',
+    alignItems: "center",
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   link: {
-    color: 'blue',
+    color: "blue",
   },
   textContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 16,
   },
   text: {
-    alignItems: 'center',
+    alignItems: "center",
     fontSize: 24,
     marginBottom: 24,
   },
-})
+});
 
 export default function App(props) {
   return (
@@ -37,5 +37,5 @@ export default function App(props) {
         </Text>
       </View>
     </View>
-  )
+  );
 }

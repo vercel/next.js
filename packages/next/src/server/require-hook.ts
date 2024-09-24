@@ -18,6 +18,7 @@ export const hookPropertyMap = new Map()
 export const defaultOverrides = {
   'styled-jsx': path.dirname(resolve('styled-jsx/package.json')),
   'styled-jsx/style': resolve('styled-jsx/style'),
+  'styled-jsx/style.js': resolve('styled-jsx/style'),
 }
 
 const toResolveMap = (map: Record<string, string>): [string, string][] =>
@@ -59,7 +60,7 @@ mod.prototype.require = function (request: string) {
   if (request.endsWith('.shared-runtime')) {
     return originalRequire.call(
       this,
-      `next/dist/server/future/route-modules/pages/vendored/contexts/${path.basename(
+      `next/dist/server/route-modules/pages/vendored/contexts/${path.basename(
         request,
         '.shared-runtime'
       )}`

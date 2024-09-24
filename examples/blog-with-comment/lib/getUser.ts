@@ -4,9 +4,9 @@ export default async function getUser(token: string) {
     {
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-    }
-  )
-  return await response.json()
+    },
+  );
+  return await response.json();
 }

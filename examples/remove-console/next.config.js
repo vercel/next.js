@@ -7,11 +7,11 @@ const nextConfig = {
   compiler: {
     // Remove `console.*` output except `console.error`
     removeConsole: {
-      exclude: ['error'],
+      exclude: ["error"],
     },
     // Uncomment this to suppress all logs.
     // removeConsole: true,
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

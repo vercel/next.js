@@ -1,8 +1,9 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
-import type { PageConfig, ResponseLimit } from 'next/types'
+import type { PageConfig, ResponseLimit } from '../../../types'
 import type { __ApiPreviewProps } from '../.'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
+import type { ServerOnInstrumentationRequestError } from '../../app-render/types'
 
 import bytes from 'next/dist/compiled/bytes'
 import { generateETag } from '../../lib/etag'
@@ -23,8 +24,6 @@ import {
   RESPONSE_LIMIT_DEFAULT,
 } from './../index'
 import { getCookieParser } from './../get-cookie-parser'
-import { getTracer } from '../../lib/trace/tracer'
-import { NodeSpan } from '../../lib/trace/constants'
 import {
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
@@ -43,6 +42,7 @@ type ApiContext = __ApiPreviewProps & {
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
   revalidate?: RevalidateFn
+  multiZoneDraftMode?: boolean
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -152,8 +152,8 @@ function setDraftMode<T>(
     ...(typeof previous === 'string'
       ? [previous]
       : Array.isArray(previous)
-      ? previous
-      : []),
+        ? previous
+        : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
@@ -218,8 +218,8 @@ function setPreviewData<T>(
     ...(typeof previous === 'string'
       ? [previous]
       : Array.isArray(previous)
-      ? previous
-      : []),
+        ? previous
+        : []),
     serialize(COOKIE_NAME_PRERENDER_BYPASS, options.previewModeId, {
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
@@ -326,7 +326,8 @@ export async function apiResolver(
   apiContext: ApiContext,
   propagateError: boolean,
   dev?: boolean,
-  page?: string
+  page?: string,
+  onError?: ServerOnInstrumentationRequestError
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -348,7 +349,7 @@ export async function apiResolver(
     apiReq.query = query
     // Parsing preview data
     setLazyProp({ req: apiReq }, 'previewData', () =>
-      tryGetPreviewData(req, res, apiContext)
+      tryGetPreviewData(req, res, apiContext, !!apiContext.multiZoneDraftMode)
     )
     // Checking if preview mode is enabled
     setLazyProp({ req: apiReq }, 'preview', () =>
@@ -416,15 +417,7 @@ export async function apiResolver(
       res.once('pipe', () => (wasPiped = true))
     }
 
-    getTracer().getRootSpanAttributes()?.set('next.route', page)
-    // Call API route method
-    const apiRouteResult = await getTracer().trace(
-      NodeSpan.runHandler,
-      {
-        spanName: `executing api route (pages) ${page}`,
-      },
-      () => resolver(req, res)
-    )
+    const apiRouteResult = await resolver(req, res)
 
     if (process.env.NODE_ENV !== 'production') {
       if (typeof apiRouteResult !== 'undefined') {
@@ -445,6 +438,13 @@ export async function apiResolver(
       }
     }
   } catch (err) {
+    onError?.(err, req, {
+      routerKind: 'Pages Router',
+      routePath: page || '',
+      routeType: 'route',
+      revalidateReason: undefined,
+    })
+
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)
     } else {

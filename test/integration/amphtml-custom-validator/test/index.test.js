@@ -18,7 +18,7 @@ const appDir = join(__dirname, '../')
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'AMP Custom Validator',
   () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should build and start successfully', async () => {
@@ -35,24 +35,26 @@ const appDir = join(__dirname, '../')
         })
       }
     )
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        it('should run in development mode successfully', async () => {
+          let stderr = ''
 
-    describe('development mode', () => {
-      it('should run in dev mode successfully', async () => {
-        let stderr = ''
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort, {
+            onStderr(msg) {
+              stderr += msg || ''
+            },
+          })
 
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort, {
-          onStderr(msg) {
-            stderr += msg || ''
-          },
+          const html = await renderViaHTTP(appPort, '/')
+          await killApp(app)
+
+          expect(stderr).not.toContain('error')
+          expect(html).toContain('Hello from AMP')
         })
-
-        const html = await renderViaHTTP(appPort, '/')
-        await killApp(app)
-
-        expect(stderr).not.toContain('error')
-        expect(html).toContain('Hello from AMP')
-      })
-    })
+      }
+    )
   }
 )

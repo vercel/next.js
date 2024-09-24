@@ -5,7 +5,7 @@ description: API reference for the not-found.js file.
 
 The **not-found** file is used to render UI when the [`notFound`](/docs/app/api-reference/functions/not-found) function is thrown within a route segment. Along with serving a custom UI, Next.js will return a `200` HTTP status code for streamed responses, and `404` for non-streamed responses.
 
-```tsx filename="app/blog/not-found.tsx" switcher
+```tsx filename="app/not-found.tsx" switcher
 import Link from 'next/link'
 
 export default function NotFound() {
@@ -43,7 +43,7 @@ export default function NotFound() {
 
 By default, `not-found` is a Server Component. You can mark it as `async` to fetch and display data:
 
-```tsx filename="app/blog/not-found.tsx" switcher
+```tsx filename="app/not-found.tsx" switcher
 import Link from 'next/link'
 import { headers } from 'next/headers'
 
@@ -63,7 +63,7 @@ export default async function NotFound() {
 }
 ```
 
-```jsx filename="app/blog/not-found.jsx" switcher
+```jsx filename="app/not-found.jsx" switcher
 import Link from 'next/link'
 import { headers } from 'next/headers'
 
@@ -82,6 +82,8 @@ export default async function NotFound() {
   )
 }
 ```
+
+If you need to use Client Component hooks like `usePathname` to display content based on the path, you must fetch data on the client-side instead.
 
 ## Version History
 

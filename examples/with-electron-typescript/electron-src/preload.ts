@@ -1,17 +1,16 @@
 /* eslint-disable @typescript-eslint/no-namespace */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { ipcRenderer, IpcRenderer } from 'electron'
+import { contextBridge, ipcRenderer } from "electron";
+import { IpcRendererEvent } from "electron/main";
 
-declare global {
-  namespace NodeJS {
-    interface Global {
-      ipcRenderer: IpcRenderer
-    }
-  }
-}
-
-// Since we disabled nodeIntegration we can reintroduce
-// needed node functionality here
-process.once('loaded', () => {
-  global.ipcRenderer = ipcRenderer
-})
+// We are using the context bridge to securely expose NodeAPIs.
+// Please note that many Node APIs grant access to local system resources.
+// Be very cautious about which globals and APIs you expose to untrusted remote content.
+contextBridge.exposeInMainWorld("electron", {
+  sayHello: () => ipcRenderer.send("message", "hi from next"),
+  receiveHello: (handler: (event: IpcRendererEvent, ...args: any[]) => void) =>
+    ipcRenderer.on("message", handler),
+  stopReceivingHello: (
+    handler: (event: IpcRendererEvent, ...args: any[]) => void,
+  ) => ipcRenderer.removeListener("message", handler),
+});

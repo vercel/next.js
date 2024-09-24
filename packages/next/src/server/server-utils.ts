@@ -16,7 +16,10 @@ import {
 } from '../shared/lib/router/utils/prepare-destination'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { normalizeRscURL } from '../shared/lib/router/utils/app-paths'
-import { NEXT_QUERY_PARAM_PREFIX } from '../lib/constants'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../lib/constants'
 
 export function normalizeVercelUrl(
   req: BaseNextRequest,
@@ -32,9 +35,17 @@ export function normalizeVercelUrl(
     delete (_parsedUrl as any).search
 
     for (const key of Object.keys(_parsedUrl.query)) {
+      const isNextQueryPrefix =
+        key !== NEXT_QUERY_PARAM_PREFIX &&
+        key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+
+      const isNextInterceptionMarkerPrefix =
+        key !== NEXT_INTERCEPTION_MARKER_PREFIX &&
+        key.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX)
+
       if (
-        (key !== NEXT_QUERY_PARAM_PREFIX &&
-          key.startsWith(NEXT_QUERY_PARAM_PREFIX)) ||
+        isNextQueryPrefix ||
+        isNextInterceptionMarkerPrefix ||
         (paramKeys || Object.keys(defaultRouteRegex.groups)).includes(key)
       ) {
         delete _parsedUrl.query[key]
@@ -81,6 +92,88 @@ export function interpolateDynamicPath(
   }
 
   return pathname
+}
+
+export function normalizeDynamicRouteParams(
+  params: ParsedUrlQuery,
+  ignoreOptional?: boolean,
+  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined,
+  defaultRouteMatches?: ParsedUrlQuery | undefined
+) {
+  let hasValidParams = true
+  if (!defaultRouteRegex) return { params, hasValidParams: false }
+
+  params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
+    let value: string | string[] | undefined = params[key]
+
+    if (typeof value === 'string') {
+      value = normalizeRscURL(value)
+    }
+    if (Array.isArray(value)) {
+      value = value.map((val) => {
+        if (typeof val === 'string') {
+          val = normalizeRscURL(val)
+        }
+        return val
+      })
+    }
+
+    // if the value matches the default value we can't rely
+    // on the parsed params, this is used to signal if we need
+    // to parse x-now-route-matches or not
+    const defaultValue = defaultRouteMatches![key]
+    const isOptional = defaultRouteRegex!.groups[key].optional
+
+    const isDefaultValue = Array.isArray(defaultValue)
+      ? defaultValue.some((defaultVal) => {
+          return Array.isArray(value)
+            ? value.some((val) => val.includes(defaultVal))
+            : value?.includes(defaultVal)
+        })
+      : value?.includes(defaultValue as string)
+
+    if (
+      isDefaultValue ||
+      (typeof value === 'undefined' && !(isOptional && ignoreOptional))
+    ) {
+      hasValidParams = false
+    }
+
+    // non-provided optional values should be undefined so normalize
+    // them to undefined
+    if (
+      isOptional &&
+      (!value ||
+        (Array.isArray(value) &&
+          value.length === 1 &&
+          // fallback optional catch-all SSG pages have
+          // [[...paramName]] for the root path on Vercel
+          (value[0] === 'index' || value[0] === `[[...${key}]]`)))
+    ) {
+      value = undefined
+      delete params[key]
+    }
+
+    // query values from the proxy aren't already split into arrays
+    // so make sure to normalize catch-all values
+    if (
+      value &&
+      typeof value === 'string' &&
+      defaultRouteRegex!.groups[key].repeat
+    ) {
+      value = value.split('/')
+    }
+
+    if (value) {
+      prev[key] = value
+    }
+    return prev
+  }, {} as ParsedUrlQuery)
+
+  return {
+    params,
+    hasValidParams,
+  }
 }
 
 export function getUtils({
@@ -326,93 +419,22 @@ export function getUtils({
     )(req.headers['x-now-route-matches'] as string) as ParsedUrlQuery
   }
 
-  function normalizeDynamicRouteParams(
-    params: ParsedUrlQuery,
-    ignoreOptional?: boolean
-  ) {
-    let hasValidParams = true
-    if (!defaultRouteRegex) return { params, hasValidParams: false }
-
-    params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
-      let value: string | string[] | undefined = params[key]
-
-      if (typeof value === 'string') {
-        value = normalizeRscURL(value)
-      }
-      if (Array.isArray(value)) {
-        value = value.map((val) => {
-          if (typeof val === 'string') {
-            val = normalizeRscURL(val)
-          }
-          return val
-        })
-      }
-
-      // if the value matches the default value we can't rely
-      // on the parsed params, this is used to signal if we need
-      // to parse x-now-route-matches or not
-      const defaultValue = defaultRouteMatches![key]
-      const isOptional = defaultRouteRegex!.groups[key].optional
-
-      const isDefaultValue = Array.isArray(defaultValue)
-        ? defaultValue.some((defaultVal) => {
-            return Array.isArray(value)
-              ? value.some((val) => val.includes(defaultVal))
-              : value?.includes(defaultVal)
-          })
-        : value?.includes(defaultValue as string)
-
-      if (
-        isDefaultValue ||
-        (typeof value === 'undefined' && !(isOptional && ignoreOptional))
-      ) {
-        hasValidParams = false
-      }
-
-      // non-provided optional values should be undefined so normalize
-      // them to undefined
-      if (
-        isOptional &&
-        (!value ||
-          (Array.isArray(value) &&
-            value.length === 1 &&
-            // fallback optional catch-all SSG pages have
-            // [[...paramName]] for the root path on Vercel
-            (value[0] === 'index' || value[0] === `[[...${key}]]`)))
-      ) {
-        value = undefined
-        delete params[key]
-      }
-
-      // query values from the proxy aren't already split into arrays
-      // so make sure to normalize catch-all values
-      if (
-        value &&
-        typeof value === 'string' &&
-        defaultRouteRegex!.groups[key].repeat
-      ) {
-        value = value.split('/')
-      }
-
-      if (value) {
-        prev[key] = value
-      }
-      return prev
-    }, {} as ParsedUrlQuery)
-
-    return {
-      params,
-      hasValidParams,
-    }
-  }
-
   return {
     handleRewrites,
     defaultRouteRegex,
     dynamicRouteMatcher,
     defaultRouteMatches,
     getParamsFromRouteMatches,
-    normalizeDynamicRouteParams,
+    normalizeDynamicRouteParams: (
+      params: ParsedUrlQuery,
+      ignoreOptional?: boolean
+    ) =>
+      normalizeDynamicRouteParams(
+        params,
+        ignoreOptional,
+        defaultRouteRegex,
+        defaultRouteMatches
+      ),
     normalizeVercelUrl: (
       req: BaseNextRequest,
       trustQuery: boolean,

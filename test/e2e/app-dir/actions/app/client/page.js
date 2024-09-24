@@ -16,7 +16,7 @@ export default function Counter() {
   const [count, setCount] = useState(0)
   return (
     <div>
-      <h1>{count}</h1>
+      <h1 id="count">{count}</h1>
       <button
         id="inc"
         onClick={async () => {
@@ -58,22 +58,10 @@ export default function Counter() {
       </button>
       <form>
         <button
-          id="redirect"
-          formAction={() => redirectAction('/redirect-target')}
+          id="redirect-pages"
+          formAction={() => redirectAction('/pages-dir')}
         >
-          redirect
-        </button>
-      </form>
-      <form>
-        <button
-          id="redirect-external"
-          formAction={() =>
-            redirectAction(
-              'https://next-data-api-endpoint.vercel.app/api/random?page'
-            )
-          }
-        >
-          redirect external
+          redirect to a pages route
         </button>
       </form>
       <form action={getHeaders}>

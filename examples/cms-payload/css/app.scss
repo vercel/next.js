@@ -1,6 +1,6 @@
-@use './queries.scss' as *;
-@use './colors.scss' as *;
-@use './type.scss' as *;
+@use "./queries.scss" as *;
+@use "./colors.scss" as *;
+@use "./type.scss" as *;
 
 :root {
   --breakpoint-xs-width: #{$breakpoint-xs-width};
@@ -11,7 +11,7 @@
 
   --base: 24px;
   --font-body: system-ui;
-  --font-mono: 'Roboto Mono', monospace;
+  --font-mono: "Roboto Mono", monospace;
 
   --gutter-h: 180px;
   --block-padding: 120px;

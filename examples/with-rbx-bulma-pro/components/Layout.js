@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 import {
   Generic,
   Container,
@@ -8,7 +8,7 @@ import {
   Hero,
   Title,
   Footer,
-} from 'rbx'
+} from "rbx";
 
 const Layout = ({ children }) => {
   return (
@@ -52,7 +52,7 @@ const Layout = ({ children }) => {
         </Content>
       </Footer>
     </Generic>
-  )
-}
+  );
+};
 
-export default Layout
+export default Layout;

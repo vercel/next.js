@@ -1,29 +1,32 @@
-import { useState, useRef } from 'react'
-import type { MqttClient } from 'mqtt'
-import useMqtt from '../lib/useMqtt'
+import { useState, useRef } from "react";
+import type { MqttClient } from "mqtt";
+import useMqtt from "../lib/useMqtt";
 
 export default function Home() {
-  const [incommingMessages, setIncommingMessages] = useState<any[]>([])
+  const [incommingMessages, setIncommingMessages] = useState<any[]>([]);
   const addMessage = (message: any) => {
-    setIncommingMessages((incommingMessages) => [...incommingMessages, message])
-  }
+    setIncommingMessages((incommingMessages) => [
+      ...incommingMessages,
+      message,
+    ]);
+  };
   const clearMessages = () => {
-    setIncommingMessages(() => [])
-  }
+    setIncommingMessages(() => []);
+  };
 
   const incommingMessageHandlers = useRef([
     {
-      topic: 'topic1',
+      topic: "topic1",
       handler: (msg: string) => {
-        addMessage(msg)
+        addMessage(msg);
       },
     },
-  ])
+  ]);
 
-  const mqttClientRef = useRef<MqttClient | null>(null)
+  const mqttClientRef = useRef<MqttClient | null>(null);
   const setMqttClient = (client: MqttClient) => {
-    mqttClientRef.current = client
-  }
+    mqttClientRef.current = client;
+  };
   useMqtt({
     uri: process.env.NEXT_PUBLIC_MQTT_URI,
     options: {
@@ -33,16 +36,16 @@ export default function Home() {
     },
     topicHandlers: incommingMessageHandlers.current,
     onConnectedHandler: (client) => setMqttClient(client),
-  })
+  });
 
   const publishMessages = (client: any) => {
     if (!client) {
-      console.log('(publishMessages) Cannot publish, mqttClient: ', client)
-      return
+      console.log("(publishMessages) Cannot publish, mqttClient: ", client);
+      return;
     }
 
-    client.publish('topic1', '1st message from component')
-  }
+    client.publish("topic1", "1st message from component");
+  };
 
   return (
     <div>
@@ -59,5 +62,5 @@ export default function Home() {
       </button>
       <button onClick={() => clearMessages()}>Clear Test Messages</button>
     </div>
-  )
+  );
 }

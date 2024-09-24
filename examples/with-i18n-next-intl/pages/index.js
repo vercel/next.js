@@ -1,22 +1,22 @@
-import { useTranslations } from 'next-intl'
-import { useRouter } from 'next/router'
-import Code from '../components/Code'
-import PageLayout from '../components/PageLayout'
+import { useTranslations } from "next-intl";
+import { useRouter } from "next/router";
+import Code from "../components/Code";
+import PageLayout from "../components/PageLayout";
 
 export default function Index() {
-  const t = useTranslations('Index')
-  const { locale } = useRouter()
+  const t = useTranslations("Index");
+  const { locale } = useRouter();
 
   return (
-    <PageLayout title={t('title')}>
+    <PageLayout title={t("title")}>
       <p>
-        {t('description', {
+        {t("description", {
           locale,
           code: (children) => <Code>{children}</Code>,
         })}
       </p>
     </PageLayout>
-  )
+  );
 }
 
 export function getStaticProps({ locale }) {
@@ -27,5 +27,5 @@ export function getStaticProps({ locale }) {
         ...require(`../messages/index/${locale}.json`),
       },
     },
-  }
+  };
 }

@@ -14,7 +14,7 @@ import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import loadCustomRoutes from '../../../lib/load-custom-routes'
+import loadCustomRoutes, { type Rewrite } from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { FileType, fileExists } from '../../../lib/file-exists'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
@@ -37,8 +37,10 @@ import {
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
-import { RSCPathnameNormalizer } from '../../future/normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
+import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
+import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
+import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
+import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 
 export type FsOutput = {
   type:
@@ -149,12 +151,19 @@ export async function setupFsCheck(opts: {
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
-    buildId = await fs.readFile(buildIdPath, 'utf8')
+    try {
+      buildId = await fs.readFile(buildIdPath, 'utf8')
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') throw err
+      throw new Error(
+        `Could not find a production build in the '${opts.config.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
+      )
+    }
 
     try {
       for (const file of await recursiveReadDir(publicFolderPath)) {
         // Ensure filename is encoded and normalized.
-        publicFolderItems.add(encodeURI(normalizePathSep(file)))
+        publicFolderItems.add(encodeURIPath(normalizePathSep(file)))
       }
     } catch (err: any) {
       if (err.code !== 'ENOENT') {
@@ -165,7 +174,7 @@ export async function setupFsCheck(opts: {
     try {
       for (const file of await recursiveReadDir(legacyStaticFolderPath)) {
         // Ensure filename is encoded and normalized.
-        legacyStaticFolderItems.add(encodeURI(normalizePathSep(file)))
+        legacyStaticFolderItems.add(encodeURIPath(normalizePathSep(file)))
       }
       Log.warn(
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
@@ -180,7 +189,10 @@ export async function setupFsCheck(opts: {
       for (const file of await recursiveReadDir(nextStaticFolderPath)) {
         // Ensure filename is encoded and normalized.
         nextStaticFolderItems.add(
-          path.posix.join('/_next/static', encodeURI(normalizePathSep(file)))
+          path.posix.join(
+            '/_next/static',
+            encodeURIPath(normalizePathSep(file))
+          )
         )
       }
     } catch (err) {
@@ -324,7 +336,6 @@ export async function setupFsCheck(opts: {
     )
   )
   const rewrites = {
-    // TODO: add interception routes generateInterceptionRoutesRewrites()
     beforeFiles: customRoutes.rewrites.beforeFiles.map((item) =>
       buildCustomRoute('before_files_rewrite', item)
     ),
@@ -370,8 +381,13 @@ export async function setupFsCheck(opts: {
   const normalizers = {
     // Because we can't know if the app directory is enabled or not at this
     // stage, we assume that it is.
-    rsc: new RSCPathnameNormalizer(true),
-    postponed: new PostponedPathnameNormalizer(opts.config.experimental.ppr),
+    rsc: new RSCPathnameNormalizer(),
+    prefetchRSC: opts.config.experimental.ppr
+      ? new PrefetchRSCPathnameNormalizer()
+      : undefined,
+    postponed: opts.config.experimental.ppr
+      ? new PostponedPathnameNormalizer()
+      : undefined,
   }
 
   return {
@@ -387,9 +403,9 @@ export async function setupFsCheck(opts: {
     dynamicRoutes,
     nextDataRoutes,
 
-    interceptionRoutes: undefined as
+    exportPathMapRoutes: undefined as
       | undefined
-      | ReturnType<typeof buildCustomRoute>[],
+      | ReturnType<typeof buildCustomRoute<Rewrite>>[],
 
     devVirtualFsItems: new Set<string>(),
 
@@ -411,17 +427,26 @@ export async function setupFsCheck(opts: {
 
       const { basePath } = opts.config
 
-      if (basePath && !pathHasPrefix(itemPath, basePath)) {
+      const hasBasePath = pathHasPrefix(itemPath, basePath)
+
+      // Return null if path doesn't start with basePath
+      if (basePath && !hasBasePath) {
         return null
       }
-      itemPath = removePathPrefix(itemPath, basePath) || '/'
+
+      // Remove basePath if it exists.
+      if (basePath && hasBasePath) {
+        itemPath = removePathPrefix(itemPath, basePath) || '/'
+      }
 
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.
       if (opts.minimalMode) {
-        if (normalizers.rsc.match(itemPath)) {
+        if (normalizers.prefetchRSC?.match(itemPath)) {
+          itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
+        } else if (normalizers.rsc.match(itemPath)) {
           itemPath = normalizers.rsc.normalize(itemPath, true)
-        } else if (normalizers.postponed.match(itemPath)) {
+        } else if (normalizers.postponed?.match(itemPath)) {
           itemPath = normalizers.postponed.normalize(itemPath, true)
         }
       }
@@ -464,7 +489,13 @@ export async function setupFsCheck(opts: {
             itemPath,
             // legacy behavior allows visiting static assets under
             // default locale but no other locale
-            isDynamicOutput ? undefined : [i18n?.defaultLocale]
+            isDynamicOutput
+              ? undefined
+              : [
+                  i18n?.defaultLocale,
+                  // default locales from domains need to be matched too
+                  ...(i18n.domains?.map((item) => item.defaultLocale) || []),
+                ]
           )
 
           if (localeResult.pathname !== curItemPath) {
@@ -528,7 +559,7 @@ export async function setupFsCheck(opts: {
 
         // check decoded variant as well
         if (!matchedItem && !opts.dev) {
-          matchedItem = items.has(curItemPath)
+          matchedItem = items.has(curDecodedItemPath)
           if (matchedItem) curItemPath = curDecodedItemPath
           else {
             // x-ref: https://github.com/vercel/next.js/issues/54008
@@ -538,7 +569,7 @@ export async function setupFsCheck(opts: {
             // encoded version: `/_next/static/chunks/pages/blog/%5Bslug%5D-d4858831b91b69f6.js`
             try {
               // encode the special characters in the path and retrieve again to determine if path exists.
-              const encodedCurItemPath = encodeURI(curItemPath)
+              const encodedCurItemPath = encodeURIPath(curItemPath)
               matchedItem = items.has(encodedCurItemPath)
             } catch {}
           }

@@ -1,6 +1,6 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import React from 'react'
+import Head from "next/head";
+import Image from "next/image";
+import React from "react";
 
 export default function Home() {
   return (
@@ -22,21 +22,21 @@ export default function Home() {
         <div className="texts-container">
           <p>
             Hey fellow dev! 👋 <br />
-            In this basic sample app, you will find{' '}
+            In this basic sample app, you will find{" "}
             <a
               href="https://api.video"
               target="_blank"
               rel="noopener noreferrer"
             >
               api.video
-            </a>{' '}
-            features examples such as <a href="/uploader">video uploader</a>,{' '}
+            </a>{" "}
+            features examples such as <a href="/uploader">video uploader</a>,{" "}
             <a href="/videos">videos list</a> and player components.
           </p>
           <p>
             api.video provides APIs and clients to handle all your video needs.
             <br />
-            This app is built with the api.video{' '}
+            This app is built with the api.video{" "}
             <a
               href="https://github.com/apivideo/api.video-nodejs-client"
               target="_blank"
@@ -44,15 +44,15 @@ export default function Home() {
             >
               Node.js client
             </a>
-            ,{' '}
+            ,{" "}
             <a
               href="https://github.com/apivideo/api.video-typescript-uploader"
               target="_blank"
               rel="noopener noreferrer"
             >
               Typescript uploader
-            </a>{' '}
-            and{' '}
+            </a>{" "}
+            and{" "}
             <a
               target="_blank"
               rel="noopener noreferrer"
@@ -63,7 +63,7 @@ export default function Home() {
             .
           </p>
           <p>
-            You can{' '}
+            You can{" "}
             <a
               href="https://github.com/vercel/next.js/tree/canary/examples/with-apivideo"
               target="_blank"
@@ -92,7 +92,7 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
+          Powered by{" "}
           <span>
             <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
           </span>
@@ -103,5 +103,5 @@ export default function Home() {
         </a>
       </footer>
     </div>
-  )
+  );
 }

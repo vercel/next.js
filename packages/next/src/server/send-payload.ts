@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type RenderResult from './render-result'
-import type { Revalidate } from './lib/revalidate'
+import type { Revalidate, SwrDelta } from './lib/revalidate'
 
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
@@ -40,6 +40,7 @@ export async function sendRenderResult({
   generateEtags,
   poweredByHeader,
   revalidate,
+  swrDelta,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -48,6 +49,7 @@ export async function sendRenderResult({
   generateEtags: boolean
   poweredByHeader: boolean
   revalidate: Revalidate | undefined
+  swrDelta: SwrDelta | undefined
 }): Promise<void> {
   if (isResSent(res)) {
     return
@@ -57,14 +59,21 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  if (typeof revalidate !== 'undefined') {
-    res.setHeader('Cache-Control', formatRevalidate(revalidate))
+  // If cache control is already set on the response we don't
+  // override it to allow users to customize it via next.config
+  if (typeof revalidate !== 'undefined' && !res.getHeader('Cache-Control')) {
+    res.setHeader(
+      'Cache-Control',
+      formatRevalidate({
+        revalidate,
+        swrDelta,
+      })
+    )
   }
-
   const payload = result.isDynamic ? null : result.toUnchunkedString()
 
-  if (payload !== null) {
-    const etag = generateEtags ? generateETag(payload) : undefined
+  if (generateEtags && payload !== null) {
+    const etag = generateETag(payload)
     if (sendEtagResponse(req, res, etag)) {
       return
     }
@@ -76,10 +85,10 @@ export async function sendRenderResult({
       result.contentType
         ? result.contentType
         : type === 'rsc'
-        ? RSC_CONTENT_TYPE_HEADER
-        : type === 'json'
-        ? 'application/json'
-        : 'text/html; charset=utf-8'
+          ? RSC_CONTENT_TYPE_HEADER
+          : type === 'json'
+            ? 'application/json'
+            : 'text/html; charset=utf-8'
     )
   }
 

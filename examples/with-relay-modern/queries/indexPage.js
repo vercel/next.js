@@ -1,4 +1,4 @@
-import { graphql } from 'react-relay'
+import { graphql } from "react-relay";
 
 export default graphql`
   query indexPage_indexQuery {
@@ -6,4 +6,4 @@ export default graphql`
       ...BlogPosts_viewer
     }
   }
-`
+`;

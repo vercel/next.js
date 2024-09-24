@@ -1,9 +1,12 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
-let i = 1
+let i = 0
 export default function Page() {
+  const [, forceUpdate] = useState(0)
   useEffect(() => {
-    console.log(`logged ${i++} times`)
+    console.log('user:log', i++)
+    forceUpdate()
   }, [])
+  return <p>{i}</p>
 }

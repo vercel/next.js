@@ -5,22 +5,22 @@ import Document, {
   NextScript,
   DocumentContext,
   DocumentInitialProps,
-} from 'next/document'
+} from "next/document";
 
-import { CssBaseline } from '@nextui-org/react'
+import { CssBaseline } from "@nextui-org/react";
 
-import { Children } from 'react'
+import { Children } from "react";
 
 export default class MyDocument extends Document {
   static async getInitialProps(
-    ctx: DocumentContext
+    ctx: DocumentContext,
   ): Promise<DocumentInitialProps> {
-    const initialProps = await Document.getInitialProps(ctx)
+    const initialProps = await Document.getInitialProps(ctx);
 
     return {
       ...initialProps,
       styles: Children.toArray([initialProps.styles]),
-    }
+    };
   }
 
   render() {
@@ -32,6 +32,6 @@ export default class MyDocument extends Document {
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }

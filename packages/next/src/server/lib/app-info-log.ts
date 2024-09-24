@@ -1,7 +1,10 @@
 import { loadEnvConfig } from '@next/env'
 import * as Log from '../../build/output/log'
 import { bold, purple } from '../../lib/picocolors'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../../shared/lib/constants'
 import loadConfig, { getEnabledExperimentalFeatures } from '../config'
 
 export function logStartInfo({
@@ -9,7 +12,7 @@ export function logStartInfo({
   appUrl,
   envInfo,
   expFeatureInfo,
-  maxExperimentalFeatures,
+  maxExperimentalFeatures = Infinity,
 }: {
   networkUrl: string | null
   appUrl: string | null
@@ -18,31 +21,27 @@ export function logStartInfo({
   maxExperimentalFeatures?: number
 }) {
   Log.bootstrap(
-    bold(
-      purple(
-        ` ${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}${
-          process.env.TURBOPACK ? ' (turbo)' : ''
-        }`
-      )
-    )
+    `${bold(
+      purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`)
+    )}${process.env.TURBOPACK ? ' (turbo)' : ''}`
   )
   if (appUrl) {
-    Log.bootstrap(` - Local:        ${appUrl}`)
+    Log.bootstrap(`- Local:        ${appUrl}`)
   }
   if (networkUrl) {
-    Log.bootstrap(` - Network:      ${networkUrl}`)
+    Log.bootstrap(`- Network:      ${networkUrl}`)
   }
-  if (envInfo?.length) Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+  if (envInfo?.length) Log.bootstrap(`- Environments: ${envInfo.join(', ')}`)
 
   if (expFeatureInfo?.length) {
-    Log.bootstrap(` - Experiments (use at your own risk):`)
-    // only show maximum 3 flags
+    Log.bootstrap(`- Experiments (use with caution):`)
+    // only show a maximum number of flags
     for (const exp of expFeatureInfo.slice(0, maxExperimentalFeatures)) {
-      Log.bootstrap(`   · ${exp}`)
+      Log.bootstrap(`  · ${exp}`)
     }
-    /* ${expFeatureInfo.length - 3} more */
-    if (expFeatureInfo.length > 3 && maxExperimentalFeatures) {
-      Log.bootstrap(`   · ...`)
+    /* indicate if there are more than the maximum shown no. flags */
+    if (expFeatureInfo.length > maxExperimentalFeatures) {
+      Log.bootstrap(`  · ...`)
     }
   }
 
@@ -50,21 +49,28 @@ export function logStartInfo({
   Log.info('')
 }
 
-export async function getStartServerInfo(dir: string): Promise<{
+export async function getStartServerInfo(
+  dir: string,
+  dev: boolean
+): Promise<{
   envInfo?: string[]
   expFeatureInfo?: string[]
 }> {
   let expFeatureInfo: string[] = []
-  await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-    onLoadUserConfig(userConfig) {
-      const userNextConfigExperimental = getEnabledExperimentalFeatures(
-        userConfig.experimental
-      )
-      expFeatureInfo = userNextConfigExperimental.sort(
-        (a, b) => a.length - b.length
-      )
-    },
-  })
+  await loadConfig(
+    dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
+    dir,
+    {
+      onLoadUserConfig(userConfig) {
+        const userNextConfigExperimental = getEnabledExperimentalFeatures(
+          userConfig.experimental
+        )
+        expFeatureInfo = userNextConfigExperimental.sort(
+          (a, b) => a.length - b.length
+        )
+      },
+    }
+  )
 
   // we need to reset env if we are going to create
   // the worker process with the esm loader so that the

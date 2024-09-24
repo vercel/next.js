@@ -1,5 +1,5 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 const Header: React.FC = () => {
   return (
@@ -49,7 +49,7 @@ const Header: React.FC = () => {
         }
       `}</style>
     </nav>
-  )
-}
+  );
+};
 
-export default Header
+export default Header;

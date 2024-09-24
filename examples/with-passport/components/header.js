@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { useUser } from '../lib/hooks'
+import Link from "next/link";
+import { useUser } from "../lib/hooks";
 
 const Header = () => {
-  const user = useUser()
+  const user = useUser();
 
   return (
     <header>
@@ -61,7 +61,7 @@ const Header = () => {
         }
       `}</style>
     </header>
-  )
-}
+  );
+};
 
-export default Header
+export default Header;

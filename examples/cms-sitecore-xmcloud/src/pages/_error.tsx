@@ -1,8 +1,8 @@
-import { NextPage } from 'next'
-import Head from 'next/head'
+import { NextPage } from "next";
+import Head from "next/head";
 
 interface ErrorPageProps {
-  statusCode?: number | null | undefined
+  statusCode?: number | null | undefined;
 }
 
 /**
@@ -19,17 +19,17 @@ const ErrorPage: NextPage<ErrorPageProps> = ({ statusCode }) => (
       <p>
         {statusCode
           ? `A server-side ${statusCode} error occurred.`
-          : 'A client-side error occurred.'}
+          : "A client-side error occurred."}
       </p>
       <a href="/">Go to the Home page</a>
     </div>
   </>
-)
+);
 
 ErrorPage.getInitialProps = ({ res, err }) => {
-  const statusCode = res ? res.statusCode : err ? err.statusCode : 404
+  const statusCode = res ? res.statusCode : err ? err.statusCode : 404;
 
-  return { statusCode }
-}
+  return { statusCode };
+};
 
-export default ErrorPage
+export default ErrorPage;

@@ -75,7 +75,7 @@ $ npx edgeql-js
 The query builder consists of several files that are generated into the `dbschema/edgeql-js` directory. Import it like so:
 
 ```ts
-import e from './dbschema/edgeql-js'
+import e from "./dbschema/edgeql-js";
 ```
 
 ### Seed the database

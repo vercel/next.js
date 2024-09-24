@@ -11,11 +11,14 @@ import type {
   MockedResponse,
 } from '../../server/lib/mock-request'
 import { isInAmpMode } from '../../shared/lib/amp-mode'
-import { SERVER_PROPS_EXPORT_ERROR } from '../../lib/constants'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import {
+  NEXT_DATA_SUFFIX,
+  SERVER_PROPS_EXPORT_ERROR,
+} from '../../lib/constants'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
-import { lazyRenderPagesPage } from '../../server/future/route-modules/pages/module.render'
+import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 
 export const enum ExportedPagesFiles {
   HTML = 'HTML',
@@ -24,7 +27,10 @@ export const enum ExportedPagesFiles {
   AMP_DATA = 'AMP_PAGE_DATA',
 }
 
-export async function exportPages(
+/**
+ * Renders & exports a page associated with the /pages directory
+ */
+export async function exportPagesPage(
   req: MockedRequest,
   res: MockedResponse,
   path: string,
@@ -81,16 +87,10 @@ export async function exportPages(
     }
   } else {
     /**
-     * This sets environment variable to be used at the time of static export by head.tsx.
+     * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting SSR by calling
-     * `process.env.__NEXT_OPTIMIZE_FONTS`.
-     * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
+     * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
-    if (renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(
-        renderOpts.optimizeFonts
-      )
-    }
     if (renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
@@ -102,10 +102,8 @@ export async function exportPages(
         query,
         renderOpts
       )
-    } catch (err: any) {
-      if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
-        throw err
-      }
+    } catch (err) {
+      if (!isBailoutToCSRError(err)) throw err
     }
   }
 
@@ -116,7 +114,7 @@ export async function exportPages(
   const validateAmp = async (
     rawAmpHtml: string,
     ampPageName: string,
-    validatorPath?: string
+    validatorPath: string | undefined
   ) => {
     const validator = await AmpHtmlValidator.getInstance(validatorPath)
     const result = validator.validateString(rawAmpHtml)
@@ -160,10 +158,8 @@ export async function exportPages(
           { ...query, amp: '1' },
           renderOpts
         )
-      } catch (err: any) {
-        if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
-          throw err
-        }
+      } catch (err) {
+        if (!isBailoutToCSRError(err)) throw err
       }
 
       const ampHtml =
@@ -171,7 +167,7 @@ export async function exportPages(
           ? ampRenderResult.toUnchunkedString()
           : ''
       if (!renderOpts.ampSkipValidation) {
-        await validateAmp(ampHtml, page + '?amp=1')
+        await validateAmp(ampHtml, page + '?amp=1', ampValidatorPath)
       }
 
       await fileWriter(
@@ -187,7 +183,7 @@ export async function exportPages(
   if (metadata.pageData) {
     const dataFile = join(
       pagesDataDir,
-      htmlFilename.replace(/\.html$/, '.json')
+      htmlFilename.replace(/\.html$/, NEXT_DATA_SUFFIX)
     )
 
     await fileWriter(

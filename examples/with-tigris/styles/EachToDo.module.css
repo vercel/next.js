@@ -18,7 +18,7 @@
 }
 
 .eachButton:hover img {
-  content: url('/circle-checked.svg');
+  content: url("/circle-checked.svg");
 }
 
 .eachButton:hover span {

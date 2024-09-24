@@ -30,6 +30,11 @@ export default function HashPage() {
         To non-existent
       </Link>
       <div>
+        <Link href="?with-query-param#hash-160" id="link-to-query-param">
+          To 160 (with query param)
+        </Link>
+      </div>
+      <div>
         {items.map((item) => (
           <div key={item.id}>
             <div id={`hash-${item.id}`}>{item.id}</div>

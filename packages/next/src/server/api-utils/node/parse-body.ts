@@ -1,8 +1,8 @@
 import type { IncomingMessage } from 'http'
-import type { SizeLimit } from 'next/types'
 
 import { parse } from 'next/dist/compiled/content-type'
 import isError from '../../../lib/is-error'
+import type { SizeLimit } from '../../../types'
 import { ApiError } from '../index'
 
 /**

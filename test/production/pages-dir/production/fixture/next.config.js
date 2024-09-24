@@ -2,6 +2,11 @@
 setInterval(() => {}, 250)
 
 module.exports = {
+  experimental: {
+    amp: {
+      validator: require.resolve('./amp-validator-wasm.js'),
+    },
+  },
   onDemandEntries: {
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60,

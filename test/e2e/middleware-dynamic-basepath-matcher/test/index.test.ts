@@ -5,7 +5,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 
 const itif = (condition: boolean) => (condition ? it : it.skip)
 

@@ -52,7 +52,7 @@ export function formatModuleTrace(
   return {
     lastInternalFileName: importTrace[0],
     invalidImportMessage,
-    formattedModuleTrace: `${importTrace.map((mod) => '  ' + mod).join('\n')}`,
+    formattedModuleTrace: importTrace.map((mod) => '  ' + mod).join('\n'),
   }
 }
 

@@ -100,7 +100,7 @@ describe('page features telemetry', () => {
         await renderViaHTTP(port, '/hello')
 
         if (app) {
-          await killApp(app)
+          await killApp(app, 'SIGTERM')
         }
         await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
 
@@ -141,7 +141,7 @@ describe('page features telemetry', () => {
         await renderViaHTTP(port, '/hello')
 
         if (app) {
-          await killApp(app)
+          await killApp(app, 'SIGTERM')
         }
 
         await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
@@ -162,7 +162,7 @@ describe('page features telemetry', () => {
         await teardown()
       }
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should detect app page counts', async () => {
@@ -219,8 +219,8 @@ describe('page features telemetry', () => {
               expect(event1).toMatch(/"staticPropsPageCount": 2/)
               expect(event1).toMatch(/"serverPropsPageCount": 2/)
               expect(event1).toMatch(/"ssrPageCount": 3/)
-              expect(event1).toMatch(/"staticPageCount": 4/)
-              expect(event1).toMatch(/"totalPageCount": 11/)
+              expect(event1).toMatch(/"staticPageCount": 5/)
+              expect(event1).toMatch(/"totalPageCount": 12/)
               expect(event1).toMatch(/"totalAppPagesCount": 5/)
               expect(event1).toMatch(/"serverAppPagesCount": 2/)
               expect(event1).toMatch(/"edgeRuntimeAppCount": 1/)

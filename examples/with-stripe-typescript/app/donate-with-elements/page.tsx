@@ -1,15 +1,15 @@
-import type { Metadata } from 'next'
+import type { Metadata } from "next";
 
-import ElementsForm from '@/components/ElementsForm'
+import ElementsForm from "@/components/ElementsForm";
 
 export const metadata: Metadata = {
-  title: 'Donate with Elements',
-}
+  title: "Donate with Elements",
+};
 
 export default function PaymentElementPage({
   searchParams,
 }: {
-  searchParams?: { payment_intent_client_secret?: string }
+  searchParams?: { payment_intent_client_secret?: string };
 }): JSX.Element {
   return (
     <div className="page-container">
@@ -17,5 +17,5 @@ export default function PaymentElementPage({
       <p>Donate to our project 💖</p>
       <ElementsForm />
     </div>
-  )
+  );
 }

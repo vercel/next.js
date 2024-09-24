@@ -1,4 +1,4 @@
-import { ConfigPlugin, JssConfig } from '..'
+import { ConfigPlugin, JssConfig } from "..";
 
 /**
  * This config will set fallback values for properties that were left empty
@@ -6,14 +6,14 @@ import { ConfigPlugin, JssConfig } from '..'
  */
 class FallbackPlugin implements ConfigPlugin {
   // should always come last
-  order = 100
+  order = 100;
 
   async exec(config: JssConfig) {
     return Object.assign({}, config, {
-      defaultLanguage: config.defaultLanguage || 'en',
-      sitecoreApiKey: config.sitecoreApiKey || 'no-api-key-set',
-    })
+      defaultLanguage: config.defaultLanguage || "en",
+      sitecoreApiKey: config.sitecoreApiKey || "no-api-key-set",
+    });
   }
 }
 
-export const fallbackPlugin = new FallbackPlugin()
+export const fallbackPlugin = new FallbackPlugin();

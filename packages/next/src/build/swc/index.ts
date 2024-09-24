@@ -1,24 +1,60 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import path from 'path'
 import { pathToFileURL } from 'url'
-import { platform, arch } from 'os'
+import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
 import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
-import { downloadWasmSwc, downloadNativeNextSwc } from '../../lib/download-swc'
-import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
+import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
+import type {
+  NextConfigComplete,
+  TurboLoaderItem,
+  TurboRuleConfigItem,
+  TurboRuleConfigItemOptions,
+  TurboRuleConfigItemOrShortcut,
+} from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
-import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
-import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
+import {
+  type DefineEnvPluginOptions,
+  getDefineEnv,
+} from '../webpack/plugins/define-env-plugin'
+import { getReactCompilerLoader } from '../get-babel-loader-config'
+import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
+import type {
+  ExternalObject,
+  NapiPartialProjectOptions,
+  NapiProjectOptions,
+  TurboTasks,
+} from './generated-native'
+import type {
+  Binding,
+  DefineEnv,
+  Endpoint,
+  HmrIdentifiers,
+  Project,
+  ProjectOptions,
+  Route,
+  TurboEngineOptions,
+  TurbopackResult,
+  TurbopackStackFrame,
+  Update,
+  UpdateMessage,
+  WrittenEndpoint,
+} from './types'
+
+type RawBindings = typeof import('./generated-native')
+type RawWasmBindings = typeof import('./generated-wasm') & {
+  default?(): Promise<typeof import('./generated-wasm')>
+}
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
 const ArchName = arch()
 const PlatformName = platform()
 
-const infoLog = (...args: any[]) => {
+function infoLog(...args: any[]) {
   if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
     return
   }
@@ -30,23 +66,19 @@ const infoLog = (...args: any[]) => {
 /**
  * Based on napi-rs's target triples, returns triples that have corresponding next-swc binaries.
  */
-export const getSupportedArchTriples: () => Record<string, any> = () => {
+export function getSupportedArchTriples(): Record<string, any> {
   const { darwin, win32, linux, freebsd, android } = platformArchTriples
 
   return {
     darwin,
     win32: {
       arm64: win32.arm64,
-      ia32: win32.ia32.filter(
-        (triple: { abi: string }) => triple.abi === 'msvc'
-      ),
-      x64: win32.x64.filter((triple: { abi: string }) => triple.abi === 'msvc'),
+      ia32: win32.ia32.filter((triple) => triple.abi === 'msvc'),
+      x64: win32.x64.filter((triple) => triple.abi === 'msvc'),
     },
     linux: {
       // linux[x64] includes `gnux32` abi, with x64 arch.
-      x64: linux.x64.filter(
-        (triple: { abi: string }) => triple.abi !== 'gnux32'
-      ),
+      x64: linux.x64.filter((triple) => triple.abi !== 'gnux32'),
       arm64: linux.arm64,
       // This target is being deprecated, however we keep it in `knownDefaultWasmFallbackTriples` for now
       arm: linux.arm,
@@ -89,9 +121,9 @@ const triples = (() => {
 })()
 
 // Allow to specify an absolute path to the custom turbopack binary to load.
-// If one of env variables is set, `loadNative` will try to use any turbo-* interfaces from specified
-// binary instead. This will not affect existing swc's transform, or other interfaces. This is thin,
-// naive interface - `loadBindings` will not validate neither path nor the binary.
+// If one of env variables is set, `loadNative` will try to use specified
+// binary instead. This is thin, naive interface
+// - `loadBindings` will not validate neither path nor the binary.
 //
 // Note these are internal flag: there's no stability, feature guarantee.
 const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
@@ -130,51 +162,24 @@ let lastNativeBindingsLoadErrorCode:
   | 'unsupported_target'
   | string
   | undefined = undefined
-let nativeBindings: any
-let wasmBindings: any
+let nativeBindings: Binding
+let wasmBindings: Binding
 let downloadWasmPromise: any
 let pendingBindings: any
 let swcTraceFlushGuard: any
 let swcHeapProfilerFlushGuard: any
-let swcCrashReporterFlushGuard: any
 let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
 
-export interface Binding {
-  isWasm: boolean
-  turbo: {
-    startTrace: any
-    nextBuild?: any
-    createTurboTasks?: any
-    entrypoints: {
-      stream: any
-      get: any
-    }
-    mdx: {
-      compile: any
-      compileSync: any
-    }
-    createProject: (
-      options: ProjectOptions,
-      turboEngineOptions?: TurboEngineOptions
-    ) => Promise<Project>
+export async function loadBindings(
+  useWasmBinary: boolean = false
+): Promise<Binding> {
+  // Increase Rust stack size as some npm packages being compiled need more than the default.
+  if (!process.env.RUST_MIN_STACK) {
+    process.env.RUST_MIN_STACK = '8388608'
   }
-  minify: any
-  minifySync: any
-  transform: any
-  transformSync: any
-  parse: any
-  parseSync: any
-  getTargetTriple(): string | undefined
-  initCustomTraceSubscriber?: any
-  teardownTraceSubscriber?: any
-  initHeapProfiler?: any
-  teardownHeapProfiler?: any
-  teardownCrashReporter?: any
-}
 
-export async function loadBindings(): Promise<Binding> {
   if (pendingBindings) {
     return pendingBindings
   }
@@ -184,11 +189,11 @@ export async function loadBindings(): Promise<Binding> {
   // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
   if (process.stdout._handle != null) {
     // @ts-ignore
-    process.stdout._handle.setBlocking(true)
+    process.stdout._handle.setBlocking?.(true)
   }
   if (process.stderr._handle != null) {
     // @ts-ignore
-    process.stderr._handle.setBlocking(true)
+    process.stderr._handle.setBlocking?.(true)
   }
 
   pendingBindings = new Promise(async (resolve, _reject) => {
@@ -202,12 +207,23 @@ export async function loadBindings(): Promise<Binding> {
 
     let attempts: any[] = []
     const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
+    const unsupportedPlatform = triples.some(
+      (triple: any) =>
+        !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
+    )
+    const isWebContainer = process.versions.webcontainer
+    // Normal execution relies on the param `useWasmBinary` flag to load, but
+    // in certain cases where there isn't a native binary we always load wasm fallback first.
     const shouldLoadWasmFallbackFirst =
-      !disableWasmFallback &&
-      triples.some(
-        (triple: any) =>
-          !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
+      (!disableWasmFallback && useWasmBinary) ||
+      unsupportedPlatform ||
+      isWebContainer
+
+    if (!unsupportedPlatform && useWasmBinary) {
+      Log.warn(
+        `experimental.useWasmBinary is not an option for supported platform ${PlatformName}/${ArchName} and will be ignored.`
       )
+    }
 
     if (shouldLoadWasmFallbackFirst) {
       lastNativeBindingsLoadErrorCode = 'unsupported_target'
@@ -271,15 +287,15 @@ async function tryLoadNativeWithFallback(attempts: Array<string>) {
   await downloadNativeBindingsPromise
 
   try {
-    let bindings = loadNative(nativeBindingsDirectory)
-    return bindings
+    return loadNative(nativeBindingsDirectory)
   } catch (a: any) {
-    attempts.concat(a)
+    attempts.push(...[].concat(a))
   }
+
   return undefined
 }
 
-async function tryLoadWasmWithFallback(attempts: any) {
+async function tryLoadWasmWithFallback(attempts: any[]) {
   try {
     let bindings = await loadWasm('')
     // @ts-expect-error TODO: this event has a wrong type.
@@ -288,8 +304,8 @@ async function tryLoadWasmWithFallback(attempts: any) {
       nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
     })
     return bindings
-  } catch (a) {
-    attempts = attempts.concat(a)
+  } catch (a: any) {
+    attempts.push(...[].concat(a))
   }
 
   try {
@@ -305,7 +321,7 @@ async function tryLoadWasmWithFallback(attempts: any) {
       downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
     }
     await downloadWasmPromise
-    let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
+    let bindings = await loadWasm(wasmDirectory)
     // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({
       wasm: 'fallback',
@@ -318,8 +334,8 @@ async function tryLoadWasmWithFallback(attempts: any) {
       Log.warn(attempt)
     }
     return bindings
-  } catch (a) {
-    attempts = attempts.concat(a)
+  } catch (a: any) {
+    attempts.push(...[].concat(a))
   }
 }
 
@@ -338,6 +354,7 @@ function loadBindingsSync() {
   }
 
   logLoadFailure(attempts)
+  throw new Error('Failed to load bindings', { cause: attempts })
 }
 
 let loggingLoadFailure = false
@@ -365,63 +382,10 @@ function logLoadFailure(attempts: any, triedWasm = false) {
     })
 }
 
-export interface ProjectOptions {
-  /**
-   * A root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail. Think of this as a chroot.
-   */
-  rootPath: string
-
-  /**
-   * A path inside the root_path which contains the app/pages directories.
-   */
-  projectPath: string
-
-  /**
-   * The next.config.js contents.
-   */
-  nextConfig: NextConfigComplete
-
-  /**
-   * Jsconfig, or tsconfig contents.
-   *
-   * Next.js implicitly requires to read it to support few options
-   * https://nextjs.org/docs/architecture/nextjs-compiler#legacy-decorators
-   * https://nextjs.org/docs/architecture/nextjs-compiler#importsource
-   */
-  jsConfig: {
-    compilerOptions: object
-  }
-
-  /**
-   * A map of environment variables to use when compiling code.
-   */
-  env: Record<string, string>
-
-  defineEnv: DefineEnv
-
-  /**
-   * Whether to watch the filesystem for file changes.
-   */
-  watch: boolean
-
-  /**
-   * The address of the dev server.
-   */
-  serverAddr: string
-}
-
 type RustifiedEnv = { name: string; value: string }[]
-
-export interface DefineEnv {
-  client: RustifiedEnv
-  edge: RustifiedEnv
-  nodejs: RustifiedEnv
-}
 
 export function createDefineEnv({
   isTurbopack,
-  allowedRevalidateHeaderKeys,
   clientRouterFilters,
   config,
   dev,
@@ -429,7 +393,6 @@ export function createDefineEnv({
   fetchCacheKeyPrefix,
   hasRewrites,
   middlewareMatchers,
-  previewModeId,
 }: Omit<
   DefineEnvPluginOptions,
   'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
@@ -444,7 +407,6 @@ export function createDefineEnv({
     defineEnv[variant] = rustifyEnv(
       getDefineEnv({
         isTurbopack,
-        allowedRevalidateHeaderKeys,
         clientRouterFilters,
         config,
         dev,
@@ -456,179 +418,12 @@ export function createDefineEnv({
         isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
         isNodeServer: variant === 'nodejs',
         middlewareMatchers,
-        previewModeId,
       })
     )
   }
 
   return defineEnv
 }
-
-export interface TurboEngineOptions {
-  /**
-   * An upper bound of memory that turbopack will attempt to stay under.
-   */
-  memoryLimit?: number
-}
-
-export interface Issue {
-  severity: string
-  category: string
-  filePath: string
-  title: string
-  description: string
-  detail: string
-  source?: {
-    source: {
-      ident: string
-      content?: string
-    }
-    start: { line: number; column: number }
-    end: { line: number; column: number }
-  }
-  documentationLink: string
-  subIssues: Issue[]
-}
-
-export interface Diagnostics {
-  category: string
-  name: string
-  payload: unknown
-}
-
-export type TurbopackResult<T = {}> = T & {
-  issues: Issue[]
-  diagnostics: Diagnostics[]
-}
-
-export interface Middleware {
-  endpoint: Endpoint
-}
-
-export interface Entrypoints {
-  routes: Map<string, Route>
-  middleware?: Middleware
-  pagesDocumentEndpoint: Endpoint
-  pagesAppEndpoint: Endpoint
-  pagesErrorEndpoint: Endpoint
-}
-
-export interface Update {
-  update: unknown
-}
-
-export interface HmrIdentifiers {
-  identifiers: string[]
-}
-
-interface TurbopackStackFrame {
-  column: number | null
-  file: string
-  isServer: boolean
-  line: number
-  methodName: string | null
-}
-
-export interface UpdateInfo {
-  duration: number
-  tasks: number
-}
-
-export enum ServerClientChangeType {
-  Server = 'Server',
-  Client = 'Client',
-  Both = 'Both',
-}
-export interface ServerClientChange {
-  type: ServerClientChangeType
-}
-
-export interface Project {
-  update(options: Partial<ProjectOptions>): Promise<void>
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
-  hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
-  hmrIdentifiersSubscribe(): AsyncIterableIterator<
-    TurbopackResult<HmrIdentifiers>
-  >
-  getSourceForAsset(filePath: string): Promise<string | null>
-  traceSource(
-    stackFrame: TurbopackStackFrame
-  ): Promise<TurbopackStackFrame | null>
-  updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>
-}
-
-export type Route =
-  | {
-      type: 'conflict'
-    }
-  | {
-      type: 'app-page'
-      htmlEndpoint: Endpoint
-      rscEndpoint: Endpoint
-    }
-  | {
-      type: 'app-route'
-      endpoint: Endpoint
-    }
-  | {
-      type: 'page'
-      htmlEndpoint: Endpoint
-      dataEndpoint: Endpoint
-    }
-  | {
-      type: 'page-api'
-      endpoint: Endpoint
-    }
-
-export interface Endpoint {
-  /** Write files for the endpoint to disk. */
-  writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
-  /**
-   * Listen to changes to the endpoint.
-   * After changed() has been awaited it will listen to changes.
-   * The async iterator will yield for each change.
-   */
-  changed(): Promise<AsyncIterableIterator<TurbopackResult<ServerClientChange>>>
-}
-
-interface EndpointConfig {
-  dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
-  dynamicParams?: boolean
-  revalidate?: 'never' | 'force-cache' | number
-  fetchCache?:
-    | 'auto'
-    | 'default-cache'
-    | 'only-cache'
-    | 'force-cache'
-    | 'default-no-store'
-    | 'only-no-store'
-    | 'force-no-store'
-  runtime?: 'nodejs' | 'edge'
-  preferredRegion?: string
-}
-
-export type ServerPath = {
-  path: string
-  contentHash: string
-}
-
-export type WrittenEndpoint =
-  | {
-      type: 'nodejs'
-      /** The entry path for the endpoint. */
-      entryPath: string
-      /** All server paths that has been written for the endpoint. */
-      serverPaths: ServerPath[]
-      config: EndpointConfig
-    }
-  | {
-      type: 'edge'
-      files: string[]
-      /** All server paths that has been written for the endpoint. */
-      serverPaths: ServerPath[]
-      globalVarName: string
-      config: EndpointConfig
-    }
 
 function rustifyEnv(env: Record<string, string>): RustifiedEnv {
   return Object.entries(env)
@@ -640,7 +435,10 @@ function rustifyEnv(env: Record<string, string>): RustifiedEnv {
 }
 
 // TODO(sokra) Support wasm option.
-function bindingToApi(binding: any, _wasm: boolean) {
+function bindingToApi(
+  binding: RawBindings,
+  _wasm: boolean
+): Binding['turbo']['createProject'] {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
@@ -661,7 +459,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
     try {
       return await fn()
     } catch (nativeError: any) {
-      throw new Error(nativeError.message, { cause: nativeError })
+      throw new TurbopackInternalError(nativeError)
     }
   }
 
@@ -673,7 +471,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
    */
   function subscribe<T>(
     useBuffer: boolean,
-    nativeFunction: NativeFunction<T>
+    nativeFunction:
+      | NativeFunction<T>
+      | ((callback: (err: Error, value: T) => void) => Promise<void>)
   ): AsyncIterableIterator<T> {
     type BufferItem =
       | { err: Error; value: undefined }
@@ -694,7 +494,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
     // The native function will call this every time it emits a new result. We
     // either need to notify a waiting consumer, or buffer the new result until
     // the consumer catches up.
-    const emitResult = (err: Error | undefined, value: T | undefined) => {
+    function emitResult(err: Error | undefined, value: T | undefined) {
       if (waiting) {
         let { resolve, reject } = waiting
         waiting = undefined
@@ -707,8 +507,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
       }
     }
 
-    const iterator = (async function* () {
-      const task = await withErrorCause(() => nativeFunction(emitResult))
+    async function* createIterator() {
+      const task = await withErrorCause<{ __napiType: 'RootTask' } | void>(() =>
+        nativeFunction(emitResult)
+      )
       try {
         while (!canceled) {
           if (buffer.length > 0) {
@@ -724,11 +526,18 @@ function bindingToApi(binding: any, _wasm: boolean) {
         }
       } catch (e) {
         if (e === cancel) return
+        if (e instanceof Error) {
+          throw new TurbopackInternalError(e)
+        }
         throw e
       } finally {
-        binding.rootTaskDispose(task)
+        if (task) {
+          binding.rootTaskDispose(task)
+        }
       }
-    })()
+    }
+
+    const iterator = createIterator()
     iterator.return = async () => {
       canceled = true
       if (waiting) waiting.reject(cancel)
@@ -737,57 +546,45 @@ function bindingToApi(binding: any, _wasm: boolean) {
     return iterator
   }
 
-  /**
-   * Like Promise.race, except that we return an array of results so that you
-   * know which promise won. This also allows multiple promises to resolve
-   * before the awaiter finally continues execution, making multiple values
-   * available.
-   */
-  function race<T extends unknown[]>(
-    promises: T
-  ): Promise<{ [P in keyof T]: Awaited<T[P]> | undefined }> {
-    return new Promise((resolve, reject) => {
-      const results: any[] = []
-      for (let i = 0; i < promises.length; i++) {
-        const value = promises[i]
-        Promise.resolve(value).then(
-          (v) => {
-            results[i] = v
-            resolve(results as any)
-          },
-          (e) => {
-            reject(e)
-          }
-        )
-      }
-    })
+  async function rustifyProjectOptions(
+    options: ProjectOptions
+  ): Promise<NapiProjectOptions> {
+    return {
+      ...options,
+      nextConfig: await serializeNextConfig(
+        options.nextConfig,
+        options.projectPath!
+      ),
+      jsConfig: JSON.stringify(options.jsConfig),
+      env: rustifyEnv(options.env),
+    }
   }
 
-  async function rustifyProjectOptions(
+  async function rustifyPartialProjectOptions(
     options: Partial<ProjectOptions>
-  ): Promise<any> {
+  ): Promise<NapiPartialProjectOptions> {
     return {
       ...options,
       nextConfig:
-        options.nextConfig && (await serializeNextConfig(options.nextConfig)),
+        options.nextConfig &&
+        (await serializeNextConfig(options.nextConfig, options.projectPath!)),
       jsConfig: options.jsConfig && JSON.stringify(options.jsConfig),
       env: options.env && rustifyEnv(options.env),
-      defineEnv: options.defineEnv,
     }
   }
 
   class ProjectImpl implements Project {
-    private _nativeProject: { __napiType: 'Project' }
+    private readonly _nativeProject: { __napiType: 'Project' }
 
     constructor(nativeProject: { __napiType: 'Project' }) {
       this._nativeProject = nativeProject
     }
 
-    async update(options: ProjectOptions) {
+    async update(options: Partial<ProjectOptions>) {
       await withErrorCause(async () =>
         binding.projectUpdate(
           this._nativeProject,
-          await rustifyProjectOptions(options)
+          await rustifyPartialProjectOptions(options)
         )
       )
     }
@@ -798,6 +595,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       type NapiEntrypoints = {
         routes: NapiRoute[]
         middleware?: NapiMiddleware
+        instrumentation?: NapiInstrumentation
         pagesDocumentEndpoint: NapiEndpoint
         pagesAppEndpoint: NapiEndpoint
         pagesErrorEndpoint: NapiEndpoint
@@ -807,6 +605,11 @@ function bindingToApi(binding: any, _wasm: boolean) {
         endpoint: NapiEndpoint
         runtime: 'nodejs' | 'edge'
         matcher?: string[]
+      }
+
+      type NapiInstrumentation = {
+        nodeJs: NapiEndpoint
+        edge: NapiEndpoint
       }
 
       type NapiRoute = {
@@ -823,11 +626,15 @@ function bindingToApi(binding: any, _wasm: boolean) {
           }
         | {
             type: 'app-page'
-            htmlEndpoint: NapiEndpoint
-            rscEndpoint: NapiEndpoint
+            pages: {
+              originalName: string
+              htmlEndpoint: NapiEndpoint
+              rscEndpoint: NapiEndpoint
+            }[]
           }
         | {
             type: 'app-route'
+            originalName: string
             endpoint: NapiEndpoint
           }
         | {
@@ -863,13 +670,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
               case 'app-page':
                 route = {
                   type: 'app-page',
-                  htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
-                  rscEndpoint: new EndpointImpl(nativeRoute.rscEndpoint),
+                  pages: nativeRoute.pages.map((page) => ({
+                    originalName: page.originalName,
+                    htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
+                    rscEndpoint: new EndpointImpl(page.rscEndpoint),
+                  })),
                 }
                 break
               case 'app-route':
                 route = {
                   type: 'app-route',
+                  originalName: nativeRoute.originalName,
                   endpoint: new EndpointImpl(nativeRoute.endpoint),
                 }
                 break
@@ -895,9 +706,19 @@ function bindingToApi(binding: any, _wasm: boolean) {
           const middleware = entrypoints.middleware
             ? napiMiddlewareToMiddleware(entrypoints.middleware)
             : undefined
+          const napiInstrumentationToInstrumentation = (
+            instrumentation: NapiInstrumentation
+          ) => ({
+            nodeJs: new EndpointImpl(instrumentation.nodeJs),
+            edge: new EndpointImpl(instrumentation.edge),
+          })
+          const instrumentation = entrypoints.instrumentation
+            ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
+            : undefined
           yield {
             routes,
             middleware,
+            instrumentation,
             pagesDocumentEndpoint: new EndpointImpl(
               entrypoints.pagesDocumentEndpoint
             ),
@@ -913,21 +734,17 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
 
     hmrEvents(identifier: string) {
-      const subscription = subscribe<TurbopackResult<Update>>(
-        true,
-        async (callback) =>
-          binding.projectHmrEvents(this._nativeProject, identifier, callback)
+      return subscribe<TurbopackResult<Update>>(true, async (callback) =>
+        binding.projectHmrEvents(this._nativeProject, identifier, callback)
       )
-      return subscription
     }
 
     hmrIdentifiersSubscribe() {
-      const subscription = subscribe<TurbopackResult<HmrIdentifiers>>(
+      return subscribe<TurbopackResult<HmrIdentifiers>>(
         false,
         async (callback) =>
           binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
       )
-      return subscription
     }
 
     traceSource(
@@ -940,40 +757,42 @@ function bindingToApi(binding: any, _wasm: boolean) {
       return binding.projectGetSourceForAsset(this._nativeProject, filePath)
     }
 
-    updateInfoSubscribe() {
-      const subscription = subscribe<TurbopackResult<UpdateInfo>>(
-        true,
-        async (callback) =>
-          binding.projectUpdateInfoSubscribe(this._nativeProject, callback)
+    updateInfoSubscribe(aggregationMs: number) {
+      return subscribe<TurbopackResult<UpdateMessage>>(true, async (callback) =>
+        binding.projectUpdateInfoSubscribe(
+          this._nativeProject,
+          aggregationMs,
+          callback
+        )
       )
-      return subscription
+    }
+
+    shutdown(): Promise<void> {
+      return binding.projectShutdown(this._nativeProject)
+    }
+
+    onExit(): Promise<void> {
+      return binding.projectOnExit(this._nativeProject)
     }
   }
 
   class EndpointImpl implements Endpoint {
-    private _nativeEndpoint: { __napiType: 'Endpoint' }
+    private readonly _nativeEndpoint: { __napiType: 'Endpoint' }
 
     constructor(nativeEndpoint: { __napiType: 'Endpoint' }) {
       this._nativeEndpoint = nativeEndpoint
     }
 
     async writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>> {
-      return await withErrorCause(() =>
-        binding.endpointWriteToDisk(this._nativeEndpoint)
+      return await withErrorCause(
+        () =>
+          binding.endpointWriteToDisk(this._nativeEndpoint) as Promise<
+            TurbopackResult<WrittenEndpoint>
+          >
       )
     }
 
-    async changed(): Promise<
-      AsyncIterableIterator<TurbopackResult<ServerClientChange>>
-    > {
-      const serverSubscription = subscribe<TurbopackResult>(
-        false,
-        async (callback) =>
-          binding.endpointServerChangedSubscribe(
-            await this._nativeEndpoint,
-            callback
-          )
-      )
+    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
       const clientSubscription = subscribe<TurbopackResult>(
         false,
         async (callback) =>
@@ -982,56 +801,90 @@ function bindingToApi(binding: any, _wasm: boolean) {
             callback
           )
       )
+      await clientSubscription.next()
+      return clientSubscription
+    }
 
-      // The subscriptions will always emit once, which is the initial
-      // computation. This is not a change, so swallow it.
-      await Promise.all([serverSubscription.next(), clientSubscription.next()])
-
-      return (async function* () {
-        try {
-          while (true) {
-            const [server, client] = await race([
-              serverSubscription.next(),
-              clientSubscription.next(),
-            ])
-
-            const done = server?.done || client?.done
-            if (done) {
-              break
-            }
-
-            if (server && client) {
-              yield {
-                issues: server.value.issues.concat(client.value.issues),
-                diagnostics: server.value.diagnostics.concat(
-                  client.value.diagnostics
-                ),
-                type: ServerClientChangeType.Both,
-              }
-            } else if (server) {
-              yield {
-                ...server.value,
-                type: ServerClientChangeType.Server,
-              }
-            } else {
-              yield {
-                ...client!.value,
-                type: ServerClientChangeType.Client,
-              }
-            }
-          }
-        } finally {
-          serverSubscription.return?.()
-          clientSubscription.return?.()
-        }
-      })()
+    async serverChanged(
+      includeIssues: boolean
+    ): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
+      const serverSubscription = subscribe<TurbopackResult>(
+        false,
+        async (callback) =>
+          binding.endpointServerChangedSubscribe(
+            await this._nativeEndpoint,
+            includeIssues,
+            callback
+          )
+      )
+      await serverSubscription.next()
+      return serverSubscription
     }
   }
 
+  /**
+   * Returns a new copy of next.js config object to avoid mutating the original.
+   *
+   * Also it does some augmentation to the configuration as well, for example set the
+   * turbopack's rules if `experimental.reactCompilerOptions` is set.
+   */
+  function augmentNextConfig(
+    originalNextConfig: NextConfigComplete,
+    projectPath: string
+  ): Record<string, any> {
+    let nextConfig = { ...(originalNextConfig as any) }
+
+    const reactCompilerOptions = nextConfig.experimental?.reactCompiler
+
+    // It is not easy to set the rules inside of rust as resolving, and passing the context identical to the webpack
+    // config is bit hard, also we can reuse same codes between webpack config in here.
+    if (reactCompilerOptions) {
+      const ruleKeys = ['*.ts', '*.js', '*.jsx', '*.tsx']
+      if (
+        Object.keys(nextConfig?.experimental?.turbo?.rules ?? []).some((key) =>
+          ruleKeys.includes(key)
+        )
+      ) {
+        Log.warn(
+          `The React Compiler cannot be enabled automatically because 'experimental.turbo' contains a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add 'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration manually.`
+        )
+      } else {
+        if (!nextConfig.experimental.turbo) {
+          nextConfig.experimental.turbo = {}
+        }
+
+        if (!nextConfig.experimental.turbo.rules) {
+          nextConfig.experimental.turbo.rules = {}
+        }
+
+        for (const key of ['*.ts', '*.js', '*.jsx', '*.tsx']) {
+          nextConfig.experimental.turbo.rules[key] = {
+            browser: {
+              foreign: false,
+              loaders: [
+                getReactCompilerLoader(
+                  originalNextConfig.experimental.reactCompiler,
+                  projectPath,
+                  nextConfig.dev,
+                  false,
+                  undefined
+                ),
+              ],
+            },
+          }
+        }
+      }
+    }
+
+    return nextConfig
+  }
+
   async function serializeNextConfig(
-    nextConfig: NextConfigComplete
+    nextConfig: NextConfigComplete,
+    projectPath: string
   ): Promise<string> {
-    let nextConfigSerializable = nextConfig as any
+    // Avoid mutating the existing `nextConfig` object.
+    let nextConfigSerializable = augmentNextConfig(nextConfig, projectPath)
 
     nextConfigSerializable.generateBuildId =
       await nextConfig.generateBuildId?.()
@@ -1040,8 +893,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
     nextConfigSerializable.exportPathMap = {}
     nextConfigSerializable.webpack = nextConfig.webpack && {}
 
-    if (nextConfig.experimental?.turbo?.rules) {
-      ensureLoadersHaveSerializableOptions(nextConfig.experimental.turbo?.rules)
+    if (nextConfigSerializable.experimental?.turbo?.rules) {
+      ensureLoadersHaveSerializableOptions(
+        nextConfigSerializable.experimental.turbo?.rules
+      )
     }
 
     nextConfigSerializable.modularizeImports =
@@ -1065,14 +920,44 @@ function bindingToApi(binding: any, _wasm: boolean) {
           )
         : undefined
 
+    // loaderFile is an absolute path, we need it to be relative for turbopack.
+    if (nextConfigSerializable.images.loaderFile) {
+      nextConfigSerializable.images = {
+        ...nextConfig.images,
+        loaderFile:
+          './' + path.relative(projectPath, nextConfig.images.loaderFile),
+      }
+    }
+
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
   function ensureLoadersHaveSerializableOptions(
-    turbopackRules: Record<string, TurboRule>
+    turbopackRules: Record<string, TurboRuleConfigItemOrShortcut>
   ) {
     for (const [glob, rule] of Object.entries(turbopackRules)) {
-      const loaderItems = Array.isArray(rule) ? rule : rule.loaders
+      if (Array.isArray(rule)) {
+        checkLoaderItems(rule, glob)
+      } else {
+        checkConfigItem(rule, glob)
+      }
+    }
+
+    function checkConfigItem(rule: TurboRuleConfigItem, glob: string) {
+      if (!rule) return
+      if ('loaders' in rule) {
+        checkLoaderItems((rule as TurboRuleConfigItemOptions).loaders, glob)
+      } else {
+        for (const key in rule) {
+          const inner = rule[key]
+          if (typeof inner === 'object' && inner) {
+            checkConfigItem(inner, glob)
+          }
+        }
+      }
+    }
+
+    function checkLoaderItems(loaderItems: TurboLoaderItem[], glob: string) {
       for (const loaderItem of loaderItems) {
         if (
           typeof loaderItem !== 'string' &&
@@ -1086,9 +971,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
     }
   }
 
-  async function createProject(
+  return async function createProject(
     options: ProjectOptions,
-    turboEngineOptions: TurboEngineOptions
+    turboEngineOptions
   ) {
     return new ProjectImpl(
       await binding.projectNew(
@@ -1097,8 +982,6 @@ function bindingToApi(binding: any, _wasm: boolean) {
       )
     )
   }
-
-  return createProject
 }
 
 async function loadWasm(importPath = '') {
@@ -1115,15 +998,31 @@ async function loadWasm(importPath = '') {
         // the import path must be exact when not in node_modules
         pkgPath = path.join(importPath, pkg, 'wasm.js')
       }
-      let bindings = await import(pkgPath)
+      let bindings: RawWasmBindings = await import(
+        pathToFileURL(pkgPath).toString()
+      )
       if (pkg === '@next/swc-wasm-web') {
-        bindings = await bindings.default()
+        bindings = await bindings.default!()
       }
       infoLog('next-swc build: wasm build @next/swc-wasm-web')
 
       // Note wasm binary does not support async intefaces yet, all async
       // interface coereces to sync interfaces.
       wasmBindings = {
+        css: {
+          lightning: {
+            transform: function (_options: any) {
+              throw new Error(
+                '`css.lightning.transform` is not supported by the wasm bindings.'
+              )
+            },
+            transformStyleAttr: function (_options: any) {
+              throw new Error(
+                '`css.lightning.transformStyleAttr` is not supported by the wasm bindings.'
+              )
+            },
+          },
+        },
         isWasm: true,
         transform(src: string, options: any) {
           // TODO: we can remove fallback to sync interface once new stable version of next-swc gets published (current v12.2)
@@ -1147,53 +1046,41 @@ async function loadWasm(importPath = '') {
             ? bindings.parse(src.toString(), options)
             : Promise.resolve(bindings.parseSync(src.toString(), options))
         },
-        parseSync(src: string, options: any) {
-          const astStr = bindings.parseSync(src.toString(), options)
-          return astStr
-        },
         getTargetTriple() {
           return undefined
         },
         turbo: {
-          startTrace: () => {
+          startTrace() {
             Log.error('Wasm binding does not support trace yet')
           },
-          entrypoints: {
-            stream: (
-              turboTasks: any,
-              rootDir: string,
-              applicationDir: string,
-              pageExtensions: string[],
-              callbackFn: (err: Error, entrypoints: any) => void
-            ) => {
-              return bindings.streamEntrypoints(
-                turboTasks,
-                rootDir,
-                applicationDir,
-                pageExtensions,
-                callbackFn
-              )
-            },
-            get: (
-              turboTasks: any,
-              rootDir: string,
-              applicationDir: string,
-              pageExtensions: string[]
-            ) => {
-              return bindings.getEntrypoints(
-                turboTasks,
-                rootDir,
-                applicationDir,
-                pageExtensions
-              )
-            },
+          createTurboTasks: function (
+            _memoryLimit?: number | undefined
+          ): ExternalObject<TurboTasks> {
+            throw new Error(
+              '`turbo.createTurboTasks` is not supported by the wasm bindings.'
+            )
+          },
+          createProject: function (
+            _options: ProjectOptions,
+            _turboEngineOptions?: TurboEngineOptions | undefined
+          ): Promise<Project> {
+            throw new Error(
+              '`turbo.createProject` is not supported by the wasm bindings.'
+            )
+          },
+          startTurbopackTraceServer: function (_traceFilePath: string): void {
+            throw new Error(
+              '`turbo.startTurbopackTraceServer` is not supported by the wasm bindings.'
+            )
           },
         },
         mdx: {
-          compile: (src: string, options: any) =>
-            bindings.mdxCompile(src, getMdxOptions(options)),
-          compileSync: (src: string, options: any) =>
-            bindings.mdxCompileSync(src, getMdxOptions(options)),
+          compile(src: string, options: any) {
+            return bindings.mdxCompile(src, getMdxOptions(options))
+          },
+          compileSync(src: string, options: any) {
+            return bindings.mdxCompileSync(src, getMdxOptions(options))
+          },
         },
       }
       return wasmBindings
@@ -1219,18 +1106,34 @@ function loadNative(importPath?: string) {
     return nativeBindings
   }
 
-  const customBindings = !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
+  const customBindings: RawBindings = !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
     ? require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS)
     : null
-  let bindings: any
+  let bindings: RawBindings = customBindings
   let attempts: any[] = []
 
+  const NEXT_TEST_NATIVE_DIR = process.env.NEXT_TEST_NATIVE_DIR
   for (const triple of triples) {
-    try {
-      bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      infoLog('next-swc build: local built @next/swc')
-      break
-    } catch (e) {}
+    if (NEXT_TEST_NATIVE_DIR) {
+      try {
+        // Use the binary directly to skip `pnpm pack` for testing as it's slow because of the large native binary.
+        bindings = require(
+          `${NEXT_TEST_NATIVE_DIR}/next-swc.${triple.platformArchABI}.node`
+        )
+        infoLog(
+          'next-swc build: local built @next/swc from NEXT_TEST_NATIVE_DIR'
+        )
+        break
+      } catch (e) {}
+    } else {
+      try {
+        bindings = require(
+          `@next/swc/native/next-swc.${triple.platformArchABI}.node`
+        )
+        infoLog('next-swc build: local built @next/swc')
+        break
+      } catch (e) {}
+    }
   }
 
   if (!bindings) {
@@ -1262,23 +1165,11 @@ function loadNative(importPath?: string) {
   }
 
   if (bindings) {
-    // Initialize crash reporter, as earliest as possible from any point of import.
-    // The first-time import to next-swc is not predicatble in the import tree of next.js, which makes
-    // we can't rely on explicit manual initialization as similar to trace reporter.
-    if (!swcCrashReporterFlushGuard) {
-      // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.
-      /* TODO: temporarily disable initialization while confirming logistics.
-      let telemetry = new Telemetry({ distDir: process.cwd() })
-      if (telemetry.isEnabled) {
-        swcCrashReporterFlushGuard = bindings.initCrashReporter?.()
-      }*/
-    }
-
     nativeBindings = {
       isWasm: false,
       transform(src: string, options: any) {
         const isModule =
-          typeof src !== undefined &&
+          typeof src !== 'undefined' &&
           typeof src !== 'string' &&
           !Buffer.isBuffer(src)
         options = options || {}
@@ -1295,7 +1186,7 @@ function loadNative(importPath?: string) {
       },
 
       transformSync(src: string, options: any) {
-        if (typeof src === undefined) {
+        if (typeof src === 'undefined') {
           throw new Error(
             "transformSync doesn't implement reading the file from filesystem"
           )
@@ -1335,61 +1226,44 @@ function loadNative(importPath?: string) {
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       initHeapProfiler: bindings.initHeapProfiler,
       teardownHeapProfiler: bindings.teardownHeapProfiler,
-      teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
-        nextBuild: (options: unknown) => {
+        startTrace(options = {}, turboTasks: ExternalObject<TurboTasks>) {
           initHeapProfiler()
-          const ret = (customBindings ?? bindings).nextBuild(options)
-
-          return ret
-        },
-        startTrace: (options = {}, turboTasks: unknown) => {
-          initHeapProfiler()
-          const ret = (customBindings ?? bindings).runTurboTracing(
+          return (customBindings ?? bindings).runTurboTracing(
             toBuffer({ exact: true, ...options }),
             turboTasks
           )
-          return ret
         },
-        createTurboTasks: (memoryLimit?: number): unknown =>
-          bindings.createTurboTasks(memoryLimit),
-        entrypoints: {
-          stream: (
-            turboTasks: any,
-            rootDir: string,
-            applicationDir: string,
-            pageExtensions: string[],
-            fn: (entrypoints: any) => void
-          ) => {
-            return (customBindings ?? bindings).streamEntrypoints(
-              turboTasks,
-              rootDir,
-              applicationDir,
-              pageExtensions,
-              fn
-            )
-          },
-          get: (
-            turboTasks: any,
-            rootDir: string,
-            applicationDir: string,
-            pageExtensions: string[]
-          ) => {
-            return (customBindings ?? bindings).getEntrypoints(
-              turboTasks,
-              rootDir,
-              applicationDir,
-              pageExtensions
-            )
-          },
+        createTurboTasks(memoryLimit?: number): ExternalObject<TurboTasks> {
+          return bindings.createTurboTasks(memoryLimit)
         },
         createProject: bindingToApi(customBindings ?? bindings, false),
+        startTurbopackTraceServer(traceFilePath) {
+          Log.warn(
+            'Turbopack trace server started. View trace at https://turbo-trace-viewer.vercel.app/'
+          )
+          ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
+        },
       },
       mdx: {
-        compile: (src: string, options: any) =>
-          bindings.mdxCompile(src, toBuffer(getMdxOptions(options))),
-        compileSync: (src: string, options: any) =>
-          bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options))),
+        compile(src: string, options: any) {
+          return bindings.mdxCompile(src, toBuffer(getMdxOptions(options)))
+        },
+        compileSync(src: string, options: any) {
+          bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options)))
+        },
+      },
+      css: {
+        lightning: {
+          transform(transformOptions: any) {
+            return bindings.lightningCssTransform(transformOptions)
+          },
+          transformStyleAttr(transformAttrOptions: any) {
+            return bindings.lightningCssTransformStyleAttribute(
+              transformAttrOptions
+            )
+          },
+        },
       },
     }
     return nativeBindings
@@ -1401,17 +1275,12 @@ function loadNative(importPath?: string) {
 /// Build a mdx options object contains default values that
 /// can be parsed with serde_wasm_bindgen.
 function getMdxOptions(options: any = {}) {
-  const ret = {
+  return {
     ...options,
     development: options.development ?? false,
     jsx: options.jsx ?? false,
-    parse: options.parse ?? {
-      gfmStrikethroughSingleTilde: true,
-      mathTextSingleDollar: true,
-    },
+    mdxType: options.mdxType ?? 'commonMark',
   }
-
-  return ret
 }
 
 function toBuffer(t: any) {
@@ -1436,11 +1305,6 @@ export function transformSync(src: string, options?: any): any {
 export async function minify(src: string, options: any): Promise<string> {
   let bindings = await loadBindings()
   return bindings.minify(src, options)
-}
-
-export function minifySync(src: string, options: any): string {
-  let bindings = loadBindingsSync()
-  return bindings.minifySync(src, options)
 }
 
 export async function parse(src: string, options: any): Promise<any> {
@@ -1468,11 +1332,11 @@ export function getBinaryMetadata() {
  * Initialize trace subscriber to emit traces.
  *
  */
-export const initCustomTraceSubscriber = (traceFileName?: string): void => {
+export function initCustomTraceSubscriber(traceFileName?: string) {
   if (!swcTraceFlushGuard) {
     // Wasm binary doesn't support trace emission
     let bindings = loadNative()
-    swcTraceFlushGuard = bindings.initCustomTraceSubscriber(traceFileName)
+    swcTraceFlushGuard = bindings.initCustomTraceSubscriber?.(traceFileName)
   }
 }
 
@@ -1482,14 +1346,26 @@ export const initCustomTraceSubscriber = (traceFileName?: string): void => {
  * only available by manually building next-swc with specific flags.
  * Calling in release build will not do anything.
  */
-export const initHeapProfiler = () => {
+export function initHeapProfiler() {
   try {
     if (!swcHeapProfilerFlushGuard) {
       let bindings = loadNative()
-      swcHeapProfilerFlushGuard = bindings.initHeapProfiler()
+      swcHeapProfilerFlushGuard = bindings.initHeapProfiler?.()
     }
   } catch (_) {
     // Suppress exceptions, this fn allows to fail to load native bindings
+  }
+}
+
+function once(fn: () => void): () => void {
+  let executed = false
+
+  return function (): void {
+    if (!executed) {
+      executed = true
+
+      fn()
+    }
   }
 }
 
@@ -1499,22 +1375,16 @@ export const initHeapProfiler = () => {
  * Same as initialization, this is not available in release build of next-swc by default
  * and calling it will not do anything.
  */
-export const teardownHeapProfiler = (() => {
-  let flushed = false
-  return (): void => {
-    if (!flushed) {
-      flushed = true
-      try {
-        let bindings = loadNative()
-        if (swcHeapProfilerFlushGuard) {
-          bindings.teardownHeapProfiler(swcHeapProfilerFlushGuard)
-        }
-      } catch (e) {
-        // Suppress exceptions, this fn allows to fail to load native bindings
-      }
+export const teardownHeapProfiler = once(() => {
+  try {
+    let bindings = loadNative()
+    if (swcHeapProfilerFlushGuard) {
+      bindings.teardownHeapProfiler?.(swcHeapProfilerFlushGuard)
     }
+  } catch (e) {
+    // Suppress exceptions, this fn allows to fail to load native bindings
   }
-})()
+})
 
 /**
  * Teardown swc's trace subscriber if there's an initialized flush guard exists.
@@ -1525,36 +1395,13 @@ export const teardownHeapProfiler = (() => {
  *
  * instead parent process manually drops guard when process gets signal to exit.
  */
-export const teardownTraceSubscriber = (() => {
-  let flushed = false
-  return (): void => {
-    if (!flushed) {
-      flushed = true
-      try {
-        let bindings = loadNative()
-        if (swcTraceFlushGuard) {
-          bindings.teardownTraceSubscriber(swcTraceFlushGuard)
-        }
-      } catch (e) {
-        // Suppress exceptions, this fn allows to fail to load native bindings
-      }
+export const teardownTraceSubscriber = once(() => {
+  try {
+    let bindings = loadNative()
+    if (swcTraceFlushGuard) {
+      bindings.teardownTraceSubscriber?.(swcTraceFlushGuard)
     }
+  } catch (e) {
+    // Suppress exceptions, this fn allows to fail to load native bindings
   }
-})()
-
-export const teardownCrashReporter = (() => {
-  let flushed = false
-  return (): void => {
-    if (!flushed) {
-      flushed = true
-      try {
-        let bindings = loadNative()
-        if (swcCrashReporterFlushGuard) {
-          bindings.teardownCrashReporter(swcCrashReporterFlushGuard)
-        }
-      } catch (e) {
-        // Suppress exceptions, this fn allows to fail to load native bindings
-      }
-    }
-  }
-})()
+})
