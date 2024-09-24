@@ -861,6 +861,7 @@ impl PageEndpoint {
                         ssr_entry_chunk_path,
                         ssr_module,
                         runtime_entries,
+                        OutputAssets::empty(),
                         Value::new(AvailabilityInfo::Root),
                     )
                     .await?;

@@ -478,6 +478,7 @@ impl ChunkingContext for BrowserChunkingContext {
         _path: Vc<FileSystemPath>,
         _module: Vc<Box<dyn Module>>,
         _evaluatable_assets: Vc<EvaluatableAssets>,
+        _extra_chunks: Vc<OutputAssets>,
         _availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         bail!("Browser chunking context does not support entry chunk groups")
