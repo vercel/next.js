@@ -22,8 +22,8 @@ impl AfterResolvePluginCondition {
     }
 
     #[turbo_tasks::function]
-    pub async fn matches(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
-        let this = self.await?;
+    pub async fn matches(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
+        let this = self;
         let root = this.root.await?;
         let glob = this.glob.await?;
 

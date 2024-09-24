@@ -95,7 +95,7 @@ impl VersionedContentMap {
     /// operation. When assets change, map_path_to_op is updated.
     #[turbo_tasks::function]
     async fn compute_entry(
-        self: Vc<Self>,
+        &self,
         assets_operation: Vc<OutputAssetsOperation>,
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
@@ -118,7 +118,7 @@ impl VersionedContentMap {
         }
         let entries = get_entries(assets).await.unwrap_or_default();
 
-        self.await?.map_path_to_op.update_conditionally(|map| {
+        self.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
 
             // get current map's keys, subtract keys that don't exist in operation

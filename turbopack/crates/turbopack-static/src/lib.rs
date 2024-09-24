@@ -61,10 +61,10 @@ impl StaticModuleAsset {
 
     #[turbo_tasks::function]
     async fn static_asset(
-        self: Vc<Self>,
+        &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<StaticAsset>> {
-        Ok(StaticAsset::new(chunking_context, self.await?.source))
+        Ok(StaticAsset::new(chunking_context, self.source))
     }
 }
 

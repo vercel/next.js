@@ -66,8 +66,8 @@ pub enum ExecutionEnvironment {
 #[turbo_tasks::value_impl]
 impl Environment {
     #[turbo_tasks::function]
-    pub async fn compile_target(self: Vc<Self>) -> Result<Vc<CompileTarget>> {
-        let this = self.await?;
+    pub async fn compile_target(&self) -> Result<Vc<CompileTarget>> {
+        let this = self;
         Ok(match this.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
@@ -78,8 +78,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn runtime_versions(self: Vc<Self>) -> Result<Vc<RuntimeVersions>> {
-        let this = self.await?;
+    pub async fn runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
+        let this = self;
         Ok(match this.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.runtime_versions(),
@@ -95,8 +95,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn node_externals(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
+    pub async fn node_externals(&self) -> Result<Vc<bool>> {
+        let this = self;
         Ok(match this.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
@@ -108,8 +108,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn supports_esm_externals(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
+    pub async fn supports_esm_externals(&self) -> Result<Vc<bool>> {
+        let this = self;
         Ok(match this.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
@@ -121,8 +121,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn supports_commonjs_externals(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
+    pub async fn supports_commonjs_externals(&self) -> Result<Vc<bool>> {
+        let this = self;
         Ok(match this.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
@@ -134,8 +134,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn supports_wasm(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
+    pub async fn supports_wasm(&self) -> Result<Vc<bool>> {
+        let this = self;
         Ok(match this.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
@@ -147,8 +147,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_extensions(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
-        let env = self.await?;
+    pub async fn resolve_extensions(&self) -> Result<Vc<Vec<RcStr>>> {
+        let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(vec![".js".into(), ".node".into(), ".json".into()])
@@ -161,8 +161,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_node_modules(self: Vc<Self>) -> Result<Vc<bool>> {
-        let env = self.await?;
+    pub async fn resolve_node_modules(&self) -> Result<Vc<bool>> {
+        let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
@@ -175,8 +175,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_conditions(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
-        let env = self.await?;
+    pub async fn resolve_conditions(&self) -> Result<Vc<Vec<RcStr>>> {
+        let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(vec!["node".into()])
@@ -190,8 +190,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn cwd(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
-        let env = self.await?;
+    pub async fn cwd(&self) -> Result<Vc<Option<RcStr>>> {
+        let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
             | ExecutionEnvironment::NodeJsLambda(env) => env.await?.cwd,
@@ -200,8 +200,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn rendering(self: Vc<Self>) -> Result<Vc<Rendering>> {
-        let env = self.await?;
+    pub async fn rendering(&self) -> Result<Vc<Rendering>> {
+        let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Rendering::Server.cell()
@@ -213,8 +213,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn chunk_loading(self: Vc<Self>) -> Result<Vc<ChunkLoading>> {
-        let env = self.await?;
+    pub async fn chunk_loading(&self) -> Result<Vc<ChunkLoading>> {
+        let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
                 ChunkLoading::NodeJs.cell()
@@ -251,8 +251,8 @@ impl Default for NodeJsEnvironment {
 #[turbo_tasks::value_impl]
 impl NodeJsEnvironment {
     #[turbo_tasks::function]
-    pub async fn runtime_versions(self: Vc<Self>) -> Result<Vc<RuntimeVersions>> {
-        let str = match *self.await?.node_version.await? {
+    pub async fn runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
+        let str = match *self.node_version.await? {
             NodeJsVersion::Current(process_env) => get_current_nodejs_version(process_env),
             NodeJsVersion::Static(version) => version,
         }

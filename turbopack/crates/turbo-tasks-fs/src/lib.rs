@@ -1170,8 +1170,8 @@ impl FileSystemPath {
     /// Similar to [FileSystemPath::join], but returns an Option that will be
     /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
-    pub async fn try_join(self: Vc<Self>, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
-        let this = self.await?;
+    pub async fn try_join(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
+        let this = self;
         if let Some(path) = join_path(&this.path, &path) {
             Ok(Vc::cell(Some(
                 Self::new_normalized(this.fs, path.into()).resolve().await?,
@@ -1184,8 +1184,8 @@ impl FileSystemPath {
     /// Similar to [FileSystemPath::join], but returns an Option that will be
     /// None when the joined path would leave the current path.
     #[turbo_tasks::function]
-    pub async fn try_join_inside(self: Vc<Self>, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
-        let this = self.await?;
+    pub async fn try_join_inside(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
+        let this = self;
         if let Some(path) = join_path(&this.path, &path) {
             if path.starts_with(&*this.path) {
                 return Ok(Vc::cell(Some(
@@ -1211,31 +1211,31 @@ impl FileSystemPath {
     }
 
     #[turbo_tasks::function]
-    pub async fn fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
-        Ok(self.await?.fs)
+    pub async fn fs(&self) -> Result<Vc<Box<dyn FileSystem>>> {
+        Ok(self.fs)
     }
 
     #[turbo_tasks::function]
-    pub async fn extension(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
+    pub async fn extension(&self) -> Result<Vc<RcStr>> {
+        let this = self;
         Ok(Vc::cell(this.extension_ref().unwrap_or("").into()))
     }
 
     #[turbo_tasks::function]
-    pub async fn is_inside(self: Vc<Self>, other: Vc<FileSystemPath>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.is_inside_ref(&*other.await?)))
+    pub async fn is_inside(&self, other: Vc<FileSystemPath>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.is_inside_ref(&*other.await?)))
     }
 
     #[turbo_tasks::function]
-    pub async fn is_inside_or_equal(self: Vc<Self>, other: Vc<FileSystemPath>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.is_inside_or_equal_ref(&*other.await?)))
+    pub async fn is_inside_or_equal(&self, other: Vc<FileSystemPath>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.is_inside_or_equal_ref(&*other.await?)))
     }
 
     /// Creates a new [`Vc<FileSystemPath>`] like `self` but with the given
     /// extension.
     #[turbo_tasks::function]
-    pub async fn with_extension(self: Vc<Self>, extension: RcStr) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
+    pub async fn with_extension(&self, extension: RcStr) -> Result<Vc<FileSystemPath>> {
+        let this = self;
         let (path_without_extension, _) = this.split_extension();
         Ok(Self::new_normalized(
             this.fs,
@@ -1257,8 +1257,8 @@ impl FileSystemPath {
     /// * The entire file name if the file name begins with `.` and has no other `.`s within;
     /// * Otherwise, the portion of the file name before the final `.`
     #[turbo_tasks::function]
-    pub async fn file_stem(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
-        let this = self.await?;
+    pub async fn file_stem(&self) -> Result<Vc<Option<RcStr>>> {
+        let this = self;
         let (_, file_stem, _) = this.split_file_stem_extension();
         if file_stem.is_empty() {
             return Ok(Vc::cell(None));
@@ -1483,8 +1483,8 @@ pub struct RealPathResult {
 #[turbo_tasks::value_impl]
 impl RealPathResult {
     #[turbo_tasks::function]
-    pub async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.path)
+    pub async fn path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.path)
     }
 }
 

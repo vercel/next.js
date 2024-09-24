@@ -35,8 +35,8 @@ impl NextFontGoogleOptions {
     }
 
     #[turbo_tasks::function]
-    pub async fn font_family(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell((*self.await?.font_family).into()))
+    pub async fn font_family(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell((*self.font_family).into()))
     }
 }
 

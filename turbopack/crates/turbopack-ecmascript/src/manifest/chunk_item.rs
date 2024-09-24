@@ -29,8 +29,8 @@ pub(super) struct ManifestChunkItem {
 #[turbo_tasks::value_impl]
 impl ManifestChunkItem {
     #[turbo_tasks::function]
-    async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
-        let this = self.await?;
+    async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
+        let this = self;
         Ok(ChunkData::from_assets(
             this.chunking_context.output_root(),
             this.manifest.chunks(),

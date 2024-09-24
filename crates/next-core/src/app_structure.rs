@@ -732,8 +732,8 @@ struct DuplicateParallelRouteIssue {
 #[turbo_tasks::value_impl]
 impl Issue for DuplicateParallelRouteIssue {
     #[turbo_tasks::function]
-    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
+    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        let this = self;
         Ok(this.app_dir.join(this.page.to_string().into()))
     }
 

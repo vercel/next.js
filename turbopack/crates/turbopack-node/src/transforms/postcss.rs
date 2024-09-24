@@ -424,8 +424,8 @@ impl GenerateSourceMap for PostCssTransformedAsset {
 #[turbo_tasks::value_impl]
 impl PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn process(self: Vc<Self>) -> Result<Vc<ProcessPostCssResult>> {
-        let this = self.await?;
+    async fn process(&self) -> Result<Vc<ProcessPostCssResult>> {
+        let this = self;
         let ExecutionContext {
             project_path,
             chunking_context,

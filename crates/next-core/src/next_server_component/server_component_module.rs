@@ -46,8 +46,8 @@ impl NextServerComponentModule {
     }
 
     #[turbo_tasks::function]
-    pub async fn server_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
+    pub async fn server_path(&self) -> Result<Vc<FileSystemPath>> {
+        let this = self;
         Ok(this.module.ident().path())
     }
 }
@@ -143,8 +143,8 @@ impl EcmascriptChunkItem for NextServerComponentChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
+    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let this = self;
         let inner = this.inner.await?;
 
         let module_id = inner

@@ -33,8 +33,8 @@ pub struct EcmascriptModulePartAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
-    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let this = self.await?;
+    async fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
+        let this = self;
 
         let parsed = this.full_module.failsafe_parse();
         let split_data = split(
@@ -59,27 +59,24 @@ impl EcmascriptParsable for EcmascriptModulePartAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
-    async fn analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        let this = self.await?;
+    async fn analyze(&self) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
+        let this = self;
         let part = this.part;
         Ok(analyse_ecmascript_module(this.full_module, Some(part)))
     }
 
     #[turbo_tasks::function]
-    async fn module_content_without_analysis(
-        self: Vc<Self>,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
-        Ok(self.await?.full_module.module_content_without_analysis())
+    async fn module_content_without_analysis(&self) -> Result<Vc<EcmascriptModuleContent>> {
+        Ok(self.full_module.module_content_without_analysis())
     }
 
     #[turbo_tasks::function]
     async fn module_content(
-        self: Vc<Self>,
+        &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
         Ok(self
-            .await?
             .full_module
             .module_content(chunking_context, async_module_info))
     }
@@ -275,8 +272,8 @@ impl ChunkableModule for EcmascriptModulePartAsset {
 #[turbo_tasks::value_impl]
 impl EcmascriptModulePartAsset {
     #[turbo_tasks::function]
-    pub(super) async fn analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        let this = self.await?;
+    pub(super) async fn analyze(&self) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
+        let this = self;
 
         Ok(analyze(this.full_module, this.part))
     }
