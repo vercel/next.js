@@ -1,6 +1,9 @@
 // imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
+
+import './components/globals/patch-console'
 import './components/globals/handle-global-errors'
+
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -12,29 +15,10 @@ import {
   type AppRouterActionQueue,
   createMutableActionQueue,
 } from '../shared/lib/router/action-queue'
-import { isNextRouterError } from './components/is-next-router-error'
-import { handleClientError } from './components/react-dev-overlay/internal/helpers/use-error-handler'
 import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
-
-const origConsoleError = window.console.error
-window.console.error = (...args) => {
-  // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
-  if (!isNextRouterError(error)) {
-    if (process.env.NODE_ENV !== 'production') {
-      const { storeHydrationErrorStateFromConsoleArgs } =
-        require('./components/react-dev-overlay/internal/helpers/hydration-error-info') as typeof import('./components/react-dev-overlay/internal/helpers/hydration-error-info')
-
-      storeHydrationErrorStateFromConsoleArgs(...args)
-      handleClientError(error)
-    }
-
-    origConsoleError.apply(window.console, args)
-  }
-}
 
 /// <reference types="react-dom/experimental" />
 
