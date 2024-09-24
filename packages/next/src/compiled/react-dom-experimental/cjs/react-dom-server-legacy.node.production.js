@@ -2689,16 +2689,16 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     );
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1647 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1646 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preconnects_1661 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1662 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1663 = new Set(),
-    JSCompiler_object_inline_styles_1664 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1665 = new Set(),
-    JSCompiler_object_inline_scripts_1666 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1667 = new Set(),
-    JSCompiler_object_inline_preloads_1668 = {
+  var JSCompiler_object_inline_preconnects_1660 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1661 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1662 = new Set(),
+    JSCompiler_object_inline_styles_1663 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1664 = new Set(),
+    JSCompiler_object_inline_scripts_1665 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1666 = new Set(),
+    JSCompiler_object_inline_preloads_1667 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -2735,7 +2735,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1665.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1664.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src));
       "string" === typeof integrity &&
         bootstrapChunks.push('" integrity="', escapeTextForBrowser(integrity));
@@ -2776,7 +2776,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1665.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1664.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i)
@@ -2791,7 +2791,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push('" async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1647,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1646,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script>",
     htmlChunks: null,
@@ -2811,14 +2811,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1661,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1662,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1663,
-    styles: JSCompiler_object_inline_styles_1664,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1665,
-    scripts: JSCompiler_object_inline_scripts_1666,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1667,
-    preloads: JSCompiler_object_inline_preloads_1668,
+    preconnects: JSCompiler_object_inline_preconnects_1660,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1661,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1662,
+    styles: JSCompiler_object_inline_styles_1663,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1664,
+    scripts: JSCompiler_object_inline_scripts_1665,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1666,
+    preloads: JSCompiler_object_inline_preloads_1667,
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
   };
@@ -5129,65 +5129,66 @@ function abortTask(task, request, error) {
     if (6 === segment.status) return;
     segment.status = 3;
   }
+  var errorInfo = getThrownInfo(task.componentStack);
   if (null === boundary) {
-    if (((boundary = {}), 2 !== request.status && 3 !== request.status)) {
-      var replay = task.replay;
-      if (null === replay) {
+    if (2 !== request.status && 3 !== request.status) {
+      boundary = task.replay;
+      if (null === boundary) {
         "object" === typeof error &&
         null !== error &&
         error.$$typeof === REACT_POSTPONE_TYPE
-          ? ((replay = request.trackedPostpones),
-            null !== replay && null !== segment
-              ? (logPostpone(request, error.message, boundary),
-                trackPostpone(request, replay, task, segment),
+          ? ((boundary = request.trackedPostpones),
+            null !== boundary && null !== segment
+              ? (logPostpone(request, error.message, errorInfo),
+                trackPostpone(request, boundary, task, segment),
                 finishedTask(request, null, segment))
               : ((task = Error(
                   "The render was aborted with postpone when the shell is incomplete. Reason: " +
                     error.message
                 )),
-                logRecoverableError(request, task, boundary),
+                logRecoverableError(request, task, errorInfo),
                 fatalError(request, task)))
           : null !== request.trackedPostpones && null !== segment
-            ? ((replay = request.trackedPostpones),
-              logRecoverableError(request, error, boundary),
-              trackPostpone(request, replay, task, segment),
+            ? ((boundary = request.trackedPostpones),
+              logRecoverableError(request, error, errorInfo),
+              trackPostpone(request, boundary, task, segment),
               finishedTask(request, null, segment))
-            : (logRecoverableError(request, error, boundary),
+            : (logRecoverableError(request, error, errorInfo),
               fatalError(request, error));
         return;
       }
-      replay.pendingTasks--;
-      0 === replay.pendingTasks &&
-        0 < replay.nodes.length &&
+      boundary.pendingTasks--;
+      0 === boundary.pendingTasks &&
+        0 < boundary.nodes.length &&
         ("object" === typeof error &&
         null !== error &&
         error.$$typeof === REACT_POSTPONE_TYPE
-          ? (logPostpone(request, error.message, boundary), (task = "POSTPONE"))
-          : (task = logRecoverableError(request, error, boundary)),
+          ? (logPostpone(request, error.message, errorInfo),
+            (errorInfo = "POSTPONE"))
+          : (errorInfo = logRecoverableError(request, error, errorInfo)),
         abortRemainingReplayNodes(
           request,
           null,
-          replay.nodes,
-          replay.slots,
+          boundary.nodes,
+          boundary.slots,
           error,
-          task
+          errorInfo
         ));
       request.pendingRootTasks--;
       0 === request.pendingRootTasks && completeShell(request);
     }
   } else {
     boundary.pendingTasks--;
-    replay = getThrownInfo(task.componentStack);
-    var trackedPostpones$59 = request.trackedPostpones;
+    var trackedPostpones$58 = request.trackedPostpones;
     if (4 !== boundary.status) {
-      if (null !== trackedPostpones$59 && null !== segment)
+      if (null !== trackedPostpones$58 && null !== segment)
         return (
           "object" === typeof error &&
           null !== error &&
           error.$$typeof === REACT_POSTPONE_TYPE
-            ? logPostpone(request, error.message, replay)
-            : logRecoverableError(request, error, replay),
-          trackPostpone(request, trackedPostpones$59, task, segment),
+            ? logPostpone(request, error.message, errorInfo)
+            : logRecoverableError(request, error, errorInfo),
+          trackPostpone(request, trackedPostpones$58, task, segment),
           boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
             return abortTask(fallbackTask, request, error);
           }),
@@ -5200,7 +5201,7 @@ function abortTask(task, request, error) {
         null !== error &&
         error.$$typeof === REACT_POSTPONE_TYPE
       ) {
-        logPostpone(request, error.message, replay);
+        logPostpone(request, error.message, errorInfo);
         if (null !== request.trackedPostpones && null !== segment) {
           trackPostpone(request, request.trackedPostpones, task, segment);
           finishedTask(request, task.blockedBoundary, segment);
@@ -5210,10 +5211,10 @@ function abortTask(task, request, error) {
           boundary.fallbackAbortableTasks.clear();
           return;
         }
-        task = "POSTPONE";
-      } else task = logRecoverableError(request, error, replay);
+        errorInfo = "POSTPONE";
+      } else errorInfo = logRecoverableError(request, error, errorInfo);
       boundary.status = 4;
-      boundary.errorDigest = task;
+      boundary.errorDigest = errorInfo;
       untrackBoundary(request, boundary);
       boundary.parentFlushed && request.clientRenderedBoundaries.push(boundary);
     }
@@ -5490,13 +5491,13 @@ function performWork(request$jscomp$1) {
                       null !== request.trackedPostpones &&
                       x$jscomp$0.$$typeof === REACT_POSTPONE_TYPE
                     ) {
-                      var trackedPostpones$63 = request.trackedPostpones;
+                      var trackedPostpones$62 = request.trackedPostpones;
                       task.abortSet.delete(task);
                       var postponeInfo = getThrownInfo(task.componentStack);
                       logPostpone(request, x$jscomp$0.message, postponeInfo);
                       trackPostpone(
                         request,
-                        trackedPostpones$63,
+                        trackedPostpones$62,
                         task,
                         segment$jscomp$0
                       );
@@ -5950,11 +5951,11 @@ function flushCompletedQueues(request, destination) {
       completedBoundaries.splice(0, i);
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
-        var boundary$66 = partialBoundaries[i];
+        var boundary$65 = partialBoundaries[i];
         a: {
           clientRenderedBoundaries = request;
           boundary = destination;
-          var completedSegments = boundary$66.completedSegments;
+          var completedSegments = boundary$65.completedSegments;
           for (
             JSCompiler_inline_result = 0;
             JSCompiler_inline_result < completedSegments.length;
@@ -5964,7 +5965,7 @@ function flushCompletedQueues(request, destination) {
               !flushPartiallyCompletedSegment(
                 clientRenderedBoundaries,
                 boundary,
-                boundary$66,
+                boundary$65,
                 completedSegments[JSCompiler_inline_result]
               )
             ) {
@@ -5976,7 +5977,7 @@ function flushCompletedQueues(request, destination) {
           completedSegments.splice(0, JSCompiler_inline_result);
           JSCompiler_inline_result$jscomp$0 = writeHoistablesForBoundary(
             boundary,
-            boundary$66.contentState,
+            boundary$65.contentState,
             clientRenderedBoundaries.renderState
           );
         }
@@ -6061,8 +6062,8 @@ function abort(request, reason) {
     }
     null !== request.destination &&
       flushCompletedQueues(request, request.destination);
-  } catch (error$68) {
-    logRecoverableError(request, error$68, {}), fatalError(request, error$68);
+  } catch (error$67) {
+    logRecoverableError(request, error$67, {}), fatalError(request, error$67);
   }
 }
 function addToReplayParent(node, parentKeyPath, trackedPostpones) {
@@ -6146,4 +6147,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.0.0-experimental-e740d4b1-20240919";
+exports.version = "19.0.0-experimental-5d19e1c8-20240923";

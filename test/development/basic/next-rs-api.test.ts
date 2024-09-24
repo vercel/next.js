@@ -1,17 +1,16 @@
 import { NextInstance, createNext } from 'e2e-utils'
 import { trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import {
-  createDefineEnv,
+import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
+import type {
   Diagnostics,
   Entrypoints,
   Issue,
-  loadBindings,
   Project,
   StyledString,
   TurbopackResult,
   UpdateInfo,
-} from 'next/dist/build/swc'
+} from 'next/dist/build/swc/types'
 import loadConfig from 'next/dist/server/config'
 import path from 'path'
 

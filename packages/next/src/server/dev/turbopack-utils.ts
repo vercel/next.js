@@ -5,14 +5,14 @@ import type {
   SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
 import type {
-  Endpoint,
-  Entrypoints as RawEntrypoints,
   Issue,
   StyledString,
   TurbopackResult,
+  Endpoint,
+  Entrypoints as RawEntrypoints,
   Update as TurbopackUpdate,
   WrittenEndpoint,
-} from '../../build/swc'
+} from '../../build/swc/types'
 import {
   decodeMagicIdentifier,
   MAGIC_IDENTIFIER_REGEX,
