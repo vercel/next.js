@@ -10,7 +10,7 @@ use std::{
     mem::take,
     pin::Pin,
     sync::{
-        atomic::{AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
     },
     time::{Duration, Instant},
@@ -28,12 +28,13 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
 use smallvec::smallvec;
 pub use storage::TaskDataCategory;
+use tokio::time::timeout;
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TypedCellContent,
     },
-    event::EventListener,
+    event::{Event, EventListener},
     registry,
     util::IdFactoryWithReuse,
     CellId, FunctionId, RawVc, ReadConsistency, TaskId, TraitTypeId, TurboTasksBackendApi,
@@ -120,6 +121,9 @@ pub struct TurboTasksBackend {
     /// The timestamp of the last started snapshot.
     last_snapshot: AtomicU64,
 
+    stopping: AtomicBool,
+    stopping_event: Event,
+
     backing_storage: Arc<dyn BackingStorage + Sync + Send>,
 }
 
@@ -146,6 +150,8 @@ impl TurboTasksBackend {
             operations_suspended: Condvar::new(),
             snapshot_completed: Condvar::new(),
             last_snapshot: AtomicU64::new(0),
+            stopping: AtomicBool::new(false),
+            stopping_event: Event::new(|| "TurboTasksBackend::stopping_event".to_string()),
             backing_storage,
         }
     }
@@ -566,6 +572,11 @@ impl Backend for TurboTasksBackend {
 
         // Schedule the snapshot job
         turbo_tasks.schedule_backend_background_job(BackendJobId::from(1));
+    }
+
+    fn stopping(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.stopping.store(true, Ordering::Release);
+        self.stopping_event.notify(usize::MAX);
     }
 
     fn get_or_create_persistent_task(
@@ -1071,15 +1082,25 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
-            if *id == 1 {
+            if *id == 1 || *id == 2 {
                 let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
                 let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
                 loop {
-                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(1);
+                    const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(30);
+                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(15);
+
+                    let time = if *id == 1 {
+                        FIRST_SNAPSHOT_WAIT
+                    } else {
+                        SNAPSHOT_INTERVAL
+                    };
 
                     let elapsed = last_snapshot.elapsed();
-                    if elapsed < SNAPSHOT_INTERVAL {
-                        tokio::time::sleep(SNAPSHOT_INTERVAL - elapsed).await;
+                    if elapsed < time {
+                        let listener = self.stopping_event.listen();
+                        if !self.stopping.load(Ordering::Acquire) {
+                            let _ = timeout(time - elapsed, listener).await;
+                        }
                     }
 
                     if let Some((snapshot_start, new_data)) = self.snapshot() {
@@ -1091,7 +1112,7 @@ impl Backend for TurboTasksBackend {
                         self.last_snapshot
                             .store(last_snapshot.as_millis() as u64, Ordering::Relaxed);
 
-                        turbo_tasks.schedule_backend_background_job(id);
+                        turbo_tasks.schedule_backend_background_job(BackendJobId::from(2));
                         return;
                     }
                 }
