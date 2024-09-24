@@ -201,47 +201,71 @@ impl BackingStorage for LmdbBackingStorage {
         }
 
         for (db, updates) in [(self.meta_db, meta_updates), (self.data_db, data_updates)] {
-            let mut updated_items: HashMap<
+            let mut task_updates: HashMap<
                 TaskId,
-                HashMap<CachedDataItemKey, CachedDataItemValue>,
+                HashMap<
+                    CachedDataItemKey,
+                    (Option<CachedDataItemValue>, Option<CachedDataItemValue>),
+                >,
             > = HashMap::new();
             {
                 let _span =
-                    tracing::trace_span!("sort and restore task data", updates = updates.len())
-                        .entered();
-                for CachedDataUpdate { task, key, value } in updates.into_iter() {
-                    let data = match updated_items.entry(task) {
-                        Entry::Occupied(entry) => entry.into_mut(),
-                        Entry::Vacant(entry) => {
-                            let mut map = HashMap::new();
-                            if let Ok(old_data) = tx.get(db, &IntKey::new(*task)) {
-                                let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data)
-                                {
-                                    Ok(d) => d,
-                                    Err(_) => serde_path_to_error::deserialize(
-                                        &mut pot::de::SymbolList::new()
-                                            .deserializer_for_slice(old_data)?,
-                                    )
-                                    .with_context(|| {
-                                        anyhow!(
-                                            "Unable to deserialize old value of {task}: \
-                                             {old_data:?}"
-                                        )
-                                    })?,
-                                };
-                                for item in old_data {
-                                    let (key, value) = item.into_key_and_value();
-                                    map.insert(key, value);
-                                }
-                            }
-                            entry.insert(map)
+                    tracing::trace_span!("organize task data", updates = updates.len()).entered();
+                for CachedDataUpdate {
+                    task,
+                    key,
+                    value,
+                    old_value,
+                } in updates.into_iter()
+                {
+                    let data = task_updates.entry(task).or_default();
+                    match data.entry(key) {
+                        Entry::Occupied(mut entry) => {
+                            entry.get_mut().1 = value;
                         }
-                    };
-                    if let Some(value) = value {
-                        data.insert(key, value);
-                    } else {
-                        data.remove(&key);
+                        Entry::Vacant(entry) => {
+                            entry.insert((old_value, value));
+                        }
                     }
+                }
+                task_updates.retain(|_, data| {
+                    data.retain(|_, (old_value, value)| *old_value != *value);
+                    !data.is_empty()
+                });
+            }
+            let mut updated_items: HashMap<
+                TaskId,
+                HashMap<CachedDataItemKey, CachedDataItemValue>,
+            >;
+            {
+                let _span =
+                    tracing::trace_span!("restore task data", tasks = task_updates.len()).entered();
+                updated_items = HashMap::with_capacity(task_updates.len());
+                for (task, updates) in task_updates.into_iter() {
+                    let mut map = HashMap::new();
+                    if let Ok(old_data) = tx.get(db, &IntKey::new(*task)) {
+                        let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data) {
+                            Ok(d) => d,
+                            Err(_) => serde_path_to_error::deserialize(
+                                &mut pot::de::SymbolList::new().deserializer_for_slice(old_data)?,
+                            )
+                            .with_context(|| {
+                                anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
+                            })?,
+                        };
+                        for item in old_data {
+                            let (key, value) = item.into_key_and_value();
+                            map.insert(key, value);
+                        }
+                    }
+                    for (key, (_, value)) in updates {
+                        if let Some(value) = value {
+                            map.insert(key, value);
+                        } else {
+                            map.remove(&key);
+                        }
+                    }
+                    updated_items.insert(task, map);
                 }
             }
             {
