@@ -14,10 +14,11 @@ use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
     Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::instrument;
-use turbo_tasks::{spawn_thread, Invalidator, RcStr};
+use turbo_tasks::{spawn_thread, Invalidator, RcStr, SerializationInvalidator};
 
 use crate::{
     format_absolute_fs_path,
@@ -128,6 +129,7 @@ impl DiskWatcher {
         invalidation_lock: Arc<RwLock<()>>,
         invalidator_map: Arc<InvalidatorMap>,
         dir_invalidator_map: Arc<InvalidatorMap>,
+        serialization_invalidator: SerializationInvalidator,
     ) -> Result<()> {
         let mut watcher_guard = self.watcher.lock().unwrap();
         if watcher_guard.is_some() {
@@ -154,25 +156,27 @@ impl DiskWatcher {
         // We need to invalidate all reads that happened before watching
         // Best is to start_watching before starting to read
         {
-            let _span = tracing::info_span!("invalidate filesystem").entered();
-            for (path, invalidators) in take(&mut *invalidator_map.lock().unwrap())
-                .into_iter()
-                .chain(take(&mut *dir_invalidator_map.lock().unwrap()).into_iter())
-            {
-                if report_invalidation_reason.is_some() {
-                    let path: RcStr = path.into();
-                    for invalidator in invalidators {
-                        invalidator.invalidate_with_reason(WatchStart {
-                            name: name.clone(),
-                            path: path.clone(),
-                        })
-                    }
-                } else {
-                    for invalidator in invalidators {
-                        invalidator.invalidate();
-                    }
-                }
-            }
+            let span = tracing::info_span!("invalidate filesystem").entered();
+            let invalidator_map = take(&mut *invalidator_map.lock().unwrap());
+            let dir_invalidator_map = take(&mut *dir_invalidator_map.lock().unwrap());
+            let iter = invalidator_map
+                .into_par_iter()
+                .chain(dir_invalidator_map.into_par_iter())
+                .flat_map(|(path, invalidators)| {
+                    let _span = span.clone().entered();
+                    let reason = WatchStart {
+                        name: name.clone(),
+                        path: path.into(),
+                    };
+                    invalidators
+                        .into_par_iter()
+                        .map(move |i| (reason.clone(), i))
+                });
+            iter.for_each(|(reason, invalidator)| {
+                let _span = span.clone().entered();
+                invalidator.invalidate_with_reason(reason)
+            });
+            serialization_invalidator.invalidate();
         }
 
         watcher_guard.replace(watcher);

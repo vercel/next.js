@@ -47,6 +47,7 @@ use invalidation::InvalidateFilesystem;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use read_glob::read_glob;
 pub use read_glob::ReadGlobResult;
 use serde::{Deserialize, Serialize};
@@ -271,31 +272,38 @@ impl DiskFileSystem {
     }
 
     pub fn invalidate(&self) {
-        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
-        for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
-            invalidators.into_iter().for_each(|i| i.invalidate());
-        }
-        for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
-            invalidators.into_iter().for_each(|i| i.invalidate());
-        }
+        let span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
+        let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
+        let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
+        let iter = invalidator_map
+            .into_par_iter()
+            .chain(dir_invalidator_map.into_par_iter())
+            .flat_map(|(_, invalidators)| invalidators.into_par_iter());
+        iter.for_each(|i| {
+            let _span = span.clone().entered();
+            i.invalidate()
+        });
         self.serialization_invalidator.invalidate();
     }
 
     pub fn invalidate_with_reason(&self) {
-        let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
-        for (path, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
-            let reason = InvalidateFilesystem { path: path.into() };
-            invalidators
-                .into_iter()
-                .for_each(|i| i.invalidate_with_reason(reason.clone()));
-        }
-        for (path, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter()
-        {
-            let reason = InvalidateFilesystem { path: path.into() };
-            invalidators
-                .into_iter()
-                .for_each(|i| i.invalidate_with_reason(reason.clone()));
-        }
+        let span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
+        let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
+        let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
+        let iter = invalidator_map
+            .into_par_iter()
+            .chain(dir_invalidator_map.into_par_iter())
+            .flat_map(|(path, invalidators)| {
+                let _span = span.clone().entered();
+                let reason = InvalidateFilesystem { path: path.into() };
+                invalidators
+                    .into_par_iter()
+                    .map(move |i| (reason.clone(), i))
+            });
+        iter.for_each(|(reason, invalidator)| {
+            let _span = span.clone().entered();
+            invalidator.invalidate_with_reason(reason)
+        });
         self.serialization_invalidator.invalidate();
     }
 
@@ -324,6 +332,7 @@ impl DiskFileSystem {
             invalidation_lock,
             invalidator_map,
             dir_invalidator_map,
+            self.serialization_invalidator.clone(),
         )?;
         self.serialization_invalidator.invalidate();
 
