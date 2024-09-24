@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import cheerio from 'cheerio'
 import { version as nextVersion } from 'next/package.json'
 import type { Route } from 'playwright'
 import { retry } from 'next-test-utils'
@@ -419,6 +420,33 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 
         const res = await next.fetch('/flying-shuttle')
         expect(res.headers.get('x-flying-shuttle')).toBe('2')
+      } finally {
+        await next.patchFile(dataPath, originalDataContent)
+      }
+    })
+
+    it('should not invalidate on legacy next env but inline properly', async () => {
+      await next.stop()
+
+      const dataPath = 'next.config.js'
+      const originalDataContent = await next.readFile(dataPath)
+
+      try {
+        await next.patchFile(
+          dataPath,
+          originalDataContent.replace(
+            `LEGACY_ENV_KEY: '1'`,
+            `LEGACY_ENV_KEY: '2'`
+          )
+        )
+        await nextStart()
+
+        const res = await next.fetch('/legacy-env')
+        const html = await res.text()
+        const $ = cheerio.load(html)
+
+        expect(res.status).toBe(200)
+        expect($('#legacy-env').text()).toBe('2')
       } finally {
         await next.patchFile(dataPath, originalDataContent)
       }

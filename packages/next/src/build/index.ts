@@ -2670,7 +2670,7 @@ export default async function build(
           await nextBuildSpan
             .traceChild('inline-static-env')
             .traceAsyncFn(async () => {
-              await inlineStaticEnv({ distDir })
+              await inlineStaticEnv({ config, distDir })
             })
         }
       }
