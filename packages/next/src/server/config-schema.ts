@@ -602,7 +602,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         )
       )
       .optional(),
-    // saas option is unknown besides implementation, use z.any() here
+    // sassOptions properties are unknown besides implementation, use z.any() here
     sassOptions: z
       .object({
         implementation: z.string().optional(),
