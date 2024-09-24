@@ -71,8 +71,8 @@ export function installPackage(
     execa.sync(pkgManager, ['add', packageToInstall], { stdio: 'inherit' })
   } catch (error) {
     throw new Error(
-      `Failed to install "${packageToInstall}". Please install it manually.`
-      // { cause: error }
+      `Failed to install "${packageToInstall}". Please install it manually.`,
+      { cause: error }
     )
   }
 }
