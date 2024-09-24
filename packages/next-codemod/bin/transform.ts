@@ -1,25 +1,9 @@
-#!/usr/bin/env node
-/**
- * Copyright 2015-present, Facebook, Inc.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- */
-// Based on https://github.com/reactjs/react-codemod/blob/dd8671c9a470a2c342b221ec903c574cf31e9f57/bin/cli.js
-// @next/codemod optional-name-of-transform optional/path/to/src [...options]
-
-import globby from 'globby'
 import execa from 'execa'
+import globby from 'globby'
 import prompts from 'prompts'
 import { join } from 'node:path'
-import { Command } from 'commander'
-import { runUpgrade } from './upgrade'
 import { installPackage, uninstallPackage } from '../lib/handle-package'
 import { checkGitStatus, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
-
-export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
-export const transformerDirectory = join(__dirname, '../', 'transforms')
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {
   const shouldExpandFiles = filesBeforeExpansion.some((file) =>
@@ -30,35 +14,14 @@ function expandFilePathsIfNeeded(filesBeforeExpansion) {
     : filesBeforeExpansion
 }
 
-const packageJson = require('../package.json')
-const program = new Command(packageJson.name)
-  .description('Codemods for updating Next.js apps.')
-  .version(
-    packageJson.version,
-    '-v, --version',
-    'Output the current version of @next/codemod.'
-  )
-  .argument(
-    '[transform]',
-    'One of the choices from https://github.com/vercel/next.js/tree/canary/packages/next-codemod'
-  )
-  .argument(
-    '[path]',
-    'Files or directory to transform. Can be a glob like pages/**.js'
-  )
-  .usage('[transform] [path] [options]')
-  .helpOption('-h, --help', 'Display this help message.')
-  .option('--force', 'Bypass Git safety checks and forcibly run codemods')
-  .option('--dry', 'Dry run (no changes are made to files)')
-  .option('--print', 'Print transformed files to your terminal')
-  .option('--jscodeshift', '(Advanced) Pass options directly to jscodeshift')
-  .action(run)
-  .allowUnknownOption()
-  .parse(process.argv)
+export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
+export const transformerDirectory = join(__dirname, '../', 'transforms')
 
-program.command('upgrade').action(runUpgrade)
-
-async function run(transform: string, path: string, options: any) {
+export async function runTransform(
+  transform: string,
+  path: string,
+  options: any
+) {
   let transformer = transform
   let directory = path
 
