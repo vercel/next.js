@@ -836,195 +836,199 @@ impl AppEndpoint {
 
         let client_chunking_context = this.app_project.project().client_chunking_context();
 
-        let (app_server_reference_modules, client_dynamic_imports) = if process_client {
-            let client_shared_chunk_group = get_app_client_shared_chunk_group(
-                AssetIdent::from_path(this.app_project.project().project_path())
-                    .with_modifier(client_shared_chunks()),
-                this.app_project.client_runtime_entries(),
-                client_chunking_context,
-            )
-            .await?;
+        let (app_server_reference_modules, client_dynamic_imports, client_references) =
+            if process_client {
+                let client_shared_chunk_group = get_app_client_shared_chunk_group(
+                    AssetIdent::from_path(this.app_project.project().project_path())
+                        .with_modifier(client_shared_chunks()),
+                    this.app_project.client_runtime_entries(),
+                    client_chunking_context,
+                )
+                .await?;
 
-            let mut client_shared_chunks_paths = vec![];
-            for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
-                client_assets.push(chunk);
+                let mut client_shared_chunks_paths = vec![];
+                for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
+                    client_assets.push(chunk);
 
-                let chunk_path = chunk.ident().path().await?;
-                if chunk_path.extension_ref() == Some("js") {
-                    if let Some(chunk_path) = client_relative_path_ref.get_path_to(&chunk_path) {
-                        client_shared_chunks_paths.push(chunk_path.into());
+                    let chunk_path = chunk.ident().path().await?;
+                    if chunk_path.extension_ref() == Some("js") {
+                        if let Some(chunk_path) = client_relative_path_ref.get_path_to(&chunk_path)
+                        {
+                            client_shared_chunks_paths.push(chunk_path.into());
+                        }
                     }
                 }
-            }
-            let client_shared_availability_info = client_shared_chunk_group.availability_info;
+                let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
-            let client_references = client_reference_graph(Vc::cell(vec![rsc_entry_asset]));
-            let client_reference_types = client_references.types();
+                let client_references = client_reference_graph(Vc::cell(vec![rsc_entry_asset]));
+                let client_reference_types = client_references.types();
 
-            let ssr_chunking_context = if process_ssr {
-                Some(match runtime {
-                    NextRuntime::NodeJs => {
-                        Vc::upcast(this.app_project.project().server_chunking_context(true))
-                    }
-                    NextRuntime::Edge => this
-                        .app_project
-                        .project()
-                        .edge_chunking_context(process_client),
-                })
-            } else {
-                None
-            };
-
-            let client_dynamic_imports = collect_next_dynamic_imports(
-                client_references
-                    .await?
-                    .client_references
-                    .iter()
-                    .filter_map(|r| match r.ty() {
-                        ClientReferenceType::EcmascriptClientReference(entry) => Some(entry),
-                        ClientReferenceType::CssClientReference(_) => None,
+                let ssr_chunking_context = if process_ssr {
+                    Some(match runtime {
+                        NextRuntime::NodeJs => {
+                            Vc::upcast(this.app_project.project().server_chunking_context(true))
+                        }
+                        NextRuntime::Edge => this
+                            .app_project
+                            .project()
+                            .edge_chunking_context(process_client),
                     })
-                    .map(|entry| async move { Ok(Vc::upcast(entry.await?.ssr_module)) })
-                    .try_join()
-                    .await?,
-                Vc::upcast(this.app_project.client_module_context()),
-            )
-            .await?;
+                } else {
+                    None
+                };
 
-            let client_references_chunks = get_app_client_references_chunks(
-                client_references,
-                client_chunking_context,
-                Value::new(client_shared_availability_info),
-                ssr_chunking_context,
-            );
-            let client_references_chunks_ref = client_references_chunks.await?;
-
-            let mut entry_client_chunks = IndexSet::new();
-            // TODO(alexkirsz) In which manifest does this go?
-            let mut entry_ssr_chunks = IndexSet::new();
-            for chunks in client_references_chunks_ref
-                .layout_segment_client_chunks
-                .values()
-            {
-                entry_client_chunks.extend(chunks.await?.iter().copied());
-            }
-            for (chunks, _) in client_references_chunks_ref
-                .client_component_client_chunks
-                .values()
-            {
-                client_assets.extend(chunks.await?.iter().copied());
-            }
-            for (chunks, _) in client_references_chunks_ref
-                .client_component_ssr_chunks
-                .values()
-            {
-                entry_ssr_chunks.extend(chunks.await?.iter().copied());
-            }
-
-            client_assets.extend(entry_client_chunks.iter().copied());
-            server_assets.extend(entry_ssr_chunks.iter().copied());
-
-            let entry_client_chunks_paths = entry_client_chunks
-                .iter()
-                .map(|chunk| chunk.ident().path())
-                .try_join()
+                let client_dynamic_imports = collect_next_dynamic_imports(
+                    client_references
+                        .await?
+                        .client_references
+                        .iter()
+                        .filter_map(|r| match r.ty() {
+                            ClientReferenceType::EcmascriptClientReference(entry) => Some(entry),
+                            ClientReferenceType::CssClientReference(_) => None,
+                        })
+                        .map(|entry| async move { Ok(Vc::upcast(entry.await?.ssr_module)) })
+                        .try_join()
+                        .await?,
+                    Vc::upcast(this.app_project.client_module_context()),
+                )
                 .await?;
-            let mut entry_client_chunks_paths = entry_client_chunks_paths
-                .iter()
-                .map(|path| {
-                    Ok(client_relative_path_ref
-                        .get_path_to(path)
-                        .context("asset path should be inside client root")?
-                        .into())
-                })
-                .collect::<anyhow::Result<Vec<_>>>()?;
-            entry_client_chunks_paths.extend(client_shared_chunks_paths.iter().cloned());
 
-            let app_build_manifest = AppBuildManifest {
-                pages: [(app_entry.original_name.clone(), entry_client_chunks_paths)]
-                    .into_iter()
-                    .collect(),
-            };
-            let manifest_path_prefix = &app_entry.original_name;
-            let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
-                node_root.join(
-                    format!("server/app{manifest_path_prefix}/app-build-manifest.json",).into(),
-                ),
-                AssetContent::file(
-                    File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
-                ),
-            ));
-            server_assets.push(app_build_manifest_output);
+                let client_references_chunks = get_app_client_references_chunks(
+                    client_references,
+                    client_chunking_context,
+                    Value::new(client_shared_availability_info),
+                    ssr_chunking_context,
+                );
+                let client_references_chunks_ref = client_references_chunks.await?;
 
-            // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
-            // load it as a RawModule.
-            let next_package = get_next_package(this.app_project.project().project_path());
-            let polyfill_source = FileSource::new(
-                next_package.join("dist/build/polyfills/polyfill-nomodule.js".into()),
-            );
-            let polyfill_output_path =
-                client_chunking_context.chunk_path(polyfill_source.ident(), ".js".into());
-            let polyfill_output_asset =
-                RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source));
-            let polyfill_client_path = client_relative_path_ref
-                .get_path_to(&*polyfill_output_path.await?)
-                .context("failed to resolve client-relative path to polyfill")?
-                .into();
-            let polyfill_client_paths = vec![polyfill_client_path];
-            client_assets.push(Vc::upcast(polyfill_output_asset));
-
-            let build_manifest = BuildManifest {
-                root_main_files: client_shared_chunks_paths,
-                polyfill_files: polyfill_client_paths,
-                ..Default::default()
-            };
-            let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
-                node_root
-                    .join(format!("server/app{manifest_path_prefix}/build-manifest.json",).into()),
-                AssetContent::file(
-                    File::from(serde_json::to_string_pretty(&build_manifest)?).into(),
-                ),
-            ));
-            server_assets.push(build_manifest_output);
-
-            let entry_manifest = ClientReferenceManifest::build_output(
-                node_root,
-                client_relative_path,
-                app_entry.original_name.clone(),
-                client_references,
-                client_references_chunks,
-                client_chunking_context,
-                ssr_chunking_context,
-                this.app_project.project().next_config(),
-                runtime,
-            );
-            server_assets.push(entry_manifest);
-
-            if runtime == NextRuntime::Edge {
-                middleware_assets.push(entry_manifest);
-
-                // as the edge runtime doesn't support chunk loading we need to add all client
-                // references to the middleware manifest so they get loaded during runtime
-                // initialization
-                let client_references_chunks = &*client_references_chunks.await?;
-
-                for (ssr_chunks, _) in client_references_chunks
+                let mut entry_client_chunks = IndexSet::new();
+                // TODO(alexkirsz) In which manifest does this go?
+                let mut entry_ssr_chunks = IndexSet::new();
+                for chunks in client_references_chunks_ref
+                    .layout_segment_client_chunks
+                    .values()
+                {
+                    entry_client_chunks.extend(chunks.await?.iter().copied());
+                }
+                for (chunks, _) in client_references_chunks_ref
+                    .client_component_client_chunks
+                    .values()
+                {
+                    client_assets.extend(chunks.await?.iter().copied());
+                }
+                for (chunks, _) in client_references_chunks_ref
                     .client_component_ssr_chunks
                     .values()
                 {
-                    let ssr_chunks = ssr_chunks.await?;
-
-                    middleware_assets.extend(ssr_chunks);
+                    entry_ssr_chunks.extend(chunks.await?.iter().copied());
                 }
-            }
 
-            (
-                Some(get_app_server_reference_modules(client_reference_types)),
-                Some(client_dynamic_imports),
-            )
-        } else {
-            (None, None)
-        };
+                client_assets.extend(entry_client_chunks.iter().copied());
+                server_assets.extend(entry_ssr_chunks.iter().copied());
+
+                let entry_client_chunks_paths = entry_client_chunks
+                    .iter()
+                    .map(|chunk| chunk.ident().path())
+                    .try_join()
+                    .await?;
+                let mut entry_client_chunks_paths = entry_client_chunks_paths
+                    .iter()
+                    .map(|path| {
+                        Ok(client_relative_path_ref
+                            .get_path_to(path)
+                            .context("asset path should be inside client root")?
+                            .into())
+                    })
+                    .collect::<anyhow::Result<Vec<_>>>()?;
+                entry_client_chunks_paths.extend(client_shared_chunks_paths.iter().cloned());
+
+                let app_build_manifest = AppBuildManifest {
+                    pages: [(app_entry.original_name.clone(), entry_client_chunks_paths)]
+                        .into_iter()
+                        .collect(),
+                };
+                let manifest_path_prefix = &app_entry.original_name;
+                let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
+                    node_root.join(
+                        format!("server/app{manifest_path_prefix}/app-build-manifest.json",).into(),
+                    ),
+                    AssetContent::file(
+                        File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
+                    ),
+                ));
+                server_assets.push(app_build_manifest_output);
+
+                // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
+                // load it as a RawModule.
+                let next_package = get_next_package(this.app_project.project().project_path());
+                let polyfill_source = FileSource::new(
+                    next_package.join("dist/build/polyfills/polyfill-nomodule.js".into()),
+                );
+                let polyfill_output_path =
+                    client_chunking_context.chunk_path(polyfill_source.ident(), ".js".into());
+                let polyfill_output_asset =
+                    RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source));
+                let polyfill_client_path = client_relative_path_ref
+                    .get_path_to(&*polyfill_output_path.await?)
+                    .context("failed to resolve client-relative path to polyfill")?
+                    .into();
+                let polyfill_client_paths = vec![polyfill_client_path];
+                client_assets.push(Vc::upcast(polyfill_output_asset));
+
+                let build_manifest = BuildManifest {
+                    root_main_files: client_shared_chunks_paths,
+                    polyfill_files: polyfill_client_paths,
+                    ..Default::default()
+                };
+                let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
+                    node_root.join(
+                        format!("server/app{manifest_path_prefix}/build-manifest.json",).into(),
+                    ),
+                    AssetContent::file(
+                        File::from(serde_json::to_string_pretty(&build_manifest)?).into(),
+                    ),
+                ));
+                server_assets.push(build_manifest_output);
+
+                let entry_manifest = ClientReferenceManifest::build_output(
+                    node_root,
+                    client_relative_path,
+                    app_entry.original_name.clone(),
+                    client_references,
+                    client_references_chunks,
+                    client_chunking_context,
+                    ssr_chunking_context,
+                    this.app_project.project().next_config(),
+                    runtime,
+                );
+                server_assets.push(entry_manifest);
+
+                if runtime == NextRuntime::Edge {
+                    middleware_assets.push(entry_manifest);
+
+                    // as the edge runtime doesn't support chunk loading we need to add all client
+                    // references to the middleware manifest so they get loaded during runtime
+                    // initialization
+                    let client_references_chunks = &*client_references_chunks.await?;
+
+                    for (ssr_chunks, _) in client_references_chunks
+                        .client_component_ssr_chunks
+                        .values()
+                    {
+                        let ssr_chunks = ssr_chunks.await?;
+
+                        middleware_assets.extend(ssr_chunks);
+                    }
+                }
+
+                (
+                    Some(get_app_server_reference_modules(client_reference_types)),
+                    Some(client_dynamic_imports),
+                    Some(client_references.await?),
+                )
+            } else {
+                (None, None, None)
+            };
 
         fn create_app_paths_manifest(
             node_root: Vc<FileSystemPath>,
@@ -1096,11 +1100,14 @@ impl AppEndpoint {
                     evaluatable_assets.push(loader);
                 }
 
-                let files = chunking_context.evaluated_chunk_group_assets(
-                    app_entry.rsc_entry.ident(),
-                    Vc::cell(evaluatable_assets.clone()),
-                    Value::new(AvailabilityInfo::Root),
-                );
+                let files = {
+                    let _span = tracing::info_span!("Server Components");
+                    chunking_context.evaluated_chunk_group_assets(
+                        app_entry.rsc_entry.ident(),
+                        Vc::cell(evaluatable_assets.clone()),
+                        Value::new(AvailabilityInfo::Root),
+                    )
+                };
                 let files_value = files.await?;
 
                 server_assets.extend(files_value.iter().copied());
@@ -1245,22 +1252,52 @@ impl AppEndpoint {
 
                 let EntryChunkGroupResult {
                     asset: rsc_chunk, ..
-                } = *{
-                    let _span = tracing::trace_span!("server node entrypoint").entered();
-                    chunking_context.entry_chunk_group(
-                        server_path.join(
-                            format!(
-                                "app{original_name}.js",
-                                original_name = app_entry.original_name
-                            )
-                            .into(),
-                        ),
-                        app_entry.rsc_entry,
-                        Vc::cell(evaluatable_assets),
-                        Value::new(AvailabilityInfo::Root),
-                    )
+                } = *(async {
+                    let mut current_chunks = OutputAssets::empty();
+                    let mut current_availability_info = AvailabilityInfo::Root;
+                    if let Some(client_references) = client_references {
+                        for server_component in
+                            client_references.server_component_entries.iter().copied()
+                        {
+                            let server_path = server_component.server_path();
+                            let is_layout =
+                                server_path.file_stem().await?.as_deref() == Some("layout");
+
+                            let chunk_group = chunking_context
+                                .chunk_group(
+                                    server_component.ident(),
+                                    Vc::upcast(server_component),
+                                    Value::new(current_availability_info),
+                                )
+                                .await?;
+
+                            if is_layout {
+                                current_chunks = current_chunks
+                                    .concatenate(chunk_group.assets)
+                                    .resolve()
+                                    .await?;
+                                current_availability_info = chunk_group.availability_info;
+                            }
+                        }
+                    }
+                    chunking_context
+                        .entry_chunk_group(
+                            server_path.join(
+                                format!(
+                                    "app{original_name}.js",
+                                    original_name = app_entry.original_name
+                                )
+                                .into(),
+                            ),
+                            app_entry.rsc_entry,
+                            Vc::cell(evaluatable_assets),
+                            current_chunks,
+                            Value::new(current_availability_info),
+                        )
+                        .await
                 }
-                .await?;
+                .instrument(tracing::trace_span!("server node entrypoint"))
+                .await?);
                 server_assets.push(rsc_chunk);
 
                 let app_paths_manifest_output = create_app_paths_manifest(
