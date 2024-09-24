@@ -834,7 +834,6 @@ impl ReactServerComponentValidator {
     }
 
     /// ```
-    /// 
     /// import dynamic from 'next/dynamic'
     ///
     /// dynamic(() => import(...)) // ✅
@@ -887,7 +886,9 @@ impl Visit for ReactServerComponentValidator {
     fn visit_call_expr(&mut self, node: &CallExpr) {
         node.visit_children_with(self);
 
-        self.check_for_next_ssr_false(node);
+        if self.is_react_server_layer {
+            self.check_for_next_ssr_false(node);
+        }
     }
 
     fn visit_module(&mut self, module: &Module) {
