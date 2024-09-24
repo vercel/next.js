@@ -21,6 +21,23 @@ impl ExampleStruct {
     fn constructor_vec(items: Vec<turbo_tasks::ResolvedVc<u32>>) -> Vc<Self> {
         ExampleStruct { items }.cell()
     }
+
+    #[turbo_tasks::function]
+    fn method_with_resolved_vc_self(self: ResolvedVc<Self>) {
+        // inner methods using `self` are unaffected
+        struct InnerImpl;
+        impl InnerImpl {
+            fn inner_method(&self) {
+                let _: &InnerImpl = self;
+            }
+        }
+
+        let _: ResolvedVc<Self> = self;
+    }
+}
+
+impl ExampleStruct {
+    fn non_turbo_method_with_resolved_vc_self(self: ResolvedVc<Self>) {}
 }
 
 #[turbo_tasks::value(resolved, transparent)]
