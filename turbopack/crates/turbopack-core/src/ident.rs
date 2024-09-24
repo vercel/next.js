@@ -287,8 +287,11 @@ impl AssetIdent {
                 ModulePart::Exports => {
                     7_u8.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Facade => {
+                ModulePart::StarReexports => {
                     8_u8.deterministic_hash(&mut hasher);
+                }
+                ModulePart::Facade => {
+                    9_u8.deterministic_hash(&mut hasher);
                 }
             }
 

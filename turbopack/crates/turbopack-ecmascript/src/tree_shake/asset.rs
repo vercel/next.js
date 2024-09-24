@@ -4,7 +4,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, OptionModule},
     reference::{ModuleReference, ModuleReferences, SingleModuleReference},
     resolve::ModulePart,
 };
@@ -92,24 +92,34 @@ impl EcmascriptModulePartAsset {
         .cell()
     }
 
+    /// Returns `None` only if the part is a proxied export. (Which is allowed to not exist)
     #[turbo_tasks::function]
     pub async fn select_part(
         module: Vc<EcmascriptModuleAsset>,
         part: Vc<ModulePart>,
-    ) -> Result<Vc<Box<dyn Module>>> {
+    ) -> Result<Vc<OptionModule>> {
         let split_result = split_module(module).await?;
 
-        Ok(if matches!(&*split_result, SplitResult::Failed { .. }) {
-            Vc::upcast(module)
-        } else {
-            Vc::upcast(EcmascriptModulePartAsset::new(module, part))
-        })
+        Ok(Vc::cell(
+            if matches!(&*split_result, SplitResult::Failed { .. }) {
+                Some(Vc::upcast(module))
+            } else if matches!(&*part.await?, ModulePart::Export(..)) {
+                let part_id = get_part_id(&split_result, part).await?;
+                if part_id.is_some() {
+                    Some(Vc::upcast(EcmascriptModulePartAsset::new(module, part)))
+                } else {
+                    None
+                }
+            } else {
+                Some(Vc::upcast(EcmascriptModulePartAsset::new(module, part)))
+            },
+        ))
     }
 
     #[turbo_tasks::function]
     pub async fn is_async_module(self: Vc<Self>) -> Result<Vc<bool>> {
         let this = self.await?;
-        let result = this.full_module.analyze();
+        let result = analyse_ecmascript_module(this.full_module, Some(this.part));
 
         if let Some(async_module) = *result.await?.async_module.await? {
             Ok(async_module.is_self_async(self.references()))
@@ -160,9 +170,12 @@ impl Module for EcmascriptModulePartAsset {
         }
 
         let deps = {
-            let part_id = get_part_id(&split_data, self.part)
+            let Some(part_id) = get_part_id(&split_data, self.part)
                 .await
-                .with_context(|| format!("part {:?} is not found in the module", self.part))?;
+                .with_context(|| format!("part {:?} is not found in the module", self.part))?
+            else {
+                return Ok(analyze.references);
+            };
 
             match deps.get(&part_id) {
                 Some(v) => &**v,

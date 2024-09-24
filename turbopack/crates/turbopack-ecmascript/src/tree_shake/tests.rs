@@ -218,8 +218,10 @@ fn run(input: PathBuf) {
                         ItemIdGroupKind::Export(_, name) => Key::Export(name.as_str().into()),
                     };
 
-                    let index = entrypoints[&key];
-                    entry.body.extend(modules[index as usize].body.clone());
+                    let index = entrypoints.get(&key);
+                    if let Some(&index) = index {
+                        entry.body.extend(modules[index as usize].body.clone());
+                    }
                 }
 
                 let module = merger.merge_recursively(entry).unwrap();

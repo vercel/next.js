@@ -104,7 +104,23 @@ impl Module for EcmascriptModuleFacadeModule {
                     self.module,
                     ModulePart::locals(),
                 )));
+                references.push(Vc::upcast(EcmascriptModulePartReference::new_part(
+                    self.module,
+                    ModulePart::star_reexports(),
+                )));
                 references
+            }
+            ModulePart::StarReexports { .. } => {
+                let Some(module) =
+                    Vc::try_resolve_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module).await?
+                else {
+                    bail!(
+                        "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
+                         ModulePart::Evaluation"
+                    );
+                };
+                let result = module.analyze().await?;
+                result.reexport_references.await?.clone_value()
             }
             ModulePart::Facade => {
                 vec![
@@ -194,6 +210,16 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 }
                 star_exports.extend(esm_exports.star_exports.iter().copied());
             }
+            ModulePart::StarReexports => {
+                let EcmascriptExports::EsmExports(esm_exports) = *self.module.get_exports().await?
+                else {
+                    bail!(
+                        "EcmascriptModuleFacadeModule must only be used on modules with EsmExports"
+                    );
+                };
+                let esm_exports = esm_exports.await?;
+                star_exports.extend(esm_exports.star_exports.iter().copied());
+            }
             ModulePart::Facade => {
                 // Reexport everything from the reexports module
                 // (including default export if any)
@@ -268,6 +294,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 .module
                 .is_marked_as_side_effect_free(side_effect_free_packages),
             ModulePart::Exports
+            | ModulePart::StarReexports
             | ModulePart::RenamedExport { .. }
             | ModulePart::RenamedNamespace { .. } => Vc::cell(true),
             _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),

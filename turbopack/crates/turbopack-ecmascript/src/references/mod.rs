@@ -605,6 +605,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                     ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
                     ImportedSymbol::Exports => Some(ModulePart::exports()),
+                    ImportedSymbol::StarReexports => Some(ModulePart::star_reexports()),
+                    ImportedSymbol::ReexportAll => Some(ModulePart::exports()),
                 },
                 Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
@@ -615,7 +617,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     ImportedSymbol::PartEvaluation(_) | ImportedSymbol::Part(_) => {
                         bail!("Internal imports doesn't exist in reexports only mode")
                     }
-                    ImportedSymbol::Exports => None,
+                    ImportedSymbol::Exports
+                    | ImportedSymbol::ReexportAll
+                    | ImportedSymbol::StarReexports => None,
                 },
                 None => {
                     evaluation_references.push(i);

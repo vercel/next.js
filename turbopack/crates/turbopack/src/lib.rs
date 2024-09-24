@@ -190,10 +190,15 @@ async fn apply_module_type(
                 let options = options.await?;
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
-                        Vc::upcast(EcmascriptModulePartAsset::select_part(
+                        let part_module = EcmascriptModulePartAsset::select_part(
                             module,
                             part.unwrap_or(ModulePart::facade()),
-                        ))
+                        );
+                        if let Some(part_module) = *part_module.await? {
+                            Vc::upcast(part_module)
+                        } else {
+                            return Ok(ProcessResult::Ignore.cell());
+                        }
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
                         if let Some(part) = part {
@@ -208,7 +213,7 @@ async fn apply_module_type(
                                         Vc::upcast(module)
                                     }
                                 }
-                                ModulePart::Export(_) => {
+                                ModulePart::Export(..) => {
                                     let side_effect_free_packages =
                                         module_asset_context.side_effect_free_packages();
 
@@ -292,7 +297,7 @@ async fn apply_reexport_tree_shaking(
     part: Vc<ModulePart>,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    if let ModulePart::Export(export) = *part.await? {
+    if let ModulePart::Export(export, ..) = *part.await? {
         let export = export.await?;
         let FollowExportsResult {
             module: final_module,

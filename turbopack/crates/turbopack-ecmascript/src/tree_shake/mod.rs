@@ -7,13 +7,13 @@ use swc_core::{
     common::{comments::Comments, util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
     ecma::{
         ast::{
-            ExportAll, ExportNamedSpecifier, Expr, ExprStmt, Id, Ident, ImportDecl, Lit, Module,
-            ModuleDecl, ModuleExportName, ModuleItem, NamedExport, Program, Stmt,
+            ExportNamedSpecifier, Expr, ExprStmt, Id, Ident, ImportDecl, Lit, Module, ModuleDecl,
+            ModuleExportName, ModuleItem, NamedExport, Program, Stmt,
         },
         codegen::to_code,
     },
 };
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, RcStr, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
@@ -324,23 +324,29 @@ pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
     Exports,
+    /// Star-reexports, excluding known exports
+    StarReexports,
 }
 
 /// Converts [Vc<ModulePart>] to the index.
-async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> {
-    let part = part.await?;
+async fn get_part_id(result: &SplitResult, part_vc: Vc<ModulePart>) -> Result<Option<u32>> {
+    let part = part_vc.await?;
 
     // TODO implement ModulePart::Facade
     let key = match &*part {
         ModulePart::Evaluation => Key::ModuleEvaluation,
         ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
         ModulePart::Exports => Key::Exports,
-        ModulePart::Internal(part_id) => return Ok(*part_id),
+        ModulePart::StarReexports => Key::StarReexports,
+        ModulePart::Internal(part_id) => return Ok(Some(*part_id)),
         ModulePart::Locals
         | ModulePart::Facade
         | ModulePart::RenamedExport { .. }
         | ModulePart::RenamedNamespace { .. } => {
-            bail!("invalid module part")
+            bail!(
+                "invalid module part: {:?}",
+                part_vc.value_debug_format(10).try_to_string().await?
+            )
         }
     };
 
@@ -353,15 +359,16 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
         bail!("split failed")
     };
 
-    if let Some(id) = entrypoints.get(&key) {
-        return Ok(*id);
+    if let Some(&id) = entrypoints.get(&key) {
+        return Ok(Some(id));
     }
 
     // This is required to handle `export * from 'foo'`
     if let ModulePart::Export(..) = &*part {
-        if let Some(&v) = entrypoints.get(&Key::Exports) {
-            return Ok(v);
+        if let Some(&v) = entrypoints.get(&Key::StarReexports) {
+            return Ok(Some(v));
         }
+        return Ok(None);
     }
 
     let mut dump = String::new();
@@ -399,9 +406,6 @@ pub(crate) enum SplitResult {
 
         #[turbo_tasks(trace_ignore)]
         deps: FxHashMap<u32, Vec<PartId>>,
-
-        #[turbo_tasks(debug_ignore, trace_ignore)]
-        star_reexports: Vec<ExportAll>,
     },
     Failed {
         parse_result: Vc<ParseResult>,
@@ -507,7 +511,6 @@ pub(super) async fn split(
                 entrypoints,
                 part_deps,
                 modules,
-                star_reexports,
             } = dep_graph.split_module(&directives, &items);
 
             assert_ne!(modules.len(), 0, "modules.len() == 0;\nModule: {module:?}",);
@@ -547,7 +550,6 @@ pub(super) async fn split(
                 entrypoints,
                 deps: part_deps,
                 modules,
-                star_reexports,
             }
             .cell())
         }
@@ -572,7 +574,6 @@ pub(crate) async fn part_of_module(
             modules,
             entrypoints,
             deps,
-            star_reexports,
             ..
         } => {
             debug_assert_ne!(modules.len(), 0, "modules.len() == 0");
@@ -643,10 +644,6 @@ pub(crate) async fn part_of_module(
                             },
                         )));
 
-                    module.body.extend(star_reexports.iter().map(|export_all| {
-                        ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export_all.clone()))
-                    }));
-
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(
                         &program,
@@ -670,6 +667,10 @@ pub(crate) async fn part_of_module(
             }
 
             let part_id = get_part_id(&split_data, part).await?;
+
+            let Some(part_id) = part_id else {
+                bail!("part_id is None");
+            };
 
             if part_id as usize >= modules.len() {
                 bail!(
