@@ -53,6 +53,20 @@ impl RootState {
     }
 }
 
+impl Clone for RootState {
+    fn clone(&self) -> Self {
+        panic!("RootState cannot be cloned");
+    }
+}
+
+impl PartialEq for RootState {
+    fn eq(&self, _other: &Self) -> bool {
+        panic!("RootState cannot be compared");
+    }
+}
+
+impl Eq for RootState {}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ActiveType {
     RootTask,
@@ -61,12 +75,6 @@ pub enum ActiveType {
     /// propagating the dirty container or is read strongly consistent. This state is reset when
     /// all this sub graph becomes clean again.
     CachedActiveUntilClean,
-}
-
-impl Clone for RootState {
-    fn clone(&self) -> Self {
-        panic!("RootState cannot be cloned");
-    }
 }
 
 #[derive(Debug)]
@@ -88,6 +96,14 @@ impl Clone for InProgressState {
     }
 }
 
+impl PartialEq for InProgressState {
+    fn eq(&self, _other: &Self) -> bool {
+        panic!("InProgressState cannot be compared");
+    }
+}
+
+impl Eq for InProgressState {}
+
 #[derive(Debug)]
 pub struct InProgressCellState {
     pub event: Event,
@@ -99,6 +115,14 @@ impl Clone for InProgressCellState {
     }
 }
 
+impl PartialEq for InProgressCellState {
+    fn eq(&self, _other: &Self) -> bool {
+        panic!("InProgressCell cannot be compared");
+    }
+}
+
+impl Eq for InProgressCellState {}
+
 impl InProgressCellState {
     pub fn new(task_id: TaskId, cell: CellId) -> Self {
         InProgressCellState {
@@ -109,7 +133,7 @@ impl InProgressCellState {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AggregationNumber {
     pub base: u32,
     pub distance: u32,
@@ -459,4 +483,5 @@ pub struct CachedDataUpdate {
     pub task: TaskId,
     pub key: CachedDataItemKey,
     pub value: Option<CachedDataItemValue>,
+    pub old_value: Option<CachedDataItemValue>,
 }

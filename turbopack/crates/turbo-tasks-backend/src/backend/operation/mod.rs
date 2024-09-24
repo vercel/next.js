@@ -227,6 +227,7 @@ impl<'a> TaskGuard<'a> {
                     key,
                     task: self.task_id,
                     value: Some(value),
+                    old_value: None,
                 });
             true
         } else {
@@ -257,6 +258,9 @@ impl<'a> TaskGuard<'a> {
                     key,
                     task: self.task_id,
                     value: Some(value),
+                    old_value: old
+                        .as_ref()
+                        .and_then(|old| old.is_persistent().then(|| old.clone())),
                 });
             old
         } else {
@@ -271,6 +275,7 @@ impl<'a> TaskGuard<'a> {
                             key,
                             task: self.task_id,
                             value: None,
+                            old_value: Some(old.clone()),
                         });
                 }
                 Some(old)
@@ -296,13 +301,16 @@ impl<'a> TaskGuard<'a> {
         } = self;
         let mut add_persisting_item = false;
         task.update(key, |old| {
-            let old_persistent = old.as_ref().map(|old| old.is_persistent()).unwrap_or(false);
+            let old_value_when_persistent = old
+                .as_ref()
+                .map(|old| old.is_persistent().then(|| old.clone()))
+                .flatten();
             let new = update(old);
             let new_persistent = new.as_ref().map(|new| new.is_persistent()).unwrap_or(false);
 
-            match (old_persistent, new_persistent) {
-                (false, false) => {}
-                (true, false) => {
+            match (old_value_when_persistent, new_persistent) {
+                (None, false) => {}
+                (Some(old_value), false) => {
                     add_persisting_item = true;
                     backend
                         .persisted_storage_log(key.category())
@@ -311,9 +319,10 @@ impl<'a> TaskGuard<'a> {
                             key: key.clone(),
                             task: *task_id,
                             value: None,
+                            old_value: Some(old_value),
                         });
                 }
-                (_, true) => {
+                (old_value, true) => {
                     add_persisting_item = true;
                     backend
                         .persisted_storage_log(key.category())
@@ -322,6 +331,7 @@ impl<'a> TaskGuard<'a> {
                             key: key.clone(),
                             task: *task_id,
                             value: new.clone(),
+                            old_value,
                         });
                 }
             }
@@ -346,6 +356,7 @@ impl<'a> TaskGuard<'a> {
                         key,
                         task: self.task_id,
                         value: None,
+                        old_value: value.is_persistent().then(|| value.clone()),
                     });
             }
             Some(value)
@@ -390,6 +401,7 @@ impl<'a> TaskGuard<'a> {
                         value: Some(CachedDataItemValue::CellData {
                             value: value.clone(),
                         }),
+                        old_value: None,
                     })
                 }
                 _ => None,
