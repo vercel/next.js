@@ -5,6 +5,7 @@ const {
   booleanArg,
   execAsyncWithOutput,
   execFn,
+  exec,
   namedValueArg,
 } = require('./pack-util.cjs')
 const fs = require('fs')
@@ -85,4 +86,11 @@ function writeTypes() {
     vendoredTypes + generatedTypesMarker + generatedNotice + generatedTypes
 
   fs.writeFileSync(vendoredTypesPath, vendoredTypes)
+
+  exec('Prettify generated types', [
+    'pnpm',
+    'prettier',
+    '--write',
+    vendoredTypesPath,
+  ])
 }
