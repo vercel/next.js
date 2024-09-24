@@ -1497,8 +1497,8 @@ importers:
   packages/next-codemod:
     dependencies:
       chalk:
-        specifier: 5.3.0
-        version: 5.3.0
+        specifier: 4.1.2
+        version: 4.1.2
       cheerio:
         specifier: 1.0.0-rc.9
         version: 1.0.0-rc.9
