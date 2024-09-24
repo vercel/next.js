@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use turbo_tasks::Vc;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::Module,
     reference::{ModuleReferences, SingleModuleReference},
@@ -10,12 +10,15 @@ use turbopack_core::{
 };
 
 use super::{
-    chunk_item::EcmascriptModulePartChunkItem, get_part_id, split_module, Key, SplitResult,
+    chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split, split_module,
+    Key, PartId, SplitResult,
 };
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    parse::ParseResult,
     references::analyse_ecmascript_module,
-    AnalyzeEcmascriptModuleResult, EcmascriptModuleAsset,
+    AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
+    EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptParsable,
 };
 
 /// A reference to part of an ES module.
@@ -24,8 +27,62 @@ use crate::{
 #[turbo_tasks::value]
 pub struct EcmascriptModulePartAsset {
     pub full_module: Vc<EcmascriptModuleAsset>,
-    pub(crate) part: Vc<ModulePart>,
-    pub(crate) import_externals: bool,
+    pub part: Vc<ModulePart>,
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptParsable for EcmascriptModulePartAsset {
+    #[turbo_tasks::function]
+    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        let this = self.await?;
+
+        let parsed = this.full_module.failsafe_parse();
+        let split_data = split(
+            this.full_module.ident(),
+            this.full_module.source(),
+            parsed,
+            this.full_module.options().await?.special_exports,
+        );
+        Ok(part_of_module(split_data, this.part))
+    }
+    #[turbo_tasks::function]
+    fn parse_original(&self) -> Result<Vc<ParseResult>> {
+        Ok(self.full_module.parse_original())
+    }
+
+    #[turbo_tasks::function]
+    async fn ty(&self) -> Result<Vc<EcmascriptModuleAssetType>> {
+        Ok(self.full_module.ty())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
+    #[turbo_tasks::function]
+    async fn analyze(self: Vc<Self>) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
+        let this = self.await?;
+        let part = this.part;
+        Ok(analyse_ecmascript_module(this.full_module, Some(part)))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content_without_analysis(
+        self: Vc<Self>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        Ok(self.await?.full_module.module_content_without_analysis())
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        Ok(self
+            .await?
+            .full_module
+            .module_content(chunking_context, async_module_info))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -34,17 +91,26 @@ impl EcmascriptModulePartAsset {
     /// of a pointer to the full module and the [ModulePart] pointing the part
     /// of the module.
     #[turbo_tasks::function]
-    pub fn new(
-        module: Vc<EcmascriptModuleAsset>,
-        part: Vc<ModulePart>,
-        import_externals: bool,
-    ) -> Vc<Self> {
+    pub fn new(module: Vc<EcmascriptModuleAsset>, part: Vc<ModulePart>) -> Vc<Self> {
         EcmascriptModulePartAsset {
             full_module: module,
             part,
-            import_externals,
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn select_part(
+        module: Vc<EcmascriptModuleAsset>,
+        part: Vc<ModulePart>,
+    ) -> Result<Vc<Box<dyn Module>>> {
+        let split_result = split_module(module).await?;
+
+        Ok(if matches!(&*split_result, SplitResult::Failed { .. }) {
+            Vc::upcast(module)
+        } else {
+            Vc::upcast(EcmascriptModulePartAsset::new(module, part))
+        })
     }
 
     #[turbo_tasks::function]
@@ -94,7 +160,6 @@ impl Module for EcmascriptModulePartAsset {
                 Vc::upcast(EcmascriptModulePartAsset::new(
                     self.full_module,
                     ModulePart::evaluation(),
-                    self.import_externals,
                 )),
                 Vc::cell("ecmascript module evaluation".into()),
             ));
@@ -105,7 +170,6 @@ impl Module for EcmascriptModulePartAsset {
                 Vc::upcast(EcmascriptModulePartAsset::new(
                     self.full_module,
                     ModulePart::exports(),
-                    self.import_externals,
                 )),
                 Vc::cell("ecmascript reexports".into()),
             ));
@@ -127,7 +191,6 @@ impl Module for EcmascriptModulePartAsset {
                         Vc::upcast(EcmascriptModulePartAsset::new(
                             self.full_module,
                             ModulePart::export(e.clone()),
-                            self.import_externals,
                         )),
                         Vc::cell(format!("ecmascript export '{e}'").into()),
                     ));
@@ -153,12 +216,17 @@ impl Module for EcmascriptModulePartAsset {
 
         let mut assets = deps
             .iter()
-            .map(|&part_id| {
+            .map(|part_id| {
                 Ok(Vc::upcast(SingleModuleReference::new(
                     Vc::upcast(EcmascriptModulePartAsset::new(
                         self.full_module,
-                        ModulePart::internal(part_id),
-                        self.import_externals,
+                        match part_id {
+                            PartId::Internal(part_id) => ModulePart::internal(*part_id),
+                            PartId::Export(name) => ModulePart::export(name.clone()),
+                            _ => unreachable!(
+                                "PartId other than Internal and Export should not be used here"
+                            ),
+                        },
                     )),
                     Vc::cell("ecmascript module part".into()),
                 )))
@@ -215,7 +283,7 @@ impl EcmascriptModulePartAsset {
 }
 
 #[turbo_tasks::function]
-async fn analyze(
+fn analyze(
     module: Vc<EcmascriptModuleAsset>,
     part: Vc<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {

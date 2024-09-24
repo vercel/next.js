@@ -14,10 +14,10 @@ use turbopack::{
 };
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_core::{
-    chunk::ChunkingContext,
+    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext},
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
-        FreeVarReferences,
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
+        FreeVarReference, FreeVarReferences,
     },
     condition::ContextCondition,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
@@ -69,7 +69,11 @@ fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
 
     for (k, v) in define_env {
         defines
-            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
+            .entry(
+                k.split('.')
+                    .map(|s| DefineableNameSegment::Name(s.into()))
+                    .collect::<Vec<_>>(),
+            )
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
@@ -284,9 +288,9 @@ pub async fn get_client_module_options_context(
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
-        special_exports: Some(next_js_special_exports()),
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        special_exports: Some(next_js_special_exports()),
         ..Default::default()
     };
 
@@ -355,6 +359,7 @@ pub async fn get_client_chunking_context(
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
     mode: Vc<NextMode>,
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -368,7 +373,8 @@ pub async fn get_client_chunking_context(
     )
     .chunk_base_path(asset_prefix)
     .minify_type(next_mode.minify_type())
-    .asset_base_path(asset_prefix);
+    .asset_base_path(asset_prefix)
+    .module_id_strategy(module_id_strategy);
 
     if next_mode.is_development() {
         builder = builder.hot_module_replacement();

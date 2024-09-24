@@ -24,8 +24,8 @@ interface Options {
   basePath: string
 }
 
-// [NOTE] For turbopack
-// refer loader_tree's write_static|dynamic_metadata for corresponding features
+// [NOTE] For turbopack, refer to app_page_loader_tree's write_metadata_item for
+// corresponding features.
 async function nextMetadataImageLoader(
   this: webpack.LoaderContext<Options>,
   content: Buffer

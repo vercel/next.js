@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { execSync } from 'child_process'
 import { recursiveCopy } from '../../lib/recursive-copy'
 import { version as nextVersion } from 'next/package.json'
 import type { NextConfigComplete } from '../../server/config-shared'
@@ -15,24 +16,28 @@ import {
 export interface ShuttleManifest {
   nextVersion: string
   config: Record<string, any>
+  gitSha?: string
 }
 
 export function generateShuttleManifest(config: NextConfigComplete) {
+  let gitSha = ''
+
+  try {
+    gitSha = execSync('git rev-parse HEAD').toString().trim()
+  } catch (_) {}
+
   return JSON.stringify({
+    gitSha,
     nextVersion,
     config: {
-      env: config.env,
       i18n: config.i18n,
       basePath: config.basePath,
       sassOptions: config.sassOptions,
       trailingSlash: config.trailingSlash,
-      productionBrowserSourceMaps: config.productionBrowserSourceMaps,
 
       experimental: {
         ppr: config.experimental.ppr,
         reactCompiler: config.experimental.reactCompiler,
-        serverSourceMaps: config.experimental.serverSourceMaps,
-        serverMinification: config.experimental.serverMinification,
       },
     },
   } satisfies ShuttleManifest)

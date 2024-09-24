@@ -2,8 +2,8 @@ import type { CacheNode } from '../../../shared/lib/app-router-context.shared-ru
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  FetchServerResponseResult,
 } from '../../../server/app-render/types'
+import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -207,6 +207,7 @@ export type PrefetchCacheEntry = {
   lastUsedTime: number | null
   key: string
   status: PrefetchCacheEntryStatus
+  url: URL
 }
 
 export enum PrefetchCacheEntryStatus {
@@ -271,15 +272,3 @@ export type ReducerActions = Readonly<
   | HmrRefreshAction
   | ServerActionAction
 >
-
-export function isThenable(value: any): value is Promise<AppRouterState> {
-  // TODO: We don't gain anything from this abstraction. It's unsound, and only
-  // makes sense in the specific places where we use it. So it's better to keep
-  // the type coercion inline, instead of leaking this to other places in
-  // the codebase.
-  return (
-    value &&
-    (typeof value === 'object' || typeof value === 'function') &&
-    typeof value.then === 'function'
-  )
-}

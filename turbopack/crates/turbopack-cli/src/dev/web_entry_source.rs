@@ -2,11 +2,10 @@ use anyhow::{anyhow, Result};
 use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::ecmascript::EcmascriptModuleAsset;
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_cli_utils::runtime_entry::{RuntimeEntries, RuntimeEntry};
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext},
+    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
     environment::Environment,
     file_source::FileSource,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -121,13 +120,14 @@ pub async fn create_web_entry_source(
         .into_iter()
         .flatten()
         .map(|module| async move {
-            if let Some(ecmascript) =
-                Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
-            {
+            if let (Some(chnkable), Some(entry)) = (
+                Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?,
+                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module).await?,
+            ) {
                 Ok((
-                    Vc::upcast(ecmascript),
+                    chnkable,
                     chunking_context,
-                    Some(runtime_entries.with_entry(Vc::upcast(ecmascript))),
+                    Some(runtime_entries.with_entry(entry)),
                 ))
             } else if let Some(chunkable) =
                 Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?

@@ -14,6 +14,7 @@ pub mod chunk;
 pub mod chunk_group_files_asset;
 pub mod code_gen;
 mod errors;
+pub mod global_module_id_strategy;
 pub mod magic_identifier;
 pub mod manifest;
 pub mod minify;
@@ -30,6 +31,7 @@ pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
+pub mod worker_chunk;
 
 use std::fmt::{Display, Formatter};
 
@@ -47,7 +49,7 @@ use swc_core::{
     common::GLOBALS,
     ecma::{
         codegen::{text_writer::JsWriter, Emitter},
-        visit::{VisitMutWith, VisitMutWithPath},
+        visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
 pub use transform::{
@@ -71,7 +73,7 @@ use turbopack_core::{
     reference_type::InnerAssets,
     resolve::{
         find_context_file, origin::ResolveOrigin, package_json, parse::Request,
-        FindContextFileResult, ModulePart,
+        FindContextFileResult,
     },
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -82,7 +84,6 @@ pub use turbopack_resolve::ecmascript as resolve;
 use self::{
     chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports},
     code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables, VisitorFactory},
-    tree_shake::asset::EcmascriptModulePartAsset,
 };
 use crate::{
     chunk::EcmascriptChunkPlaceable,
@@ -142,10 +143,13 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
-
     /// The list of export names that should make tree shaking bail off. This is
     /// required because tree shaking can split imports like `export const
     /// runtime = 'edge'` as a separate module.
+    ///
+    /// Currently the analysis of these exports are statically verified by `NextPageStaticInfo`,
+    /// which is a `CustomTransformer` implementation and we don't have a way to apply it after
+    /// tree shaking.
     pub special_exports: Vc<Vec<RcStr>>,
 }
 
@@ -233,12 +237,6 @@ impl EcmascriptModuleAssetBuilder {
             )
         }
     }
-
-    pub async fn build_part(self, part: Vc<ModulePart>) -> Result<Vc<EcmascriptModulePartAsset>> {
-        let import_externals = self.options.await?.import_externals;
-        let base = self.build();
-        Ok(EcmascriptModulePartAsset::new(base, part, import_externals))
-    }
 }
 
 #[turbo_tasks::value]
@@ -251,8 +249,32 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: Vc<CompileTimeInfo>,
     pub inner_assets: Option<Vc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
-    #[serde(skip)]
-    last_successful_parse: turbo_tasks::State<Option<ReadRef<ParseResult>>>,
+    last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
+}
+
+#[turbo_tasks::value_trait]
+pub trait EcmascriptParsable {
+    fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
+
+    fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>>;
+
+    fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
+}
+
+#[turbo_tasks::value_trait]
+pub trait EcmascriptAnalyzable {
+    fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
+
+    /// Generates module contents without an analysis pass. This is useful for
+    /// transforming code that is not a module, e.g. runtime code.
+    async fn module_content_without_analysis(self: Vc<Self>)
+        -> Result<Vc<EcmascriptModuleContent>>;
+
+    async fn module_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContent>>;
 }
 
 /// An optional [EcmascriptModuleAsset]
@@ -313,11 +335,91 @@ impl ModuleTypeResult {
 }
 
 #[turbo_tasks::value_impl]
+impl EcmascriptParsable for EcmascriptModuleAsset {
+    #[turbo_tasks::function]
+    async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        let real_result = self.parse();
+        let real_result_value = real_result.await?;
+        let this = self.await?;
+        let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
+            this.last_successful_parse.set(real_result_value.clone());
+            real_result_value
+        } else {
+            let state_ref = this.last_successful_parse.get();
+            state_ref.as_ref().unwrap_or(&real_result_value).clone()
+        };
+        Ok(ReadRef::cell(result_value))
+    }
+
+    #[turbo_tasks::function]
+    async fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+        Ok(self.failsafe_parse())
+    }
+
+    #[turbo_tasks::function]
+    async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
+        Ok(self.await?.ty.cell())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptAnalyzable for EcmascriptModuleAsset {
+    #[turbo_tasks::function]
+    fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyse_ecmascript_module(self, None)
+    }
+
+    /// Generates module contents without an analysis pass. This is useful for
+    /// transforming code that is not a module, e.g. runtime code.
+    #[turbo_tasks::function]
+    async fn module_content_without_analysis(
+        self: Vc<Self>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        let this = self.await?;
+
+        let parsed = self.parse();
+
+        Ok(EcmascriptModuleContent::new_without_analysis(
+            parsed,
+            self.ident(),
+            this.options.await?.specified_module_type,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn module_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Result<Vc<EcmascriptModuleContent>> {
+        let parsed = self.parse().resolve().await?;
+
+        let analyze = self.analyze().await?;
+
+        let module_type_result = *self.determine_module_type().await?;
+
+        Ok(EcmascriptModuleContent::new(
+            parsed,
+            self.ident(),
+            module_type_result.module_type,
+            chunking_context,
+            analyze.references,
+            analyze.code_generation,
+            analyze.async_module,
+            analyze.source_map,
+            analyze.exports,
+            async_module_info,
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
         source: Vc<Box<dyn Source>>,
         asset_context: Vc<Box<dyn AssetContext>>,
+
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
         options: Vc<EcmascriptOptions>,
@@ -329,6 +431,7 @@ impl EcmascriptModuleAsset {
             ty: ty.into_value(),
             transforms,
             options,
+
             compile_time_info,
             inner_assets: None,
             last_successful_parse: Default::default(),
@@ -378,22 +481,6 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let real_result = self.parse();
-        let real_result_value = real_result.await?;
-        let this = self.await?;
-        let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-            this.last_successful_parse
-                .set(Some(real_result_value.clone()));
-            real_result_value
-        } else {
-            let state_ref = this.last_successful_parse.get();
-            state_ref.as_ref().unwrap_or(&real_result_value).clone()
-        };
-        Ok(ReadRef::cell(result_value))
-    }
-
-    #[turbo_tasks::function]
     pub(crate) async fn determine_module_type(self: Vc<Self>) -> Result<Vc<ModuleTypeResult>> {
         let this = self.await?;
 
@@ -438,49 +525,6 @@ impl EcmascriptModuleAsset {
         Ok(ModuleTypeResult::new_with_package_json(
             SpecifiedModuleType::Automatic,
             package_json,
-        ))
-    }
-
-    /// Generates module contents without an analysis pass. This is useful for
-    /// transforming code that is not a module, e.g. runtime code.
-    #[turbo_tasks::function]
-    pub async fn module_content_without_analysis(
-        self: Vc<Self>,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
-        let this = self.await?;
-
-        let parsed = self.parse();
-
-        Ok(EcmascriptModuleContent::new_without_analysis(
-            parsed,
-            self.ident(),
-            this.options.await?.specified_module_type,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn module_content(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
-        let parsed = self.parse().resolve().await?;
-
-        let analyze = self.analyze().await?;
-
-        let module_type_result = *self.determine_module_type().await?;
-
-        Ok(EcmascriptModuleContent::new(
-            parsed,
-            self.ident(),
-            module_type_result.module_type,
-            chunking_context,
-            analyze.references,
-            analyze.code_generation,
-            analyze.async_module,
-            analyze.source_map,
-            analyze.exports,
-            async_module_info,
         ))
     }
 }
@@ -795,7 +839,7 @@ async fn gen_content_with_visitors(
 
             GLOBALS.set(globals, || {
                 if !visitors.is_empty() {
-                    program.visit_mut_with_path(
+                    program.visit_mut_with_ast_path(
                         &mut ApplyVisitors::new(visitors),
                         &mut Default::default(),
                     );
@@ -841,8 +885,7 @@ async fn gen_content_with_visitors(
             Ok(EcmascriptModuleContent {
                 inner_code: bytes.into(),
                 source_map: Some(Vc::upcast(srcmap)),
-                is_esm: eval_context.is_esm()
-                    || specified_module_type == SpecifiedModuleType::EcmaScript,
+                is_esm: eval_context.is_esm(specified_module_type),
             }
             .cell())
         }

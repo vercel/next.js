@@ -14,8 +14,10 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
+    chunk::module_id_strategies::ModuleIdStrategy,
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
+        FreeVarReferences,
     },
     condition::ContextCondition,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
@@ -255,6 +257,7 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::Instrumentation { .. } => {
             vec![
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(server_external_packages_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
@@ -316,7 +319,11 @@ fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
 
     for (k, v) in define_env {
         defines
-            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
+            .entry(
+                k.split('.')
+                    .map(|s| DefineableNameSegment::Name(s.into()))
+                    .collect::<Vec<_>>(),
+            )
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
@@ -493,8 +500,8 @@ pub async fn get_server_module_options_context(
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
-        special_exports: Some(next_js_special_exports()),
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        special_exports: Some(next_js_special_exports()),
         ..Default::default()
     };
 
@@ -923,6 +930,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -939,6 +947,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     )
     .asset_prefix(asset_prefix)
     .minify_type(next_mode.minify_type())
+    .module_id_strategy(module_id_strategy)
     .build())
 }
 
@@ -948,6 +957,7 @@ pub async fn get_server_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -963,5 +973,6 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .minify_type(next_mode.minify_type())
+    .module_id_strategy(module_id_strategy)
     .build())
 }

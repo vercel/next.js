@@ -1,8 +1,12 @@
 use std::{fmt::Debug, marker::PhantomData, ops::Deref};
 
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::SharedReference;
+use crate::{
+    debug::{ValueDebugFormat, ValueDebugString},
+    ReadRef, SharedReference,
+};
 
 /// Pass a value by value (`Value<Xxx>`) instead of by reference (`Vc<Xxx>`).
 ///
@@ -35,6 +39,20 @@ impl<T: Copy> Copy for Value<T> {}
 impl<T: Default> Default for Value<T> {
     fn default() -> Self {
         Value::new(Default::default())
+    }
+}
+
+impl<T: ValueDebugFormat> Value<T> {
+    pub async fn dbg(&self) -> Result<ReadRef<ValueDebugString>> {
+        self.dbg_depth(usize::MAX).await
+    }
+
+    pub async fn dbg_depth(&self, depth: usize) -> Result<ReadRef<ValueDebugString>> {
+        self.inner
+            .value_debug_format(depth)
+            .try_to_value_debug_string()
+            .await?
+            .await
     }
 }
 

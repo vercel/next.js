@@ -25,6 +25,7 @@ import {
   getModuleReferencesInOrder,
 } from '../utils'
 import type { ChunkGroup } from 'webpack'
+import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 
 interface Options {
   dev: boolean
@@ -43,8 +44,6 @@ export type ManifestChunks = Array<string>
 const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
-  // Use an object to simulate Set lookup
-  ASYNC_CLIENT_MODULES: {} as Record<string, boolean>,
 })
 
 export interface ManifestNode {
@@ -119,7 +118,10 @@ function getAppPathRequiredChunks(
         // previously done for dynamic chunks by patching the webpack runtime but we want
         // these filenames to be managed by React's Flight runtime instead and so we need
         // to implement any special handling of the file name here.
-        return chunks.push(chunkId, encodeURI(file + deploymentIdChunkQuery))
+        return chunks.push(
+          chunkId,
+          encodeURIPath(file) + deploymentIdChunkQuery
+        )
       })
     }
   })
@@ -145,7 +147,7 @@ function entryNameToGroupName(entryName: string) {
     // Remove catch-all routes since they should be part of the parent group that the catch-all would apply to.
     // This is necessary to support parallel routes since multiple page components can be rendered on the same page.
     // In order to do that, we need to ensure that the manifests are merged together by putting them in the same group.
-    .replace(/\/\[?\[\.\.\.[^\]]*\]\]?/g, '')
+    .replace(/\/\[?\[\.\.\.[^\]]*]]?/g, '')
 
   // Interception routes
   groupName = groupName
@@ -304,8 +306,6 @@ export class ClientReferenceManifestPlugin {
         if (!ssrNamedModuleId.startsWith('.'))
           ssrNamedModuleId = `./${ssrNamedModuleId.replace(/\\/g, '/')}`
 
-        const isAsyncModule = !!pluginState.ASYNC_CLIENT_MODULES[mod.resource]
-
         // The client compiler will always use the CJS Next.js build, so here we
         // also add the mapping for the ESM build (Edge runtime) to consume.
         const esmResource = /[\\/]next[\\/]dist[\\/]/.test(resource)
@@ -333,7 +333,7 @@ export class ClientReferenceManifestPlugin {
             id: modId,
             name: '*',
             chunks: requiredChunks,
-            async: isAsyncModule,
+            async: false,
           }
           if (esmResource) {
             const edgeExportName = esmResource
@@ -345,6 +345,7 @@ export class ClientReferenceManifestPlugin {
         function addSSRIdMapping() {
           const exportName = resource
           if (
+            // TODO: Add mapping from client module IDs to RSC module IDs
             typeof pluginState.serverModuleIds[ssrNamedModuleId] !== 'undefined'
           ) {
             moduleIdMapping[modId] = moduleIdMapping[modId] || {}
@@ -501,7 +502,5 @@ export class ClientReferenceManifestPlugin {
         )}]=${json}`
       ) as unknown as webpack.sources.RawSource
     }
-
-    pluginState.ASYNC_CLIENT_MODULES = {}
   }
 }

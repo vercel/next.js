@@ -6,7 +6,7 @@ use syn::{
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
-    Attribute, Error, ExprPath, Generics, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
+    Attribute, Error, Generics, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
     MetaNameValue, Path, Result, Token, Type,
 };
 use turbo_tasks_macros_shared::{
@@ -15,7 +15,7 @@ use turbo_tasks_macros_shared::{
     get_trait_impl_function_ident, get_type_ident,
 };
 
-use crate::func::{DefinitionContext, NativeFn, TurboFn};
+use crate::func::{DefinitionContext, FunctionArguments, MaybeParenthesized, NativeFn, TurboFn};
 
 fn is_attribute(attr: &Attribute, name: &str) -> bool {
     let path = &attr.path;
@@ -32,18 +32,31 @@ fn is_attribute(attr: &Attribute, name: &str) -> bool {
     }
 }
 
-fn strip_function_attribute<'a>(item: &'a ImplItem, attrs: &'a [Attribute]) -> Vec<&'a Attribute> {
-    let (function_attrs, attrs): (Vec<_>, Vec<_>) = attrs
+fn split_function_attributes<'a>(
+    item: &'a ImplItem,
+    attrs: &'a [Attribute],
+) -> (syn::Result<FunctionArguments>, Vec<&'a Attribute>) {
+    let (func_attrs_vec, attrs): (Vec<_>, Vec<_>) = attrs
         .iter()
         // TODO(alexkirsz) Replace this with function
         .partition(|attr| is_attribute(attr, "function"));
-    if function_attrs.is_empty() {
-        item.span()
-            .unwrap()
-            .error("#[turbo_tasks::function] attribute missing")
-            .emit();
-    }
-    attrs
+    let func_args = if let Some(func_attr) = func_attrs_vec.first() {
+        if func_attrs_vec.len() == 1 {
+            syn::parse2::<MaybeParenthesized<FunctionArguments>>(func_attr.tokens.clone())
+                .map(|a| a.parenthesized.map(|a| a.inner).unwrap_or_default())
+        } else {
+            Err(syn::Error::new(
+                func_attr.span(),
+                "Only one #[turbo_tasks::function] attribute is allowed per method",
+            ))
+        }
+    } else {
+        Err(syn::Error::new(
+            item.span(),
+            "#[turbo_tasks::function] attribute missing",
+        ))
+    };
+    (func_args, attrs)
 }
 
 struct ValueImplArguments {
@@ -90,6 +103,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
     fn inherent_value_impl(ty: &Type, ty_ident: &Ident, items: &[ImplItem]) -> TokenStream2 {
         let mut all_definitions = Vec::new();
         let mut exposed_impl_items = Vec::new();
+        let mut errors = Vec::new();
 
         for item in items.iter() {
             if let ImplItem::Method(ImplItemMethod {
@@ -100,27 +114,28 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 block,
             }) = item
             {
-                let attrs = strip_function_attribute(item, attrs);
-
                 let ident = &sig.ident;
+                let (func_args, attrs) = split_function_attributes(item, attrs);
+                let func_args = func_args
+                    .inspect_err(|err| errors.push(err.to_compile_error()))
+                    .unwrap_or_default();
+                let local_cells = func_args.local_cells.is_some();
 
-                // TODO(alexkirsz) These should go into their own utilities.
-                let inline_function_ident: Ident =
-                    Ident::new(&format!("{}_inline", ident), ident.span());
-                let inline_function_path: ExprPath = parse_quote! { <#ty>::#inline_function_ident };
-                let mut inline_signature = sig.clone();
-                inline_signature.ident = inline_function_ident;
-
-                let Some(turbo_fn) = TurboFn::new(sig, DefinitionContext::ValueInherentImpl) else {
+                let Some(turbo_fn) =
+                    TurboFn::new(sig, DefinitionContext::ValueInherentImpl, func_args)
+                else {
                     return quote! {
                         // An error occurred while parsing the function signature.
                     };
                 };
+                let inline_function_ident = turbo_fn.inline_ident();
+                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
 
                 let native_fn = NativeFn::new(
                     &format!("{ty}::{ident}", ty = ty.to_token_stream()),
-                    &inline_function_path,
+                    &parse_quote! { <#ty>::#inline_function_ident },
                     turbo_fn.is_method(),
+                    local_cells,
                 );
 
                 let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -155,7 +170,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #(#attrs)*
                         #[doc(hidden)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
-                        pub(self) #inline_signature #block
+                        pub(self) #inline_signature #inline_block
                     }
 
                     #[doc(hidden)]
@@ -172,6 +187,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             }
 
             #(#all_definitions)*
+            #(#errors)*
         }
     }
 
@@ -191,6 +207,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         let mut trait_registers = Vec::new();
         let mut trait_functions = Vec::with_capacity(items.len());
         let mut all_definitions = Vec::with_capacity(items.len());
+        let mut errors = Vec::new();
 
         for item in items.iter() {
             if let ImplItem::Method(ImplItemMethod {
@@ -199,25 +216,26 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             {
                 let ident = &sig.ident;
 
-                let Some(turbo_fn) = TurboFn::new(sig, DefinitionContext::ValueTraitImpl) else {
+                let (func_args, attrs) = split_function_attributes(item, attrs);
+                let func_args = func_args
+                    .inspect_err(|err| errors.push(err.to_compile_error()))
+                    .unwrap_or_default();
+                let local_cells = func_args.local_cells.is_some();
+
+                let Some(turbo_fn) =
+                    TurboFn::new(sig, DefinitionContext::ValueTraitImpl, func_args)
+                else {
                     return quote! {
                         // An error occurred while parsing the function signature.
                     };
                 };
 
-                let attrs = strip_function_attribute(item, attrs);
-
-                // TODO(alexkirsz) These should go into their own utilities.
-                let inline_function_ident: Ident =
-                    Ident::new(&format!("{}_inline", ident), ident.span());
+                let inline_function_ident = turbo_fn.inline_ident();
                 let inline_extension_trait_ident = Ident::new(
                     &format!("{}_{}_{}_inline", ty_ident, trait_ident, ident),
                     ident.span(),
                 );
-                let inline_function_path: ExprPath =
-                    parse_quote! { <#ty as #inline_extension_trait_ident>::#inline_function_ident };
-                let mut inline_signature = sig.clone();
-                inline_signature.ident = inline_function_ident;
+                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
 
                 let native_fn = NativeFn::new(
                     &format!(
@@ -225,8 +243,11 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         ty = ty.to_token_stream(),
                         trait_path = trait_path.to_token_stream()
                     ),
-                    &inline_function_path,
+                    &parse_quote! {
+                        <#ty as #inline_extension_trait_ident>::#inline_function_ident
+                    },
                     turbo_fn.is_method(),
+                    local_cells,
                 );
 
                 let native_function_ident =
@@ -277,7 +298,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #(#attrs)*
                         #[doc(hidden)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
-                        #inline_signature #block
+                        #inline_signature #inline_block
                     }
 
                     #[doc(hidden)]
@@ -310,6 +331,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             }
 
             #(#all_definitions)*
+            #(#errors)*
         }
     }
 

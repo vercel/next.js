@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import Link from 'next/link'
+import { Form } from './form'
 
 export default function Page() {
   const rscCookie1 = cookies().get('rsc-cookie-value-1')?.value
@@ -11,20 +12,13 @@ export default function Page() {
       <p id="rsc-cookie-2">Cookie 2: {rscCookie2}</p>
       <p id="total-cookies">Total Cookie Length: {cookies().size}</p>
       <Link href="/rsc-cookies-delete">To Delete Cookies Route</Link>
-
-      <form
+      <Form
         action={async () => {
           'use server'
-          console.log(
-            '[Cookie From Action]:',
-            cookies().get('rsc-cookie-value-1').value
-          )
+
+          return cookies().get('rsc-cookie-value-1')?.value
         }}
-      >
-        <button type="submit" id="submit-server-action">
-          server action
-        </button>
-      </form>
+      />
     </div>
   )
 }

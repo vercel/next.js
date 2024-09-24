@@ -158,6 +158,15 @@ export function withQuery(
   return `${pathname}?${querystring}`
 }
 
+export function getFetchUrl(
+  appPort: string | number,
+  pathname: string,
+  query?: Record<string, any> | string | null | undefined
+) {
+  const url = query ? withQuery(pathname, query) : pathname
+  return getFullUrl(appPort, url)
+}
+
 export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
@@ -866,7 +875,7 @@ export async function assertNoRedbox(browser: BrowserInterface) {
         `description: ${redboxDescription}\n` +
         `source: ${redboxSource}`
     )
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, assertNoRedbox)
     throw error
   }
 }
@@ -884,7 +893,7 @@ export async function hasErrorToast(
 }
 
 export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
-  return browser.waitForElementByCss('[data-nextjs-toast]').click()
+  return browser.waitForElementByCss('[data-nextjs-toast]', 5000).click()
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {
@@ -994,12 +1003,29 @@ export function getBuildManifest(dir: string) {
   return readJson(path.join(dir, '.next/build-manifest.json'))
 }
 
-export function getPageFileFromBuildManifest(dir: string, page: string) {
+export function getPageFilesFromBuildManifest(dir: string, page: string) {
   const buildManifest = getBuildManifest(dir)
   const pageFiles = buildManifest.pages[page]
   if (!pageFiles) {
     throw new Error(`No files for page ${page}`)
   }
+
+  return pageFiles
+}
+
+export function getContentOfPageFilesFromBuildManifest(
+  dir: string,
+  page: string
+): string {
+  const pageFiles = getPageFilesFromBuildManifest(dir, page)
+
+  return pageFiles
+    .map((file) => readFileSync(path.join(dir, '.next', file), 'utf8'))
+    .join('\n')
+}
+
+export function getPageFileFromBuildManifest(dir: string, page: string) {
+  const pageFiles = getPageFilesFromBuildManifest(dir, page)
 
   const pageFile = pageFiles[pageFiles.length - 1]
   expect(pageFile).toEndWith('.js')
@@ -1216,7 +1242,7 @@ export async function getRedboxCallStack(
 ): Promise<string> {
   await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
 
-  const callStackFrameElements: any = await browser.elementsByCss(
+  const callStackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
   const callStackFrameTexts = await Promise.all(
@@ -1224,6 +1250,23 @@ export async function getRedboxCallStack(
   )
 
   return callStackFrameTexts.join('\n').trim()
+}
+
+export async function getRedboxCallStackCollapsed(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss('.nextjs-container-errors-body', 30000)
+
+  const callStackFrameElements = await browser.elementsByCss(
+    '.nextjs-container-errors-body > [data-nextjs-codeframe] > :first-child, ' +
+      '.nextjs-container-errors-body > [data-nextjs-call-stack-frame], ' +
+      '.nextjs-container-errors-body > [data-nextjs-collapsed-call-stack-details] > summary'
+  )
+  const callStackFrameTexts = await Promise.all(
+    callStackFrameElements.map((f) => f.innerText())
+  )
+
+  return callStackFrameTexts.join('\n---\n').trim()
 }
 
 export async function getVersionCheckerText(

@@ -159,3 +159,13 @@ pub(crate) fn wasm_paths_to_bindings(paths: Vec<RcStr>) -> Vec<AssetBinding> {
         })
         .collect()
 }
+
+pub(crate) fn paths_to_bindings(paths: Vec<RcStr>) -> Vec<AssetBinding> {
+    paths
+        .into_iter()
+        .map(|path| AssetBinding {
+            name: path.clone(),
+            file_path: path,
+        })
+        .collect()
+}

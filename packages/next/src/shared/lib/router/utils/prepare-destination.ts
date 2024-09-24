@@ -13,7 +13,7 @@ import {
 } from '../../../../server/lib/interception-routes'
 import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
 import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
-import type { Params } from '../../../../client/components/params'
+import type { Params } from '../../../../server/request/params'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -176,7 +176,9 @@ export function prepareDestination(args: {
   let escapedDestination = args.destination
 
   for (const param of Object.keys({ ...args.params, ...query })) {
-    escapedDestination = escapeSegment(escapedDestination, param)
+    escapedDestination = param
+      ? escapeSegment(escapedDestination, param)
+      : escapedDestination
   }
 
   const parsedDestination = parseUrl(escapedDestination)
@@ -248,7 +250,12 @@ export function prepareDestination(args: {
         segment.startsWith(m)
       )
       if (marker) {
-        args.params['0'] = marker
+        if (marker === '(..)(..)') {
+          args.params['0'] = '(..)'
+          args.params['1'] = '(..)'
+        } else {
+          args.params['0'] = marker
+        }
         break
       }
     }

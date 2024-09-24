@@ -40,7 +40,7 @@ describe('on-request-error - server-action-error', () => {
       payload: {
         message: errorMessage,
         request: {
-          url,
+          path: url,
           method: 'POST',
           headers: expect.objectContaining({
             accept: 'text/x-component',

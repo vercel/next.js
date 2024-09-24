@@ -4,7 +4,6 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, EvaluatableAssets},
     ident::AssetIdent,
-    module::Module,
     output::{OutputAsset, OutputAssets},
     version::VersionedContent,
 };
@@ -92,10 +91,6 @@ impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.ident.await?.clone_value();
-        for &evaluatable_asset in self.evaluatable_assets.await?.iter() {
-            ident.add_asset(Vc::<RcStr>::default(), evaluatable_asset.ident());
-        }
-
         ident.add_modifier(modifier());
 
         match self.source {

@@ -21,8 +21,9 @@ use turbopack_core::{
     issue::{IssueExt, IssueSeverity},
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
-        options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
+        options::{ImportMapResult, ImportMappingReplacement, ReplacedImportMapping},
         parse::Request,
+        pattern::Pattern,
         ResolveResult,
     },
     virtual_source::VirtualSource,
@@ -61,6 +62,10 @@ pub const GOOGLE_FONTS_STYLESHEET_URL: &str = "https://fonts.googleapis.com/css2
 pub const USER_AGENT_FOR_GOOGLE_FONTS: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
                                                AppleWebKit/537.36 (KHTML, like Gecko) \
                                                Chrome/104.0.0.0 Safari/537.36";
+
+/// The google fonts plugin downloads fonts locally and transforms the url in the css into a
+/// specific format that is then intercepted later. This is the prefix we use for the new url.
+pub const GOOGLE_FONTS_INTERNAL_PREFIX: &str = "@vercel/turbopack-next/internal/font/google/font";
 
 #[turbo_tasks::value(transparent)]
 struct FontData(IndexMap<RcStr, FontDataEntry>);
@@ -137,8 +142,8 @@ impl NextFontGoogleReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontGoogleReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: RcStr) -> Vc<ImportMapping> {
-        ImportMapping::Ignore.into()
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Ignore.into()
     }
 
     /// Intercepts requests for `next/font/google/target.css` and returns a
@@ -266,8 +271,8 @@ impl NextFontGoogleCssModuleReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: RcStr) -> Vc<ImportMapping> {
-        ImportMapping::Ignore.into()
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Ignore.into()
     }
 
     /// Intercepts requests for the css module made by the virtual JavaScript
@@ -318,8 +323,8 @@ impl NextFontGoogleFontFileReplacer {
 #[turbo_tasks::value_impl]
 impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    fn replace(&self, _capture: RcStr) -> Vc<ImportMapping> {
-        ImportMapping::Ignore.into()
+    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
+        ReplacedImportMapping::Ignore.into()
     }
 
     /// Intercepts requests for the font made by the CSS
@@ -361,7 +366,8 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         }
 
         let font_virtual_path = next_js_file_path("internal/font/google".into())
-            .join(format!("/{}.{}", name, ext).into());
+            .join(format!("/{}.{}", name, ext).into())
+            .truncate_file_name_with_hash_vc();
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
@@ -429,10 +435,7 @@ async fn update_google_stylesheet(
 
         stylesheet = stylesheet.replace(
             &font_url,
-            &format!(
-                "@vercel/turbopack-next/internal/font/google/font?{}",
-                query_str
-            ),
+            &format!("{}?{}", GOOGLE_FONTS_INTERNAL_PREFIX, query_str),
         )
     }
 
@@ -650,9 +653,10 @@ async fn get_mock_stylesheet(
         project_path: _,
         chunking_context,
     } = *execution_context.await?;
-    let context = node_evaluate_asset_context(execution_context, None, None, "next_font".into());
+    let asset_context =
+        node_evaluate_asset_context(execution_context, None, None, "next_font".into(), false);
     let loader_path = mock_fs.root().join("loader.js".into());
-    let mocked_response_asset = context
+    let mocked_response_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
                 loader_path,
@@ -678,7 +682,7 @@ async fn get_mock_stylesheet(
         root,
         env,
         AssetIdent::from_path(loader_path),
-        context,
+        asset_context,
         chunking_context,
         None,
         vec![],

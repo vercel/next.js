@@ -14,8 +14,10 @@ import {
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getRedirectStatusCodeFromError,
+  getRedirectTypeFromError,
   getURLFromRedirectError,
   isRedirectError,
+  type RedirectType,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
@@ -218,7 +220,9 @@ async function createForwardedActionResponse(
       },
     })
 
-    if (response.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER) {
+    if (
+      response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)
+    ) {
       // copy the headers from the redirect response to the response we're sending
       for (const [key, value] of response.headers) {
         if (!actionsForbiddenHeaders.includes(key)) {
@@ -274,10 +278,11 @@ async function createRedirectRenderResult(
   res: BaseNextResponse,
   originalHost: Host,
   redirectUrl: string,
+  redirectType: RedirectType,
   basePath: string,
   staticGenerationStore: StaticGenerationStore
 ) {
-  res.setHeader('x-action-redirect', redirectUrl)
+  res.setHeader('x-action-redirect', `${redirectUrl};${redirectType}`)
 
   // If we're redirecting to another route of this Next.js application, we'll
   // try to stream the response from the other worker path. When that works,
@@ -340,7 +345,11 @@ async function createRedirectRenderResult(
         },
       })
 
-      if (response.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER) {
+      if (
+        response.headers
+          .get('content-type')
+          ?.startsWith(RSC_CONTENT_TYPE_HEADER)
+      ) {
         // copy the headers from the redirect response to the response we're sending
         for (const [key, value] of response.headers) {
           if (!actionsForbiddenHeaders.includes(key)) {
@@ -539,7 +548,7 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await generateFlight(ctx, {
+          result: await generateFlight(req, ctx, {
             actionResult: promise,
             // if the page was not revalidated, we can skip the rendering the flight tree
             skipFlight: !staticGenerationStore.pathWasRevalidated,
@@ -817,7 +826,7 @@ export async function handleAction({
           requestStore,
         })
 
-        actionResult = await generateFlight(ctx, {
+        actionResult = await generateFlight(req, ctx, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight:
@@ -835,6 +844,7 @@ export async function handleAction({
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
       const statusCode = getRedirectStatusCodeFromError(err)
+      const redirectType = getRedirectTypeFromError(err)
 
       await addRevalidationHeader(res, {
         staticGenerationStore,
@@ -853,6 +863,7 @@ export async function handleAction({
             res,
             host,
             redirectUrl,
+            redirectType,
             ctx.renderOpts.basePath,
             staticGenerationStore
           ),
@@ -895,10 +906,9 @@ export async function handleAction({
         }
         return {
           type: 'done',
-          result: await generateFlight(ctx, {
+          result: await generateFlight(req, ctx, {
             skipFlight: false,
             actionResult: promise,
-            asNotFound: true,
           }),
         }
       }
@@ -928,7 +938,7 @@ export async function handleAction({
 
       return {
         type: 'done',
-        result: await generateFlight(ctx, {
+        result: await generateFlight(req, ctx, {
           actionResult: promise,
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight:

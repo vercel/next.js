@@ -1,7 +1,7 @@
 ---
-title: turbo (experimental)
-nav_title: turbo
+title: turbo
 description: Configure Next.js with Turbopack-specific options
+version: experimental
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -102,3 +102,25 @@ module.exports = {
 This overwrites the original resolve extensions with the provided list. Make sure to include the default extensions.
 
 For more information and guidance for how to migrate your app to Turbopack from webpack, see [Turbopack's documentation on webpack compatibility](https://turbo.build/pack/docs/migrating-from-webpack).
+
+## Module ID strategy
+
+Turbopack currently supports two strategies for assigning module IDs: `'named'` and `'deterministic'`.
+
+`'named'` assigns readable module IDs based on the module's path and functionality.
+
+`'deterministic'` assigns small hashed numeric module IDs, which are mostly consistent between builds and therefore help with long-term caching.
+
+If not set, Turbopack will use `'named'` for development builds and `'deterministic'` for production builds.
+
+To configure the module IDs strategy, use the `moduleIdStrategy` field in `next.config.js`:
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbo: {
+      moduleIdStrategy: 'deterministic',
+    },
+  },
+}
+```

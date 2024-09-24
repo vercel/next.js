@@ -16,14 +16,14 @@ use turbopack_ecmascript::utils::StringifyJs;
 #[turbo_tasks::function]
 pub async fn route_bootstrap(
     asset: Vc<Box<dyn Module>>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     base_path: Vc<FileSystemPath>,
     bootstrap_asset: Vc<Box<dyn Source>>,
     config: Vc<BootstrapConfig>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
     Ok(bootstrap(
         asset,
-        context,
+        asset_context,
         base_path,
         bootstrap_asset,
         Vc::cell(IndexMap::new()),
@@ -45,7 +45,7 @@ impl BootstrapConfig {
 #[turbo_tasks::function]
 pub async fn bootstrap(
     asset: Vc<Box<dyn Module>>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     base_path: Vc<FileSystemPath>,
     bootstrap_asset: Vc<Box<dyn Source>>,
     inner_assets: Vc<InnerAssets>,
@@ -75,7 +75,7 @@ pub async fn bootstrap(
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
 
-    let config_asset = context
+    let config_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
                 asset.ident().path().join("bootstrap-config.ts".into()),
@@ -98,7 +98,7 @@ pub async fn bootstrap(
     inner_assets.insert("ENTRY".into(), asset);
     inner_assets.insert("BOOTSTRAP_CONFIG".into(), config_asset);
 
-    let asset = context
+    let asset = asset_context
         .process(
             bootstrap_asset,
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),

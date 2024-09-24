@@ -72,7 +72,7 @@
                 Member,
             ),
         ],
-        span: 50..61#0,
+        span: 50..61,
         in_try: false,
     },
     FreeVar {
@@ -147,7 +147,7 @@
                 Ident,
             ),
         ],
-        span: 50..54#1,
+        span: 50..54,
         in_try: false,
     },
     MemberCall {
@@ -215,8 +215,9 @@
                 Call,
             ),
         ],
-        span: 50..63#0,
+        span: 50..63,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -285,7 +286,7 @@
                 Member,
             ),
         ],
-        span: 273..287#0,
+        span: 273..287,
         in_try: false,
     },
     FreeVar {
@@ -354,7 +355,7 @@
                 Ident,
             ),
         ],
-        span: 273..277#1,
+        span: 273..277,
         in_try: false,
     },
     Conditional {
@@ -621,7 +622,7 @@
                 Test,
             ),
         ],
-        span: 354..392#0,
+        span: 354..392,
         in_try: false,
     },
     MemberCall {
@@ -761,8 +762,9 @@
                 Call,
             ),
         ],
-        span: 273..398#0,
+        span: 273..398,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -867,7 +869,8 @@
                 Call,
             ),
         ],
-        span: 416..453#0,
+        span: 416..453,
         in_try: false,
+        new: false,
     },
 ]

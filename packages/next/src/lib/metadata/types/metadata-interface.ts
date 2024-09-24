@@ -132,9 +132,9 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The theme color for the document.
+   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
+   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
    * @example
-   * @deprecated
-   *
    * ```tsx
    * "#000000"
    * <meta name="theme-color" content="#000000" />
@@ -154,9 +154,9 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The color scheme for the document.
+   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
+   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
    * @example
-   * @deprecated
-   *
    * ```tsx
    * "dark"
    * <meta name="color-scheme" content="dark" />
@@ -166,11 +166,10 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The viewport setting for the document.
+   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
+   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
    * @example
-   * @deprecated
-   *
    * ```tsx
-   *
    * { width: "device-width", initialScale: 1 }
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    * ```
@@ -607,6 +606,7 @@ type SitemapFile = Array<{
   alternates?: {
     languages?: Languages<string>
   }
+  images?: string[]
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>

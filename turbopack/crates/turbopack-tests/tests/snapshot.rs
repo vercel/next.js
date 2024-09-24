@@ -3,7 +3,7 @@
 mod util;
 
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashSet, VecDeque},
     fs,
     path::PathBuf,
 };
@@ -12,7 +12,9 @@ use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
 use serde::Deserialize;
 use serde_json::json;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc};
+use turbo_tasks::{
+    RcStr, ReadConsistency, ReadRef, TryJoinIterExt, TurboTasks, Value, ValueToString, Vc,
+};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
@@ -20,10 +22,10 @@ use turbo_tasks_fs::{
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    ecmascript::{EcmascriptInputTransform, EcmascriptModuleAsset, TreeShakingMode},
+    ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
-        ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
+        ModuleRule, ModuleRuleEffect, RuleCondition,
     },
     ModuleAssetContext,
 };
@@ -32,7 +34,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -43,7 +45,7 @@ use turbopack_core::{
     free_var_references,
     issue::{Issue, IssueDescriptionExt},
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -170,7 +172,8 @@ async fn run(resource: PathBuf) -> Result<()> {
             .context("Unable to handle issues")?;
         Ok(Vc::<()>::default())
     });
-    tt.wait_task_completion(task, true).await?;
+    tt.wait_task_completion(task, ReadConsistency::Strong)
+        .await?;
 
     Ok(())
 }
@@ -236,11 +239,11 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .free_var_references(free_var_references!(..defines.into_iter()).cell())
         .cell();
 
-    let conditions = ModuleRuleCondition::any(vec![
-        ModuleRuleCondition::ResourcePathEndsWith(".js".into()),
-        ModuleRuleCondition::ResourcePathEndsWith(".jsx".into()),
-        ModuleRuleCondition::ResourcePathEndsWith(".ts".into()),
-        ModuleRuleCondition::ResourcePathEndsWith(".tsx".into()),
+    let conditions = RuleCondition::any(vec![
+        RuleCondition::ResourcePathEndsWith(".js".into()),
+        RuleCondition::ResourcePathEndsWith(".jsx".into()),
+        RuleCondition::ResourcePathEndsWith(".ts".into()),
+        RuleCondition::ResourcePathEndsWith(".tsx".into()),
     ]);
 
     let module_rules = ModuleRule::new(
@@ -259,7 +262,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         }],
     );
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
-        Vc::cell(HashMap::new()),
+        Default::default(),
         compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
@@ -360,12 +363,12 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .module();
 
     let chunks = if let Some(ecmascript) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(entry_module).await?
+        Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
     {
         // TODO: Load runtime entries from snapshots
         match options.runtime {
             Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
-                ecmascript.ident(),
+                entry_module.ident(),
                 runtime_entries
                     .unwrap_or_else(EvaluatableAssets::empty)
                     .with_entry(Vc::upcast(ecmascript)),
@@ -390,10 +393,11 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                                         .into(),
                                 )
                                 .with_extension("entry.js".into()),
-                            Vc::upcast(ecmascript),
+                            entry_module,
                             runtime_entries
                                 .unwrap_or_else(EvaluatableAssets::empty)
                                 .with_entry(Vc::upcast(ecmascript)),
+                            OutputAssets::empty(),
                             Value::new(AvailabilityInfo::Root),
                         )
                         .await?

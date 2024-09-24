@@ -31,6 +31,7 @@ turbopack-core = { workspace = true }
 httpmock = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks-testing = { workspace = true }
+turbo-tasks-memory = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
