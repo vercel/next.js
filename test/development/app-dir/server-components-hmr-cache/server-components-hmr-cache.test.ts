@@ -6,8 +6,16 @@ describe('server-components-hmr-cache', () => {
   const loggedAfterValueRegexp = /After: (\d\.\d+)/
   let cliOutputLength: number
 
-  const getLoggedAfterValue = () =>
-    next.cliOutput.slice(cliOutputLength).match(loggedAfterValueRegexp)?.[1]
+  const getLoggedAfterValue = () => {
+    const match = next.cliOutput
+      .slice(cliOutputLength)
+      .match(loggedAfterValueRegexp)
+
+    if (!match) {
+      throw new Error('No logs from after() found')
+    }
+    return match[1]
+  }
 
   describe.each(['edge', 'node'])('%s runtime', (runtime) => {
     afterEach(async () => {
@@ -124,7 +132,7 @@ describe('server-components-hmr-cache', () => {
 
         it('should not use cached fetch calls for fast refresh requests', async () => {
           const browser = await next.browser(`/${runtime}`)
-          const valueBeforePatch = getLoggedAfterValue()
+          const valueBeforePatch = await retry(() => getLoggedAfterValue())
           cliOutputLength = next.cliOutput.length
 
           await next.patchFile('components/shared-page.tsx', (content) =>
@@ -136,7 +144,7 @@ describe('server-components-hmr-cache', () => {
             expect(updatedContent).toBe('bar')
           })
 
-          const valueAfterPatch = getLoggedAfterValue()
+          const valueAfterPatch = await retry(() => getLoggedAfterValue())
           expect(valueBeforePatch).not.toEqual(valueAfterPatch)
         })
       })
