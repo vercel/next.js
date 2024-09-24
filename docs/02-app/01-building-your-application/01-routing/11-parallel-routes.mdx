@@ -64,7 +64,7 @@ export default function Layout({ children, team, analytics }) {
 }
 ```
 
-However, slots are **not** [route segments](/docs/app/building-your-application/routing#route-segments) and do not affect the URL structure. For example, for `/@analytics/views`, the URL will be `/views` since `@analytics` is a slot.
+However, slots are **not** [route segments](/docs/app/building-your-application/routing#route-segments) and do not affect the URL structure. For example, for `/@analytics/views`, the URL will be `/views` since `@analytics` is a slot. Slots are also conceptually _smaller_ than route segments. If multiple slots are defined at a route segment, they are combined. Because of this, you cannot have a separate [static](/docs/app/building-your-application/rendering/server-components#static-rendering-default) and [dynamic](docs/app/building-your-application/rendering/server-components#dynamic-rendering) slots at the same route segment level. If one slot is dynamic, all slots at that level must be dynamic.
 
 > **Good to know**:
 >
