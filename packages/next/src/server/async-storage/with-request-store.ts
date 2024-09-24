@@ -83,7 +83,7 @@ type RequestResponsePair =
   | { req: NextRequest; res: undefined } // in an api route or middleware
 
 /**
- * If middleware set cookies in this request (indicated by `x-middleware-set-cookie`),
+ * If middleware set cookies in this request (indicated by `middleware-set-cookie`),
  * then merge those into the existing cookie object, so that when `cookies()` is accessed
  * it's able to read the newly set cookies.
  */
@@ -92,10 +92,10 @@ function mergeMiddlewareCookies(
   existingCookies: RequestCookies | ResponseCookies
 ) {
   if (
-    'x-middleware-set-cookie' in req.headers &&
-    typeof req.headers['x-middleware-set-cookie'] === 'string'
+    'middleware-set-cookie' in req.headers &&
+    typeof req.headers['middleware-set-cookie'] === 'string'
   ) {
-    const setCookieValue = req.headers['x-middleware-set-cookie']
+    const setCookieValue = req.headers['middleware-set-cookie']
     const responseHeaders = new Headers()
 
     for (const cookie of splitCookiesString(setCookieValue)) {

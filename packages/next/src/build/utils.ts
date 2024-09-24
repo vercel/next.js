@@ -2404,10 +2404,6 @@ export function collectMeta({
     // normalize header values as initialHeaders
     // must be Record<string, string>
     for (const key in headers) {
-      // set-cookie is already handled - the middleware cookie setting case
-      // isn't needed for the prerender manifest since it can't read cookies
-      if (key === 'x-middleware-set-cookie') continue
-
       let value = headers[key]
 
       if (Array.isArray(value)) {

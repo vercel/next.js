@@ -3,6 +3,7 @@ import type { I18NConfig } from '../../config-shared'
 import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { ReflectAdapter } from './adapters/reflect'
+import { requestAsyncStorage } from '../../../client/components/request-async-storage.external'
 
 import { ResponseCookies } from './cookies'
 
@@ -53,19 +54,36 @@ export class NextResponse<Body = unknown> extends Response {
           case 'set': {
             return (...args: [string, string]) => {
               const result = Reflect.apply(target[prop], target, args)
-              const newHeaders = new Headers(headers)
 
               if (result instanceof ResponseCookies) {
-                headers.set(
-                  'x-middleware-set-cookie',
-                  result
-                    .getAll()
-                    .map((cookie) => stringifyCookie(cookie))
-                    .join(',')
+                const middlewareCookies = result
+                  .getAll()
+                  .map((cookie) => stringifyCookie(cookie))
+                  .join(',')
+
+                // If the headers aren't being overwritten, forward the request headers to our middleware handler.
+                // Otherwise once we set the override header in `handleMiddlewareField`, we will lose
+                // the original headers as they removed from the response.
+                const requestStore = requestAsyncStorage.getStore()
+                if (
+                  requestStore &&
+                  !headers.has('x-middleware-override-headers')
+                ) {
+                  init.headers = requestStore.headers
+                }
+
+                const initHeaders = new Headers(init.headers)
+                initHeaders.set('middleware-set-cookie', middlewareCookies)
+
+                // leverage the `x-middleware-request` header prefix to forward
+                // cookies that are set in middleware to the underlying function,
+                // so that the cookies ALS store can be initialized with middleware cookies.
+                handleMiddlewareField(
+                  { request: { headers: initHeaders } },
+                  headers
                 )
               }
 
-              handleMiddlewareField(init, newHeaders)
               return result
             }
           }
