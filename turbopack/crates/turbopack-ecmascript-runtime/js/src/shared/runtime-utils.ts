@@ -521,3 +521,10 @@ relativeURL.prototype = URL.prototype;
 function invariant(never: never, computeMessage: (arg: any) => string): never {
   throw new Error(`Invariant: ${computeMessage(never)}`);
 }
+
+/**
+ * A stub function to make `require` available but non-functional in ESM.
+ */
+function requireStub(_moduleId: ModuleId): never {
+  throw new Error("dynamic usage of require is not supported");
+}

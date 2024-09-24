@@ -133,8 +133,8 @@ describe('Static Image Component Tests for basePath', () => {
         html = await renderViaHTTP(appPort, '/docs/static-img')
         browser = await webdriver(appPort, '/docs/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests()
     }
@@ -148,8 +148,8 @@ describe('Static Image Component Tests for basePath', () => {
         html = await renderViaHTTP(appPort, '/docs/static-img')
         browser = await webdriver(appPort, '/docs/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests(true)
     }

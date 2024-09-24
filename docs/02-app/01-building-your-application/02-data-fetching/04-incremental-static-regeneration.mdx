@@ -40,16 +40,16 @@ export const revalidate = 60
 export const dynamicParams = true // or false, to 404 on unknown paths
 
 export async function generateStaticParams() {
-  let posts: Post[] = await fetch('https://api.vercel.app/blog').then((res) =>
+  const posts: Post[] = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
   return posts.map((post) => ({
-    id: post.id,
+    id: String(post.id),
   }))
 }
 
 export default async function Page({ params }: { params: { id: string } }) {
-  let post = await fetch(`https://api.vercel.app/blog/${params.id}`).then(
+  const post = await fetch(`https://api.vercel.app/blog/${params.id}`).then(
     (res) => res.json()
   )
   return (
@@ -72,14 +72,14 @@ export const revalidate = 60;
 export const dynamicParams = true // or false, to 404 on unknown paths
 
 export async function generateStaticParams() {
-  let posts: Post[] = await fetch('https://api.vercel.app/blog').then((res) => res.json());
+  const posts: Post[] = await fetch('https://api.vercel.app/blog').then((res) => res.json());
   return posts.map((post) => ({
-    id: post.id,
+    id: String(post.id),
   }));
 }
 
-export default async function Page({ params }: { params: { id: string } }) {
-  let post = await fetch(`https://api.vercel.app/blog/${params.id}`).then((res) => res.json());
+export default async function Page({ params }) {
+  const post = await fetch(`https://api.vercel.app/blog/${params.id}`).then((res) => res.json());
   return (
     <main>
       <h1>{post.title}</h1>
@@ -107,11 +107,11 @@ interface Props {
 }
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  let posts = await fetch('https://api.vercel.app/blog').then((res) =>
+  const posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
-  let paths = posts.map((post: Post) => ({
-    params: { id: post.id },
+  const paths = posts.map((post: Post) => ({
+    params: { id: String(post.id) },
   }))
 
   // We'll prerender only these paths at build time.
@@ -120,7 +120,11 @@ export const getStaticPaths: GetStaticPaths = async () => {
   return { paths, fallback: false }
 }
 
-export const getStaticProps: GetStaticProps<Props> = async ({ params }) => {
+export const getStaticProps: GetStaticProps<Props> = async ({
+  params,
+}: {
+  params: { id: string }
+}) => {
   let post = await fetch(`https://api.vercel.app/blog/${params.id}`).then(
     (res) => res.json()
   )
@@ -145,10 +149,10 @@ export default function Page({ post }: Props) {
 
 ```jsx filename="pages/blog/[id].jsx" switcher
 export async function getStaticPaths() {
-  let posts = await fetch('https://api.vercel.app/blog').then((res) =>
+  const posts = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
   )
-  let paths = posts.map((post) => ({
+  const paths = posts.map((post) => ({
     params: { id: post.id },
   }))
 
@@ -158,7 +162,7 @@ export async function getStaticPaths() {
 }
 
 export async function getStaticProps({ params }) {
-  let post = await fetch(`https://api.vercel.app/blog/${params.id}`).then(
+  const post = await fetch(`https://api.vercel.app/blog/${params.id}`).then(
     (res) => res.json()
   )
 
@@ -189,7 +193,7 @@ Here's how this example works:
 3. After 60 seconds has passed, the next request will still show the cached (stale) page
 4. The cache is invalidated and a new version of the page begins generating in the background
 5. Once generated successfully, Next.js will display and cache the updated page
-6. If `/blog/26` is requested, Next.js will generated and cached this page on-demand
+6. If `/blog/26` is requested, Next.js will generate and cache this page on-demand
 
 ## Reference
 
@@ -228,8 +232,8 @@ This fetches and displays a list of blog posts on `/blog`. After an hour, the ca
 export const revalidate = 3600 // invalidate every hour
 
 export default async function Page() {
-  let data = await fetch('https://api.vercel.app/blog')
-  let posts = await data.json()
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
   return (
     <main>
       <h1>Blog Posts</h1>
@@ -270,10 +274,10 @@ For most use cases, prefer revalidating entire paths. If you need more granular 
 
 ```jsx
 export default async function Page() {
-  let data = await fetch('https://api.vercel.app/blog', {
+  const data = await fetch('https://api.vercel.app/blog', {
     next: { tags: ['posts'] },
   })
-  let posts = await data.json()
+  const posts = await data.json()
   // ...
 }
 ```
@@ -293,7 +297,7 @@ const getCachedPosts = unstable_cache(
 )
 
 export default async function Page() {
-  let posts = getCachedPosts()
+  const posts = getCachedPosts()
   // ...
 }
 ```
@@ -367,8 +371,8 @@ export async function getStaticProps({ params }) {
   // If this request throws an uncaught error, Next.js will
   // not invalidate the currently shown page and
   // retry getStaticProps on the next request.
-  let res = await fetch(`https://api.vercel.app/blog/${params.id}`)
-  let posts = await res.json()
+  const res = await fetch(`https://api.vercel.app/blog/${params.id}`)
+  const posts = await res.json()
 
   if (!res.ok) {
     // If there is a server error, you might want to
@@ -426,10 +430,23 @@ This will make the Next.js server console log ISR cache hits and misses. You can
 
 ## Caveats
 
+<AppOnly>
+
 - ISR is only supported when using the Node.js runtime (default).
 - ISR is not supported when creating a [Static Export](/docs/app/building-your-application/deploying/static-exports).
-- If you have multiple `fetch` requests in a statically rendered route, and each has a different `revalidate` frequency, the lowest time will be used for all requests.
+- If you have multiple `fetch` requests in a statically rendered route, and each has a different `revalidate` frequency, the lowest time will be used for ISR. However, those revalidate frequencies will still be respected by the [Data Cache](/docs/app/building-your-application/caching#data-cache).
+- If any of the `fetch` requests used on a route have a `revalidate` time of `0`, or an explicit `no-store`, the route will be [dynamically rendered](/docs/app/building-your-application/rendering/server-components#dynamic-rendering).
 - Middleware won't be executed for on-demand ISR requests, meaning any path rewrites or logic in Middleware will not be applied. Ensure you are revalidating the exact path. For example, `/post/1` instead of a rewritten `/post-1`.
+
+</AppOnly>
+
+<PagesOnly>
+
+- ISR is only supported when using the Node.js runtime (default).
+- ISR is not supported when creating a [Static Export](/docs/app/building-your-application/deploying/static-exports).
+- Middleware won't be executed for on-demand ISR requests, meaning any path rewrites or logic in Middleware will not be applied. Ensure you are revalidating the exact path. For example, `/post/1` instead of a rewritten `/post-1`.
+
+</PagesOnly>
 
 ## Version history
 
