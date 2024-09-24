@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "15.0.0-canary.159",
+  "version": "15.0.0-canary.164",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -19,6 +19,7 @@
   },
   "files": [
     "transforms/*.js",
+    "transforms/lib/**/*.js",
     "bin/*.js",
     "lib/**/*.js",
     "lib/cra-to-next/gitignore"

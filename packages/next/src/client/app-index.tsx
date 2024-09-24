@@ -1,3 +1,4 @@
+// imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'

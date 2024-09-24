@@ -19,7 +19,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
-import type { Params } from '../../client/components/params'
+import type { Params } from '../request/params'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -90,6 +90,7 @@ async function createComponentTreeInternal({
       LayoutRouter,
       RenderFromTemplateContext,
       ClientPageRoot,
+      ClientSegmentRoot,
       createUntrackedSearchParams,
       createDynamicallyTrackedSearchParams,
       createDynamicallyTrackedParams,
@@ -102,10 +103,10 @@ async function createComponentTreeInternal({
     query,
   } = ctx
 
-  const { page, layoutOrPagePath, segment, components, parallelRoutes } =
+  const { page, layoutOrPagePath, segment, modules, parallelRoutes } =
     parseLoaderTree(tree)
 
-  const { layout, template, error, loading, 'not-found': notFound } = components
+  const { layout, template, error, loading, 'not-found': notFound } = modules
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
@@ -276,52 +277,13 @@ async function createComponentTreeInternal({
   /**
    * The React Component to render.
    */
-  let Component = LayoutOrPage
-  const parallelKeys = Object.keys(parallelRoutes)
-  const hasSlotKey = parallelKeys.length > 1
-
-  // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-  // This ensures that a `NotFoundBoundary` is available for when that happens,
-  // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
-  // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
-  // rely on the `NotFound` behavior.
-  if (hasSlotKey && rootLayoutAtThisLevel && LayoutOrPage) {
-    Component = (componentProps: { params: Params }) => {
-      const NotFoundComponent = NotFound
-      const RootLayoutComponent = LayoutOrPage
-      return (
-        <NotFoundBoundary
-          notFound={
-            NotFoundComponent ? (
-              <Segment
-                isDynamicIO={experimental.dynamicIO}
-                isStaticGeneration={isStaticGeneration}
-                ready={getMetadataReady}
-              >
-                {layerAssets}
-                {/*
-                 * We are intentionally only forwarding params to the root layout, as passing any of the parallel route props
-                 * might trigger `notFound()`, which is not currently supported in the root layout.
-                 */}
-                <RootLayoutComponent params={componentProps.params}>
-                  {notFoundStyles}
-                  <NotFoundComponent />
-                </RootLayoutComponent>
-              </Segment>
-            ) : undefined
-          }
-        >
-          <RootLayoutComponent {...componentProps} />
-        </NotFoundBoundary>
-      )
-    }
-  }
+  let MaybeComponent = LayoutOrPage
 
   if (process.env.NODE_ENV === 'development') {
     const { isValidElementType } = require('next/dist/compiled/react-is')
     if (
-      (isPage || typeof Component !== 'undefined') &&
-      !isValidElementType(Component)
+      (isPage || typeof MaybeComponent !== 'undefined') &&
+      !isValidElementType(MaybeComponent)
     ) {
       errorMissingDefaultExport(pagePath, 'page')
     }
@@ -387,7 +349,7 @@ async function createComponentTreeInternal({
           // prefetch everything up to the first route segment that defines a
           // loading.tsx boundary. (We do the same if there's no loading
           // boundary in the entire tree, because we don't want to prefetch too
-          // much) The rest of the tree is defered until the actual navigation.
+          // much) The rest of the tree is deferred until the actual navigation.
           // It does not take into account whether the data is dynamic — even if
           // the tree is completely static, it will still defer everything
           // inside the loading boundary.
@@ -496,7 +458,7 @@ async function createComponentTreeInternal({
     : null
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
-  if (!Component) {
+  if (!MaybeComponent) {
     return [
       actualSegment,
       <Segment
@@ -512,6 +474,8 @@ async function createComponentTreeInternal({
       loadingData,
     ]
   }
+
+  const Component = MaybeComponent
 
   // If force-dynamic is used and the current render supports postponing, we
   // replace it with a node that will postpone the render. This ensures that the
@@ -600,25 +564,69 @@ async function createComponentTreeInternal({
       loadingData,
     ]
   } else {
-    props.params = createDynamicallyTrackedParams(currentParams)
+    const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
+      rootLayoutAtThisLevel &&
+      'children' in parallelRoutes &&
+      Object.keys(parallelRoutes).length > 1
+
+    let serverSegment: React.ReactNode
+    if (isClientComponent) {
+      props.params = currentParams
+      serverSegment = <ClientSegmentRoot Component={Component} props={props} />
+    } else {
+      props.params = createDynamicallyTrackedParams(currentParams)
+      serverSegment = <Component {...props} />
+    }
+
+    let segmentNode: React.ReactNode
+    if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
+      // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
+      // This ensures that a `NotFoundBoundary` is available for when that happens,
+      // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
+      // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
+      // rely on the `NotFound` behavior.
+      segmentNode = (
+        <Segment
+          isDynamicIO={experimental.dynamicIO}
+          isStaticGeneration={isStaticGeneration}
+          ready={getMetadataReady}
+        >
+          <NotFoundBoundary
+            notFound={
+              NotFound ? (
+                <>
+                  {layerAssets}
+                  <Component params={props.params}>
+                    {notFoundStyles}
+                    <NotFound />
+                  </Component>
+                </>
+              ) : undefined
+            }
+          >
+            {layerAssets}
+            {serverSegment}
+          </NotFoundBoundary>
+        </Segment>
+      )
+    } else {
+      segmentNode = (
+        <Segment
+          key={cacheNodeKey}
+          isDynamicIO={experimental.dynamicIO}
+          isStaticGeneration={isStaticGeneration}
+          ready={getMetadataReady}
+        >
+          {layerAssets}
+          {serverSegment}
+        </Segment>
+      )
+    }
 
     // For layouts we just render the component
     return [
       actualSegment,
-      // It is critical that this tree render something other than `null` because the client router uses
-      // null to represent an lazy hole. The current implementation satisfies this because the two inner slots
-      // ensure there is a fragment even if both slots render null. If we ever refactor this to only render the component
-      // or similar we need to ensure there is a fragment. Long term we should move to using a Symbol to communicate
-      // a lazy hole rather than null
-      <Segment
-        key={cacheNodeKey}
-        isDynamicIO={experimental.dynamicIO}
-        isStaticGeneration={isStaticGeneration}
-        ready={getMetadataReady}
-      >
-        {layerAssets}
-        <Component {...props} />
-      </Segment>,
+      segmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]

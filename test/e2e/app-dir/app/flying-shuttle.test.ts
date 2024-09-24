@@ -400,5 +400,28 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
         await next.patchFile(dataPath, originalDataContent)
       }
     })
+
+    it('should have updated middleware on change', async () => {
+      await next.stop()
+
+      const dataPath = 'middleware.js'
+      const originalDataContent = await next.readFile(dataPath)
+
+      try {
+        await next.patchFile(
+          dataPath,
+          originalDataContent.replace(
+            `'x-flying-shuttle': '1'`,
+            `'x-flying-shuttle': '2'`
+          )
+        )
+        await nextStart()
+
+        const res = await next.fetch('/flying-shuttle')
+        expect(res.headers.get('x-flying-shuttle')).toBe('2')
+      } finally {
+        await next.patchFile(dataPath, originalDataContent)
+      }
+    })
   }
 )

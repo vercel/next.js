@@ -27,7 +27,7 @@ import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers
 import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import type { Params } from '../../client/components/params'
+import type { Params } from '../../server/request/params'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
