@@ -1502,9 +1502,6 @@ importers:
       cheerio:
         specifier: 1.0.0-rc.9
         version: 1.0.0-rc.9
-      ci-info:
-        specifier: 4.0.0
-        version: 4.0.0
       commander:
         specifier: 12.1.0
         version: 12.1.0
@@ -1517,9 +1514,6 @@ importers:
       globby:
         specifier: 11.0.1
         version: 11.0.1
-      inquirer:
-        specifier: 7.3.3
-        version: 7.3.3
       is-git-clean:
         specifier: 1.1.0
         version: 1.1.0
