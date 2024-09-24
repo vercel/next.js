@@ -1,26 +1,36 @@
 'use client'
 
 import type { ParsedUrlQuery } from 'querystring'
-import { use } from 'react'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 import type { Params } from '../../server/request/params'
 
+/**
+ * When the Page is a client component we send the params and searchParams to this client wrapper
+ * where they are turned into dynamically tracked values before being passed to the actual Page component.
+ *
+ * additionally we may send promises representing the params and searchParams. We don't ever use these passed
+ * values but it can be necessary for the sender to send a Promise that doesn't resolve in certain situations.
+ * It is up to the caller to decide if the promises are needed.
+ */
 export function ClientPageRoot({
   Component,
-  params,
   searchParams,
+  params,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  promises,
 }: {
   Component: React.ComponentType<any>
+  searchParams: ParsedUrlQuery
   params: Params
-  searchParams: Promise<ParsedUrlQuery>
+  promises?: Array<Promise<any>>
 }) {
   if (typeof window === 'undefined') {
     const { staticGenerationAsyncStorage } =
       require('./static-generation-async-storage.external') as typeof import('./static-generation-async-storage.external')
 
     let clientSearchParams: Promise<ParsedUrlQuery>
-    let trackedParams: Params
+    let clientParams: Promise<Params>
     // We are going to instrument the searchParams prop with tracking for the
     // appropriate context. We wrap differently in prerendering vs rendering
     const store = staticGenerationAsyncStorage.getStore()
@@ -32,35 +42,35 @@ export function ClientPageRoot({
 
     if (store.isStaticGeneration) {
       // We are in a prerender context
-      // We need to recover the underlying searchParams from the server
-      const { reifyClientPrerenderSearchParams } =
+      const { createPrerenderSearchParamsFromClient } =
         require('../../server/request/search-params') as typeof import('../../server/request/search-params')
-      clientSearchParams = reifyClientPrerenderSearchParams(store)
+      clientSearchParams = createPrerenderSearchParamsFromClient(store)
+
+      const { createPrerenderParamsFromClient } =
+        require('../../server/request/params') as typeof import('../../server/request/params')
+
+      clientParams = createPrerenderParamsFromClient(params, store)
     } else {
-      // We are in a dynamic context and need to unwrap the underlying searchParams
-
-      // We can't type that searchParams is passed but since we control both the definition
-      // of this component and the usage of it we can assume it
-      const underlying = use(searchParams)
-
-      const { reifyClientRenderSearchParams } =
+      const { createRenderSearchParamsFromClient } =
         require('../../server/request/search-params') as typeof import('../../server/request/search-params')
-      clientSearchParams = reifyClientRenderSearchParams(underlying, store)
+      clientSearchParams = createRenderSearchParamsFromClient(
+        searchParams,
+        store
+      )
+      const { createRenderParamsFromClient } =
+        require('../../server/request/params') as typeof import('../../server/request/params')
+      clientParams = createRenderParamsFromClient(params, store)
     }
 
-    const { createDynamicallyTrackedParams } =
-      require('../../server/request/fallback-params') as typeof import('../../server/request/fallback-params')
-
-    trackedParams = createDynamicallyTrackedParams(params)
-    return (
-      <Component params={trackedParams} searchParams={clientSearchParams} />
-    )
+    return <Component params={clientParams} searchParams={clientSearchParams} />
   } else {
-    const underlying = use(searchParams)
-
-    const { reifyClientRenderSearchParams } =
+    const { createRenderSearchParamsFromClient } =
       require('../../server/request/search-params.browser') as typeof import('../../server/request/search-params.browser')
-    const clientSearchParams = reifyClientRenderSearchParams(underlying)
-    return <Component params={params} searchParams={clientSearchParams} />
+    const clientSearchParams = createRenderSearchParamsFromClient(searchParams)
+    const { createRenderParamsFromClient } =
+      require('../../server/request/params.browser') as typeof import('../../server/request/params.browser')
+    const clientParams = createRenderParamsFromClient(params)
+
+    return <Component params={clientParams} searchParams={clientSearchParams} />
   }
 }

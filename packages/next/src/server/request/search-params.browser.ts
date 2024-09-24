@@ -6,7 +6,7 @@ import {
   describeHasCheckingStringProperty,
 } from './utils'
 
-export function reifyClientRenderSearchParams(
+export function createRenderSearchParamsFromClient(
   underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
   if (process.env.NODE_ENV === 'development') {

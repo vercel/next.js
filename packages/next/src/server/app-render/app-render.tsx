@@ -386,7 +386,7 @@ async function generateDynamicRSCPayload(
     componentMod: {
       tree: loaderTree,
       createServerSearchParamsForMetadata,
-      createDynamicallyTrackedParams,
+      createServerParamsForMetadata,
     },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
@@ -414,7 +414,8 @@ async function generateDynamicRSCPayload(
       ),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
-      createDynamicallyTrackedParams,
+      createServerParamsForMetadata,
+      staticGenerationStore,
     })
     flightData = (
       await walkTreeWithFlightRouterState({
@@ -551,7 +552,7 @@ async function getRSCPayload(
     componentMod: {
       GlobalError,
       createServerSearchParamsForMetadata,
-      createDynamicallyTrackedParams,
+      createServerParamsForMetadata,
     },
     requestStore: { url },
     staticGenerationStore,
@@ -577,7 +578,8 @@ async function getRSCPayload(
     ),
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    createDynamicallyTrackedParams,
+    createServerParamsForMetadata,
+    staticGenerationStore,
   })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -650,7 +652,7 @@ async function getErrorRSCPayload(
     componentMod: {
       GlobalError,
       createServerSearchParamsForMetadata,
-      createDynamicallyTrackedParams,
+      createServerParamsForMetadata,
     },
     requestStore: { url },
     requestId,
@@ -670,7 +672,8 @@ async function getErrorRSCPayload(
     errorType,
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
-    createDynamicallyTrackedParams,
+    createServerParamsForMetadata,
+    staticGenerationStore,
   })
 
   const initialHead = (

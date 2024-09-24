@@ -19,10 +19,14 @@ import { ClientPageRoot } from '../../client/components/client-page'
 import { ClientSegmentRoot } from '../../client/components/client-segment'
 import {
   createServerSearchParamsForServerPage,
-  createServerSearchParamsForClientPage,
+  createPrerenderSearchParamsForClientPage,
   createServerSearchParamsForMetadata,
 } from '../request/search-params'
-import { createDynamicallyTrackedParams } from '../request/fallback-params'
+import {
+  createServerParamsForServerSegment,
+  createServerParamsForMetadata,
+  createPrerenderParamsForClientSegment,
+} from '../request/params'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { NotFoundBoundary } from '../../client/components/not-found-boundary'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
@@ -50,9 +54,11 @@ export {
   requestAsyncStorage,
   actionAsyncStorage,
   createServerSearchParamsForServerPage,
-  createServerSearchParamsForClientPage,
   createServerSearchParamsForMetadata,
-  createDynamicallyTrackedParams,
+  createPrerenderSearchParamsForClientPage,
+  createServerParamsForServerSegment,
+  createServerParamsForMetadata,
+  createPrerenderParamsForClientSegment,
   serverHooks,
   preloadStyle,
   preloadFont,
