@@ -149,6 +149,67 @@ describe('interceptors', () => {
     )
   })
 
+  it('should skip rendering deeper segments when an interceptor redirects', async () => {
+    const browser = await next.browser('/nested/deep?redirect')
+
+    await retry(async () => {
+      expect(
+        (await browser.elementByCss('p').text()).replace(timeStampRegExp, '')
+      ).toBe('root page')
+    })
+
+    const cliOutput = next.cliOutput.slice(cliOutputLength)
+
+    // The root layout being rendered twice is due to a hack in
+    // createComponentTree, see comment "TODO-APP: This is a hack to support
+    // unmatched parallel routes..."
+    const expectedOutputBeforeRedirect = outdent`
+      RootLayout, start
+      RootLayout, start
+      RootInterceptor, start
+      URL: http://localhost:${next.appPort}/nested/deep?redirect=
+      RootLoading
+      RootLayout, finish
+      RootLayout, finish
+      RootInterceptor, finish
+      NestedInterceptor, start
+      NestedLayout, start
+      NestedLoading
+      NestedLayout, finish
+      NestedInterceptor, finish
+      After
+    `.trim()
+
+    expect(cliOutput.replace(timeStampRegExp, '').trim()).toBeOneOf([
+      // redirect via meta tag
+      outdent`
+      ${expectedOutputBeforeRedirect}
+      RootLayout, start
+      RootLayout, start
+      RootInterceptor, start
+      URL: http://localhost:${next.appPort}/
+      RootLoading
+      RootLayout, finish
+      RootLayout, finish
+      RootInterceptor, finish
+      RootPage, start
+      RootPage, finish
+      After
+    `,
+      // redirect via client router
+      outdent`
+      ${expectedOutputBeforeRedirect}
+      RootInterceptor, start
+      URL: http://localhost:${next.appPort}/
+      RootInterceptor, finish
+      RootPage, start
+      RootPage, finish
+      After
+    `,
+    ])
+    // Note: The output excludes DeeplyNestedInterceptor and DeeplyNestedPage.
+  })
+
   it('can seed the react cache for the current request', async () => {
     const browser = await next.browser('/nested?seed-react-cache')
 
@@ -167,6 +228,9 @@ describe('interceptors', () => {
     await next.browser('/action')
     const cliOutput = next.cliOutput.slice(cliOutputLength)
 
+    // The root layout being rendered twice is due to a hack in
+    // createComponentTree, see comment "TODO-APP: This is a hack to support
+    // unmatched parallel routes..."
     const createExpectedPossibleOutput = (concurrentOutput: string) => outdent`
       RootLayout, start
       RootLayout, start
@@ -243,15 +307,15 @@ describe('interceptors', () => {
     const cliOutput = next.cliOutput.slice(cliOutputLength)
 
     expect(cliOutput.replace(timeStampRegExp, '')).toMatch(outdent`
-        RootInterceptor, start
-        URL: http://localhost:${next.appPort}/api/nested
-        RootInterceptor, finish
-        ApiInterceptor, start
-        ApiInterceptor, finish
-        ApiNestedInterceptor, start
-        ApiNestedInterceptor, finish
-        GET http://localhost:${next.appPort}/api/nested
-        After
-      `)
+      RootInterceptor, start
+      URL: http://localhost:${next.appPort}/api/nested
+      RootInterceptor, finish
+      ApiInterceptor, start
+      ApiInterceptor, finish
+      ApiNestedInterceptor, start
+      ApiNestedInterceptor, finish
+      GET http://localhost:${next.appPort}/api/nested
+      After
+    `)
   })
 })
