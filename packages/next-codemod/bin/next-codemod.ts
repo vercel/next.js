@@ -40,6 +40,13 @@ const program = new Command(packageJson.name)
   )
   .action(runTransform)
   .allowUnknownOption()
-  .parse(process.argv)
 
-program.command('upgrade').action(runUpgrade)
+program
+  .command('upgrade')
+  .description(
+    'Upgrade Next.js apps to desired versions with a single command.'
+  )
+  .usage('[options]')
+  .action(runUpgrade)
+
+program.parse(process.argv)
