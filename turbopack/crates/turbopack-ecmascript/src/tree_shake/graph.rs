@@ -953,6 +953,7 @@ impl DepGraph {
                                 var_decls: [local].into_iter().collect(),
                                 pure: true,
                                 content: ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                    span: item.span,
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
