@@ -18,7 +18,6 @@ import fs from 'fs/promises'
 import { loadComponents } from '../server/load-components'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { requireFontManifest } from '../server/require'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { trace } from '../trace'
 import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
@@ -41,7 +40,11 @@ import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
-import type { Params } from '../client/components/params'
+import type { Params } from '../server/request/params'
+import {
+  getFallbackRouteParams,
+  type FallbackRouteParams,
+} from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 const envConfig = require('../shared/lib/runtime-config.external')
@@ -70,7 +73,6 @@ async function exportPageImpl(
     buildExport = false,
     serverRuntimeConfig,
     subFolders = false,
-    optimizeFonts,
     optimizeCss,
     disableOptimizedLoading,
     debugOutput = false,
@@ -85,6 +87,9 @@ async function exportPageImpl(
 
   const {
     page,
+
+    // The parameters that are currently unknown.
+    _fallbackRouteParams = [],
 
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
@@ -101,6 +106,9 @@ async function exportPageImpl(
   } = pathMap
 
   try {
+    const fallbackRouteParams: FallbackRouteParams | null =
+      getFallbackRouteParams(_fallbackRouteParams)
+
     let query = { ...originalQuery }
     const pathname = normalizeAppPath(page)
     const isDynamic = isDynamicRoute(page)
@@ -252,10 +260,8 @@ async function exportPageImpl(
       ...input.renderOpts,
       ampPath: renderAmpPath,
       params,
-      optimizeFonts,
       optimizeCss,
       disableOptimizedLoading,
-      fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
       supportsDynamicResponse: false,
       experimental: {
@@ -279,6 +285,7 @@ async function exportPageImpl(
         path,
         pathname,
         query,
+        fallbackRouteParams,
         renderOpts,
         htmlFilepath,
         debugOutput,
@@ -379,7 +386,6 @@ export async function exportPages(
             serverRuntimeConfig: nextConfig.serverRuntimeConfig,
             subFolders: nextConfig.trailingSlash && !options.buildExport,
             buildExport: options.buildExport,
-            optimizeFonts: nextConfig.optimizeFonts,
             optimizeCss: nextConfig.experimental.optimizeCss,
             disableOptimizedLoading:
               nextConfig.experimental.disableOptimizedLoading,
@@ -552,4 +558,18 @@ process.on('rejectionHandled', () => {
   // It is ok to await a Promise late in Next.js as it allows for better
   // prefetching patterns to avoid waterfalls. We ignore logging these.
   // We should've already errored in anyway unhandledRejection.
+})
+
+const FATAL_UNHANDLED_NEXT_API_EXIT_CODE = 78
+
+process.on('uncaughtException', (err) => {
+  if (isDynamicUsageError(err)) {
+    console.error(
+      'A Next.js API that uses exceptions to signal framework behavior was uncaught. This suggests improper usage of a Next.js API. The original error is printed below and the build will now exit.'
+    )
+    console.error(err)
+    process.exit(FATAL_UNHANDLED_NEXT_API_EXIT_CODE)
+  } else {
+    console.error(err)
+  }
 })

@@ -314,10 +314,10 @@ pub struct ImageConfig {
     pub loader_file: Option<String>,
     pub domains: Vec<String>,
     pub disable_static_images: bool,
-    #[serde(rename(deserialize = "minimumCacheTTL"))]
-    pub minimum_cache_ttl: u32,
+    #[serde(rename = "minimumCacheTTL")]
+    pub minimum_cache_ttl: u64,
     pub formats: Vec<ImageFormat>,
-    #[serde(rename(deserialize = "dangerouslyAllowSVG"))]
+    #[serde(rename = "dangerouslyAllowSVG")]
     pub dangerously_allow_svg: bool,
     pub content_security_policy: String,
     pub remote_patterns: Vec<RemotePattern>,
@@ -400,6 +400,7 @@ pub struct ExperimentalTurboConfig {
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
+    pub module_id_strategy: Option<ModuleIdStrategy>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -431,6 +432,17 @@ pub enum LoaderItem {
     LoaderName(RcStr),
     LoaderOptions(WebpackLoaderItem),
 }
+
+#[turbo_tasks::value]
+#[derive(Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub enum ModuleIdStrategy {
+    Named,
+    Deterministic,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionModuleIdStrategy(pub Option<ModuleIdStrategy>);
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
@@ -545,6 +557,8 @@ pub struct ExperimentalConfig {
     /// directory.
     ppr: Option<ExperimentalPartialPrerendering>,
     taint: Option<bool>,
+    #[serde(rename = "dynamicIO")]
+    dynamic_io: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -1077,6 +1091,13 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn enable_dynamic_io(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.experimental.dynamic_io.unwrap_or(false),
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub async fn use_swc_css(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(
             self.await?
@@ -1128,9 +1149,27 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn tree_shaking_mode_for_user_code(
         self: Vc<Self>,
-        _is_development: bool,
+        is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
-        Ok(Vc::cell(Some(TreeShakingMode::ReexportsOnly)))
+        Ok(Vc::cell(Some(if is_development {
+            TreeShakingMode::ReexportsOnly
+        } else {
+            TreeShakingMode::ModuleFragments
+        })))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_id_strategy_config(self: Vc<Self>) -> Result<Vc<OptionModuleIdStrategy>> {
+        let this = self.await?;
+        let Some(module_id_strategy) = this
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|t| t.module_id_strategy.as_ref())
+        else {
+            return Ok(Vc::cell(None));
+        };
+        Ok(Vc::cell(Some(module_id_strategy.clone())))
     }
 }
 

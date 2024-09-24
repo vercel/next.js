@@ -14,6 +14,7 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
+    chunk::module_id_strategies::ModuleIdStrategy,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
@@ -46,6 +47,7 @@ use crate::{
     next_import_map::get_next_server_import_map,
     next_server::resolve::ExternalPredicate,
     next_shared::{
+        next_js_special_exports,
         resolve::{
             get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
@@ -499,6 +501,7 @@ pub async fn get_server_module_options_context(
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        special_exports: Some(next_js_special_exports()),
         ..Default::default()
     };
 
@@ -927,6 +930,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -943,6 +947,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     )
     .asset_prefix(asset_prefix)
     .minify_type(next_mode.minify_type())
+    .module_id_strategy(module_id_strategy)
     .build())
 }
 
@@ -952,6 +957,7 @@ pub async fn get_server_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -967,5 +973,6 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .minify_type(next_mode.minify_type())
+    .module_id_strategy(module_id_strategy)
     .build())
 }

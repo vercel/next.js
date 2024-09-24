@@ -74,7 +74,7 @@ export function getNextPublicEnvironmentVariables(prefix: string): DefineEnv {
 /**
  * Collects the `env` config value from the Next.js config.
  */
-function getNextConfigEnv(config: NextConfigComplete): DefineEnv {
+export function getNextConfigEnv(config: NextConfigComplete): DefineEnv {
   // Refactored code below to use for-of
   const defineEnv: DefineEnv = {}
   const env = config.env
@@ -234,7 +234,6 @@ export function getDefineEnv({
     'process.env.__NEXT_STRICT_MODE_APP':
       // When next.config.js does not have reactStrictMode it's enabled by default.
       config.reactStrictMode === null ? true : config.reactStrictMode,
-    'process.env.__NEXT_OPTIMIZE_FONTS': !dev && config.optimizeFonts,
     'process.env.__NEXT_OPTIMIZE_CSS':
       (config.experimental.optimizeCss && !dev) ?? false,
     'process.env.__NEXT_SCRIPT_WORKERS':
@@ -286,9 +285,10 @@ export function getDefineEnv({
     // with flying shuttle enabled so we can update them
     // without invalidating entries
     for (const key in nextPublicEnv) {
-      if (key in nextConfigEnv) {
-        continue
-      }
+      serializedDefineEnv[key] = key
+    }
+
+    for (const key in nextConfigEnv) {
       serializedDefineEnv[key] = key
     }
   }

@@ -49,15 +49,15 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
         None,
     );
     let mut parser = Parser::new_from(lexer);
-    // TODO should use our own handler that emits issues instead.
+
     let program = try_with_handler(cm.clone(), Default::default(), |handler| {
         GLOBALS.set(&Default::default(), || {
             let program = match parser.parse_program() {
                 Ok(program) => program,
                 Err(err) => {
-                    // TODO should emit an issue
+                    err.into_diagnostic(handler).emit();
                     bail!(
-                        "failed to parse source code\n{err:?}\n{}",
+                        "failed to parse source code\n{}",
                         code.source_code().to_str()?
                     )
                 }
@@ -92,6 +92,7 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
                     &ExtraOptions {
                         top_level_mark,
                         unresolved_mark,
+                        mangle_name_cache: Default::default(),
                     },
                 );
 
