@@ -1,50 +1,50 @@
-import React from 'react'
+import React from "react";
 import {
   Link as JssLink,
   Text,
   LinkField,
   TextField,
-} from '@sitecore-jss/sitecore-jss-nextjs'
+} from "@sitecore-jss/sitecore-jss-nextjs";
 
 type ResultsFieldLink = {
   field: {
-    link: LinkField
-  }
-}
+    link: LinkField;
+  };
+};
 
 interface Fields {
   data: {
     datasource: {
       children: {
-        results: ResultsFieldLink[]
-      }
+        results: ResultsFieldLink[];
+      };
       field: {
-        title: TextField
-      }
-    }
-  }
+        title: TextField;
+      };
+    };
+  };
 }
 
 type LinkListProps = {
-  params: { [key: string]: string }
-  fields: Fields
-}
+  params: { [key: string]: string };
+  fields: Fields;
+};
 
 type LinkListItemProps = {
-  key: string
-  index: number
-  total: number
-  field: LinkField
-}
+  key: string;
+  index: number;
+  total: number;
+  field: LinkField;
+};
 
 const LinkListItem = (props: LinkListItemProps) => {
-  let className = `item${props.index}`
-  className += (props.index + 1) % 2 === 0 ? ' even' : ' odd'
+  let className = `item${props.index}`;
+  className += (props.index + 1) % 2 === 0 ? " even" : " odd";
   if (props.index === 0) {
-    className += ' first'
+    className += " first";
   }
   if (props.index + 1 === props.total) {
-    className += ' last'
+    className += " last";
   }
   return (
     <li className={className}>
@@ -52,13 +52,13 @@ const LinkListItem = (props: LinkListItemProps) => {
         <JssLink field={props.field} />
       </div>
     </li>
-  )
-}
+  );
+};
 
 export const Default = (props: LinkListProps): JSX.Element => {
-  const datasource = props.fields?.data?.datasource
-  const styles = `component link-list ${props.params.styles}`.trimEnd()
-  const id = props.params.RenderingIdentifier
+  const datasource = props.fields?.data?.datasource;
+  const styles = `component link-list ${props.params.styles}`.trimEnd();
+  const id = props.params.RenderingIdentifier;
 
   if (datasource) {
     const list = datasource.children.results
@@ -70,7 +70,7 @@ export const Default = (props: LinkListProps): JSX.Element => {
           total={datasource.children.results.length}
           field={element.field.link}
         />
-      ))
+      ));
 
     return (
       <div className={styles} id={id ? id : undefined}>
@@ -79,7 +79,7 @@ export const Default = (props: LinkListProps): JSX.Element => {
           <ul>{list}</ul>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -88,5 +88,5 @@ export const Default = (props: LinkListProps): JSX.Element => {
         <h3>Link List</h3>
       </div>
     </div>
-  )
-}
+  );
+};

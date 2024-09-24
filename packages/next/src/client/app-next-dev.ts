@@ -1,9 +1,9 @@
 // TODO-APP: hydration warning
 
+import './app-webpack'
 import { appBootstrap } from './app-bootstrap'
 
 appBootstrap(() => {
-  require('./app-webpack')
   const { hydrate } = require('./app-index')
   hydrate()
 })

@@ -129,6 +129,12 @@ export default singletonRouter as SingletonRouter
 // Reexport the withRouter HOC
 export { default as withRouter } from './with-router'
 
+/**
+ * This hook gives access the [router object](https://nextjs.org/docs/pages/api-reference/functions/use-router#router-object)
+ * inside the [Pages Router](https://nextjs.org/docs/pages/building-your-application).
+ *
+ * Read more: [Next.js Docs: `useRouter`](https://nextjs.org/docs/pages/api-reference/functions/use-router)
+ */
 export function useRouter(): NextRouter {
   const router = React.useContext(RouterContext)
   if (!router) {
@@ -139,10 +145,6 @@ export function useRouter(): NextRouter {
 
   return router
 }
-
-// INTERNAL APIS
-// -------------
-// (do not use following exports inside the app)
 
 /**
  * Create a router and assign it as the singleton instance.

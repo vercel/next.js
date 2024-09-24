@@ -23,16 +23,25 @@ description: Learn how to use the assetPrefix config option to configure your CD
 > suited for hosting your application on a sub-path like `/docs`.
 > We do not suggest you use a custom Asset Prefix for this use case.
 
+## Set up a CDN
+
 To set up a [CDN](https://en.wikipedia.org/wiki/Content_delivery_network), you can set up an asset prefix and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
 
-Open `next.config.js` and add the `assetPrefix` config:
+Open `next.config.mjs` and add the `assetPrefix` config based on the [phase](/docs/app/api-reference/next-config-js#async-configuration):
 
-```js filename="next.config.js"
-const isProd = process.env.NODE_ENV === 'production'
+```js filename="next.config.mjs"
+// @ts-check
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
-module.exports = {
-  // Use the CDN in production and localhost for development.
-  assetPrefix: isProd ? 'https://cdn.mydomain.com' : undefined,
+export default (phase) => {
+  const isDev = phase === PHASE_DEVELOPMENT_SERVER
+  /**
+   * @type {import('next').NextConfig}
+   */
+  const nextConfig = {
+    assetPrefix: isDev ? undefined : 'https://cdn.mydomain.com',
+  }
+  return nextConfig
 }
 ```
 

@@ -1,95 +1,75 @@
 ---
-title: Next Script for Google Analytics
+title: Using Google Analytics with Next.js (through `next/script`)
 ---
 
 > Prefer `next/script` component when using the inline script for Google Analytics.
 
 ## Why This Error Occurred
 
-An inline script was used for Google analytics which might impact your webpage's performance.
+An inline script was used for Google Analytics which might impact your webpage's performance. Instead, we recommend using `next/script` through the `@next/third-parties` library.
 
 ## Possible Ways to Fix It
 
-#### Using gtag.js (recommended)
+#### Use `@next/third-parties` to add Google Analytics
 
-If you are using the [gtag.js](https://developers.google.com/analytics/devguides/collection/gtagjs) script to add analytics, use the `next/script` component with the right loading strategy to defer loading of the script until necessary.
+**`@next/third-parties`** is a library that provides a collection of components and utilities that improve the performance and developer experience of loading popular third-party libraries in your Next.js application. It is available with Next.js 14 (install `next@latest`).
 
-```jsx filename="pages/index.js"
-import Script from 'next/script'
+The `GoogleAnalytics` component can be used to include [Google Analytics
+4](https://developers.google.com/analytics/devguides/collection/ga4) to your page via the Google tag (`gtag.js`). By default, it fetches the original scripts after hydration occurs on the page.
 
-function Home() {
+> **Recommendation**: If Google Tag Manager is already included in your application, you can
+> configure Google Analytics directly using it, rather than including Google Analytics as a separate component. Refer to the [documentation](https://developers.google.com/analytics/devguides/collection/ga4/tag-options#what-is-gtm)
+> to learn more about the differences between Tag Manager and `gtag.js`.
+
+To load Google Analytics for all routes, include the component directly in your root layout and pass in your measurement ID:
+
+```tsx filename="app/layout.tsx" switcher
+import { GoogleAnalytics } from '@next/third-parties/google'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <div className="container">
-      <Script src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID" />
-      <Script id="google-analytics">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-
-          gtag('config', 'GA_MEASUREMENT_ID');
-        `}
-      </Script>
-    </div>
+    <html lang="en">
+      <body>{children}</body>
+      <GoogleAnalytics gaId="G-XYZ" />
+    </html>
   )
 }
-
-export default Home
 ```
 
-#### Using analytics.js (legacy)
+```jsx filename="app/layout.js" switcher
+import { GoogleAnalytics } from '@next/third-parties/google'
 
-If you are using the [analytics.js](https://developers.google.com/analytics/devguides/collection/analyticsjs) script to add analytics:
-
-```jsx filename="pages/index.js"
-import Script from 'next/script'
-
-function Home() {
+export default function RootLayout({ children }) {
   return (
-    <div className="container">
-      <Script id="google-analytics">
-        {`
-          (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-          })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
-
-          ga('create', 'UA-XXXXX-Y', 'auto');
-          ga('send', 'pageview');
-        `}
-      </Script>
-    </div>
+    <html lang="en">
+      <body>{children}</body>
+      <GoogleAnalytics gaId="G-XYZ" />
+    </html>
   )
 }
-
-export default Home
 ```
 
-If you are using the [alternative async variant](https://developers.google.com/analytics/devguides/collection/analyticsjs#alternative_async_tag):
+To load Google Analytics for a single route, include the component in your page file:
 
-```jsx filename="pages/index.js"
-import Script from 'next/script'
+```jsx filename="app/page.js"
+import { GoogleAnalytics } from '@next/third-parties/google'
 
-function Home() {
-  return (
-    <div className="container">
-      <Script id="google-analytics">
-        {`
-          window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
-          ga('create', 'UA-XXXXX-Y', 'auto');
-          ga('send', 'pageview');
-        `}
-      </Script>
-      <Script src="https://www.google-analytics.com/analytics.js" />
-    </div>
-  )
+export default function Page() {
+  return <GoogleAnalytics gaId="G-XYZ" />
 }
-
-export default Home
 ```
+
+> **Good to know:**
+>
+> - If you are using the Pages Router, please refer to the [`pages/` documentation](/docs/pages/building-your-application/optimizing/third-party-libraries).
+> - `@next/third-parties` also supports [Google Tag Manager](/docs/app/building-your-application/optimizing/third-party-libraries#google-tag-manager) and other third parties.
+> - Using `@next/third-parties` is not required. You can also use the `next/script` component directly. Refer to the [`next/script` documentation](/docs/app/building-your-application/optimizing/scripts) to learn more.
 
 ## Useful Links
 
-- [Add analytics.js to Your Site](https://developers.google.com/analytics/devguides/collection/analyticsjs)
-- [Efficiently load third-party JavaScript](https://web.dev/efficiently-load-third-party-javascript/)
-- [next/script Documentation](/docs/pages/building-your-application/optimizing/scripts)
+- [`@next/third-parties` Documentation](/docs/app/building-your-application/optimizing/third-party-libraries)
+- [`next/script` Documentation](/docs/app/building-your-application/optimizing/scripts)

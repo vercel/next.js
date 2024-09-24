@@ -1,17 +1,17 @@
-import Script from 'next/script'
+import Script from "next/script";
 
 type RenderParameters = {
-  sitekey: string
-  theme?: 'light' | 'dark'
-  callback?(token: string): void
-}
+  sitekey: string;
+  theme?: "light" | "dark";
+  callback?(token: string): void;
+};
 
 declare global {
   interface Window {
-    onloadTurnstileCallback(): void
+    onloadTurnstileCallback(): void;
     turnstile: {
-      render(container: string | HTMLElement, params: RenderParameters): void
-    }
+      render(container: string | HTMLElement, params: RenderParameters): void;
+    };
   }
 }
 
@@ -39,5 +39,5 @@ export default function ExplicitRender() {
         </p>
       </form>
     </main>
-  )
+  );
 }

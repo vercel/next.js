@@ -5,5 +5,5 @@ export default function Page() {
 export const metadata = {
   title: 'My title',
   description: 'My description',
-  themeColor: '#eee',
+  applicationName: 'suspense-app',
 }

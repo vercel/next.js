@@ -1,15 +1,15 @@
 // @flow
-import React, { type Node } from 'react'
-import Head from 'next/head'
+import React, { type Node } from "react";
+import Head from "next/head";
 
 type Props = {
   children: Node,
   title?: string,
-}
+};
 
 export default function Page({
   children,
-  title = 'This is the default title',
+  title = "This is the default title",
 }: Props) {
   return (
     <section>
@@ -18,5 +18,5 @@ export default function Page({
       </Head>
       {children}
     </section>
-  )
+  );
 }

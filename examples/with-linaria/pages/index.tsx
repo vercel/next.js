@@ -1,6 +1,6 @@
-import Head from 'next/head'
-import { styled } from '@linaria/react'
-import { css } from '@linaria/core'
+import Head from "next/head";
+import { styled } from "@linaria/react";
+import { css } from "@linaria/core";
 
 const Box = styled.div`
   margin-top: 40px;
@@ -19,11 +19,11 @@ const Box = styled.div`
       transform: rotate(360deg);
     }
   }
-`
+`;
 
 const anotherClass = css`
   color: blue;
-`
+`;
 
 export default function Home() {
   return (
@@ -33,5 +33,5 @@ export default function Home() {
       </Head>
       <Box className={anotherClass}>Zero runtime CSS in JS</Box>
     </>
-  )
+  );
 }

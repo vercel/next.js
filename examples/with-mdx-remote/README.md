@@ -39,22 +39,22 @@ When using `next-mdx-remote`, you can pass custom components to the MDX renderer
 For example, here's how you can change `getStaticProps` to pass a list of component names, checking the names in the page render function to see which components need to be dynamically loaded.
 
 ```js
-import dynamic from 'next/dynamic'
-import Test from '../components/test'
+import dynamic from "next/dynamic";
+import Test from "../components/test";
 
-const SomeHeavyComponent = dynamic(() => import('SomeHeavyComponent'))
+const SomeHeavyComponent = dynamic(() => import("SomeHeavyComponent"));
 
-const defaultComponents = { Test }
+const defaultComponents = { Test };
 
 export function SomePage({ mdxSource, componentNames }) {
   const components = {
     ...defaultComponents,
-    SomeHeavyComponent: componentNames.includes('SomeHeavyComponent')
+    SomeHeavyComponent: componentNames.includes("SomeHeavyComponent")
       ? SomeHeavyComponent
       : null,
-  }
+  };
 
-  return <MDXRemote {...mdxSource} components={components} />
+  return <MDXRemote {...mdxSource} components={components} />;
 }
 
 export async function getStaticProps() {
@@ -63,21 +63,21 @@ export async function getStaticProps() {
   ---
 
   Some **mdx** text, with a default component <Test name={title}/> and a Heavy component <SomeHeavyComponent />
-  `
+  `;
 
-  const { content, data } = matter(source)
+  const { content, data } = matter(source);
 
   const componentNames = [
-    /<SomeHeavyComponent/.test(content) ? 'SomeHeavyComponent' : null,
-  ].filter(Boolean)
+    /<SomeHeavyComponent/.test(content) ? "SomeHeavyComponent" : null,
+  ].filter(Boolean);
 
-  const mdxSource = await serialize(content)
+  const mdxSource = await serialize(content);
 
   return {
     props: {
       mdxSource,
       componentNames,
     },
-  }
+  };
 }
 ```

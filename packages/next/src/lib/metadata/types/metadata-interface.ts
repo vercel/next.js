@@ -1,15 +1,18 @@
 import type {
   AlternateURLs,
+  Languages,
   ResolvedAlternateURLs,
 } from './alternative-urls-types'
 import type {
   AppleWebApp,
   AppLinks,
+  Facebook,
   FormatDetection,
   ItunesApp,
   ResolvedAppleWebApp,
   ResolvedAppLinks,
-  Viewport,
+  ResolvedFacebook,
+  ViewportLayout,
 } from './extra-types'
 import type {
   DeprecatedMetadataFields,
@@ -129,6 +132,8 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The theme color for the document.
+   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
+   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
    * @example
    * ```tsx
    * "#000000"
@@ -149,6 +154,8 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The color scheme for the document.
+   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
+   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
    * @example
    * ```tsx
    * "dark"
@@ -159,16 +166,15 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The viewport setting for the document.
+   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
+   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
    * @example
    * ```tsx
-   * "width=device-width, initial-scale=1"
-   * <meta name="viewport" content="width=device-width, initial-scale=1" />
-   *
    * { width: "device-width", initialScale: 1 }
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    * ```
    */
-  viewport?: null | string | Viewport
+  viewport?: null | string | ViewportLayout
 
   /**
    * The creator of the document.
@@ -302,7 +308,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * The Twitter metadata for the document.
    * @example
    * ```tsx
-   * { card: "summary_large_image", site: "@site", creator: "@creator", "images": "https://example.com/og.png" }
+   * { card: "summary_large_image", site: "@site", creator: "@creator", images: "https://example.com/og.png" }
    *
    * <meta name="twitter:card" content="summary_large_image" />
    * <meta name="twitter:site" content="@site" />
@@ -314,6 +320,25 @@ interface Metadata extends DeprecatedMetadataFields {
    *
    */
   twitter?: null | Twitter
+
+  /**
+   * The Facebook metadata for the document.
+   * You can specify either appId or admins, but not both.
+   * @example
+   * ```tsx
+   * { appId: "12345678" }
+   *
+   * <meta property="fb:app_id" content="12345678" />
+   * ```
+   *
+   * @example
+   * ```tsx
+   * { admins: ["12345678"] }
+   *
+   * <meta property="fb:admins" content="12345678" />
+   * ```
+   */
+  facebook?: null | Facebook
 
   /**
    * The common verification tokens for the document.
@@ -472,8 +497,17 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   // if you provide an array it will be flattened into a single tag with comma separation
   keywords: null | Array<string>
   referrer: null | ReferrerEnum
+  /**
+   * @deprecated
+   */
   themeColor: null | ThemeColorDescriptor[]
+  /**
+   * @deprecated
+   */
   colorScheme: null | ColorSchemeEnum
+  /**
+   * @deprecated
+   */
   viewport: null | string
   creator: null | string
   publisher: null | string
@@ -493,6 +527,8 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   manifest: null | string | URL
 
   twitter: null | ResolvedTwitterMetadata
+
+  facebook: null | ResolvedFacebook
 
   // common verification tokens
   verification: null | ResolvedVerification
@@ -567,6 +603,10 @@ type SitemapFile = Array<{
     | 'yearly'
     | 'never'
   priority?: number
+  alternates?: {
+    languages?: Languages<string>
+  }
+  images?: string[]
 }>
 
 type ResolvingMetadata = Promise<ResolvedMetadata>
@@ -577,4 +617,53 @@ declare namespace MetadataRoute {
   export type Manifest = ManifestFile
 }
 
-export type { Metadata, ResolvedMetadata, ResolvingMetadata, MetadataRoute }
+interface Viewport extends ViewportLayout {
+  /**
+   * The theme color for the document.
+   * @example
+   *
+   * ```tsx
+   * "#000000"
+   * <meta name="theme-color" content="#000000" />
+   *
+   * { media: "(prefers-color-scheme: dark)", color: "#000000" }
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   *
+   * [
+   *  { media: "(prefers-color-scheme: dark)", color: "#000000" },
+   *  { media: "(prefers-color-scheme: light)", color: "#ffffff" }
+   * ]
+   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+   * ```
+   */
+  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[]
+
+  /**
+   * The color scheme for the document.
+   * @example
+   *
+   * ```tsx
+   * "dark"
+   * <meta name="color-scheme" content="dark" />
+   * ```
+   */
+  colorScheme?: null | ColorSchemeEnum
+}
+
+type ResolvingViewport = Promise<Viewport>
+
+interface ResolvedViewport extends ViewportLayout {
+  themeColor: null | ThemeColorDescriptor[]
+  colorScheme: null | ColorSchemeEnum
+}
+
+export type {
+  Metadata,
+  ResolvedMetadata,
+  ResolvingMetadata,
+  MetadataRoute,
+  Viewport,
+  ResolvingViewport,
+  ResolvedViewport,
+}

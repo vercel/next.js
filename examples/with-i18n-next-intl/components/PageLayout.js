@@ -1,11 +1,11 @@
-import Navigation from './Navigation'
+import Navigation from "./Navigation";
 
 export default function PageLayout({ children, title }) {
   return (
     <div
       style={{
         padding: 24,
-        fontFamily: 'system-ui, sans-serif',
+        fontFamily: "system-ui, sans-serif",
         lineHeight: 1.5,
       }}
     >
@@ -15,5 +15,5 @@ export default function PageLayout({ children, title }) {
         {children}
       </div>
     </div>
-  )
+  );
 }

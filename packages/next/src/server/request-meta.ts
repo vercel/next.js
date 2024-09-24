@@ -4,8 +4,9 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
-import type { RouteMatch } from './future/route-matches/route-match'
+import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import type { ServerComponentsHmrCache } from './response-cache'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -67,6 +68,78 @@ export interface RequestMeta {
    * The incremental cache to use for the request.
    */
   incrementalCache?: any
+
+  /**
+   * The server components HMR cache, only for dev.
+   */
+  serverComponentsHmrCache?: ServerComponentsHmrCache
+
+  /**
+   * True when the request is for the prefetch flight data.
+   */
+  isPrefetchRSCRequest?: true
+
+  /**
+   * True when the request is for the flight data.
+   */
+  isRSCRequest?: true
+
+  /**
+   * Postponed state to use for resumption. If present it's assumed that the
+   * request is for a page that has postponed (there are no guarantees that the
+   * page actually has postponed though as it would incur an additional cache
+   * lookup).
+   */
+  postponed?: string
+
+  /**
+   * If provided, this will be called when a response cache entry was generated
+   * or looked up in the cache.
+   */
+  onCacheEntry?: (
+    cacheEntry: any,
+    requestMeta: any
+  ) => Promise<boolean | void> | boolean | void
+
+  /**
+   * The previous revalidate before rendering 404 page for notFound: true
+   */
+  notFoundRevalidate?: number | false
+
+  /**
+   * The path we routed to and should be invoked
+   */
+  invokePath?: string
+
+  /**
+   * The specific page output we should be matching
+   */
+  invokeOutput?: string
+
+  /**
+   * The status we are invoking the request with from routing
+   */
+  invokeStatus?: number
+
+  /**
+   * The routing error we are invoking with
+   */
+  invokeError?: Error
+
+  /**
+   * The query parsed for the invocation
+   */
+  invokeQuery?: Record<string, undefined | string | string[]>
+
+  /**
+   * Whether the request is a middleware invocation
+   */
+  middlewareInvoke?: boolean
+
+  /**
+   * Whether the default route matches were set on the request during routing.
+   */
+  didSetDefaultRouteMatches?: boolean
 }
 
 /**
@@ -162,6 +235,11 @@ type NextQueryMetadata = {
 
   __nextSsgPath?: string
   _nextBubbleNoFallback?: '1'
+
+  /**
+   * When set to `1`, the request is for the `/_next/data` route using the pages
+   * router.
+   */
   __nextDataReq?: '1'
   __nextCustomErrorRender?: '1'
   [NEXT_RSC_UNION_QUERY]?: string

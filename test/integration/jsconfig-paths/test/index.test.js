@@ -11,7 +11,7 @@ import {
   launchApp,
   nextBuild,
   killApp,
-  check,
+  retry,
   File,
 } from 'next-test-utils'
 import * as JSON5 from 'json5'
@@ -62,30 +62,27 @@ function runTests() {
       expect($('body').text()).toMatch(/Hello/)
     })
 
-    it('should resolve a wildcard alias', async () => {
-      const $ = await get$('/wildcard-alias')
-      expect($('body').text()).toMatch(/world/)
-    })
-
     it('should have correct module not found error', async () => {
       const basicPage = join(appDir, 'pages/basic-alias.js')
       const contents = await fs.readFile(basicPage, 'utf8')
 
-      await fs.writeFile(basicPage, contents.replace('@c/world', '@c/worldd'))
-      await renderViaHTTP(appPort, '/basic-alias')
+      try {
+        await fs.writeFile(basicPage, contents.replace('@c/world', '@c/worldd'))
 
-      const found = await check(
-        () => stripAnsi(output),
-        /Module not found: Can't resolve '@c\/worldd'/,
-        false
-      )
-      await fs.writeFile(basicPage, contents)
-      expect(found).toBe(true)
+        await retry(async () => {
+          await renderViaHTTP(appPort, '/basic-alias')
+          expect(stripAnsi(output)).toMatch(
+            /Module not found: Can't resolve '@c\/worldd'/
+          )
+        })
+      } finally {
+        await fs.writeFile(basicPage, contents)
+      }
     })
   })
 
   describe('should build', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {
@@ -94,9 +91,6 @@ function runTests() {
         it('should trace correctly', async () => {
           const singleAliasTrace = await fs.readJSON(
             join(appDir, '.next/server/pages/single-alias.js.nft.json')
-          )
-          const wildcardAliasTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/wildcard-alias.js.nft.json')
           )
           const resolveOrderTrace = await fs.readJSON(
             join(appDir, '.next/server/pages/resolve-order.js.nft.json')
@@ -111,16 +105,6 @@ function runTests() {
           expect(
             singleAliasTrace.files.some((file) =>
               file.includes('components/hello.js')
-            )
-          ).toBe(false)
-          expect(
-            wildcardAliasTrace.files.some((file) =>
-              file.includes('mypackage/myfile.js')
-            )
-          ).toBe(true)
-          expect(
-            wildcardAliasTrace.files.some((file) =>
-              file.includes('mypackage/data.js')
             )
           ).toBe(false)
           expect(
@@ -163,7 +147,6 @@ describe('jsconfig paths without baseurl', () => {
       '@c/*': ['./components/*'],
       '@lib/*': ['./lib/a/*', './lib/b/*'],
       '@mycomponent': ['./components/hello.js'],
-      '*': ['./node_modules/*'],
     }
     jsconfig.write(JSON.stringify(jsconfigContent, null, 2))
   })

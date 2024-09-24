@@ -28,7 +28,7 @@ async function extractBinary(
     })
 
   if (!fs.existsSync(path.join(cacheDirectory, tarFileName))) {
-    Log.info(`Downloading swc package ${pkgName}...`)
+    Log.info(`Downloading swc package ${pkgName}... to ${cacheDirectory}`)
     await fs.promises.mkdir(cacheDirectory, { recursive: true })
     const tempFile = path.join(
       cacheDirectory,
@@ -55,15 +55,37 @@ async function extractBinary(
       return body.pipeTo(
         new WritableStream({
           write(chunk) {
-            cacheWriteStream.write(chunk)
+            return new Promise<void>((resolve, reject) =>
+              cacheWriteStream.write(chunk, (error) => {
+                if (error) {
+                  reject(error)
+                  return
+                }
+
+                resolve()
+              })
+            )
           },
           close() {
-            cacheWriteStream.close()
+            return new Promise<void>((resolve, reject) =>
+              cacheWriteStream.close((error) => {
+                if (error) {
+                  reject(error)
+                  return
+                }
+
+                resolve()
+              })
+            )
           },
         })
       )
     })
+
+    await fs.promises.access(tempFile) // ensure the temp file existed
     await fs.promises.rename(tempFile, path.join(cacheDirectory, tarFileName))
+  } else {
+    Log.info(`Using cached swc package ${pkgName}...`)
   }
   await extractFromTar()
 

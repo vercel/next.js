@@ -1,5 +1,5 @@
-@import '@sass/abstracts/mixins';
-@import '@sass/abstracts/vars';
+@import "@sass/abstracts/mixins";
+@import "@sass/abstracts/vars";
 
 .navigation {
   background: $nav-bg;
@@ -51,4 +51,4 @@
     padding-left: 10px;
   }
 }
-@import '@sass/components/navigation/';
+@import "@sass/components/navigation/";

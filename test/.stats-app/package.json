@@ -4,12 +4,11 @@
   "license": "MIT",
   "dependencies": {
     "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "react": "19.0.0-rc-5d19e1c8-20240923",
+    "react-dom": "19.0.0-rc-5d19e1c8-20240923"
   },
   "engines": {
-    "node": ">=18.17.0",
-    "pnpm": "8.9.0"
+    "node": ">=18.18.0"
   },
-  "packageManager": "pnpm@8.9.0"
+  "packageManager": "pnpm@9.6.0"
 }

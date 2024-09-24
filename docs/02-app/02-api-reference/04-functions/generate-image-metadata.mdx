@@ -40,11 +40,10 @@ export function generateImageMetadata({ params }) {
 | `app/shop/icon.js`              | `/shop`     | `undefined`               |
 | `app/shop/[slug]/icon.js`       | `/shop/1`   | `{ slug: '1' }`           |
 | `app/shop/[tag]/[item]/icon.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
-| `app/shop/[...slug]/icon.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |
 
 ## Returns
 
-The `generateImageMetadata` function should return an `array` of objects containing the image's metadata such as `alt` and `size`. In addition, each item **must** include an `id` value will be passed to the props of the image generating function.
+The `generateImageMetadata` function should return an `array` of objects containing the image's metadata such as `alt` and `size`. In addition, each item **must** include an `id` value which will be passed to the props of the image generating function.
 
 | Image Metadata Object | Type                                |
 | --------------------- | ----------------------------------- |

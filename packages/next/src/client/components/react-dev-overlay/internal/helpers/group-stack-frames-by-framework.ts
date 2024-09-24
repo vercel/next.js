@@ -1,29 +1,9 @@
+import type { SourcePackage } from '../../server/shared'
 import type { OriginalStackFrame } from './stack-frame'
 
 export type StackFramesGroup = {
-  framework?: 'next' | 'react'
+  framework?: SourcePackage | null
   stackFrames: OriginalStackFrame[]
-}
-
-/**
- * Get the origin framework of the stack frame by package name.
- */
-function getFramework(
-  sourcePackage: string | undefined
-): StackFramesGroup['framework'] {
-  if (!sourcePackage) return undefined
-
-  if (
-    /^(react|react-dom|react-is|react-refresh|react-server-dom-webpack|react-server-dom-turbopack|scheduler)$/.test(
-      sourcePackage
-    )
-  ) {
-    return 'react'
-  } else if (sourcePackage === 'next') {
-    return 'next'
-  }
-
-  return undefined
 }
 
 /**
@@ -55,7 +35,7 @@ export function groupStackFramesByFramework(
   for (const stackFrame of stackFrames) {
     const currentGroup =
       stackFramesGroupedByFramework[stackFramesGroupedByFramework.length - 1]
-    const framework = getFramework(stackFrame.sourcePackage)
+    const framework = stackFrame.sourcePackage
 
     if (currentGroup && currentGroup.framework === framework) {
       currentGroup.stackFrames.push(stackFrame)

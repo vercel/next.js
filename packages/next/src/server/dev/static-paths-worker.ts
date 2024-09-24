@@ -7,23 +7,36 @@ import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
+  reduceAppConfig,
 } from '../../build/utils'
-import type { GenerateParams } from '../../build/utils'
+import type {
+  GenerateParamsResults,
+  PartialStaticPathsResult,
+} from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import * as serverHooks from '../../client/components/hooks-server-context'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import {
+  isAppPageRouteModule,
+  isAppRouteRouteModule,
+} from '../route-modules/checks'
+import {
+  checkIsRoutePPREnabled,
+  type ExperimentalPPRConfig,
+} from '../lib/experimental/ppr'
 
-const { AppRouteRouteModule } =
-  require('../future/route-modules/app-route/module.compiled') as typeof import('../future/route-modules/app-route/module')
-
-type RuntimeConfig = any
+type RuntimeConfig = {
+  pprConfig: ExperimentalPPRConfig | undefined
+  configFileName: string
+  publicRuntimeConfig: { [key: string]: any }
+  serverRuntimeConfig: { [key: string]: any }
+}
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
 // during a production build
 export async function loadStaticPaths({
+  dir,
   distDir,
   pathname,
   config,
@@ -36,8 +49,11 @@ export async function loadStaticPaths({
   fetchCacheKeyPrefix,
   maxMemoryCacheSize,
   requestHeaders,
-  incrementalCacheHandlerPath,
+  cacheHandler,
+  nextConfigOutput,
+  isAppPPRFallbacksEnabled,
 }: {
+  dir: string
   distDir: string
   pathname: string
   config: RuntimeConfig
@@ -50,12 +66,10 @@ export async function loadStaticPaths({
   fetchCacheKeyPrefix?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
-  incrementalCacheHandlerPath?: string
-}): Promise<{
-  paths?: string[]
-  encodedPaths?: string[]
-  fallback?: boolean | 'blocking'
-}> {
+  cacheHandler?: string
+  nextConfigOutput: 'standalone' | 'export' | undefined
+  isAppPPRFallbacksEnabled: boolean | undefined
+}): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
   setHttpClientAndAgentOptions({
@@ -79,8 +93,8 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const { routeModule } = components
-    const generateParams: GenerateParams =
-      routeModule && AppRouteRouteModule.is(routeModule)
+    const generateParams: GenerateParamsResults =
+      routeModule && isAppRouteRouteModule(routeModule)
         ? [
             {
               config: {
@@ -94,18 +108,25 @@ export async function loadStaticPaths({
           ]
         : await collectGenerateParams(components.ComponentMod.tree)
 
+    const isRoutePPREnabled =
+      isAppPageRouteModule(routeModule) &&
+      checkIsRoutePPREnabled(config.pprConfig, reduceAppConfig(generateParams))
+
     return await buildAppStaticPaths({
+      dir,
       page: pathname,
       generateParams,
       configFileName: config.configFileName,
       distDir,
       requestHeaders,
-      incrementalCacheHandlerPath,
-      serverHooks,
-      staticGenerationAsyncStorage,
+      cacheHandler,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
+      ComponentMod: components.ComponentMod,
+      nextConfigOutput,
+      isRoutePPREnabled,
+      isAppPPRFallbacksEnabled,
     })
   }
 

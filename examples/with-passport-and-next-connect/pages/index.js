@@ -1,8 +1,8 @@
-import { useUser, fetcher } from '../lib/hooks'
-import useSWR from 'swr'
+import { useUser, fetcher } from "../lib/hooks";
+import useSWR from "swr";
 
 function UserList() {
-  const { data: { users } = {} } = useSWR('/api/users', fetcher)
+  const { data: { users } = {} } = useSWR("/api/users", fetcher);
   return (
     <>
       <h2>All users</h2>
@@ -23,16 +23,16 @@ function UserList() {
         </ul>
       )}
     </>
-  )
+  );
 }
 
 export default function HomePage() {
-  const [user] = useUser()
+  const [user] = useUser();
   return (
     <>
       <h1>
-        <a href="http://www.passportjs.org/">Passport.js</a> +{' '}
-        <a href="https://github.com/hoangvvo/next-connect">next-connect</a>{' '}
+        <a href="http://www.passportjs.org/">Passport.js</a> +{" "}
+        <a href="https://github.com/hoangvvo/next-connect">next-connect</a>{" "}
         Example
       </h1>
       <h2>Steps to test the example:</h2>
@@ -79,5 +79,5 @@ export default function HomePage() {
         }
       `}</style>
     </>
-  )
+  );
 }

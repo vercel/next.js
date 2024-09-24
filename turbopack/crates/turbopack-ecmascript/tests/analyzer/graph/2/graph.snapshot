@@ -1,0 +1,42 @@
+[
+    (
+        "x",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Variable(
+                    (
+                        "y",
+                        #2,
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "y",
+        Variable(
+            (
+                "x",
+                #2,
+            ),
+        ),
+    ),
+    (
+        "z",
+        Variable(
+            (
+                "x",
+                #2,
+            ),
+        ),
+    ),
+]

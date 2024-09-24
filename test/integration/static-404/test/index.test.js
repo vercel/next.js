@@ -26,7 +26,7 @@ describe('Static 404 page', () => {
   beforeEach(() => fs.remove(join(appDir, '.next/server')))
 
   describe('With config enabled', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should export 404 page without custom _error', async () => {

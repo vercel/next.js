@@ -12,7 +12,8 @@ describe('ReactRefreshRegression', () => {
     dependencies: {
       'styled-components': '5.1.0',
       '@next/mdx': 'canary',
-      '@mdx-js/loader': '0.18.0',
+      '@mdx-js/loader': '2.2.1',
+      '@mdx-js/react': '2.2.1',
     },
   })
 
@@ -74,7 +75,7 @@ describe('ReactRefreshRegression', () => {
     )
 
     // Verify no hydration mismatch:
-    expect(await session.hasRedbox(false)).toBe(false)
+    await session.assertNoRedbox()
 
     await cleanup()
   })
@@ -283,32 +284,32 @@ describe('ReactRefreshRegression', () => {
     )
     expect(didNotReload).toBe(false)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
       "> 1 | export default function () { throw new Error('boom'); }
-          |                                   ^"
+          |                                    ^"
     `)
 
     await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13574
-  test('custom loader (mdx) should have Fast Refresh enabled', async () => {
+  test('custom loader mdx should have Fast Refresh enabled', async () => {
     const { session, cleanup } = await sandbox(
       next,
       new Map([
         [
           'next.config.js',
           outdent`
-            const withMDX = require("@next/mdx")({
-              extension: /\\.mdx?$/,
-            });
-            module.exports = withMDX({
-              pageExtensions: ["js", "mdx"],
-            });
-          `,
+              const withMDX = require("@next/mdx")({
+                extension: /\\.mdx?$/,
+              });
+              module.exports = withMDX({
+                pageExtensions: ["js", "mdx"],
+              });
+            `,
         ],
         ['pages/mdx.mdx', `Hello World!`],
       ]),
@@ -322,7 +323,7 @@ describe('ReactRefreshRegression', () => {
 
     let didNotReload = await session.patch('pages/mdx.mdx', `Hello Foo!`)
     expect(didNotReload).toBe(true)
-    expect(await session.hasRedbox(false)).toBe(false)
+    await session.assertNoRedbox()
     expect(
       await session.evaluate(
         () => document.querySelector('#__next').textContent
@@ -331,7 +332,7 @@ describe('ReactRefreshRegression', () => {
 
     didNotReload = await session.patch('pages/mdx.mdx', `Hello Bar!`)
     expect(didNotReload).toBe(true)
-    expect(await session.hasRedbox(false)).toBe(false)
+    await session.assertNoRedbox()
     expect(
       await session.evaluate(
         () => document.querySelector('#__next').textContent

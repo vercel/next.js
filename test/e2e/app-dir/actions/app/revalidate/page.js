@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
 import { cookies } from 'next/headers'
+import RedirectClientComponent from './client'
 
 export default async function Page() {
   const data = await fetch(
@@ -133,6 +134,24 @@ export default async function Page() {
           redirect
         </button>
       </form>
+      <form>
+        <button
+          id="redirect-revalidate"
+          formAction={async () => {
+            'use server'
+            revalidateTag('justputit')
+            redirect('/revalidate?foo=bar')
+          }}
+        >
+          redirect + revalidate
+        </button>
+      </form>
+      <RedirectClientComponent
+        action={async () => {
+          'use server'
+          revalidateTag('justputit')
+        }}
+      />
     </>
   )
 }

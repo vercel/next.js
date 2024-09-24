@@ -43,6 +43,12 @@ export type RemotePattern = {
    * Double `**` matches any number of path segments.
    */
   pathname?: string
+
+  /**
+   * Can be literal query string such as `?v=1` or
+   * empty string meaning no query string.
+   */
+  search?: string
 }
 
 type ImageFormat = 'image/avif' | 'image/webp'
@@ -91,7 +97,7 @@ export type ImageConfigComplete = {
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
   contentDispositionType: 'inline' | 'attachment'
 
-  /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remote-patterns) */
+  /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remotepatterns) */
   remotePatterns: RemotePattern[]
 
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
@@ -112,7 +118,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   formats: ['image/webp'],
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
-  contentDispositionType: 'inline',
+  contentDispositionType: 'attachment',
   remotePatterns: [],
   unoptimized: false,
 }

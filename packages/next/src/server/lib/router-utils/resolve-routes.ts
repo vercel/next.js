@@ -1,15 +1,15 @@
-import type { TLSSocket } from 'tls'
 import type { FsOutput } from './filesystem'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
 import type { RenderServer, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
-import type { Redirect } from '../../../../types'
-import type { Header } from '../../../lib/load-custom-routes'
+import type { Redirect } from '../../../types'
+import type { Header, Rewrite } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
 
 import url from 'url'
+import path from 'node:path'
 import setupDebug from 'next/dist/compiled/debug'
 import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
@@ -26,6 +26,9 @@ import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
+import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
+import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
+import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
 
 import { addRequestMeta } from '../../request-meta'
 import {
@@ -33,7 +36,11 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
-import { createRequestResponseMocks } from '../mock-request'
+import type { TLSSocket } from 'tls'
+import { NEXT_ROUTER_STATE_TREE_HEADER } from '../../../client/components/app-router-headers'
+import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
+import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
+import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -45,7 +52,7 @@ export function getResolveRoutes(
   opts: Parameters<typeof initialize>[0],
   renderServer: RenderServer,
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
-  ensureMiddleware?: () => Promise<void>
+  ensureMiddleware?: (url?: string) => Promise<void>
 ) {
   type Route = {
     /**
@@ -133,7 +140,7 @@ export function getResolveRoutes(
     // TODO: inherit this from higher up
     const protocol =
       (req?.socket as TLSSocket)?.encrypted ||
-      req.headers['x-forwarded-proto'] === 'https'
+      req.headers['x-forwarded-proto']?.includes('https')
         ? 'https'
         : 'http'
 
@@ -141,10 +148,10 @@ export function getResolveRoutes(
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-      ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
-          opts.port
-        }${req.url}`
-      : req.url || ''
+        ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+            opts.port
+          }${req.url}`
+        : req.url || ''
 
     addRequestMeta(req, 'initURL', initUrl)
     addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
@@ -289,6 +296,17 @@ export function getResolveRoutes(
       }
     }
 
+    const normalizers = {
+      basePath:
+        config.basePath && config.basePath !== '/'
+          ? new BasePathPathnameNormalizer(config.basePath)
+          : undefined,
+      data: new NextDataPathnameNormalizer(fsChecker.buildId),
+      postponed: config.experimental.ppr
+        ? new PostponedPathnameNormalizer()
+        : undefined,
+    }
+
     async function handleRoute(
       route: (typeof routes)[0]
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
@@ -344,9 +362,12 @@ export function getResolveRoutes(
       }
 
       if (params) {
-        if (fsChecker.interceptionRoutes && route.name === 'before_files_end') {
-          for (const interceptionRoute of fsChecker.interceptionRoutes) {
-            const result = await handleRoute(interceptionRoute)
+        if (
+          fsChecker.exportPathMapRoutes &&
+          route.name === 'before_files_end'
+        ) {
+          for (const exportPathMapRoute of fsChecker.exportPathMapRoutes) {
+            const result = await handleRoute(exportPathMapRoute)
 
             if (result) {
               return result
@@ -354,33 +375,48 @@ export function getResolveRoutes(
           }
         }
 
-        if (route.name === 'middleware_next_data') {
+        if (route.name === 'middleware_next_data' && parsedUrl.pathname) {
           if (fsChecker.getMiddlewareMatchers()?.length) {
-            const nextDataPrefix = addPathPrefix(
-              `/_next/data/${fsChecker.buildId}/`,
-              config.basePath
-            )
+            let normalized = parsedUrl.pathname
 
-            if (
-              parsedUrl.pathname?.startsWith(nextDataPrefix) &&
-              parsedUrl.pathname.endsWith('.json')
-            ) {
+            // Remove the base path if it exists.
+            const hadBasePath = normalizers.basePath?.match(parsedUrl.pathname)
+            if (hadBasePath && normalizers.basePath) {
+              normalized = normalizers.basePath.normalize(normalized, true)
+            }
+
+            let updated = false
+            if (normalizers.data.match(normalized)) {
+              updated = true
               parsedUrl.query.__nextDataReq = '1'
-              parsedUrl.pathname = parsedUrl.pathname.substring(
-                nextDataPrefix.length - 1
-              )
-              parsedUrl.pathname = parsedUrl.pathname.substring(
-                0,
-                parsedUrl.pathname.length - '.json'.length
-              )
-              parsedUrl.pathname = addPathPrefix(
-                parsedUrl.pathname || '',
-                config.basePath
-              )
-              parsedUrl.pathname =
-                parsedUrl.pathname === '/index' ? '/' : parsedUrl.pathname
+              normalized = normalizers.data.normalize(normalized, true)
+            } else if (normalizers.postponed?.match(normalized)) {
+              updated = true
+              normalized = normalizers.postponed.normalize(normalized, true)
+            }
 
-              parsedUrl.pathname = maybeAddTrailingSlash(parsedUrl.pathname)
+            if (config.i18n) {
+              const curLocaleResult = normalizeLocalePath(
+                normalized,
+                config.i18n.locales
+              )
+
+              if (curLocaleResult.detectedLocale) {
+                parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+              }
+            }
+
+            // If we updated the pathname, and it had a base path, re-add the
+            // base path.
+            if (updated) {
+              if (hadBasePath) {
+                normalized = path.posix.join(config.basePath, normalized)
+              }
+
+              // Re-add the trailing slash (if required).
+              normalized = maybeAddTrailingSlash(normalized)
+
+              parsedUrl.pathname = normalized
             }
           }
         }
@@ -425,48 +461,28 @@ export function getResolveRoutes(
           const match = fsChecker.getMiddlewareMatchers()
           if (
             // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query) &&
-            (!ensureMiddleware ||
-              (await ensureMiddleware?.()
-                .then(() => true)
-                .catch(() => false)))
+            match?.(parsedUrl.pathname, req, parsedUrl.query)
           ) {
-            const serverResult = await renderServer?.initialize(
-              renderServerOpts
-            )
+            if (ensureMiddleware) {
+              await ensureMiddleware(req.url)
+            }
+
+            const serverResult =
+              await renderServer?.initialize(renderServerOpts)
 
             if (!serverResult) {
               throw new Error(`Failed to initialize render server "middleware"`)
             }
 
-            const invokeHeaders: typeof req.headers = {
-              'x-invoke-path': '',
-              'x-invoke-query': '',
-              'x-invoke-output': '',
-              'x-middleware-invoke': '1',
-            }
-            Object.assign(req.headers, invokeHeaders)
-
-            debug('invoking middleware', req.url, invokeHeaders)
+            addRequestMeta(req, 'invokePath', '')
+            addRequestMeta(req, 'invokeOutput', '')
+            addRequestMeta(req, 'invokeQuery', {})
+            addRequestMeta(req, 'middlewareInvoke', true)
+            debug('invoking middleware', req.url, req.headers)
 
             let middlewareRes: Response | undefined = undefined
             let bodyStream: ReadableStream | undefined = undefined
             try {
-              let readableController: ReadableStreamController<Buffer>
-              const { res: mockedRes } = await createRequestResponseMocks({
-                url: req.url || '/',
-                method: req.method || 'GET',
-                headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
-                resWriter(chunk) {
-                  readableController.enqueue(Buffer.from(chunk))
-                  return true
-                },
-              })
-
-              mockedRes.on('close', () => {
-                readableController.close()
-              })
-
               try {
                 await serverResult.requestHandler(req, res, parsedUrl)
               } catch (err: any) {
@@ -567,9 +583,6 @@ export function getResolveRoutes(
                   'x-middleware-rewrite',
                   'x-middleware-redirect',
                   'x-middleware-refresh',
-                  'x-middleware-invoke',
-                  'x-invoke-path',
-                  'x-invoke-query',
                 ].includes(key)
               ) {
                 continue
@@ -694,10 +707,34 @@ export function getResolveRoutes(
 
         // handle rewrite
         if (route.destination) {
+          let rewriteParams = params
+
+          try {
+            // An interception rewrite might reference a dynamic param for a route the user
+            // is currently on, which wouldn't be extractable from the matched route params.
+            // This attempts to extract the dynamic params from the provided router state.
+            if (isInterceptionRouteRewrite(route as Rewrite)) {
+              const stateHeader =
+                req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+
+              if (stateHeader) {
+                rewriteParams = {
+                  ...getSelectedParams(
+                    parseAndValidateFlightRouterState(stateHeader)
+                  ),
+                  ...params,
+                }
+              }
+            }
+          } catch (err) {
+            // this is a no-op -- we couldn't extract dynamic params from the provided router state,
+            // so we'll just use the params from the route matcher
+          }
+
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
             destination: route.destination,
-            params: params,
+            params: rewriteParams,
             query: parsedUrl.query,
           })
 

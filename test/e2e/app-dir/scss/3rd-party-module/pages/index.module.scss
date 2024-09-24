@@ -1,0 +1,16 @@
+.foo {
+  position: relative;
+}
+
+.foo :global(.bar),
+.foo :global(.baz) {
+  background-color: blue;
+}
+
+.foo :global(.lol) {
+  background-color: red;
+}
+
+.foo > :global(.lel) {
+  background-color: green;
+}

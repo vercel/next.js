@@ -1,9 +1,9 @@
-import React from 'react'
-import PropTypes from 'prop-types'
-import { kea } from 'kea'
+import React from "react";
+import PropTypes from "prop-types";
+import { kea } from "kea";
 
 const logic = kea({
-  path: () => ['kea'],
+  path: () => ["kea"],
   actions: () => ({
     increment: (amount) => ({ amount }),
     decrement: (amount) => ({ amount }),
@@ -25,7 +25,7 @@ const logic = kea({
       PropTypes.number,
     ],
   }),
-})
+});
 
 @logic
 class Index extends React.Component {
@@ -40,8 +40,8 @@ class Index extends React.Component {
           Decrement
         </button>
       </div>
-    )
+    );
   }
 }
 
-export default Index
+export default Index;

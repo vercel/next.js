@@ -1,10 +1,10 @@
 .container {
   display: grid;
   grid-template-areas:
-    'nav'
-    'header'
-    'main'
-    'footer';
+    "nav"
+    "header"
+    "main"
+    "footer";
   grid-template-rows: auto auto 1fr 36px;
   align-items: center;
   min-height: 100vh;

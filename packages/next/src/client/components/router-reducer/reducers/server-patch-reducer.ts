@@ -5,33 +5,26 @@ import type {
   ServerPatchAction,
   ReducerState,
   ReadonlyReducerState,
+  Mutable,
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
+import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { flightData, previousTree, overrideCanonicalUrl, cache, mutable } =
-    action
+  const {
+    serverResponse: { flightData, canonicalUrl: canonicalUrlOverride },
+  } = action
 
-  const isForCurrentTree =
-    JSON.stringify(previousTree) === JSON.stringify(state.tree)
+  const mutable: Mutable = {}
 
-  // When a fetch is slow to resolve it could be that you navigated away while the request was happening or before the reducer runs.
-  // In that case opt-out of applying the patch given that the data could be stale.
-  if (!isForCurrentTree) {
-    // TODO-APP: Handle tree mismatch
-    console.log('TREE MISMATCH')
-    // Keep everything as-is.
-    return state
-  }
-
-  if (mutable.previousTree) {
-    return handleMutable(state, mutable)
-  }
+  mutable.preserveCustomHistoryState = false
 
   // Handle case when navigating to page in `pages` from `app`
   if (typeof flightData === 'string') {
@@ -46,20 +39,20 @@ export function serverPatchReducer(
   let currentTree = state.tree
   let currentCache = state.cache
 
-  for (const flightDataPath of flightData) {
-    // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
-    const flightSegmentPath = flightDataPath.slice(0, -4)
+  for (const normalizedFlightData of flightData) {
+    const { segmentPath: flightSegmentPath, tree: treePatch } =
+      normalizedFlightData
 
-    const [treePatch] = flightDataPath.slice(-3, -2)
     const newTree = applyRouterStatePatchToTree(
       // TODO-APP: remove ''
       ['', ...flightSegmentPath],
       currentTree,
-      treePatch
+      treePatch,
+      state.canonicalUrl
     )
 
     if (newTree === null) {
-      throw new Error('SEGMENT MISMATCH')
+      return handleSegmentMismatch(state, action, treePatch)
     }
 
     if (isNavigatingToNewRootLayout(currentTree, newTree)) {
@@ -71,17 +64,17 @@ export function serverPatchReducer(
       )
     }
 
-    const canonicalUrlOverrideHref = overrideCanonicalUrl
-      ? createHrefFromUrl(overrideCanonicalUrl)
+    const canonicalUrlOverrideHref = canonicalUrlOverride
+      ? createHrefFromUrl(canonicalUrlOverride)
       : undefined
 
     if (canonicalUrlOverrideHref) {
       mutable.canonicalUrl = canonicalUrlOverrideHref
     }
 
-    applyFlightData(currentCache, cache, flightDataPath)
+    const cache: CacheNode = createEmptyCacheNode()
+    applyFlightData(currentCache, cache, normalizedFlightData)
 
-    mutable.previousTree = currentTree
     mutable.patchedTree = newTree
     mutable.cache = cache
 

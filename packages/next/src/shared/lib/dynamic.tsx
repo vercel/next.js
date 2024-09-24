@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type JSX } from 'react'
 import Loadable from './loadable.shared-runtime'
 
 const isServerSide = typeof window === 'undefined'
@@ -40,10 +40,6 @@ export type DynamicOptions<P = {}> = LoadableGeneratedOptions & {
   loader?: Loader<P> | LoaderMap
   loadableGenerated?: LoadableGeneratedOptions
   ssr?: boolean
-  /**
-   * @deprecated `suspense` prop is not required anymore
-   */
-  suspense?: boolean
 }
 
 export type LoadableOptions<P = {}> = DynamicOptions<P>
@@ -74,6 +70,12 @@ export function noSSR<P = {}>(
   )
 }
 
+/**
+ * This function lets you dynamically import a component.
+ * It uses [React.lazy()](https://react.dev/reference/react/lazy) with [Suspense](https://react.dev/reference/react/Suspense) under the hood.
+ *
+ * Read more: [Next.js Docs: `next/dynamic`](https://nextjs.org/docs/app/building-your-application/optimizing/lazy-loading#nextdynamic)
+ */
 export default function dynamic<P = {}>(
   dynamicOptions: DynamicOptions<P> | Loader<P>,
   options?: DynamicOptions<P>

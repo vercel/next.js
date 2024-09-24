@@ -5,6 +5,7 @@ import { join, dirname } from 'path'
 import fs from 'fs-extra'
 import url from 'url'
 import {
+  assertHasRedbox,
   renderViaHTTP,
   fetchViaHTTP,
   findPort,
@@ -15,7 +16,6 @@ import {
   nextStart,
   normalizeRegEx,
   check,
-  hasRedbox,
   getRedboxHeader,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
@@ -1156,6 +1156,26 @@ function runTests({ dev }) {
         }
       `
       )
+      await check(async () => {
+        const response = await fetchViaHTTP(
+          appPort,
+          '/_next/static/development/_devPagesManifest.json',
+          undefined,
+          {
+            credentials: 'same-origin',
+          }
+        )
+
+        // Check if the response was successful (status code in the range 200-299)
+        if (!response.ok) {
+          return 'fail'
+        }
+
+        const contents = await response.text()
+        const containsAddedLater = contents.includes('added-later')
+
+        return containsAddedLater ? 'success' : 'fail'
+      }, 'success')
 
       await check(async () => {
         const contents = await renderViaHTTP(
@@ -1180,7 +1200,7 @@ function runTests({ dev }) {
         await browser
           .elementByCss('#view-post-1-interpolated-incorrectly')
           .click()
-        expect(await hasRedbox(browser, true)).toBe(true)
+        await assertHasRedbox(browser)
         const header = await getRedboxHeader(browser)
         expect(header).toContain(
           'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
@@ -1492,9 +1512,11 @@ function runTests({ dev }) {
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
-          varyHeader:
-            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
+          didPostponeHeader: 'x-nextjs-postponed',
+          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
           prefetchHeader: 'Next-Router-Prefetch',
+          prefetchSuffix: '.prefetch.rsc',
+          suffix: '.rsc',
         },
       })
     })
@@ -1520,7 +1542,9 @@ function runTests({ dev }) {
         '/d/[id]': 'pages/d/[id].html',
         '/dash/[hello-world]': 'pages/dash/[hello-world].html',
         '/': 'pages/index.html',
-        '/index/[...slug]': 'pages/index/[...slug].html',
+        '/index/[...slug]': process.env.TURBOPACK
+          ? 'pages/index/index/[...slug].html'
+          : 'pages/index/[...slug].html',
         '/on-mount/[post]': 'pages/on-mount/[post].html',
         '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
         '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',
@@ -1557,30 +1581,36 @@ describe('Dynamic Routing', () => {
     afterAll(() => fs.remove(middlewarePath))
   }
 
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfig)
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(nextConfig)
 
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      buildId = 'development'
-    })
-    afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        buildId = 'development'
+      })
+      afterAll(() => killApp(app))
 
-    runTests({ dev: true })
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(nextConfig)
+      runTests({ dev: true })
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(nextConfig)
 
-      await nextBuild(appDir)
-      buildId = await fs.readFile(buildIdPath, 'utf8')
+        await nextBuild(appDir)
+        buildId = await fs.readFile(buildIdPath, 'utf8')
 
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests({ dev: false })
-  })
+      runTests({ dev: false })
+    }
+  )
 })

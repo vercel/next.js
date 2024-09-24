@@ -10,22 +10,23 @@ import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
 import {
+  assertNoRedbox,
   launchApp,
   killApp,
   findPort,
   nextBuild,
   nextStart,
   fetchViaHTTP,
+  File,
   renderViaHTTP,
   getBrowserBodyText,
   waitFor,
   normalizeRegEx,
-  nextExport,
-  hasRedbox,
   check,
 } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 const nextConfigPath = join(appDir, 'next.config.js')
 let externalServerHits = new Set()
 let nextConfigRestoreContent
@@ -295,7 +296,7 @@ const runTests = (isDev = false) => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     if (isDev) {
-      expect(await hasRedbox(browser, false)).toBe(false)
+      await assertNoRedbox(browser)
     }
   })
 
@@ -2556,9 +2557,11 @@ const runTests = (isDev = false) => {
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
-          varyHeader:
-            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
+          didPostponeHeader: 'x-nextjs-postponed',
+          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
           prefetchHeader: 'Next-Router-Prefetch',
+          prefetchSuffix: '.prefetch.rsc',
+          suffix: '.rsc',
         },
       })
     })
@@ -2632,37 +2635,39 @@ describe('Custom routes', () => {
     externalServer.close()
     await fs.writeFile(nextConfigPath, nextConfigRestoreContent)
   })
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      let nextConfigContent
 
-  describe('dev mode', () => {
-    let nextConfigContent
+      beforeAll(async () => {
+        // ensure cache with rewrites disabled doesn't persist
+        // after enabling rewrites
+        await fs.remove(join(appDir, '.next'))
+        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+        await fs.writeFile(
+          nextConfigPath,
+          nextConfigContent.replace('// no-rewrites comment', 'return []')
+        )
 
-    beforeAll(async () => {
-      // ensure cache with rewrites disabled doesn't persist
-      // after enabling rewrites
-      await fs.remove(join(appDir, '.next'))
-      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-      await fs.writeFile(
-        nextConfigPath,
-        nextConfigContent.replace('// no-rewrites comment', 'return []')
-      )
+        const tempPort = await findPort()
+        const tempApp = await launchApp(appDir, tempPort)
+        await renderViaHTTP(tempPort, '/')
 
-      const tempPort = await findPort()
-      const tempApp = await launchApp(appDir, tempPort)
-      await renderViaHTTP(tempPort, '/')
+        await killApp(tempApp)
+        await fs.writeFile(nextConfigPath, nextConfigContent)
 
-      await killApp(tempApp)
-      await fs.writeFile(nextConfigPath, nextConfigContent)
-
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-      buildId = 'development'
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfigPath, nextConfigContent)
-      await killApp(app)
-    })
-    runTests(true)
-  })
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+        buildId = 'development'
+      })
+      afterAll(async () => {
+        await fs.writeFile(nextConfigPath, nextConfigContent)
+        await killApp(app)
+      })
+      runTests(true)
+    }
+  )
 
   describe('no-op rewrite', () => {
     beforeAll(async () => {
@@ -2683,96 +2688,34 @@ describe('Custom routes', () => {
       )
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-        appDir,
-        ['-d'],
-        {
-          stdout: true,
-          stderr: true,
-        }
-      )
-      stdout = buildStdout
-      stderr = buildStderr
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
-    runTests()
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+          appDir,
+          ['-d'],
+          {
+            stdout: true,
+            stderr: true,
+          }
+        )
+        stdout = buildStdout
+        stderr = buildStderr
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
+      afterAll(() => killApp(app))
+      runTests()
 
-    it('should not show warning for custom routes when not next export', async () => {
-      expect(stderr).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
-
-    it('should not show warning for experimental has usage', async () => {
-      expect(stderr).not.toContain(
-        "'has' route field support is still experimental and not covered by semver, use at your own risk."
-      )
-    })
-  })
-
-  describe('export', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
-      'production mode',
-      () => {
-        let exportStderr = ''
-        let exportVercelStderr = ''
-
-        beforeAll(async () => {
-          const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
-            appDir,
-            ['-d'],
-            {
-              stdout: true,
-              stderr: true,
-            }
-          )
-          const exportResult = await nextExport(
-            appDir,
-            { outdir: join(appDir, 'out') },
-            { stderr: true }
-          )
-          const exportVercelResult = await nextExport(
-            appDir,
-            { outdir: join(appDir, 'out') },
-            {
-              stderr: true,
-              env: {
-                NOW_BUILDER: '1',
-              },
-            }
-          )
-
-          stdout = buildStdout
-          stderr = buildStderr
-          exportStderr = exportResult.stderr
-          exportVercelStderr = exportVercelResult.stderr
-        })
-
-        it('should not show warning for custom routes when not next export', async () => {
-          expect(stderr).not.toContain(
-            `rewrites, redirects, and headers are not applied when exporting your application detected`
-          )
-        })
-
-        it('should not show warning for custom routes when next export on Vercel', async () => {
-          expect(exportVercelStderr).not.toContain(
-            `rewrites, redirects, and headers are not applied when exporting your application detected`
-          )
-        })
-
-        it('should show warning for custom routes with next export', async () => {
-          expect(exportStderr).toContain(
-            `rewrites, redirects, and headers are not applied when exporting your application, detected (rewrites, redirects, headers)`
-          )
-        })
-      }
-    )
-  })
+      it('should not show warning for custom routes when not next export', async () => {
+        expect(stderr).not.toContain(
+          `rewrites, redirects, and headers are not applied when exporting your application detected`
+        )
+      })
+    }
+  )
 
   describe('should load custom routes when only one type is used', () => {
     const runSoloTests = (isDev) => {
@@ -2869,14 +2812,46 @@ describe('Custom routes', () => {
       })
     }
 
-    describe('dev mode', () => {
-      runSoloTests(true)
-    })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        runSoloTests(true)
+      }
+    )
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         runSoloTests()
       }
     )
   })
+})
+
+describe('export', () => {
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        nextConfig.replace('// REPLACEME', `output: 'export',`)
+        const { stdout: buildStdout, stderr: buildStderr } = await nextBuild(
+          appDir,
+          ['-d'],
+          {
+            stdout: true,
+            stderr: true,
+          }
+        )
+
+        stdout = buildStdout
+        stderr = buildStderr
+      })
+      afterAll(() => nextConfig.restore())
+
+      it('should not show warning for custom routes when not next export', async () => {
+        expect(stderr).not.toContain(
+          `rewrites, redirects, and headers are not applied when exporting your application detected`
+        )
+      })
+    }
+  )
 })

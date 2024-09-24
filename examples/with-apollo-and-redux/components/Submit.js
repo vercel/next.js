@@ -1,4 +1,4 @@
-import { gql, useMutation } from '@apollo/client'
+import { gql, useMutation } from "@apollo/client";
 
 const CREATE_POST_MUTATION = gql`
   mutation createPost($title: String!, $url: String!) {
@@ -10,18 +10,18 @@ const CREATE_POST_MUTATION = gql`
       createdAt
     }
   }
-`
+`;
 
 const Submit = () => {
-  const [createPost, { loading }] = useMutation(CREATE_POST_MUTATION)
+  const [createPost, { loading }] = useMutation(CREATE_POST_MUTATION);
 
   const handleSubmit = (event) => {
-    event.preventDefault()
-    const form = event.target
-    const formData = new window.FormData(form)
-    const title = formData.get('title')
-    const url = formData.get('url')
-    form.reset()
+    event.preventDefault();
+    const form = event.target;
+    const formData = new window.FormData(form);
+    const title = formData.get("title");
+    const url = formData.get("url");
+    form.reset();
 
     createPost({
       variables: { title, url },
@@ -37,14 +37,14 @@ const Submit = () => {
                     type
                   }
                 `,
-              })
-              return [newPostRef, ...existingPosts]
+              });
+              return [newPostRef, ...existingPosts];
             },
           },
-        })
+        });
       },
-    })
-  }
+    });
+  };
 
   return (
     <form onSubmit={handleSubmit}>
@@ -68,7 +68,7 @@ const Submit = () => {
         }
       `}</style>
     </form>
-  )
-}
+  );
+};
 
-export default Submit
+export default Submit;

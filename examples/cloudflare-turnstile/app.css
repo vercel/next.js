@@ -12,7 +12,7 @@ main {
   text-align: center;
 }
 
-button[type='submit'] {
+button[type="submit"] {
   cursor: pointer;
   width: 100%;
   outline: none;

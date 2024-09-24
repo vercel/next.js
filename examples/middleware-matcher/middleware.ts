@@ -1,24 +1,24 @@
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export default function middleware(req: NextRequest) {
-  const path = req.nextUrl.pathname
-  const slug = path.slice(1)
+  const path = req.nextUrl.pathname;
+  const slug = path.slice(1);
 
   // Set a cookie on the response using the `ResponseCookies` API
-  const response = NextResponse.next()
+  const response = NextResponse.next();
   response.cookies.set({
-    name: 'middleware-slug',
+    name: "middleware-slug",
     value: slug,
     path,
-  })
+  });
 
-  return response
+  return response;
 }
 
 export const config = {
   matcher: [
-    '/disclaimer', // match a single, specific page
-    '/((?!public|static).*)', // match all paths not starting with 'public' or 'static'
+    "/disclaimer", // match a single, specific page
+    "/((?!public|static).*)", // match all paths not starting with 'public' or 'static'
   ],
-}
+};

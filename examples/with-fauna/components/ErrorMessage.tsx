@@ -1,7 +1,7 @@
 export default function ErrorMessage({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <p className="flex items-center text-sm font-bold text-red-800 dark:text-red-400">
@@ -19,5 +19,5 @@ export default function ErrorMessage({
       </svg>
       {children}
     </p>
-  )
+  );
 }

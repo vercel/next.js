@@ -1,5 +1,5 @@
-import { getTokens } from '@kiwicom/orbit-components'
-import { ThemeProvider, createGlobalStyle } from 'styled-components'
+import { getTokens } from "@kiwicom/orbit-components";
+import { ThemeProvider, createGlobalStyle } from "styled-components";
 
 const GlobalStyle = createGlobalStyle`
   body {
@@ -8,9 +8,9 @@ const GlobalStyle = createGlobalStyle`
     margin: 0 auto;
     background-color: ${({ theme }) => theme.orbit.paletteCloudLight};
   }
-`
+`;
 
-const tokens = getTokens()
+const tokens = getTokens();
 
 export default function App({ Component, pageProps }) {
   return (
@@ -20,5 +20,5 @@ export default function App({ Component, pageProps }) {
         <Component {...pageProps} />
       </>
     </ThemeProvider>
-  )
+  );
 }

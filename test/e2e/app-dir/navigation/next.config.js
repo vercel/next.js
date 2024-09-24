@@ -8,4 +8,9 @@ module.exports = {
       },
     ]
   },
+  // scroll position can be finicky with the
+  // indicators showing so hide by default
+  devIndicators: {
+    appIsrStatus: false,
+  },
 }

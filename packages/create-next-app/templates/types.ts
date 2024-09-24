@@ -1,24 +1,33 @@
-import { PackageManager } from '../helpers/get-pkg-manager'
+import { PackageManager } from "../helpers/get-pkg-manager";
 
-export type TemplateType = 'default' | 'app' | 'default-tw' | 'app-tw'
-export type TemplateMode = 'js' | 'ts'
+export type TemplateType =
+  | "app"
+  | "app-empty"
+  | "app-tw"
+  | "app-tw-empty"
+  | "default"
+  | "default-empty"
+  | "default-tw"
+  | "default-tw-empty";
+export type TemplateMode = "js" | "ts";
 
 export interface GetTemplateFileArgs {
-  template: TemplateType
-  mode: TemplateMode
-  file: string
+  template: TemplateType;
+  mode: TemplateMode;
+  file: string;
 }
 
 export interface InstallTemplateArgs {
-  appName: string
-  root: string
-  packageManager: PackageManager
-  isOnline: boolean
-
-  template: TemplateType
-  mode: TemplateMode
-  eslint: boolean
-  tailwind: boolean
-  srcDir: boolean
-  importAlias: string
+  appName: string;
+  root: string;
+  packageManager: PackageManager;
+  isOnline: boolean;
+  template: TemplateType;
+  mode: TemplateMode;
+  eslint: boolean;
+  tailwind: boolean;
+  srcDir: boolean;
+  importAlias: string;
+  skipInstall: boolean;
+  turbo: boolean;
 }

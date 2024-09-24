@@ -1,20 +1,20 @@
-import Avatar from './avatar'
-import Date from './date'
-import CoverImage from './cover-image'
-import Link from 'next/link'
-import { AuthorType, ImgixType } from 'interfaces'
+import Avatar from "./avatar";
+import Date from "./date";
+import CoverImage from "./cover-image";
+import Link from "next/link";
+import { AuthorType, ImgixType } from "interfaces";
 
 type HeroPostProps = {
-  title: string
-  coverImage: ImgixType
-  date: string
-  excerpt: string
-  author: AuthorType
-  slug: string
-}
+  title: string;
+  coverImage: ImgixType;
+  date: string;
+  excerpt: string;
+  author: AuthorType;
+  slug: string;
+};
 
 const HeroPost = (props: HeroPostProps) => {
-  const { title, coverImage, date, excerpt, author, slug } = props
+  const { title, coverImage, date, excerpt, author, slug } = props;
 
   return (
     <section>
@@ -41,7 +41,7 @@ const HeroPost = (props: HeroPostProps) => {
         </div>
       </div>
     </section>
-  )
-}
+  );
+};
 
-export default HeroPost
+export default HeroPost;

@@ -505,7 +505,7 @@ describe('babel plugin (next-ssg-transform)', () => {
           export function getStaticProps() {}
           export function getServerSideProps() {}
         `)
-      ).toThrowError(
+      ).toThrow(
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
 
@@ -514,7 +514,7 @@ describe('babel plugin (next-ssg-transform)', () => {
           export function getServerSideProps() {}
           export function getStaticProps() {}
         `)
-      ).toThrowError(
+      ).toThrow(
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
 
@@ -523,7 +523,7 @@ describe('babel plugin (next-ssg-transform)', () => {
           export function getStaticPaths() {}
           export function getServerSideProps() {}
         `)
-      ).toThrowError(
+      ).toThrow(
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
 
@@ -532,7 +532,7 @@ describe('babel plugin (next-ssg-transform)', () => {
           export function getServerSideProps() {}
           export function getStaticPaths() {}
         `)
-      ).toThrowError(
+      ).toThrow(
         `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`
       )
     })

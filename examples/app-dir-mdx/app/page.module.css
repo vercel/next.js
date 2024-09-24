@@ -51,7 +51,9 @@
   border-radius: var(--border-radius);
   background: rgba(var(--card-rgb), 0);
   border: 1px solid rgba(var(--card-border-rgb), 0);
-  transition: background 200ms, border 200ms;
+  transition:
+    background 200ms,
+    border 200ms;
 }
 
 .card span {
@@ -70,6 +72,7 @@
   font-size: 0.9rem;
   line-height: 1.5;
   max-width: 34ch;
+  text-wrap: balance;
 }
 
 .center {
@@ -101,7 +104,7 @@
 
 .center::before,
 .center::after {
-  content: '';
+  content: "";
   left: 50%;
   position: absolute;
   filter: blur(45px);
@@ -129,7 +132,7 @@
 
 .thirteen::before,
 .thirteen::after {
-  content: '';
+  content: "";
   position: absolute;
   z-index: -1;
 }

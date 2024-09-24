@@ -4,15 +4,16 @@ title: 'Global CSS Must Be in Your Custom `<App>`'
 
 ## Why This Error Occurred
 
-An attempt to import Global CSS from a file other than [`pages/_app.js`](/docs/pages/building-your-application/routing/custom-app) was made.
+An attempt to import Global CSS from a file outside of [`pages/_app.js`](/docs/pages/building-your-application/routing/custom-app) was made.
 
-Global CSS cannot be used in files other than your [Custom `<App>`](/docs/pages/building-your-application/routing/custom-app) due to its side-effects and ordering problems.
+Global CSS cannot be used in files other than your [custom `_app.js` file](/docs/pages/building-your-application/routing/custom-app) due to ordering problems and side-effects.
 
 ## Possible Ways to Fix It
 
-To avoid conflicts, relocate all first-party Global CSS imports to your [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app).
+There are two possible ways to fix this error:
 
-Or, [update your component to use local CSS (Component-Level CSS) via CSS Modules](/docs/pages/building-your-application/styling/css-modules). This is the preferred approach.
+- Move all global CSS imports to your [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app).
+- If you do not wish your stylesheet to be global, update it to use [CSS Modules](/docs/pages/building-your-application/styling/css-modules). This will allow you to import the stylesheet and scope the styles to a specific component.
 
 #### Example
 
@@ -28,12 +29,26 @@ body {
 }
 ```
 
-Create a [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app) if not already present. Then [`import`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/import) the [`styles.css` file](/docs/pages/building-your-application/styling/css-modules).
+**Global CSS**:
+
+Create a [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app) if not already present. Then import the `styles.css` file:
 
 ```jsx filename="pages/_app.js"
 import '../styles.css'
 
 export default function MyApp({ Component, pageProps }) {
   return <Component {...pageProps} />
+}
+```
+
+**CSS Modules**:
+
+Rename the `styles.css` file to `styles.module.css`. Then import the file in the component or page where you want to use the styles.
+
+```jsx filename="pages/index.js"
+import styles from '../../styles.module.css'
+
+export default function Home() {
+  return <div className={styles.container}>Hello World</div>
 }
 ```

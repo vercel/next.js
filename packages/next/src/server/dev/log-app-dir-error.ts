@@ -5,15 +5,15 @@ export function logAppDirError(err: unknown) {
   if (isError(err) && err?.stack) {
     const cleanedStack = err.stack.split('\n').map((line: string) =>
       // Remove 'webpack-internal:' noise from the path
-      line.replace(/(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/, '')
+      line.replace(/(webpack-internal:\/\/\/|file:\/\/)(\(.*?\)\/)?/, '')
     )
     const filteredStack = cleanedStack
       // Only display stack frames from the user's code
       .filter(
         (line: string) =>
-          !/next[\\/]dist[\\/]compiled/.test(line) &&
-          !/node_modules[\\/]/.test(line) &&
-          !/node:internal[\\/]/.test(line)
+          !/^\s+at.+next[\\/]dist[\\/]compiled/.test(line) &&
+          !/^\s+at.+node_modules[\\/]/.test(line) &&
+          !/^\s+at.+node:internal[\\/]/.test(line)
       )
     if (filteredStack.length === 1) {
       // This is an error that happened outside of user code, keep full stack

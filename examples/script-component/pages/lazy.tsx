@@ -1,19 +1,19 @@
-import { useCallback, useEffect, useState } from 'react'
-import Script from 'next/script'
+import { useCallback, useEffect, useState } from "react";
+import Script from "next/script";
 
 export default function Lazyload() {
-  const [log, setLog] = useState<{ time: Date; text: string }[]>([])
+  const [log, setLog] = useState<{ time: Date; text: string }[]>([]);
 
   const addLog = useCallback(
     (text: string) => {
-      setLog((log) => log.concat({ time: new Date(), text }))
+      setLog((log) => log.concat({ time: new Date(), text }));
     },
-    [setLog]
-  )
+    [setLog],
+  );
 
   useEffect(() => {
-    addLog(`Page loaded window.FB is undefined`)
-  }, [addLog])
+    addLog(`Page loaded window.FB is undefined`);
+  }, [addLog]);
 
   return (
     <>
@@ -38,5 +38,5 @@ export default function Lazyload() {
         </ul>
       </main>
     </>
-  )
+  );
 }

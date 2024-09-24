@@ -73,7 +73,7 @@ export = defineRule({
     }
     return {
       ExportNamedDeclaration(node) {
-        const page = context.getFilename().split('pages', 2)[1]
+        const page = context.filename.split('pages', 2)[1]
         if (!page || path.parse(page).dir.startsWith('/api')) {
           return
         }

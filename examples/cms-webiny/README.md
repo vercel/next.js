@@ -57,7 +57,7 @@ pnpm create next-app --example cms-webiny cms-webiny-app
 
 Follow the [Webiny docs](https://www.webiny.com/docs/tutorials/install-webiny) to install a Webiny project on your cloud hosting provider. Because Webiny is a distributed system we don't run it locally. This also means you don't need to worry about setting up Docker, or installing databases and drivers on your local machine for Postgres, MongoDB or similar. The cloud takes care of that for you.
 
-If you get stuck or have any questions, please [join the community](http://webiny-community.slack.com 'Webiny slack channel') and reach out for some help.
+If you get stuck or have any questions, please [join the community](http://webiny-community.slack.com "Webiny slack channel") and reach out for some help.
 
 Once you have an app up and running click into the "HeadlessCMS" app in the sidebar, click on _models_ and add the following models and fields:
 

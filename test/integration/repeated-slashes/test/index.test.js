@@ -6,11 +6,11 @@ import webdriver from 'next-webdriver'
 import escapeRegex from 'escape-string-regexp'
 import {
   nextBuild,
+  File,
   findPort,
   nextStart,
   killApp,
   waitFor,
-  nextExport,
   stopApp,
   startStaticServer,
   launchApp,
@@ -21,6 +21,7 @@ import {
 
 const appDir = join(__dirname, '../app')
 const outdir = join(appDir, 'out')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 let appPort
 let app
 
@@ -382,8 +383,8 @@ function runTests({ isDev = false, isExport = false, isPages404 = false }) {
       await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push("${item.href}"${
-        item.as ? `, "${item.as}"` : ''
-      })
+          item.as ? `, "${item.as}"` : ''
+        })
       })()`)
 
       await check(
@@ -439,14 +440,12 @@ describe('404 handling', () => {
         isDev: true,
       })
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
-        beforeAll(async () => {
-          await nextBuild(appDir, [], nextOpts)
-        })
         describe('next start', () => {
           beforeAll(async () => {
+            await nextBuild(appDir, [], nextOpts)
             appPort = await findPort()
             app = await nextStart(appDir, appPort, nextOpts)
           })
@@ -459,12 +458,14 @@ describe('404 handling', () => {
 
         describe('next export', () => {
           beforeAll(async () => {
-            await nextExport(appDir, { outdir }, nextOpts)
+            nextConfig.write(`module.exports = { output: 'export' }`)
+            await nextBuild(appDir, [], nextOpts)
             app = await startStaticServer(outdir, join(outdir, '404.html'))
             appPort = app.address().port
           })
-          afterAll(() => {
-            stopApp(app)
+          afterAll(async () => {
+            await stopApp(app)
+            nextConfig.restore()
           })
 
           runTests({
@@ -481,7 +482,7 @@ describe('404 handling', () => {
   })
 
   describe('pages/404', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         const pagesErr = join(appDir, 'pages/_error.js')

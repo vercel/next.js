@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { getRedboxSource, hasRedbox } from 'next-test-utils'
+import { NextInstance } from 'e2e-utils'
+import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -18,11 +18,20 @@ describe('font-loader-in-document-error', () => {
 
   test('next/font inside _document', async () => {
     const browser = await webdriver(next.url, '/')
-    expect(await hasRedbox(browser, true)).toBeTrue()
-    expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-      "pages/_document.js
-      \`next/font\` error:
-      Cannot be used within pages/_document.js."
-    `)
+    await assertHasRedbox(browser)
+    if (process.env.TURBOPACK) {
+      // TODO: Turbopack doesn't include pages/
+      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+        "./_document.js
+        next/font: error:
+        Cannot be used within _document.js"
+      `)
+    } else {
+      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+              "pages/_document.js
+              \`next/font\` error:
+              Cannot be used within pages/_document.js."
+          `)
+    }
   })
 })

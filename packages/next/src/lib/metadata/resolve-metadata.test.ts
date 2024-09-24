@@ -1,11 +1,31 @@
-import { accumulateMetadata as originAccumulateMetadata } from './resolve-metadata'
-import type { MetadataItems } from './resolve-metadata'
-import type { Metadata } from './types/metadata-interface'
+import {
+  accumulateViewport as originAccumulateViewport,
+  accumulateMetadata as originAccumulateMetadata,
+} from './resolve-metadata'
+import type { MetadataItems as FullMetadataItems } from './resolve-metadata'
+import type { Metadata, Viewport } from './types/metadata-interface'
+
+type FullMetadataItem = FullMetadataItems[number]
+type MetadataItems = [FullMetadataItem[0], FullMetadataItem[1]][]
 
 function accumulateMetadata(metadataItems: MetadataItems) {
-  return originAccumulateMetadata(metadataItems, {
+  const fullMetadataItems: FullMetadataItems = metadataItems.map((item) => [
+    item[0],
+    item[1],
+    null,
+  ])
+  return originAccumulateMetadata(fullMetadataItems, {
     pathname: '/test',
+    trailingSlash: false,
+    isStandaloneMode: false,
   })
+}
+
+function accumulateViewport(viewportExports: Viewport[]) {
+  // skip the first two arguments (metadata and static metadata)
+  return originAccumulateViewport(
+    viewportExports.map((item) => [null, null, item])
+  )
 }
 
 function mapUrlsToStrings(obj: any) {
@@ -321,6 +341,42 @@ describe('accumulateMetadata', () => {
       })
     })
 
+    it('should prefer title and description from openGraph rather than metadata for twitter', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            title: 'doc title',
+            openGraph: {
+              title: 'og-title',
+              description: 'og-description',
+              images: 'https://test.com',
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        openGraph: {
+          title: {
+            absolute: 'og-title',
+            template: null,
+          },
+          description: 'og-description',
+          images: [{ url: new URL('https://test.com') }],
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: {
+            absolute: 'og-title',
+            template: null,
+          },
+          description: 'og-description',
+          images: [{ url: new URL('https://test.com') }],
+        },
+      })
+    })
+
     it('should fill only the existing props from openGraph to twitter', async () => {
       const metadataItems: MetadataItems = [
         [
@@ -443,36 +499,15 @@ describe('accumulateMetadata', () => {
         },
       })
     })
-  })
 
-  describe('themeColor', () => {
-    it('should support string theme color', async () => {
-      const metadataItems: MetadataItems = [
-        [{ themeColor: '#000' }, null],
-        [{ themeColor: '#fff' }, null],
-      ]
-      const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        themeColor: [{ color: '#fff' }],
-      })
-    })
-
-    it('should support theme color descriptors', async () => {
+    it('should inherit metadata title description into openGraph or twitter if they are configured', async () => {
       const metadataItems1: MetadataItems = [
         [
           {
-            themeColor: {
-              media: '(prefers-color-scheme: light)',
-              color: '#fff',
-            },
-          },
-          null,
-        ],
-        [
-          {
-            themeColor: {
-              media: '(prefers-color-scheme: dark)',
-              color: 'cyan',
+            title: 'My title',
+            description: 'My description',
+            openGraph: {
+              images: 'https://test.com/og.png',
             },
           },
           null,
@@ -480,66 +515,74 @@ describe('accumulateMetadata', () => {
       ]
       const metadata1 = await accumulateMetadata(metadataItems1)
       expect(metadata1).toMatchObject({
-        themeColor: [{ media: '(prefers-color-scheme: dark)', color: 'cyan' }],
+        openGraph: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
+        twitter: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
       })
 
       const metadataItems2: MetadataItems = [
         [
           {
-            themeColor: [
-              { media: '(prefers-color-scheme: light)', color: '#fff' },
-              { media: '(prefers-color-scheme: dark)', color: 'cyan' },
-            ],
+            title: 'My title',
+            description: 'My description',
+            twitter: {
+              images: 'https://test.com/twitter.png',
+            },
           },
           null,
         ],
       ]
       const metadata2 = await accumulateMetadata(metadataItems2)
       expect(metadata2).toMatchObject({
-        themeColor: [
-          { media: '(prefers-color-scheme: light)', color: '#fff' },
-          { media: '(prefers-color-scheme: dark)', color: 'cyan' },
-        ],
+        openGraph: null,
+        twitter: {
+          title: {
+            absolute: 'My title',
+            template: null,
+          },
+          description: 'My description',
+        },
       })
-    })
-  })
 
-  describe('viewport', () => {
-    it('should support string viewport', async () => {
-      const metadataItems: MetadataItems = [
-        [
-          { viewport: 'width=device-width, initial-scale=1, shrink-to-fit=no' },
-          null,
-        ],
-      ]
-      const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        viewport: 'width=device-width, initial-scale=1, shrink-to-fit=no',
-      })
-    })
-
-    it('should support viewport descriptors', async () => {
-      const metadataItems: MetadataItems = [
+      // Don't override if there's already a title in twitter
+      const metadataItems3: MetadataItems = [
         [
           {
-            viewport: {
-              width: 'device-width',
-              height: 'device-height',
-              initialScale: 1,
-              minimumScale: 1,
-              maximumScale: 1,
-              viewportFit: 'cover',
-              userScalable: false,
-              interactiveWidget: 'overlays-content',
+            title: 'My title',
+            description: 'My description',
+            twitter: {
+              title: 'My twitter title',
+              images: 'https://test.com/twitter.png',
             },
           },
           null,
         ],
       ]
-      const metadata = await accumulateMetadata(metadataItems)
-      expect(metadata).toMatchObject({
-        viewport:
-          'width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no, interactive-widget=overlays-content',
+      const metadata3 = await accumulateMetadata(metadataItems3)
+      expect(metadata3).toMatchObject({
+        openGraph: null,
+        title: {
+          absolute: 'My title',
+          template: null,
+        },
+        twitter: {
+          title: {
+            absolute: 'My twitter title',
+            template: null,
+          },
+          description: 'My description',
+        },
       })
     })
   })
@@ -570,6 +613,84 @@ describe('accumulateMetadata', () => {
       expect(metadata).toMatchObject({
         alternates: {
           canonical: { url: '/relative' },
+          languages: {
+            'en-US': [{ url: 'https://example.com/en-US' }],
+            'de-DE': [{ url: 'https://example.com/de-DE' }],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [{ url: '/mobile' }],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
+      })
+    })
+
+    it('should support string alternate canonical with search params', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: 'https://localhost:3000/test?foo=bar',
+              languages: {
+                'en-US': 'https://example.com/en-US',
+                'de-DE': 'https://example.com/de-DE',
+              },
+              media: {
+                'only screen and (max-width: 600px)': '/mobile',
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: 'https://localhost:3000/test?foo=bar' },
+          languages: {
+            'en-US': [{ url: 'https://example.com/en-US' }],
+            'de-DE': [{ url: 'https://example.com/de-DE' }],
+          },
+          media: {
+            'only screen and (max-width: 600px)': [{ url: '/mobile' }],
+          },
+          types: {
+            'application/rss+xml': [{ url: 'https://example.com/rss' }],
+          },
+        },
+      })
+    })
+
+    it('should support URL alternate canonical with search params', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              canonical: new URL('https://localhost:3000/test?foo=bar'),
+              languages: {
+                'en-US': 'https://example.com/en-US',
+                'de-DE': 'https://example.com/de-DE',
+              },
+              media: {
+                'only screen and (max-width: 600px)': '/mobile',
+              },
+              types: {
+                'application/rss+xml': 'https://example.com/rss',
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          canonical: { url: 'https://localhost:3000/test?foo=bar' },
           languages: {
             'en-US': [{ url: 'https://example.com/en-US' }],
             'de-DE': [{ url: 'https://example.com/de-DE' }],
@@ -628,6 +749,86 @@ describe('accumulateMetadata', () => {
             'application/rss+xml': [{ url: 'https://example.com/rss' }],
           },
         },
+      })
+    })
+  })
+})
+
+describe('accumulateViewport', () => {
+  describe('viewport', () => {
+    it('should support viewport descriptors', async () => {
+      const viewport = await accumulateViewport([
+        {
+          width: 'device-width',
+          height: 'device-height',
+          initialScale: 1,
+          minimumScale: 1,
+          maximumScale: 1,
+          viewportFit: 'cover',
+          userScalable: false,
+          interactiveWidget: 'overlays-content',
+        },
+      ])
+      expect(viewport).toMatchObject({
+        width: 'device-width',
+        height: 'device-height',
+        initialScale: 1,
+        minimumScale: 1,
+        maximumScale: 1,
+        viewportFit: 'cover',
+        userScalable: false,
+        interactiveWidget: 'overlays-content',
+      })
+    })
+  })
+
+  describe('themeColor', () => {
+    it('should support string theme color', async () => {
+      const metadataItems: Viewport[] = [
+        { themeColor: '#000' },
+        { themeColor: '#fff' },
+      ]
+      const viewport = await accumulateViewport(metadataItems)
+      expect(viewport).toMatchObject({
+        themeColor: [{ color: '#fff' }],
+      })
+    })
+
+    it('should support theme color descriptors', async () => {
+      const viewportInput1: Viewport[] = [
+        {
+          themeColor: {
+            media: '(prefers-color-scheme: light)',
+            color: '#fff',
+          },
+        },
+        {
+          themeColor: {
+            media: '(prefers-color-scheme: dark)',
+            color: 'cyan',
+          },
+        },
+      ]
+
+      const viewport1 = await accumulateViewport(viewportInput1)
+      expect(viewport1).toMatchObject({
+        themeColor: [{ media: '(prefers-color-scheme: dark)', color: 'cyan' }],
+      })
+
+      const viewportInput2: Viewport[] = [
+        {
+          themeColor: [
+            { media: '(prefers-color-scheme: light)', color: '#fff' },
+            { media: '(prefers-color-scheme: dark)', color: 'cyan' },
+          ],
+        },
+      ]
+      const viewport2 = await accumulateViewport(viewportInput2)
+      expect(viewport2).toMatchObject({
+        themeColor: [
+          { media: '(prefers-color-scheme: light)', color: '#fff' },
+          { media: '(prefers-color-scheme: dark)', color: 'cyan' },
+        ],
       })
     })
   })

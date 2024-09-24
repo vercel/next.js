@@ -1,12 +1,12 @@
-import { css } from '@/styled-system/css'
+import { css } from "@/styled-system/css";
 
 const styles = css({
-  textStyle: 'link',
+  textStyle: "link",
   color: {
-    _default: 'gray.800',
-    _osDark: 'gray.100',
+    _default: "gray.800",
+    _osDark: "gray.100",
   },
-})
+});
 
 /**
  * Link with text styles
@@ -23,5 +23,5 @@ export default function LinkWithTextStyles() {
       Link with <b>text styles</b>
       <span className="icon">-&gt;</span>
     </a>
-  )
+  );
 }

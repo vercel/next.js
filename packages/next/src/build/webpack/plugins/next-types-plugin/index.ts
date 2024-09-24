@@ -14,7 +14,9 @@ import { HTTP_METHODS } from '../../../../server/web/http'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { getPageFromPath } from '../../../entries'
+import type { PageExtensions } from '../../../page-extensions-type'
 import { devPageFiles } from './shared'
+import { getProxiedPluginState } from '../../../build-context'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -30,7 +32,7 @@ interface Options {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   typedRoutes: boolean
   originalRewrites: Rewrites | undefined
   originalRedirects: Redirect[] | undefined
@@ -49,7 +51,7 @@ import * as entry from '${relativePath}.js'
 ${
   options.type === 'route'
     ? `import type { NextRequest } from 'next/server.js'`
-    : `import type { ResolvingMetadata } from 'next/dist/lib/metadata/types/metadata-interface.js'`
+    : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
 type TEntry = typeof import('${relativePath}.js')
@@ -76,6 +78,9 @@ checkFields<Diff<{
       : `
   metadata?: any
   generateMetadata?: Function
+  viewport?: any
+  generateViewport?: Function
+  experimental_ppr?: boolean
   `
   }
 }, TEntry, ''>>()
@@ -141,6 +146,14 @@ if ('generateMetadata' in entry) {
   }, FirstArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
   checkFields<Diff<ResolvingMetadata, SecondArg<MaybeField<TEntry, 'generateMetadata'>>, 'generateMetadata'>>()
 }
+
+// Check the arguments and return type of the generateViewport function
+if ('generateViewport' in entry) {
+  checkFields<Diff<${
+    options.type === 'page' ? 'PageProps' : 'LayoutProps'
+  }, FirstArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
+  checkFields<Diff<ResolvingViewport, SecondArg<MaybeField<TEntry, 'generateViewport'>>, 'generateViewport'>>()
+}
 `
 }
 // Check the arguments and return type of the generateStaticParams function
@@ -201,7 +214,12 @@ async function collectNamedSlots(layoutPath: string) {
   const items = await fs.readdir(layoutDir, { withFileTypes: true })
   const slots = []
   for (const item of items) {
-    if (item.isDirectory() && item.name.startsWith('@')) {
+    if (
+      item.isDirectory() &&
+      item.name.startsWith('@') &&
+      // `@children slots are matched to the children prop, and should not be handled separately for type-checking
+      item.name !== '@children'
+    ) {
       slots.push(item.name.slice(1))
     }
   }
@@ -211,23 +229,23 @@ async function collectNamedSlots(layoutPath: string) {
 // By exposing the static route types separately as string literals,
 // editors can provide autocompletion for them. However it's currently not
 // possible to provide the same experience for dynamic routes.
-const routeTypes: Record<
-  'edge' | 'node' | 'extra',
-  Record<'static' | 'dynamic', string>
-> = {
-  edge: {
-    static: '',
-    dynamic: '',
-  },
-  node: {
-    static: '',
-    dynamic: '',
-  },
-  extra: {
-    static: '',
-    dynamic: '',
-  },
-}
+
+const pluginState = getProxiedPluginState({
+  routeTypes: {
+    edge: {
+      static: '',
+      dynamic: '',
+    },
+    node: {
+      static: '',
+      dynamic: '',
+    },
+    extra: {
+      static: '',
+      dynamic: '',
+    },
+  } as Record<'edge' | 'node' | 'extra', Record<'static' | 'dynamic', string>>,
+})
 
 function formatRouteToRouteType(route: string) {
   const isDynamic = isDynamicRoute(route)
@@ -331,7 +349,8 @@ function addRedirectsRewritesRouteTypes(
 
       for (const normalizedRoute of possibleNormalizedRoutes) {
         const { isDynamic, routeType } = formatRouteToRouteType(normalizedRoute)
-        routeTypes.extra[isDynamic ? 'dynamic' : 'static'] += routeType
+        pluginState.routeTypes.extra[isDynamic ? 'dynamic' : 'static'] +=
+          routeType
       }
     }
   }
@@ -364,8 +383,8 @@ function createRouteDefinitions() {
   let dynamicRouteTypes = ''
 
   for (const type of ['edge', 'node', 'extra'] as const) {
-    staticRouteTypes += routeTypes[type].static
-    dynamicRouteTypes += routeTypes[type].dynamic
+    staticRouteTypes += pluginState.routeTypes[type].static
+    dynamicRouteTypes += pluginState.routeTypes[type].dynamic
   }
 
   // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string'.
@@ -423,8 +442,8 @@ declare namespace __next_route_internal_types__ {
 }
 
 declare module 'next' {
-  export { default } from 'next/types/index.js'
-  export * from 'next/types/index.js'
+  export { default } from 'next/types.js'
+  export * from 'next/types.js'
 
   export type Route<T extends string = string> =
     __next_route_internal_types__.RouteImpl<T>
@@ -480,6 +499,24 @@ declare module 'next/navigation' {
   }
 
   export declare function useRouter(): AppRouterInstance;
+}
+
+declare module 'next/form' {
+  import type { FormProps as OriginalFormProps } from 'next/dist/client/form.js'
+
+  type FormRestProps = Omit<OriginalFormProps, 'action'>
+
+  export type FormProps<RouteInferType> = {
+    /**
+     * \`action\` can be either a \`string\` or a function.
+     * - If \`action\` is a string, it will be interpreted as a path or URL to navigate to when the form is submitted.
+     *   The path will be prefetched when the form becomes visible.
+     * - If \`action\` is a function, it will be called when the form is submitted. See the [React docs](https://react.dev/reference/react-dom/components/form#props) for more.
+     */
+    action: __next_route_internal_types__.RouteImpl<RouteInferType> | ((formData: FormData) => void)
+  } & FormRestProps
+
+  export default function Form<RouteType>(props: FormProps<RouteType>): JSX.Element
 }
 `
 }
@@ -568,7 +605,7 @@ export class NextTypesPlugin {
 
     const { isDynamic, routeType } = formatRouteToRouteType(route)
 
-    routeTypes[this.isEdgeServer ? 'edge' : 'node'][
+    pluginState.routeTypes[this.isEdgeServer ? 'edge' : 'node'][
       isDynamic ? 'dynamic' : 'static'
     ] += routeType
   }
@@ -578,13 +615,17 @@ export class NextTypesPlugin {
     const assetDirRelative = this.dev
       ? '..'
       : this.isEdgeServer
-      ? '..'
-      : '../..'
+        ? '..'
+        : '../..'
 
     const handleModule = async (mod: webpack.NormalModule, assets: any) => {
       if (!mod.resource) return
 
-      if (!/\.(js|jsx|ts|tsx|mjs)$/.test(mod.resource)) return
+      const pageExtensionsRegex = new RegExp(
+        `\\.(${this.pageExtensions.join('|')})$`
+      )
+
+      if (!pageExtensionsRegex.test(mod.resource)) return
 
       if (!mod.resource.startsWith(this.appDir + path.sep)) {
         if (!this.dev) {
@@ -594,15 +635,19 @@ export class NextTypesPlugin {
         }
         return
       }
-      if (
-        mod.layer !== WEBPACK_LAYERS.reactServerComponents &&
-        mod.layer !== WEBPACK_LAYERS.appRouteHandler
+      if (mod.layer !== WEBPACK_LAYERS.reactServerComponents) return
+
+      // skip for /app/_private dir convention
+      // matches <app-dir>/**/_*
+      const IS_PRIVATE = /(?:\/[^/]+)*\/_.*$/.test(
+        mod.resource.replace(this.appDir, '')
       )
-        return
+      if (IS_PRIVATE) return
 
       const IS_LAYOUT = /[/\\]layout\.[^./\\]+$/.test(mod.resource)
       const IS_PAGE = !IS_LAYOUT && /[/\\]page\.[^.]+$/.test(mod.resource)
       const IS_ROUTE = !IS_PAGE && /[/\\]route\.[^.]+$/.test(mod.resource)
+      const IS_IMPORTABLE = /\.(js|jsx|ts|tsx|mjs|cjs)$/.test(mod.resource)
       const relativePathToApp = path.relative(this.appDir, mod.resource)
 
       if (!this.dev) {
@@ -613,15 +658,19 @@ export class NextTypesPlugin {
 
       const typePath = path.join(
         appTypesBasePath,
-        relativePathToApp.replace(/\.(js|jsx|ts|tsx|mjs)$/, '.ts')
+        relativePathToApp.replace(pageExtensionsRegex, '.ts')
       )
       const relativeImportPath = normalizePathSep(
         path
           .join(this.getRelativePathFromAppTypesDir(relativePathToApp))
-          .replace(/\.(js|jsx|ts|tsx|mjs)$/, '')
+          .replace(pageExtensionsRegex, '')
       )
 
       const assetPath = path.join(assetDirRelative, typePath)
+
+      // Typescript won’t allow relative-importing (for example) a .mdx file using the .js extension
+      // so for now we only generate “type guard files” for files that typescript can transform
+      if (!IS_IMPORTABLE) return
 
       if (IS_LAYOUT) {
         const slots = await collectNamedSlots(mod.resource)
@@ -657,11 +706,11 @@ export class NextTypesPlugin {
 
           // Clear routes
           if (this.isEdgeServer) {
-            routeTypes.edge.dynamic = ''
-            routeTypes.edge.static = ''
+            pluginState.routeTypes.edge.dynamic = ''
+            pluginState.routeTypes.edge.static = ''
           } else {
-            routeTypes.node.dynamic = ''
-            routeTypes.node.static = ''
+            pluginState.routeTypes.node.dynamic = ''
+            pluginState.routeTypes.node.static = ''
           }
 
           compilation.chunkGroups.forEach((chunkGroup) => {

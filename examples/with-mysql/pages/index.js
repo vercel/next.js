@@ -1,6 +1,6 @@
-import Head from 'next/head'
-import Product from '../components/Product'
-import prisma from '../lib/prisma'
+import Head from "next/head";
+import Product from "../components/Product";
+import prisma from "../lib/prisma";
 
 export default function Home({ products }) {
   return (
@@ -25,7 +25,7 @@ export default function Home({ products }) {
 
       <footer></footer>
     </div>
-  )
+  );
 }
 
 export async function getStaticProps(context) {
@@ -33,14 +33,14 @@ export async function getStaticProps(context) {
     include: {
       category: true,
     },
-  })
+  });
 
   //convert decimal value to string to pass through as json
   const products = data.map((product) => ({
     ...product,
     price: product.price.toString(),
-  }))
+  }));
   return {
     props: { products },
-  }
+  };
 }

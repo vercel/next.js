@@ -1,10 +1,27 @@
-import type { ResolvedMetadata } from './types/metadata-interface'
+import type {
+  ResolvedMetadata,
+  ResolvedViewport,
+} from './types/metadata-interface'
+
+export function createDefaultViewport(): ResolvedViewport {
+  return {
+    // name=viewport
+    width: 'device-width',
+    initialScale: 1,
+    // visual metadata
+    themeColor: null,
+    colorScheme: null,
+  }
+}
 
 export function createDefaultMetadata(): ResolvedMetadata {
   return {
-    viewport: 'width=device-width, initial-scale=1',
-    metadataBase: null,
+    // Deprecated ones
+    viewport: null,
+    themeColor: null,
+    colorScheme: null,
 
+    metadataBase: null,
     // Other values are all null
     title: null,
     description: null,
@@ -13,8 +30,6 @@ export function createDefaultMetadata(): ResolvedMetadata {
     generator: null,
     keywords: null,
     referrer: null,
-    themeColor: null,
-    colorScheme: null,
     creator: null,
     publisher: null,
     robots: null,
@@ -32,6 +47,7 @@ export function createDefaultMetadata(): ResolvedMetadata {
     appleWebApp: null,
     formatDetection: null,
     itunes: null,
+    facebook: null,
     abstract: null,
     appLinks: null,
     archives: null,

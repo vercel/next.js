@@ -32,12 +32,20 @@ module.exports = async function collectDiffs(
     filesToTrack.map(async (fileGroup) => {
       const { globs } = fileGroup
       const curFiles = []
+      const prettierExts = ['.js', '.html', '.css', '.json']
 
       await Promise.all(
         globs.map(async (pattern) => {
-          curFiles.push(...(await glob(pattern, { cwd: statsAppDir })))
+          curFiles.push(
+            ...(await glob(pattern, { cwd: statsAppDir })).filter((item) =>
+              prettierExts.includes(path.extname(item))
+            )
+          )
         })
       )
+
+      logger('Tracking the following files:')
+      logger(curFiles)
 
       for (let file of curFiles) {
         const absPath = path.join(statsAppDir, file)
@@ -53,7 +61,7 @@ module.exports = async function collectDiffs(
         )
         await exec(
           `cd "${process.env.LOCAL_STATS ? process.cwd() : diffingDir}" && ` +
-            `${prettierPath} --write ${curFiles
+            `${prettierPath} --write --no-error-on-unmatched-pattern ${curFiles
               .map((f) => path.join(diffingDir, f))
               .join(' ')}`
         )

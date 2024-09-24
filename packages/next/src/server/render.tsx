@@ -21,26 +21,26 @@ import {
   setLazyProp,
 } from './api-utils'
 import { getCookieParser } from './api-utils/get-cookie-parser'
-import type { FontManifest, FontConfig } from './font-utils'
-import type { LoadComponentsReturnType, ManifestItem } from './load-components'
+import type { LoadComponentsReturnType } from './load-components'
 import type {
   GetServerSideProps,
   GetStaticProps,
   PreviewData,
   ServerRuntime,
   SizeLimit,
-} from 'next/types'
+} from '../types'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import type { ReactReadableStream } from './stream-utils/node-web-streams-helper'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import type { PagesModule } from './future/route-modules/pages/module'
+import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { Revalidate } from './lib/revalidate'
+import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { COMPILER_NAMES } from '../shared/lib/constants'
 
-import React from 'react'
-import ReactDOMServer from 'react-dom/server.browser'
+import React, { type JSX } from 'react'
+import ReactDOMServerEdge from 'react-dom/server.edge'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -51,9 +51,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
-  CACHE_ONE_YEAR,
 } from '../lib/constants'
-import type { COMPILER_NAMES } from '../shared/lib/constants'
 import {
   NEXT_BUILTIN_DOCUMENT,
   SERVER_PROPS_ID,
@@ -79,14 +77,11 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { getRequestMeta } from './request-meta'
 import { allowedStatusCodes, getRedirectStatus } from '../lib/redirect-status'
-import RenderResult, { type RenderResultMetadata } from './render-result'
+import RenderResult, { type PagesRenderResultMetadata } from './render-result'
 import isError from '../lib/is-error'
 import {
-  streamFromString,
   streamToString,
-  chainStreams,
   renderToInitialFizzStream,
-  continueFizzStream,
 } from './stream-utils/node-web-streams-helper'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
@@ -105,7 +100,9 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-import { setRevalidateHeaders } from './send-payload'
+import { formatRevalidate } from './lib/revalidate'
+import { getErrorSource } from '../shared/lib/error-source'
+import type { DeepReadonly } from '../shared/lib/deep-readonly'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -130,7 +127,7 @@ function noRouter() {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream = await ReactDOMServer.renderToReadableStream(element)
+  const renderStream = await ReactDOMServerEdge.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -248,33 +245,34 @@ export type RenderOptsPartial = {
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
-  isDataReq?: boolean
+  isNextDataRequest?: boolean
   params?: ParsedUrlQuery
   previewProps: __ApiPreviewProps | undefined
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  optimizeFonts: FontConfig
-  fontManifest?: FontManifest
   optimizeCss: any
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
   assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  clientReferenceManifest?: ClientReferenceManifest
-  nextFontManifest?: NextFontManifest
+  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
+  nextFontManifest?: DeepReadonly<NextFontManifest>
   distDir?: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocale[]
   disableOptimizedLoading?: boolean
-  supportsDynamicHTML: boolean
+  supportsDynamicResponse: boolean
   isBot?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
-  serverActionsBodySizeLimit?: SizeLimit
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
   customServer?: boolean
   crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
   images: ImageConfigComplete
@@ -286,6 +284,10 @@ export type RenderOptsPartial = {
   isServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
+  swrDelta?: SwrDelta
+  experimental: {
+    clientTraceMetadata?: string[]
+  }
 }
 
 export type RenderOpts = LoadComponentsReturnType<PagesModule> &
@@ -368,10 +370,7 @@ export function errorToJSON(err: Error) {
     'server'
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
-    source =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
-        err
-      ) || 'server'
+    source = getErrorSource(err) || 'server'
   }
 
   return {
@@ -412,20 +411,28 @@ export async function renderToHTMLImpl(
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
   setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
-  const renderResultMeta: RenderResultMetadata = {}
+  const metadata: PagesRenderResultMetadata = {}
 
-  // In dev we invalidate the cache by appending a timestamp to the resource URL.
-  // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
-  // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-  renderResultMeta.assetQueryString = renderOpts.dev
-    ? renderOpts.assetQueryString || `?ts=${Date.now()}`
-    : ''
+  metadata.assetQueryString =
+    (renderOpts.dev && renderOpts.assetQueryString) || ''
+
+  if (renderOpts.dev && !metadata.assetQueryString) {
+    const userAgent = (req.headers['user-agent'] || '').toLowerCase()
+    if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+      // In dev we invalidate the cache by appending a timestamp to the resource URL.
+      // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
+      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+      // Note: The workaround breaks breakpoints on reload since the script url always changes,
+      // so we only apply it to Safari.
+      metadata.assetQueryString = `?ts=${Date.now()}`
+    }
+  }
 
   // if deploymentId is provided we append it to all asset requests
   if (renderOpts.deploymentId) {
-    renderResultMeta.assetQueryString += `${
-      renderResultMeta.assetQueryString ? '&' : '?'
-    }dpl=${renderOpts.deploymentId}`
+    metadata.assetQueryString += `${metadata.assetQueryString ? '&' : '?'}dpl=${
+      renderOpts.deploymentId
+    }`
   }
 
   // don't modify original query object
@@ -442,28 +449,24 @@ export async function renderToHTMLImpl(
     getStaticProps,
     getStaticPaths,
     getServerSideProps,
-    isDataReq,
+    isNextDataRequest,
     params,
     previewProps,
     basePath,
     images,
     runtime: globalRuntime,
     isExperimentalCompile,
+    swrDelta,
   } = renderOpts
   const { App } = extra
 
-  const assetQueryString = renderResultMeta.assetQueryString
+  const assetQueryString = metadata.assetQueryString
 
   let Document = extra.Document
 
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
   const OriginComponent = Component
-
-  let serverComponentsInlinedTransformStream: TransformStream<
-    Uint8Array,
-    Uint8Array
-  > | null = null
 
   const isFallback = !!query.__nextFallback
   const notFoundSrcPage = query.__nextNotFoundSrcPage
@@ -510,11 +513,13 @@ export async function renderToHTMLImpl(
   // ensure we set cache header so it's not rendered on-demand
   // every request
   if (isAutoExport && !dev && isExperimentalCompile) {
-    setRevalidateHeaders(res, {
-      revalidate: CACHE_ONE_YEAR,
-      private: false,
-      stateful: false,
-    })
+    res.setHeader(
+      'Cache-Control',
+      formatRevalidate({
+        revalidate: false,
+        swrDelta,
+      })
+    )
     isAutoExport = false
   }
 
@@ -635,7 +640,12 @@ export async function renderToHTMLImpl(
     // Reads of this are cached on the `req` object, so this should resolve
     // instantly. There's no need to pass this data down from a previous
     // invoke.
-    previewData = tryGetPreviewData(req, res, previewProps)
+    previewData = tryGetPreviewData(
+      req,
+      res,
+      previewProps,
+      !!renderOpts.multiZoneDraftMode
+    )
     isPreview = previewData !== false
   }
 
@@ -833,7 +843,7 @@ export async function renderToHTMLImpl(
           },
         },
         () =>
-          getStaticProps!({
+          getStaticProps({
             ...(pageIsDynamic
               ? { params: query as ParsedUrlQuery }
               : undefined),
@@ -843,6 +853,11 @@ export async function renderToHTMLImpl(
             locales: renderOpts.locales,
             locale: renderOpts.locale,
             defaultLocale: renderOpts.defaultLocale,
+            revalidateReason: renderOpts.isOnDemandRevalidate
+              ? 'on-demand'
+              : isBuildTimeSSG
+                ? 'build'
+                : 'stale',
           })
       )
     } catch (staticPropsError: any) {
@@ -894,7 +909,7 @@ export async function renderToHTMLImpl(
         )
       }
 
-      renderResultMeta.isNotFound = true
+      metadata.isNotFound = true
     }
 
     if (
@@ -918,12 +933,12 @@ export async function renderToHTMLImpl(
       if (typeof data.redirect.basePath !== 'undefined') {
         ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
       }
-      renderResultMeta.isRedirect = true
+      metadata.isRedirect = true
     }
 
     if (
       (dev || isBuildTimeSSG) &&
-      !renderResultMeta.isNotFound &&
+      !metadata.isNotFound &&
       !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
     ) {
       // this fn should throw an error instead of ever returning `false`
@@ -994,12 +1009,12 @@ export async function renderToHTMLImpl(
     )
 
     // pass up revalidate and props for export
-    renderResultMeta.revalidate = revalidate
-    renderResultMeta.pageData = props
+    metadata.revalidate = revalidate
+    metadata.pageData = props
 
     // this must come after revalidate is added to renderResultMeta
-    if (renderResultMeta.isNotFound) {
-      return new RenderResult(null, renderResultMeta)
+    if (metadata.isNotFound) {
+      return new RenderResult(null, { metadata })
     }
   }
 
@@ -1066,6 +1081,7 @@ export async function renderToHTMLImpl(
           })
       )
       canAccessRes = false
+      metadata.revalidate = 0
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
@@ -1112,8 +1128,8 @@ export async function renderToHTMLImpl(
         )
       }
 
-      renderResultMeta.isNotFound = true
-      return new RenderResult(null, renderResultMeta)
+      metadata.isNotFound = true
+      return new RenderResult(null, { metadata })
     }
 
     if ('redirect' in data && typeof data.redirect === 'object') {
@@ -1125,7 +1141,7 @@ export async function renderToHTMLImpl(
       if (typeof data.redirect.basePath !== 'undefined') {
         ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
       }
-      renderResultMeta.isRedirect = true
+      metadata.isRedirect = true
     }
 
     if (deferredContent) {
@@ -1143,7 +1159,7 @@ export async function renderToHTMLImpl(
     }
 
     props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
-    renderResultMeta.pageData = props
+    metadata.pageData = props
   }
 
   if (
@@ -1160,8 +1176,10 @@ export async function renderToHTMLImpl(
 
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
-  if ((isDataReq && !isSSG) || renderResultMeta.isRedirect) {
-    return new RenderResult(JSON.stringify(props), renderResultMeta)
+  if ((isNextDataRequest && !isSSG) || metadata.isRedirect) {
+    return new RenderResult(JSON.stringify(props), {
+      metadata,
+    })
   }
 
   // We don't call getStaticProps or getServerSideProps while generating
@@ -1171,7 +1189,7 @@ export async function renderToHTMLImpl(
   }
 
   // the response might be finished on the getInitialProps call
-  if (isResSent(res) && !isSSG) return new RenderResult(null, renderResultMeta)
+  if (isResSent(res) && !isSSG) return new RenderResult(null, { metadata })
 
   // we preload the buildManifest for auto-export dynamic pages
   // to speed up hydrating query values
@@ -1226,7 +1244,7 @@ export async function renderToHTMLImpl(
     }
 
     async function loadDocumentInitialProps(
-      renderShell?: (
+      renderShell: (
         _App: AppType,
         _Component: NextComponentType
       ) => Promise<ReactReadableStream>
@@ -1257,26 +1275,10 @@ export async function renderToHTMLImpl(
         const { App: EnhancedApp, Component: EnhancedComponent } =
           enhanceComponents(options, App, Component)
 
-        if (renderShell) {
-          return renderShell(EnhancedApp, EnhancedComponent).then(
-            async (stream) => {
-              await stream.allReady
-              const html = await streamToString(stream)
-              return { html, head }
-            }
-          )
-        }
+        const stream = await renderShell(EnhancedApp, EnhancedComponent)
+        await stream.allReady
+        const html = await streamToString(stream)
 
-        const html = await renderToString(
-          <Body>
-            <AppContainerWithIsomorphicFiberStructure>
-              {renderPageTree(EnhancedApp, EnhancedComponent, {
-                ...props,
-                router,
-              })}
-            </AppContainerWithIsomorphicFiberStructure>
-          </Body>
-        )
         return { html, head }
       }
       const documentCtx = { ...ctx, renderPage }
@@ -1324,54 +1326,44 @@ export async function renderToHTMLImpl(
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialFizzStream({
-        ReactDOMServer,
+        ReactDOMServer: ReactDOMServerEdge,
         element: content,
       })
     }
 
-    const createBodyResult = getTracer().wrap(
-      RenderSpan.createBodyResult,
-      (initialStream: ReactReadableStream, suffix?: string) => {
-        // this must be called inside bodyResult so appWrappers is
-        // up to date when `wrapApp` is called
-        const getServerInsertedHTML = async (): Promise<string> => {
-          return renderToString(styledJsxInsertedHTML())
-        }
-
-        return continueFizzStream(initialStream, {
-          suffix,
-          inlinedDataStream: serverComponentsInlinedTransformStream?.readable,
-          generateStaticHTML: true,
-          getServerInsertedHTML,
-          serverInsertedHTMLToHead: false,
-        })
-      }
-    )
-
-    const hasDocumentGetInitialProps = !(
-      process.env.NEXT_RUNTIME === 'edge' || !Document.getInitialProps
-    )
-
-    let bodyResult: (s: string) => Promise<ReadableStream<Uint8Array>>
+    const hasDocumentGetInitialProps =
+      process.env.NEXT_RUNTIME !== 'edge' && !!Document.getInitialProps
 
     // If it has getInitialProps, we will render the shell in `renderPage`.
     // Otherwise we do it right now.
     let documentInitialPropsRes:
       | {}
       | Awaited<ReturnType<typeof loadDocumentInitialProps>>
-    if (hasDocumentGetInitialProps) {
-      documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
-      if (documentInitialPropsRes === null) return null
-      const { docProps } = documentInitialPropsRes as any
-      // includes suffix in initial html stream
-      bodyResult = (suffix: string) =>
-        createBodyResult(streamFromString(docProps.html + suffix))
-    } else {
-      const stream = await renderShell(App, Component)
-      bodyResult = (suffix: string) => createBodyResult(stream, suffix)
-      documentInitialPropsRes = {}
+
+    const [rawStyledJsxInsertedHTML, content] = await Promise.all([
+      renderToString(styledJsxInsertedHTML()),
+      (async () => {
+        if (hasDocumentGetInitialProps) {
+          documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
+          if (documentInitialPropsRes === null) return null
+          const { docProps } = documentInitialPropsRes as any
+          return docProps.html
+        } else {
+          documentInitialPropsRes = {}
+          const stream = await renderShell(App, Component)
+          await stream.allReady
+          return streamToString(stream)
+        }
+      })(),
+    ])
+
+    if (content === null) {
+      return null
     }
 
+    const contentHTML = rawStyledJsxInsertedHTML + content
+
+    // @ts-ignore: documentInitialPropsRes is set
     const { docProps } = (documentInitialPropsRes as any) || {}
     const documentElement = (htmlProps: any) => {
       if (process.env.NEXT_RUNTIME === 'edge') {
@@ -1391,7 +1383,7 @@ export async function renderToHTMLImpl(
     }
 
     return {
-      bodyResult,
+      contentHTML,
       documentElement,
       head,
       headTags: [],
@@ -1411,14 +1403,14 @@ export async function renderToHTMLImpl(
     async () => renderDocument()
   )
   if (!documentResult) {
-    return new RenderResult(null, renderResultMeta)
+    return new RenderResult(null, { metadata })
   }
 
   const dynamicImportsIds = new Set<string | number>()
   const dynamicImports = new Set<string>()
 
   for (const mod of reactLoadableModules) {
-    const manifestItem: ManifestItem = reactLoadableManifest[mod]
+    const manifestItem = reactLoadableManifest[mod]
 
     if (manifestItem) {
       dynamicImportsIds.add(manifestItem.id)
@@ -1500,12 +1492,13 @@ export async function renderToHTMLImpl(
     styles: documentResult.styles,
     crossOrigin: renderOpts.crossOrigin,
     optimizeCss: renderOpts.optimizeCss,
-    optimizeFonts: renderOpts.optimizeFonts,
     nextConfigOutput: renderOpts.nextConfigOutput,
     nextScriptWorkers: renderOpts.nextScriptWorkers,
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
     nextFontManifest: renderOpts.nextFontManifest,
+    experimentalClientTraceMetadata:
+      renderOpts.experimental.clientTraceMetadata,
   }
 
   const document = (
@@ -1558,17 +1551,14 @@ export async function renderToHTMLImpl(
     prefix += '<!-- __NEXT_DATA__ -->'
   }
 
-  const streams = [
-    streamFromString(prefix),
-    await documentResult.bodyResult(renderTargetSuffix),
-  ]
+  const content = prefix + documentResult.contentHTML + renderTargetSuffix
 
-  const postOptimize = (html: string) =>
-    postProcessHTML(pathname, html, renderOpts, { inAmpMode, hybridAmp })
+  const optimizedHtml = await postProcessHTML(pathname, content, renderOpts, {
+    inAmpMode,
+    hybridAmp,
+  })
 
-  const html = await streamToString(chainStreams(streams))
-  const optimizedHtml = await postOptimize(html)
-  return new RenderResult(optimizedHtml, renderResultMeta)
+  return new RenderResult(optimizedHtml, { metadata })
 }
 
 export type PagesRender = (
