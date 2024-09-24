@@ -5810,6 +5810,42 @@ export declare function Eczar<
   adjustFontFallback?: boolean
   subsets?: Array<'devanagari' | 'greek' | 'greek-ext' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Edu_AU_VIC_WA_NT_Dots<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Edu_AU_VIC_WA_NT_Guides<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Edu_AU_VIC_WA_NT_Hand<
   T extends CssVariable | undefined = undefined,
 >(options?: {
