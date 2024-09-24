@@ -30,7 +30,6 @@ export function generateShuttleManifest(config: NextConfigComplete) {
     gitSha,
     nextVersion,
     config: {
-      env: config.env,
       i18n: config.i18n,
       basePath: config.basePath,
       sassOptions: config.sassOptions,

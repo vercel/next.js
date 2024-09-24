@@ -20,6 +20,18 @@ describe('app dir - basic', () => {
       },
     })
 
+  if (isNextStart) {
+    it('should have correct cache-control for SSR routes', async () => {
+      for (const path of ['/catch-all/first', '/ssr']) {
+        const res = await next.fetch(path)
+        expect(res.status).toBe(200)
+        expect(res.headers.get('Cache-Control')).toBe(
+          'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
+      }
+    })
+  }
+
   if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
     it('should provide query for getStaticProps page correctly', async () => {
       const res = await next.fetch('/ssg?hello=world')

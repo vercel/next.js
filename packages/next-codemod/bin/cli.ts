@@ -15,7 +15,7 @@ import path from 'path'
 import execa from 'execa'
 import { yellow } from 'picocolors'
 import isGitClean from 'is-git-clean'
-import { uninstallPackage } from '../lib/uninstall-package'
+import { installPackage, uninstallPackage } from '../lib/handle-package'
 
 export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
 export const transformerDirectory = path.join(__dirname, '../', 'transforms')
@@ -108,6 +108,11 @@ export function runTransform({ files, flags, transformer }) {
       )
     }
   }
+
+  if (!dry && transformer === 'next-request-geo-ip') {
+    console.log('Installing `@vercel/functions`...')
+    installPackage('@vercel/functions')
+  }
 }
 
 const TRANSFORMER_INQUIRER_CHOICES = [
@@ -158,6 +163,14 @@ const TRANSFORMER_INQUIRER_CHOICES = [
   {
     name: 'built-in-next-font: Uninstall `@next/font` and transform imports to `next/font`',
     value: 'built-in-next-font',
+  },
+  {
+    name: 'next-async-request-api: Transforms usage of Next.js async Request APIs',
+    value: 'next-async-request-api',
+  },
+  {
+    name: 'next-request-geo-ip: Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
+    value: 'next-request-geo-ip',
   },
 ]
 

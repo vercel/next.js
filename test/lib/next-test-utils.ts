@@ -1242,7 +1242,7 @@ export async function getRedboxCallStack(
 ): Promise<string> {
   await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
 
-  const callStackFrameElements: any = await browser.elementsByCss(
+  const callStackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
   const callStackFrameTexts = await Promise.all(
@@ -1250,6 +1250,23 @@ export async function getRedboxCallStack(
   )
 
   return callStackFrameTexts.join('\n').trim()
+}
+
+export async function getRedboxCallStackCollapsed(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss('.nextjs-container-errors-body', 30000)
+
+  const callStackFrameElements = await browser.elementsByCss(
+    '.nextjs-container-errors-body > [data-nextjs-codeframe] > :first-child, ' +
+      '.nextjs-container-errors-body > [data-nextjs-call-stack-frame], ' +
+      '.nextjs-container-errors-body > [data-nextjs-collapsed-call-stack-details] > summary'
+  )
+  const callStackFrameTexts = await Promise.all(
+    callStackFrameElements.map((f) => f.innerText())
+  )
+
+  return callStackFrameTexts.join('\n---\n').trim()
 }
 
 export async function getVersionCheckerText(

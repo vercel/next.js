@@ -14,8 +14,10 @@ import {
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getRedirectStatusCodeFromError,
+  getRedirectTypeFromError,
   getURLFromRedirectError,
   isRedirectError,
+  type RedirectType,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
@@ -276,10 +278,11 @@ async function createRedirectRenderResult(
   res: BaseNextResponse,
   originalHost: Host,
   redirectUrl: string,
+  redirectType: RedirectType,
   basePath: string,
   staticGenerationStore: StaticGenerationStore
 ) {
-  res.setHeader('x-action-redirect', redirectUrl)
+  res.setHeader('x-action-redirect', `${redirectUrl};${redirectType}`)
 
   // If we're redirecting to another route of this Next.js application, we'll
   // try to stream the response from the other worker path. When that works,
@@ -841,6 +844,7 @@ export async function handleAction({
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
       const statusCode = getRedirectStatusCodeFromError(err)
+      const redirectType = getRedirectTypeFromError(err)
 
       await addRevalidationHeader(res, {
         staticGenerationStore,
@@ -859,6 +863,7 @@ export async function handleAction({
             res,
             host,
             redirectUrl,
+            redirectType,
             ctx.renderOpts.basePath,
             staticGenerationStore
           ),
