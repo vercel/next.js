@@ -52,6 +52,8 @@ log = { version = "0.4", default-features = false, features = ["kv_unstable", "s
 memchr = { version = "2" }
 miniz_oxide = { version = "0.7", features = ["simd"] }
 mio = { version = "0.8", features = ["net", "os-ext"] }
+napi = { version = "2", default-features = false, features = ["compat-mode", "error_anyhow", "napi5", "serde-json", "tokio_rt"] }
+napi-sys = { version = "2", default-features = false, features = ["napi5"] }
 num-traits = { version = "0.2", features = ["i128"] }
 parcel_selectors = { version = "0.27", default-features = false, features = ["into_owned", "serde"] }
 parking_lot = { version = "0.12", features = ["serde"] }
@@ -72,19 +74,23 @@ serde = { version = "1", features = ["alloc", "derive", "rc"] }
 serde_json = { version = "1", features = ["preserve_order", "unbounded_depth"] }
 serde_with = { version = "2", features = ["base64"] }
 smallvec = { version = "1", default-features = false, features = ["const_new", "serde", "union"] }
-swc = { version = "0.286", features = ["plugin", "plugin_transform_host_native", "plugin_transform_schema_v1"] }
+swc = { version = "0.286", features = ["concurrent", "node", "plugin", "plugin_transform_host_native", "plugin_transform_schema_v1"] }
 swc_atoms = { version = "0.6", default-features = false, features = ["rkyv-impl"] }
 swc_common = { version = "0.37", features = ["ahash", "concurrent", "plugin-rt", "plugin_transform_schema_v1", "sourcemap", "tty-emitter"] }
+swc_compiler_base = { version = "0.20", default-features = false, features = ["node"] }
 swc_config = { version = "0.1", default-features = false, features = ["sourcemap"] }
-swc_core = { version = "0.103", default-features = false, features = ["base", "cached", "common", "common_concurrent", "common_sourcemap", "css_ast", "css_codegen", "css_compat", "css_modules", "css_parser", "css_visit", "ecma_ast_serde", "ecma_codegen", "ecma_lints", "ecma_loader_lru", "ecma_loader_node", "ecma_loader_parking_lot", "ecma_minifier", "ecma_minifier_concurrent", "ecma_parser", "ecma_parser_typescript", "ecma_preset_env", "ecma_quote", "ecma_transforms", "ecma_transforms_module", "ecma_transforms_optimization", "ecma_transforms_proposal", "ecma_transforms_react", "ecma_transforms_typescript", "ecma_utils", "ecma_visit", "ecma_visit_path", "plugin_transform_host_native", "plugin_transform_host_native_shared_runtime", "testing", "testing_transform"] }
+swc_core = { version = "0.103", default-features = false, features = ["base", "base_concurrent", "base_node", "bundler", "bundler_concurrent", "cached", "common", "common_concurrent", "common_sourcemap", "css_ast", "css_codegen", "css_compat", "css_modules", "css_parser", "css_visit", "ecma_ast_serde", "ecma_codegen", "ecma_lints", "ecma_loader_lru", "ecma_loader_node", "ecma_loader_parking_lot", "ecma_minifier", "ecma_minifier_concurrent", "ecma_parser", "ecma_parser_typescript", "ecma_preset_env", "ecma_quote", "ecma_transforms", "ecma_transforms_module", "ecma_transforms_optimization", "ecma_transforms_proposal", "ecma_transforms_react", "ecma_transforms_typescript", "ecma_utils", "ecma_visit", "ecma_visit_path", "plugin_transform_host_native", "plugin_transform_host_native_filesystem_cache", "plugin_transform_host_native_shared_runtime", "testing", "testing_transform"] }
 swc_ecma_ast = { version = "0.118", features = ["rkyv-impl", "serde-impl"] }
 swc_ecma_loader = { version = "0.49", features = ["cache", "node", "tsc"] }
 swc_ecma_minifier = { version = "0.205", features = ["concurrent"] }
-swc_ecma_transforms = { version = "0.240", default-features = false, features = ["compat", "module", "optimization", "proposal", "react", "typescript"] }
+swc_ecma_transforms = { version = "0.240", default-features = false, features = ["compat", "concurrent", "module", "optimization", "proposal", "react", "typescript"] }
 swc_ecma_transforms_base = { version = "0.146", default-features = false, features = ["concurrent"] }
+swc_ecma_transforms_compat = { version = "0.172", default-features = false, features = ["concurrent"] }
 swc_ecma_transforms_optimization = { version = "0.209", default-features = false, features = ["concurrent"] }
+swc_ecma_transforms_react = { version = "0.192", features = ["concurrent"] }
 swc_ecma_utils = { version = "0.134", default-features = false, features = ["concurrent"] }
 swc_ecma_visit = { version = "0.104", features = ["path", "serde"] }
+swc_plugin_runner = { version = "0.112", default-features = false, features = ["ecma", "filesystem_cache", "plugin_transform_host_native", "plugin_transform_host_native_shared_runtime", "plugin_transform_schema_v1", "rkyv-impl"] }
 syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["extra-traits", "full", "visit", "visit-mut"] }
 syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
 textwrap = { version = "0.16" }
@@ -141,6 +147,10 @@ log = { version = "0.4", default-features = false, features = ["kv_unstable", "s
 memchr = { version = "2" }
 miniz_oxide = { version = "0.7", features = ["simd"] }
 mio = { version = "0.8", features = ["net", "os-ext"] }
+napi = { version = "2", default-features = false, features = ["compat-mode", "error_anyhow", "napi5", "serde-json", "tokio_rt"] }
+napi-derive = { version = "2" }
+napi-derive-backend = { version = "1", default-features = false, features = ["strict", "type-def"] }
+napi-sys = { version = "2", default-features = false, features = ["napi5"] }
 num-traits = { version = "0.2", features = ["i128"] }
 parcel_selectors = { version = "0.27", default-features = false, features = ["into_owned", "serde"] }
 parking_lot = { version = "0.12", features = ["serde"] }
@@ -162,19 +172,23 @@ serde = { version = "1", features = ["alloc", "derive", "rc"] }
 serde_json = { version = "1", features = ["preserve_order", "unbounded_depth"] }
 serde_with = { version = "2", features = ["base64"] }
 smallvec = { version = "1", default-features = false, features = ["const_new", "serde", "union"] }
-swc = { version = "0.286", features = ["plugin", "plugin_transform_host_native", "plugin_transform_schema_v1"] }
+swc = { version = "0.286", features = ["concurrent", "node", "plugin", "plugin_transform_host_native", "plugin_transform_schema_v1"] }
 swc_atoms = { version = "0.6", default-features = false, features = ["rkyv-impl"] }
 swc_common = { version = "0.37", features = ["ahash", "concurrent", "plugin-rt", "plugin_transform_schema_v1", "sourcemap", "tty-emitter"] }
+swc_compiler_base = { version = "0.20", default-features = false, features = ["node"] }
 swc_config = { version = "0.1", default-features = false, features = ["sourcemap"] }
-swc_core = { version = "0.103", default-features = false, features = ["base", "cached", "common", "common_concurrent", "common_sourcemap", "css_ast", "css_codegen", "css_compat", "css_modules", "css_parser", "css_visit", "ecma_ast_serde", "ecma_codegen", "ecma_lints", "ecma_loader_lru", "ecma_loader_node", "ecma_loader_parking_lot", "ecma_minifier", "ecma_minifier_concurrent", "ecma_parser", "ecma_parser_typescript", "ecma_preset_env", "ecma_quote", "ecma_transforms", "ecma_transforms_module", "ecma_transforms_optimization", "ecma_transforms_proposal", "ecma_transforms_react", "ecma_transforms_typescript", "ecma_utils", "ecma_visit", "ecma_visit_path", "plugin_transform_host_native", "plugin_transform_host_native_shared_runtime", "testing", "testing_transform"] }
+swc_core = { version = "0.103", default-features = false, features = ["base", "base_concurrent", "base_node", "bundler", "bundler_concurrent", "cached", "common", "common_concurrent", "common_sourcemap", "css_ast", "css_codegen", "css_compat", "css_modules", "css_parser", "css_visit", "ecma_ast_serde", "ecma_codegen", "ecma_lints", "ecma_loader_lru", "ecma_loader_node", "ecma_loader_parking_lot", "ecma_minifier", "ecma_minifier_concurrent", "ecma_parser", "ecma_parser_typescript", "ecma_preset_env", "ecma_quote", "ecma_transforms", "ecma_transforms_module", "ecma_transforms_optimization", "ecma_transforms_proposal", "ecma_transforms_react", "ecma_transforms_typescript", "ecma_utils", "ecma_visit", "ecma_visit_path", "plugin_transform_host_native", "plugin_transform_host_native_filesystem_cache", "plugin_transform_host_native_shared_runtime", "testing", "testing_transform"] }
 swc_ecma_ast = { version = "0.118", features = ["rkyv-impl", "serde-impl"] }
 swc_ecma_loader = { version = "0.49", features = ["cache", "node", "tsc"] }
 swc_ecma_minifier = { version = "0.205", features = ["concurrent"] }
-swc_ecma_transforms = { version = "0.240", default-features = false, features = ["compat", "module", "optimization", "proposal", "react", "typescript"] }
+swc_ecma_transforms = { version = "0.240", default-features = false, features = ["compat", "concurrent", "module", "optimization", "proposal", "react", "typescript"] }
 swc_ecma_transforms_base = { version = "0.146", default-features = false, features = ["concurrent"] }
+swc_ecma_transforms_compat = { version = "0.172", default-features = false, features = ["concurrent"] }
 swc_ecma_transforms_optimization = { version = "0.209", default-features = false, features = ["concurrent"] }
+swc_ecma_transforms_react = { version = "0.192", features = ["concurrent"] }
 swc_ecma_utils = { version = "0.134", default-features = false, features = ["concurrent"] }
 swc_ecma_visit = { version = "0.104", features = ["path", "serde"] }
+swc_plugin_runner = { version = "0.112", default-features = false, features = ["ecma", "filesystem_cache", "plugin_transform_host_native", "plugin_transform_host_native_shared_runtime", "plugin_transform_schema_v1", "rkyv-impl"] }
 syn-dff4ba8e3ae991db = { package = "syn", version = "1", features = ["extra-traits", "full", "visit", "visit-mut"] }
 syn-f595c2ba2a3f28df = { package = "syn", version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
 textwrap = { version = "0.16" }
@@ -197,6 +211,7 @@ vergen-lib = { version = "0.1", features = ["build", "cargo"] }
 [target.aarch64-apple-darwin.dependencies]
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
 libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
+mdxjs = { version = "0.2", default-features = false, features = ["serializable"] }
 rustix = { version = "0.38", features = ["event", "fs", "net", "pipe", "process", "termios", "time"] }
 scopeguard = { version = "1" }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }
@@ -205,6 +220,7 @@ stable_deref_trait = { version = "1", default-features = false, features = ["std
 [target.aarch64-apple-darwin.build-dependencies]
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
 libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
+mdxjs = { version = "0.2", default-features = false, features = ["serializable"] }
 rustix = { version = "0.38", features = ["event", "fs", "net", "pipe", "process", "termios", "time"] }
 scopeguard = { version = "1" }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }
@@ -214,6 +230,7 @@ stable_deref_trait = { version = "1", default-features = false, features = ["std
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
 libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
 linux-raw-sys = { version = "0.4", default-features = false, features = ["elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "prctl", "std", "xdp"] }
+mdxjs = { version = "0.2", default-features = false, features = ["serializable"] }
 rustix = { version = "0.38", features = ["event", "fs", "net", "pipe", "process", "termios", "time"] }
 scopeguard = { version = "1" }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }
@@ -223,12 +240,14 @@ stable_deref_trait = { version = "1", default-features = false, features = ["std
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
 libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
 linux-raw-sys = { version = "0.4", default-features = false, features = ["elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "prctl", "std", "xdp"] }
+mdxjs = { version = "0.2", default-features = false, features = ["serializable"] }
 rustix = { version = "0.38", features = ["event", "fs", "net", "pipe", "process", "termios", "time"] }
 scopeguard = { version = "1" }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }
 stable_deref_trait = { version = "1", default-features = false, features = ["std"] }
 
 [target.x86_64-pc-windows-msvc.dependencies]
+mdxjs = { version = "0.2", default-features = false, features = ["serializable"] }
 rustix = { version = "0.38", default-features = false, features = ["fs", "net", "std"] }
 scopeguard = { version = "1" }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }
@@ -238,6 +257,7 @@ windows-sys-b21d60becc0929df = { package = "windows-sys", version = "0.52", feat
 windows-sys-c8eced492e86ede7 = { package = "windows-sys", version = "0.48", features = ["Win32_Foundation", "Win32_NetworkManagement_IpHelper", "Win32_Networking_WinSock", "Win32_Security", "Win32_Storage_FileSystem", "Win32_System_Console", "Win32_System_Diagnostics_Debug", "Win32_System_IO", "Win32_System_LibraryLoader", "Win32_System_Pipes", "Win32_System_Registry", "Win32_System_SystemServices", "Win32_System_Threading", "Win32_System_Time", "Win32_System_WindowsProgramming"] }
 
 [target.x86_64-pc-windows-msvc.build-dependencies]
+mdxjs = { version = "0.2", default-features = false, features = ["serializable"] }
 rustix = { version = "0.38", default-features = false, features = ["fs", "net", "std"] }
 scopeguard = { version = "1" }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }
@@ -250,6 +270,7 @@ windows-sys-c8eced492e86ede7 = { package = "windows-sys", version = "0.48", feat
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
 libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
 linux-raw-sys = { version = "0.4", default-features = false, features = ["elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "prctl", "std", "xdp"] }
+mdxjs = { version = "0.2", default-features = false, features = ["serializable"] }
 rustix = { version = "0.38", features = ["event", "fs", "net", "pipe", "process", "termios", "time"] }
 scopeguard = { version = "1" }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }
@@ -259,6 +280,7 @@ stable_deref_trait = { version = "1", default-features = false, features = ["std
 iana-time-zone = { version = "0.1", default-features = false, features = ["fallback"] }
 libc = { version = "0.2", default-features = false, features = ["extra_traits"] }
 linux-raw-sys = { version = "0.4", default-features = false, features = ["elf", "errno", "general", "if_ether", "ioctl", "net", "netlink", "no_std", "prctl", "std", "xdp"] }
+mdxjs = { version = "0.2", default-features = false, features = ["serializable"] }
 rustix = { version = "0.38", features = ["event", "fs", "net", "pipe", "process", "termios", "time"] }
 scopeguard = { version = "1" }
 socket2 = { version = "0.4", default-features = false, features = ["all"] }

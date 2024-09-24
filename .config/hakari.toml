@@ -20,4 +20,4 @@ platforms = [
 workspace-hack-line-style = "workspace-dotted"
 
 [traversal-excludes]
-workspace-members = ["next-swc-napi", "wasm"]
+workspace-members = ["wasm"]
