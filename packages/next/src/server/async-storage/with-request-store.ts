@@ -1,5 +1,5 @@
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
+import type { IncomingHttpHeaders } from 'http'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { RenderOpts } from '../app-render/types'
@@ -55,8 +55,7 @@ export type WrapperRenderOpts = RequestLifecycleOpts &
     previewProps?: __ApiPreviewProps
   }
 
-export type RequestContext = {
-  req: IncomingMessage | BaseNextRequest | NextRequest
+export type RequestContext = RequestResponsePair & {
   /**
    * The URL of the request. This only specifies the pathname and the search
    * part of the URL. This is only undefined when generating static paths (ie,
@@ -74,11 +73,14 @@ export type RequestContext = {
      */
     search?: string
   }
-  res?: ServerResponse | BaseNextResponse
   renderOpts?: WrapperRenderOpts
   isHmrRefresh?: boolean
   serverComponentsHmrCache?: ServerComponentsHmrCache
 }
+
+type RequestResponsePair =
+  | { req: BaseNextRequest; res: BaseNextResponse } // for an app page
+  | { req: NextRequest; res: undefined } // in an api route or middleware
 
 /**
  * If middleware set cookies in this request (indicated by `x-middleware-set-cookie`),

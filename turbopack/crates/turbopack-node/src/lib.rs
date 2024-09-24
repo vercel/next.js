@@ -18,7 +18,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAssets},
     module::Module,
-    output::{OutputAsset, OutputAssetsSet},
+    output::{OutputAsset, OutputAssets, OutputAssetsSet},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
 };
@@ -265,6 +265,7 @@ pub async fn get_intermediate_asset(
     Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
         chunking_context.chunk_path(main_entry.ident(), ".js".into()),
         main_entry,
+        OutputAssets::empty(),
         other_entries,
     )))
 }

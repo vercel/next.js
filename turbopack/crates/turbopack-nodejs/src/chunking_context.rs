@@ -15,7 +15,7 @@ use turbopack_core::{
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -304,6 +304,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn Module>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        extra_chunks: Vc<OutputAssets>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let availability_info = availability_info.into_value();
@@ -323,9 +324,11 @@ impl ChunkingContext for NodeJsChunkingContext {
         )
         .await?;
 
-        let other_chunks: Vec<_> = chunks
+        let extra_chunks = extra_chunks.await?;
+        let other_chunks: Vec<_> = extra_chunks
             .iter()
-            .map(|chunk| self.generate_chunk(*chunk))
+            .copied()
+            .chain(chunks.iter().map(|chunk| self.generate_chunk(*chunk)))
             .collect();
 
         let Some(module) = Vc::try_resolve_downcast(module).await? else {

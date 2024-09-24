@@ -127,15 +127,16 @@ impl EcmascriptChunkItemContent {
         let mut code = CodeBuilder::default();
         let args = FormatIter(|| args.iter().copied().intersperse(", "));
         if this.options.this {
-            writeln!(code, "(function({{ {} }}) {{ !function() {{", args,)?;
+            code += "(function(__turbopack_context__) {\n";
         } else {
-            writeln!(code, "(({{ {} }}) => (() => {{", args,)?;
+            code += "((__turbopack_context__) => {\n";
         }
         if this.options.strict {
             code += "\"use strict\";\n\n";
         } else {
             code += "\n";
         }
+        writeln!(code, "var {{ {} }} = __turbopack_context__;", args)?;
 
         if this.options.async_module.is_some() {
             code += "__turbopack_async_module__(async (__turbopack_handle_async_dependencies__, \
@@ -153,11 +154,7 @@ impl EcmascriptChunkItemContent {
             )?;
         }
 
-        if this.options.this {
-            code += "\n}.call(this) })";
-        } else {
-            code += "\n})())";
-        }
+        code += "})";
         Ok(code.build().cell())
     }
 }

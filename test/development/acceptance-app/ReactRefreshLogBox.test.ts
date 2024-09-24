@@ -5,6 +5,7 @@ import {
   check,
   describeVariants as describe,
   expandCallStack,
+  getRedboxCallStackCollapsed,
   retry,
 } from 'next-test-utils'
 import path from 'path'
@@ -218,7 +219,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     await session.assertHasRedbox()
 
-    console.log({ isTurbopack })
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (isTurbopack) {
       expect(source).toEqual(outdent`
@@ -1205,6 +1205,70 @@ export default function Home() {
           5 | }"
       `)
     })
+
+    await cleanup()
+  })
+
+  test('Should collapse bundler internal stack frames', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/utils.ts',
+          `throw new Error('utils error')
+export function foo(){}`,
+        ],
+        [
+          'app/page.js',
+          `"use client";
+import { foo } from "./utils";
+
+export default function Home() {
+  foo();
+  return "hello";
+}`,
+        ],
+      ])
+    )
+
+    await session.assertHasRedbox()
+
+    let stack = next.normalizeTestDirContent(
+      await getRedboxCallStackCollapsed(browser)
+    )
+    if (isTurbopack) {
+      expect(stack).toMatchInlineSnapshot(`
+        "app/utils.ts (1:7) @ [project]/app/utils.ts [app-client] (ecmascript)
+        ---
+        Next.js
+        ---
+        [project]/app/page.js [app-client] (ecmascript)
+        app/page.js (0:0)
+        ---
+        Next.js
+        ---
+        React"
+      `)
+    } else {
+      expect(stack).toMatchInlineSnapshot(`
+        "app/utils.ts (1:7) @ eval
+        ---
+        (app-pages-browser)/./app/utils.ts
+        file://TEST_DIR/.next/static/chunks/app/page.js (39:1)
+        ---
+        Next.js
+        ---
+        eval
+        (app-pages-browser)/./app/page.js
+        ---
+        (app-pages-browser)/./app/page.js
+        file://TEST_DIR/.next/static/chunks/app/page.js (28:1)
+        ---
+        Next.js
+        ---
+        React"
+      `)
+    }
 
     await cleanup()
   })
