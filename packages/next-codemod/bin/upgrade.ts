@@ -4,8 +4,8 @@ import { execSync } from 'child_process'
 import path from 'path'
 import { compareVersions } from 'compare-versions'
 import chalk from 'chalk'
-import which from 'which'
 import { availableCodemods } from '../lib/codemods'
+import { getPkgManager, installPackage } from '../lib/handle-package'
 
 type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
 type CustomVersionSpecifier = string
@@ -124,7 +124,7 @@ export async function runUpgrade(): Promise<void> {
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
-  const packageManager: PackageManager = await getPackageManager(appPackageJson)
+  const packageManager: PackageManager = getPkgManager(process.cwd())
   const nextDependency = `next@${targetNextVersion}`
   const reactDependencies = [
     `react@${targetNextPackageJson.peerDependencies['react']}`,
@@ -133,32 +133,11 @@ export async function runUpgrade(): Promise<void> {
     `@types/react-dom@${targetNextPackageJson.devDependencies['@types/react-dom']}`,
   ]
 
-  let updateCommand
-  switch (packageManager) {
-    case 'pnpm':
-      updateCommand = `pnpm update ${reactDependencies.join(' ')} ${nextDependency}`
-      break
-    case 'npm':
-      // npm will error out if all dependencies are updated at once because the new next
-      // version depends on the new react and react-dom versions we are installing
-      updateCommand = `npm install ${reactDependencies.join(' ')} && npm install ${nextDependency}`
-      break
-    case 'yarn':
-      updateCommand = `yarn add ${reactDependencies.join(' ')} ${nextDependency}`
-      break
-    case 'bun':
-      updateCommand = `bun add ${reactDependencies.join(' ')} ${nextDependency}`
-      break
-    default:
-      throw new Error(`Unreachable code`)
-  }
+  installPackage([nextDependency, ...reactDependencies], packageManager)
 
   console.log(
     `Upgrading your project to ${chalk.blue('Next.js ' + targetVersionSpecifier)}...\n`
   )
-  execSync(updateCommand, {
-    stdio: 'inherit',
-  })
 
   await suggestCodemods(installedNextVersion, targetNextVersion)
 
@@ -223,108 +202,6 @@ async function getVersionSpecifierIdx(
     return 1
   }
   return showRc ? 2 : 1
-}
-
-async function getPackageManager(_packageJson: any): Promise<PackageManager> {
-  const packageManagers = {
-    pnpm: 'pnpm-lock.yaml',
-    yarn: 'yarn.lock',
-    npm: 'package-lock.json',
-    bun: 'bun.lockb',
-  }
-
-  // Recursively looks for either a package.json with a packageManager field or a lock file
-  function resolvePackageManagerUpwards(dir: string): PackageManager[] {
-    const packageJsonPath = path.join(dir, 'package.json')
-    if (fs.existsSync(packageJsonPath)) {
-      let detectedPackageManagers: PackageManager[] = []
-      let packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
-      if (packageJson.packageManager) {
-        // corepack
-        let packageManagerName = packageJson.packageManager.split(
-          '@'
-        )[0] as PackageManager
-        if (packageManagerName in packageManagers) {
-          return [packageManagerName]
-        }
-      }
-      for (const [packageManager, lockFile] of Object.entries(
-        packageManagers
-      )) {
-        const lockFilePath = path.join(dir, lockFile)
-        if (fs.existsSync(lockFilePath)) {
-          detectedPackageManagers.push(packageManager as PackageManager)
-        }
-      }
-      if (detectedPackageManagers.length !== 0) {
-        return detectedPackageManagers
-      }
-    }
-    const parentDir = path.dirname(dir)
-    if (parentDir !== dir) {
-      return resolvePackageManagerUpwards(parentDir)
-    }
-    return []
-  }
-
-  let realPath = fs.realpathSync(process.cwd())
-  const detectedPackageManagers = resolvePackageManagerUpwards(realPath)
-
-  // Exactly one package manager detected
-  if (detectedPackageManagers.length === 1) {
-    return detectedPackageManagers[0]
-  }
-
-  // Multiple package managers detected
-  if (detectedPackageManagers.length > 1) {
-    const responsePackageManager = await prompts(
-      {
-        type: 'select',
-        name: 'packageManager',
-        message: 'Multiple package managers detected. Which one are you using?',
-        choices: detectedPackageManagers.map((packageManager) => ({
-          title: packageManager,
-          value: packageManager,
-        })),
-        initial: 0,
-      },
-      {
-        onCancel: () => {
-          process.exit(0)
-        },
-      }
-    )
-
-    console.log(
-      `${chalk.red('⚠️')} To avoid this next time, keep only one of ${detectedPackageManagers.map((packageManager) => chalk.underline(packageManagers[packageManager])).join(' or ')}\n`
-    )
-
-    return responsePackageManager.packageManager as PackageManager
-  }
-
-  // No package manager detected
-  let choices = ['pnpm', 'yarn', 'npm', 'bun']
-    .filter((packageManager) => which.sync(packageManager, { nothrow: true }))
-    .map((packageManager) => ({
-      title: packageManager,
-      value: packageManager,
-    }))
-
-  const responsePackageManager = await prompts(
-    {
-      type: 'select',
-      name: 'packageManager',
-      message: 'No package manager detected. Which one are you using?',
-      choices: choices,
-    },
-    {
-      onCancel: () => {
-        process.exit(0)
-      },
-    }
-  )
-
-  return responsePackageManager.packageManager as PackageManager
 }
 
 /*

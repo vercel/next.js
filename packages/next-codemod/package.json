@@ -18,8 +18,7 @@
     "jscodeshift": "17.0.0",
     "meow": "7.0.1",
     "picocolors": "1.0.0",
-    "prompts": "2.4.2",
-    "which": "4.0.0"
+    "prompts": "2.4.2"
   },
   "files": [
     "transforms/*.js",
