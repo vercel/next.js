@@ -2,7 +2,7 @@ import isError from '../../../lib/is-error'
 import { isNextRouterError } from '../is-next-router-error'
 import { handleClientError } from '../react-dev-overlay/internal/helpers/use-error-handler'
 
-const originConsoleError = window.console.error
+export const originConsoleError = window.console.error
 
 // Patch console.error to collect information about hydration errors
 export function patchConsoleError() {

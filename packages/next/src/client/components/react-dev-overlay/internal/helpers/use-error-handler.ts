@@ -60,6 +60,37 @@ export function useErrorHandler(
   }, [handleOnUnhandledError, handleOnUnhandledRejection])
 }
 
+function onUnhandledError(event: WindowEventMap['error']): void | boolean {
+  if (isNextRouterError(event.error)) {
+    event.preventDefault()
+    return false
+  }
+  handleClientError(event.error, [])
+}
+
+function onUnhandledRejection(ev: WindowEventMap['unhandledrejection']): void {
+  const reason = ev?.reason
+  if (isNextRouterError(reason)) {
+    ev.preventDefault()
+    return
+  }
+
+  if (
+    !reason ||
+    !(reason instanceof Error) ||
+    typeof reason.stack !== 'string'
+  ) {
+    // A non-error was thrown, we don't have anything to show. :-(
+    return
+  }
+
+  const e = reason
+  rejectionQueue.push(e)
+  for (const handler of rejectionHandlers) {
+    handler(e)
+  }
+}
+
 export function handleGlobalErrors() {
   if (typeof window !== 'undefined') {
     try {
@@ -67,41 +98,8 @@ export function handleGlobalErrors() {
       Error.stackTraceLimit = 50
     } catch {}
 
-    window.addEventListener(
-      'error',
-      (event: WindowEventMap['error']): void | boolean => {
-        if (isNextRouterError(event.error)) {
-          event.preventDefault()
-          return false
-        }
-        handleClientError(event.error, [])
-      }
-    )
+    window.addEventListener('error', onUnhandledError)
 
-    window.addEventListener(
-      'unhandledrejection',
-      (ev: WindowEventMap['unhandledrejection']): void => {
-        const reason = ev?.reason
-        if (isNextRouterError(reason)) {
-          ev.preventDefault()
-          return
-        }
-
-        if (
-          !reason ||
-          !(reason instanceof Error) ||
-          typeof reason.stack !== 'string'
-        ) {
-          // A non-error was thrown, we don't have anything to show. :-(
-          return
-        }
-
-        const e = reason
-        rejectionQueue.push(e)
-        for (const handler of rejectionHandlers) {
-          handler(e)
-        }
-      }
-    )
+    window.addEventListener('unhandledrejection', onUnhandledRejection)
   }
 }
