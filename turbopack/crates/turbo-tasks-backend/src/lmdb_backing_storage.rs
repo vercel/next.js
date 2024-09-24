@@ -133,201 +133,132 @@ impl BackingStorage for LmdbBackingStorage {
         let start = Instant::now();
         let mut op_count = 0;
         let mut tx = self.env.begin_rw_txn()?;
-        let mut next_task_id =
-            as_u32(tx.get(self.infra_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID))).unwrap_or(1);
-        {
-            let _span = tracing::trace_span!("update task cache", items = task_cache_updates.len())
-                .entered();
-            for (task_type, task_id) in task_cache_updates.iter() {
-                let task_id = **task_id;
-                let task_type_bytes = pot::to_vec(&**task_type)
-                    .with_context(|| anyhow!("Unable to serialize task cache key {task_type:?}"))?;
-                #[cfg(feature = "verify_serialization")]
-                {
-                    let deserialize: Result<CachedTaskType, _> = serde_path_to_error::deserialize(
-                        &mut pot::de::SymbolList::new().deserializer_for_slice(&task_type_bytes)?,
-                    );
-                    if let Err(err) = deserialize {
-                        println!(
-                            "Task type would not be deserializable {task_id}: \
-                             {err:?}\n{task_type:#?}"
-                        );
-                        panic!("Task type would not be deserializable {task_id}: {err:?}");
-                    }
-                }
-                extended_key::put(
-                    &mut tx,
-                    self.forward_task_cache_db,
-                    &task_type_bytes,
-                    &task_id.to_be_bytes(),
-                    WriteFlags::empty(),
-                )
-                .with_context(|| {
-                    anyhow!("Unable to write task cache {task_type:?} => {task_id}")
-                })?;
-                tx.put(
-                    self.reverse_task_cache_db,
-                    &IntKey::new(task_id),
-                    &task_type_bytes,
-                    WriteFlags::empty(),
-                )
-                .with_context(|| {
-                    anyhow!("Unable to write task cache {task_id} => {task_type:?}")
-                })?;
-                op_count += 2;
-                next_task_id = next_task_id.max(task_id + 1);
-            }
-            tx.put(
-                self.infra_db,
-                &IntKey::new(META_KEY_NEXT_FREE_TASK_ID),
-                &next_task_id.to_be_bytes(),
-                WriteFlags::empty(),
-            )
-            .with_context(|| anyhow!("Unable to write next free task id"))?;
-        }
-        {
-            let _span =
-                tracing::trace_span!("update operations", operations = operations.len()).entered();
-            let operations = pot::to_vec(&operations)
-                .with_context(|| anyhow!("Unable to serialize operations"))?;
-            tx.put(
-                self.infra_db,
-                &IntKey::new(META_KEY_OPERATIONS),
-                &operations,
-                WriteFlags::empty(),
-            )
-            .with_context(|| anyhow!("Unable to write operations"))?;
-            op_count += 2;
-        }
+        let mut task_meta_items_result = Ok(Vec::new());
+        let mut task_data_items_result = Ok(Vec::new());
 
-        for (db, updates) in [(self.meta_db, meta_updates), (self.data_db, data_updates)] {
-            let mut task_updates: HashMap<
-                TaskId,
-                HashMap<
-                    CachedDataItemKey,
-                    (Option<CachedDataItemValue>, Option<CachedDataItemValue>),
-                >,
-            > = HashMap::new();
-            {
-                let _span =
-                    tracing::trace_span!("organize task data", updates = updates.len()).entered();
-                for CachedDataUpdate {
-                    task,
-                    key,
-                    value,
-                    old_value,
-                } in updates.into_iter()
-                {
-                    let data = task_updates.entry(task).or_default();
-                    match data.entry(key) {
-                        Entry::Occupied(mut entry) => {
-                            entry.get_mut().1 = value;
-                        }
-                        Entry::Vacant(entry) => {
-                            entry.insert((old_value, value));
-                        }
-                    }
-                }
-                task_updates.retain(|_, data| {
-                    data.retain(|_, (old_value, value)| *old_value != *value);
-                    !data.is_empty()
+        turbo_tasks::scope(|s| {
+            // Start organizing the updates in parallel
+            s.spawn(|_| {
+                let task_meta_updates = {
+                    let _span =
+                        tracing::trace_span!("organize task meta", updates = meta_updates.len())
+                            .entered();
+                    organize_task_data(meta_updates)
+                };
+                let items_result = {
+                    let _span =
+                        tracing::trace_span!("restore task meta", tasks = task_meta_updates.len())
+                            .entered();
+                    restore_task_data(self, self.meta_db, task_meta_updates)
+                };
+                task_meta_items_result = items_result.and_then(|items| {
+                    let _span = tracing::trace_span!("serialize task meta").entered();
+                    serialize_task_data(items)
                 });
-            }
-            let mut updated_items: HashMap<
-                TaskId,
-                HashMap<CachedDataItemKey, CachedDataItemValue>,
-            >;
-            {
-                let _span =
-                    tracing::trace_span!("restore task data", tasks = task_updates.len()).entered();
-                updated_items = HashMap::with_capacity(task_updates.len());
-                for (task, updates) in task_updates.into_iter() {
-                    let mut map = HashMap::new();
-                    if let Ok(old_data) = tx.get(db, &IntKey::new(*task)) {
-                        let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data) {
-                            Ok(d) => d,
-                            Err(_) => serde_path_to_error::deserialize(
-                                &mut pot::de::SymbolList::new().deserializer_for_slice(old_data)?,
-                            )
-                            .with_context(|| {
-                                anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
-                            })?,
-                        };
-                        for item in old_data {
-                            let (key, value) = item.into_key_and_value();
-                            map.insert(key, value);
-                        }
-                    }
-                    for (key, (_, value)) in updates {
-                        if let Some(value) = value {
-                            map.insert(key, value);
-                        } else {
-                            map.remove(&key);
-                        }
-                    }
-                    updated_items.insert(task, map);
-                }
-            }
-            {
-                let _span =
-                    tracing::trace_span!("update task data", tasks = updated_items.len()).entered();
-                for (task_id, data) in updated_items {
-                    let mut vec: Vec<CachedDataItem> = data
-                        .into_iter()
-                        .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
-                        .collect();
-                    let value = match pot::to_vec(&vec) {
-                        #[cfg(not(feature = "verify_serialization"))]
-                        Ok(value) => value,
-                        _ => {
-                            let mut error = Ok(());
-                            vec.retain(|item| {
-                                let mut buf = Vec::<u8>::new();
-                                let mut symbol_map = pot::ser::SymbolMap::new();
-                                let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
-                                if let Err(err) =
-                                    serde_path_to_error::serialize(item, &mut serializer)
-                                {
-                                    if item.is_optional() {
-                                        println!(
-                                            "Skipping non-serializable optional item: {item:?}"
-                                        );
-                                    } else {
-                                        error = Err(err).context({
-                                            anyhow!(
-                                                "Unable to serialize data item for {task_id}: \
-                                                 {item:#?}"
-                                            )
-                                        });
-                                    }
-                                    false
-                                } else {
-                                    #[cfg(feature = "verify_serialization")]
-                                    {
-                                        let deserialize: Result<CachedDataItem, _> =
-                                            serde_path_to_error::deserialize(
-                                                &mut pot::de::SymbolList::new()
-                                                    .deserializer_for_slice(&buf)
-                                                    .unwrap(),
-                                            );
-                                        if let Err(err) = deserialize {
-                                            println!(
-                                                "Data item would not be deserializable {task_id}: \
-                                                 {err:?}\n{item:#?}"
-                                            );
-                                            return false;
-                                        }
-                                    }
-                                    true
-                                }
-                            });
-                            error?;
+            });
+            s.spawn(|_| {
+                let task_data_updates = {
+                    let _span =
+                        tracing::trace_span!("organize task data", updates = data_updates.len())
+                            .entered();
+                    organize_task_data(data_updates)
+                };
+                let items_result = {
+                    let _span =
+                        tracing::trace_span!("restore task data", tasks = task_data_updates.len())
+                            .entered();
+                    restore_task_data(self, self.data_db, task_data_updates)
+                };
+                task_data_items_result = items_result.and_then(|items| {
+                    let _span = tracing::trace_span!("serialize task data").entered();
+                    serialize_task_data(items)
+                });
+            });
 
-                            pot::to_vec(&vec).with_context(|| {
-                                anyhow!("Unable to serialize data items for {task_id}: {vec:#?}")
-                            })?
+            let mut next_task_id =
+                as_u32(tx.get(self.infra_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID)))
+                    .unwrap_or(1);
+            {
+                let _span =
+                    tracing::trace_span!("update task cache", items = task_cache_updates.len())
+                        .entered();
+                for (task_type, task_id) in task_cache_updates.iter() {
+                    let task_id = **task_id;
+                    let task_type_bytes = pot::to_vec(&**task_type).with_context(|| {
+                        anyhow!("Unable to serialize task cache key {task_type:?}")
+                    })?;
+                    #[cfg(feature = "verify_serialization")]
+                    {
+                        let deserialize: Result<CachedTaskType, _> =
+                            serde_path_to_error::deserialize(
+                                &mut pot::de::SymbolList::new()
+                                    .deserializer_for_slice(&task_type_bytes)?,
+                            );
+                        if let Err(err) = deserialize {
+                            println!(
+                                "Task type would not be deserializable {task_id}: \
+                                 {err:?}\n{task_type:#?}"
+                            );
+                            panic!("Task type would not be deserializable {task_id}: {err:?}");
                         }
-                    };
+                    }
+                    extended_key::put(
+                        &mut tx,
+                        self.forward_task_cache_db,
+                        &task_type_bytes,
+                        &task_id.to_be_bytes(),
+                        WriteFlags::empty(),
+                    )
+                    .with_context(|| {
+                        anyhow!("Unable to write task cache {task_type:?} => {task_id}")
+                    })?;
+                    tx.put(
+                        self.reverse_task_cache_db,
+                        &IntKey::new(task_id),
+                        &task_type_bytes,
+                        WriteFlags::empty(),
+                    )
+                    .with_context(|| {
+                        anyhow!("Unable to write task cache {task_id} => {task_type:?}")
+                    })?;
+                    op_count += 2;
+                    next_task_id = next_task_id.max(task_id + 1);
+                }
+                tx.put(
+                    self.infra_db,
+                    &IntKey::new(META_KEY_NEXT_FREE_TASK_ID),
+                    &next_task_id.to_be_bytes(),
+                    WriteFlags::empty(),
+                )
+                .with_context(|| anyhow!("Unable to write next free task id"))?;
+            }
+            {
+                let _span =
+                    tracing::trace_span!("update operations", operations = operations.len())
+                        .entered();
+                let operations = pot::to_vec(&operations)
+                    .with_context(|| anyhow!("Unable to serialize operations"))?;
+                tx.put(
+                    self.infra_db,
+                    &IntKey::new(META_KEY_OPERATIONS),
+                    &operations,
+                    WriteFlags::empty(),
+                )
+                .with_context(|| anyhow!("Unable to write operations"))?;
+                op_count += 2;
+            }
+
+            anyhow::Ok(())
+        })?;
+
+        for (db, task_items) in [
+            (self.meta_db, task_meta_items_result?),
+            (self.data_db, task_data_items_result?),
+        ] {
+            {
+                let _span =
+                    tracing::trace_span!("update task data", tasks = task_items.len()).entered();
+                for (task_id, value) in task_items {
                     tx.put(db, &IntKey::new(*task_id), &value, WriteFlags::empty())
                         .with_context(|| anyhow!("Unable to write data items for {task_id}"))?;
                     op_count += 1;
@@ -435,4 +366,143 @@ impl BackingStorage for LmdbBackingStorage {
             .inspect_err(|err| println!("Looking up data for {task_id} failed: {err:?}"))
             .unwrap_or_default()
     }
+}
+
+fn organize_task_data(
+    updates: ChunkedVec<CachedDataUpdate>,
+) -> HashMap<
+    TaskId,
+    HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
+> {
+    let mut task_updates: HashMap<
+        TaskId,
+        HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
+    > = HashMap::new();
+    for CachedDataUpdate {
+        task,
+        key,
+        value,
+        old_value,
+    } in updates.into_iter()
+    {
+        let data = task_updates.entry(task).or_default();
+        match data.entry(key) {
+            Entry::Occupied(mut entry) => {
+                entry.get_mut().1 = value;
+            }
+            Entry::Vacant(entry) => {
+                entry.insert((old_value, value));
+            }
+        }
+    }
+    task_updates.retain(|_, data| {
+        data.retain(|_, (old_value, value)| *old_value != *value);
+        !data.is_empty()
+    });
+    task_updates
+}
+
+fn restore_task_data(
+    this: &LmdbBackingStorage,
+    db: Database,
+    task_updates: HashMap<
+        TaskId,
+        HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
+    >,
+) -> Result<Vec<(TaskId, Vec<CachedDataItem>)>> {
+    let mut result = Vec::with_capacity(task_updates.len());
+
+    let tx = this.env.begin_ro_txn()?;
+    for (task, updates) in task_updates.into_iter() {
+        let mut map;
+        if let Ok(old_data) = tx.get(db, &IntKey::new(*task)) {
+            let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data) {
+                Ok(d) => d,
+                Err(_) => serde_path_to_error::deserialize(
+                    &mut pot::de::SymbolList::new().deserializer_for_slice(old_data)?,
+                )
+                .with_context(|| {
+                    anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
+                })?,
+            };
+            map = old_data
+                .into_iter()
+                .map(|item| item.into_key_and_value())
+                .collect();
+        } else {
+            map = HashMap::new();
+        }
+        for (key, (_, value)) in updates {
+            if let Some(value) = value {
+                map.insert(key, value);
+            } else {
+                map.remove(&key);
+            }
+        }
+        let vec = map
+            .into_iter()
+            .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
+            .collect();
+        result.push((task, vec));
+    }
+
+    Ok(result)
+}
+
+fn serialize_task_data(
+    tasks: Vec<(TaskId, Vec<CachedDataItem>)>,
+) -> Result<Vec<(TaskId, Vec<u8>)>> {
+    tasks
+        .into_iter()
+        .map(|(task_id, mut data)| {
+            let value = match pot::to_vec(&data) {
+                #[cfg(not(feature = "verify_serialization"))]
+                Ok(value) => value,
+                _ => {
+                    let mut error = Ok(());
+                    data.retain(|item| {
+                        let mut buf = Vec::<u8>::new();
+                        let mut symbol_map = pot::ser::SymbolMap::new();
+                        let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
+                        if let Err(err) = serde_path_to_error::serialize(item, &mut serializer) {
+                            if item.is_optional() {
+                                println!("Skipping non-serializable optional item: {item:?}");
+                            } else {
+                                error = Err(err).context({
+                                    anyhow!(
+                                        "Unable to serialize data item for {task_id}: {item:#?}"
+                                    )
+                                });
+                            }
+                            false
+                        } else {
+                            #[cfg(feature = "verify_serialization")]
+                            {
+                                let deserialize: Result<CachedDataItem, _> =
+                                    serde_path_to_error::deserialize(
+                                        &mut pot::de::SymbolList::new()
+                                            .deserializer_for_slice(&buf)
+                                            .unwrap(),
+                                    );
+                                if let Err(err) = deserialize {
+                                    println!(
+                                        "Data item would not be deserializable {task_id}: \
+                                         {err:?}\n{item:#?}"
+                                    );
+                                    return false;
+                                }
+                            }
+                            true
+                        }
+                    });
+                    error?;
+
+                    pot::to_vec(&data).with_context(|| {
+                        anyhow!("Unable to serialize data items for {task_id}: {data:#?}")
+                    })?
+                }
+            };
+            Ok((task_id, value))
+        })
+        .collect()
 }

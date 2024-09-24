@@ -8182,6 +8182,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-scoped"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4beb8ba13bc53ac53ce1d52b42f02e5d8060f0f42138862869beb769722b256"
+dependencies = [
+ "tokio",
+ "tokio-stream",
+]
+
+[[package]]
 name = "tokio-stream"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8583,6 +8593,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "pin-project-lite",
+ "rayon",
  "regex",
  "rustc-hash",
  "serde",
@@ -8617,11 +8628,13 @@ dependencies = [
  "parking_lot",
  "pot",
  "rand",
+ "rayon",
  "rustc-hash",
  "serde",
  "serde_path_to_error",
  "smallvec",
  "tokio",
+ "tokio-scoped",
  "tracing",
  "turbo-prehash",
  "turbo-tasks",
