@@ -22,7 +22,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 
-import React, { type ErrorInfo, type JSX } from 'react'
+import React, { type JSX } from 'react'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,
@@ -506,7 +506,6 @@ async function generateDynamicFlightRenderResult(
     ctx.clientReferenceManifest.clientModules,
     {
       onError,
-      nonce: ctx.nonce,
     }
   )
 
@@ -1380,7 +1379,6 @@ async function renderToStream(
         clientReferenceManifest.clientModules,
         {
           onError: serverComponentsErrorHandler,
-          nonce: ctx.nonce,
         }
       )
     )
@@ -1588,7 +1586,6 @@ async function renderToStream(
       clientReferenceManifest.clientModules,
       {
         onError: serverComponentsErrorHandler,
-        nonce: ctx.nonce,
       }
     )
 
@@ -1829,7 +1826,7 @@ async function prerenderToStream(
           ctx,
           res.statusCode === 404
         )
-        function voidOnError() {}
+
         ;(
           prerenderAsyncStorage.run(
             // The store to scope
@@ -1840,9 +1837,8 @@ async function prerenderToStream(
             firstAttemptRSCPayload,
             clientReferenceManifest.clientModules,
             {
-              nonce: ctx.nonce,
               // This render will be thrown away so we don't need to track errors or postpones
-              onError: voidOnError,
+              onError: undefined,
               onPostpone: undefined,
               // we don't care to track postpones during the prospective render because we need
               // to always do a final render anyway
@@ -1874,13 +1870,13 @@ async function prerenderToStream(
         }
 
         let reactServerIsDynamic = false
-        function onError(err: unknown, errorInfo: ErrorInfo) {
+        function onError(err: unknown) {
           if (err === abortReason || isPrerenderInterruptedError(err)) {
             reactServerIsDynamic = true
             return
           }
 
-          return serverComponentsErrorHandler(err, errorInfo)
+          return serverComponentsErrorHandler(err)
         }
 
         function onPostpone(reason: string) {
@@ -1909,7 +1905,6 @@ async function prerenderToStream(
                   finalAttemptRSCPayload,
                   clientReferenceManifest.clientModules,
                   {
-                    nonce: ctx.nonce,
                     onError,
                     onPostpone,
                     signal: flightController.signal,
@@ -1938,13 +1933,13 @@ async function prerenderToStream(
           dynamicTracking,
         }
         let SSRIsDynamic = false
-        function SSROnError(err: unknown, errorInfo: unknown) {
+        function SSROnError(err: unknown) {
           if (err === abortReason || isPrerenderInterruptedError(err)) {
             SSRIsDynamic = true
             return
           }
 
-          return htmlRendererErrorHandler(err, errorInfo)
+          return htmlRendererErrorHandler(err)
         }
 
         function SSROnPostpone(reason: string) {
@@ -2109,13 +2104,13 @@ async function prerenderToStream(
         let flightController = new AbortController()
 
         let reactServerIsDynamic = false
-        function onError(err: unknown, errorInfo: ErrorInfo) {
+        function onError(err: unknown) {
           if (err === abortReason || isPrerenderInterruptedError(err)) {
             reactServerIsDynamic = true
             return
           }
 
-          return serverComponentsErrorHandler(err, errorInfo)
+          return serverComponentsErrorHandler(err)
         }
 
         dynamicTracking = createDynamicTrackingState(
@@ -2149,7 +2144,6 @@ async function prerenderToStream(
             firstAttemptRSCPayload,
             clientReferenceManifest.clientModules,
             {
-              nonce: ctx.nonce,
               onError,
               signal: flightController.signal,
             }
@@ -2216,7 +2210,6 @@ async function prerenderToStream(
                   finalAttemptRSCPayload,
                   clientReferenceManifest.clientModules,
                   {
-                    nonce: ctx.nonce,
                     onError,
                     signal: flightController.signal,
                   }
@@ -2254,13 +2247,13 @@ async function prerenderToStream(
           dynamicTracking,
         }
         let SSRIsDynamic = false
-        function SSROnError(err: unknown, errorInfo: unknown) {
+        function SSROnError(err: unknown) {
           if (err === abortReason || isPrerenderInterruptedError(err)) {
             SSRIsDynamic = true
             return
           }
 
-          return htmlRendererErrorHandler(err, errorInfo)
+          return htmlRendererErrorHandler(err)
         }
         function SSROnPostpone(_: string) {
           // We don't really support postponing when PPR is off but since experimental react
@@ -2364,7 +2357,6 @@ async function prerenderToStream(
             clientReferenceManifest.clientModules,
             {
               onError: serverComponentsErrorHandler,
-              nonce: ctx.nonce,
             }
           )
         ))
@@ -2535,7 +2527,6 @@ async function prerenderToStream(
             clientReferenceManifest.clientModules,
             {
               onError: serverComponentsErrorHandler,
-              nonce: ctx.nonce,
             }
           )
         ))
@@ -2678,7 +2669,6 @@ async function prerenderToStream(
       clientReferenceManifest.clientModules,
       {
         onError: serverComponentsErrorHandler,
-        nonce: ctx.nonce,
       }
     )
 

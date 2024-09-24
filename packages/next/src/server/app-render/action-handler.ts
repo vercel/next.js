@@ -565,7 +565,8 @@ export async function handleAction({
     'Cache-Control',
     'no-cache, no-store, max-age=0, must-revalidate'
   )
-  let bound = []
+
+  let boundActionArguments: unknown[] = []
 
   const { actionAsyncStorage } = ComponentMod
 
@@ -618,14 +619,18 @@ export async function handleAction({
           // TODO-APP: Add streaming support
           const formData = await req.request.formData()
           if (isFetchAction) {
-            bound = await decodeReply(formData, serverModuleMap)
+            boundActionArguments = await decodeReply(formData, serverModuleMap)
           } else {
             const action = await decodeAction(formData, serverModuleMap)
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
               const actionReturnedState = await action()
-              formState = decodeFormState(actionReturnedState, formData)
+              formState = decodeFormState(
+                actionReturnedState,
+                formData,
+                serverModuleMap
+              )
             }
 
             // Skip the fetch path
@@ -657,9 +662,12 @@ export async function handleAction({
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
-            bound = await decodeReply(formData, serverModuleMap)
+            boundActionArguments = await decodeReply(formData, serverModuleMap)
           } else {
-            bound = await decodeReply(actionData, serverModuleMap)
+            boundActionArguments = await decodeReply(
+              actionData,
+              serverModuleMap
+            )
           }
         }
       } else if (
@@ -721,7 +729,10 @@ export async function handleAction({
 
             body.pipe(busboy)
 
-            bound = await decodeReplyFromBusboy(busboy, serverModuleMap)
+            boundActionArguments = await decodeReplyFromBusboy(
+              busboy,
+              serverModuleMap
+            )
           } else {
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
@@ -777,9 +788,12 @@ export async function handleAction({
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
-            bound = await decodeReply(formData, serverModuleMap)
+            boundActionArguments = await decodeReply(formData, serverModuleMap)
           } else {
-            bound = await decodeReply(actionData, serverModuleMap)
+            boundActionArguments = await decodeReply(
+              actionData,
+              serverModuleMap
+            )
           }
         }
       } else {
@@ -817,7 +831,7 @@ export async function handleAction({
         actionId!
       ]
 
-      const returnVal = await actionHandler.apply(null, bound)
+      const returnVal = await actionHandler.apply(null, boundActionArguments)
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
