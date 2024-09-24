@@ -1024,7 +1024,7 @@ impl AppEndpoint {
                 (
                     Some(get_app_server_reference_modules(client_reference_types)),
                     Some(client_dynamic_imports),
-                    Some(client_references.await?),
+                    Some(client_references),
                 )
             } else {
                 (None, None, None)
@@ -1256,8 +1256,11 @@ impl AppEndpoint {
                     let mut current_chunks = OutputAssets::empty();
                     let mut current_availability_info = AvailabilityInfo::Root;
                     if let Some(client_references) = client_references {
-                        for server_component in
-                            client_references.server_component_entries.iter().copied()
+                        for server_component in client_references
+                            .await?
+                            .server_component_entries
+                            .iter()
+                            .copied()
                         {
                             let server_path = server_component.server_path();
                             let is_layout =
