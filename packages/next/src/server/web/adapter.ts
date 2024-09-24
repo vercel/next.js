@@ -2,11 +2,13 @@ import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { PageSignatureError } from './error'
 import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
-import { NextFetchEvent } from './spec-extension/fetch-event'
+import {
+  NextFetchEvent,
+  getWaitUntilPromiseFromEvent,
+} from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
 import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
-import { waitUntilPromisesSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
@@ -398,7 +400,7 @@ export async function adapter(
 
   return {
     response: finalResponse,
-    waitUntil: Promise.all(event[waitUntilPromisesSymbol]),
+    waitUntil: getWaitUntilPromiseFromEvent(event) ?? Promise.resolve(),
     fetchMetrics: request.fetchMetrics,
   }
 }
