@@ -772,6 +772,15 @@ export default async function build(
         await fs.mkdir(shuttleDir, {
           recursive: true,
         })
+
+        // since inlining comes after static generation we need
+        // to ensure this value is assigned to process env so it
+        // can still be accessed
+        for (const key in config.env) {
+          if (!process.env[key]) {
+            process.env[key] = config.env[key]
+          }
+        }
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
