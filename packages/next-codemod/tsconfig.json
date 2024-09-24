@@ -3,7 +3,7 @@
     "module": "commonjs",
     "sourceMap": true,
     "esModuleInterop": true,
-    "target": "es2015",
+    "target": "ES2022",
     "downlevelIteration": true,
     "preserveWatchOutput": true
   },
