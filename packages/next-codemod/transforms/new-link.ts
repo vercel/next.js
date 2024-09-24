@@ -1,3 +1,6 @@
+// It might insert extra parnes for JSX components
+// x-ref: https://github.com/facebook/jscodeshift/issues/534
+
 import type { API, FileInfo } from 'jscodeshift'
 
 export default function transformer(file: FileInfo, api: API) {

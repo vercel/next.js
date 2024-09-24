@@ -40,26 +40,46 @@ describe('searchparams-reuse-loading', () => {
   })
 
   it('should reflect the correct searchParams when re-using the same page segment', async () => {
-    const browser = await next.browser('/other-page')
-    await browser.elementByCss("[href='/other-page?page=2']").click()
+    const browser = await next.browser('/')
+    await browser.elementByCss("[href='/params-first']").click()
+    await browser.elementByCss("[href='/params-first?page=2']").click()
     await retry(async () => {
-      expect(await browser.url()).toContain('/other-page?page=2')
+      expect(await browser.url()).toContain('/params-first?page=2')
     })
     expect(await browser.elementByCss('h1').text()).toBe('You are on page "2".')
-    await browser.elementByCss("[href='/other-page?page=3']").click()
+    await browser.elementByCss("[href='/params-first?page=3']").click()
     await retry(async () => {
-      expect(await browser.url()).toContain('/other-page?page=3')
+      expect(await browser.url()).toContain('/params-first?page=3')
     })
     expect(await browser.elementByCss('h1').text()).toBe('You are on page "3".')
-    await browser.elementByCss("[href='/other-page?page=4']").click()
+    await browser.elementByCss("[href='/params-first?page=4']").click()
     await retry(async () => {
-      expect(await browser.url()).toContain('/other-page?page=4')
+      expect(await browser.url()).toContain('/params-first?page=4')
     })
     expect(await browser.elementByCss('h1').text()).toBe('You are on page "4".')
-    await browser.elementByCss("[href='/other-page']").click()
+    await browser.elementByCss("[href='/params-first']").click()
     await retry(async () => {
       const currentUrl = new URL(await browser.url())
-      expect(currentUrl.pathname).toBe('/other-page')
+      expect(currentUrl.pathname).toBe('/params-first')
+      expect(currentUrl.search).toBe('')
+    })
+    expect(await browser.elementByCss('h1').text()).toBe(
+      'You are on the root page.'
+    )
+  })
+
+  it('should reflect the correct searchParams when the root page is prefetched first', async () => {
+    const browser = await next.browser('/')
+    await browser.elementByCss("[href='/root-page-first']").click()
+    await browser.elementByCss("[href='/root-page-first?page=2']").click()
+    await retry(async () => {
+      expect(await browser.url()).toContain('/root-page-first?page=2')
+    })
+    expect(await browser.elementByCss('h1').text()).toBe('You are on page "2".')
+    await browser.elementByCss("[href='/root-page-first']").click()
+    await retry(async () => {
+      const currentUrl = new URL(await browser.url())
+      expect(currentUrl.pathname).toBe('/root-page-first')
       expect(currentUrl.search).toBe('')
     })
     expect(await browser.elementByCss('h1').text()).toBe(

@@ -13,7 +13,6 @@ const pagesExternals = [
   'react-dom/package.json',
   'react-dom/client',
   'react-dom/server',
-  'react-dom/server.browser',
   'react-dom/server.edge',
   'react-server-dom-webpack/client',
   'react-server-dom-webpack/client.edge',

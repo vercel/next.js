@@ -31,6 +31,8 @@ export function findSourcePackage({
       return 'react'
     } else if (nextInternalsRe.test(file)) {
       return 'next'
+    } else if (file.startsWith('[turbopack]/')) {
+      return 'next'
     }
   }
 

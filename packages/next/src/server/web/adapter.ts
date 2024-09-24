@@ -151,9 +151,7 @@ export async function adapter(
     input: stripInternalSearchParams(normalizeUrl, true).toString(),
     init: {
       body: params.request.body,
-      geo: params.request.geo,
       headers: requestHeaders,
-      ip: params.request.ip,
       method: params.request.method,
       nextConfig: params.request.nextConfig,
       signal: params.request.signal,
@@ -240,6 +238,7 @@ export async function adapter(
               requestAsyncStorage,
               {
                 req: request,
+                res: undefined,
                 url: request.nextUrl,
                 renderOpts: {
                   onUpdateCookies: (cookies) => {

@@ -73,7 +73,7 @@ use turbopack_core::{
     reference_type::InnerAssets,
     resolve::{
         find_context_file, origin::ResolveOrigin, package_json, parse::Request,
-        FindContextFileResult, ModulePart,
+        FindContextFileResult,
     },
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -84,7 +84,6 @@ pub use turbopack_resolve::ecmascript as resolve;
 use self::{
     chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports},
     code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables, VisitorFactory},
-    tree_shake::asset::EcmascriptModulePartAsset,
 };
 use crate::{
     chunk::EcmascriptChunkPlaceable,
@@ -144,6 +143,14 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+    /// The list of export names that should make tree shaking bail off. This is
+    /// required because tree shaking can split imports like `export const
+    /// runtime = 'edge'` as a separate module.
+    ///
+    /// Currently the analysis of these exports are statically verified by `NextPageStaticInfo`,
+    /// which is a `CustomTransformer` implementation and we don't have a way to apply it after
+    /// tree shaking.
+    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -229,12 +236,6 @@ impl EcmascriptModuleAssetBuilder {
                 self.compile_time_info,
             )
         }
-    }
-
-    pub async fn build_part(self, part: Vc<ModulePart>) -> Result<Vc<EcmascriptModulePartAsset>> {
-        let import_externals = self.options.await?.import_externals;
-        let base = self.build();
-        Ok(EcmascriptModulePartAsset::new(base, part, import_externals))
     }
 }
 
@@ -443,7 +444,6 @@ impl EcmascriptModuleAsset {
         asset_context: Vc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
-
         options: Vc<EcmascriptOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
         inner_assets: Vc<InnerAssets>,
@@ -885,8 +885,7 @@ async fn gen_content_with_visitors(
             Ok(EcmascriptModuleContent {
                 inner_code: bytes.into(),
                 source_map: Some(Vc::upcast(srcmap)),
-                is_esm: eval_context.is_esm()
-                    || specified_module_type == SpecifiedModuleType::EcmaScript,
+                is_esm: eval_context.is_esm(specified_module_type),
             }
             .cell())
         }

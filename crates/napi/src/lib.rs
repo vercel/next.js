@@ -48,8 +48,6 @@ use swc_core::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod app_structure;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod mdx;
 pub mod minify;
@@ -81,7 +79,7 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 
 fn init() {
     set_hook(Box::new(|panic_info| {
-        util::log_panic_and_inform(format!(
+        util::log_internal_error_and_inform(&format!(
             "Panic: {}\nBacktrace: {:?}",
             panic_info,
             Backtrace::new()

@@ -71,7 +71,7 @@ use turbopack_core::{
         resolve, FindContextFileResult, ModulePart,
     },
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, OptionSourceMap, SourceMap},
 };
 use turbopack_resolve::{
     ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
@@ -126,7 +126,8 @@ use crate::{
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
-    magic_identifier, parse,
+    magic_identifier,
+    parse::parse,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
@@ -451,7 +452,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let parsed = if let Some(part) = part {
         let parsed = parse(source, ty, transforms);
-        let split_data = split(source.ident(), source, parsed);
+        let split_data = split(source.ident(), source, parsed, options.special_exports);
         part_of_module(split_data, part)
     } else {
         module.failsafe_parse()
@@ -491,23 +492,35 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         return analysis.build(false).await;
     };
 
-    let compile_time_info = if (specified_type == SpecifiedModuleType::CommonJs)
-        || (specified_type == SpecifiedModuleType::Automatic && !eval_context.is_esm())
-    {
+    let compile_time_info = {
         let compile_time_info = raw_module.compile_time_info.await?;
         let mut free_var_references = compile_time_info.free_var_references.await?.clone_value();
+
+        let (typeof_exports, typeof_module) = if eval_context.is_esm(specified_type) {
+            ("undefined", "undefined")
+        } else {
+            ("object", "object")
+        };
+
+        free_var_references
+            .entry(vec![
+                DefineableNameSegment::Name("import".into()),
+                DefineableNameSegment::Name("meta".into()),
+                DefineableNameSegment::TypeOf,
+            ])
+            .or_insert("object".into());
         free_var_references
             .entry(vec![
                 DefineableNameSegment::Name("exports".into()),
                 DefineableNameSegment::TypeOf,
             ])
-            .or_insert("object".into());
+            .or_insert(typeof_exports.into());
         free_var_references
             .entry(vec![
                 DefineableNameSegment::Name("module".into()),
                 DefineableNameSegment::TypeOf,
             ])
-            .or_insert("object".into());
+            .or_insert(typeof_module.into());
         free_var_references
             .entry(vec![
                 DefineableNameSegment::Name("require".into()),
@@ -521,8 +534,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             free_var_references: FreeVarReferences(free_var_references).cell(),
         }
         .cell()
-    } else {
-        raw_module.compile_time_info
     };
 
     let mut import_references = Vec::new();
@@ -622,7 +633,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         let r = EsmAssetReference::new(
             origin,
             Request::parse(Value::new(RcStr::from(&*r.module_path).into())),
-            r.issue_source,
+            r.issue_source
+                .unwrap_or_else(|| IssueSource::from_source_only(source)),
             Value::new(r.annotations.clone()),
             match options.tree_shaking_mode {
                 Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
@@ -836,7 +848,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
                 .cell(),
             ),
-            DetectedDynamicExportType::None => EcmascriptExports::None,
+            DetectedDynamicExportType::None => EcmascriptExports::EmptyCommonJs,
         }
     };
 
@@ -844,7 +856,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         set_handler_and_globals(&handler, globals, || has_top_level_await(program));
     let has_top_level_await = top_level_await_span.is_some();
 
-    if eval_context.is_esm() || specified_type == SpecifiedModuleType::EcmaScript {
+    if eval_context.is_esm(specified_type) {
         let async_module = AsyncModule {
             has_top_level_await,
             import_externals,
@@ -2180,11 +2192,7 @@ async fn handle_free_var_reference(
                     ))
                 }),
                 Request::parse(Value::new(request.clone().into())),
-                Some(IssueSource::from_swc_offsets(
-                    state.source,
-                    span.lo.to_usize(),
-                    span.hi.to_usize(),
-                )),
+                IssueSource::from_swc_offsets(state.source, span.lo.to_usize(), span.hi.to_usize()),
                 Default::default(),
                 match state.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments)
@@ -3052,6 +3060,10 @@ pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     annotations.get(&TURBOPACK_HELPER).is_some()
 }
 
+pub fn is_swc_helper_import(import: &ImportDecl) -> bool {
+    import.src.value.starts_with("@swc/helpers/")
+}
+
 #[derive(Debug)]
 enum DetectedDynamicExportType {
     CommonJs,
@@ -3068,9 +3080,9 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
         // Check for imports/exports
         if m.body.iter().any(|item| {
             item.as_module_decl().map_or(false, |module_decl| {
-                module_decl
-                    .as_import()
-                    .map_or(true, |import| !is_turbopack_helper_import(import))
+                module_decl.as_import().map_or(true, |import| {
+                    !is_turbopack_helper_import(import) && !is_swc_helper_import(import)
+                })
             })
         }) {
             return DetectedDynamicExportType::UsingModuleDeclarations;
@@ -3191,15 +3203,4 @@ fn maybe_decode_data_url(url: RcStr) -> Vc<OptionSourceMap> {
     } else {
         Vc::cell(None)
     }
-}
-
-#[turbo_tasks::function]
-async fn convert_to_turbopack_source_map(
-    source_map: Vc<OptionSourceMap>,
-    origin: Vc<FileSystemPath>,
-) -> Result<Vc<OptionSourceMap>> {
-    let Some(source_map) = *source_map.await? else {
-        return Ok(Vc::cell(None));
-    };
-    Ok(Vc::cell(Some(source_map.with_resolved_sources(origin))))
 }

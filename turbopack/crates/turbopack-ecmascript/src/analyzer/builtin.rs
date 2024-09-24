@@ -637,8 +637,12 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         },
 
         JsValue::Iterated(_, iterable) => {
-            if let JsValue::Array { items, .. } = &mut **iterable {
-                *value = JsValue::alternatives(take(items));
+            if let JsValue::Array { items, mutable, .. } = &mut **iterable {
+                let mut new_value = JsValue::alternatives(take(items));
+                if *mutable {
+                    new_value.add_unknown_mutations(true);
+                }
+                *value = new_value;
                 true
             } else {
                 false

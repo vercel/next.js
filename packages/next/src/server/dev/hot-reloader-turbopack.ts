@@ -395,6 +395,9 @@ export async function createHotReloaderTurbopack(
     endpoint: Endpoint,
     makePayload: (
       change: TurbopackResult
+    ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void,
+    onError?: (
+      error: Error
     ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
   ) {
     if (changeSubscriptions.has(key)) {
@@ -405,15 +408,25 @@ export async function createHotReloaderTurbopack(
 
     const changedPromise = endpoint[`${side}Changed`](includeIssues)
     changeSubscriptions.set(key, changedPromise)
-    const changed = await changedPromise
+    try {
+      const changed = await changedPromise
 
-    for await (const change of changed) {
-      processIssues(currentEntryIssues, key, change, false, true)
-      const payload = await makePayload(change)
+      for await (const change of changed) {
+        processIssues(currentEntryIssues, key, change, false, true)
+        const payload = await makePayload(change)
+        if (payload) {
+          sendHmr(key, payload)
+        }
+      }
+    } catch (e) {
+      changeSubscriptions.delete(key)
+      const payload = await onError?.(e as Error)
       if (payload) {
         sendHmr(key, payload)
       }
+      return
     }
+    changeSubscriptions.delete(key)
   }
 
   async function unsubscribeFromChanges(key: EntryKey) {
@@ -834,6 +847,9 @@ export async function createHotReloaderTurbopack(
         return
       }
 
+      await currentEntriesHandling
+
+      // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
       let routeDef: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'> =
         definition ??
         (await findPagePathData(
@@ -891,8 +907,6 @@ export async function createHotReloaderTurbopack(
         }
         return
       }
-
-      await currentEntriesHandling
 
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
       const normalizedAppPage = normalizedPageToTurbopackStructureRoute(

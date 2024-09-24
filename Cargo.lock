@@ -107,7 +107,6 @@ dependencies = [
  "log",
  "num-traits",
  "ouroboros",
- "pathfinder_geometry",
  "rustc-hash",
  "tinyvec",
  "ucd-trie",
@@ -1174,7 +1173,7 @@ dependencies = [
  "anstream",
  "anstyle",
  "clap_lex 0.7.0",
- "strsim 0.11.0",
+ "strsim 0.11.1",
  "terminal_size",
 ]
 
@@ -3523,9 +3522,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.58"
+version = "1.0.0-alpha.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec380ca49dc7f6a1cafbdd2de5e587958eac0f67ab26b1e56727fcc60a0c3d4d"
+checksum = "53e225b3fa0a8bd5562c8833b1a32afa88761c4e661d3177b8cdc4e13cbf078e"
 dependencies = [
  "ahash 0.8.11",
  "bitflags 2.5.0",
@@ -3562,9 +3561,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss-napi"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6517fd00c4d56ef4ab207d346614715c472db7a144d6aaf522dc9eaabfa47b05"
+checksum = "a82ad688d068cca159908db83e9f48ba53f96470546560e1ae2469c784656cb6"
 dependencies = [
  "cssparser",
  "lightningcss",
@@ -3756,15 +3755,6 @@ checksum = "8ea1f30cedd69f0a2954655f7188c6a834246d2bcf1e315e2ac40c4b24dc9519"
 dependencies = [
  "cfg-if",
  "rayon",
-]
-
-[[package]]
-name = "md4"
-version = "0.10.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7da5ac363534dce5fabf69949225e174fbf111a498bf0ff794c8ea1fba9f3dda"
-dependencies = [
- "digest",
 ]
 
 [[package]]
@@ -4614,9 +4604,9 @@ dependencies = [
 
 [[package]]
 name = "parcel_selectors"
-version = "0.26.6"
+version = "0.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "512215cb1d3814e276ace4ec2dbc2cac16726ea3fcac20c22ae1197e16fdd72d"
+checksum = "1f4d26c18a8377a64728c04bf3b2e48ec43b0c77e687a18e03eb837d65e08a14"
 dependencies = [
  "bitflags 2.5.0",
  "cssparser",
@@ -4696,24 +4686,6 @@ name = "pathdiff"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
-
-[[package]]
-name = "pathfinder_geometry"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b7b7e7b4ea703700ce73ebf128e1450eb69c3a8329199ffbfb9b2a0418e5ad3"
-dependencies = [
- "log",
- "pathfinder_simd",
-]
-
-[[package]]
-name = "pathfinder_simd"
-version = "0.5.3"
-source = "git+https://github.com/vercel/pathfinder?branch=rm-stdarch_arm_crc32#ddc0696d4c8b7d0f7af8de1a271c62aec016d45f"
-dependencies = [
- "rustc_version 0.4.0",
-]
 
 [[package]]
 name = "patricia_tree"
@@ -6411,9 +6383,9 @@ checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "strsim"
-version = "0.11.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ee073c9e4cd00e28217186dbe12796d692868f432bf2e97ee73bed0c56dfa01"
+checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "styled_components"
@@ -6435,9 +6407,9 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.73.33"
+version = "0.73.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c5086faeb1ee982b0f2bebcbde73c8cfb009b1adafc7f9c6644d13fec77d407"
+checksum = "a62ac47cfa03c8c78fa89f5169cbe4c26faaaf4c9d721df2fc9c0d09070c4311"
 dependencies = [
  "anyhow",
  "lightningcss",
@@ -8692,7 +8664,6 @@ dependencies = [
 name = "turbo-tasks-hash"
 version = "0.1.0"
 dependencies = [
- "md4",
  "turbo-tasks-macros",
  "twox-hash",
 ]
@@ -9046,6 +9017,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sourcemap",
+ "strsim 0.11.1",
  "swc_core",
  "tokio",
  "tracing",

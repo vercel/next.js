@@ -238,6 +238,7 @@ export function Errors({
   )
 
   const errorDetails: HydrationErrorState = (error as any).details || {}
+  const notes = errorDetails.notes || ''
   const [warningTemplate, serverContent, clientContent] =
     errorDetails.warning || [null, '', '']
 
@@ -251,7 +252,6 @@ export function Errors({
         .replace(/^Warning: /, '')
         .replace(/^Error: /, '')
     : null
-  const notes = isAppDir ? errorDetails.notes || '' : hydrationWarning
 
   return (
     <Overlay>
@@ -307,9 +307,7 @@ export function Errors({
               {/* If there's hydration warning, skip displaying the error name */}
               {hydrationWarning ? '' : error.name + ': '}
               <HotlinkedText
-                text={
-                  isAppDir ? hydrationWarning || error.message : error.message
-                }
+                text={hydrationWarning || error.message}
                 matcher={isNextjsLink}
               />
             </p>

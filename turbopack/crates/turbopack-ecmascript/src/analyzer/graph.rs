@@ -23,6 +23,7 @@ use super::{
 use crate::{
     analyzer::{is_unresolved, WellKnownObjectKind},
     utils::{unparen, AstPathRange},
+    SpecifiedModuleType,
 };
 
 #[derive(Debug, Clone)]
@@ -312,8 +313,8 @@ impl EvalContext {
         }
     }
 
-    pub fn is_esm(&self) -> bool {
-        self.imports.is_esm()
+    pub fn is_esm(&self, specified_type: SpecifiedModuleType) -> bool {
+        self.imports.is_esm(specified_type)
     }
 
     fn eval_prop_name(&self, prop: &PropName) -> JsValue {

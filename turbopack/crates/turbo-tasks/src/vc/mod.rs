@@ -45,6 +45,8 @@ use crate::{
 /// some_ref.some_method_on_t();
 /// ```
 #[must_use]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent, bound = "")]
 pub struct Vc<T>
 where
     T: ?Sized + Send,
@@ -230,27 +232,6 @@ where
 }
 
 impl<T> Eq for Vc<T> where T: ?Sized + Send {}
-
-impl<T> Serialize for Vc<T>
-where
-    T: ?Sized + Send,
-{
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        self.node.serialize(serializer)
-    }
-}
-
-impl<'de, T> Deserialize<'de> for Vc<T>
-where
-    T: ?Sized + Send,
-{
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        Ok(Vc {
-            node: RawVc::deserialize(deserializer)?,
-            _t: PhantomData,
-        })
-    }
-}
 
 // TODO(alexkirsz) This should not be implemented for Vc. Instead, users should
 // use the `ValueDebug` implementation to get a `D: Debug`.

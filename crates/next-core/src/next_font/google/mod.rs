@@ -366,7 +366,8 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         }
 
         let font_virtual_path = next_js_file_path("internal/font/google".into())
-            .join(format!("/{}.{}", name, ext).into());
+            .join(format!("/{}.{}", name, ext).into())
+            .truncate_file_name_with_hash_vc();
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.

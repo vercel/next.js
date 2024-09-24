@@ -15,8 +15,6 @@ const appDir = path.join(__dirname, '..')
 let appPort
 let app
 
-const isReact18 = true
-
 const runTests = () => {
   it('Supports commonjs 1', async () => {
     const browser = await webdriver(appPort, '/commonjs1')
@@ -101,19 +99,7 @@ describe('Auto Export', () => {
         expect.arrayContaining([
           {
             message: expect.stringContaining(
-              'See more info here: https://nextjs.org/docs/messages/react-hydration-error'
-            ),
-            source: 'error',
-          },
-        ])
-      )
-      expect(logs).toEqual(
-        expect.arrayContaining([
-          {
-            message: expect.stringContaining(
-              isReact18
-                ? 'https://nextjs.org/docs/messages/react-hydration-error'
-                : 'https://react.dev/link/hydration-mismatch'
+              'https://react.dev/link/hydration-mismatch'
             ),
             source: 'error',
           },

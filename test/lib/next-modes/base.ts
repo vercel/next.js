@@ -49,10 +49,9 @@ type OmitFirstArgument<F> = F extends (
   ? (...args: P) => R
   : never
 
-// TODO: Base this off of test matrix
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "^18.2.0";
+const nextjsReactPeerVersion = "19.0.0-rc-e740d4b1-20240919";
 
 export class NextInstance {
   protected files: FileRef | { [filename: string]: string | FileRef }
@@ -79,8 +78,6 @@ export class NextInstance {
   constructor(opts: NextInstanceOpts) {
     this.env = {}
     Object.assign(this, opts)
-
-    require('console').log('packageJson??', this.packageJson)
 
     if (!isNextDeploy) {
       this.env = {

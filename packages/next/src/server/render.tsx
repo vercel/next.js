@@ -40,7 +40,7 @@ import type { Revalidate, SwrDelta } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
-import ReactDOMServerBrowser from 'react-dom/server.browser'
+import ReactDOMServerEdge from 'react-dom/server.edge'
 import { StyleRegistry, createStyleRegistry } from 'styled-jsx'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -127,8 +127,7 @@ function noRouter() {
 }
 
 async function renderToString(element: React.ReactElement) {
-  const renderStream =
-    await ReactDOMServerBrowser.renderToReadableStream(element)
+  const renderStream = await ReactDOMServerEdge.renderToReadableStream(element)
   await renderStream.allReady
   return streamToString(renderStream)
 }
@@ -286,6 +285,9 @@ export type RenderOptsPartial = {
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
   swrDelta?: SwrDelta
+  experimental: {
+    clientTraceMetadata?: string[]
+  }
 }
 
 export type RenderOpts = LoadComponentsReturnType<PagesModule> &
@@ -1079,6 +1081,7 @@ export async function renderToHTMLImpl(
           })
       )
       canAccessRes = false
+      metadata.revalidate = 0
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
@@ -1323,7 +1326,7 @@ export async function renderToHTMLImpl(
     ) => {
       const content = renderContent(EnhancedApp, EnhancedComponent)
       return await renderToInitialFizzStream({
-        ReactDOMServer: ReactDOMServerBrowser,
+        ReactDOMServer: ReactDOMServerEdge,
         element: content,
       })
     }
@@ -1494,6 +1497,8 @@ export async function renderToHTMLImpl(
     runtime: globalRuntime,
     largePageDataBytes: renderOpts.largePageDataBytes,
     nextFontManifest: renderOpts.nextFontManifest,
+    experimentalClientTraceMetadata:
+      renderOpts.experimental.clientTraceMetadata,
   }
 
   const document = (
