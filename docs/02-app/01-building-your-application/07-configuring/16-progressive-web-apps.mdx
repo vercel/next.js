@@ -251,7 +251,10 @@ function PushNotificationManager() {
       ),
     });
     setSubscription(sub);
-    await subscribeUser(sub);
+    // TODO The following old line is a bug because subscribeUser is a server function and may only receive plain objects
+    // await subscribeUser(sub);
+    // new corrected line:
+    await subscribeUser(sub.toJSON());
   }
 
   async function unsubscribeFromPush() {
@@ -415,9 +418,12 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY!
 )
 
-let subscription: PushSubscription | null = null
+// TODO The following old type must be changed because it is a read-only type and PushSubscription cannot be passed as an arg for a server function because it is not a plain object.
+// let subscription: PushSubscription | null = null // Attention this type PushSubscription is not webpush.PushSubscription
+// So, we use instead the type PushSubscriptionJSON which is a plain object type:
+let subscription: PushSubscriptionJSON | null = null;
 
-export async function subscribeUser(sub: PushSubscription) {
+export async function subscribeUser(sub: /*old type which is not a plain object: PushSubscription*/ /* new type */ PushSubscriptionJSON) {
   subscription = sub
   // In a production environment, you would want to store the subscription in a database
   // For example: await db.subscriptions.create({ data: sub })
@@ -437,14 +443,31 @@ export async function sendNotification(message: string) {
   }
 
   try {
+    // new:
     await webpush.sendNotification(
-      subscription,
+      {
+        endpoint: subscription.endpoint ?? '',
+        keys:  {
+          auth: subscription.keys?.auth ?? '',
+          p256dh: subscription.keys?.p256dh ?? ''
+        }
+      },
       JSON.stringify({
         title: 'Test Notification',
         body: message,
         icon: '/icon.png',
       })
     )
+    // old, but a type bug because PushSubscription from client is mixed up with webpush.PushSubscription which is required by webpush.sendNotification():
+    //await webpush.sendNotification(
+    //  subscription, // this is a bug because webpush.PushSubscription is required, but subscription is of type PushSubscription
+    //  JSON.stringify({
+    //    title: 'Test Notification',
+    //    body: message,
+    //    icon: '/icon.png',
+    //  })
+    //)
+
     return { success: true }
   } catch (error) {
     console.error('Error sending push notification:', error)
