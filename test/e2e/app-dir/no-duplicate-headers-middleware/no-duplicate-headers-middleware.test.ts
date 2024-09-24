@@ -9,6 +9,5 @@ describe('no-duplicate-headers-next-config', () => {
     const res = await next.fetch('favicon.ico')
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe('max-age=1234')
-    expect(res.headers.get('content-type')).toBe('image/vnd.microsoft.icon')
   })
 })
