@@ -413,11 +413,12 @@ async function writeImagesManifest(
   const { deviceSizes, imageSizes } = images
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
-    // Should be the same as matchRemotePattern()
+    // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol,
     hostname: makeRe(p.hostname).source,
     port: p.port,
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+    search: p.search,
   }))
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
