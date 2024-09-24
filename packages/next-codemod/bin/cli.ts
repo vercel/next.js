@@ -16,6 +16,7 @@ import execa from 'execa'
 import { yellow } from 'picocolors'
 import isGitClean from 'is-git-clean'
 import { installPackage, uninstallPackage } from '../lib/handle-package'
+import { runUpgrade } from './upgrade'
 
 export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
 export const transformerDirectory = path.join(__dirname, '../', 'transforms')
@@ -208,6 +209,12 @@ export function run() {
 
   if (!cli.flags.dry) {
     checkGitStatus(cli.flags.force)
+  }
+
+  const isUpgrade = cli.input[0] === 'upgrade' || cli.input[0] === 'up'
+
+  if (isUpgrade) {
+    return runUpgrade().catch(console.error)
   }
 
   if (

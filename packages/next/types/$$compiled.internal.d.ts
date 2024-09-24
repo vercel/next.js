@@ -1,6 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/package.json'
-declare module 'next/dist/compiled/@napi-rs/triples'
 declare module 'next/dist/compiled/postcss-value-parser'
 declare module 'next/dist/compiled/icss-utils'
 declare module 'next/dist/compiled/postcss-modules-values'
@@ -37,6 +36,10 @@ declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
+
+declare module 'next/dist/compiled/@napi-rs/triples' {
+  export * from '@napi-rs/triples'
+}
 
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'

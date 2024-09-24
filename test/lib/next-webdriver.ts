@@ -41,35 +41,52 @@ if (typeof afterAll === 'function') {
   })
 }
 
+export interface WebdriverOptions {
+  /**
+   * whether to wait for React hydration to finish
+   */
+  waitHydration?: boolean
+  /**
+   * allow retrying hydration wait if reload occurs
+   */
+  retryWaitHydration?: boolean
+  /**
+   * disable cache for page load
+   */
+  disableCache?: boolean
+  /**
+   * the callback receiving page instance before loading page
+   * @param page
+   * @returns
+   */
+  beforePageLoad?: (page: any) => void
+  /**
+   * browser locale
+   */
+  locale?: string
+  /**
+   * disable javascript
+   */
+  disableJavaScript?: boolean
+  headless?: boolean
+  /**
+   * ignore https errors
+   */
+  ignoreHTTPSErrors?: boolean
+  cpuThrottleRate?: number
+  pushErrorAsConsoleLog?: boolean
+}
+
 /**
  *
  * @param appPortOrUrl can either be the port or the full URL
  * @param url the path/query to append when using appPort
- * @param options
- * @param options.waitHydration whether to wait for React hydration to finish
- * @param options.retryWaitHydration allow retrying hydration wait if reload occurs
- * @param options.disableCache disable cache for page load
- * @param options.beforePageLoad the callback receiving page instance before loading page
- * @param options.locale browser locale
- * @param options.disableJavaScript disable javascript
- * @param options.ignoreHttpsErrors ignore https errors
  * @returns thenable browser instance
  */
 export default async function webdriver(
   appPortOrUrl: string | number,
   url: string,
-  options?: {
-    waitHydration?: boolean
-    retryWaitHydration?: boolean
-    disableCache?: boolean
-    beforePageLoad?: (page: any) => void
-    locale?: string
-    disableJavaScript?: boolean
-    headless?: boolean
-    ignoreHTTPSErrors?: boolean
-    cpuThrottleRate?: number
-    pushErrorAsConsoleLog?: boolean
-  }
+  options?: WebdriverOptions
 ): Promise<BrowserInterface> {
   let CurrentInterface: new () => BrowserInterface
 
