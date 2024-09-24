@@ -113,9 +113,10 @@ impl<'a> ExecuteContext<'a> {
                     if !task.persistance_state().is_restored(category) {
                         if items.len() > 10000 {
                             println!(
-                                "{} restored {} items",
+                                "{} restored {} items ({:?})",
                                 self.backend.get_task_desc_fn(task_id)(),
-                                items.len()
+                                items.len(),
+                                category
                             );
                         }
                         for item in items {
