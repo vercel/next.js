@@ -165,6 +165,12 @@ export interface ExperimentalTurboOptions {
    * for production.
    */
   moduleIdStrategy?: 'named' | 'deterministic'
+
+  /**
+   * This is the repo root usually and only files above this
+   * directory can be resolved by turbopack.
+   */
+  root?: string
 }
 
 export interface WebpackConfigContext {

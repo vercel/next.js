@@ -1,6 +1,6 @@
 import type { RouteRegex } from './route-regex'
 import { DecodeError } from '../../utils'
-import type { Params } from '../../../../client/components/params'
+import type { Params } from '../../../../server/request/params'
 
 export interface RouteMatchFn {
   (pathname: string | null | undefined): false | Params

@@ -11,6 +11,7 @@ import type {
   AttributeValue,
   TextMapGetter,
 } from 'next/dist/compiled/@opentelemetry/api'
+import { isThenable } from '../../../shared/lib/is-thenable'
 
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
 
@@ -33,10 +34,6 @@ if (process.env.NEXT_RUNTIME === 'edge') {
 
 const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
   api
-
-const isPromise = <T>(p: any): p is Promise<T> => {
-  return p !== null && typeof p === 'object' && typeof p.then === 'function'
-}
 
 export class BubbledError extends Error {
   constructor(
@@ -352,7 +349,7 @@ class NextTracerImpl implements NextTracer {
             }
 
             const result = fn(span)
-            if (isPromise(result)) {
+            if (isThenable(result)) {
               // If there's error make sure it throws
               return result
                 .then((res) => {

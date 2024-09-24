@@ -3,7 +3,7 @@
 const {
   NEXT_DIR,
   exec,
-  logCommand,
+  execFn,
   booleanArg,
   packageFiles,
 } = require('./pack-util.cjs')
@@ -16,15 +16,10 @@ const args = argv.slice(2)
 
 const NEXT_PACKAGES = `${NEXT_DIR}/packages`
 
-const PROJECT_DIR = path.resolve(args[0])
-
 const noBuild = booleanArg(args, '--no-build')
 const noNativeBuild = booleanArg(args, '--no-native-build')
 
-async function execFn(title, fn) {
-  logCommand(title, fn.toString())
-  return fn()
-}
+const PROJECT_DIR = path.resolve(args[0])
 
 function realPathIfAny(path) {
   try {
@@ -49,7 +44,7 @@ async function copy(src, dst) {
   }
 }
 
-;(async () => {
+async function main() {
   if (!noBuild) {
     exec('Install Next.js build dependencies', 'pnpm i')
     exec('Build Next.js', 'pnpm run build')
@@ -76,4 +71,9 @@ async function copy(src, dst) {
       `${PROJECT_DIR}/node_modules/@next/bundle-anlyzer`
     )
   )
-})()
+}
+
+main().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})

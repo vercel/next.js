@@ -208,8 +208,3 @@ impl From<NapiRouteHas> for RouteHas {
         }
     }
 }
-
-#[napi]
-pub async fn experimental_turbo(_unused: Buffer) -> napi::Result<()> {
-    unimplemented!("__experimental_turbo is not yet implemented");
-}

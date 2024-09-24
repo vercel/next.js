@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
 use anyhow::{bail, Result};
-use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
@@ -25,7 +24,7 @@ use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
 };
 
-use crate::{app_structure::LoaderTree, util::NextRuntime};
+use crate::{app_structure::AppPageLoaderTree, util::NextRuntime};
 
 #[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -70,7 +69,7 @@ pub struct NextSegmentConfig {
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
     pub experimental_ppr: Option<bool>,
-    /// Wether these metadata exports are defined in the source file.
+    /// Whether these metadata exports are defined in the source file.
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
 }
@@ -106,7 +105,7 @@ impl NextSegmentConfig {
         *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
-    /// Applies a config from a paralllel route to this config, returning an
+    /// Applies a config from a parallel route to this config, returning an
     /// error if there are conflicting values.
     pub fn apply_parallel_config(&mut self, parallel_config: &Self) -> Result<()> {
         fn merge_parallel<T: PartialEq + Clone>(
@@ -197,7 +196,7 @@ impl Issue for NextSegmentConfigParsingIssue {
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
             StyledString::Text(
-                "The exported configuration object in a source file need to have a very specific \
+                "The exported configuration object in a source file needs to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
                     .into(),
             )
@@ -220,7 +219,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+        Vc::cell(Some(self.source.resolve_source_map(self.ident.path())))
     }
 }
 
@@ -469,7 +468,7 @@ fn parse_config_value(
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
-    loader_tree: Vc<LoaderTree>,
+    loader_tree: Vc<AppPageLoaderTree>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = &*loader_tree.await?;
 
@@ -478,9 +477,8 @@ pub async fn parse_segment_config_from_loader_tree(
         .cell())
 }
 
-#[async_recursion]
 pub async fn parse_segment_config_from_loader_tree_internal(
-    loader_tree: &LoaderTree,
+    loader_tree: &AppPageLoaderTree,
 ) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
 
@@ -488,7 +486,7 @@ pub async fn parse_segment_config_from_loader_tree_internal(
         .parallel_routes
         .values()
         .map(|loader_tree| async move {
-            parse_segment_config_from_loader_tree_internal(loader_tree).await
+            Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)).await
         })
         .try_join()
         .await?;
@@ -497,12 +495,12 @@ pub async fn parse_segment_config_from_loader_tree_internal(
         config.apply_parallel_config(&tree)?;
     }
 
-    let components = &loader_tree.components;
-    for component in [components.page, components.default, components.layout]
+    let modules = &loader_tree.modules;
+    for path in [modules.page, modules.default, modules.layout]
         .into_iter()
         .flatten()
     {
-        let source = Vc::upcast(FileSource::new(component));
+        let source = Vc::upcast(FileSource::new(path));
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 
