@@ -1593,37 +1593,6 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
-  packages/next-upgrade:
-    dependencies:
-      chalk:
-        specifier: 5.3.0
-        version: 5.3.0
-      compare-versions:
-        specifier: 6.1.1
-        version: 6.1.1
-      prompts:
-        specifier: ^2.4.2
-        version: 2.4.2
-      which:
-        specifier: 4.0.0
-        version: 4.0.0
-      yaml:
-        specifier: 2.5.1
-        version: 2.5.1
-    devDependencies:
-      '@types/node':
-        specifier: 20.12.3
-        version: 20.12.3
-      '@types/prompts':
-        specifier: ^2.0.14
-        version: 2.4.2
-      '@types/which':
-        specifier: 3.0.4
-        version: 3.0.4
-      typescript:
-        specifier: ^4.3.5
-        version: 4.8.2
-
   packages/react-refresh-utils:
     devDependencies:
       react-refresh:
@@ -5283,9 +5252,6 @@ packages:
 
   '@types/webpack@5.28.5':
     resolution: {integrity: sha512-wR87cgvxj3p6D0Crt1r5avwqffqPXUkNlnQ1mjU93G7gCuFjufZR4I6j8cz5g1F1tTYpfOOFvly+cmIQwL9wvw==}
-
-  '@types/which@3.0.4':
-    resolution: {integrity: sha512-liyfuo/106JdlgSchJzXEQCVArk0CvevqPote8F8HgWgJ3dRCcTHgJIsLDuee0kxk/mhbInzIZk3QWSZJ8R+2w==}
 
   '@types/wrap-ansi@3.0.0':
     resolution: {integrity: sha512-ltIpx+kM7g/MLRZfkbL7EsCEjfzCcScLpkg37eXEtx5kmrAKBkTJwd1GIAjDSL8wTpM6Hzn5YO4pSb91BEwu1g==}
@@ -15140,11 +15106,6 @@ packages:
     resolution: {integrity: sha512-8aAvwVUSHpfEqTQ4w/KMlf3HcRdt50E5ODIQJBw1fQ5RL34xabzxtUlzTXVqc4rkZsPbvrXKWnABCD7kWSmocA==}
     engines: {node: '>= 14'}
 
-  yaml@2.5.1:
-    resolution: {integrity: sha512-bLQOjaX/ADgQ20isPJRvF0iRUHIxVhYvr53Of7wGcWlO2jvtUlH5m87DsmulFVxRpNLOnI4tB6p/oh8D7kpn9Q==}
-    engines: {node: '>= 14'}
-    hasBin: true
-
   yargs-parser@15.0.0:
     resolution: {integrity: sha512-xLTUnCMc4JhxrPEPUYD5IBR1mWCK/aT6+RJ/K29JY2y1vD+FhtgKK0AXRWvI262q3QSffAQuTouFIKUuHX89wQ==}
 
@@ -19892,8 +19853,6 @@ snapshots:
       - esbuild
       - uglify-js
       - webpack-cli
-
-  '@types/which@3.0.4': {}
 
   '@types/wrap-ansi@3.0.0': {}
 
@@ -32009,8 +31968,6 @@ snapshots:
   yaml@1.10.2: {}
 
   yaml@2.3.4: {}
-
-  yaml@2.5.1: {}
 
   yargs-parser@15.0.0:
     dependencies:
