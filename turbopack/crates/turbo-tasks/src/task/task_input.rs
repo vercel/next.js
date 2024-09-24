@@ -1,21 +1,17 @@
-use std::{any::Any, fmt::Debug, hash::Hash};
+use std::{any::Any, fmt::Debug, future::Future, hash::Hash};
 
 use anyhow::Result;
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    MagicAny, RcStr, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
-};
+use crate::{MagicAny, RcStr, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc};
 
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
 ///
 /// See also [`ConcreteTaskInput`].
-#[async_trait]
 pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash {
-    async fn resolve(&self) -> Result<Self> {
-        Ok(self.clone())
+    fn resolve(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
+        async { Ok(self.clone()) }
     }
     fn is_resolved(&self) -> bool {
         true
@@ -28,7 +24,6 @@ pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash {
 macro_rules! impl_task_input {
     ($($t:ty),*) => {
         $(
-            #[async_trait]
             impl TaskInput for $t {}
         )*
     };
@@ -48,7 +43,6 @@ impl_task_input! {
     ValueTypeId
 }
 
-#[async_trait]
 impl<T> TaskInput for Vec<T>
 where
     T: TaskInput,
@@ -70,7 +64,6 @@ where
     }
 }
 
-#[async_trait]
 impl<T> TaskInput for Option<T>
 where
     T: TaskInput,
@@ -97,7 +90,6 @@ where
     }
 }
 
-#[async_trait]
 impl<T> TaskInput for Vc<T>
 where
     T: Send,
@@ -112,19 +104,6 @@ where
 
     async fn resolve(&self) -> Result<Self> {
         Vc::resolve(*self).await
-    }
-}
-
-impl<T> TaskInput for ResolvedVc<T>
-where
-    T: Send,
-{
-    fn is_resolved(&self) -> bool {
-        true
-    }
-
-    fn is_transient(&self) -> bool {
-        self.node.node.get_task_id().is_transient()
     }
 }
 
@@ -220,7 +199,6 @@ impl<'de, T> Deserialize<'de> for TransientInstance<T> {
 
 macro_rules! tuple_impls {
     ( $( $name:ident )+ ) => {
-        #[async_trait]
         impl<$($name: TaskInput),+> TaskInput for ($($name,)+)
         where $($name: TaskInput),+
         {

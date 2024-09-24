@@ -4,7 +4,6 @@ use std::{
     fmt::{Display, Formatter, Write},
     future::Future,
     iter::once,
-    pin::Pin,
 };
 
 use anyhow::{bail, Result};
@@ -1272,8 +1271,12 @@ async fn find_package(
                     lookup_path_value = new_context_value;
                 }
             }
-            ResolveModules::Path(context) => {
-                let package_dir = context.join(package_name.clone());
+            ResolveModules::Path {
+                dir,
+                excluded_extensions,
+            } => {
+                let excluded_extensions = excluded_extensions.await?;
+                let package_dir = dir.join(package_name.clone());
                 if let Some((ty, package_dir)) =
                     any_exists(package_dir, &mut affecting_sources).await?
                 {
@@ -1288,6 +1291,9 @@ async fn find_package(
                     }
                 }
                 for extension in &options.extensions {
+                    if excluded_extensions.contains(extension) {
+                        continue;
+                    }
                     let package_file = package_dir.append(extension.clone());
                     if let Some(package_file) = exists(package_file, &mut affecting_sources).await?
                     {
@@ -1595,14 +1601,6 @@ async fn resolve_internal(
     resolve_internal_inline(lookup_path, request, options).await
 }
 
-fn resolve_internal_boxed(
-    lookup_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
-    options: Vc<ResolveOptions>,
-) -> Pin<Box<dyn Future<Output = Result<Vc<ResolveResult>>> + Send>> {
-    Box::pin(resolve_internal_inline(lookup_path, request, options))
-}
-
 async fn resolve_internal_inline(
     lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
@@ -1661,7 +1659,7 @@ async fn resolve_internal_inline(
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
-                    .map(|req| resolve_internal_boxed(lookup_path, *req, options))
+                    .map(|req| Box::pin(resolve_internal_inline(lookup_path, *req, options)))
                     .try_join()
                     .await?;
 
@@ -1790,11 +1788,11 @@ async fn resolve_internal_inline(
                     .emit();
                 }
 
-                resolve_internal_boxed(
+                Box::pin(resolve_internal_inline(
                     lookup_path.root().resolve().await?,
                     relative.resolve().await?,
                     options,
-                )
+                ))
                 .await?
             }
             Request::Windows {
@@ -2425,8 +2423,12 @@ async fn resolve_module_request(
             path.clone(),
         ]);
         let relative = Request::relative(Value::new(pattern), query, fragment, true);
-        let relative_result =
-            resolve_internal_boxed(lookup_path, relative.resolve().await?, options).await?;
+        let relative_result = Box::pin(resolve_internal_inline(
+            lookup_path,
+            relative.resolve().await?,
+            options,
+        ))
+        .await?;
         let relative_result = relative_result
             .with_replaced_request_key(module_prefix, Value::new(RequestKey::new(module.into())));
 
@@ -2545,14 +2547,14 @@ async fn resolve_import_map_result(
             let results = list
                 .iter()
                 .map(|result| {
-                    resolve_import_map_result_boxed(
+                    Box::pin(resolve_import_map_result(
                         result,
                         lookup_path,
                         original_lookup_path,
                         original_request,
                         options,
                         query,
-                    )
+                    ))
                 })
                 .try_join()
                 .await?;
@@ -2561,26 +2563,6 @@ async fn resolve_import_map_result(
         }
         ImportMapResult::NoEntry => None,
     })
-}
-
-type ResolveImportMapResult = Result<Option<Vc<ResolveResult>>>;
-
-fn resolve_import_map_result_boxed<'a>(
-    result: &'a ImportMapResult,
-    lookup_path: Vc<FileSystemPath>,
-    original_lookup_path: Vc<FileSystemPath>,
-    original_request: Vc<Request>,
-    options: Vc<ResolveOptions>,
-    query: Vc<RcStr>,
-) -> Pin<Box<dyn Future<Output = ResolveImportMapResult> + Send + 'a>> {
-    Box::pin(resolve_import_map_result(
-        result,
-        lookup_path,
-        original_lookup_path,
-        original_request,
-        options,
-        query,
-    ))
 }
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
@@ -2684,7 +2666,8 @@ async fn handle_exports_imports_field(
                 result_path,
             ])));
 
-            let resolve_result = resolve_internal_boxed(package_path, request, options).await?;
+            let resolve_result =
+                Box::pin(resolve_internal_inline(package_path, request, options)).await?;
             if conditions.is_empty() {
                 resolved_results.push(resolve_result.with_request(path.into()));
             } else {
@@ -2752,10 +2735,6 @@ async fn resolve_package_internal_with_imports_field(
     .await
 }
 
-async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
-    Ok(*result.resolve().await?.is_unresolveable().await?)
-}
-
 pub async fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: Value<ReferenceType>,
@@ -2765,39 +2744,122 @@ pub async fn handle_resolve_error(
     severity: Vc<IssueSeverity>,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
+    async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
+        Ok(*result.resolve().await?.is_unresolveable().await?)
+    }
     Ok(match is_unresolveable(result).await {
         Ok(unresolveable) => {
             if unresolveable {
-                ResolvingIssue {
+                emit_unresolveable_issue(
                     severity,
-                    file_path: origin_path,
-                    request_type: format!("{} request", reference_type.into_value()),
+                    origin_path,
+                    reference_type,
                     request,
                     resolve_options,
-                    error_message: None,
                     source,
-                }
-                .cell()
-                .emit();
+                );
             }
 
             result
         }
         Err(err) => {
-            ResolvingIssue {
+            emit_resolve_error_issue(
                 severity,
-                file_path: origin_path,
-                request_type: format!("{} request", reference_type.into_value()),
+                origin_path,
+                reference_type,
                 request,
                 resolve_options,
-                error_message: Some(format!("{}", PrettyPrintError(&err))),
+                err,
                 source,
-            }
-            .cell()
-            .emit();
+            );
             ModuleResolveResult::unresolveable().cell()
         }
     })
+}
+
+pub async fn handle_resolve_source_error(
+    result: Vc<ResolveResult>,
+    reference_type: Value<ReferenceType>,
+    origin_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
+    severity: Vc<IssueSeverity>,
+    source: Option<Vc<IssueSource>>,
+) -> Result<Vc<ResolveResult>> {
+    async fn is_unresolveable(result: Vc<ResolveResult>) -> Result<bool> {
+        Ok(*result.resolve().await?.is_unresolveable().await?)
+    }
+    Ok(match is_unresolveable(result).await {
+        Ok(unresolveable) => {
+            if unresolveable {
+                emit_unresolveable_issue(
+                    severity,
+                    origin_path,
+                    reference_type,
+                    request,
+                    resolve_options,
+                    source,
+                );
+            }
+
+            result
+        }
+        Err(err) => {
+            emit_resolve_error_issue(
+                severity,
+                origin_path,
+                reference_type,
+                request,
+                resolve_options,
+                err,
+                source,
+            );
+            ResolveResult::unresolveable().cell()
+        }
+    })
+}
+
+fn emit_resolve_error_issue(
+    severity: Vc<IssueSeverity>,
+    origin_path: Vc<FileSystemPath>,
+    reference_type: Value<ReferenceType>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
+    err: anyhow::Error,
+    source: Option<Vc<IssueSource>>,
+) {
+    ResolvingIssue {
+        severity,
+        file_path: origin_path,
+        request_type: format!("{} request", reference_type.into_value()),
+        request,
+        resolve_options,
+        error_message: Some(format!("{}", PrettyPrintError(&err))),
+        source,
+    }
+    .cell()
+    .emit();
+}
+
+fn emit_unresolveable_issue(
+    severity: Vc<IssueSeverity>,
+    origin_path: Vc<FileSystemPath>,
+    reference_type: Value<ReferenceType>,
+    request: Vc<Request>,
+    resolve_options: Vc<ResolveOptions>,
+    source: Option<Vc<IssueSource>>,
+) {
+    ResolvingIssue {
+        severity,
+        file_path: origin_path,
+        request_type: format!("{} request", reference_type.into_value()),
+        request,
+        resolve_options,
+        error_message: None,
+        source,
+    }
+    .cell()
+    .emit();
 }
 
 // TODO this should become a TaskInput instead of a Vc

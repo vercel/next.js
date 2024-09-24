@@ -340,6 +340,10 @@ describe('app dir - metadata', () => {
         'og:image:width': ['800', '1800'],
         'og:image:height': ['600', '1600'],
         'og:image:alt': 'My custom alt',
+        'og:video': 'https://example.com/video.mp4',
+        'og:video:width': '800',
+        'og:video:height': '450',
+        'og:audio': 'https://example.com/audio.mp3',
       })
 
       await matchMultiDom('meta', 'name', 'content', {

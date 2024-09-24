@@ -28,7 +28,7 @@ futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 mopa = "0.2.0"
 once_cell = { workspace = true }
-parking_lot = { workspace = true }
+parking_lot = { workspace = true, features = ["serde"]}
 pin-project-lite = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
@@ -37,6 +37,7 @@ serde_json = { workspace = true }
 serde_regex = "1.1.0"
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
 turbo-tasks-hash = { workspace = true }

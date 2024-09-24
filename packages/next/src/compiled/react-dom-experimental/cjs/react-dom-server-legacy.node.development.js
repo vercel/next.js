@@ -4302,7 +4302,6 @@
     }
     function noop() {}
     function RequestInstance(
-      children,
       resumableState,
       renderState,
       rootFormatContext,
@@ -4315,8 +4314,7 @@
       onPostpone,
       formState
     ) {
-      var pingedTasks = [],
-        abortSet = new Set();
+      var abortSet = new Set();
       this.destination = null;
       this.flushScheduled = !1;
       this.resumableState = resumableState;
@@ -4329,7 +4327,7 @@
       this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
       this.completedRootSegment = null;
       this.abortableTasks = abortSet;
-      this.pingedTasks = pingedTasks;
+      this.pingedTasks = [];
       this.clientRenderedBoundaries = [];
       this.completedBoundaries = [];
       this.partialBoundaries = [];
@@ -4342,35 +4340,6 @@
       this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
       this.formState = void 0 === formState ? null : formState;
       this.didWarnForKey = null;
-      resumableState = createPendingSegment(
-        this,
-        0,
-        null,
-        rootFormatContext,
-        !1,
-        !1
-      );
-      resumableState.parentFlushed = !0;
-      children = createRenderTask(
-        this,
-        null,
-        children,
-        -1,
-        null,
-        resumableState,
-        null,
-        abortSet,
-        null,
-        rootFormatContext,
-        null,
-        emptyTreeContext,
-        null,
-        !1,
-        emptyContextObject,
-        null
-      );
-      pushComponentStack(children);
-      pingedTasks.push(children);
     }
     function createRequest(
       children,
@@ -4386,8 +4355,7 @@
       onPostpone,
       formState
     ) {
-      return new RequestInstance(
-        children,
+      resumableState = new RequestInstance(
         resumableState,
         renderState,
         rootFormatContext,
@@ -4400,6 +4368,36 @@
         onPostpone,
         formState
       );
+      renderState = createPendingSegment(
+        resumableState,
+        0,
+        null,
+        rootFormatContext,
+        !1,
+        !1
+      );
+      renderState.parentFlushed = !0;
+      children = createRenderTask(
+        resumableState,
+        null,
+        children,
+        -1,
+        null,
+        renderState,
+        null,
+        resumableState.abortableTasks,
+        null,
+        rootFormatContext,
+        null,
+        emptyTreeContext,
+        null,
+        !1,
+        emptyContextObject,
+        null
+      );
+      pushComponentStack(children);
+      resumableState.pingedTasks.push(children);
+      return resumableState;
     }
     function pingTask(request, task) {
       request.pingedTasks.push(task);
@@ -5734,6 +5732,7 @@
               resumedBoundary.rootSegmentID = type;
               task.blockedBoundary = resumedBoundary;
               task.hoistableState = resumedBoundary.contentState;
+              task.keyPath = keyPath;
               task.replay = { nodes: ref, slots: name, pendingTasks: 1 };
               try {
                 renderNode(request, task, content, -1);
@@ -6599,52 +6598,51 @@
         if (6 === segment.status) return;
         segment.status = 3;
       }
+      var errorInfo = getThrownInfo(task.componentStack);
       if (null === boundary) {
-        if (
-          ((boundary = {}), 2 !== request.status && request.status !== CLOSED)
-        ) {
-          var replay = task.replay;
-          if (null === replay) {
+        if (2 !== request.status && request.status !== CLOSED) {
+          boundary = task.replay;
+          if (null === boundary) {
             "object" === typeof error &&
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
-              ? ((replay = request.trackedPostpones),
-                null !== replay && null !== segment
-                  ? (logPostpone(request, error.message, boundary, null),
-                    trackPostpone(request, replay, task, segment),
+              ? ((boundary = request.trackedPostpones),
+                null !== boundary && null !== segment
+                  ? (logPostpone(request, error.message, errorInfo, null),
+                    trackPostpone(request, boundary, task, segment),
                     finishedTask(request, null, segment))
                   : ((task = Error(
                       "The render was aborted with postpone when the shell is incomplete. Reason: " +
                         error.message
                     )),
-                    logRecoverableError(request, task, boundary, null),
-                    fatalError(request, task, boundary, null)))
+                    logRecoverableError(request, task, errorInfo, null),
+                    fatalError(request, task, errorInfo, null)))
               : null !== request.trackedPostpones && null !== segment
-                ? ((replay = request.trackedPostpones),
-                  logRecoverableError(request, error, boundary, null),
-                  trackPostpone(request, replay, task, segment),
+                ? ((boundary = request.trackedPostpones),
+                  logRecoverableError(request, error, errorInfo, null),
+                  trackPostpone(request, boundary, task, segment),
                   finishedTask(request, null, segment))
-                : (logRecoverableError(request, error, boundary, null),
-                  fatalError(request, error, boundary, null));
+                : (logRecoverableError(request, error, errorInfo, null),
+                  fatalError(request, error, errorInfo, null));
             return;
           }
-          replay.pendingTasks--;
-          0 === replay.pendingTasks &&
-            0 < replay.nodes.length &&
+          boundary.pendingTasks--;
+          0 === boundary.pendingTasks &&
+            0 < boundary.nodes.length &&
             ("object" === typeof error &&
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
-              ? (logPostpone(request, error.message, boundary, null),
+              ? (logPostpone(request, error.message, errorInfo, null),
                 (task = "POSTPONE"))
-              : (task = logRecoverableError(request, error, boundary, null)),
+              : (task = logRecoverableError(request, error, errorInfo, null)),
             abortRemainingReplayNodes(
               request,
               null,
-              replay.nodes,
-              replay.slots,
+              boundary.nodes,
+              boundary.slots,
               error,
               task,
-              boundary,
+              errorInfo,
               !0
             ));
           request.pendingRootTasks--;
@@ -6652,7 +6650,6 @@
         }
       } else {
         boundary.pendingTasks--;
-        replay = getThrownInfo(task.componentStack);
         var _trackedPostpones2 = request.trackedPostpones;
         if (boundary.status !== CLIENT_RENDERED) {
           if (null !== _trackedPostpones2 && null !== segment)
@@ -6660,8 +6657,8 @@
               "object" === typeof error &&
               null !== error &&
               error.$$typeof === REACT_POSTPONE_TYPE
-                ? logPostpone(request, error.message, replay, null)
-                : logRecoverableError(request, error, replay, null),
+                ? logPostpone(request, error.message, errorInfo, null)
+                : logRecoverableError(request, error, errorInfo, null),
               trackPostpone(request, _trackedPostpones2, task, segment),
               boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
                 return abortTask(fallbackTask, request, error);
@@ -6675,7 +6672,7 @@
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
           ) {
-            logPostpone(request, error.message, replay, null);
+            logPostpone(request, error.message, errorInfo, null);
             if (null !== request.trackedPostpones && null !== segment) {
               trackPostpone(request, request.trackedPostpones, task, segment);
               finishedTask(request, task.blockedBoundary, segment);
@@ -6686,9 +6683,9 @@
               return;
             }
             task = "POSTPONE";
-          } else task = logRecoverableError(request, error, replay, null);
+          } else task = logRecoverableError(request, error, errorInfo, null);
           boundary.status = CLIENT_RENDERED;
-          encodeErrorForBoundary(boundary, task, error, replay, !0);
+          encodeErrorForBoundary(boundary, task, error, errorInfo, !0);
           untrackBoundary(request, boundary);
           boundary.parentFlushed &&
             request.clientRenderedBoundaries.push(boundary);
@@ -7829,7 +7826,7 @@
       return result;
     }
     var React = require("next/dist/compiled/react-experimental"),
-      ReactDOM = require("react-dom"),
+      ReactDOM = require("next/dist/compiled/react-dom-experimental"),
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
       REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
@@ -9291,5 +9288,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.0.0-experimental-7771d3a7-20240827";
+    exports.version = "19.0.0-experimental-5d19e1c8-20240923";
   })();

@@ -89,13 +89,13 @@ import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
-import type { Params } from '../client/components/params'
+import type { Params } from '../server/request/params'
 import { FallbackMode } from '../lib/fallback'
 import {
   fallbackModeToStaticPathsResult,
   parseStaticPathsResult,
 } from '../lib/fallback'
-import { getParamKeys } from '../client/components/fallback-params'
+import { getParamKeys } from '../server/request/fallback-params'
 import type { OutgoingHttpHeaders } from 'http'
 
 export type ROUTER_TYPE = 'pages' | 'app'
@@ -2329,7 +2329,7 @@ export class NestedMiddlewareError extends Error {
 export function getSupportedBrowsers(
   dir: string,
   isDevelopment: boolean
-): string[] | undefined {
+): string[] {
   let browsers: any
   try {
     const browsersListConfig = browserslist.loadConfig({

@@ -230,6 +230,24 @@ describe('app dir - rsc basics', () => {
     expect(html).toContain('dynamic data!')
   })
 
+  // TODO: TLA in client references are currently broken with Webpack on Edge
+  describe.each(process.env.TURBOPACK ? ['node', 'edge'] : ['node'])(
+    'client references with TLA (%s)',
+    (runtime) => {
+      let url = `/async-client${runtime === 'edge' ? '/edge' : ''}`
+
+      it('should support TLA in sync client reference imports', async () => {
+        const html = await next.render(url + '/sync')
+        expect(html).toContain('client async')
+      })
+
+      it('should support TLA in lazy client reference', async () => {
+        const html = await next.render(url + '/lazy')
+        expect(html).toContain('client async')
+      })
+    }
+  )
+
   if (isPPREnabledByDefault) {
     // TODO: Figure out why this test is flaky when PPR is enabled
   } else {

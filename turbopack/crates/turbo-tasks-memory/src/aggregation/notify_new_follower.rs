@@ -189,6 +189,13 @@ impl<C: AggregationContext> PreparedInternalOperation<C> for PreparedNotifyNewFo
                                 let follower = ctx.node(&follower_id);
                                 let follower_aggregation_number = follower.aggregation_number();
                                 if follower_aggregation_number == upper_aggregation_number {
+                                    if upper_id == follower_id {
+                                        panic!(
+                                            "Cycle in call graph (A function calls itself \
+                                             recursively with the same arguments. This will never \
+                                             finish and would hang indefinitely.)"
+                                        );
+                                    }
                                     increase_aggregation_number_internal(
                                         ctx,
                                         balance_queue,
