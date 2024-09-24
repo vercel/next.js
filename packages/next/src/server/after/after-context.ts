@@ -7,6 +7,7 @@ import { ResponseCookies } from '../web/spec-extension/cookies'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { isThenable } from '../../shared/lib/is-thenable'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
@@ -36,7 +37,7 @@ export class AfterContext {
   }
 
   public after(task: AfterTask): void {
-    if (isPromise(task)) {
+    if (isThenable(task)) {
       task.catch(() => {}) // avoid unhandled rejection crashes
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
@@ -140,13 +141,4 @@ function wrapRequestStoreForAfterCallbacks(
     isHmrRefresh: requestStore.isHmrRefresh,
     serverComponentsHmrCache: requestStore.serverComponentsHmrCache,
   }
-}
-
-function isPromise(p: unknown): p is Promise<unknown> {
-  return (
-    p !== null &&
-    typeof p === 'object' &&
-    'then' in p &&
-    typeof p.then === 'function'
-  )
 }

@@ -77,5 +77,6 @@ interface TurbopackBaseContext {
   P: ResolveAbsolutePath;
   U: RelativeURL;
   b: GetWorkerBlobURL,
+  z: CommonJsRequire
   __dirname: string;
 }

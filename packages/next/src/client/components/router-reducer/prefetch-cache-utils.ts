@@ -249,19 +249,20 @@ function prefixExistingPrefetchCacheEntry({
 /**
  * Use to seed the prefetch cache with data that has already been fetched.
  */
-export function createPrefetchCacheEntryForInitialLoad({
+export function createSeededPrefetchCacheEntry({
   nextUrl,
   tree,
   prefetchCache,
   url,
   data,
+  kind,
 }: Pick<ReadonlyReducerState, 'nextUrl' | 'tree' | 'prefetchCache'> & {
   url: URL
   data: FetchServerResponseResult
+  kind: PrefetchKind
 }) {
   // The initial cache entry technically includes full data, but it isn't explicitly prefetched -- we just seed the
   // prefetch cache so that we can skip an extra prefetch request later, since we already have the data.
-  const kind = PrefetchKind.AUTO
   // if the prefetch corresponds with an interception route, we use the nextUrl to prefix the cache key
   const prefetchCacheKey = data.couldBeIntercepted
     ? createPrefetchCacheKey(url, kind, nextUrl)

@@ -58,6 +58,11 @@ if (typeof window !== 'undefined') {
     'unhandledrejection',
     (ev: WindowEventMap['unhandledrejection']): void => {
       const reason = ev?.reason
+      if (isNextRouterError(reason)) {
+        ev.preventDefault()
+        return
+      }
+
       if (
         !reason ||
         !(reason instanceof Error) ||

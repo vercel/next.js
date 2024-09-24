@@ -4,8 +4,8 @@ use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
     app_structure::{
-        get_entrypoints, Entrypoint as AppEntrypoint, Entrypoints as AppEntrypoints, LoaderTree,
-        MetadataItem,
+        get_entrypoints, AppPageLoaderTree, Entrypoint as AppEntrypoint,
+        Entrypoints as AppEntrypoints, MetadataItem,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
@@ -40,9 +40,9 @@ use turbo_tasks::{trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, Value, 
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
-    module_options::ModuleOptionsContext,
+    module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, FullContextTransition, Transition},
+    transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -117,6 +117,14 @@ impl AppProject {
 }
 
 pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+
+fn styles_rule_condition() -> RuleCondition {
+    RuleCondition::any(vec![
+        RuleCondition::ResourcePathEndsWith(".css".into()),
+        RuleCondition::ResourcePathEndsWith(".scss".into()),
+        RuleCondition::ResourcePathEndsWith(".sass".into()),
+    ])
+}
 
 #[turbo_tasks::value_impl]
 impl AppProject {
@@ -303,7 +311,15 @@ impl AppProject {
         .into_iter()
         .collect();
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                transition_rules: vec![TransitionRule::new(
+                    styles_rule_condition(),
+                    Vc::upcast(self.client_transition()),
+                )],
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
@@ -333,7 +349,15 @@ impl AppProject {
         .into_iter()
         .collect();
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                transition_rules: vec![TransitionRule::new(
+                    styles_rule_condition(),
+                    Vc::upcast(self.client_transition()),
+                )],
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
@@ -361,7 +385,11 @@ impl AppProject {
         .collect();
 
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.route_module_options_context(),
             self.route_resolve_options_context(),
@@ -391,7 +419,11 @@ impl AppProject {
         .into_iter()
         .collect();
         ModuleAssetContext::new(
-            Vc::cell(transitions),
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_route_module_options_context(),
             self.edge_route_resolve_options_context(),
@@ -402,7 +434,7 @@ impl AppProject {
     #[turbo_tasks::function]
     fn client_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         ModuleAssetContext::new(
-            Vc::cell(Default::default()),
+            Default::default(),
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
@@ -664,7 +696,7 @@ enum AppPageEndpointType {
 enum AppEndpointType {
     Page {
         ty: AppPageEndpointType,
-        loader_tree: Vc<LoaderTree>,
+        loader_tree: Vc<AppPageLoaderTree>,
     },
     Route {
         path: Vc<FileSystemPath>,
@@ -685,7 +717,7 @@ struct AppEndpoint {
 #[turbo_tasks::value_impl]
 impl AppEndpoint {
     #[turbo_tasks::function]
-    fn app_page_entry(&self, loader_tree: Vc<LoaderTree>) -> Vc<AppEntry> {
+    fn app_page_entry(&self, loader_tree: Vc<AppPageLoaderTree>) -> Vc<AppEntry> {
         get_app_page_entry(
             self.app_project.rsc_module_context(),
             self.app_project.edge_rsc_module_context(),
