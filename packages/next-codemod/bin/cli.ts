@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * Copyright 2015-present, Facebook, Inc.
  *
@@ -9,83 +10,16 @@
 // @next/codemod optional-name-of-transform optional/path/to/src [...options]
 
 import globby from 'globby'
-import inquirer from 'inquirer'
-import path from 'path'
 import execa from 'execa'
-// import ciInfo from 'ci-info'
+import prompts from 'prompts'
+import { join } from 'node:path'
 import { Command } from 'commander'
-// import prompts from 'prompts'
-import { installPackage, uninstallPackage } from '../lib/handle-package'
 import { runUpgrade } from './upgrade'
+import { installPackage, uninstallPackage } from '../lib/handle-package'
 import { checkGitStatus, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 
 export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
-export const transformerDirectory = path.join(__dirname, '../', 'transforms')
-
-export function runTransform({ files, flags, transformer }) {
-  const transformerPath = path.join(transformerDirectory, `${transformer}.js`)
-
-  if (transformer === 'cra-to-next') {
-    // cra-to-next transform doesn't use jscodeshift directly
-    return require(transformerPath).default(files, flags)
-  }
-
-  let args = []
-
-  const { dry, print, runInBand } = flags
-
-  if (dry) {
-    args.push('--dry')
-  }
-  if (print) {
-    args.push('--print')
-  }
-  if (runInBand) {
-    args.push('--run-in-band')
-  }
-
-  args.push('--verbose=2')
-
-  args.push('--ignore-pattern=**/node_modules/**')
-  args.push('--ignore-pattern=**/.next/**')
-
-  args.push('--extensions=tsx,ts,jsx,js')
-
-  args = args.concat(['--transform', transformerPath])
-
-  if (flags.jscodeshift) {
-    args = args.concat(flags.jscodeshift)
-  }
-
-  args = args.concat(files)
-
-  console.log(`Executing command: jscodeshift ${args.join(' ')}`)
-
-  const result = execa.sync(jscodeshiftExecutable, args, {
-    stdio: 'inherit',
-    stripFinalNewline: false,
-  })
-
-  if (result.failed) {
-    throw new Error(`jscodeshift exited with code ${result.exitCode}`)
-  }
-
-  if (!dry && transformer === 'built-in-next-font') {
-    console.log('Uninstalling `@next/font`')
-    try {
-      uninstallPackage('@next/font')
-    } catch {
-      console.error(
-        "Couldn't uninstall `@next/font`, please uninstall it manually"
-      )
-    }
-  }
-
-  if (!dry && transformer === 'next-request-geo-ip') {
-    console.log('Installing `@vercel/functions`...')
-    installPackage('@vercel/functions')
-  }
-}
+export const transformerDirectory = join(__dirname, '../', 'transforms')
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {
   const shouldExpandFiles = filesBeforeExpansion.some((file) =>
@@ -122,23 +56,19 @@ const program = new Command(packageJson.name)
   .allowUnknownOption()
   .parse(process.argv)
 
-const opts = program.opts()
-const { args } = program
+program.command('upgrade').action(runUpgrade)
 
-function run() {
-  if (!opts.dry) {
-    checkGitStatus(opts.force)
-  }
+async function run(transform: string, path: string, options: any) {
+  let transformer = transform
+  let directory = path
 
-  const isUpgrade = args[0] === 'upgrade' || args[0] === 'up'
-
-  if (isUpgrade) {
-    return runUpgrade().catch(console.error)
+  if (!options.dry) {
+    checkGitStatus(options.force)
   }
 
   if (
-    args[0] &&
-    !TRANSFORMER_INQUIRER_CHOICES.find((x) => x.value === args[0])
+    transform &&
+    !TRANSFORMER_INQUIRER_CHOICES.find((x) => x.value === transform)
   ) {
     console.error('Invalid transform choice, pick one of:')
     console.error(
@@ -147,43 +77,94 @@ function run() {
     process.exit(1)
   }
 
-  inquirer
-    .prompt([
-      {
-        type: 'input',
-        name: 'files',
-        message: 'On which files or directory should the codemods be applied?',
-        when: !args[1],
-        default: '.',
-        // validate: () =>
-        filter: (files) => files.trim(),
-      },
-      {
-        type: 'list',
-        name: 'transformer',
-        message: 'Which transform would you like to apply?',
-        when: !args[0],
-        pageSize: TRANSFORMER_INQUIRER_CHOICES.length,
-        choices: TRANSFORMER_INQUIRER_CHOICES,
-      },
-    ])
-    .then((answers) => {
-      const { files, transformer } = answers
-
-      const filesBeforeExpansion = args[1] || files
-      const filesExpanded = expandFilePathsIfNeeded([filesBeforeExpansion])
-
-      const selectedTransformer = args[0] || transformer
-
-      if (!filesExpanded.length) {
-        console.log(`No files found matching ${filesBeforeExpansion.join(' ')}`)
-        return null
-      }
-
-      return runTransform({
-        files: filesExpanded,
-        flags: opts,
-        transformer: selectedTransformer,
-      })
+  if (!path) {
+    const res = await prompts({
+      type: 'text',
+      name: 'path',
+      message: 'On which files or directory should the codemods be applied?',
+      default: '.',
     })
+
+    directory = res.path
+  }
+  if (!transform) {
+    const res = await prompts({
+      type: 'select',
+      name: 'transformer',
+      message: 'Which transform would you like to apply?',
+      choices: TRANSFORMER_INQUIRER_CHOICES,
+    })
+
+    transformer = res.transformer
+  }
+
+  const filesExpanded = expandFilePathsIfNeeded([directory])
+
+  if (!filesExpanded.length) {
+    console.log(`No files found matching "${directory}"`)
+    return null
+  }
+
+  const transformerPath = join(transformerDirectory, `${transformer}.js`)
+
+  if (transformer === 'cra-to-next') {
+    // cra-to-next transform doesn't use jscodeshift directly
+    return require(transformerPath).default(filesExpanded, options)
+  }
+
+  let args = []
+
+  const { dry, print, runInBand, jscodeshift } = options
+
+  if (dry) {
+    args.push('--dry')
+  }
+  if (print) {
+    args.push('--print')
+  }
+  if (runInBand) {
+    args.push('--run-in-band')
+  }
+
+  args.push('--verbose=2')
+
+  args.push('--ignore-pattern=**/node_modules/**')
+  args.push('--ignore-pattern=**/.next/**')
+
+  args.push('--extensions=tsx,ts,jsx,js')
+
+  args = args.concat(['--transform', transformerPath])
+
+  if (jscodeshift) {
+    args = args.concat(jscodeshift)
+  }
+
+  args = args.concat(filesExpanded)
+
+  console.log(`Executing command: jscodeshift ${args.join(' ')}`)
+
+  const result = execa.sync(jscodeshiftExecutable, args, {
+    stdio: 'inherit',
+    stripFinalNewline: false,
+  })
+
+  if (result.failed) {
+    throw new Error(`jscodeshift exited with code ${result.exitCode}`)
+  }
+
+  if (!dry && transformer === 'built-in-next-font') {
+    console.log('Uninstalling `@next/font`')
+    try {
+      uninstallPackage('@next/font')
+    } catch {
+      console.error(
+        "Couldn't uninstall `@next/font`, please uninstall it manually"
+      )
+    }
+  }
+
+  if (!dry && transformer === 'next-request-geo-ip') {
+    console.log('Installing `@vercel/functions`...')
+    installPackage('@vercel/functions')
+  }
 }
