@@ -1070,12 +1070,16 @@ async function renderToHTMLOrFlightImpl(
       metadata,
     }
     // If we have pending revalidates, wait until they are all resolved.
-    if (staticGenerationStore.pendingRevalidates) {
+    if (
+      staticGenerationStore.pendingRevalidates ||
+      staticGenerationStore.pendingRevalidateWrites
+    ) {
       options.waitUntil = Promise.all([
         staticGenerationStore.incrementalCache?.revalidateTag(
           staticGenerationStore.revalidatedTags || []
         ),
         ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+        ...(staticGenerationStore.pendingRevalidateWrites || []),
       ])
     }
 
@@ -1175,12 +1179,16 @@ async function renderToHTMLOrFlightImpl(
     )
 
     // If we have pending revalidates, wait until they are all resolved.
-    if (staticGenerationStore.pendingRevalidates) {
+    if (
+      staticGenerationStore.pendingRevalidates ||
+      staticGenerationStore.pendingRevalidateWrites
+    ) {
       options.waitUntil = Promise.all([
         staticGenerationStore.incrementalCache?.revalidateTag(
           staticGenerationStore.revalidatedTags || []
         ),
         ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+        ...(staticGenerationStore.pendingRevalidateWrites || []),
       ])
     }
 

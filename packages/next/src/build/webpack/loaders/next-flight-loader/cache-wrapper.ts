@@ -12,6 +12,7 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client.edge'
 
+import type { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage.external'
 import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
 
 type CacheEntry = {
@@ -50,6 +51,7 @@ const runInCleanSnapshot = createSnapshot()
 
 async function generateCacheEntry(
   cacheHandler: CacheHandler,
+  staticGenerationStore: StaticGenerationStore,
   serializedCacheKey: string | ArrayBuffer,
   encodedArguments: FormData | string,
   fn: any
@@ -110,12 +112,13 @@ async function generateCacheEntry(
     },
   })
 
-  cacheHandler
-    .set(serializedCacheKey, erroringSavedStream)
-    .catch((error: any) => {
-      // Report error saving the cache entry.
-      console.error(error)
-    })
+  if (!staticGenerationStore.pendingRevalidateWrites) {
+    staticGenerationStore.pendingRevalidateWrites = []
+  }
+
+  const promise = cacheHandler.set(serializedCacheKey, erroringSavedStream)
+
+  staticGenerationStore.pendingRevalidateWrites.push(promise)
 
   // Return the stream as we're creating it. This means that if it ends up
   // erroring we cannot return a stale-while-error version but it allows
@@ -152,15 +155,18 @@ export function cache(kind: string, id: string, fn: any) {
       let entry: undefined | CacheEntry =
         await cacheHandler.get(serializedCacheKey)
 
-      const store = staticGenerationAsyncStorage.getStore()
-      if (store === undefined) {
+      const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+      if (staticGenerationStore === undefined) {
         throw new Error(
           '"use cache" cannot be used outside of App Router. Expected a StaticGenerationStore.'
         )
       }
 
       let stream
-      if (entry === undefined || (store.isStaticGeneration && entry.stale)) {
+      if (
+        entry === undefined ||
+        (staticGenerationStore.isStaticGeneration && entry.stale)
+      ) {
         // Miss. Generate a new result.
 
         // If the cache entry is stale and we're prerendering, we don't want to use the
@@ -174,6 +180,7 @@ export function cache(kind: string, id: string, fn: any) {
         // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
         stream = await runInCleanSnapshot(
           generateCacheEntry,
+          staticGenerationStore,
           cacheHandler,
           serializedCacheKey,
           encodedArguments,
@@ -188,6 +195,7 @@ export function cache(kind: string, id: string, fn: any) {
           // an entry that's just going to get evicted before we can use it anyway.
           const ignoredStream = await runInCleanSnapshot(
             generateCacheEntry,
+            staticGenerationStore,
             cacheHandler,
             serializedCacheKey,
             encodedArguments,
