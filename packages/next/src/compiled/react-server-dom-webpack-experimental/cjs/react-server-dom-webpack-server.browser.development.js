@@ -1850,6 +1850,9 @@
                 break;
               case "3":
                 _existingReference = "props";
+                break;
+              case "4":
+                _existingReference = "_owner";
             }
           elementReference.set(
             value,
