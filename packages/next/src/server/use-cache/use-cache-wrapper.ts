@@ -15,6 +15,11 @@ import {
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 
+import {
+  getClientReferenceManifestSingleton,
+  getServerModuleMap,
+} from '../app-render/encryption-utils'
+
 type CacheEntry = {
   value: ReadableStream
   stale: boolean
@@ -63,8 +68,6 @@ cacheHandlerMap.set('default', {
   shouldRevalidateStale: false,
 })
 
-const serverManifest: any = null // TODO
-const clientManifest: any = null // TODO
 const ssrManifest: any = {
   moduleMap: {},
   moduleLoading: null,
@@ -81,7 +84,8 @@ async function generateCacheEntry(
   fn: any
 ): Promise<ReadableStream> {
   const temporaryReferences = createServerTemporaryReferenceSet()
-  const [, args] = await decodeReply<any[]>(encodedArguments, serverManifest, {
+
+  const [, args] = await decodeReply(encodedArguments, getServerModuleMap(), {
     temporaryReferences,
   })
 
@@ -91,18 +95,24 @@ async function generateCacheEntry(
   let didError = false
   let firstError: any = null
 
-  const stream = renderToReadableStream(result, clientManifest, {
-    environmentName: 'Cache',
-    temporaryReferences,
-    onError(error: any) {
-      // Report the error.
-      console.error(error)
-      if (!didError) {
-        didError = true
-        firstError = error
-      }
-    },
-  })
+  const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
+
+  const stream = renderToReadableStream(
+    result,
+    clientReferenceManifestSingleton.clientModules,
+    {
+      environmentName: 'Cache',
+      temporaryReferences,
+      onError(error: any) {
+        // Report the error.
+        console.error(error)
+        if (!didError) {
+          didError = true
+          firstError = error
+        }
+      },
+    }
+  )
 
   const [returnStream, savedStream] = stream.tee()
 
