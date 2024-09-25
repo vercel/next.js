@@ -500,6 +500,15 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     images: z
       .strictObject({
+        localPatterns: z
+          .array(
+            z.strictObject({
+              pathname: z.string().optional(),
+              search: z.string().optional(),
+            })
+          )
+          .max(25)
+          .optional(),
         remotePatterns: z
           .array(
             z.strictObject({
