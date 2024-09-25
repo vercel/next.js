@@ -16,7 +16,7 @@ use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
 use crate::{
     backend::{
         storage::StorageWriteGuard, OperationGuard, TaskDataCategory, TransientTask,
-        TurboTasksBackend,
+        TurboTasksBackend, TurboTasksBackendInner,
     },
     data::{
         CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
@@ -35,15 +35,15 @@ pub trait Operation:
 }
 
 pub struct ExecuteContext<'a> {
-    backend: &'a TurboTasksBackend,
+    backend: &'a TurboTasksBackendInner,
     turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
     _operation_guard: Option<OperationGuard<'a>>,
     parent: Option<(&'a AnyOperation, &'a ExecuteContext<'a>)>,
 }
 
 impl<'a> ExecuteContext<'a> {
-    pub fn new(
-        backend: &'a TurboTasksBackend,
+    pub(super) fn new(
+        backend: &'a TurboTasksBackendInner,
         turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> Self {
         Self {
@@ -191,7 +191,7 @@ impl<'a> ExecuteContext<'a> {
 pub struct TaskGuard<'a> {
     task_id: TaskId,
     task: StorageWriteGuard<'a, TaskId, CachedDataItem>,
-    backend: &'a TurboTasksBackend,
+    backend: &'a TurboTasksBackendInner,
 }
 
 impl<'a> Debug for TaskGuard<'a> {

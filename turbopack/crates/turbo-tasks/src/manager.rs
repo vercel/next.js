@@ -1740,12 +1740,13 @@ pub fn emit<T: VcValueTrait + Send>(collectible: Vc<T>) {
 }
 
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
+    let turbo_tasks = turbo_tasks();
     let span = trace_span!("blocking operation").or_current();
     let (result, duration, alloc_info) = tokio::task::spawn_blocking(|| {
         let _guard = span.entered();
         let start = Instant::now();
         let start_allocations = TurboMalloc::allocation_counters();
-        let r = func();
+        let r = turbo_tasks_scope(turbo_tasks, func);
         (r, start.elapsed(), start_allocations.until_now())
     })
     .await
