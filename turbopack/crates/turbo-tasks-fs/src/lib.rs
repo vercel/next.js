@@ -1171,10 +1171,9 @@ impl FileSystemPath {
     /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
     pub async fn try_join(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
-        let this = self;
-        if let Some(path) = join_path(&this.path, &path) {
+        if let Some(path) = join_path(&self.path, &path) {
             Ok(Vc::cell(Some(
-                Self::new_normalized(this.fs, path.into()).resolve().await?,
+                Self::new_normalized(self.fs, path.into()).resolve().await?,
             )))
         } else {
             Ok(FileSystemPathOption::none())
@@ -1185,11 +1184,10 @@ impl FileSystemPath {
     /// None when the joined path would leave the current path.
     #[turbo_tasks::function]
     pub async fn try_join_inside(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
-        let this = self;
-        if let Some(path) = join_path(&this.path, &path) {
-            if path.starts_with(&*this.path) {
+        if let Some(path) = join_path(&self.path, &path) {
+            if path.starts_with(&*self.path) {
                 return Ok(Vc::cell(Some(
-                    Self::new_normalized(this.fs, path.into()).resolve().await?,
+                    Self::new_normalized(self.fs, path.into()).resolve().await?,
                 )));
             }
         }
@@ -1217,8 +1215,7 @@ impl FileSystemPath {
 
     #[turbo_tasks::function]
     pub async fn extension(&self) -> Result<Vc<RcStr>> {
-        let this = self;
-        Ok(Vc::cell(this.extension_ref().unwrap_or("").into()))
+        Ok(Vc::cell(self.extension_ref().unwrap_or("").into()))
     }
 
     #[turbo_tasks::function]
@@ -1235,10 +1232,9 @@ impl FileSystemPath {
     /// extension.
     #[turbo_tasks::function]
     pub async fn with_extension(&self, extension: RcStr) -> Result<Vc<FileSystemPath>> {
-        let this = self;
-        let (path_without_extension, _) = this.split_extension();
+        let (path_without_extension, _) = self.split_extension();
         Ok(Self::new_normalized(
-            this.fs,
+            self.fs,
             // Like `Path::with_extension` and `PathBuf::set_extension`, if the extension is empty,
             // we remove the extension altogether.
             match extension.is_empty() {
@@ -1258,8 +1254,7 @@ impl FileSystemPath {
     /// * Otherwise, the portion of the file name before the final `.`
     #[turbo_tasks::function]
     pub async fn file_stem(&self) -> Result<Vc<Option<RcStr>>> {
-        let this = self;
-        let (_, file_stem, _) = this.split_file_stem_extension();
+        let (_, file_stem, _) = self.split_file_stem_extension();
         if file_stem.is_empty() {
             return Ok(Vc::cell(None));
         }

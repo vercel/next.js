@@ -302,8 +302,6 @@ impl ProjectContainer {
 impl ProjectContainer {
     #[turbo_tasks::function]
     pub async fn project(&self) -> Result<Vc<Project>> {
-        let this = self;
-
         let env_map: Vc<EnvMap>;
         let next_config;
         let define_env;
@@ -317,7 +315,7 @@ impl ProjectContainer {
         let preview_props;
         let browserslist_query;
         {
-            let options = this.options_state.get();
+            let options = self.options_state.get();
             let options = options
                 .as_ref()
                 .context("ProjectContainer need to be initialized with initialize()")?;
@@ -361,7 +359,7 @@ impl ProjectContainer {
             } else {
                 NextMode::Build.cell()
             },
-            versioned_content_map: this.versioned_content_map,
+            versioned_content_map: self.versioned_content_map,
             build_id,
             encryption_key,
             preview_props,
@@ -518,13 +516,12 @@ impl Project {
 
     #[turbo_tasks::function]
     async fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
-        let this = self;
         let disk_fs = DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
-            this.root_path.clone(),
+            self.root_path.clone(),
             vec![],
         );
-        if this.watch {
+        if self.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
         }
         Ok(disk_fs)
@@ -538,8 +535,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn output_fs(&self) -> Result<Vc<DiskFileSystem>> {
-        let this = self;
-        let disk_fs = DiskFileSystem::new("output".into(), this.project_path.clone(), vec![]);
+        let disk_fs = DiskFileSystem::new("output".into(), self.project_path.clone(), vec![]);
         Ok(disk_fs)
     }
 

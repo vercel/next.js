@@ -251,8 +251,7 @@ pub struct VersionState {
 impl VersionState {
     #[turbo_tasks::function]
     pub async fn get(&self) -> Result<Vc<Box<dyn Version>>> {
-        let this = self;
-        let version = TraitRef::cell(this.version.get().clone());
+        let version = TraitRef::cell(self.version.get().clone());
         Ok(version)
     }
 }
