@@ -36,6 +36,9 @@ struct CustomRoutes {
     rewrites: Vc<Rewrites>,
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct ModularizeImports(IndexMap<String, ModularizeImportPackageConfig>);
+
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -481,7 +484,8 @@ pub enum ReactCompilerOptionsOrBoolean {
 #[turbo_tasks::value(transparent)]
 pub struct OptionalReactCompilerOptions(Option<Vc<ReactCompilerOptions>>);
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[turbo_tasks::value(eq = "manual")]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
     pub allowed_revalidate_header_keys: Option<Vec<RcStr>>,
@@ -723,7 +727,8 @@ impl StyledComponentsTransformOptionsOrBoolean {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[turbo_tasks::value(eq = "manual")]
+#[derive(Clone, Debug, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct CompilerConfig {
     pub react_remove_properties: Option<ReactRemoveProperties>,
@@ -799,6 +804,11 @@ impl NextConfig {
                 .cloned()
                 .unwrap_or_default(),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn compiler(&self) -> Vc<CompilerConfig> {
+        self.compiler.clone().unwrap_or_default().cell()
     }
 
     #[turbo_tasks::function]
@@ -992,6 +1002,16 @@ impl NextConfig {
         };
 
         options.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn modularize_imports(&self) -> Vc<ModularizeImports> {
+        Vc::cell(self.modularize_imports.clone().unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental(&self) -> Vc<ExperimentalConfig> {
+        self.experimental.clone().cell()
     }
 
     #[turbo_tasks::function]

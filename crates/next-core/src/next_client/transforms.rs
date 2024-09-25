@@ -29,11 +29,11 @@ pub async fn get_next_client_transforms_rules(
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
-    let modularize_imports_config = &next_config.await?.modularize_imports;
+    let modularize_imports_config = &next_config.modularize_imports().await?;
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
-    if let Some(modularize_imports_config) = modularize_imports_config {
+    if !modularize_imports_config.is_empty() {
         rules.push(get_next_modularize_imports_rule(
-            modularize_imports_config,
+            &modularize_imports_config,
             enable_mdx_rs,
         ));
     }
