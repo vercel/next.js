@@ -364,10 +364,11 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             (FileType::CommonJs, false) => {
                 // mark as external
                 Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::External(
-                        request_str.into(),
-                        ExternalType::CommonJs,
-                    ))
+                    ResolveResult::primary(ResolveResultItem::External {
+                        name: request_str.into(),
+                        typ: ExternalType::CommonJs,
+                        source: None,
+                    })
                     .cell(),
                 ))
             }
@@ -401,14 +402,15 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 } else {
                     // mark as external
                     Ok(ResolveResultOption::some(
-                        ResolveResult::primary(ResolveResultItem::External(
-                            request_str.into(),
-                            if resolves_equal {
+                        ResolveResult::primary(ResolveResultItem::External {
+                            name: request_str.into(),
+                            typ: if resolves_equal {
                                 ExternalType::CommonJs
                             } else {
                                 ExternalType::EcmaScriptModule
                             },
-                        ))
+                            source: None,
+                        })
                         .cell(),
                     ))
                 }
@@ -416,10 +418,11 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             (FileType::EcmaScriptModule, true) => {
                 // mark as external
                 Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::External(
-                        request_str.into(),
-                        ExternalType::EcmaScriptModule,
-                    ))
+                    ResolveResult::primary(ResolveResultItem::External {
+                        name: request_str.into(),
+                        typ: ExternalType::EcmaScriptModule,
+                        source: None, // TODO(arlyon): source
+                    })
                     .cell(),
                 ))
             }

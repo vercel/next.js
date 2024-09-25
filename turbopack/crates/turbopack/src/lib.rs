@@ -910,7 +910,12 @@ pub async fn replace_externals(
     import_externals: bool,
 ) -> Result<ModuleResolveResult> {
     for item in result.primary.values_mut() {
-        let ModuleResolveResultItem::External(request, ty) = item else {
+        let ModuleResolveResultItem::External {
+            name: request,
+            typ: ty,
+            source: None,
+        } = item
+        else {
             continue;
         };
 

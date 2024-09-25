@@ -324,12 +324,20 @@ async fn import_mapping_to_result(
     Ok(match &*mapping.await? {
         ReplacedImportMapping::Direct(result) => ImportMapResult::Result(*result),
         ReplacedImportMapping::External(name, ty) => ImportMapResult::Result(
-            ResolveResult::primary(if let Some(name) = name {
-                ResolveResultItem::External(name.clone(), *ty)
-            } else if let Some(request) = request.await?.request() {
-                ResolveResultItem::External(request, *ty)
-            } else {
-                bail!("Cannot resolve external reference without request")
+            ResolveResult::primary({
+                let name = if let Some(name) = name {
+                    name.clone()
+                } else if let Some(request) = request.await?.request() {
+                    request
+                } else {
+                    bail!("Cannot resolve external reference without request")
+                };
+
+                ResolveResultItem::External {
+                    name,
+                    typ: *ty,
+                    source: None, // TODO(arlyon): source
+                }
             })
             .cell(),
         ),

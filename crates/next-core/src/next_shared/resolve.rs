@@ -241,10 +241,11 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         // Replace '/esm/' with '/' to match the CJS version of the file.
         let modified_path = path[starting_index..].replace("/esm/", "/");
         Ok(Vc::cell(Some(
-            ResolveResult::primary(ResolveResultItem::External(
-                modified_path.into(),
-                ExternalType::CommonJs,
-            ))
+            ResolveResult::primary(ResolveResultItem::External {
+                name: modified_path.into(),
+                typ: ExternalType::CommonJs,
+                source: None, // TODO(arlyon): source
+            })
             .into(),
         )))
     }

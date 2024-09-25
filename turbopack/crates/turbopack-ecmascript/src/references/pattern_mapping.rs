@@ -311,7 +311,11 @@ async fn to_single_pattern_mapping(
 ) -> Result<SinglePatternMapping> {
     let module = match resolve_item {
         ModuleResolveResultItem::Module(module) => *module,
-        ModuleResolveResultItem::External(s, ty) => {
+        ModuleResolveResultItem::External {
+            name: s,
+            typ: ty,
+            source: _, // TODO(arlyon): handle source
+        } => {
             return Ok(SinglePatternMapping::External(s.clone(), *ty));
         }
         ModuleResolveResultItem::Ignore => return Ok(SinglePatternMapping::Ignored),

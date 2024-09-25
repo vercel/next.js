@@ -74,7 +74,11 @@ impl ReferencedAsset {
         // TODO handle multiple keyed results
         for (_key, result) in resolve_result.await?.primary.iter() {
             match result {
-                ModuleResolveResultItem::External(request, ty) => {
+                ModuleResolveResultItem::External {
+                    name: request,
+                    typ: ty,
+                    source: _, // TODO(arlyon): handle source
+                } => {
                     return Ok(ReferencedAsset::External(request.clone(), *ty).cell());
                 }
                 &ModuleResolveResultItem::Module(module) => {
