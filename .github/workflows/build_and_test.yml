@@ -421,7 +421,6 @@ jobs:
           # Empty value uses default
           # TODO: Run with React 18.
           # Integration tests use the installed React version in next/package.json.include:
-          -
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimensions until we can figure out a way to test multiple React versions.
         react: ['']
