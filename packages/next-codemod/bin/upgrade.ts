@@ -1,9 +1,9 @@
-import prompts from 'prompts'
 import fs from 'fs'
-import { execSync } from 'child_process'
 import path from 'path'
-import { compareVersions } from 'compare-versions'
 import chalk from 'chalk'
+import prompts from 'prompts'
+import { execSync } from 'child_process'
+import { compareVersions } from 'compare-versions'
 import { availableCodemods } from '../lib/codemods'
 import { getPkgManager, installPackage } from '../lib/handle-package'
 

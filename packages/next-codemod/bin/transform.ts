@@ -18,20 +18,19 @@ export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
 export const transformerDirectory = join(__dirname, '../', 'transforms')
 
 export async function runTransform(
-  transform: string,
-  path: string,
+  codemod: string,
+  source: string,
   options: any
 ) {
-  let transformer = transform
-  let directory = path
+  const { dry, print, runInBand, jscodeshift, force } = options
 
-  if (!options.dry) {
-    checkGitStatus(options.force)
+  if (!dry) {
+    checkGitStatus(force)
   }
 
   if (
-    transform &&
-    !TRANSFORMER_INQUIRER_CHOICES.find((x) => x.value === transform)
+    codemod &&
+    !TRANSFORMER_INQUIRER_CHOICES.find((x) => x.value === codemod)
   ) {
     console.error('Invalid transform choice, pick one of:')
     console.error(
@@ -40,44 +39,42 @@ export async function runTransform(
     process.exit(1)
   }
 
-  if (!path) {
+  if (!source) {
     const res = await prompts({
       type: 'text',
-      name: 'path',
+      name: 'source',
       message: 'On which files or directory should the codemods be applied?',
       default: '.',
     })
 
-    directory = res.path
+    source = res.source
   }
-  if (!transform) {
+  if (!codemod) {
     const res = await prompts({
       type: 'select',
-      name: 'transformer',
+      name: 'codemod',
       message: 'Which transform would you like to apply?',
       choices: TRANSFORMER_INQUIRER_CHOICES,
     })
 
-    transformer = res.transformer
+    codemod = res.codemod
   }
 
-  const filesExpanded = expandFilePathsIfNeeded([directory])
+  const filesExpanded = expandFilePathsIfNeeded([source])
 
   if (!filesExpanded.length) {
-    console.log(`No files found matching "${directory}"`)
+    console.log(`No files found matching "${source}"`)
     return null
   }
 
-  const transformerPath = join(transformerDirectory, `${transformer}.js`)
+  const transformerPath = join(transformerDirectory, `${codemod}.js`)
 
-  if (transformer === 'cra-to-next') {
+  if (codemod === 'cra-to-next') {
     // cra-to-next transform doesn't use jscodeshift directly
     return require(transformerPath).default(filesExpanded, options)
   }
 
   let args = []
-
-  const { dry, print, runInBand, jscodeshift } = options
 
   if (dry) {
     args.push('--dry')
@@ -115,7 +112,7 @@ export async function runTransform(
     throw new Error(`jscodeshift exited with code ${result.exitCode}`)
   }
 
-  if (!dry && transformer === 'built-in-next-font') {
+  if (!dry && codemod === 'built-in-next-font') {
     console.log('Uninstalling `@next/font`')
     try {
       uninstallPackage('@next/font')
@@ -126,7 +123,7 @@ export async function runTransform(
     }
   }
 
-  if (!dry && transformer === 'next-request-geo-ip') {
+  if (!dry && codemod === 'next-request-geo-ip') {
     console.log('Installing `@vercel/functions`...')
     installPackage('@vercel/functions')
   }
