@@ -13,7 +13,9 @@ use std::{
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
 
-use super::{storage::StorageWriteGuard, TaskDataCategory, TurboTasksBackend};
+use super::{
+    storage::StorageWriteGuard, TaskDataCategory, TurboTasksBackend, TurboTasksBackendInner,
+};
 use crate::{
     backend::{OperationGuard, TransientTask},
     data::{
@@ -33,7 +35,7 @@ pub trait Operation:
 }
 
 pub struct ExecuteContext<'a> {
-    backend: &'a TurboTasksBackend,
+    backend: &'a TurboTasksBackendInner,
     turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
     #[allow(dead_code)]
     operation_guard: Option<OperationGuard<'a>>,
@@ -41,8 +43,8 @@ pub struct ExecuteContext<'a> {
 }
 
 impl<'a> ExecuteContext<'a> {
-    pub fn new(
-        backend: &'a TurboTasksBackend,
+    pub(super) fn new(
+        backend: &'a TurboTasksBackendInner,
         turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> Self {
         Self {
@@ -190,7 +192,7 @@ impl<'a> ExecuteContext<'a> {
 pub struct TaskGuard<'a> {
     task_id: TaskId,
     task: StorageWriteGuard<'a, TaskId, CachedDataItem>,
-    backend: &'a TurboTasksBackend,
+    backend: &'a TurboTasksBackendInner,
 }
 
 impl<'a> Debug for TaskGuard<'a> {

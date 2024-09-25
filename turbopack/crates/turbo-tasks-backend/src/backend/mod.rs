@@ -89,7 +89,9 @@ pub enum TransientTask {
     Once(TransientOnceTask),
 }
 
-pub struct TurboTasksBackend {
+pub struct TurboTasksBackend(Arc<TurboTasksBackendInner>);
+
+struct TurboTasksBackendInner {
     start_time: Instant,
 
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
@@ -129,6 +131,12 @@ pub struct TurboTasksBackend {
 
 impl TurboTasksBackend {
     pub fn new(backing_storage: Arc<dyn BackingStorage + Sync + Send>) -> Self {
+        Self(Arc::new(TurboTasksBackendInner::new(backing_storage)))
+    }
+}
+
+impl TurboTasksBackendInner {
+    pub fn new(backing_storage: Arc<dyn BackingStorage + Sync + Send>) -> Self {
         Self {
             start_time: Instant::now(),
             persisted_task_id_factory: IdFactoryWithReuse::new(
@@ -158,7 +166,7 @@ impl TurboTasksBackend {
 
     fn execute_context<'a>(
         &'a self,
-        turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> ExecuteContext<'a> {
         ExecuteContext::new(self, turbo_tasks)
     }
@@ -224,7 +232,7 @@ impl TurboTasksBackend {
 }
 
 pub(crate) struct OperationGuard<'a> {
-    backend: &'a TurboTasksBackend,
+    backend: &'a TurboTasksBackendInner,
 }
 
 impl<'a> Drop for OperationGuard<'a> {
@@ -240,12 +248,12 @@ impl<'a> Drop for OperationGuard<'a> {
 }
 
 // Operations
-impl TurboTasksBackend {
+impl TurboTasksBackendInner {
     fn connect_child(
         &self,
         parent_task: TaskId,
         child_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) {
         operation::ConnectChildOperation::run(
             parent_task,
@@ -259,7 +267,7 @@ impl TurboTasksBackend {
         task_id: TaskId,
         reader: Option<TaskId>,
         consistency: ReadConsistency,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> Result<Result<RawVc, EventListener>> {
         let ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -383,7 +391,7 @@ impl TurboTasksBackend {
         task_id: TaskId,
         reader: Option<TaskId>,
         cell: CellId,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         let ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
@@ -557,10 +565,8 @@ impl TurboTasksBackend {
 
         Some((snapshot_time, new_items))
     }
-}
 
-impl Backend for TurboTasksBackend {
-    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>) {
         // Continue all uncompleted operations
         // They can't be interrupted by a snapshot since the snapshotting job has not been scheduled
         // yet.
@@ -574,7 +580,7 @@ impl Backend for TurboTasksBackend {
         turbo_tasks.schedule_backend_background_job(BackendJobId::from(1));
     }
 
-    fn stopping(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+    fn stopping(&self) {
         self.stopping.store(true, Ordering::Release);
         self.stopping_event.notify(usize::MAX);
     }
@@ -583,7 +589,7 @@ impl Backend for TurboTasksBackend {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> TaskId {
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
             self.connect_child(parent_task, task_id, turbo_tasks);
@@ -622,7 +628,7 @@ impl Backend for TurboTasksBackend {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> TaskId {
         if !parent_task.is_transient() {
             let parent_task_type = self.lookup_task_type(parent_task);
@@ -653,11 +659,19 @@ impl Backend for TurboTasksBackend {
         task_id
     }
 
-    fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+    fn invalidate_task(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+    ) {
         operation::InvalidateOperation::run(smallvec![task_id], self.execute_context(turbo_tasks));
     }
 
-    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+    fn invalidate_tasks(
+        &self,
+        tasks: &[TaskId],
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+    ) {
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
             self.execute_context(turbo_tasks),
@@ -667,7 +681,7 @@ impl Backend for TurboTasksBackend {
     fn invalidate_tasks_set(
         &self,
         tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) {
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
@@ -678,7 +692,7 @@ impl Backend for TurboTasksBackend {
     fn invalidate_serialization(
         &self,
         task_id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) {
         if task_id.is_transient() {
             return;
@@ -701,13 +715,10 @@ impl Backend for TurboTasksBackend {
             })
     }
 
-    type TaskState = ();
-    fn new_task_state(&self, _task: TaskId) -> Self::TaskState {}
-
     fn try_start_task_execution(
         &self,
         task_id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> Option<TaskExecutionSpec<'_>> {
         enum TaskType {
             Cached(Arc<CachedTaskType>),
@@ -901,7 +912,7 @@ impl Backend for TurboTasksBackend {
         &self,
         task_id: TaskId,
         result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) {
         operation::UpdateOutputOperation::run(task_id, result, self.execute_context(turbo_tasks));
     }
@@ -913,7 +924,7 @@ impl Backend for TurboTasksBackend {
         _memory_usage: usize,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> bool {
         let ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -1077,9 +1088,9 @@ impl Backend for TurboTasksBackend {
     }
 
     fn run_backend_job<'a>(
-        &'a self,
+        self: &'a Arc<Self>,
         id: BackendJobId,
-        turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
             if *id == 1 || *id == 2 {
@@ -1103,7 +1114,9 @@ impl Backend for TurboTasksBackend {
                         }
                     }
 
-                    if let Some((snapshot_start, new_data)) = self.snapshot() {
+                    let this = self.clone();
+                    let snapshot = turbo_tasks::spawn_blocking(move || this.snapshot()).await;
+                    if let Some((snapshot_start, new_data)) = snapshot {
                         last_snapshot = snapshot_start;
                         if new_data {
                             continue;
@@ -1120,6 +1133,188 @@ impl Backend for TurboTasksBackend {
         })
     }
 
+    fn try_read_own_task_cell_untracked(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+    ) -> Result<TypedCellContent> {
+        let ctx = self.execute_context(turbo_tasks);
+        let task = ctx.task(task_id, TaskDataCategory::Data);
+        if let Some(content) = get!(task, CellData { cell }) {
+            Ok(CellContent(Some(content.1.clone())).into_typed(cell.type_id))
+        } else {
+            Ok(CellContent(None).into_typed(cell.type_id))
+        }
+    }
+
+    fn update_task_cell(
+        &self,
+        task_id: TaskId,
+        cell: CellId,
+        content: CellContent,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+    ) {
+        operation::UpdateCellOperation::run(
+            task_id,
+            cell,
+            content,
+            self.execute_context(turbo_tasks),
+        );
+    }
+
+    fn connect_task(
+        &self,
+        task: TaskId,
+        parent_task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+    ) {
+        ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
+    }
+
+    fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {
+        let task_id = self.transient_task_id_factory.get();
+        let root_type = match task_type {
+            TransientTaskType::Root(_) => ActiveType::RootTask,
+            TransientTaskType::Once(_) => ActiveType::OnceTask,
+        };
+        self.transient_tasks.insert(
+            task_id,
+            Arc::new(match task_type {
+                TransientTaskType::Root(f) => TransientTask::Root(f),
+                TransientTaskType::Once(f) => TransientTask::Once(Mutex::new(Some(f))),
+            }),
+        );
+        {
+            let mut task = self.storage.access_mut(task_id);
+            let _ = task.add(CachedDataItem::AggregationNumber {
+                value: AggregationNumber {
+                    base: u32::MAX,
+                    distance: 0,
+                    effective: u32::MAX,
+                },
+            });
+            let _ = task.add(CachedDataItem::AggregateRoot {
+                value: RootState::new(root_type),
+            });
+            let _ = task.add(CachedDataItem::new_scheduled(move || match root_type {
+                ActiveType::RootTask => "Root Task".to_string(),
+                ActiveType::OnceTask => "Once Task".to_string(),
+                _ => unreachable!(),
+            }));
+        }
+        task_id
+    }
+}
+
+impl Backend for TurboTasksBackend {
+    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.startup(turbo_tasks);
+    }
+
+    fn stopping(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.stopping();
+    }
+
+    fn get_or_create_persistent_task(
+        &self,
+        task_type: CachedTaskType,
+        parent_task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> TaskId {
+        self.0
+            .get_or_create_persistent_task(task_type, parent_task, turbo_tasks)
+    }
+
+    fn get_or_create_transient_task(
+        &self,
+        task_type: CachedTaskType,
+        parent_task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> TaskId {
+        self.0
+            .get_or_create_transient_task(task_type, parent_task, turbo_tasks)
+    }
+
+    fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.invalidate_task(task_id, turbo_tasks);
+    }
+
+    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.invalidate_tasks(tasks, turbo_tasks);
+    }
+
+    fn invalidate_tasks_set(
+        &self,
+        tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        self.0.invalidate_tasks_set(tasks, turbo_tasks);
+    }
+
+    fn invalidate_serialization(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        self.0.invalidate_serialization(task_id, turbo_tasks);
+    }
+
+    fn get_task_description(&self, task: TaskId) -> std::string::String {
+        self.0.get_task_description(task)
+    }
+
+    fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId> {
+        self.0.try_get_function_id(task_id)
+    }
+
+    type TaskState = ();
+    fn new_task_state(&self, _task: TaskId) -> Self::TaskState {}
+
+    fn try_start_task_execution(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> Option<TaskExecutionSpec<'_>> {
+        self.0.try_start_task_execution(task_id, turbo_tasks)
+    }
+
+    fn task_execution_result(
+        &self,
+        task_id: TaskId,
+        result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        self.0.task_execution_result(task_id, result, turbo_tasks);
+    }
+
+    fn task_execution_completed(
+        &self,
+        task_id: TaskId,
+        _duration: Duration,
+        _memory_usage: usize,
+        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        stateful: bool,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> bool {
+        self.0.task_execution_completed(
+            task_id,
+            _duration,
+            _memory_usage,
+            cell_counters,
+            stateful,
+            turbo_tasks,
+        )
+    }
+
+    fn run_backend_job<'a>(
+        &'a self,
+        id: BackendJobId,
+        turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
+    ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+        self.0.run_backend_job(id, turbo_tasks)
+    }
+
     fn try_read_task_output(
         &self,
         task_id: TaskId,
@@ -1127,7 +1322,8 @@ impl Backend for TurboTasksBackend {
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
-        self.try_read_task_output(task_id, Some(reader), consistency, turbo_tasks)
+        self.0
+            .try_read_task_output(task_id, Some(reader), consistency, turbo_tasks)
     }
 
     fn try_read_task_output_untracked(
@@ -1136,7 +1332,8 @@ impl Backend for TurboTasksBackend {
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
-        self.try_read_task_output(task_id, None, consistency, turbo_tasks)
+        self.0
+            .try_read_task_output(task_id, None, consistency, turbo_tasks)
     }
 
     fn try_read_task_cell(
@@ -1146,7 +1343,8 @@ impl Backend for TurboTasksBackend {
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.try_read_task_cell(task_id, Some(reader), cell, turbo_tasks)
+        self.0
+            .try_read_task_cell(task_id, Some(reader), cell, turbo_tasks)
     }
 
     fn try_read_task_cell_untracked(
@@ -1155,7 +1353,7 @@ impl Backend for TurboTasksBackend {
         cell: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.try_read_task_cell(task_id, None, cell, turbo_tasks)
+        self.0.try_read_task_cell(task_id, None, cell, turbo_tasks)
     }
 
     fn try_read_own_task_cell_untracked(
@@ -1164,13 +1362,8 @@ impl Backend for TurboTasksBackend {
         cell: CellId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
-        let ctx = self.execute_context(turbo_tasks);
-        let task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(content) = get!(task, CellData { cell }) {
-            Ok(CellContent(Some(content.1.clone())).into_typed(cell.type_id))
-        } else {
-            Ok(CellContent(None).into_typed(cell.type_id))
-        }
+        self.0
+            .try_read_own_task_cell_untracked(task_id, cell, turbo_tasks)
     }
 
     fn read_task_collectibles(
@@ -1211,12 +1404,7 @@ impl Backend for TurboTasksBackend {
         content: CellContent,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        operation::UpdateCellOperation::run(
-            task_id,
-            cell,
-            content,
-            self.execute_context(turbo_tasks),
-        );
+        self.0.update_task_cell(task_id, cell, content, turbo_tasks);
     }
 
     fn connect_task(
@@ -1225,7 +1413,7 @@ impl Backend for TurboTasksBackend {
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
+        self.0.connect_task(task, parent_task, turbo_tasks);
     }
 
     fn create_transient_task(
@@ -1233,37 +1421,7 @@ impl Backend for TurboTasksBackend {
         task_type: TransientTaskType,
         _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
-        let task_id = self.transient_task_id_factory.get();
-        let root_type = match task_type {
-            TransientTaskType::Root(_) => ActiveType::RootTask,
-            TransientTaskType::Once(_) => ActiveType::OnceTask,
-        };
-        self.transient_tasks.insert(
-            task_id,
-            Arc::new(match task_type {
-                TransientTaskType::Root(f) => TransientTask::Root(f),
-                TransientTaskType::Once(f) => TransientTask::Once(Mutex::new(Some(f))),
-            }),
-        );
-        {
-            let mut task = self.storage.access_mut(task_id);
-            let _ = task.add(CachedDataItem::AggregationNumber {
-                value: AggregationNumber {
-                    base: u32::MAX,
-                    distance: 0,
-                    effective: u32::MAX,
-                },
-            });
-            let _ = task.add(CachedDataItem::AggregateRoot {
-                value: RootState::new(root_type),
-            });
-            let _ = task.add(CachedDataItem::new_scheduled(move || match root_type {
-                ActiveType::RootTask => "Root Task".to_string(),
-                ActiveType::OnceTask => "Once Task".to_string(),
-                _ => unreachable!(),
-            }));
-        }
-        task_id
+        self.0.create_transient_task(task_type)
     }
     fn dispose_root_task(&self, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
         todo!()
