@@ -298,10 +298,16 @@ impl Visit for WarnForEdgeRuntime {
     fn visit_bin_expr(&mut self, node: &BinExpr) {
         match node.op {
             op!("&&") | op!("||") | op!("??") => {
-                self.with_new_scope(move |this| {
-                    this.add_guards(&node.left);
-                    node.right.visit_with(this);
-                });
+                if self.should_add_guards {
+                    // This is a condition and not a shorthand for if-then
+                    self.add_guards(&node.left);
+                    node.right.visit_with(self);
+                } else {
+                    self.with_new_scope(move |this| {
+                        this.add_guards(&node.left);
+                        node.right.visit_with(this);
+                    });
+                }
             }
             op!("==") | op!("===") => {
                 self.add_guard_for_test(&node.left);
