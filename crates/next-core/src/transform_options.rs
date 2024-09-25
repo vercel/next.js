@@ -136,12 +136,7 @@ pub async fn get_jsx_transform_options(
         false
     };
 
-    let is_emotion_enabled = next_config
-        .await?
-        .compiler
-        .as_ref()
-        .map(|c| c.emotion.is_some())
-        .unwrap_or_default();
+    let is_emotion_enabled = next_config.compiler().await?.emotion.is_some();
 
     // [NOTE]: ref: WEB-901
     // next.js does not allow to overriding react runtime config via tsconfig /
