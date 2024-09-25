@@ -199,6 +199,7 @@ impl From<NapiWatchOptions> for WatchOptions {
             enable: val.enable,
             poll_interval: val
                 .poll_interval_ms
+                .filter(|interval| !interval.is_nan() && interval.is_finite() && *interval > 0.0)
                 .map(|interval| Duration::from_secs_f64(interval / 1000.0)),
         }
     }
