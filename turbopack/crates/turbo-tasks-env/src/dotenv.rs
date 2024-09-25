@@ -25,8 +25,7 @@ impl DotenvProcessEnv {
 
     #[turbo_tasks::function]
     pub async fn read_prior(&self) -> Result<Vc<EnvMap>> {
-        let this = self;
-        match this.prior {
+        match self.prior {
             None => Ok(EnvMap::empty()),
             Some(p) => Ok(p.read_all()),
         }

@@ -35,13 +35,12 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self;
-        let module = this.module.await?;
+        let module = self.module.await?;
 
         let split_data = split_module(module.full_module);
         let parsed = part_of_module(split_data, module.part);
 
-        let analyze = this.module.analyze().await?;
+        let analyze = self.module.analyze().await?;
         let async_module_options = analyze.async_module.module_options(async_module_info);
 
         let module_type_result = *module.full_module.determine_module_type().await?;
@@ -50,7 +49,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             parsed,
             module.full_module.ident(),
             module_type_result.module_type,
-            this.chunking_context,
+            self.chunking_context,
             analyze.references,
             analyze.code_generation,
             analyze.async_module,
@@ -61,7 +60,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
         Ok(EcmascriptChunkItemContent::new(
             content,
-            this.chunking_context,
+            self.chunking_context,
             module.full_module.await?.options,
             async_module_options,
         ))

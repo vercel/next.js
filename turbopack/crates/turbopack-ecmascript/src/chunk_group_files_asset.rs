@@ -125,8 +125,7 @@ struct ChunkGroupFilesChunkItem {
 impl ChunkGroupFilesChunkItem {
     #[turbo_tasks::function]
     async fn chunks(&self) -> Result<Vc<OutputAssets>> {
-        let this = self;
-        let inner = this.inner.await?;
+        let inner = self.inner.await?;
         let chunks = if let Some(ecma) =
             Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(inner.module).await?
         {

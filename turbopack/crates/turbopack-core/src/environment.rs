@@ -67,8 +67,7 @@ pub enum ExecutionEnvironment {
 impl Environment {
     #[turbo_tasks::function]
     pub async fn compile_target(&self) -> Result<Vc<CompileTarget>> {
-        let this = self;
-        Ok(match this.execution {
+        Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
             ExecutionEnvironment::Browser(_) => CompileTarget::unknown(),
@@ -79,8 +78,7 @@ impl Environment {
 
     #[turbo_tasks::function]
     pub async fn runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
-        let this = self;
-        Ok(match this.execution {
+        Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.runtime_versions(),
             ExecutionEnvironment::Browser(browser_env) => {
@@ -96,8 +94,7 @@ impl Environment {
 
     #[turbo_tasks::function]
     pub async fn node_externals(&self) -> Result<Vc<bool>> {
-        let this = self;
-        Ok(match this.execution {
+        Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
@@ -109,8 +106,7 @@ impl Environment {
 
     #[turbo_tasks::function]
     pub async fn supports_esm_externals(&self) -> Result<Vc<bool>> {
-        let this = self;
-        Ok(match this.execution {
+        Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
@@ -122,8 +118,7 @@ impl Environment {
 
     #[turbo_tasks::function]
     pub async fn supports_commonjs_externals(&self) -> Result<Vc<bool>> {
-        let this = self;
-        Ok(match this.execution {
+        Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
@@ -135,8 +130,7 @@ impl Environment {
 
     #[turbo_tasks::function]
     pub async fn supports_wasm(&self) -> Result<Vc<bool>> {
-        let this = self;
-        Ok(match this.execution {
+        Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
