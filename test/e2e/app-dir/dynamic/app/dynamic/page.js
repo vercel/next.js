@@ -3,7 +3,7 @@ import { NextDynamicClientComponent } from './dynamic-imports/dynamic-client'
 import {
   NextDynamicServerComponent,
   NextDynamicServerImportClientComponent,
-  NextDynamicNoSSRServerComponent,
+  // NextDynamicNoSSRServerComponent,
 } from './dynamic-imports/dynamic-server'
 
 export default function page() {
@@ -13,7 +13,7 @@ export default function page() {
       <NextDynamicServerComponent />
       <NextDynamicClientComponent />
       <NextDynamicServerImportClientComponent />
-      <NextDynamicNoSSRServerComponent />
+      {/* <NextDynamicNoSSRServerComponent /> */}
     </div>
   )
 }
