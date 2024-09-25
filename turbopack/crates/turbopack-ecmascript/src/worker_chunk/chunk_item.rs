@@ -36,8 +36,7 @@ pub fn worker_modifier() -> Vc<RcStr> {
 impl WorkerLoaderChunkItem {
     #[turbo_tasks::function]
     async fn chunks(&self) -> Result<Vc<OutputAssets>> {
-        let this = self;
-        let module = this.module.await?;
+        let module = self.module.await?;
 
         let Some(evaluatable) =
             Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module.inner).await?
@@ -48,9 +47,9 @@ impl WorkerLoaderChunkItem {
             );
         };
 
-        Ok(this.chunking_context.evaluated_chunk_group_assets(
+        Ok(self.chunking_context.evaluated_chunk_group_assets(
             AssetIdent::from_path(
-                this.chunking_context
+                self.chunking_context
                     .chunk_path(module.inner.ident(), ".js".into()),
             )
             .with_modifier(worker_modifier()),

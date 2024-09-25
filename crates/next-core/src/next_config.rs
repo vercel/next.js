@@ -847,8 +847,7 @@ impl NextConfig {
         &self,
         active_conditions: Vec<RcStr>,
     ) -> Result<Vc<OptionWebpackRules>> {
-        let this = self;
-        let Some(turbo_rules) = this
+        let Some(turbo_rules) = self
             .experimental
             .turbo
             .as_ref()
@@ -936,8 +935,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn resolve_alias_options(&self) -> Result<Vc<ResolveAliasMap>> {
-        let this = self;
-        let Some(resolve_alias) = this
+        let Some(resolve_alias) = self
             .experimental
             .turbo
             .as_ref()
@@ -951,8 +949,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn resolve_extension(&self) -> Result<Vc<ResolveExtensions>> {
-        let this = self;
-        let Some(resolve_extensions) = this
+        let Some(resolve_extensions) = self
             .experimental
             .turbo
             .as_ref()
@@ -1148,8 +1145,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn module_id_strategy_config(&self) -> Result<Vc<OptionModuleIdStrategy>> {
-        let this = self;
-        let Some(module_id_strategy) = this
+        let Some(module_id_strategy) = self
             .experimental
             .turbo
             .as_ref()

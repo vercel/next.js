@@ -30,10 +30,9 @@ pub(super) struct ManifestChunkItem {
 impl ManifestChunkItem {
     #[turbo_tasks::function]
     async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
-        let this = self;
         Ok(ChunkData::from_assets(
-            this.chunking_context.output_root(),
-            this.manifest.chunks(),
+            self.chunking_context.output_root(),
+            self.manifest.chunks(),
         ))
     }
 }

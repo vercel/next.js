@@ -233,11 +233,9 @@ fn chunk_item_key() -> Vc<RcStr> {
 impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let this = self;
-
         let mut assets = Vec::new();
 
-        let CssChunkContent { chunk_items, .. } = &*this.content.await?;
+        let CssChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
             let path = chunk_item.asset_ident().path().resolve().await?;
             Some((path, path.await?))
@@ -283,7 +281,7 @@ impl OutputAsset for CssChunk {
             layer: None,
         };
 
-        Ok(AssetIdent::from_path(this.chunking_context.chunk_path(
+        Ok(AssetIdent::from_path(self.chunking_context.chunk_path(
             AssetIdent::new(Value::new(ident)),
             ".css".into(),
         )))
