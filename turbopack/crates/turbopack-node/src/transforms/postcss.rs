@@ -425,12 +425,11 @@ impl GenerateSourceMap for PostCssTransformedAsset {
 impl PostCssTransformedAsset {
     #[turbo_tasks::function]
     async fn process(&self) -> Result<Vc<ProcessPostCssResult>> {
-        let this = self;
         let ExecutionContext {
             project_path,
             chunking_context,
             env,
-        } = *this.execution_context.await?;
+        } = *self.execution_context.await?;
 
         // For this postcss transform, there is no gaurantee that looking up for the
         // source path will arrives specific project config for the postcss.
@@ -444,16 +443,16 @@ impl PostCssTransformedAsset {
         //
         // We look for the config in the project path first, then the source path
         let Some(config_path) =
-            find_config_in_location(project_path, this.config_location, this.source).await?
+            find_config_in_location(project_path, self.config_location, self.source).await?
         else {
             return Ok(ProcessPostCssResult {
-                content: this.source.content(),
+                content: self.source.content(),
                 assets: Vec::new(),
             }
             .cell());
         };
 
-        let source_content = this.source.content();
+        let source_content = self.source.content();
         let AssetContent::File(file) = *source_content.await? else {
             bail!("PostCSS transform only support transforming files");
         };
@@ -465,14 +464,14 @@ impl PostCssTransformedAsset {
             .cell());
         };
         let content = content.content().to_str()?;
-        let evaluate_context = this.evaluate_context;
+        let evaluate_context = self.evaluate_context;
 
         // This invalidates the transform when the config changes.
         let config_changed = config_changed(evaluate_context, config_path);
 
         let postcss_executor =
             postcss_executor(evaluate_context, project_path, config_path).module();
-        let css_fs_path = this.source.ident().path();
+        let css_fs_path = self.source.ident().path();
 
         // We need to get a path relative to the project because the postcss loader
         // runs with the project as the current working directory.
@@ -490,7 +489,7 @@ impl PostCssTransformedAsset {
             module_asset: postcss_executor,
             cwd: project_path,
             env,
-            context_ident_for_issue: this.source.ident(),
+            context_ident_for_issue: self.source.ident(),
             asset_context: evaluate_context,
             chunking_context,
             resolve_options_context: None,

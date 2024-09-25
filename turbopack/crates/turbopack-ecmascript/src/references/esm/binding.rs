@@ -154,9 +154,8 @@ impl CodeGenerateable for EsmBindings {
         &self,
         _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let this = self;
         let mut visitors = Vec::new();
-        let bindings = this.bindings.clone();
+        let bindings = self.bindings.clone();
 
         for item in bindings.into_iter() {
             item.to_visitors(&mut visitors).await?;

@@ -641,8 +641,7 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<Box<dyn Source>>> {
-        let this = self;
-        Ok(Vc::upcast(FileSource::new(this.page.project_path())))
+        Ok(Vc::upcast(FileSource::new(self.page.project_path())))
     }
 
     #[turbo_tasks::function]
@@ -949,8 +948,7 @@ impl PageEndpoint {
         &self,
         entry_chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self;
-        let node_root = this.pages_project.project().node_root();
+        let node_root = self.pages_project.project().node_root();
         let chunk_path = entry_chunk.ident().path().await?;
 
         let asset_path = node_root
@@ -960,11 +958,11 @@ impl PageEndpoint {
             .context("ssr chunk entry path must be inside the node root")?;
 
         let pages_manifest = PagesManifest {
-            pages: [(this.pathname.await?.clone_value(), asset_path.into())]
+            pages: [(self.pathname.await?.clone_value(), asset_path.into())]
                 .into_iter()
                 .collect(),
         };
-        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root
                 .join(format!("server/pages{manifest_path_prefix}/pages-manifest.json",).into()),
@@ -994,13 +992,12 @@ impl PageEndpoint {
         &self,
         client_chunks: Vc<OutputAssets>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self;
-        let node_root = this.pages_project.project().node_root();
-        let client_relative_path = this.pages_project.project().client_relative_path();
+        let node_root = self.pages_project.project().node_root();
+        let client_relative_path = self.pages_project.project().client_relative_path();
         let client_relative_path_ref = client_relative_path.await?;
         let build_manifest = BuildManifest {
             pages: [(
-                this.pathname.await?.clone_value(),
+                self.pathname.await?.clone_value(),
                 client_chunks
                     .await?
                     .iter()
@@ -1022,7 +1019,7 @@ impl PageEndpoint {
             .collect(),
             ..Default::default()
         };
-        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root
                 .join(format!("server/pages{manifest_path_prefix}/build-manifest.json",).into()),
