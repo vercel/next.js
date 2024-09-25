@@ -535,6 +535,11 @@ declare module 'next/dist/compiled/zod' {
   export = z
 }
 
+declare module 'next/dist/compiled/zod-validation-error' {
+  import * as zve from 'zod-validation-error'
+  export = zve
+}
+
 declare module 'mini-css-extract-plugin'
 declare module 'next/dist/compiled/loader-utils3'
 

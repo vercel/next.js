@@ -1,6 +1,6 @@
 import type { NextConfig } from '../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
-import type { AppSegmentConfig } from '../../../build/app-segments/app-segment-config'
+import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
 import type { NextRequest } from '../../web/spec-extension/request'
 import type { PrerenderManifest } from '../../../build'
 import type { NextURL } from '../../web/next-url'
@@ -71,7 +71,7 @@ import type { RenderOptsPartial } from '../../app-render/types'
 import { CacheSignal } from '../../app-render/cache-signal'
 import { scheduleImmediate } from '../../../lib/scheduler'
 import { createServerParamsForRoute } from '../../request/params'
-import type { AppSegment } from '../../../build/app-segments/collect-app-segments'
+import type { AppSegment } from '../../../build/segment-config/app/app-segments'
 import {
   getRedirectStatusCodeFromError,
   getURLFromRedirectError,
