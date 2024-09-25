@@ -18,7 +18,7 @@
     {"offset": {"line": 97, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
     {"offset": {"line": 103, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 112, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 118, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 118, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-side-effect/input/index.js"],"sourcesContent":["import './lib'\n"],"names":[],"mappings":";AAAA"}},
     {"offset": {"line": 122, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
     {"offset": {"line": 128, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 133, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},

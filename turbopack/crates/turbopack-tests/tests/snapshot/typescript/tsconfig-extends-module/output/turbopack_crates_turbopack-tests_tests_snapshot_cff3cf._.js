@@ -7,6 +7,8 @@ var { r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_
 {
 __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f$tsconfig$2d$mod$2f$prop$2e$ts__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/tsconfig-mod/prop.ts [test] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f$tsconfig$2d$mod$2f$prop$2e$ts__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/tsconfig-mod/prop.ts [test] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f$tsconfig$2d$mod$2f$prop$2e$ts__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/tsconfig-mod/prop.ts [test] (ecmascript)");
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
 ;
