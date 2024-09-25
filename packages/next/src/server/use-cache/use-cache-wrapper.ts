@@ -20,6 +20,8 @@ import {
   getServerModuleMap,
 } from '../app-render/encryption-utils'
 
+import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
+
 type CacheEntry = {
   value: ReadableStream
   stale: boolean
@@ -68,11 +70,6 @@ cacheHandlerMap.set('default', {
   shouldRevalidateStale: false,
 })
 
-const ssrManifest: any = {
-  moduleMap: {},
-  moduleLoading: null,
-} // TODO
-
 // TODO: Consider moving this another module that is guaranteed to be required in a safe scope.
 const runInCleanSnapshot = createSnapshot()
 
@@ -85,9 +82,13 @@ async function generateCacheEntry(
 ): Promise<ReadableStream> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, args] = await decodeReply(encodedArguments, getServerModuleMap(), {
-    temporaryReferences,
-  })
+  const [, args] = await decodeReply<any[]>(
+    encodedArguments,
+    getServerModuleMap(),
+    {
+      temporaryReferences,
+    }
+  )
 
   // Invoke the inner function to load a new result.
   const result = fn.apply(null, args)
@@ -245,6 +246,22 @@ export function cache(kind: string, id: string, fn: any) {
       // server terminal. Once while generating the cache entry and once when replaying it on
       // the server, which is required to pick it up for replaying again on the client.
       const replayConsoleLogs = true
+
+      // TODO: We can't use the client reference manifest to resolve the modules
+      // on the server side - instead they need to be recovered as the module
+      // references (proxies) again.
+      // For now, we'll just use an empty module map.
+      const ssrModuleMap: {
+        [moduleExport: string]: ManifestNode
+      } = {}
+
+      const ssrManifest = {
+        // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
+        // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
+        // which themselves will handle the preloading.
+        moduleLoading: null,
+        moduleMap: ssrModuleMap,
+      }
       return createFromReadableStream(stream, {
         ssrManifest,
         temporaryReferences,
