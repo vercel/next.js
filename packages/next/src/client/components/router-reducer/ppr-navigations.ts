@@ -269,7 +269,7 @@ export function updateCacheNodeOnNavigation(
   return {
     // Return a cloned copy of the router state with updated children.
     route: patchRouterStateWithNewChildren(
-      newRouterState,
+      oldRouterState,
       patchedRouterStateChildren
     ),
     // Only return the new cache node if there are pending tasks that need to be resolved
