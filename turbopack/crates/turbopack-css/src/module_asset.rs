@@ -152,10 +152,9 @@ struct ModuleCssClasses(IndexMap<String, Vec<ModuleCssClass>>);
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    async fn inner(self: Vc<Self>) -> Result<Vc<ProcessResult>> {
-        let this = self.await?;
-        Ok(this.asset_context.process(
-            this.source,
+    async fn inner(&self) -> Result<Vc<ProcessResult>> {
+        Ok(self.asset_context.process(
+            self.source,
             Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
         ))
     }

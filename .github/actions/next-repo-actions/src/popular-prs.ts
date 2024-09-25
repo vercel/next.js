@@ -39,7 +39,7 @@ async function run() {
 
       const blocks = BlockCollection([
         Section({
-          text: `*A list of the top ${count} PRs sorted by the most reactions (> 1) over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-info/src/popular-prs.mjs|action> will run every Monday at 10AM UTC (6AM EST)._`,
+          text: `*A list of the top ${count} PRs sorted by the most reactions (> 1) over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-actions/src/popular-prs.ts|action> will run every Monday at 10AM UTC (6AM EST)._`,
         }),
         Divider(),
         Section({

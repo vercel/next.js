@@ -122,6 +122,7 @@ async function addRevalidationHeader(
       staticGenerationStore.revalidatedTags || []
     ),
     ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+    ...(staticGenerationStore.pendingRevalidateWrites || []),
   ])
 
   // If a tag was revalidated, the client router needs to invalidate all the
@@ -533,6 +534,7 @@ export async function handleAction({
             staticGenerationStore.revalidatedTags || []
           ),
           ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+          ...(staticGenerationStore.pendingRevalidateWrites || []),
         ])
 
         const promise = Promise.reject(error)
@@ -924,6 +926,7 @@ export async function handleAction({
           staticGenerationStore.revalidatedTags || []
         ),
         ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+        ...(staticGenerationStore.pendingRevalidateWrites || []),
       ])
       const promise = Promise.reject(err)
       try {

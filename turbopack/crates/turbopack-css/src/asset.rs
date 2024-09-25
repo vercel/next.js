@@ -65,8 +65,8 @@ impl CssModuleAsset {
 
     /// Retrns the asset ident of the source without the "css" modifier
     #[turbo_tasks::function]
-    pub async fn source_ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        Ok(self.await?.source.ident())
+    pub async fn source_ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self.source.ident())
     }
 }
 

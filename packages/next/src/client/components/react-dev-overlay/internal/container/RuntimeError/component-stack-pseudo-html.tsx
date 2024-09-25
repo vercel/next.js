@@ -66,7 +66,7 @@ export function PseudoHtmlDiff({
   firstContent: string
   secondContent: string
   reactOutputComponentDiff: string | undefined
-  hydrationMismatchType: 'tag' | 'text'
+  hydrationMismatchType: 'tag' | 'text' | 'text-in-tag'
 } & React.HTMLAttributes<HTMLPreElement>) {
   const isHtmlTagsWarning = hydrationMismatchType === 'tag'
   const isReactHydrationDiff = !!reactOutputComponentDiff

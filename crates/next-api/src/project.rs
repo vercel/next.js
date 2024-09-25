@@ -301,9 +301,7 @@ impl ProjectContainer {
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function]
-    pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
-        let this = self.await?;
-
+    pub async fn project(&self) -> Result<Vc<Project>> {
         let env_map: Vc<EnvMap>;
         let next_config;
         let define_env;
@@ -317,7 +315,7 @@ impl ProjectContainer {
         let preview_props;
         let browserslist_query;
         {
-            let options = this.options_state.get();
+            let options = self.options_state.get();
             let options = options
                 .as_ref()
                 .context("ProjectContainer need to be initialized with initialize()")?;
@@ -361,7 +359,7 @@ impl ProjectContainer {
             } else {
                 NextMode::Build.cell()
             },
-            versioned_content_map: this.versioned_content_map,
+            versioned_content_map: self.versioned_content_map,
             build_id,
             encryption_key,
             preview_props,
@@ -385,11 +383,11 @@ impl ProjectContainer {
     /// disabled, this will always return [`OptionSourceMap::none`].
     #[turbo_tasks::function]
     pub async fn get_source_map(
-        self: Vc<Self>,
+        &self,
         file_path: Vc<FileSystemPath>,
         section: Option<RcStr>,
     ) -> Result<Vc<OptionSourceMap>> {
-        Ok(if let Some(map) = self.await?.versioned_content_map {
+        Ok(if let Some(map) = self.versioned_content_map {
             map.get_source_map(file_path, section)
         } else {
             OptionSourceMap::none()
@@ -517,14 +515,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn project_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
-        let this = self.await?;
+    async fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
         let disk_fs = DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
-            this.root_path.clone(),
+            self.root_path.clone(),
             vec![],
         );
-        if this.watch {
+        if self.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
         }
         Ok(disk_fs)
@@ -537,15 +534,14 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
-        let this = self.await?;
-        let disk_fs = DiskFileSystem::new("output".into(), this.project_path.clone(), vec![]);
+    pub async fn output_fs(&self) -> Result<Vc<DiskFileSystem>> {
+        let disk_fs = DiskFileSystem::new("output".into(), self.project_path.clone(), vec![]);
         Ok(disk_fs)
     }
 
     #[turbo_tasks::function]
-    pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.await?.dist_dir.clone()))
+    pub async fn dist_dir(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(self.dist_dir.clone()))
     }
 
     #[turbo_tasks::function]
@@ -589,23 +585,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn env(self: Vc<Self>) -> Result<Vc<Box<dyn ProcessEnv>>> {
-        Ok(self.await?.env)
+    pub(super) async fn env(&self) -> Result<Vc<Box<dyn ProcessEnv>>> {
+        Ok(self.env)
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn next_config(self: Vc<Self>) -> Result<Vc<NextConfig>> {
-        Ok(self.await?.next_config)
+    pub(super) async fn next_config(&self) -> Result<Vc<NextConfig>> {
+        Ok(self.next_config)
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn next_mode(self: Vc<Self>) -> Result<Vc<NextMode>> {
-        Ok(self.await?.mode)
+    pub(super) async fn next_mode(&self) -> Result<Vc<NextMode>> {
+        Ok(self.mode)
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn js_config(self: Vc<Self>) -> Result<Vc<JsConfig>> {
-        Ok(self.await?.js_config)
+    pub(super) async fn js_config(&self) -> Result<Vc<JsConfig>> {
+        Ok(self.js_config)
     }
 
     #[turbo_tasks::function]
