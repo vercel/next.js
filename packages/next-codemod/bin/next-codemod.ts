@@ -52,6 +52,8 @@ const program = new Command(packageJson.name)
     'Path to source files or directory to transform including glob patterns.'
   )
   .option('-f, --force', 'Bypass Git safety checks and forcibly run codemods')
+  .option('-d, --dry', 'Dry run (no changes are made to files)')
+  .option('-p, --print', 'Print transformed files to your terminal')
   .option(
     '-j, --jscodeshift',
     '(Advanced) Pass options directly to jscodeshift'
