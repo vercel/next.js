@@ -25,7 +25,7 @@ async function main() {
     )
   }
 
-  const rawGroup = argv['group']
+  const rawGroup = argv['group'] ?? process.env.GROUP
   let currentGroup = 1
   let groupTotal = 1
 

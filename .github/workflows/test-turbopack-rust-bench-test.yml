@@ -30,7 +30,7 @@ jobs:
         if: inputs.os == 'windows'
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
