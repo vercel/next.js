@@ -227,8 +227,8 @@ function parseRequestHeaders(
 
   const flightRouterState = shouldProvideFlightRouterState
     ? parseAndValidateFlightRouterState(
-        headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
-      )
+      headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+    )
     : undefined
 
   const csp =
@@ -942,7 +942,7 @@ async function renderToHTMLOrFlightImpl(
             })
             .end(
               metrics.clientComponentLoadStart +
-                metrics.clientComponentLoadTimes
+              metrics.clientComponentLoadTimes
             )
         }
       }
@@ -1098,7 +1098,8 @@ async function renderToHTMLOrFlightImpl(
     // If we have pending revalidates, wait until they are all resolved.
     if (
       staticGenerationStore.pendingRevalidates ||
-      staticGenerationStore.pendingRevalidateWrites
+      staticGenerationStore.pendingRevalidateWrites ||
+      staticGenerationStore.revalidatedTags
     ) {
       options.waitUntil = Promise.all([
         staticGenerationStore.incrementalCache?.revalidateTag(
@@ -1207,7 +1208,8 @@ async function renderToHTMLOrFlightImpl(
     // If we have pending revalidates, wait until they are all resolved.
     if (
       staticGenerationStore.pendingRevalidates ||
-      staticGenerationStore.pendingRevalidateWrites
+      staticGenerationStore.pendingRevalidateWrites ||
+      staticGenerationStore.revalidatedTags
     ) {
       options.waitUntil = Promise.all([
         staticGenerationStore.incrementalCache?.revalidateTag(
@@ -1865,25 +1867,25 @@ async function prerenderToStream(
           res.statusCode === 404
         )
 
-        ;(
-          prerenderAsyncStorage.run(
-            // The store to scope
-            prospectiveRenderPrerenderStore,
-            // The function to run
-            ComponentMod.prerender,
-            // ... the arguments for the function to run
-            firstAttemptRSCPayload,
-            clientReferenceManifest.clientModules,
-            {
-              // This render will be thrown away so we don't need to track errors or postpones
-              onError: undefined,
-              onPostpone: undefined,
-              // we don't care to track postpones during the prospective render because we need
-              // to always do a final render anyway
-              signal: flightController.signal,
-            }
-          ) as Promise<ReactServerPrerenderResolveToType>
-        ).catch(() => {})
+          ; (
+            prerenderAsyncStorage.run(
+              // The store to scope
+              prospectiveRenderPrerenderStore,
+              // The function to run
+              ComponentMod.prerender,
+              // ... the arguments for the function to run
+              firstAttemptRSCPayload,
+              clientReferenceManifest.clientModules,
+              {
+                // This render will be thrown away so we don't need to track errors or postpones
+                onError: undefined,
+                onPostpone: undefined,
+                // we don't care to track postpones during the prospective render because we need
+                // to always do a final render anyway
+                signal: flightController.signal,
+              }
+            ) as Promise<ReactServerPrerenderResolveToType>
+          ).catch(() => { })
 
         // When this resolves the cache has no inflight reads and we can ascertain the dynamic outcome
         await cacheSignal.cacheReady()
@@ -2079,7 +2081,7 @@ async function prerenderToStream(
             const resumeStream = await resume(
               <App
                 reactServerStream={foreverStream}
-                preinitScripts={() => {}}
+                preinitScripts={() => { }}
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
                 nonce={ctx.nonce}
@@ -2174,23 +2176,23 @@ async function prerenderToStream(
           ctx,
           res.statusCode === 404
         )
-        // We're not going to use the result of this render because the only time it could be used
-        // is if it completes in a microtask and that's likely very rare for any non-trivial app
-        ;(
-          prerenderAsyncStorage.run(
-            // The store to scope
-            prospectiveRenderPrerenderStore,
-            // The function to run
-            ComponentMod.prerender,
-            // ... the arguments for the function to run
-            firstAttemptRSCPayload,
-            clientReferenceManifest.clientModules,
-            {
-              onError,
-              signal: flightController.signal,
-            }
-          ) as Promise<ReactServerPrerenderResolveToType>
-        ).catch(() => {})
+          // We're not going to use the result of this render because the only time it could be used
+          // is if it completes in a microtask and that's likely very rare for any non-trivial app
+          ; (
+            prerenderAsyncStorage.run(
+              // The store to scope
+              prospectiveRenderPrerenderStore,
+              // The function to run
+              ComponentMod.prerender,
+              // ... the arguments for the function to run
+              firstAttemptRSCPayload,
+              clientReferenceManifest.clientModules,
+              {
+                onError,
+                signal: flightController.signal,
+              }
+            ) as Promise<ReactServerPrerenderResolveToType>
+          ).catch(() => { })
 
         // When this resolves the cache has no inflight reads and we can ascertain the dynamic outcome
         await cacheSignal.cacheReady()
@@ -2535,7 +2537,7 @@ async function prerenderToStream(
           const resumeStream = await resume(
             <App
               reactServerStream={foreverStream}
-              preinitScripts={() => {}}
+              preinitScripts={() => { }}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               nonce={ctx.nonce}
