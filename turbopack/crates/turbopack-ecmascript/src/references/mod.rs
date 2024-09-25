@@ -51,7 +51,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{RcStr, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Upcast, Value, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
@@ -144,6 +144,22 @@ use crate::{
 };
 
 #[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, Default)]
+pub struct DeclaredCjsGlobals {
+    pub dirname: bool,
+    pub filename: bool,
+    pub require: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl ValueDefault for DeclaredCjsGlobals {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Self::default().cell()
+    }
+}
+
+#[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct AnalyzeEcmascriptModuleResult {
     pub references: Vc<ModuleReferences>,
@@ -153,6 +169,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub code_generation: Vc<CodeGenerateables>,
     pub exports: Vc<EcmascriptExports>,
     pub async_module: Vc<OptionAsyncModule>,
+    pub declared_cjs_globals: Vc<DeclaredCjsGlobals>,
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: Vc<OptionSourceMap>,
@@ -168,6 +185,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     code_gens: Vec<CodeGen>,
     exports: EcmascriptExports,
     async_module: Vc<OptionAsyncModule>,
+    declared_cjs_globals: DeclaredCjsGlobals,
     successful: bool,
     source_map: Option<Vc<OptionSourceMap>>,
     bindings: Vec<EsmBinding>,
@@ -183,6 +201,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             code_gens: Vec::new(),
             exports: EcmascriptExports::None,
             async_module: Vc::cell(None),
+            declared_cjs_globals: Default::default(),
             successful: false,
             source_map: None,
             bindings: Vec::new(),
@@ -263,6 +282,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.exports = exports;
     }
 
+    /// Sets the analysis result CJS globals.
+    pub fn set_declared_cjs_globals(&mut self, globals: DeclaredCjsGlobals) {
+        self.declared_cjs_globals = globals;
+    }
+
     /// Sets the analysis result ES export.
     pub fn set_async_module(&mut self, async_module: Vc<AsyncModule>) {
         self.async_module = Vc::cell(Some(async_module));
@@ -336,6 +360,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 code_generation: Vc::cell(self.code_gens),
                 exports: self.exports.into(),
                 async_module: self.async_module,
+                declared_cjs_globals: self.declared_cjs_globals.into(),
                 successful: self.successful,
                 source_map,
             },
@@ -626,6 +651,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let mut var_graph =
         set_handler_and_globals(&handler, globals, || create_graph(program, eval_context));
+
+    analysis.set_declared_cjs_globals(DeclaredCjsGlobals {
+        dirname: var_graph.values.keys().any(|(k, _)| k == "__dirname"),
+        filename: var_graph.values.keys().any(|(k, _)| k == "__filename"),
+        require: var_graph.values.keys().any(|(k, _)| k == "require"),
+    });
 
     let mut evaluation_references = Vec::new();
 
