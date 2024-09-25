@@ -271,6 +271,9 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     /// should prefer the extension trait's version of this method.
     fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState));
 
+    /// Returns true if the system is idle.
+    fn is_idle(&self) -> bool;
+
     /// Returns a reference to the backend.
     fn backend(&self) -> &B;
 }
@@ -1563,6 +1566,10 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState)) {
         CURRENT_GLOBAL_TASK_STATE
             .with(move |ts| func(ts.write().unwrap().backend_state.downcast_mut().unwrap()))
+    }
+
+    fn is_idle(&self) -> bool {
+        self.currently_scheduled_tasks.load(Ordering::Acquire) == 0
     }
 }
 
