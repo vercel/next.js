@@ -57,7 +57,7 @@ impl EcmascriptDevEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
+    fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         Ok(ChunkData::from_assets(
             self.chunking_context.output_root(),
             self.other_chunks,
@@ -189,7 +189,7 @@ impl EcmascriptDevEvaluateChunk {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
+    fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell("Ecmascript Dev Evaluate Chunk".into()))
     }
 }

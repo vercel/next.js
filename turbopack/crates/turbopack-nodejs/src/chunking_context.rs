@@ -363,7 +363,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn chunk_item_id_from_ident(&self, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
+    fn chunk_item_id_from_ident(&self, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
         Ok(self.module_id_strategy.get_module_id(ident))
     }
 

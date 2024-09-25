@@ -166,7 +166,7 @@ pub async fn create_page_ssr_entry_module(
 }
 
 #[turbo_tasks::function]
-async fn process_global_item(
+fn process_global_item(
     item: Vc<PagesStructureItem>,
     reference_type: Value<ReferenceType>,
     module_context: Vc<Box<dyn AssetContext>>,

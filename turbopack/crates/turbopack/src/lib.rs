@@ -368,12 +368,12 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_options_context(&self) -> Result<Vc<ModuleOptionsContext>> {
+    pub fn module_options_context(&self) -> Result<Vc<ModuleOptionsContext>> {
         Ok(self.module_options_context)
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_options_context(&self) -> Result<Vc<ResolveOptionsContext>> {
+    pub fn resolve_options_context(&self) -> Result<Vc<ResolveOptionsContext>> {
         Ok(self.resolve_options_context)
     }
 
@@ -783,7 +783,7 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_with_completion(
+pub fn emit_with_completion(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -791,7 +791,7 @@ pub async fn emit_with_completion(
 }
 
 #[turbo_tasks::function]
-async fn emit_assets_aggregated(
+fn emit_assets_aggregated(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -816,7 +816,7 @@ async fn emit_aggregated_assets(
 }
 
 #[turbo_tasks::function]
-pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
+pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
     asset.content().write(asset.ident().path())
 }
 

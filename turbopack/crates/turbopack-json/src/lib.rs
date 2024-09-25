@@ -63,7 +63,7 @@ impl Asset for JsonModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for JsonModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
@@ -101,7 +101,7 @@ impl ChunkItem for JsonChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

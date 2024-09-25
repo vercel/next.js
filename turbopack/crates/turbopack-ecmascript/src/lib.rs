@@ -352,12 +352,12 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>> {
+    fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>> {
         Ok(self.failsafe_parse())
     }
 
     #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<EcmascriptModuleAssetType>> {
+    fn ty(&self) -> Result<Vc<EcmascriptModuleAssetType>> {
         Ok(self.ty.cell())
     }
 }
@@ -461,7 +461,7 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn source(&self) -> Result<Vc<Box<dyn Source>>> {
+    pub fn source(&self) -> Result<Vc<Box<dyn Source>>> {
         Ok(self.source)
     }
 
@@ -471,7 +471,7 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn options(&self) -> Result<Vc<EcmascriptOptions>> {
+    pub fn options(&self) -> Result<Vc<EcmascriptOptions>> {
         Ok(self.options)
     }
 
@@ -569,7 +569,7 @@ impl Asset for EcmascriptModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
@@ -641,7 +641,7 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

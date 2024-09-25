@@ -21,7 +21,7 @@ pub(crate) struct NextExactMatcher {
 #[turbo_tasks::value_impl]
 impl NextExactMatcher {
     #[turbo_tasks::function]
-    pub async fn new(path: Vc<RcStr>) -> Result<Vc<Self>> {
+    pub fn new(path: Vc<RcStr>) -> Result<Vc<Self>> {
         Ok(Self::cell(NextExactMatcher { path }))
     }
 }

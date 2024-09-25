@@ -31,7 +31,7 @@ pub(super) struct EcmascriptBuildNodeChunkContent {
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
-    pub(crate) async fn new(
+    pub(crate) fn new(
         chunking_context: Vc<NodeJsChunkingContext>,
         chunk: Vc<EcmascriptBuildNodeChunk>,
         content: Vc<EcmascriptChunkContent>,
