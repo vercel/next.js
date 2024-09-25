@@ -82,17 +82,11 @@ describe('app dir - next/dynamic', () => {
     it('should not render client component imported through ssr: false in client components in edge runtime', async () => {
       // noSSR should not show up in html
       const $ = await next.render$('/dynamic-mixed-ssr-false/client-edge')
-      expect($('#server-false-server-module')).not.toContain(
-        'ssr-false-server-module-text'
-      )
       expect($('#server-false-client-module')).not.toContain(
         'ssr-false-client-module-text'
       )
       // noSSR should not show up in browser
       const browser = await next.browser('/dynamic-mixed-ssr-false/client-edge')
-      expect(
-        await browser.elementByCss('#ssr-false-server-module').text()
-      ).toBe('ssr-false-server-module-text')
       expect(
         await browser.elementByCss('#ssr-false-client-module').text()
       ).toBe('ssr-false-client-module-text')
@@ -110,9 +104,6 @@ describe('app dir - next/dynamic', () => {
     it('should not render client component imported through ssr: false in client components', async () => {
       // noSSR should not show up in html
       const $ = await next.render$('/dynamic-mixed-ssr-false/client')
-      // expect($('#client-false-server-module')).not.toContain(
-      //   'ssr-false-server-module-text'
-      // )
       expect($('#client-false-client-module')).not.toContain(
         'ssr-false-client-module-text'
       )

@@ -23,7 +23,7 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
       "./app/page.js
       Error:   x \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a client component.
          ,-[3:1]
-       1 | import dynamic from "next/dynamic"
+       1 | import dynamic from 'next/dynamic'
        2 | 
        3 | const DynamicClient = dynamic(() => import('./client'), { ssr: false })
          :                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
