@@ -51,7 +51,7 @@ pub struct AppDirModules {
     pub default: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Metadata::is_empty")]
+    #[serde(skip_serializing_if = "Metadata::is_empty", default)]
     pub metadata: Metadata,
 }
 
@@ -137,13 +137,13 @@ impl From<MetadataWithAltItem> for MetadataItem {
 /// Metadata file that can be placed in any segment of the app directory.
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct Metadata {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub icon: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub apple: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub twitter: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub open_graph: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sitemap: Option<MetadataItem>,
