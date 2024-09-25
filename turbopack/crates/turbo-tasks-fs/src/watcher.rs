@@ -12,7 +12,7 @@ use std::{
 use anyhow::Result;
 use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
-    Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
+    Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -26,10 +26,24 @@ use crate::{
     path_to_key,
 };
 
+enum DiskWatcherInternal {
+    Recommended(RecommendedWatcher),
+    Polling(PollWatcher),
+}
+
+impl DiskWatcherInternal {
+    fn watch(&mut self, path: &Path, recursive_mode: RecursiveMode) -> notify::Result<()> {
+        match self {
+            DiskWatcherInternal::Recommended(watcher) => watcher.watch(path, recursive_mode),
+            DiskWatcherInternal::Polling(watcher) => watcher.watch(path, recursive_mode),
+        }
+    }
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub(crate) struct DiskWatcher {
     #[serde(skip)]
-    watcher: Mutex<Option<RecommendedWatcher>>,
+    watcher: Mutex<Option<DiskWatcherInternal>>,
 
     /// Array of paths that should not notify invalidations.
     /// `notify` currently doesn't support unwatching subpaths from the root,
@@ -76,7 +90,7 @@ impl DiskWatcher {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     fn start_watching_dir(
         &self,
-        watcher: &mut std::sync::MutexGuard<Option<RecommendedWatcher>>,
+        watcher: &mut std::sync::MutexGuard<Option<DiskWatcherInternal>>,
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
@@ -139,12 +153,16 @@ impl DiskWatcher {
         let (tx, rx) = channel();
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
-        let mut config = Config::default();
-        if let Some(poll_interval) = poll_interval {
-            config = config.with_poll_interval(poll_interval);
+        let config = Config::default();
+
+        let mut watcher = if let Some(poll_interval) = poll_interval {
+            let config = config.with_poll_interval(poll_interval);
+
+            DiskWatcherInternal::Polling(PollWatcher::new(tx, config)?)
+        } else {
+            DiskWatcherInternal::Recommended(RecommendedWatcher::new(tx, Config::default())?)
         };
 
-        let mut watcher = RecommendedWatcher::new(tx, config)?;
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
         #[cfg(any(target_os = "macos", target_os = "windows"))]
