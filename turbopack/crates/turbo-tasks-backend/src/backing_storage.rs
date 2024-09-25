@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::{backend::CachedTaskType, TaskId};
 
 use crate::{
-    backend::AnyOperation,
+    backend::{AnyOperation, TaskDataCategory},
     data::{CachedDataItem, CachedDataUpdate},
     utils::chunked_vec::ChunkedVec,
 };
@@ -16,9 +16,10 @@ pub trait BackingStorage {
         &self,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: ChunkedVec<(Arc<CachedTaskType>, TaskId)>,
+        meta_updates: ChunkedVec<CachedDataUpdate>,
         data_updates: ChunkedVec<CachedDataUpdate>,
     ) -> Result<()>;
     fn forward_lookup_task_cache(&self, key: &CachedTaskType) -> Option<TaskId>;
     fn reverse_lookup_task_cache(&self, task_id: TaskId) -> Option<Arc<CachedTaskType>>;
-    fn lookup_data(&self, task_id: TaskId) -> Vec<CachedDataItem>;
+    fn lookup_data(&self, task_id: TaskId, category: TaskDataCategory) -> Vec<CachedDataItem>;
 }

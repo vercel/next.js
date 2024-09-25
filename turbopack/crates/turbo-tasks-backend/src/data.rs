@@ -6,7 +6,7 @@ use turbo_tasks::{
     CellId, KeyValuePair, TaskId, TypedSharedReference, ValueTypeId,
 };
 
-use crate::backend::indexed::Indexed;
+use crate::backend::{indexed::Indexed, TaskDataCategory};
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CellRef {
@@ -341,6 +341,39 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedCellDependency { .. } => false,
             CachedDataItemKey::OutdatedChild { .. } => false,
             CachedDataItemKey::Error { .. } => false,
+        }
+    }
+
+    pub fn category(&self) -> TaskDataCategory {
+        match self {
+            CachedDataItemKey::Output { .. }
+            | CachedDataItemKey::Collectible { .. }
+            | CachedDataItemKey::Child { .. }
+            | CachedDataItemKey::CellData { .. }
+            | CachedDataItemKey::CellTypeMaxIndex { .. }
+            | CachedDataItemKey::OutputDependency { .. }
+            | CachedDataItemKey::CellDependency { .. }
+            | CachedDataItemKey::CollectiblesDependency { .. }
+            | CachedDataItemKey::OutputDependent { .. }
+            | CachedDataItemKey::CellDependent { .. }
+            | CachedDataItemKey::CollectiblesDependent { .. }
+            | CachedDataItemKey::InProgress { .. }
+            | CachedDataItemKey::InProgressCell { .. }
+            | CachedDataItemKey::OutdatedCollectible { .. }
+            | CachedDataItemKey::OutdatedOutputDependency { .. }
+            | CachedDataItemKey::OutdatedCellDependency { .. }
+            | CachedDataItemKey::OutdatedChild { .. }
+            | CachedDataItemKey::Error { .. } => TaskDataCategory::Data,
+
+            CachedDataItemKey::AggregationNumber { .. }
+            | CachedDataItemKey::Dirty { .. }
+            | CachedDataItemKey::DirtyWhenPersisted { .. }
+            | CachedDataItemKey::Follower { .. }
+            | CachedDataItemKey::Upper { .. }
+            | CachedDataItemKey::AggregatedDirtyContainer { .. }
+            | CachedDataItemKey::AggregatedCollectible { .. }
+            | CachedDataItemKey::AggregatedDirtyContainerCount { .. }
+            | CachedDataItemKey::AggregateRoot { .. } => TaskDataCategory::Meta,
         }
     }
 }

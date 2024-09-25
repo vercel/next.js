@@ -14,7 +14,10 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
 
 use crate::{
-    backend::{storage::StorageWriteGuard, OperationGuard, TransientTask, TurboTasksBackend},
+    backend::{
+        storage::StorageWriteGuard, OperationGuard, TaskDataCategory, TransientTask,
+        TurboTasksBackend,
+    },
     data::{
         CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
         CachedDataUpdate,
@@ -51,21 +54,25 @@ impl<'a> ExecuteContext<'a> {
         }
     }
 
-    pub fn task(&self, task_id: TaskId) -> TaskGuard<'a> {
+    pub fn task(&self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'a> {
         let mut task = self.backend.storage.access_mut(task_id);
-        if !task.persistance_state().is_restored() {
+        if !task.persistance_state().is_restored(category) {
             if task_id.is_transient() {
-                task.persistance_state_mut().set_restored();
+                task.persistance_state_mut()
+                    .set_restored(TaskDataCategory::All);
             } else {
-                // Avoid holding the lock too long since this can also affect other tasks
-                drop(task);
-                let items = self.backend.backing_storage.lookup_data(task_id);
-                task = self.backend.storage.access_mut(task_id);
-                if !task.persistance_state().is_restored() {
-                    for item in items {
-                        task.add(item);
+                for category in category {
+                    // Avoid holding the lock too long since this can also affect other tasks
+                    drop(task);
+
+                    let items = self.backend.backing_storage.lookup_data(task_id, category);
+                    task = self.backend.storage.access_mut(task_id);
+                    if !task.persistance_state().is_restored(category) {
+                        for item in items {
+                            task.add(item);
+                        }
+                        task.persistance_state_mut().set_restored(category);
                     }
-                    task.persistance_state_mut().set_restored();
                 }
             }
         }
@@ -87,34 +94,41 @@ impl<'a> ExecuteContext<'a> {
         }
     }
 
-    pub fn task_pair(&self, task_id1: TaskId, task_id2: TaskId) -> (TaskGuard<'a>, TaskGuard<'a>) {
+    pub fn task_pair(
+        &self,
+        task_id1: TaskId,
+        task_id2: TaskId,
+        category: TaskDataCategory,
+    ) -> (TaskGuard<'a>, TaskGuard<'a>) {
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
-        let is_restored1 = task1.persistance_state().is_restored();
-        let is_restored2 = task2.persistance_state().is_restored();
+        let is_restored1 = task1.persistance_state().is_restored(category);
+        let is_restored2 = task2.persistance_state().is_restored(category);
         if !is_restored1 || !is_restored2 {
-            // Avoid holding the lock too long since this can also affect other tasks
-            drop(task1);
-            drop(task2);
+            for category in category {
+                // Avoid holding the lock too long since this can also affect other tasks
+                drop(task1);
+                drop(task2);
 
-            let items1 =
-                (!is_restored1).then(|| self.backend.backing_storage.lookup_data(task_id1));
-            let items2 =
-                (!is_restored2).then(|| self.backend.backing_storage.lookup_data(task_id2));
+                let items1 = (!is_restored1)
+                    .then(|| self.backend.backing_storage.lookup_data(task_id1, category));
+                let items2 = (!is_restored2)
+                    .then(|| self.backend.backing_storage.lookup_data(task_id2, category));
 
-            let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
-            task1 = t1;
-            task2 = t2;
-            if !task1.persistance_state().is_restored() {
-                for item in items1.unwrap() {
-                    task1.add(item);
+                let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
+                task1 = t1;
+                task2 = t2;
+                if !task1.persistance_state().is_restored(category) {
+                    for item in items1.unwrap() {
+                        task1.add(item);
+                    }
+                    task1.persistance_state_mut().set_restored(category);
                 }
-                task1.persistance_state_mut().set_restored();
-            }
-            if !task2.persistance_state().is_restored() {
-                for item in items2.unwrap() {
-                    task2.add(item);
+                if !task2.persistance_state().is_restored(category) {
+                    for item in items2.unwrap() {
+                        task2.add(item);
+                    }
+                    task2.persistance_state_mut().set_restored(category);
                 }
-                task2.persistance_state_mut().set_restored();
             }
         }
         (
@@ -207,7 +221,7 @@ impl TaskGuard<'_> {
             let (key, value) = item.into_key_and_value();
             self.task.persistance_state_mut().add_persisting_item();
             self.backend
-                .persisted_storage_log
+                .persisted_storage_log(key.category())
                 .lock()
                 .push(CachedDataUpdate {
                     key,
@@ -237,7 +251,7 @@ impl TaskGuard<'_> {
             ));
             self.task.persistance_state_mut().add_persisting_item();
             self.backend
-                .persisted_storage_log
+                .persisted_storage_log(key.category())
                 .lock()
                 .push(CachedDataUpdate {
                     key,
@@ -251,7 +265,7 @@ impl TaskGuard<'_> {
                 if old.is_persistent() {
                     self.task.persistance_state_mut().add_persisting_item();
                     self.backend
-                        .persisted_storage_log
+                        .persisted_storage_log(key.category())
                         .lock()
                         .push(CachedDataUpdate {
                             key,
@@ -290,19 +304,25 @@ impl TaskGuard<'_> {
                 (false, false) => {}
                 (true, false) => {
                     add_persisting_item = true;
-                    backend.persisted_storage_log.lock().push(CachedDataUpdate {
-                        key: key.clone(),
-                        task: *task_id,
-                        value: None,
-                    });
+                    backend
+                        .persisted_storage_log(key.category())
+                        .lock()
+                        .push(CachedDataUpdate {
+                            key: key.clone(),
+                            task: *task_id,
+                            value: None,
+                        });
                 }
                 (_, true) => {
                     add_persisting_item = true;
-                    backend.persisted_storage_log.lock().push(CachedDataUpdate {
-                        key: key.clone(),
-                        task: *task_id,
-                        value: new.clone(),
-                    });
+                    backend
+                        .persisted_storage_log(key.category())
+                        .lock()
+                        .push(CachedDataUpdate {
+                            key: key.clone(),
+                            task: *task_id,
+                            value: new.clone(),
+                        });
                 }
             }
 
@@ -320,7 +340,7 @@ impl TaskGuard<'_> {
                 let key = key.clone();
                 self.task.persistance_state_mut().add_persisting_item();
                 self.backend
-                    .persisted_storage_log
+                    .persisted_storage_log(key.category())
                     .lock()
                     .push(CachedDataUpdate {
                         key,
@@ -375,7 +395,10 @@ impl TaskGuard<'_> {
                 _ => None,
             });
         {
-            let mut guard = self.backend.persisted_storage_log.lock();
+            let mut guard = self
+                .backend
+                .persisted_storage_log(TaskDataCategory::Data)
+                .lock();
             guard.extend(cell_data);
             self.task
                 .persistance_state_mut()
