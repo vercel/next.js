@@ -4,6 +4,7 @@ import prompts from 'prompts'
 import { join } from 'node:path'
 import { installPackage, uninstallPackage } from '../lib/handle-package'
 import { checkGitStatus, CODEMOD_CHOICES } from '../lib/utils'
+import { onPromptState } from './next-codemod'
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {
   const shouldExpandFiles = filesBeforeExpansion.some((file) =>
@@ -39,7 +40,7 @@ export async function runTransform(
       type: 'text',
       name: 'source',
       message: 'On which files or directory should the codemods be applied?',
-      default: '.',
+      onState: onPromptState,
     })
 
     source = res.source
@@ -50,6 +51,7 @@ export async function runTransform(
       name: 'codemod',
       message: 'Which transform would you like to apply?',
       choices: CODEMOD_CHOICES,
+      onState: onPromptState,
     })
 
     codemod = res.codemod
