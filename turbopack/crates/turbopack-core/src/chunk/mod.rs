@@ -713,6 +713,18 @@ pub trait ChunkType: ValueToString {
     ) -> Vc<usize>;
 }
 
+pub fn round_chunk_item_size(size: usize) -> usize {
+    if size == 0 {
+        return 0;
+    }
+    let a = size.next_power_of_two();
+    if a == size {
+        size
+    } else {
+        size & (a | (a >> 1) | (a >> 2))
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItems(Vec<Vc<Box<dyn ChunkItem>>>);
 
