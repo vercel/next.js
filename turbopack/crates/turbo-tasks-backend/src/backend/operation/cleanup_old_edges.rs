@@ -11,7 +11,10 @@ use super::{
     invalidate::make_task_dirty,
     ExecuteContext, Operation,
 };
-use crate::data::{CachedDataItemKey, CellRef};
+use crate::{
+    backend::TaskDataCategory,
+    data::{CachedDataItemKey, CellRef},
+};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum CleanupOldEdgesOperation {
@@ -67,7 +70,7 @@ impl Operation for CleanupOldEdgesOperation {
                     if let Some(edge) = outdated.pop() {
                         match edge {
                             OutdatedEdge::Child(child_id) => {
-                                let mut task = ctx.task(task_id);
+                                let mut task = ctx.task(task_id, TaskDataCategory::All);
                                 task.remove(&CachedDataItemKey::Child { task: child_id });
                                 if is_aggregating_node(get_aggregation_number(&task)) {
                                     queue.push(AggregationUpdateJob::InnerLostFollower {
@@ -87,14 +90,14 @@ impl Operation for CleanupOldEdgesOperation {
                                 cell,
                             }) => {
                                 {
-                                    let mut task = ctx.task(cell_task_id);
+                                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
                                     task.remove(&CachedDataItemKey::CellDependent {
                                         cell,
                                         task: task_id,
                                     });
                                 }
                                 {
-                                    let mut task = ctx.task(task_id);
+                                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
                                     task.remove(&CachedDataItemKey::CellDependency {
                                         target: CellRef {
                                             task: cell_task_id,
@@ -105,13 +108,13 @@ impl Operation for CleanupOldEdgesOperation {
                             }
                             OutdatedEdge::OutputDependency(output_task_id) => {
                                 {
-                                    let mut task = ctx.task(output_task_id);
+                                    let mut task = ctx.task(output_task_id, TaskDataCategory::Data);
                                     task.remove(&CachedDataItemKey::OutputDependent {
                                         task: task_id,
                                     });
                                 }
                                 {
-                                    let mut task = ctx.task(task_id);
+                                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
                                     task.remove(&CachedDataItemKey::OutputDependency {
                                         target: output_task_id,
                                     });

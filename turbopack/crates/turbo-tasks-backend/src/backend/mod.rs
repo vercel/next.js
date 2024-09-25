@@ -27,6 +27,7 @@ use operation::{
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
 use smallvec::smallvec;
+pub use storage::TaskDataCategory;
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
@@ -97,7 +98,8 @@ pub struct TurboTasksBackend {
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
     transient_tasks: DashMap<TaskId, Arc<TransientTask>>,
 
-    persisted_storage_log: Mutex<ChunkedVec<CachedDataUpdate>>,
+    persisted_storage_data_log: Mutex<ChunkedVec<CachedDataUpdate>>,
+    persisted_storage_meta_log: Mutex<ChunkedVec<CachedDataUpdate>>,
     storage: Storage<TaskId, CachedDataItem>,
 
     /// Number of executing operations + Highest bit is set when snapshot is
@@ -136,7 +138,8 @@ impl TurboTasksBackend {
             persisted_task_cache_log: Mutex::new(ChunkedVec::new()),
             task_cache: BiMap::new(),
             transient_tasks: DashMap::new(),
-            persisted_storage_log: Mutex::new(ChunkedVec::new()),
+            persisted_storage_data_log: Mutex::new(ChunkedVec::new()),
+            persisted_storage_meta_log: Mutex::new(ChunkedVec::new()),
             storage: Storage::new(),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -201,6 +204,17 @@ impl TurboTasksBackend {
         }
         OperationGuard { backend: self }
     }
+
+    fn persisted_storage_log(
+        &self,
+        category: TaskDataCategory,
+    ) -> &Mutex<ChunkedVec<CachedDataUpdate>> {
+        match category {
+            TaskDataCategory::Data => &self.persisted_storage_data_log,
+            TaskDataCategory::Meta => &self.persisted_storage_meta_log,
+            TaskDataCategory::All => unreachable!(),
+        }
+    }
 }
 
 pub(crate) struct OperationGuard<'a> {
@@ -242,7 +256,7 @@ impl TurboTasksBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
         let ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id);
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
 
         if let Some(in_progress) = get!(task, InProgress) {
             match in_progress {
@@ -277,7 +291,7 @@ impl TurboTasksBackend {
                     },
                     &ctx,
                 );
-                task = ctx.task(task_id);
+                task = ctx.task(task_id, TaskDataCategory::All);
             }
 
             // Check the dirty count of the root node
@@ -324,7 +338,7 @@ impl TurboTasksBackend {
                     });
                     drop(task);
 
-                    let mut reader_task = ctx.task(reader);
+                    let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
                     if reader_task
                         .remove(&CachedDataItemKey::OutdatedOutputDependency { target: task_id })
                         .is_none()
@@ -366,7 +380,7 @@ impl TurboTasksBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         let ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id);
+        let mut task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(content) = get!(task, CellData { cell }) {
             let content = content.clone();
             if let Some(reader) = reader {
@@ -377,7 +391,7 @@ impl TurboTasksBackend {
                 });
                 drop(task);
 
-                let mut reader_task = ctx.task(reader);
+                let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
                 let target = CellRef {
                     task: task_id,
                     cell,
@@ -490,7 +504,8 @@ impl TurboTasksBackend {
             .map(|op| op.arc().clone())
             .collect::<Vec<_>>();
         drop(snapshot_request);
-        let persisted_storage_log = take(&mut *self.persisted_storage_log.lock());
+        let persisted_storage_meta_log = take(&mut *self.persisted_storage_meta_log.lock());
+        let persisted_storage_data_log = take(&mut *self.persisted_storage_data_log.lock());
         let persisted_task_cache_log = take(&mut *self.persisted_task_cache_log.lock());
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = false;
@@ -501,18 +516,25 @@ impl TurboTasksBackend {
         drop(snapshot_request);
 
         let mut counts: HashMap<TaskId, u32> = HashMap::new();
-        for CachedDataUpdate { task, .. } in persisted_storage_log.iter() {
+        for CachedDataUpdate { task, .. } in persisted_storage_data_log
+            .iter()
+            .chain(persisted_storage_meta_log.iter())
+        {
             *counts.entry(*task).or_default() += 1;
         }
 
         let mut new_items = false;
 
-        if !persisted_task_cache_log.is_empty() || !persisted_storage_log.is_empty() {
+        if !persisted_task_cache_log.is_empty()
+            || !persisted_storage_meta_log.is_empty()
+            || !persisted_storage_data_log.is_empty()
+        {
             new_items = true;
             if let Err(err) = self.backing_storage.save_snapshot(
                 suspended_operations,
                 persisted_task_cache_log,
-                persisted_storage_log,
+                persisted_storage_meta_log,
+                persisted_storage_data_log,
             ) {
                 println!("Persising failed: {:#?}", err);
                 return None;
@@ -651,7 +673,7 @@ impl Backend for TurboTasksBackend {
             return;
         }
         let ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id);
+        let mut task = ctx.task(task_id, TaskDataCategory::Data);
         task.invalidate_serialization();
     }
 
@@ -692,7 +714,7 @@ impl Backend for TurboTasksBackend {
         };
         {
             let ctx = self.execute_context(turbo_tasks);
-            let mut task = ctx.task(task_id);
+            let mut task = ctx.task(task_id, TaskDataCategory::Data);
             let in_progress = remove!(task, InProgress)?;
             let InProgressState::Scheduled { done_event } = in_progress else {
                 task.add_new(CachedDataItem::InProgress { value: in_progress });
@@ -883,7 +905,7 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool {
         let ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id);
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(CachedDataItemValue::InProgress { value: in_progress }) =
             task.remove(&CachedDataItemKey::InProgress {})
         else {
@@ -1122,7 +1144,7 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
         let ctx = self.execute_context(turbo_tasks);
-        let task = ctx.task(task_id);
+        let task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(content) = get!(task, CellData { cell }) {
             Ok(CellContent(Some(content.1.clone())).into_typed(cell.type_id))
         } else {

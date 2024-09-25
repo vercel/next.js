@@ -5,6 +5,7 @@ use turbo_tasks::TaskId;
 
 use super::{ExecuteContext, Operation, TaskGuard};
 use crate::{
+    backend::TaskDataCategory,
     data::{ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, RootState},
     get, get_many, iter_many, remove, update, update_count,
 };
@@ -258,7 +259,7 @@ impl AggregationUpdateQueue {
                     base_aggregation_number,
                     distance: base_effective_distance,
                 } => {
-                    let mut task = ctx.task(task_id);
+                    let mut task = ctx.task(task_id, TaskDataCategory::Meta);
                     let current = get!(task, AggregationNumber).copied().unwrap_or_default();
                     // The wanted new distance is either the provided one or the old distance
                     let distance = base_effective_distance.map_or(current.distance, |d| d.get());
@@ -355,12 +356,12 @@ impl AggregationUpdateQueue {
                     new_follower_id,
                 } => {
                     let follower_aggregation_number = {
-                        let follower = ctx.task(new_follower_id);
+                        let follower = ctx.task(new_follower_id, TaskDataCategory::Meta);
                         get_aggregation_number(&follower)
                     };
                     let mut upper_ids_as_follower = Vec::new();
                     upper_ids.retain(|&upper_id| {
-                        let upper = ctx.task(upper_id);
+                        let upper = ctx.task(upper_id, TaskDataCategory::Meta);
                         // decide if it should be an inner or follower
                         let upper_aggregation_number = get_aggregation_number(&upper);
 
@@ -376,7 +377,7 @@ impl AggregationUpdateQueue {
                         }
                     });
                     if !upper_ids.is_empty() {
-                        let mut follower = ctx.task(new_follower_id);
+                        let mut follower = ctx.task(new_follower_id, TaskDataCategory::Meta);
                         upper_ids.retain(|&upper_id| {
                             if update_count!(follower, Upper { task: upper_id }, 1) {
                                 // It's a new upper
@@ -394,7 +395,7 @@ impl AggregationUpdateQueue {
                             if !data.is_empty() {
                                 for upper_id in upper_ids.iter() {
                                     // add data to upper
-                                    let mut upper = ctx.task(*upper_id);
+                                    let mut upper = ctx.task(*upper_id, TaskDataCategory::Meta);
                                     let diff = data.apply(&mut upper, self);
                                     if !diff.is_empty() {
                                         let upper_ids = get_uppers(&upper);
@@ -416,7 +417,7 @@ impl AggregationUpdateQueue {
                         }
                     }
                     for upper_id in upper_ids_as_follower {
-                        let mut upper = ctx.task(upper_id);
+                        let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
                         if update_count!(
                             upper,
                             Follower {
@@ -460,7 +461,7 @@ impl AggregationUpdateQueue {
                     mut upper_ids,
                     lost_follower_id,
                 } => {
-                    let mut follower = ctx.task(lost_follower_id);
+                    let mut follower = ctx.task(lost_follower_id, TaskDataCategory::Meta);
                     let mut follower_in_upper_ids = Vec::new();
                     upper_ids.retain(|&upper_id| {
                         let mut keep_upper = false;
@@ -489,7 +490,7 @@ impl AggregationUpdateQueue {
                         if !data.is_empty() {
                             for upper_id in upper_ids.iter() {
                                 // remove data from upper
-                                let mut upper = ctx.task(*upper_id);
+                                let mut upper = ctx.task(*upper_id, TaskDataCategory::Meta);
                                 let diff = data.apply(&mut upper, self);
                                 if !diff.is_empty() {
                                     let upper_ids = get_uppers(&upper);
@@ -511,7 +512,7 @@ impl AggregationUpdateQueue {
                     }
 
                     for upper_id in follower_in_upper_ids {
-                        let mut upper = ctx.task(upper_id);
+                        let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
                         if update_count!(
                             upper,
                             Follower {
@@ -529,7 +530,7 @@ impl AggregationUpdateQueue {
                 }
                 AggregationUpdateJob::AggregatedDataUpdate { upper_ids, update } => {
                     for upper_id in upper_ids {
-                        let mut upper = ctx.task(upper_id);
+                        let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
                         let diff = update.apply(&mut upper, self);
                         if !diff.is_empty() {
                             let upper_ids = get_uppers(&upper);
@@ -548,7 +549,7 @@ impl AggregationUpdateQueue {
                         self.push(AggregationUpdateJob::FindAndScheduleDirty { task_ids });
                     }
                     if let Some(task_id) = popped {
-                        let mut task = ctx.task(task_id);
+                        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
                         #[allow(clippy::collapsible_if, reason = "readablility")]
                         if task.has_key(&CachedDataItemKey::Dirty {}) {
                             let description = ctx.backend.get_task_desc_fn(task_id);
@@ -572,7 +573,8 @@ impl AggregationUpdateQueue {
                     }
                 }
                 AggregationUpdateJob::BalanceEdge { upper_id, task_id } => {
-                    let (mut upper, mut task) = ctx.task_pair(upper_id, task_id);
+                    let (mut upper, mut task) =
+                        ctx.task_pair(upper_id, task_id, TaskDataCategory::Meta);
                     let upper_aggregation_number = get_aggregation_number(&upper);
                     let task_aggregation_number = get_aggregation_number(&task);
 

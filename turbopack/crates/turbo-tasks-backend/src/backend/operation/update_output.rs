@@ -5,6 +5,7 @@ use turbo_tasks::{util::SharedError, RawVc, TaskId};
 
 use super::{ExecuteContext, InvalidateOperation};
 use crate::{
+    backend::TaskDataCategory,
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, OutputValue},
     get_many,
 };
@@ -17,7 +18,7 @@ impl UpdateOutputOperation {
         output: Result<Result<RawVc>, Option<Cow<'static, str>>>,
         ctx: ExecuteContext<'_>,
     ) {
-        let mut task = ctx.task(task_id);
+        let mut task = ctx.task(task_id, TaskDataCategory::Data);
         let old_error = task.remove(&CachedDataItemKey::Error {});
         let current_output = task.get(&CachedDataItemKey::Output {});
         let output_value = match output {

@@ -10,7 +10,7 @@ use super::{
     ExecuteContext, Operation,
 };
 use crate::{
-    backend::operation::is_root_node,
+    backend::{operation::is_root_node, TaskDataCategory},
     data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey},
     get,
 };
@@ -28,7 +28,7 @@ pub enum ConnectChildOperation {
 
 impl ConnectChildOperation {
     pub fn run(parent_task_id: TaskId, child_task_id: TaskId, ctx: ExecuteContext<'_>) {
-        let mut parent_task = ctx.task(parent_task_id);
+        let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
         parent_task.remove(&CachedDataItemKey::OutdatedChild {
             task: child_task_id,
         });
@@ -107,7 +107,7 @@ impl ConnectChildOperation {
             drop(parent_task);
 
             {
-                let mut task = ctx.task(child_task_id);
+                let mut task = ctx.task(child_task_id, TaskDataCategory::Data);
                 should_schedule = should_schedule || !task.has_key(&CachedDataItemKey::Output {});
                 if should_schedule {
                     let description = ctx.backend.get_task_desc_fn(child_task_id);

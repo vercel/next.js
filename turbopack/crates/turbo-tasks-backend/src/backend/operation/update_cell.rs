@@ -2,6 +2,7 @@ use turbo_tasks::{backend::CellContent, CellId, TaskId};
 
 use super::{ExecuteContext, InvalidateOperation};
 use crate::{
+    backend::TaskDataCategory,
     data::{CachedDataItem, CachedDataItemKey},
     get_many, remove,
 };
@@ -9,8 +10,8 @@ use crate::{
 pub struct UpdateCellOperation;
 
 impl UpdateCellOperation {
-    pub fn run(task: TaskId, cell: CellId, content: CellContent, ctx: ExecuteContext<'_>) {
-        let mut task = ctx.task(task);
+    pub fn run(task_id: TaskId, cell: CellId, content: CellContent, ctx: ExecuteContext<'_>) {
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
         let old_content = if let CellContent(Some(new_content)) = content {
             task.insert(CachedDataItem::CellData {
                 cell,

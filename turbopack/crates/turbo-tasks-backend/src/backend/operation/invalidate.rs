@@ -7,6 +7,7 @@ use super::{
     ExecuteContext, Operation,
 };
 use crate::{
+    backend::TaskDataCategory,
     data::{CachedDataItem, CachedDataItemKey},
     get,
 };
@@ -66,7 +67,7 @@ pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx:
         return;
     }
 
-    let mut task = ctx.task(task_id);
+    let mut task = ctx.task(task_id, TaskDataCategory::All);
 
     if task.add(CachedDataItem::Dirty { value: () }) {
         let dirty_container = get!(task, AggregatedDirtyContainerCount)
