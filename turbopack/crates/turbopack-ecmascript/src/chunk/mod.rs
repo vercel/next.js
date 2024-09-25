@@ -76,8 +76,8 @@ fn availability_root_key() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl Chunk for EcmascriptChunk {
     #[turbo_tasks::function]
-    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        let this = self.await?;
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        let this = self;
 
         let mut assets = Vec::new();
 
@@ -135,8 +135,8 @@ impl Chunk for EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        let this = self;
         let content = this.content.await?;
         Ok(Vc::cell(content.referenced_output_assets.clone()))
     }

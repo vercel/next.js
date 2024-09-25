@@ -59,8 +59,8 @@ impl Completions {
 
     /// Merges the list of completions into one.
     #[turbo_tasks::function]
-    pub async fn completed(self: Vc<Self>) -> anyhow::Result<Vc<Completion>> {
-        self.await?
+    pub async fn completed(&self) -> anyhow::Result<Vc<Completion>> {
+        self.0
             .iter()
             .map(|&c| async move {
                 c.await?;

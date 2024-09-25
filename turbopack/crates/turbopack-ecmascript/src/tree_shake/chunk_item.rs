@@ -32,10 +32,10 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
     #[turbo_tasks::function]
     async fn content_with_async_module_info(
-        self: Vc<Self>,
+        &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
+        let this = self;
         let module = this.module.await?;
 
         let split_data = split_module(module.full_module);

@@ -319,14 +319,14 @@ impl ModuleResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_unresolveable(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
+    pub async fn is_unresolveable(&self) -> Result<Vc<bool>> {
+        let this = self;
         Ok(Vc::cell(this.is_unresolveable_ref()))
     }
 
     #[turbo_tasks::function]
-    pub async fn first_module(self: Vc<Self>) -> Result<Vc<OptionModule>> {
-        let this = self.await?;
+    pub async fn first_module(&self) -> Result<Vc<OptionModule>> {
+        let this = self;
         Ok(Vc::cell(this.primary.iter().find_map(
             |(_, item)| match item {
                 &ModuleResolveResultItem::Module(a) => Some(a),
@@ -338,8 +338,8 @@ impl ModuleResolveResult {
     /// Returns a set (no duplicates) of primary modules in the result. All
     /// modules are already resolved Vc.
     #[turbo_tasks::function]
-    pub async fn primary_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let this = self.await?;
+    pub async fn primary_modules(&self) -> Result<Vc<Modules>> {
+        let this = self;
         let mut iter = this.primary_modules_iter();
         let Some(first) = iter.next() else {
             return Ok(Vc::cell(vec![]));
@@ -360,8 +360,8 @@ impl ModuleResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn primary_output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
+    pub async fn primary_output_assets(&self) -> Result<Vc<OutputAssets>> {
+        let this = self;
         Ok(Vc::cell(
             this.primary
                 .iter()
@@ -746,9 +746,8 @@ impl ResolveResult {
 #[turbo_tasks::value_impl]
 impl ResolveResult {
     #[turbo_tasks::function]
-    pub async fn as_raw_module_result(self: Vc<Self>) -> Result<Vc<ModuleResolveResult>> {
+    pub async fn as_raw_module_result(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(self
-            .await?
             .map_module(|asset| async move {
                 Ok(ModuleResolveResultItem::Module(Vc::upcast(RawModule::new(
                     asset,
@@ -852,14 +851,14 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_unresolveable(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
+    pub async fn is_unresolveable(&self) -> Result<Vc<bool>> {
+        let this = self;
         Ok(Vc::cell(this.is_unresolveable_ref()))
     }
 
     #[turbo_tasks::function]
-    pub async fn first_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
-        let this = self.await?;
+    pub async fn first_source(&self) -> Result<Vc<OptionSource>> {
+        let this = self;
         Ok(Vc::cell(this.primary.iter().find_map(|(_, item)| {
             if let &ResolveResultItem::Source(a) = item {
                 Some(a)
@@ -870,8 +869,8 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn primary_sources(self: Vc<Self>) -> Result<Vc<Sources>> {
-        let this = self.await?;
+    pub async fn primary_sources(&self) -> Result<Vc<Sources>> {
+        let this = self;
         Ok(Vc::cell(
             this.primary
                 .iter()
@@ -892,11 +891,11 @@ impl ResolveResult {
     /// some, they are discarded.
     #[turbo_tasks::function]
     pub async fn with_replaced_request_key(
-        self: Vc<Self>,
+        &self,
         old_request_key: RcStr,
         request_key: Value<RequestKey>,
     ) -> Result<Vc<Self>> {
-        let this = self.await?;
+        let this = self;
         let request_key = request_key.into_value();
         let new_primary = this
             .primary
@@ -928,13 +927,13 @@ impl ResolveResult {
     /// if there are still some, they are discarded.
     #[turbo_tasks::function]
     pub async fn with_replaced_request_key_pattern(
-        self: Vc<Self>,
+        &self,
         old_request_key: Vc<Pattern>,
         request_key: Vc<Pattern>,
     ) -> Result<Vc<Self>> {
         let old_request_key = &*old_request_key.await?;
         let request_key = &*request_key.await?;
-        let this = self.await?;
+        let this = self;
         let new_primary = this
             .primary
             .iter()
@@ -962,8 +961,8 @@ impl ResolveResult {
     /// Returns a new [ResolveResult] where all [RequestKey]s are set to the
     /// passed `request`.
     #[turbo_tasks::function]
-    pub async fn with_request(self: Vc<Self>, request: RcStr) -> Result<Vc<Self>> {
-        let this = self.await?;
+    pub async fn with_request(&self, request: RcStr) -> Result<Vc<Self>> {
+        let this = self;
         let new_primary = this
             .primary
             .iter()

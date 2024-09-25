@@ -35,8 +35,8 @@ pub fn worker_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl WorkerLoaderChunkItem {
     #[turbo_tasks::function]
-    async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
+    async fn chunks(&self) -> Result<Vc<OutputAssets>> {
+        let this = self;
         let module = this.module.await?;
 
         let Some(evaluatable) =
