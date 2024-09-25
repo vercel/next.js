@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, RcStr, ReadRef, State, TraitRef, Vc,
 };
@@ -168,7 +167,7 @@ impl Version for NotFoundVersion {
 }
 
 /// Describes an update to a versioned object.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(serialization = "none", shared)]
 #[derive(Debug)]
 pub enum Update {
     /// The asset can't be meaningfully updated while the app is running, so the
@@ -187,7 +186,7 @@ pub enum Update {
 }
 
 /// A total update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat)]
 pub struct TotalUpdate {
     /// The version this update will bring the object to.
     #[turbo_tasks(trace_ignore)]
@@ -195,7 +194,7 @@ pub struct TotalUpdate {
 }
 
 /// A partial update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat)]
 pub struct PartialUpdate {
     /// The version this update will bring the object to.
     #[turbo_tasks(trace_ignore)]
@@ -241,7 +240,7 @@ impl Version for FileHashVersion {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(serialization = "none")]
 pub struct VersionState {
     #[turbo_tasks(trace_ignore)]
     version: State<TraitRef<Box<dyn Version>>>,
