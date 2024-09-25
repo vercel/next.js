@@ -3,7 +3,7 @@ import globby from 'globby'
 import prompts from 'prompts'
 import { join } from 'node:path'
 import { installPackage, uninstallPackage } from '../lib/handle-package'
-import { checkGitStatus, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import { checkGitStatus, CODEMOD_CHOICES } from '../lib/utils'
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {
   const shouldExpandFiles = filesBeforeExpansion.some((file) =>
@@ -28,14 +28,9 @@ export async function runTransform(
     checkGitStatus(force)
   }
 
-  if (
-    codemod &&
-    !TRANSFORMER_INQUIRER_CHOICES.find((x) => x.value === codemod)
-  ) {
+  if (codemod && !CODEMOD_CHOICES.find((x) => x.value === codemod)) {
     console.error('Invalid transform choice, pick one of:')
-    console.error(
-      TRANSFORMER_INQUIRER_CHOICES.map((x) => '- ' + x.value).join('\n')
-    )
+    console.error(CODEMOD_CHOICES.map((x) => '- ' + x.value).join('\n'))
     process.exit(1)
   }
 
@@ -54,7 +49,7 @@ export async function runTransform(
       type: 'select',
       name: 'codemod',
       message: 'Which transform would you like to apply?',
-      choices: TRANSFORMER_INQUIRER_CHOICES,
+      choices: CODEMOD_CHOICES,
     })
 
     codemod = res.codemod

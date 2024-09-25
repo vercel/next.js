@@ -4,8 +4,8 @@ import chalk from 'chalk'
 import prompts from 'prompts'
 import { execSync } from 'child_process'
 import { compareVersions } from 'compare-versions'
-import { availableCodemods } from '../lib/codemods'
 import { getPkgManager, installPackage } from '../lib/handle-package'
+import { CODEMOD_CHOICES } from '../lib/utils'
 
 type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
 type CustomVersionSpecifier = string
@@ -260,25 +260,24 @@ async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string
 ): Promise<void> {
-  const initialVersionIndex = availableCodemods.findIndex(
-    (versionCodemods) =>
-      compareVersions(versionCodemods.version, initialNextVersion) > 0
+  const initialVersionIndex = CODEMOD_CHOICES.findIndex(
+    (codemod) => compareVersions(codemod.version, initialNextVersion) > 0
   )
   if (initialVersionIndex === -1) {
     return
   }
 
-  let targetVersionIndex = availableCodemods.findIndex(
-    (versionCodemods) =>
-      compareVersions(versionCodemods.version, targetNextVersion) > 0
+  let targetVersionIndex = CODEMOD_CHOICES.findIndex(
+    (codemod) => compareVersions(codemod.version, targetNextVersion) > 0
   )
   if (targetVersionIndex === -1) {
-    targetVersionIndex = availableCodemods.length
+    targetVersionIndex = CODEMOD_CHOICES.length
   }
 
-  const relevantCodemods = availableCodemods
-    .slice(initialVersionIndex, targetVersionIndex)
-    .flatMap((versionCodemods) => versionCodemods.codemods)
+  const relevantCodemods = CODEMOD_CHOICES.slice(
+    initialVersionIndex,
+    targetVersionIndex
+  )
 
   if (relevantCodemods.length === 0) {
     return
