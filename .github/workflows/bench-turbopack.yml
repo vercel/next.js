@@ -1,0 +1,97 @@
+name: Benchmark Turbopack
+on:
+  push:
+    branches: [canary]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  turbopack_rust_check:
+    name: Turbopack rust check
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Run cargo check release
+        run: |
+          RUSTFLAGS="-D warnings -A deprecated" cargo check --workspace --all-targets --features rustls-tls --release
+
+  turbopack_bench_pr:
+    needs: [turbopack_rust_check]
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    name: Benchmark and compare Turbopack performance on ${{ matrix.os.title }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: linux
+            title: Linux
+            quiet: false
+            runs-on:
+              - 'self-hosted'
+              - 'linux'
+              - 'x64'
+              - 'metal'
+
+    runs-on: ${{ matrix.os.runs-on }}
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      #      - name: Fetch the base branch
+      #        run: git -c protocol.version=2 fetch --no-tags --progress --no-recurse-submodules --depth=1 origin +${{ github.base_ref }}:base
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - run: node -v
+      - run: corepack enable
+
+      - name: Setup Rust
+        uses: ./.github/actions/setup-rust
+
+      - uses: bencherdev/bencher@main
+
+      - name: Build the benchmark target(s)
+        run: cargo bench --workspace --exclude turbopack-bench --exclude next-swc-napi --exclude wasm --no-run
+
+      - name: Run the benchmarks
+        env:
+          BENCHER_API_TOKEN: ${{ secrets.BENCHER_API_TOKEN }}
+          BENCHER_PROJECT: 06b087de-c9ba-48ec-b909-ad9f69e97537
+          BENCHER_TESTBED: ${{ join(matrix.os.runs-on, '/') }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          bencher run \
+          --branch '${{ github.head_ref }}' \
+          --branch-start-point '${{ github.base_ref }}' \
+          --branch-start-point-hash '${{ github.event.pull_request.base.sha }}' \
+          --branch-reset \
+          --err \
+          "cargo bench --workspace --exclude turbopack-bench --exclude next-swc-napi --exclude wasm"
