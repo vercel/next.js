@@ -1496,9 +1496,6 @@ importers:
 
   packages/next-codemod:
     dependencies:
-      chalk:
-        specifier: 4.1.2
-        version: 4.1.2
       cheerio:
         specifier: 1.0.0-rc.9
         version: 1.0.0-rc.9
@@ -1530,6 +1527,9 @@ importers:
       '@types/jscodeshift':
         specifier: 0.11.0
         version: 0.11.0
+      '@types/prompts':
+        specifier: 2.4.2
+        version: 2.4.2
 
   packages/next-env:
     devDependencies:
