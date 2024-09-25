@@ -44,7 +44,10 @@ cacheHandlerMap.set('default', {
 
 const serverManifest: any = null // TODO
 const clientManifest: any = null // TODO
-const ssrManifest: any = null // TODO
+const ssrManifest: any = {
+  moduleMap: {},
+  moduleLoading: null,
+} // TODO
 
 // TODO: Consider moving this another module that is guaranteed to be required in a safe scope.
 const runInCleanSnapshot = createSnapshot()
