@@ -81,7 +81,7 @@ async function generateCacheEntry(
   fn: any
 ): Promise<ReadableStream> {
   const temporaryReferences = createServerTemporaryReferenceSet()
-  const [, args] = await decodeReply(encodedArguments, serverManifest, {
+  const [, args] = await decodeReply<any[]>(encodedArguments, serverManifest, {
     temporaryReferences,
   })
 
@@ -117,19 +117,17 @@ async function generateCacheEntry(
   const reader = savedStream.getReader()
   const erroringSavedStream = new ReadableStream({
     pull(controller) {
-      return reader
-        .read()
-        .then(({ done, value }: { done: boolean; value: any }) => {
-          if (done) {
-            if (didError) {
-              controller.error(firstError)
-            } else {
-              controller.close()
-            }
-            return
+      return reader.read().then(({ done, value }) => {
+        if (done) {
+          if (didError) {
+            controller.error(firstError)
+          } else {
+            controller.close()
           }
-          controller.enqueue(value)
-        })
+          return
+        }
+        controller.enqueue(value)
+      })
     },
     cancel(reason: any) {
       reader.cancel(reason)

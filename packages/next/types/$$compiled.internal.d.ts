@@ -39,12 +39,16 @@ declare module 'react-server-dom-webpack/server.edge' {
       }
     },
     options?: {
+      temporaryReferences?: string
+      environmentName?: string
       filterStackFrame?: (url: string, functionName: string) => boolean
       onError?: (error: unknown) => void
       onPostpone?: (reason: string) => void
       signal?: AbortSignal
     }
   ): ReadableStream<Uint8Array>
+
+  export function createTemporaryReferenceSet(...args: any[]): any
 
   type ServerManifest = {}
 
