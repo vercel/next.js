@@ -135,9 +135,8 @@ impl Asset for MdxTransformedAsset {
 impl MdxTransformedAsset {
     #[turbo_tasks::function]
     async fn process(&self) -> Result<Vc<MdxTransformResult>> {
-        let this = self;
-        let content = this.source.content().await?;
-        let transform_options = this.options.await?;
+        let content = self.source.content().await?;
+        let transform_options = self.options.await?;
 
         let AssetContent::File(file) = &*content else {
             anyhow::bail!("Unexpected mdx asset content");
@@ -175,7 +174,7 @@ impl MdxTransformedAsset {
                 .jsx_import_source
                 .clone()
                 .map(RcStr::into_owned),
-            filepath: Some(this.source.ident().path().await?.to_string()),
+            filepath: Some(self.source.ident().path().await?.to_string()),
             ..Default::default()
         };
 
@@ -210,11 +209,11 @@ impl MdxTransformedAsset {
                         }
                     };
 
-                    IssueSource::from_line_col(this.source, start, end)
+                    IssueSource::from_line_col(self.source, start, end)
                 });
 
                 MdxIssue {
-                    path: this.source.ident().path(),
+                    path: self.source.ident().path(),
                     loc,
                     reason: err.reason,
                     mdx_rule_id: *err.rule_id,

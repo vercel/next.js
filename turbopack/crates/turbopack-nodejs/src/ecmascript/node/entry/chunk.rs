@@ -145,8 +145,7 @@ impl EcmascriptBuildNodeEntryChunk {
 
     #[turbo_tasks::function]
     async fn runtime_chunk(&self) -> Result<Vc<EcmascriptBuildNodeRuntimeChunk>> {
-        let this = self;
-        Ok(EcmascriptBuildNodeRuntimeChunk::new(this.chunking_context))
+        Ok(EcmascriptBuildNodeRuntimeChunk::new(self.chunking_context))
     }
 }
 

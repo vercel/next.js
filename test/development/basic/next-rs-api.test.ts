@@ -503,7 +503,7 @@ describe('next.rs api', () => {
             expect(result.done).toBe(false)
             expect(result.value).toHaveProperty('resource', expect.toBeObject())
             expect(result.value).toHaveProperty('type', 'issues')
-            expect(result.value).toHaveProperty('issues', expect.toBeEmpty())
+            expect(normalizeIssues(result.value.issues)).toEqual([])
             expect(result.value).toHaveProperty(
               'diagnostics',
               expect.toBeEmpty()

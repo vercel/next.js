@@ -224,14 +224,13 @@ impl ValueToString for IssueProcessingPathItem {
 impl IssueProcessingPathItem {
     #[turbo_tasks::function]
     pub async fn into_plain(&self) -> Result<Vc<PlainIssueProcessingPathItem>> {
-        let this = self;
         Ok(PlainIssueProcessingPathItem {
-            file_path: if let Some(context) = this.file_path {
+            file_path: if let Some(context) = self.file_path {
                 Some(context.to_string().await?)
             } else {
                 None
             },
-            description: this.description.await?,
+            description: self.description.await?,
         }
         .cell())
     }
@@ -778,15 +777,14 @@ pub struct PlainIssueSource {
 impl IssueSource {
     #[turbo_tasks::function]
     pub async fn into_plain(&self) -> Result<Vc<PlainIssueSource>> {
-        let this = self;
         Ok(PlainIssueSource {
-            asset: PlainSource::from_source(this.source).await?,
-            range: match this.range {
+            asset: PlainSource::from_source(self.source).await?,
+            range: match self.range {
                 Some(range) => match &*range.await? {
                     SourceRange::LineColumn(start, end) => Some((*start, *end)),
                     SourceRange::ByteOffset(start, end) => {
                         if let FileLinesContent::Lines(lines) =
-                            &*this.source.content().lines().await?
+                            &*self.source.content().lines().await?
                         {
                             let start = find_line_and_column(lines.as_ref(), *start);
                             let end = find_line_and_column(lines.as_ref(), *end);

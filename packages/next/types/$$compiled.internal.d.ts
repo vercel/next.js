@@ -37,6 +37,10 @@ declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
 
+declare module 'next/dist/server/ReactDOMServerPages' {
+  export * from 'react-dom/server.edge'
+}
+
 declare module 'next/dist/compiled/@napi-rs/triples' {
   export * from '@napi-rs/triples'
 }

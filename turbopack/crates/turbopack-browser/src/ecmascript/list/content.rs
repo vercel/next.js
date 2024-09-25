@@ -71,12 +71,10 @@ impl EcmascriptDevChunkListContent {
     /// Computes the version of this content.
     #[turbo_tasks::function]
     pub async fn version(&self) -> Result<Vc<EcmascriptDevChunkListVersion>> {
-        let this = self;
-
         let mut by_merger = IndexMap::<_, Vec<_>>::new();
         let mut by_path = IndexMap::<_, _>::new();
 
-        for (chunk_path, chunk_content) in &this.chunks_contents {
+        for (chunk_path, chunk_content) in &self.chunks_contents {
             if let Some(mergeable) =
                 Vc::try_resolve_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
                     .await?

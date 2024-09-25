@@ -127,9 +127,7 @@ impl DevHtmlAsset {
 
     #[turbo_tasks::function]
     async fn chunks(&self) -> Result<Vc<OutputAssets>> {
-        let this = self;
-
-        let all_assets = this
+        let all_assets = self
             .entries
             .iter()
             .map(|entry| async move {
@@ -181,12 +179,10 @@ impl DevHtmlAssetContent {
 impl DevHtmlAssetContent {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        let this = self;
-
         let mut scripts = Vec::new();
         let mut stylesheets = Vec::new();
 
-        for relative_path in &*this.chunk_paths {
+        for relative_path in &*self.chunk_paths {
             if relative_path.ends_with(".js") {
                 scripts.push(format!("<script src=\"{}\"></script>", relative_path));
             } else if relative_path.ends_with(".css") {
@@ -199,7 +195,7 @@ impl DevHtmlAssetContent {
             }
         }
 
-        let body = match &this.body {
+        let body = match &self.body {
             Some(body) => body.as_str(),
             None => "",
         };
