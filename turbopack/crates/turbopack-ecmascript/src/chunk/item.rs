@@ -13,10 +13,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    references::{
-        async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
-        DeclaredCjsGlobals,
-    },
+    references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     utils::FormatIter,
     EcmascriptModuleContent, EcmascriptOptions,
 };
@@ -38,7 +35,6 @@ impl EcmascriptChunkItemContent {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         options: Vc<EcmascriptOptions>,
         async_module_options: Vc<OptionAsyncModuleOptions>,
-        declared_cjs_globals: Vc<DeclaredCjsGlobals>,
     ) -> Result<Vc<Self>> {
         let refresh = options.await?.refresh;
         let externals = *chunking_context
@@ -48,7 +44,6 @@ impl EcmascriptChunkItemContent {
 
         let content = content.await?;
         let async_module = async_module_options.await?.clone_value();
-        let declared_cjs_globals = declared_cjs_globals.await?;
 
         Ok(EcmascriptChunkItemContent {
             inner_code: content.inner_code.clone(),
@@ -59,11 +54,7 @@ impl EcmascriptChunkItemContent {
                     refresh,
                     externals,
                     async_module,
-                    require: if declared_cjs_globals.require {
-                        EcmascriptChunkItemRequireType::None
-                    } else {
-                        EcmascriptChunkItemRequireType::Stub
-                    },
+                    stub_require: true,
                     ..Default::default()
                 }
             } else {
@@ -74,12 +65,10 @@ impl EcmascriptChunkItemContent {
                 EcmascriptChunkItemOptions {
                     refresh,
                     externals,
-                    require: EcmascriptChunkItemRequireType::Real,
-                    // These are not available in ESM
+                    // These things are not available in ESM
                     module: true,
                     exports: true,
                     this: true,
-                    dirname: true,
                     ..Default::default()
                 }
             },
@@ -107,6 +96,8 @@ impl EcmascriptChunkItemContent {
             "R: __turbopack_resolve_module_id_path__",
             "b: __turbopack_worker_blob_url__",
             "g: global",
+            // HACK
+            "__dirname",
         ];
         if this.options.async_module.is_some() {
             args.push("a: __turbopack_async_module__");
@@ -118,26 +109,21 @@ impl EcmascriptChunkItemContent {
         if this.options.refresh {
             args.push("k: __turbopack_refresh__");
         }
-        if this.options.dirname {
-            args.push("__dirname");
-        }
         if this.options.module || this.options.refresh {
             args.push("m: module");
         }
         if this.options.exports {
             args.push("e: exports");
         }
-        match this.options.require {
-            EcmascriptChunkItemRequireType::Real => args.push("t: require"),
-            EcmascriptChunkItemRequireType::Stub => args.push("z: require"),
-            EcmascriptChunkItemRequireType::None => {}
+        if this.options.stub_require {
+            args.push("z: require");
+        } else {
+            args.push("t: require");
         }
-
         if this.options.wasm {
             args.push("w: __turbopack_wasm__");
             args.push("u: __turbopack_wasm_module__");
         }
-
         let mut code = CodeBuilder::default();
         let args = FormatIter(|| args.iter().copied().intersperse(", "));
         if this.options.this {
@@ -174,17 +160,6 @@ impl EcmascriptChunkItemContent {
 }
 
 #[derive(PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs)]
-pub enum EcmascriptChunkItemRequireType {
-    /// No require at all
-    #[default]
-    None,
-    /// A throwing stub (for ESM)
-    Stub,
-    /// The real require
-    Real,
-}
-
-#[derive(PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs)]
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
@@ -197,19 +172,15 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module factory should include an `exports`
     /// argument.
     pub exports: bool,
-    /// Whether this chunk item's module factory should include an `__dirname`
-    /// argument.
-    pub dirname: bool,
-    /// What `require` argument this chunk item's module factory should include
-    /// an argument for the real `require`.
-    pub require: EcmascriptChunkItemRequireType,
+    /// Whether this chunk item's module factory should include an argument for the real `require`,
+    /// or just a throwing stub (for ESM)
+    pub stub_require: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
     pub externals: bool,
     /// Whether this chunk item's module is async (either has a top level await
     /// or is importing async modules).
     pub async_module: Option<AsyncModuleOptions>,
-    /// Whether this chunk item accesses the module-global `this` object.
     pub this: bool,
     /// Whether this chunk item's module factory should include
     /// `__turbopack_wasm__` to load WebAssembly.

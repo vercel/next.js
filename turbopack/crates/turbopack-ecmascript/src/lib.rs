@@ -52,7 +52,6 @@ use swc_core::{
         visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
-use tracing::Instrument;
 pub use transform::{
     CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, OptionTransformPlugin,
     TransformContext, TransformPlugin, UnsupportedServerActionIssue,
@@ -686,32 +685,27 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
-        async {
-            let async_module_options = this
-                .module
-                .get_async_module()
-                .module_options(async_module_info);
-
-            // TODO check if we need to pass async_module_info at all
-            let content = this
-                .module
-                .module_content(this.chunking_context, async_module_info);
-
-            let declared_cjs_globals = this.module.analyze().await?.declared_cjs_globals;
-
-            Ok(EcmascriptChunkItemContent::new(
-                content,
-                this.chunking_context,
-                this.module.options(),
-                async_module_options,
-                declared_cjs_globals,
-            ))
-        }
-        .instrument(tracing::info_span!(
+        let _span = tracing::info_span!(
             "code generation",
             module = self.asset_ident().to_string().await?.to_string()
+        )
+        .entered();
+        let async_module_options = this
+            .module
+            .get_async_module()
+            .module_options(async_module_info);
+
+        // TODO check if we need to pass async_module_info at all
+        let content = this
+            .module
+            .module_content(this.chunking_context, async_module_info);
+
+        Ok(EcmascriptChunkItemContent::new(
+            content,
+            this.chunking_context,
+            this.module.options(),
+            async_module_options,
         ))
-        .await
     }
 }
 
