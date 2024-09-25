@@ -1,10 +1,10 @@
 import prompts from 'prompts'
-import { execSync } from 'child_process'
-import { green, bold, blue, gray } from 'picocolors'
-import { compare, compareVersions, validateStrict } from 'compare-versions'
+import { green, bold } from 'picocolors'
+import { compare, validateStrict } from 'compare-versions'
 import { getPkgManager, installPackage } from '../lib/handle-package'
 import { CODEMOD_CHOICES } from '../lib/utils'
 import { onPromptState } from './next-codemod'
+import { runTransform } from './transform'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 type Version = 'canary' | 'rc' | 'latest' | string
@@ -115,7 +115,7 @@ export async function runUpgrade(version?: Version): Promise<void> {
   const packageManager: PackageManager = getPkgManager(cwd)
   installPackage([nextDependency, ...reactDependencies], packageManager)
 
-  console.log(`Upgrading your project to Next.js v${targetNextVersion}...\n`)
+  console.log(`Upgrading your project to Next.js v${targetNextVersion}...`)
 
   await suggestCodemods(installedNextVersion, targetNextVersion)
 
@@ -142,15 +142,16 @@ async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string
 ): Promise<void> {
-  const initialVersionIndex = CODEMOD_CHOICES.findIndex(
-    (codemod) => compareVersions(codemod.version, initialNextVersion) > 0
+  const initialVersionIndex = CODEMOD_CHOICES.findIndex((codemod) =>
+    compare(codemod.version, initialNextVersion, '>')
   )
   if (initialVersionIndex === -1) {
+    console.log('No codemods available for your upgrade.')
     return
   }
 
-  let targetNextVersionIndex = CODEMOD_CHOICES.findIndex(
-    (codemod) => compareVersions(codemod.version, targetNextVersion) > 0
+  let targetNextVersionIndex = CODEMOD_CHOICES.findIndex((codemod) =>
+    compare(codemod.version, targetNextVersion, '>')
   )
   if (targetNextVersionIndex === -1) {
     targetNextVersionIndex = CODEMOD_CHOICES.length
@@ -162,32 +163,27 @@ async function suggestCodemods(
   )
 
   if (relevantCodemods.length === 0) {
+    console.log('No codemods available for your upgrade.')
     return
   }
 
-  let codemodsString = `\nThe following ${blue('codemods')} are available for your upgrade:`
-  relevantCodemods.forEach((codemod) => {
-    codemodsString += `\n- ${codemod.title} ${gray(`(${codemod.value})`)}`
-  })
-  codemodsString += '\n'
-
-  console.log(codemodsString)
-
-  const responseCodemods = await prompts({
-    type: 'confirm',
-    name: 'apply',
-    message: `Do you want to apply these codemods?`,
-    initial: true,
+  // returns the "value" property of the selected codemods
+  const { selectedCodeMods } = await prompts({
+    type: 'multiselect',
+    name: 'selectedCodeMods',
+    message: 'Select the codemods you want to apply.',
+    choices: relevantCodemods,
     onState: onPromptState,
   })
 
-  if (!responseCodemods.apply) {
+  if (!selectedCodeMods) {
+    console.log('No codemods selected. Exiting.')
     return
   }
 
-  for (const codemod of relevantCodemods) {
-    execSync(`npx @next/codemod@latest ${codemod.value} ${cwd} --force`, {
-      stdio: 'inherit',
+  for (const codemod of selectedCodeMods) {
+    await runTransform(codemod, cwd, {
+      force: true,
     })
   }
 }

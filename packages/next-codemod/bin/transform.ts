@@ -30,7 +30,7 @@ export async function runTransform(
   }
 
   if (codemod && !CODEMOD_CHOICES.find((x) => x.value === codemod)) {
-    console.error('Invalid transform choice, pick one of:')
+    console.error(`Invalid transform choice "${codemod}", pick one of:`)
     console.error(CODEMOD_CHOICES.map((x) => '- ' + x.value).join('\n'))
     process.exit(1)
   }

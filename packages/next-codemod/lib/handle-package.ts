@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import execa from 'execa'
+import { execSync } from 'node:child_process'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 
@@ -68,7 +69,7 @@ export function installPackage(
   }
 
   try {
-    execa.sync(pkgManager, ['add', packageToInstall], { stdio: 'inherit' })
+    execSync(`${pkgManager} add ${packageToInstall}`, { stdio: 'inherit' })
   } catch (error) {
     throw new Error(
       `Failed to install "${packageToInstall}". Please install it manually.`,
