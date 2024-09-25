@@ -1,4 +1,4 @@
-import { AsyncLocalStorage } from 'async_hooks' // TODO: Is this safe to import?
+import { createSnapshot } from '../../../../client/components/async-local-storage'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
   renderToReadableStream,
@@ -24,6 +24,7 @@ interface CacheHandler {
   set(cacheKey: string | ArrayBuffer, value: ReadableStream): Promise<void>
   shouldRevalidateStale: boolean
 }
+
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
 cacheHandlerMap.set('default', {
   async get(_cacheKey: string | ArrayBuffer) {
@@ -45,7 +46,7 @@ const clientManifest: any = null // TODO
 const ssrManifest: any = null // TODO
 
 // TODO: Consider moving this another module that is guaranteed to be required in a safe scope.
-const runInCleanSnapshot = AsyncLocalStorage.snapshot()
+const runInCleanSnapshot = createSnapshot()
 
 async function generateCacheEntry(
   cacheHandler: CacheHandler,
