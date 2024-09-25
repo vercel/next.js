@@ -698,21 +698,6 @@ export async function ncc_amphtml_validator(task, opts) {
     .source(relative(__dirname, require.resolve('amphtml-validator')))
     .ncc({ packageName: 'amphtml-validator', externals })
     .target('src/compiled/amphtml-validator')
-
-  const validatorRes = await fetch(
-    'https://cdn.ampproject.org/v0/validator_wasm.js'
-  )
-
-  if (!validatorRes.ok) {
-    throw new Error(
-      `Failed to get the AMP validator, status: ${validatorRes.status}`
-    )
-  }
-
-  await fs.writeFile(
-    join(__dirname, 'src/compiled/amphtml-validator/validator_wasm.js'),
-    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
-  )
 }
 
 // eslint-disable-next-line camelcase
@@ -2275,6 +2260,7 @@ export async function precompile(task, opts) {
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
     opts
   )
+  await download_amphtml_validator()
 }
 
 // eslint-disable-next-line camelcase
@@ -2282,6 +2268,23 @@ export async function copy_ncced(task) {
   // we don't ncc every time we build since these won't change
   // that often and can be committed to the repo saving build time
   await task.source('src/compiled/**/*').target('dist/compiled')
+}
+
+export async function download_amphtml_validator() {
+  const validatorRes = await fetch(
+    'https://cdn.ampproject.org/v0/validator_wasm.js'
+  )
+
+  if (!validatorRes.ok) {
+    throw new Error(
+      `Failed to get the AMP validator, status: ${validatorRes.status}`
+    )
+  }
+
+  await fs.writeFile(
+    join(__dirname, 'dist/compiled/amphtml-validator/validator_wasm.js'),
+    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
+  )
 }
 
 export async function ncc(task, opts) {
