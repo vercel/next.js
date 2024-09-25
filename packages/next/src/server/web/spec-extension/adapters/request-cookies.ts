@@ -19,6 +19,9 @@ export class ReadonlyRequestCookiesError extends Error {
   }
 }
 
+// We use this to type some APIs but we don't construct instances directly
+export type { ResponseCookies }
+
 // The `cookies()` API is a mix of request and response cookies. For `.get()` methods,
 // we want to return the request cookie if it exists. For mutative methods like `.set()`,
 // we want to return the response cookie.
