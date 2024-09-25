@@ -5,15 +5,10 @@ use std::{
 
 use anyhow::Result;
 use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{transition::Transition, ModuleAssetContext};
-use turbopack_core::{
-    context::AssetContext,
-    file_source::FileSource,
-    module::Module,
-    reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
-};
+use turbopack_core::{file_source::FileSource, module::Module};
 use turbopack_ecmascript::{magic_identifier, text::TextContentFileSource, utils::StringifyJs};
 
 use crate::{
@@ -193,16 +188,7 @@ impl AppPageLoaderTreeBuilder {
                     app_page.clone(),
                 );
 
-                let module = self
-                    .base
-                    .module_asset_context
-                    .process(
-                        source,
-                        Value::new(ReferenceType::EcmaScriptModules(
-                            EcmaScriptModulesReferenceSubType::Undefined,
-                        )),
-                    )
-                    .module();
+                let module = self.base.process_source(source);
                 self.base
                     .inner_assets
                     .insert(inner_module_id.into(), module);
@@ -237,14 +223,15 @@ impl AppPageLoaderTreeBuilder {
         self.base
             .imports
             .push(format!("import {identifier} from \"{inner_module_id}\";").into());
-        self.base.inner_assets.insert(
-            inner_module_id.into(),
-            Vc::upcast(StructuredImageModuleType::create_module(
-                Vc::upcast(FileSource::new(path)),
-                BlurPlaceholderMode::None,
-                self.base.module_asset_context,
-            )),
-        );
+        let module = Vc::upcast(StructuredImageModuleType::create_module(
+            Vc::upcast(FileSource::new(path)),
+            BlurPlaceholderMode::None,
+            self.base.module_asset_context,
+        ));
+        let module = self.base.process_module(module);
+        self.base
+            .inner_assets
+            .insert(inner_module_id.into(), module);
 
         let s = "      ";
         writeln!(self.loader_tree_code, "{s}(async (props) => [{{")?;
@@ -286,14 +273,9 @@ impl AppPageLoaderTreeBuilder {
 
             let module = self
                 .base
-                .module_asset_context
-                .process(
-                    Vc::upcast(TextContentFileSource::new(Vc::upcast(FileSource::new(
-                        alt_path,
-                    )))),
-                    Value::new(ReferenceType::Internal(InnerAssets::empty())),
-                )
-                .module();
+                .process_source(Vc::upcast(TextContentFileSource::new(Vc::upcast(
+                    FileSource::new(alt_path),
+                ))));
 
             self.base
                 .inner_assets
@@ -339,11 +321,17 @@ impl AppPageLoaderTreeBuilder {
             route: _,
         } = &modules;
 
+        // Ensure global metadata being written only once at the root level
+        // Otherwise child pages will have redundant metadata
+        let global_metadata = &*global_metadata.await?;
+        self.write_metadata(
+            app_page,
+            metadata,
+            if root { Some(global_metadata) } else { None },
+        )
+        .await?;
+
         self.write_modules_entry(AppDirModuleType::Layout, *layout)
-            .await?;
-        self.write_modules_entry(AppDirModuleType::Page, *page)
-            .await?;
-        self.write_modules_entry(AppDirModuleType::DefaultPage, *default)
             .await?;
         self.write_modules_entry(AppDirModuleType::Error, *error)
             .await?;
@@ -352,6 +340,10 @@ impl AppPageLoaderTreeBuilder {
         self.write_modules_entry(AppDirModuleType::Template, *template)
             .await?;
         self.write_modules_entry(AppDirModuleType::NotFound, *not_found)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::Page, *page)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::DefaultPage, *default)
             .await?;
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
@@ -366,16 +358,6 @@ impl AppPageLoaderTreeBuilder {
 
         self.loader_tree_code += &modules_code;
 
-        // Ensure global metadata being written only once at the root level
-        // Otherwise child pages will have redundant metadata
-        let global_metadata = &*global_metadata.await?;
-        self.write_metadata(
-            app_page,
-            metadata,
-            if root { Some(global_metadata) } else { None },
-        )
-        .await?;
-
         write!(self.loader_tree_code, "}}]")?;
         Ok(())
     }
@@ -388,7 +370,9 @@ impl AppPageLoaderTreeBuilder {
 
         let modules = &loader_tree.modules;
         if let Some(global_error) = modules.global_error {
-            let module = self.base.process_module(global_error);
+            let module = self
+                .base
+                .process_source(Vc::upcast(FileSource::new(global_error)));
             self.base.inner_assets.insert(GLOBAL_ERROR.into(), module);
         };
 
