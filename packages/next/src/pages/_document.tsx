@@ -22,6 +22,8 @@ import {
 import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getTracer } from '../server/lib/trace/tracer'
+import { getTracedMetadata } from '../server/lib/trace/utils'
 
 export type { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -435,7 +437,7 @@ export class Head extends React.Component<HeadProps> {
 
     // Unmanaged files are CSS files that will be handled directly by the
     // webpack runtime (`mini-css-extract-plugin`).
-    let unmangedFiles: Set<string> = new Set([])
+    let unmanagedFiles: Set<string> = new Set([])
     let dynamicCssFiles = Array.from(
       new Set(dynamicImports.filter((file) => file.endsWith('.css')))
     )
@@ -444,7 +446,7 @@ export class Head extends React.Component<HeadProps> {
       dynamicCssFiles = dynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
-      unmangedFiles = new Set(dynamicCssFiles)
+      unmanagedFiles = new Set(dynamicCssFiles)
       cssFiles.push(...dynamicCssFiles)
     }
 
@@ -467,7 +469,7 @@ export class Head extends React.Component<HeadProps> {
         )
       }
 
-      const isUnmanagedFile = unmangedFiles.has(file)
+      const isUnmanagedFile = unmanagedFiles.has(file)
       cssLinkElements.push(
         <link
           key={file}
@@ -758,6 +760,17 @@ export class Head extends React.Component<HeadProps> {
       assetPrefix
     )
 
+    const tracingMetadata = getTracedMetadata(
+      getTracer().getTracePropagationData(),
+      this.context.experimentalClientTraceMetadata
+    )
+
+    const traceMetaTags = (tracingMetadata || []).map(
+      ({ key, value }, index) => (
+        <meta key={`next-trace-data-${index}`} name={key} content={value} />
+      )
+    )
+
     return (
       <head {...getHeadHTMLProps(this.props)}>
         {this.context.isDevelopment && (
@@ -882,6 +895,7 @@ export class Head extends React.Component<HeadProps> {
               // (by default, style-loader injects at the bottom of <head />)
               <noscript id="__next_css__DO_NOT_USE__" />
             )}
+            {traceMetaTags}
             {styles || null}
           </>
         )}

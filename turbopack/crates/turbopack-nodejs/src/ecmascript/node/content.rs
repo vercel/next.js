@@ -109,8 +109,8 @@ impl EcmascriptBuildNodeChunkContent {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn own_version(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
-        let this = self.await?;
+    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
+        let this = self;
         Ok(EcmascriptBuildNodeChunkVersion::new(
             this.chunking_context.output_root(),
             this.chunk.ident().path(),

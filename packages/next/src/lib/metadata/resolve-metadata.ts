@@ -10,7 +10,7 @@ import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/t
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
-import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type {
@@ -49,6 +49,7 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
+import type { CreateDynamicallyTrackedParams } from '../../server/request/fallback-params'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
@@ -370,9 +371,9 @@ async function getDefinedMetadata(
 }
 
 async function collectStaticImagesFiles(
-  metadata: ComponentsType['metadata'],
+  metadata: AppDirModules['metadata'],
   props: any,
-  type: keyof NonNullable<ComponentsType['metadata']>
+  type: keyof NonNullable<AppDirModules['metadata']>
 ) {
   if (!metadata?.[type]) return undefined
 
@@ -387,10 +388,10 @@ async function collectStaticImagesFiles(
 }
 
 async function resolveStaticMetadata(
-  components: ComponentsType,
+  modules: AppDirModules,
   props: any
 ): Promise<StaticMetadata> {
-  const { metadata } = components
+  const { metadata } = modules
   if (!metadata) return null
 
   const [icon, apple, openGraph, twitter] = await Promise.all([
@@ -478,6 +479,7 @@ export async function resolveMetadataItems({
   getDynamicParamFromSegment,
   searchParams,
   errorConvention,
+  createDynamicallyTrackedParams,
 }: {
   tree: LoaderTree
   parentParams: { [key: string]: any }
@@ -488,6 +490,7 @@ export async function resolveMetadataItems({
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   searchParams: ParsedUrlQuery
   errorConvention: 'not-found' | undefined
+  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams
 }): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix = [...treePrefix, segment]
@@ -508,15 +511,17 @@ export async function resolveMetadataItems({
       : // Pass through parent params to children
         parentParams
 
+  const params = createDynamicallyTrackedParams(currentParams)
+
   let layerProps: LayoutProps | PageProps
   if (isPage) {
     layerProps = {
-      params: currentParams,
+      params,
       searchParams,
     }
   } else {
     layerProps = {
-      params: currentParams,
+      params,
     }
   }
 
@@ -543,6 +548,7 @@ export async function resolveMetadataItems({
       searchParams,
       getDynamicParamFromSegment,
       errorConvention,
+      createDynamicallyTrackedParams,
     })
   }
 
@@ -885,6 +891,7 @@ export async function resolveMetadata({
   searchParams,
   errorConvention,
   metadataContext,
+  createDynamicallyTrackedParams,
 }: {
   tree: LoaderTree
   parentParams: { [key: string]: any }
@@ -896,6 +903,7 @@ export async function resolveMetadata({
   searchParams: { [key: string]: any }
   errorConvention: 'not-found' | undefined
   metadataContext: MetadataContext
+  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams
 }): Promise<[any, ResolvedMetadata, ResolvedViewport]> {
   const resolvedMetadataItems = await resolveMetadataItems({
     tree,
@@ -905,6 +913,7 @@ export async function resolveMetadata({
     getDynamicParamFromSegment,
     searchParams,
     errorConvention,
+    createDynamicallyTrackedParams,
   })
   let error
   let metadata: ResolvedMetadata = createDefaultMetadata()

@@ -118,6 +118,9 @@ pub struct NapiProjectOptions {
 
     /// Options for draft mode.
     pub preview_props: NapiDraftModeOptions,
+
+    /// The browserslist query to use for targeting browsers.
+    pub browserslist_query: String,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -161,6 +164,9 @@ pub struct NapiPartialProjectOptions {
 
     /// Options for draft mode.
     pub preview_props: Option<NapiDraftModeOptions>,
+
+    /// The browserslist query to use for targeting browsers.
+    pub browserslist_query: Option<String>,
 }
 
 #[napi(object)]
@@ -195,6 +201,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             encryption_key: val.encryption_key.into(),
             build_id: val.build_id.into(),
             preview_props: val.preview_props.into(),
+            browserslist_query: val.browserslist_query.into(),
         }
     }
 }
@@ -249,7 +256,7 @@ pub struct ProjectInstance {
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
 pub async fn project_new(
     options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
@@ -289,7 +296,7 @@ pub async fn project_new(
         std::fs::create_dir_all(&internal_dir)
             .context("Unable to create .next directory")
             .unwrap();
-        let trace_file = internal_dir.join("trace.log");
+        let trace_file = internal_dir.join("trace-turbopack");
         let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
         let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
         let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
@@ -331,11 +338,12 @@ pub async fn project_new(
             .unwrap();
         });
     }
-    let options = options.into();
+    let options: ProjectOptions = options.into();
     let container = turbo_tasks
         .run_once(async move {
-            let project = ProjectContainer::new(options);
+            let project = ProjectContainer::new("next.js".into(), options.dev);
             let project = project.resolve().await?;
+            project.initialize(options).await?;
             Ok(project)
         })
         .await
@@ -365,9 +373,6 @@ pub async fn project_new(
 /// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
 #[tracing::instrument]
 async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
-    let temp_path =
-        directory.join(format!("tmp_file_io_benchmark_{:x}", rand::random::<u128>()).into());
-
     // try to get the real file path on disk so that we can use it with tokio
     let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
         .await?
@@ -375,7 +380,12 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
             "expected node_root to be a DiskFileSystem, cannot benchmark"
         ))?
         .await?;
-    let temp_path = fs.to_sys_path(temp_path).await?;
+
+    let directory = fs.to_sys_path(directory).await?;
+    let temp_path = directory.join(format!(
+        "tmp_file_io_benchmark_{:x}",
+        rand::random::<u128>()
+    ));
 
     let mut random_buffer = [0u8; 512];
     rand::thread_rng().fill(&mut random_buffer[..]);
@@ -404,14 +414,14 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
         println!(
             "Slow filesystem detected. If {} is a network drive, consider moving it to a local \
              folder. If you have an antivirus enabled, consider excluding your project directory.",
-            fs.to_sys_path(directory).await?.to_string_lossy(),
+            directory.to_string_lossy(),
         );
     }
 
     Ok(Completion::new())
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi]
 pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     options: NapiPartialProjectOptions,
@@ -427,6 +437,13 @@ pub async fn project_update(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(())
+}
+
+#[napi]
+pub async fn project_shutdown(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) {
+    project.turbo_tasks.stop_and_wait().await;
 }
 
 #[napi(object)]
@@ -716,7 +733,8 @@ pub fn project_hmr_events(
                 async move {
                     let project = project.project().resolve().await?;
                     let state = project.hmr_version_state(identifier.clone(), session);
-                    let update = hmr_update(project, identifier, state)
+
+                    let update = hmr_update(project, identifier.clone(), state)
                         .strongly_consistent()
                         .await?;
                     let HmrUpdateWithIssues {
@@ -725,7 +743,7 @@ pub fn project_hmr_events(
                         diagnostics,
                     } = &*update;
                     match &**update {
-                        Update::None => {}
+                        Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
                             state.set(to.clone()).await?;
                         }
@@ -733,7 +751,7 @@ pub fn project_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    Ok((update.clone(), issues.clone(), diagnostics.clone()))
+                    Ok((Some(update.clone()), issues.clone(), diagnostics.clone()))
                 }
                 .instrument(tracing::info_span!(
                     "HMR subscription",
@@ -757,14 +775,16 @@ pub fn project_hmr_events(
                 path: identifier.clone(),
                 headers: None,
             };
-            let update = match &*update {
-                Update::Total(_) => ClientUpdateInstruction::restart(&identifier, &update_issues),
-                Update::Partial(update) => ClientUpdateInstruction::partial(
+            let update = match update.as_deref() {
+                None | Some(Update::Missing) | Some(Update::Total(_)) => {
+                    ClientUpdateInstruction::restart(&identifier, &update_issues)
+                }
+                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
                     &identifier,
                     &update.instruction,
                     &update_issues,
                 ),
-                Update::None => ClientUpdateInstruction::issues(&identifier, &update_issues),
+                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
             };
 
             Ok(vec![TurbopackResult {
@@ -1012,18 +1032,22 @@ pub async fn project_trace_source(
                 .client_relative_path()
                 .join(chunk_base.into());
 
-            let mut map_result = project
+            let mut map = project
                 .container
                 .get_source_map(server_path, module.clone())
-                .await;
-            if map_result.is_err() {
+                .await?;
+
+            if map.is_none() {
                 // If the chunk doesn't exist as a server chunk, try a client chunk.
                 // TODO: Properly tag all server chunks and use the `isServer` query param.
                 // Currently, this is inaccurate as it does not cover RSC server
                 // chunks.
-                map_result = project.container.get_source_map(client_path, module).await;
+                map = project
+                    .container
+                    .get_source_map(client_path, module)
+                    .await?;
             }
-            let map = map_result?.context("chunk/module is missing a sourcemap")?;
+            let map = map.context("chunk/module is missing a sourcemap")?;
 
             let Some(line) = frame.line else {
                 return Ok(None);

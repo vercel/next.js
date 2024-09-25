@@ -30,10 +30,10 @@ impl NextDynamicEntryModule {
 
     #[turbo_tasks::function]
     pub async fn client_chunks(
-        self: Vc<Self>,
+        &self,
         client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
+        let this = self;
 
         let Some(client_entry_module) =
             Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(this.client_entry_module).await?

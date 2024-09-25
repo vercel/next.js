@@ -70,8 +70,8 @@ impl EcmascriptDevChunkListContent {
 
     /// Computes the version of this content.
     #[turbo_tasks::function]
-    pub async fn version(self: Vc<Self>) -> Result<Vc<EcmascriptDevChunkListVersion>> {
-        let this = self.await?;
+    pub async fn version(&self) -> Result<Vc<EcmascriptDevChunkListVersion>> {
+        let this = self;
 
         let mut by_merger = IndexMap::<_, Vec<_>>::new();
         let mut by_path = IndexMap::<_, _>::new();

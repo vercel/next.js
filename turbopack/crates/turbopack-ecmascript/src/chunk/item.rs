@@ -54,6 +54,7 @@ impl EcmascriptChunkItemContent {
                     refresh,
                     externals,
                     async_module,
+                    stub_require: true,
                     ..Default::default()
                 }
             } else {
@@ -67,7 +68,6 @@ impl EcmascriptChunkItemContent {
                     // These things are not available in ESM
                     module: true,
                     exports: true,
-                    require: true,
                     this: true,
                     ..Default::default()
                 }
@@ -78,8 +78,8 @@ impl EcmascriptChunkItemContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_factory(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
+    pub async fn module_factory(&self) -> Result<Vc<Code>> {
+        let this = self;
         let mut args = vec![
             "r: __turbopack_require__",
             "f: __turbopack_module_context__",
@@ -94,6 +94,7 @@ impl EcmascriptChunkItemContent {
             "P: __turbopack_resolve_absolute_path__",
             "U: __turbopack_relative_url__",
             "R: __turbopack_resolve_module_id_path__",
+            "b: __turbopack_worker_blob_url__",
             "g: global",
             // HACK
             "__dirname",
@@ -114,7 +115,9 @@ impl EcmascriptChunkItemContent {
         if this.options.exports {
             args.push("e: exports");
         }
-        if this.options.require {
+        if this.options.stub_require {
+            args.push("z: require");
+        } else {
             args.push("t: require");
         }
         if this.options.wasm {
@@ -124,15 +127,16 @@ impl EcmascriptChunkItemContent {
         let mut code = CodeBuilder::default();
         let args = FormatIter(|| args.iter().copied().intersperse(", "));
         if this.options.this {
-            writeln!(code, "(function({{ {} }}) {{ !function() {{", args,)?;
+            code += "(function(__turbopack_context__) {\n";
         } else {
-            writeln!(code, "(({{ {} }}) => (() => {{", args,)?;
+            code += "((__turbopack_context__) => {\n";
         }
         if this.options.strict {
             code += "\"use strict\";\n\n";
         } else {
             code += "\n";
         }
+        writeln!(code, "var {{ {} }} = __turbopack_context__;", args)?;
 
         if this.options.async_module.is_some() {
             code += "__turbopack_async_module__(async (__turbopack_handle_async_dependencies__, \
@@ -150,11 +154,7 @@ impl EcmascriptChunkItemContent {
             )?;
         }
 
-        if this.options.this {
-            code += "\n}.call(this) })";
-        } else {
-            code += "\n})())";
-        }
+        code += "})";
         Ok(code.build().cell())
     }
 }
@@ -172,9 +172,9 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module factory should include an `exports`
     /// argument.
     pub exports: bool,
-    /// Whether this chunk item's module factory should include a `require`
-    /// argument.
-    pub require: bool,
+    /// Whether this chunk item's module factory should include an argument for the real `require`,
+    /// or just a throwing stub (for ESM)
+    pub stub_require: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
     pub externals: bool,

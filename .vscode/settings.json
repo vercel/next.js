@@ -57,7 +57,11 @@
     "RUST_BACKTRACE": "0"
   },
   "cSpell.words": [
+    "codemod",
+    "codemods",
+    "Destructuring",
     "Entrypoints",
+    "jscodeshift",
     "napi",
     "nextjs",
     "opentelemetry",

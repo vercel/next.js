@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
+    hmr_entry::HmrEntryModule,
     mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -34,7 +35,7 @@ use turbo_tasks_fs::{
 use turbopack::{
     module_options::ModuleOptionsContext,
     resolve_options_context::ResolveOptionsContext,
-    transition::{ContextTransition, TransitionsByName},
+    transition::{ContextTransition, TransitionOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
@@ -45,6 +46,7 @@ use turbopack_core::{
     },
     context::AssetContext,
     file_source::FileSource,
+    ident::AssetIdent,
     issue::IssueSeverity,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
@@ -64,8 +66,8 @@ use crate::{
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root,
-        wasm_paths_to_bindings,
+        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
@@ -251,9 +253,9 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    fn transitions(self: Vc<Self>) -> Vc<TransitionsByName> {
-        Vc::cell(
-            [(
+    fn transitions(self: Vc<Self>) -> Vc<TransitionOptions> {
+        TransitionOptions {
+            named_transitions: [(
                 "next-dynamic".into(),
                 Vc::upcast(NextDynamicTransition::new(Vc::upcast(
                     self.client_transition(),
@@ -261,7 +263,9 @@ impl PagesProject {
             )]
             .into_iter()
             .collect(),
-        )
+            ..Default::default()
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -636,19 +640,31 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
-        let this = self.await?;
+    async fn source(&self) -> Result<Vc<Box<dyn Source>>> {
+        let this = self;
         Ok(Vc::upcast(FileSource::new(this.page.project_path())))
     }
 
     #[turbo_tasks::function]
     async fn client_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
-        Ok(create_page_loader_entry_module(
+        let page_loader = create_page_loader_entry_module(
             this.pages_project.client_module_context(),
             self.source(),
             this.pathname,
-        ))
+        );
+        if matches!(
+            *this.pages_project.project().next_mode().await?,
+            NextMode::Development
+        ) {
+            if let Some(chunkable) = Vc::try_resolve_downcast(page_loader).await? {
+                return Ok(Vc::upcast(HmrEntryModule::new(
+                    AssetIdent::from_path(this.page.await?.base_path),
+                    chunkable,
+                )));
+            }
+        }
+        Ok(page_loader)
     }
 
     #[turbo_tasks::function]
@@ -662,19 +678,19 @@ impl PageEndpoint {
             let Some(client_module) =
                 Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
             else {
-                bail!("expected an ECMAScript module asset");
+                bail!("expected an evaluateable asset");
             };
 
             let Some(client_main_module) =
                 Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
             else {
-                bail!("expected an ECMAScript module asset");
+                bail!("expected an evaluateable asset");
             };
 
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
             let client_chunks = client_chunking_context.evaluated_chunk_group_assets(
-                client_module.ident(),
+                AssetIdent::from_path(this.page.await?.base_path),
                 this.pages_project
                     .client_runtime_entries()
                     .with_entry(client_main_module)
@@ -845,6 +861,7 @@ impl PageEndpoint {
                         ssr_entry_chunk_path,
                         ssr_module,
                         runtime_entries,
+                        OutputAssets::empty(),
                         Value::new(AvailabilityInfo::Root),
                     )
                     .await?;
@@ -929,10 +946,10 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     async fn pages_manifest(
-        self: Vc<Self>,
+        &self,
         entry_chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self.await?;
+        let this = self;
         let node_root = this.pages_project.project().node_root();
         let chunk_path = entry_chunk.ident().path().await?;
 
@@ -974,10 +991,10 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     async fn build_manifest(
-        self: Vc<Self>,
+        &self,
         client_chunks: Vc<OutputAssets>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self.await?;
+        let this = self;
         let node_root = this.pages_project.project().node_root();
         let client_relative_path = this.pages_project.project().client_relative_path();
         let client_relative_path_ref = client_relative_path.await?;
@@ -1110,6 +1127,10 @@ impl PageEndpoint {
                 wasm_paths_from_root
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
+                let all_assets =
+                    get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true)
+                        .await?;
+
                 let named_regex = get_named_middleware_regex(&pathname).into();
                 let matchers = MiddlewareMatcher {
                     regexp: Some(named_regex),
@@ -1120,12 +1141,12 @@ impl PageEndpoint {
                 let edge_function_definition = EdgeFunctionDefinition {
                     files: file_paths_from_root,
                     wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                    assets: paths_to_bindings(all_assets),
                     name: pathname.clone_value(),
                     page: original_name.clone_value(),
                     regions: None,
                     matchers: vec![matchers],
                     env: this.pages_project.project().edge_env().await?.clone_value(),
-                    ..Default::default()
                 };
                 let middleware_manifest_v2 = MiddlewaresManifestV2 {
                     sorted_middleware: vec![pathname.clone_value()],

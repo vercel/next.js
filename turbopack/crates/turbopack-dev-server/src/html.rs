@@ -126,8 +126,8 @@ impl DevHtmlAsset {
     }
 
     #[turbo_tasks::function]
-    async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
+    async fn chunks(&self) -> Result<Vc<OutputAssets>> {
+        let this = self;
 
         let all_assets = this
             .entries
@@ -180,8 +180,8 @@ impl DevHtmlAssetContent {
 #[turbo_tasks::value_impl]
 impl DevHtmlAssetContent {
     #[turbo_tasks::function]
-    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
+    async fn content(&self) -> Result<Vc<AssetContent>> {
+        let this = self;
 
         let mut scripts = Vec::new();
         let mut stylesheets = Vec::new();

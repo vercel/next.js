@@ -232,8 +232,8 @@ fn chunk_item_key() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
-    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        let this = self.await?;
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        let this = self;
 
         let mut assets = Vec::new();
 
@@ -447,6 +447,11 @@ impl ValueToString for CssChunkType {
 
 #[turbo_tasks::value_impl]
 impl ChunkType for CssChunkType {
+    #[turbo_tasks::function]
+    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
+    }
+
     #[turbo_tasks::function]
     async fn chunk(
         &self,

@@ -54,6 +54,7 @@ type AsyncModule = (
 ) => void;
 
 type ResolveAbsolutePath = (modulePath?: string) => string;
+type GetWorkerBlobURL = (chunks: ChunkPath[]) => string;
 
 interface TurbopackBaseContext {
   a: AsyncModule;
@@ -75,5 +76,7 @@ interface TurbopackBaseContext {
   g: typeof globalThis;
   P: ResolveAbsolutePath;
   U: RelativeURL;
+  b: GetWorkerBlobURL,
+  z: CommonJsRequire
   __dirname: string;
 }

@@ -148,5 +148,21 @@ describe('app dir - next/dynamic', () => {
       const $ = await next.render$('/dynamic/named-export')
       expect($('#client-button').text()).toBe('this is a client button')
     })
+
+    it('should support dynamic import with TLA in client components', async () => {
+      const $ = await next.render$('/dynamic/async-client')
+      expect($('#client-button').text()).toBe(
+        'this is an async client button with SSR'
+      )
+      expect($('#client-button-no-ssr').text()).toBe('')
+
+      const browser = await next.browser('/dynamic/async-client')
+      expect(await browser.elementByCss('#client-button').text()).toBe(
+        'this is an async client button with SSR'
+      )
+      expect(await browser.elementByCss('#client-button-no-ssr').text()).toBe(
+        'this is an async client button'
+      )
+    })
   })
 })

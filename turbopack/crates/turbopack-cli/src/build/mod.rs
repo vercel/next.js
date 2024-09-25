@@ -21,7 +21,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     issue::{handle_issues, IssueReporter, IssueSeverity},
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
@@ -283,6 +283,7 @@ async fn build_internal(
                                     .with_extension("entry.js".into()),
                                 Vc::upcast(ecmascript),
                                 EvaluatableAssets::one(Vc::upcast(ecmascript)),
+                                OutputAssets::empty(),
                                 Value::new(AvailabilityInfo::Root),
                             )
                             .await?

@@ -3,7 +3,7 @@
 mod util;
 
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashSet, VecDeque},
     fs,
     path::PathBuf,
 };
@@ -25,7 +25,7 @@ use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
-        ModuleRule, ModuleRuleCondition, ModuleRuleEffect,
+        ModuleRule, ModuleRuleEffect, RuleCondition,
     },
     ModuleAssetContext,
 };
@@ -45,7 +45,7 @@ use turbopack_core::{
     free_var_references,
     issue::{Issue, IssueDescriptionExt},
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -239,11 +239,11 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .free_var_references(free_var_references!(..defines.into_iter()).cell())
         .cell();
 
-    let conditions = ModuleRuleCondition::any(vec![
-        ModuleRuleCondition::ResourcePathEndsWith(".js".into()),
-        ModuleRuleCondition::ResourcePathEndsWith(".jsx".into()),
-        ModuleRuleCondition::ResourcePathEndsWith(".ts".into()),
-        ModuleRuleCondition::ResourcePathEndsWith(".tsx".into()),
+    let conditions = RuleCondition::any(vec![
+        RuleCondition::ResourcePathEndsWith(".js".into()),
+        RuleCondition::ResourcePathEndsWith(".jsx".into()),
+        RuleCondition::ResourcePathEndsWith(".ts".into()),
+        RuleCondition::ResourcePathEndsWith(".tsx".into()),
     ]);
 
     let module_rules = ModuleRule::new(
@@ -262,7 +262,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         }],
     );
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
-        Vc::cell(HashMap::new()),
+        Default::default(),
         compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
@@ -397,6 +397,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             runtime_entries
                                 .unwrap_or_else(EvaluatableAssets::empty)
                                 .with_entry(Vc::upcast(ecmascript)),
+                            OutputAssets::empty(),
                             Value::new(AvailabilityInfo::Root),
                         )
                         .await?
