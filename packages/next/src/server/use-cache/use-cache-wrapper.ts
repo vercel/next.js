@@ -27,14 +27,35 @@ interface CacheHandler {
 }
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
+
+// TODO: Move default implementation to be injectable.
+const defaultCacheStorage: Map<string, ReadableStream> = new Map()
 cacheHandlerMap.set('default', {
-  async get(_cacheKey: string | ArrayBuffer) {
-    // TODO: Implement caching.
+  async get(cacheKey: string | ArrayBuffer) {
+    // TODO: Implement proper caching.
+    if (typeof cacheKey === 'string') {
+      const value = defaultCacheStorage.get(cacheKey)
+      if (value !== undefined) {
+        const [returnStream, newSaved] = value.tee()
+        defaultCacheStorage.set(cacheKey, newSaved)
+        return {
+          value: returnStream,
+          stale: false,
+        }
+      }
+    } else {
+      // TODO: Handle binary keys.
+    }
     return undefined
   },
-  async set(_cacheKey: string | ArrayBuffer, value: ReadableStream) {
-    // TODO: Implement caching.
-    await value.cancel()
+  async set(cacheKey: string | ArrayBuffer, value: ReadableStream) {
+    // TODO: Implement proper caching.
+    if (typeof cacheKey === 'string') {
+      defaultCacheStorage.set(cacheKey, value)
+    } else {
+      // TODO: Handle binary keys.
+      await value.cancel()
+    }
   },
   // In-memory caches are fragile and should not use stale-while-revalidate
   // semantics on the caches because it's not worth warming up an entry that's
