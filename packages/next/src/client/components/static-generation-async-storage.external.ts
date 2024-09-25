@@ -7,6 +7,7 @@ import type { FallbackRouteParams } from '../../server/request/fallback-params'
 
 // Share the instance module in the next-shared layer
 import { staticGenerationAsyncStorage } from './static-generation-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import type { AppSegmentConfig } from '../../build/app-segments/app-segment-config'
 
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
@@ -35,13 +36,7 @@ export interface StaticGenerationStore {
   readonly isUnstableCacheCallback?: boolean
 
   forceDynamic?: boolean
-  fetchCache?:
-    | 'only-cache'
-    | 'force-cache'
-    | 'default-cache'
-    | 'force-no-store'
-    | 'default-no-store'
-    | 'only-no-store'
+  fetchCache?: AppSegmentConfig['fetchCache']
 
   revalidate?: Revalidate
   forceStatic?: boolean

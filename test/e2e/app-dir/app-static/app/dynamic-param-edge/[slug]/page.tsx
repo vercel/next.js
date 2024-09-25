@@ -5,9 +5,7 @@ export default async function Hello({ params }) {
 export function generateStaticParams() {
   return [
     {
-      params: {
-        slug: 'hello',
-      },
+      slug: 'hello',
     },
   ]
 }
