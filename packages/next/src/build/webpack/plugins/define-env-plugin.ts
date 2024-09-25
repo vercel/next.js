@@ -74,7 +74,7 @@ export function getNextPublicEnvironmentVariables(): DefineEnv {
 /**
  * Collects the `env` config value from the Next.js config.
  */
-function getNextConfigEnv(config: NextConfigComplete): DefineEnv {
+export function getNextConfigEnv(config: NextConfigComplete): DefineEnv {
   // Refactored code below to use for-of
   const defineEnv: DefineEnv = {}
   const env = config.env
@@ -286,9 +286,10 @@ export function getDefineEnv({
     // with flying shuttle enabled so we can update them
     // without invalidating entries
     for (const key in nextPublicEnv) {
-      if (key in nextConfigEnv) {
-        continue
-      }
+      serializedDefineEnv[key] = key
+    }
+
+    for (const key in nextConfigEnv) {
       serializedDefineEnv[key] = key
     }
   }

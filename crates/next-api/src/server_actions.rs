@@ -6,7 +6,14 @@ use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::NextRuntime,
 };
-use swc_core::{common::comments::Comments, ecma::ast::Program};
+use swc_core::{
+    atoms::Atom,
+    common::comments::Comments,
+    ecma::{
+        ast::{Decl, ExportSpecifier, Id, ModuleDecl, ModuleItem, Program},
+        utils::find_pat_ids,
+    },
+};
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
@@ -22,11 +29,13 @@ use turbopack_core::{
     output::OutputAsset,
     reference::primary_referenced_modules,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    resolve::ModulePart,
     virtual_output::VirtualOutputAsset,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    chunk::EcmascriptChunkPlaceable, parse::ParseResult, EcmascriptParsable,
+    chunk::EcmascriptChunkPlaceable, parse::ParseResult,
+    tree_shake::asset::EcmascriptModulePartAsset, EcmascriptParsable,
 };
 
 /// Scans the RSC entry point's full module graph looking for exported Server
@@ -249,9 +258,9 @@ async fn get_referenced_modules(
 ///
 /// Action names are stored in a leading BlockComment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
-pub fn parse_server_actions<C: Comments>(
+pub fn parse_server_actions(
     program: &Program,
-    comments: C,
+    comments: &dyn Comments,
 ) -> Option<BTreeMap<String, String>> {
     let byte_pos = match program {
         Program::Module(m) => m.span.lo,
@@ -268,35 +277,122 @@ pub fn parse_server_actions<C: Comments>(
         })
     })
 }
-
 /// Inspects the comments inside [Module] looking for the magic actions comment.
 /// If found, we return the mapping of every action's hashed id to the name of
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
 async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
-    let parsed = if let Some(ecmascript_asset) =
+    let Some(ecmascript_asset) =
         Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
-    {
-        ecmascript_asset.parse_original()
-    } else {
+    else {
         return Ok(OptionActionMap::none());
     };
 
+    if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
+    {
+        if matches!(
+            &*module.await?.part.await?,
+            ModulePart::Evaluation
+                | ModulePart::Exports
+                | ModulePart::Facade
+                | ModulePart::Internal(..)
+        ) {
+            return Ok(OptionActionMap::none());
+        }
+    }
+
+    let original_parsed = ecmascript_asset.parse_original().resolve().await?;
+
     let ParseResult::Ok {
-        comments, program, ..
-    } = &*parsed.await?
+        program: original,
+        comments,
+        ..
+    } = &*original_parsed.await?
     else {
         // The file might be parse-able, but this is reported separately.
         return Ok(OptionActionMap::none());
     };
 
-    let Some(actions) = parse_server_actions(program, comments.clone()) else {
+    let Some(mut actions) = parse_server_actions(original, comments) else {
         return Ok(OptionActionMap::none());
     };
+
+    let fragment = ecmascript_asset.failsafe_parse().resolve().await?;
+
+    if fragment != original_parsed {
+        let ParseResult::Ok {
+            program: fragment, ..
+        } = &*fragment.await?
+        else {
+            // The file might be be parse-able, but this is reported separately.
+            return Ok(OptionActionMap::none());
+        };
+
+        let all_exports = all_export_names(fragment);
+        actions.retain(|_, name| all_exports.iter().any(|export| export == name));
+    }
 
     let mut actions = IndexMap::from_iter(actions.into_iter());
     actions.sort_keys();
     Ok(Vc::cell(Some(Vc::cell(actions))))
+}
+
+fn all_export_names(program: &Program) -> Vec<Atom> {
+    match program {
+        Program::Module(m) => {
+            let mut exports = Vec::new();
+            for item in m.body.iter() {
+                match item {
+                    ModuleItem::ModuleDecl(
+                        ModuleDecl::ExportDefaultExpr(..) | ModuleDecl::ExportDefaultDecl(..),
+                    ) => {
+                        exports.push("default".into());
+                    }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
+                        Decl::Class(c) => {
+                            exports.push(c.ident.sym.clone());
+                        }
+                        Decl::Fn(f) => {
+                            exports.push(f.ident.sym.clone());
+                        }
+                        Decl::Var(v) => {
+                            let ids: Vec<Id> = find_pat_ids(v);
+                            exports.extend(ids.into_iter().map(|id| id.0));
+                        }
+                        _ => {}
+                    },
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(decl)) => {
+                        for s in decl.specifiers.iter() {
+                            match s {
+                                ExportSpecifier::Named(named) => {
+                                    exports.push(
+                                        named
+                                            .exported
+                                            .as_ref()
+                                            .unwrap_or(&named.orig)
+                                            .atom()
+                                            .clone(),
+                                    );
+                                }
+                                ExportSpecifier::Default(_) => {
+                                    exports.push("default".into());
+                                }
+                                ExportSpecifier::Namespace(e) => {
+                                    exports.push(e.name.atom().clone());
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            exports
+        }
+
+        _ => {
+            vec![]
+        }
+    }
 }
 
 /// Converts our cached [parse_actions] call into a data type suitable for

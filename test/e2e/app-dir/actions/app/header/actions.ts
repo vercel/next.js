@@ -24,7 +24,7 @@ export async function setCookie(name, value) {
   return cookies().get(name)
 }
 
-export async function setCookieAndRedirect(name, value, path) {
+export async function setCookieAndRedirect(name, value, path, type) {
   cookies().set(name, value)
-  redirect(path)
+  redirect(path, type)
 }

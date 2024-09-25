@@ -3,7 +3,7 @@ import { check, retry } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
 
 describe('app dir - basepath', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     dependencies: {
       sass: 'latest',
@@ -132,9 +132,13 @@ describe('app dir - basepath', () => {
 
       expect(await browser.waitForElementByCss('#page-2').text()).toBe(`Page 2`)
 
-      // verify that the POST request was only made to the action handler
-      expect(requests).toHaveLength(1)
-      expect(responses).toHaveLength(1)
+      // This verifies the redirect & server response happens in a single roundtrip,
+      // if the redirect resource was static. In development, these responses are always
+      // dynamically generated, so we only expect a single request for build/deploy.
+      if (!isNextDev) {
+        expect(requests).toHaveLength(1)
+        expect(responses).toHaveLength(1)
+      }
 
       const request = requests[0]
       const response = responses[0]

@@ -99,8 +99,8 @@ pub struct NodeRenderContentSource {
 #[turbo_tasks::value_impl]
 impl NodeRenderContentSource {
     #[turbo_tasks::function]
-    pub async fn get_pathname(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(self.await?.pathname)
+    pub async fn get_pathname(&self) -> Result<Vc<RcStr>> {
+        Ok(self.pathname)
     }
 }
 

@@ -1072,7 +1072,7 @@ export const defaultConfig: NextConfig = {
       ),
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
-    optimizeServerReact: false,
+    optimizeServerReact: true,
     useEarlyImport: false,
     staleTimes: {
       dynamic: 0,

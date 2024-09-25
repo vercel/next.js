@@ -155,6 +155,7 @@ impl InstrumentationEndpoint {
                     this.project.next_mode(),
                 )
                 .resolve_entries(this.asset_context),
+                OutputAssets::empty(),
                 Value::new(AvailabilityInfo::Root),
             )
             .await?;

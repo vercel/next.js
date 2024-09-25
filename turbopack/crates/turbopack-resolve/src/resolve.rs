@@ -15,7 +15,7 @@ use crate::{
     typescript::{apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options},
 };
 
-const NODE_EXTERNALS: [&str; 51] = [
+const NODE_EXTERNALS: [&str; 63] = [
     "assert",
     "async_hooks",
     "buffer",
@@ -67,6 +67,18 @@ const NODE_EXTERNALS: [&str; 51] = [
     "worker_threads",
     "zlib",
     "pnpapi",
+    "_http_agent",
+    "_http_client",
+    "_http_common",
+    "_http_incoming",
+    "_http_outgoing",
+    "_http_server",
+    "_stream_duplex",
+    "_stream_passthrough",
+    "_stream_readable",
+    "_stream_transform",
+    "_stream_wrap",
+    "_stream_writable",
 ];
 
 const EDGE_NODE_EXTERNALS: [&str; 5] = ["buffer", "events", "assert", "util", "async_hooks"];

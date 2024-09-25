@@ -182,29 +182,32 @@ export default class FetchCache implements CacheHandler {
       return
     }
 
-    try {
-      const res = await fetchRetryWithTimeout(
-        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tags
-          .map((tag) => encodeURIComponent(tag))
-          .join(',')}`,
-        {
-          method: 'POST',
-          headers: this.headers,
-          // @ts-expect-error not on public type
-          next: { internal: true },
+    for (let i = 0; i < Math.ceil(tags.length / 64); i++) {
+      const currentTags = tags.slice(i * 64, i * 64 + 64)
+      try {
+        const res = await fetchRetryWithTimeout(
+          `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${currentTags
+            .map((tag) => encodeURIComponent(tag))
+            .join(',')}`,
+          {
+            method: 'POST',
+            headers: this.headers,
+            // @ts-expect-error not on public type
+            next: { internal: true },
+          }
+        )
+
+        if (res.status === 429) {
+          const retryAfter = res.headers.get('retry-after') || '60000'
+          rateLimitedUntil = Date.now() + parseInt(retryAfter)
         }
-      )
 
-      if (res.status === 429) {
-        const retryAfter = res.headers.get('retry-after') || '60000'
-        rateLimitedUntil = Date.now() + parseInt(retryAfter)
+        if (!res.ok) {
+          throw new Error(`Request failed with status ${res.status}.`)
+        }
+      } catch (err) {
+        console.warn(`Failed to revalidate tag`, currentTags, err)
       }
-
-      if (!res.ok) {
-        throw new Error(`Request failed with status ${res.status}.`)
-      }
-    } catch (err) {
-      console.warn(`Failed to revalidate tag ${tags}`, err)
     }
   }
 

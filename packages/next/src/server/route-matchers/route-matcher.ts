@@ -1,6 +1,6 @@
 import type { RouteMatch } from '../route-matches/route-match'
 import type { RouteDefinition } from '../route-definitions/route-definition'
-import type { Params } from '../../client/components/params'
+import type { Params } from '../request/params'
 
 import { isDynamicRoute } from '../../shared/lib/router/utils'
 import {

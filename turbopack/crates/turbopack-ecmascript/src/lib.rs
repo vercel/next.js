@@ -143,6 +143,14 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+    /// The list of export names that should make tree shaking bail off. This is
+    /// required because tree shaking can split imports like `export const
+    /// runtime = 'edge'` as a separate module.
+    ///
+    /// Currently the analysis of these exports are statically verified by `NextPageStaticInfo`,
+    /// which is a `CustomTransformer` implementation and we don't have a way to apply it after
+    /// tree shaking.
+    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -349,8 +357,8 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
-        Ok(self.await?.ty.cell())
+    async fn ty(&self) -> Result<Vc<EcmascriptModuleAssetType>> {
+        Ok(self.ty.cell())
     }
 }
 
@@ -436,7 +444,6 @@ impl EcmascriptModuleAsset {
         asset_context: Vc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
-
         options: Vc<EcmascriptOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
         inner_assets: Vc<InnerAssets>,
@@ -454,8 +461,8 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
-        Ok(self.await?.source)
+    pub async fn source(&self) -> Result<Vc<Box<dyn Source>>> {
+        Ok(self.source)
     }
 
     #[turbo_tasks::function]
@@ -464,8 +471,8 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn options(self: Vc<Self>) -> Result<Vc<EcmascriptOptions>> {
-        Ok(self.await?.options)
+    pub async fn options(&self) -> Result<Vc<EcmascriptOptions>> {
+        Ok(self.options)
     }
 
     #[turbo_tasks::function]

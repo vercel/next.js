@@ -792,10 +792,9 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn server_external_packages(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn server_external_packages(&self) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
-            self.await?
-                .server_external_packages
+            self.server_external_packages
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),
@@ -803,12 +802,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn env(self: Vc<Self>) -> Result<Vc<EnvMap>> {
+    pub async fn env(&self) -> Result<Vc<EnvMap>> {
         // The value expected for env is Record<String, String>, but config itself
         // allows arbitrary object (https://github.com/vercel/next.js/blob/25ba8a74b7544dfb6b30d1b67c47b9cb5360cb4e/packages/next/src/server/config-schema.ts#L203)
         // then stringifies it. We do the interop here as well.
         let env = self
-            .await?
             .env
             .iter()
             .map(|(k, v)| {
@@ -828,29 +826,28 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn image_config(self: Vc<Self>) -> Result<Vc<ImageConfig>> {
-        Ok(self.await?.images.clone().cell())
+    pub async fn image_config(&self) -> Result<Vc<ImageConfig>> {
+        Ok(self.images.clone().cell())
     }
 
     #[turbo_tasks::function]
-    pub async fn page_extensions(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
-        Ok(Vc::cell(self.await?.page_extensions.clone()))
+    pub async fn page_extensions(&self) -> Result<Vc<Vec<RcStr>>> {
+        Ok(Vc::cell(self.page_extensions.clone()))
     }
 
     #[turbo_tasks::function]
-    pub async fn transpile_packages(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn transpile_packages(&self) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
-            self.await?.transpile_packages.clone().unwrap_or_default(),
+            self.transpile_packages.clone().unwrap_or_default(),
         ))
     }
 
     #[turbo_tasks::function]
     pub async fn webpack_rules(
-        self: Vc<Self>,
+        &self,
         active_conditions: Vec<RcStr>,
     ) -> Result<Vc<OptionWebpackRules>> {
-        let this = self.await?;
-        let Some(turbo_rules) = this
+        let Some(turbo_rules) = self
             .experimental
             .turbo
             .as_ref()
@@ -937,9 +934,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_alias_options(self: Vc<Self>) -> Result<Vc<ResolveAliasMap>> {
-        let this = self.await?;
-        let Some(resolve_alias) = this
+    pub async fn resolve_alias_options(&self) -> Result<Vc<ResolveAliasMap>> {
+        let Some(resolve_alias) = self
             .experimental
             .turbo
             .as_ref()
@@ -952,9 +948,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_extension(self: Vc<Self>) -> Result<Vc<ResolveExtensions>> {
-        let this = self.await?;
-        let Some(resolve_extensions) = this
+    pub async fn resolve_extension(&self) -> Result<Vc<ResolveExtensions>> {
+        let Some(resolve_extensions) = self
             .experimental
             .turbo
             .as_ref()
@@ -966,8 +961,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn import_externals(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(match self.await?.experimental.esm_externals {
+    pub async fn import_externals(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match self.experimental.esm_externals {
             Some(EsmExternals::Bool(b)) => b,
             Some(EsmExternals::Loose(_)) => bail!("esmExternals = \"loose\" is not supported"),
             None => true,
@@ -975,8 +970,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn mdx_rs(self: Vc<Self>) -> Result<Vc<OptionalMdxTransformOptions>> {
-        let options = &self.await?.experimental.mdx_rs;
+    pub async fn mdx_rs(&self) -> Result<Vc<OptionalMdxTransformOptions>> {
+        let options = &self.experimental.mdx_rs;
 
         let options = match options {
             Some(MdxRsOptions::Boolean(true)) => OptionalMdxTransformOptions(Some(
@@ -1005,8 +1000,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn react_compiler(self: Vc<Self>) -> Result<Vc<OptionalReactCompilerOptions>> {
-        let options = &self.await?.experimental.react_compiler;
+    pub async fn react_compiler(&self) -> Result<Vc<OptionalReactCompilerOptions>> {
+        let options = &self.experimental.react_compiler;
 
         let options = match options {
             Some(ReactCompilerOptionsOrBoolean::Boolean(true)) => {
@@ -1028,24 +1023,20 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn sass_config(self: Vc<Self>) -> Result<Vc<JsonValue>> {
+    pub async fn sass_config(&self) -> Result<Vc<JsonValue>> {
+        Ok(Vc::cell(self.sass_options.clone().unwrap_or_default()))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn skip_middleware_url_normalize(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
-            self.await?.sass_options.clone().unwrap_or_default(),
+            self.skip_middleware_url_normalize.unwrap_or(false),
         ))
     }
 
     #[turbo_tasks::function]
-    pub async fn skip_middleware_url_normalize(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?.skip_middleware_url_normalize.unwrap_or(false),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn skip_trailing_slash_redirect(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?.skip_trailing_slash_redirect.unwrap_or(false),
-        ))
+    pub async fn skip_trailing_slash_redirect(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.skip_trailing_slash_redirect.unwrap_or(false)))
     }
 
     /// Returns the final asset prefix. If an assetPrefix is set, it's used.
@@ -1069,10 +1060,9 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_ppr(self: Vc<Self>) -> Result<Vc<bool>> {
+    pub async fn enable_ppr(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
-            self.await?
-                .experimental
+            self.experimental
                 .ppr
                 .as_ref()
                 .map(|ppr| match ppr {
@@ -1086,22 +1076,19 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_taint(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.experimental.taint.unwrap_or(false)))
+    pub async fn enable_taint(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.experimental.taint.unwrap_or(false)))
     }
 
     #[turbo_tasks::function]
-    pub async fn enable_dynamic_io(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?.experimental.dynamic_io.unwrap_or(false),
-        ))
+    pub async fn enable_dynamic_io(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.experimental.dynamic_io.unwrap_or(false)))
     }
 
     #[turbo_tasks::function]
-    pub async fn use_swc_css(self: Vc<Self>) -> Result<Vc<bool>> {
+    pub async fn use_swc_css(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
-            self.await?
-                .experimental
+            self.experimental
                 .turbo
                 .as_ref()
                 .and_then(|turbo| turbo.use_swc_css)
@@ -1110,10 +1097,9 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn optimize_package_imports(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
+    pub async fn optimize_package_imports(&self) -> Result<Vc<Vec<RcStr>>> {
         Ok(Vc::cell(
-            self.await?
-                .experimental
+            self.experimental
                 .optimize_package_imports
                 .clone()
                 .unwrap_or_default(),
@@ -1122,11 +1108,10 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn tree_shaking_mode_for_foreign_code(
-        self: Vc<Self>,
+        &self,
         is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
         let tree_shaking = self
-            .await?
             .experimental
             .turbo
             .as_ref()
@@ -1149,15 +1134,18 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn tree_shaking_mode_for_user_code(
         self: Vc<Self>,
-        _is_development: bool,
+        is_development: bool,
     ) -> Result<Vc<OptionTreeShaking>> {
-        Ok(Vc::cell(Some(TreeShakingMode::ReexportsOnly)))
+        Ok(Vc::cell(Some(if is_development {
+            TreeShakingMode::ReexportsOnly
+        } else {
+            TreeShakingMode::ModuleFragments
+        })))
     }
 
     #[turbo_tasks::function]
-    pub async fn module_id_strategy_config(self: Vc<Self>) -> Result<Vc<OptionModuleIdStrategy>> {
-        let this = self.await?;
-        let Some(module_id_strategy) = this
+    pub async fn module_id_strategy_config(&self) -> Result<Vc<OptionModuleIdStrategy>> {
+        let Some(module_id_strategy) = self
             .experimental
             .turbo
             .as_ref()
@@ -1190,10 +1178,8 @@ impl JsConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn compiler_options(self: Vc<Self>) -> Result<Vc<serde_json::Value>> {
-        Ok(Vc::cell(
-            self.await?.compiler_options.clone().unwrap_or_default(),
-        ))
+    pub async fn compiler_options(&self) -> Result<Vc<serde_json::Value>> {
+        Ok(Vc::cell(self.compiler_options.clone().unwrap_or_default()))
     }
 }
 

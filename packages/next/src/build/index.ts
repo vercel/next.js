@@ -501,11 +501,12 @@ async function writeImagesManifest(
   const { deviceSizes, imageSizes } = images
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
-    // Should be the same as matchRemotePattern()
+    // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol,
     hostname: makeRe(p.hostname).source,
     port: p.port,
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+    search: p.search,
   }))
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
@@ -771,6 +772,15 @@ export default async function build(
         await fs.mkdir(shuttleDir, {
           recursive: true,
         })
+
+        // since inlining comes after static generation we need
+        // to ensure this value is assigned to process env so it
+        // can still be accessed
+        for (const key in config.env) {
+          if (!process.env[key]) {
+            process.env[key] = config.env[key]
+          }
+        }
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
@@ -912,8 +922,13 @@ export default async function build(
         appDir
       )
 
-      let pagesPaths =
-        !appDirOnly && pagesDir
+      const providedPagePaths: string[] = JSON.parse(
+        process.env.NEXT_PRIVATE_PAGE_PATHS || '[]'
+      )
+
+      let pagesPaths = Boolean(process.env.NEXT_PRIVATE_PAGE_PATHS)
+        ? providedPagePaths
+        : !appDirOnly && pagesDir
           ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
               recursiveReadDir(pagesDir, {
                 pathnameFilter: validFileMatcher.isPageFile,
@@ -1008,18 +1023,24 @@ export default async function build(
           }
 
       if (appDir) {
-        let appPaths = await nextBuildSpan
-          .traceChild('collect-app-paths')
-          .traceAsyncFn(() =>
-            recursiveReadDir(appDir, {
-              pathnameFilter: (absolutePath) =>
-                validFileMatcher.isAppRouterPage(absolutePath) ||
-                // For now we only collect the root /not-found page in the app
-                // directory as the 404 fallback
-                validFileMatcher.isRootNotFound(absolutePath),
-              ignorePartFilter: (part) => part.startsWith('_'),
-            })
-          )
+        const providedAppPaths: string[] = JSON.parse(
+          process.env.NEXT_PRIVATE_APP_PATHS || '[]'
+        )
+
+        let appPaths = Boolean(process.env.NEXT_PRIVATE_APP_PATHS)
+          ? providedAppPaths
+          : await nextBuildSpan
+              .traceChild('collect-app-paths')
+              .traceAsyncFn(() =>
+                recursiveReadDir(appDir, {
+                  pathnameFilter: (absolutePath) =>
+                    validFileMatcher.isAppRouterPage(absolutePath) ||
+                    // For now we only collect the root /not-found page in the app
+                    // directory as the 404 fallback
+                    validFileMatcher.isRootNotFound(absolutePath),
+                  ignorePartFilter: (part) => part.startsWith('_'),
+                })
+              )
 
         if (appPaths && isFullFlyingShuttle) {
           await nextBuildSpan
@@ -1765,9 +1786,12 @@ export default async function build(
             {
               filter(item) {
                 // we copy page chunks separately to not copy stale entries
-                return !item.match(/^[/\\](pages|app)[/\\]/)
+                return (
+                  !item.startsWith('/middleware.js') &&
+                  !item.match(/^[/\\](pages|app)[/\\]/)
+                )
               },
-              overwrite: true,
+              overwrite: false,
             }
           )
         }
@@ -2656,7 +2680,7 @@ export default async function build(
           await nextBuildSpan
             .traceChild('inline-static-env')
             .traceAsyncFn(async () => {
-              await inlineStaticEnv({ distDir })
+              await inlineStaticEnv({ config, distDir })
             })
         }
       }

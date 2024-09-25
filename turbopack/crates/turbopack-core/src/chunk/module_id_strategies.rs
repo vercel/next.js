@@ -43,9 +43,9 @@ impl GlobalModuleIdStrategy {
 #[turbo_tasks::value_impl]
 impl ModuleIdStrategy for GlobalModuleIdStrategy {
     #[turbo_tasks::function]
-    async fn get_module_id(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
+    async fn get_module_id(&self, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
         let ident_string = ident.to_string().await?.clone_value();
-        if let Some(module_id) = self.await?.module_id_map.get(&ident_string) {
+        if let Some(module_id) = self.module_id_map.get(&ident_string) {
             // dbg!(format!("Hit {}", ident.to_string().await?));
             return Ok(*module_id);
         }
