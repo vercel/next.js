@@ -128,8 +128,8 @@ impl SourceMapTrace {
     /// the individual sections of the JS file's map without the
     /// serialization.
     #[turbo_tasks::function]
-    pub async fn trace(self: Vc<Self>) -> Result<Vc<TraceResult>> {
-        let this = self.await?;
+    pub async fn trace(&self) -> Result<Vc<TraceResult>> {
+        let this = self;
 
         let token = this
             .map

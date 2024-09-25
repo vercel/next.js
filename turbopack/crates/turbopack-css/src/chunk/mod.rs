@@ -232,8 +232,8 @@ fn chunk_item_key() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
-    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        let this = self.await?;
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        let this = self;
 
         let mut assets = Vec::new();
 

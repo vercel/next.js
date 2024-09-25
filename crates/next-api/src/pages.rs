@@ -640,8 +640,8 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
-        let this = self.await?;
+    async fn source(&self) -> Result<Vc<Box<dyn Source>>> {
+        let this = self;
         Ok(Vc::upcast(FileSource::new(this.page.project_path())))
     }
 
@@ -946,10 +946,10 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     async fn pages_manifest(
-        self: Vc<Self>,
+        &self,
         entry_chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self.await?;
+        let this = self;
         let node_root = this.pages_project.project().node_root();
         let chunk_path = entry_chunk.ident().path().await?;
 
@@ -991,10 +991,10 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     async fn build_manifest(
-        self: Vc<Self>,
+        &self,
         client_chunks: Vc<OutputAssets>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self.await?;
+        let this = self;
         let node_root = this.pages_project.project().node_root();
         let client_relative_path = this.pages_project.project().client_relative_path();
         let client_relative_path_ref = client_relative_path.await?;

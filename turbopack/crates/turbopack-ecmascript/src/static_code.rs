@@ -47,8 +47,8 @@ impl StaticEcmascriptCode {
     /// Computes the contents of the asset and pushes it to
     /// the code builder, including the source map if available.
     #[turbo_tasks::function]
-    pub async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
+    pub async fn code(&self) -> Result<Vc<Code>> {
+        let this = self;
         let runtime_base_content = this.asset.module_content_without_analysis().await?;
         let mut code = CodeBuilder::default();
         code.push_source(

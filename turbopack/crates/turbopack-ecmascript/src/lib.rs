@@ -357,8 +357,8 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
-        Ok(self.await?.ty.cell())
+    async fn ty(&self) -> Result<Vc<EcmascriptModuleAssetType>> {
+        Ok(self.ty.cell())
     }
 }
 
@@ -461,8 +461,8 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
-        Ok(self.await?.source)
+    pub async fn source(&self) -> Result<Vc<Box<dyn Source>>> {
+        Ok(self.source)
     }
 
     #[turbo_tasks::function]
@@ -471,8 +471,8 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn options(self: Vc<Self>) -> Result<Vc<EcmascriptOptions>> {
-        Ok(self.await?.options)
+    pub async fn options(&self) -> Result<Vc<EcmascriptOptions>> {
+        Ok(self.options)
     }
 
     #[turbo_tasks::function]

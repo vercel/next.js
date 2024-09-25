@@ -223,8 +223,8 @@ impl ValueToString for IssueProcessingPathItem {
 #[turbo_tasks::value_impl]
 impl IssueProcessingPathItem {
     #[turbo_tasks::function]
-    pub async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainIssueProcessingPathItem>> {
-        let this = self.await?;
+    pub async fn into_plain(&self) -> Result<Vc<PlainIssueProcessingPathItem>> {
+        let this = self;
         Ok(PlainIssueProcessingPathItem {
             file_path: if let Some(context) = this.file_path {
                 Some(context.to_string().await?)
@@ -369,8 +369,8 @@ pub struct CapturedIssues {
 #[turbo_tasks::value_impl]
 impl CapturedIssues {
     #[turbo_tasks::function]
-    pub async fn is_empty(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.is_empty_ref()))
+    pub async fn is_empty(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.is_empty_ref()))
     }
 }
 
@@ -762,8 +762,8 @@ impl PlainIssue {
     /// same issue to pass from multiple processing paths, making for overly
     /// verbose logging.
     #[turbo_tasks::function]
-    pub async fn internal_hash(self: Vc<Self>, full: bool) -> Result<Vc<u64>> {
-        Ok(Vc::cell(self.await?.internal_hash_ref(full)))
+    pub async fn internal_hash(&self, full: bool) -> Result<Vc<u64>> {
+        Ok(Vc::cell(self.internal_hash_ref(full)))
     }
 }
 
@@ -777,8 +777,8 @@ pub struct PlainIssueSource {
 #[turbo_tasks::value_impl]
 impl IssueSource {
     #[turbo_tasks::function]
-    pub async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainIssueSource>> {
-        let this = self.await?;
+    pub async fn into_plain(&self) -> Result<Vc<PlainIssueSource>> {
+        let this = self;
         Ok(PlainIssueSource {
             asset: PlainSource::from_source(this.source).await?,
             range: match this.range {

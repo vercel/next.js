@@ -52,8 +52,8 @@ impl ManifestAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
+    pub(super) async fn chunks(&self) -> Result<Vc<OutputAssets>> {
+        let this = self;
         Ok(this
             .chunking_context
             .chunk_group_assets(Vc::upcast(this.inner), Value::new(this.availability_info)))

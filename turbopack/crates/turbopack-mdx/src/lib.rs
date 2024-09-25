@@ -134,8 +134,8 @@ impl Asset for MdxTransformedAsset {
 #[turbo_tasks::value_impl]
 impl MdxTransformedAsset {
     #[turbo_tasks::function]
-    async fn process(self: Vc<Self>) -> Result<Vc<MdxTransformResult>> {
-        let this = self.await?;
+    async fn process(&self) -> Result<Vc<MdxTransformResult>> {
+        let this = self;
         let content = this.source.content().await?;
         let transform_options = this.options.await?;
 

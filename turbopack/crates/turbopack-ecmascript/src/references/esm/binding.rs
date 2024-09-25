@@ -151,10 +151,10 @@ impl EsmBinding {
 impl CodeGenerateable for EsmBindings {
     #[turbo_tasks::function]
     async fn code_generation(
-        self: Vc<Self>,
+        &self,
         _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let this = self.await?;
+        let this = self;
         let mut visitors = Vec::new();
         let bindings = this.bindings.clone();
 

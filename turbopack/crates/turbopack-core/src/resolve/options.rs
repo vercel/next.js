@@ -444,12 +444,12 @@ impl ImportMap {
 impl ResolvedMap {
     #[turbo_tasks::function]
     pub async fn lookup(
-        self: Vc<Self>,
+        &self,
         resolved: Vc<FileSystemPath>,
         lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
-        let this = self.await?;
+        let this = self;
         let resolved = resolved.await?;
         for (root, glob, mapping) in this.by_glob.iter() {
             let root = root.await?;
