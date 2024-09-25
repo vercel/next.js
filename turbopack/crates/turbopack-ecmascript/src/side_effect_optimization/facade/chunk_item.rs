@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
+use indexmap::IndexMap;
 use swc_core::{
     common::{util::take::Take, Globals, GLOBALS},
     ecma::{
-        ast::Program,
+        ast::{self, ModuleItem, Program, Script},
         codegen::{text_writer::JsWriter, Emitter},
         visit::{VisitMutWith, VisitMutWithAstPath},
     },
@@ -24,7 +25,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
-    code_gen::{CodeGenerateable, CodeGenerateableWithAsyncModuleInfo},
+    code_gen::{CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerationHoistedStmt},
     path_visitor::ApplyVisitors,
 };
 
@@ -93,8 +94,12 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
 
         let mut visitors = Vec::new();
         let mut root_visitors = Vec::new();
+        let mut hoisted_stmts = IndexMap::new();
         for code_gen in code_gens {
-            for (path, visitor) in code_gen.visitors.iter() {
+            for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
+                hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());
+            }
+            for (path, visitor) in &code_gen.visitors {
                 if path.is_empty() {
                     root_visitors.push(&**visitor);
                 } else {
@@ -102,6 +107,8 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
                 }
             }
         }
+
+        // TODO call gen_content_with_visitors here
 
         let mut program = Program::Module(swc_core::ecma::ast::Module::dummy());
         GLOBALS.set(&Globals::new(), || {
@@ -118,6 +125,15 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
             program.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
             program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
         });
+
+        match &mut program {
+            Program::Module(ast::Module { body, .. }) => {
+                body.splice(0..0, hoisted_stmts.into_values().map(ModuleItem::Stmt));
+            }
+            Program::Script(Script { body, .. }) => {
+                body.splice(0..0, hoisted_stmts.into_values());
+            }
+        };
 
         let mut bytes: Vec<u8> = vec![];
 

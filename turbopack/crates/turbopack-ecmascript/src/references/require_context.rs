@@ -299,7 +299,7 @@ impl CodeGenerateable for RequireContextAssetReference {
             }
         }));
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 

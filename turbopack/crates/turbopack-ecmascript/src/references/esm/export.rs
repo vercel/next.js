@@ -10,9 +10,8 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
-        self, AssignTarget, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr,
-        MemberProp, ModuleItem, ObjectLit, Program, Prop, PropName, PropOrSpread, Script,
-        SimpleAssignTarget, Stmt, Str,
+        AssignTarget, ComputedPropName, Expr, ExprStmt, Ident, KeyValueProp, Lit, MemberExpr,
+        MemberProp, ObjectLit, Prop, PropName, PropOrSpread, SimpleAssignTarget, Stmt, Str,
     },
     quote, quote_expr,
 };
@@ -29,9 +28,8 @@ use turbopack_core::{
 use super::base::ReferencedAsset;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor, magic_identifier,
-    references::esm::base::insert_hoisted_stmt,
+    code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt},
+    magic_identifier,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -478,8 +476,6 @@ impl CodeGenerateable for EsmExports {
         self: Vc<Self>,
         _context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let mut visitors = Vec::new();
-
         let expanded = self.expand_exports().await?;
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
@@ -595,23 +591,21 @@ impl CodeGenerateable for EsmExports {
             None
         };
 
-        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-            let stmt = quote!("__turbopack_esm__($getters);" as Stmt,
-                getters: Expr = getters.clone()
-            );
-            match program {
-                Program::Module(ast::Module { body, .. }) => {
-                    body.insert(0, ModuleItem::Stmt(stmt));
-                }
-                Program::Script(Script { body, .. }) => {
-                    body.insert(0, stmt);
-                }
-            }
-            if let Some(dynamic_stmt) = dynamic_stmt.clone() {
-                insert_hoisted_stmt(program, dynamic_stmt);
-            }
-        }));
-
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::hoisted_stmts(
+            [
+                Some(CodeGenerationHoistedStmt::new(
+                    "__turbopack_esm__".into(),
+                    quote!("__turbopack_esm__($getters);" as Stmt,
+                        getters: Expr = getters.clone()
+                    ),
+                )),
+                dynamic_stmt.clone().map(|stmt| {
+                    CodeGenerationHoistedStmt::new("__turbopack_dynamic__".into(), stmt)
+                }),
+            ]
+            .into_iter()
+            .flatten()
+            .collect(),
+        ))
     }
 }

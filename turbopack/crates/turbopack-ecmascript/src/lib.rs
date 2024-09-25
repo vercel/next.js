@@ -38,7 +38,8 @@ use std::fmt::{Display, Formatter};
 
 use anyhow::Result;
 use chunk::EcmascriptChunkItem;
-use code_gen::CodeGenerateable;
+use code_gen::{CodeGenerateable, CodeGenerationHoistedStmt};
+use indexmap::IndexMap;
 pub use parse::ParseResultSourceMap;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
@@ -49,6 +50,7 @@ pub use static_code::StaticEcmascriptCode;
 use swc_core::{
     common::GLOBALS,
     ecma::{
+        ast::{self, ModuleItem, Program, Script, Stmt},
         codegen::{text_writer::JsWriter, Emitter},
         visit::{VisitMutWith, VisitMutWithAstPath},
     },
@@ -774,8 +776,12 @@ impl EcmascriptModuleContent {
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
         let mut visitors = Vec::new();
         let mut root_visitors = Vec::new();
+        let mut hoisted_stmts = IndexMap::new();
         for code_gen in code_gens {
-            for (path, visitor) in code_gen.visitors.iter() {
+            for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
+                hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());
+            }
+            for (path, visitor) in &code_gen.visitors {
                 if path.is_empty() {
                     root_visitors.push(&**visitor);
                 } else {
@@ -788,6 +794,7 @@ impl EcmascriptModuleContent {
             parsed,
             ident,
             specified_module_type,
+            hoisted_stmts,
             visitors,
             root_visitors,
             source_map,
@@ -806,6 +813,7 @@ impl EcmascriptModuleContent {
             parsed,
             ident,
             specified_module_type,
+            IndexMap::new(),
             Vec::new(),
             Vec::new(),
             OptionSourceMap::none(),
@@ -818,6 +826,7 @@ async fn gen_content_with_visitors(
     parsed: Vc<ParseResult>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
+    hoisted_stmts: IndexMap<RcStr, Stmt>,
     visitors: Vec<(
         &Vec<swc_core::ecma::visit::AstParentKind>,
         &dyn VisitorFactory,
@@ -862,6 +871,15 @@ async fn gen_content_with_visitors(
                 // line in a js file (not in a chunk item wrapped in the runtime)
                 remove_shebang(&mut program);
             });
+
+            match &mut program {
+                Program::Module(ast::Module { body, .. }) => {
+                    body.splice(0..0, hoisted_stmts.into_values().map(ModuleItem::Stmt));
+                }
+                Program::Script(Script { body, .. }) => {
+                    body.splice(0..0, hoisted_stmts.into_values());
+                }
+            };
 
             let mut bytes: Vec<u8> = vec![];
             // TODO: Insert this as a sourceless segment so that sourcemaps aren't affected.
