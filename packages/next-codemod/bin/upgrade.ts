@@ -43,58 +43,63 @@ export async function runUpgrade(version?: Version): Promise<void> {
   }
 
   if (!targetPkgJson) {
-    const nextPkgJson: Record<string, any> = {}
+    const { release } = await prompts({
+      type: 'select',
+      name: 'release',
+      message: 'Which Next.js release do you want to upgrade to?',
+      choices: [
+        {
+          title: 'Canary',
+          value: 'canary',
+          description:
+            'Experimental version including the latest features and improvements.',
+        },
+        {
+          title: 'Latest',
+          value: 'latest',
+          description: 'Latest stable version of Next.js.',
+        },
+        {
+          title: 'Release Candidate (RC)',
+          value: 'rc',
+          description: 'Release Candidate of Next.js.',
+        },
+      ],
+      onState: onPromptState,
+    })
+
+    let nextPkgJson
     try {
-      const canary = await fetch('https://registry.npmjs.org/next/canary')
-      nextPkgJson.canary = await canary.json()
+      const res = await fetch(`https://registry.npmjs.org/next/${release}`)
+      if (!res.ok) {
+        throw new Error(`Failed to fetch Next.js ${release} version.`, {
+          cause: res.statusText,
+        })
+      }
 
-      const rc = await fetch('https://registry.npmjs.org/next/rc')
-      nextPkgJson.rc = await rc.json()
-
-      const latest = await fetch('https://registry.npmjs.org/next/latest')
-      nextPkgJson.latest = await latest.json()
+      nextPkgJson = await res.json()
     } catch (error) {
       throw new Error('Failed to fetch versions from npm registry.', {
         cause: error,
       })
     }
 
-    const choices = [
-      {
-        title: 'Canary',
-        value: 'canary',
-        description: `Canary version of Next.js (v${nextPkgJson.canary.version})`,
-      },
-      {
-        title: 'Latest',
-        value: 'latest',
-        description: `Latest version of Next.js (v${nextPkgJson.latest.version})`,
-      },
-    ]
-
-    // If the version of rc is greater than latest, show rc as an option.
-    if (compare(nextPkgJson.rc.version, nextPkgJson.latest.version, '>')) {
-      choices.push({
-        title: 'Release Candidate (RC)',
-        value: 'rc',
-        description: `Release Candidate of Next.js (v${nextPkgJson.rc.version})`,
-      })
+    if (!nextPkgJson.version) {
+      throw new Error(`Failed to fetch the target Next.js ${release} version.`)
     }
 
-    const { release } = await prompts({
-      type: 'select',
-      name: 'release',
-      message: 'Which Next.js release do you want to upgrade to?',
-      choices: choices,
-      onState: onPromptState,
-    })
+    if (
+      release === 'rc' &&
+      compare(nextPkgJson.version, installedNextVersion, '<=')
+    ) {
+      console.log(
+        `Current version v${installedNextVersion} is newer than the latest Release Candidate v${nextPkgJson.version}.`
+      )
+      return
+    }
 
-    targetPkgJson = nextPkgJson[release]
-    targetNextVersion = targetPkgJson.version
-  }
-
-  if (!targetNextVersion) {
-    throw new Error('Failed to fetch the target Next.js version.')
+    targetPkgJson = nextPkgJson
+    targetNextVersion = nextPkgJson.version
   }
 
   const nextDependency = `next@${targetNextVersion}`
