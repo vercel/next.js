@@ -112,8 +112,8 @@ impl ChunkItem for WorkerLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn content_ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self.module.ident())
+    fn content_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
     }
 
     #[turbo_tasks::function]

@@ -232,7 +232,7 @@ async fn source(
     entry_requests: TransientInstance<Vec<EntryRequest>>,
     eager_compile: bool,
     browserslist_query: RcStr,
-) -> Result<Vc<Box<dyn ContentSource>>> {
+) -> Vc<Box<dyn ContentSource>> {
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
     let project_relative: RcStr = project_relative
         .strip_prefix(MAIN_SEPARATOR)
@@ -309,7 +309,7 @@ async fn source(
         main_source,
     ));
 
-    Ok(source)
+    source
 }
 
 pub fn register() {

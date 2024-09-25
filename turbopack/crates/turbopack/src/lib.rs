@@ -368,13 +368,13 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    pub fn module_options_context(&self) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(self.module_options_context)
+    pub fn module_options_context(&self) -> Vc<ModuleOptionsContext> {
+        self.module_options_context
     }
 
     #[turbo_tasks::function]
-    pub fn resolve_options_context(&self) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(self.resolve_options_context)
+    pub fn resolve_options_context(&self) -> Vc<ResolveOptionsContext> {
+        self.resolve_options_context
     }
 
     #[turbo_tasks::function]

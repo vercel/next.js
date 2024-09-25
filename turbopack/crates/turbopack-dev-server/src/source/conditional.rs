@@ -108,15 +108,15 @@ impl Introspectable for ConditionalContentSource {
     }
 
     #[turbo_tasks::function]
-    fn details(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
+    fn details(&self) -> Vc<RcStr> {
+        Vc::cell(
             if *self.activated.get() {
                 "activated"
             } else {
                 "not activated"
             }
             .into(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]

@@ -93,57 +93,57 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub fn node_externals(&self) -> Result<Vc<bool>> {
-        Ok(match self.execution {
+    pub fn node_externals(&self) -> Vc<bool> {
+        match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
             ExecutionEnvironment::Browser(_) => Vc::cell(false),
             ExecutionEnvironment::EdgeWorker(_) => Vc::cell(false),
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub fn supports_esm_externals(&self) -> Result<Vc<bool>> {
-        Ok(match self.execution {
+    pub fn supports_esm_externals(&self) -> Vc<bool> {
+        match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
             ExecutionEnvironment::Browser(_) => Vc::cell(false),
             ExecutionEnvironment::EdgeWorker(_) => Vc::cell(false),
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub fn supports_commonjs_externals(&self) -> Result<Vc<bool>> {
-        Ok(match self.execution {
+    pub fn supports_commonjs_externals(&self) -> Vc<bool> {
+        match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
             ExecutionEnvironment::Browser(_) => Vc::cell(false),
             ExecutionEnvironment::EdgeWorker(_) => Vc::cell(true),
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub fn supports_wasm(&self) -> Result<Vc<bool>> {
-        Ok(match self.execution {
+    pub fn supports_wasm(&self) -> Vc<bool> {
+        match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
             ExecutionEnvironment::Browser(_) => Vc::cell(false),
             ExecutionEnvironment::EdgeWorker(_) => Vc::cell(false),
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub fn resolve_extensions(&self) -> Result<Vc<Vec<RcStr>>> {
+    pub fn resolve_extensions(&self) -> Vc<Vec<RcStr>> {
         let env = self;
-        Ok(match env.execution {
+        match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(vec![".js".into(), ".node".into(), ".json".into()])
             }
@@ -151,13 +151,13 @@ impl Environment {
                 Vc::<Vec<RcStr>>::default()
             }
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub fn resolve_node_modules(&self) -> Result<Vc<bool>> {
+    pub fn resolve_node_modules(&self) -> Vc<bool> {
         let env = self;
-        Ok(match env.execution {
+        match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
@@ -165,13 +165,13 @@ impl Environment {
                 Vc::cell(false)
             }
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub fn resolve_conditions(&self) -> Result<Vc<Vec<RcStr>>> {
+    pub fn resolve_conditions(&self) -> Vc<Vec<RcStr>> {
         let env = self;
-        Ok(match env.execution {
+        match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(vec!["node".into()])
             }
@@ -180,7 +180,7 @@ impl Environment {
                 Vc::cell(vec!["edge-light".into(), "worker".into()])
             }
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
@@ -194,29 +194,29 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub fn rendering(&self) -> Result<Vc<Rendering>> {
+    pub fn rendering(&self) -> Vc<Rendering> {
         let env = self;
-        Ok(match env.execution {
+        match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Rendering::Server.cell()
             }
             ExecutionEnvironment::EdgeWorker(_) => Rendering::Server.cell(),
             ExecutionEnvironment::Browser(_) => Rendering::Client.cell(),
             _ => Rendering::None.cell(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub fn chunk_loading(&self) -> Result<Vc<ChunkLoading>> {
+    pub fn chunk_loading(&self) -> Vc<ChunkLoading> {
         let env = self;
-        Ok(match env.execution {
+        match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
                 ChunkLoading::NodeJs.cell()
             }
             ExecutionEnvironment::EdgeWorker(_) => ChunkLoading::Edge.cell(),
             ExecutionEnvironment::Browser(_) => ChunkLoading::Dom.cell(),
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 }
 

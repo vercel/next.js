@@ -61,10 +61,10 @@ impl EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Result<Vc<AssetIdent>> {
+    fn ident(&self) -> Vc<AssetIdent> {
         let inner = self.module.ident();
 
-        Ok(inner.with_part(self.ty))
+        inner.with_part(self.ty)
     }
 
     #[turbo_tasks::function]
@@ -135,10 +135,10 @@ impl Module for EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Result<Vc<AssetContent>> {
+    fn content(&self) -> Vc<AssetContent> {
         let f = File::from("");
 
-        Ok(AssetContent::file(FileContent::Content(f).cell()))
+        AssetContent::file(FileContent::Content(f).cell())
     }
 }
 
@@ -286,14 +286,14 @@ impl ChunkableModule for EcmascriptModuleFacadeModule {
     fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             EcmascriptModuleFacadeChunkItem {
                 module: self,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }
 

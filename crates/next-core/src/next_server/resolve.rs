@@ -476,7 +476,7 @@ impl Issue for UnableToExternalize {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Vc<StyledString> {
         let request = &self.request;
         let package = if request.starts_with('@') {
             request
@@ -490,14 +490,14 @@ impl Issue for UnableToExternalize {
         } else {
             request.clone()
         };
-        Ok(StyledString::Line(vec![
+        StyledString::Line(vec![
             StyledString::Text("Package ".into()),
             StyledString::Code(package),
             StyledString::Text(" (".into()),
             StyledString::Code("serverExternalPackages".into()),
             StyledString::Text(" or default list) can't be external".into()),
         ])
-        .cell())
+        .cell()
     }
 
     #[turbo_tasks::function]

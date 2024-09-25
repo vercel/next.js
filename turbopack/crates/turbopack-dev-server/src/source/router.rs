@@ -29,13 +29,13 @@ impl PrefixedRouterContentSource {
         prefix: Vc<RcStr>,
         routes: Vec<(RcStr, Vc<Box<dyn ContentSource>>)>,
         fallback: Vc<Box<dyn ContentSource>>,
-    ) -> Result<Vc<Self>> {
-        Ok(PrefixedRouterContentSource {
+    ) -> Vc<Self> {
+        PrefixedRouterContentSource {
             prefix,
             routes,
             fallback,
         }
-        .cell())
+        .cell()
     }
 }
 

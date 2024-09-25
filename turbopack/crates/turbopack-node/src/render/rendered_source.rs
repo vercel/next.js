@@ -99,8 +99,8 @@ pub struct NodeRenderContentSource {
 #[turbo_tasks::value_impl]
 impl NodeRenderContentSource {
     #[turbo_tasks::function]
-    pub fn get_pathname(&self) -> Result<Vc<RcStr>> {
-        Ok(self.pathname)
+    pub fn get_pathname(&self) -> Vc<RcStr> {
+        self.pathname
     }
 }
 
@@ -263,14 +263,14 @@ impl Introspectable for NodeRenderContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
+    async fn details(&self) -> Vc<RcStr> {
+        Vc::cell(
             format!(
                 "base: {:?}\ntype: {:?}",
                 self.base_segments, self.route_type
             )
             .into(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]

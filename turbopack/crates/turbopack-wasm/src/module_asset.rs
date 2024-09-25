@@ -136,14 +136,14 @@ impl ChunkableModule for WebAssemblyModuleAsset {
     fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             ModuleChunkItem {
                 module: self,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -192,13 +192,13 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Result<Vc<ModuleReferences>> {
+    fn references(&self) -> Vc<ModuleReferences> {
         let loader = self
             .module
             .loader()
             .as_chunk_item(Vc::upcast(self.chunking_context));
 
-        Ok(loader.references())
+        loader.references()
     }
 
     #[turbo_tasks::function]

@@ -137,7 +137,7 @@ impl ChunkData {
 
     /// Returns [`OutputAsset`]s that this chunk data references.
     #[turbo_tasks::function]
-    pub fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(self.references)
+    pub fn references(&self) -> Vc<OutputAssets> {
+        self.references
     }
 }

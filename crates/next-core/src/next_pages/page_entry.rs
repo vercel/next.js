@@ -170,12 +170,12 @@ fn process_global_item(
     item: Vc<PagesStructureItem>,
     reference_type: Value<ReferenceType>,
     module_context: Vc<Box<dyn AssetContext>>,
-) -> Result<Vc<Box<dyn Module>>> {
+) -> Vc<Box<dyn Module>> {
     let source = Vc::upcast(FileSource::new(item.project_path()));
 
     let module = module_context.process(source, reference_type).module();
 
-    Ok(module)
+    module
 }
 
 #[turbo_tasks::function]

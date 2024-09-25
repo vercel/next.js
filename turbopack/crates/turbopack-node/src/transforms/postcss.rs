@@ -171,7 +171,7 @@ struct ProcessPostCssResult {
 async fn config_changed(
     asset_context: Vc<Box<dyn AssetContext>>,
     postcss_config_path: Vc<FileSystemPath>,
-) -> Result<Vc<Completion>> {
+) -> Vc<Completion> {
     let config_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(postcss_config_path)),
@@ -179,11 +179,11 @@ async fn config_changed(
         )
         .module();
 
-    Ok(Vc::<Completions>::cell(vec![
+    Vc::<Completions>::cell(vec![
         any_content_changed_of_module(config_asset),
         extra_configs_changed(asset_context, postcss_config_path),
     ])
-    .completed())
+    .completed()
 }
 
 #[turbo_tasks::function]
@@ -360,7 +360,7 @@ fn postcss_executor(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_path: Vc<FileSystemPath>,
     postcss_config_path: Vc<FileSystemPath>,
-) -> Result<Vc<ProcessResult>> {
+) -> Vc<ProcessResult> {
     let config_asset = asset_context
         .process(
             config_loader_source(project_path, postcss_config_path),
@@ -368,7 +368,7 @@ fn postcss_executor(
         )
         .module();
 
-    Ok(asset_context.process(
+    asset_context.process(
         Vc::upcast(VirtualSource::new(
             postcss_config_path.join("transform.ts".into()),
             AssetContent::File(embed_file("transforms/postcss.ts".into())).cell(),
@@ -376,7 +376,7 @@ fn postcss_executor(
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
             "CONFIG".into() => config_asset
         }))),
-    ))
+    )
 }
 
 async fn find_config_in_location(

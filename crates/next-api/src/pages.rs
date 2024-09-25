@@ -81,8 +81,8 @@ pub struct PagesProject {
 #[turbo_tasks::value_impl]
 impl PagesProject {
     #[turbo_tasks::function]
-    pub fn new(project: Vc<Project>) -> Result<Vc<Self>> {
-        Ok(PagesProject { project }.cell())
+    pub fn new(project: Vc<Project>) -> Vc<Self> {
+        PagesProject { project }.cell()
     }
 
     #[turbo_tasks::function]
@@ -279,8 +279,8 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_client_module_options_context(
+    fn client_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_client_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
@@ -289,12 +289,12 @@ impl PagesProject {
             }),
             self.project().next_mode(),
             self.project().next_config(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(get_client_resolve_options_context(
+    fn client_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
+        get_client_resolve_options_context(
             self.project().project_path(),
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
@@ -302,7 +302,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
@@ -385,8 +385,8 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn ssr_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::Pages {
@@ -395,12 +395,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn edge_ssr_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::Pages {
@@ -409,12 +409,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    fn api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn api_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesApi {
@@ -423,12 +423,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    fn edge_api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn edge_api_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesApi {
@@ -437,12 +437,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    fn ssr_data_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn ssr_data_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesData {
@@ -451,12 +451,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_data_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn edge_ssr_data_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesData {
@@ -465,12 +465,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(get_server_resolve_options_context(
+    fn ssr_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
+        get_server_resolve_options_context(
             self.project().project_path(),
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
             // matter (for now at least) because `get_server_resolve_options_context` doesn't
@@ -481,12 +481,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(get_edge_resolve_options_context(
+    fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
+        get_edge_resolve_options_context(
             self.project().project_path(),
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
             // matter (for now at least) because `get_server_resolve_options_context` doesn't
@@ -497,11 +497,11 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
+    fn client_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
         let client_runtime_entries = get_client_runtime_entries(
             self.project().project_path(),
             Value::new(ClientContextType::Pages {
@@ -511,27 +511,27 @@ impl PagesProject {
             self.project().next_config(),
             self.project().execution_context(),
         );
-        Ok(client_runtime_entries.resolve_entries(self.client_module_context()))
+        client_runtime_entries.resolve_entries(self.client_module_context())
     }
 
     #[turbo_tasks::function]
-    fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        Ok(get_server_runtime_entries(
+    fn runtime_entries(self: Vc<Self>) -> Vc<RuntimeEntries> {
+        get_server_runtime_entries(
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
             self.project().next_mode(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    fn data_runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        Ok(get_server_runtime_entries(
+    fn data_runtime_entries(self: Vc<Self>) -> Vc<RuntimeEntries> {
+        get_server_runtime_entries(
             Value::new(ServerContextType::PagesData {
                 pages_dir: self.pages_dir(),
             }),
             self.project().next_mode(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
@@ -638,8 +638,8 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Result<Vc<Box<dyn Source>>> {
-        Ok(Vc::upcast(FileSource::new(self.page.project_path())))
+    fn source(&self) -> Vc<Box<dyn Source>> {
+        Vc::upcast(FileSource::new(self.page.project_path()))
     }
 
     #[turbo_tasks::function]

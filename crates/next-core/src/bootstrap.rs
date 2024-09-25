@@ -20,15 +20,15 @@ pub fn route_bootstrap(
     base_path: Vc<FileSystemPath>,
     bootstrap_asset: Vc<Box<dyn Source>>,
     config: Vc<BootstrapConfig>,
-) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
-    Ok(bootstrap(
+) -> Vc<Box<dyn EvaluatableAsset>> {
+    bootstrap(
         asset,
         asset_context,
         base_path,
         bootstrap_asset,
         Vc::cell(IndexMap::new()),
         config,
-    ))
+    )
 }
 
 #[turbo_tasks::value(transparent)]

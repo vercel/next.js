@@ -1,4 +1,3 @@
-use anyhow::Result;
 use indexmap::indexmap;
 use turbo_tasks::{TaskInput, Value, Vc};
 use turbopack::{module_options::CustomModuleType, ModuleAssetContext};
@@ -40,7 +39,7 @@ impl StructuredImageModuleType {
         source: Vc<Box<dyn Source>>,
         blur_placeholder_mode: BlurPlaceholderMode,
         module_asset_context: Vc<ModuleAssetContext>,
-    ) -> Result<Vc<Box<dyn Module>>> {
+    ) -> Vc<Box<dyn Module>> {
         let static_asset = StaticModuleAsset::new(source, Vc::upcast(module_asset_context));
         let module = module_asset_context
             .process(
@@ -56,7 +55,7 @@ impl StructuredImageModuleType {
                 )))),
             )
             .module();
-        Ok(module)
+        module
     }
 
     #[turbo_tasks::function]
