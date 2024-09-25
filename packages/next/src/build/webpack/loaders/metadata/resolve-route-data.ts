@@ -117,7 +117,7 @@ export function resolveSitemap(data: MetadataRoute.Sitemap): string {
             `<video:uploader${video.uploader.info && ` info="${video.uploader.info}"`}>${video.uploader.content}</video:uploader>`,
           `</video:video>`,
         ].filter(Boolean)
-        content += videoFields.join('')
+        content += videoFields.join('\n')
       }
     }
     if (item.lastModified) {
