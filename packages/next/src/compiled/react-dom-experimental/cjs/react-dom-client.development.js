@@ -14861,7 +14861,9 @@
               spawnedLane,
               updatedLanes,
               suspendedRetryLanes,
-              SUSPENDED_COMMIT
+              SUSPENDED_COMMIT,
+              completedRenderStartTime,
+              completedRenderEndTime,
             )
           );
           markRootSuspended(root, lanes, spawnedLane, didSkipSuspendedSiblings);
