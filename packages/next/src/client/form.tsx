@@ -28,12 +28,11 @@ type InternalFormProps = {
    *
    * Options:
    * - `null` (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
-   * - `true`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
    * - `false`: This will not prefetch any data.
    *
    * @defaultValue `null`
    */
-  prefetch?: boolean | null
+  prefetch?: false | null
   /**
    * Whether submitting the form should replace the current `history` state instead of adding a new url into the stack.
    * Only valid if `action` is a string.
@@ -58,13 +57,20 @@ export type FormProps<RouteInferType = any> = InternalFormProps
 export default function Form({
   replace,
   scroll,
-  prefetch: prefetchProp,
+  prefetch: prefetchProp = null,
   ref: externalRef,
   ...props
 }: FormProps) {
   const actionProp = props.action
   const isNavigatingForm = typeof actionProp === 'string'
-  const prefetch = prefetchProp ?? null
+
+  if (process.env.NODE_ENV === 'development') {
+    if (!(prefetchProp === false || prefetchProp === null)) {
+      console.error('The `prefetch` prop of <Form> must be `false` or `null`')
+    }
+  }
+  const prefetch =
+    prefetchProp === false || prefetchProp === null ? prefetchProp : null
 
   for (const key of DISALLOWED_FORM_PROPS) {
     if (key in props) {
@@ -98,18 +104,14 @@ export default function Form({
       return
     }
 
-    const isPrefetchEnabled = prefetch !== false
+    const isPrefetchEnabled = prefetch === null
 
     if (!isVisible || !isPrefetchEnabled) {
       return
     }
 
-    const prefetchKind =
-      prefetch === null ? PrefetchKind.AUTO : PrefetchKind.FULL
-
     try {
-      // TODO: do we need to take the current field values here?
-      // or are we assuming that queryparams can't affect this (but what about rewrites)?
+      const prefetchKind = PrefetchKind.AUTO
       router.prefetch(actionProp, { kind: prefetchKind })
     } catch (err) {
       console.error(err)
