@@ -23,7 +23,6 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
 use smallvec::smallvec;
 pub use storage::TaskDataCategory;
-use tokio::time::timeout;
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
@@ -129,6 +128,7 @@ struct TurboTasksBackendInner {
 
     stopping: AtomicBool,
     stopping_event: Event,
+    idle_event: Event,
 
     backing_storage: Arc<dyn BackingStorage + Sync + Send>,
 }
@@ -164,6 +164,7 @@ impl TurboTasksBackendInner {
             last_snapshot: AtomicU64::new(0),
             stopping: AtomicBool::new(false),
             stopping_event: Event::new(|| "TurboTasksBackend::stopping_event".to_string()),
+            idle_event: Event::new(|| "TurboTasksBackend::idle_event".to_string()),
             backing_storage,
         }
     }
@@ -587,6 +588,10 @@ impl TurboTasksBackendInner {
     fn stopping(&self) {
         self.stopping.store(true, Ordering::Release);
         self.stopping_event.notify(usize::MAX);
+    }
+
+    fn idle_start(&self) {
+        self.idle_event.notify(usize::MAX);
     }
 
     fn get_or_create_persistent_task(
@@ -1113,8 +1118,13 @@ impl TurboTasksBackendInner {
                     let elapsed = last_snapshot.elapsed();
                     if elapsed < time {
                         let listener = self.stopping_event.listen();
+                        let listener2 = self.idle_event.listen();
                         if !self.stopping.load(Ordering::Acquire) {
-                            let _ = timeout(time - elapsed, listener).await;
+                            tokio::select! {
+                                _ = listener => {},
+                                _ = listener2 => {},
+                                _ = tokio::time::sleep(time - elapsed) => {},
+                            }
                         }
                     }
 
@@ -1218,6 +1228,10 @@ impl Backend for TurboTasksBackend {
 
     fn stopping(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         self.0.stopping();
+    }
+
+    fn idle_start(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.idle_start();
     }
 
     fn get_or_create_persistent_task(
