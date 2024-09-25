@@ -205,7 +205,7 @@ Back in your `<SignupForm />`, you can use React's `useFormState` hook to displa
 ```tsx filename="app/ui/signup-form.tsx" switcher highlight={7,15,21,27-39}
 'use client'
 
-import { useFormState, useFormStatus } from 'react'
+import { useFormState, useFormStatus } from 'react-dom'
 import { signup } from '@/app/actions/auth'
 
 export function SignupForm() {
@@ -258,7 +258,7 @@ function SubmitButton() {
 ```jsx filename="app/ui/signup-form.js" switcher highlight={7,15,21,27-39}
 'use client'
 
-import { useFormState, useFormStatus } from 'react'
+import { useFormState, useFormStatus } from 'react-dom'
 import { signup } from '@/app/actions/auth'
 
 export function SignupForm() {
@@ -270,19 +270,19 @@ export function SignupForm() {
         <label htmlFor="name">Name</label>
         <input id="name" name="name" placeholder="John Doe" />
       </div>
-      {state.errors.name && <p>{state.errors.name}</p>}
+      {state?.errors?.name && <p>{state.errors.name}</p>}
 
       <div>
         <label htmlFor="email">Email</label>
         <input id="email" name="email" placeholder="john@example.com" />
       </div>
-      {state.errors.email && <p>{state.errors.email}</p>}
+      {state?.errors?.email && <p>{state.errors.email}</p>}
 
       <div>
         <label htmlFor="password">Password</label>
         <input id="password" name="password" type="password" />
       </div>
-      {state.errors.password && (
+      {state?.errors?.password && (
         <div>
           <p>Password must:</p>
           <ul>
@@ -1505,7 +1505,7 @@ The example above demonstrates a Route Handler with a two-tier security check. I
 
 ## Context Providers
 
-Using context providers for auth work due to [interleaving](/docs/app/building-your-application/rendering/composition-patterns#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
+Using context providers for auth works due to [interleaving](/docs/app/building-your-application/rendering/composition-patterns#interleaving-server-and-client-components). However, React `context` is not supported in Server Components, making them only applicable to Client Components.
 
 This works, but any child Server Components will be rendered on the server first, and will not have access to the context provider’s session data:
 

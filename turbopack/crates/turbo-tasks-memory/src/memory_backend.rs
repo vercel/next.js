@@ -1,6 +1,5 @@
 use std::{
     borrow::{Borrow, Cow},
-    cell::RefCell,
     future::Future,
     hash::{BuildHasher, BuildHasherDefault, Hash},
     num::NonZeroU32,
@@ -16,7 +15,6 @@ use anyhow::{anyhow, bail, Result};
 use auto_hash_map::AutoMap;
 use dashmap::{mapref::entry::Entry, DashMap};
 use rustc_hash::FxHasher;
-use tokio::task::futures::TaskLocalFuture;
 use tracing::trace_span;
 use turbo_prehash::{BuildHasherExt, PassThroughHash, PreHashed};
 use turbo_tasks::{
@@ -37,12 +35,18 @@ use crate::{
         PERCENTAGE_MIN_IDLE_TARGET_MEMORY, PERCENTAGE_MIN_TARGET_MEMORY,
     },
     output::Output,
-    task::{ReadCellError, Task, TaskType, DEPENDENCIES_TO_TRACK},
+    task::{ReadCellError, Task, TaskType},
     task_statistics::TaskStatisticsApi,
 };
 
 fn prehash_task_type(task_type: CachedTaskType) -> PreHashed<CachedTaskType> {
     BuildHasherDefault::<FxHasher>::prehash(&Default::default(), task_type)
+}
+
+pub struct TaskState {
+    /// Cells/Outputs/Collectibles that are read during task execution. These will be stored as
+    /// dependencies when the execution has finished.
+    pub dependencies_to_track: TaskEdgesSet,
 }
 
 pub struct MemoryBackend {
@@ -436,14 +440,11 @@ impl Backend for MemoryBackend {
         self.with_task(task, |task| task.get_description())
     }
 
-    type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static> =
-        TaskLocalFuture<RefCell<TaskEdgesSet>, T>;
-    fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
-        &self,
-        _task: TaskId,
-        future: T,
-    ) -> Self::ExecutionScopeFuture<T> {
-        DEPENDENCIES_TO_TRACK.scope(RefCell::new(TaskEdgesSet::new()), future)
+    type TaskState = TaskState;
+    fn new_task_state(&self, _task: TaskId) -> Self::TaskState {
+        TaskState {
+            dependencies_to_track: TaskEdgesSet::new(),
+        }
     }
 
     fn try_start_task_execution<'a>(
@@ -529,7 +530,7 @@ impl Backend for MemoryBackend {
             move || format!("reading task output from {reader}"),
             turbo_tasks,
             |output| {
-                Task::add_dependency_to_current(TaskEdge::Output(task));
+                Task::add_dependency_to_current(TaskEdge::Output(task), turbo_tasks);
                 output.read(reader)
             },
         )
@@ -564,7 +565,7 @@ impl Backend for MemoryBackend {
                 })
                 .into_typed(index.type_id)))
         } else {
-            Task::add_dependency_to_current(TaskEdge::Cell(task_id, index));
+            Task::add_dependency_to_current(TaskEdge::Cell(task_id, index), turbo_tasks);
             self.with_task(task_id, |task| {
                 match task.read_cell(
                     index,
@@ -623,7 +624,7 @@ impl Backend for MemoryBackend {
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> TaskCollectiblesMap {
-        Task::add_dependency_to_current(TaskEdge::Collectibles(id, trait_id));
+        Task::add_dependency_to_current(TaskEdge::Collectibles(id, trait_id), turbo_tasks);
         Task::read_collectibles(id, trait_id, reader, self, turbo_tasks)
     }
 

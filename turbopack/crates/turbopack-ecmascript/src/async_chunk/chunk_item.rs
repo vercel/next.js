@@ -30,8 +30,8 @@ pub struct AsyncLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl AsyncLoaderChunkItem {
     #[turbo_tasks::function]
-    pub(super) async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
+    pub(super) async fn chunks(&self) -> Result<Vc<OutputAssets>> {
+        let this = self;
         let module = this.module.await?;
         if let Some(chunk_items) = module.availability_info.available_chunk_items() {
             if chunk_items

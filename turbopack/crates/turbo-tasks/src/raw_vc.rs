@@ -15,10 +15,10 @@ use thiserror::Error;
 use crate::{
     backend::{CellContent, TypedCellContent},
     event::EventListener,
-    id::{ExecutionId, LocalCellId},
+    id::{ExecutionId, LocalCellId, LocalTaskId},
     manager::{
-        assert_execution_id, current_task, read_local_cell, read_task_cell, read_task_output,
-        TurboTasksApi,
+        assert_execution_id, current_task, read_local_cell, read_local_output, read_task_cell,
+        read_task_output, TurboTasksApi,
     },
     registry::{self, get_value_type},
     turbo_tasks, CollectiblesSource, ReadConsistency, TaskId, TraitTypeId, ValueType, ValueTypeId,
@@ -58,6 +58,7 @@ impl Display for CellId {
 pub enum RawVc {
     TaskOutput(TaskId),
     TaskCell(TaskId, CellId),
+    LocalOutput(TaskId, LocalTaskId),
     #[serde(skip)]
     LocalCell(ExecutionId, LocalCellId),
 }
@@ -67,6 +68,7 @@ impl RawVc {
         match self {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => true,
+            RawVc::LocalOutput(_, _) => false,
             RawVc::LocalCell(_, _) => false,
         }
     }
@@ -75,7 +77,15 @@ impl RawVc {
         match self {
             RawVc::TaskOutput(_) => false,
             RawVc::TaskCell(_, _) => false,
+            RawVc::LocalOutput(_, _) => true,
             RawVc::LocalCell(_, _) => true,
+        }
+    }
+
+    pub fn is_transient(&self) -> bool {
+        match self {
+            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) => task.is_transient(),
+            RawVc::LocalOutput(_, _) | RawVc::LocalCell(_, _) => true,
         }
     }
 
@@ -162,6 +172,12 @@ impl RawVc {
                         return Err(ResolveTypeError::NoContent);
                     }
                 }
+                RawVc::LocalOutput(task_id, local_cell_id) => {
+                    current =
+                        read_local_output(&*tt, task_id, local_cell_id, ReadConsistency::Eventual)
+                            .await
+                            .map_err(|source| ResolveTypeError::TaskError { source })?;
+                }
                 RawVc::LocalCell(execution_id, local_cell_id) => {
                     let shared_reference = read_local_cell(execution_id, local_cell_id);
                     return Ok(
@@ -193,16 +209,23 @@ impl RawVc {
         let tt = turbo_tasks();
         let mut current = self;
         let mut notified = false;
+        let mut lazily_notify = || {
+            if !notified {
+                tt.notify_scheduled_tasks();
+                notified = true;
+            }
+        };
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    if !notified {
-                        tt.notify_scheduled_tasks();
-                        notified = true;
-                    }
+                    lazily_notify();
                     current = read_task_output(&*tt, task, consistency).await?;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
+                RawVc::LocalOutput(task_id, local_cell_id) => {
+                    lazily_notify();
+                    current = read_local_output(&*tt, task_id, local_cell_id, consistency).await?;
+                }
                 RawVc::LocalCell(execution_id, local_cell_id) => {
                     let shared_reference = read_local_cell(execution_id, local_cell_id);
                     let value_type = get_value_type(shared_reference.0);
@@ -219,7 +242,7 @@ impl RawVc {
 
     pub fn get_task_id(&self) -> TaskId {
         match self {
-            RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) => *t,
+            RawVc::TaskOutput(t) | RawVc::TaskCell(t, _) | RawVc::LocalOutput(t, _) => *t,
             RawVc::LocalCell(execution_id, _) => {
                 assert_execution_id(*execution_id);
                 current_task("RawVc::get_task_id")
@@ -362,6 +385,30 @@ impl Future for ReadRawVcFuture {
                         Ok(Ok(content)) => {
                             // SAFETY: Constructor ensures that T and U are binary identical
                             return Poll::Ready(Ok(content));
+                        }
+                        Ok(Err(listener)) => listener,
+                        Err(err) => return Poll::Ready(Err(err)),
+                    }
+                }
+                RawVc::LocalOutput(task_id, local_output_id) => {
+                    let read_result = if this.untracked {
+                        this.turbo_tasks.try_read_local_output_untracked(
+                            task_id,
+                            local_output_id,
+                            this.consistency,
+                        )
+                    } else {
+                        this.turbo_tasks.try_read_local_output(
+                            task_id,
+                            local_output_id,
+                            this.consistency,
+                        )
+                    };
+                    match read_result {
+                        Ok(Ok(vc)) => {
+                            this.consistency = ReadConsistency::Eventual;
+                            this.current = vc;
+                            continue 'outer;
                         }
                         Ok(Err(listener)) => listener,
                         Err(err) => return Poll::Ready(Err(err)),

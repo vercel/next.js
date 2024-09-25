@@ -174,7 +174,7 @@ impl AsyncModule {
     /// Returns
     #[turbo_tasks::function]
     pub async fn module_options(
-        self: Vc<Self>,
+        &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<OptionAsyncModuleOptions>> {
         if async_module_info.is_none() {
@@ -182,7 +182,7 @@ impl AsyncModule {
         }
 
         Ok(Vc::cell(Some(AsyncModuleOptions {
-            has_top_level_await: self.await?.has_top_level_await,
+            has_top_level_await: self.has_top_level_await,
         })))
     }
 

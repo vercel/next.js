@@ -10,6 +10,9 @@ use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
 use crate::asset::AssetContent;
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionVersionedContent(Option<Vc<Box<dyn VersionedContent>>>);
+
 /// The content of an [Asset] alongside its version.
 #[turbo_tasks::value_trait]
 pub trait VersionedContent {
@@ -176,6 +179,9 @@ pub enum Update {
     /// specific set of instructions.
     Partial(PartialUpdate),
 
+    // The asset is now missing, so it can't be updated. A full reload is required.
+    Missing,
+
     /// No update required.
     None,
 }
@@ -244,8 +250,8 @@ pub struct VersionState {
 #[turbo_tasks::value_impl]
 impl VersionState {
     #[turbo_tasks::function]
-    pub async fn get(self: Vc<Self>) -> Result<Vc<Box<dyn Version>>> {
-        let this = self.await?;
+    pub async fn get(&self) -> Result<Vc<Box<dyn Version>>> {
+        let this = self;
         let version = TraitRef::cell(this.version.get().clone());
         Ok(version)
     }

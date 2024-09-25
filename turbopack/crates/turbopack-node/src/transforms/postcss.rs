@@ -21,6 +21,7 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
     source::Source,
+    source_map::{GenerateSourceMap, OptionSourceMap},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -409,10 +410,22 @@ async fn find_config_in_location(
 }
 
 #[turbo_tasks::value_impl]
+impl GenerateSourceMap for PostCssTransformedAsset {
+    #[turbo_tasks::function]
+    async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
+        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.source).await?;
+        match source {
+            Some(source) => Ok(source.generate_source_map()),
+            None => Ok(Vc::cell(None)),
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn process(self: Vc<Self>) -> Result<Vc<ProcessPostCssResult>> {
-        let this = self.await?;
+    async fn process(&self) -> Result<Vc<ProcessPostCssResult>> {
+        let this = self;
         let ExecutionContext {
             project_path,
             chunking_context,

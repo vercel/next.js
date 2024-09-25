@@ -96,10 +96,10 @@ impl PageLoaderAsset {
 
     #[turbo_tasks::function]
     async fn chunks_data(
-        self: Vc<Self>,
+        &self,
         rebase_prefix_path: Vc<FileSystemPathOption>,
     ) -> Result<Vc<ChunksData>> {
-        let this = self.await?;
+        let this = self;
         let mut chunks = this.page_chunks;
 
         // If we are provided a prefix path, we need to rewrite our chunk paths to

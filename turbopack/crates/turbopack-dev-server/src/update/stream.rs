@@ -234,7 +234,7 @@ impl UpdateStream {
                                     Some(item)
                                 }
                                 // Do not propagate empty updates.
-                                Update::None => {
+                                Update::None | Update::Missing => {
                                     if has_issues || issues_changed {
                                         Some(item)
                                     } else {

@@ -352,13 +352,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn chunk_group(
         self: Vc<Self>,
+        ident: Vc<AssetIdent>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!(
-            "chunking",
-            module = module.ident().to_string().await?.to_string()
-        );
+        let span = tracing::info_span!("chunking", ident = ident.to_string().await?.to_string());
         async move {
             let this = self.await?;
             let input_availability_info = availability_info.into_value();
@@ -378,7 +376,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 .collect();
 
             if this.enable_hot_module_replacement {
-                let mut ident = module.ident();
+                let mut ident = ident;
                 match input_availability_info {
                     AvailabilityInfo::Root => {}
                     AvailabilityInfo::Untracked => {
@@ -432,12 +430,9 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let evaluatable_assets_ref = evaluatable_assets.await?;
 
-            // TODO this collect is unnecessary, but it hits a compiler bug when it's not
-            // used
             let entries = evaluatable_assets_ref
                 .iter()
-                .map(|&evaluatable| Vc::upcast(evaluatable))
-                .collect::<Vec<_>>();
+                .map(|&evaluatable| Vc::upcast(evaluatable));
 
             let MakeChunkGroupResult {
                 chunks,
@@ -483,17 +478,15 @@ impl ChunkingContext for BrowserChunkingContext {
         _path: Vc<FileSystemPath>,
         _module: Vc<Box<dyn Module>>,
         _evaluatable_assets: Vc<EvaluatableAssets>,
+        _extra_chunks: Vc<OutputAssets>,
         _availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         bail!("Browser chunking context does not support entry chunk groups")
     }
 
     #[turbo_tasks::function]
-    async fn chunk_item_id_from_ident(
-        self: Vc<Self>,
-        ident: Vc<AssetIdent>,
-    ) -> Result<Vc<ModuleId>> {
-        Ok(self.await?.module_id_strategy.get_module_id(ident))
+    async fn chunk_item_id_from_ident(&self, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
+        Ok(self.module_id_strategy.get_module_id(ident))
     }
 
     #[turbo_tasks::function]
