@@ -586,15 +586,6 @@ impl DepGraph {
 
         let mapped = condensed.filter_map(
             |_, node| {
-                if node.iter().all(|&ix| {
-                    let id = &self.g.graph_ix[ix as usize];
-
-                    data[id].pure
-                }) {
-                    done.extend(node.iter().copied());
-                    return None;
-                }
-
                 let mut item_ids = node
                     .iter()
                     .map(|&ix| {
@@ -616,7 +607,12 @@ impl DepGraph {
 
         for node in self.g.graph_ix.iter() {
             let ix = self.g.get_node(node);
+
             if !done.contains(&ix) {
+                if data[node].pure {
+                    continue;
+                }
+
                 let item_ids = vec![node.clone()];
                 new_graph.node(&item_ids);
             }
