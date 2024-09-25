@@ -441,11 +441,11 @@ impl DiskFileSystem {
 
         // we use the sync std function here as it's a lot faster (600%) in
         // node-file-trace
-        let read_dir = match retry_blocking(
-            &full_path,
-            tracing::info_span!("read directory", path = display(full_path.display())),
-            |path| std::fs::read_dir(path),
-        )
+        let read_dir = match retry_blocking(&full_path, |path| {
+            let _span =
+                tracing::info_span!("read directory", path = display(path.display())).entered();
+            std::fs::read_dir(path)
+        })
         .await
         {
             Ok(dir) => dir,
@@ -810,26 +810,25 @@ impl FileSystem for DiskFileSystem {
                 } else {
                     PathBuf::from(unix_to_sys(target).as_ref())
                 };
-                retry_blocking(
-                    &target_path,
-                    tracing::info_span!("write symlink", path = display(full_path.display())),
-                    move |target_path| {
-                        // we use the sync std method here because `symlink` is fast
-                        // if we put it into a task, it will be slower
-                        #[cfg(not(target_family = "windows"))]
-                        {
-                            std::os::unix::fs::symlink(target_path, &full_path)
+                retry_blocking(&target_path, move |target_path| {
+                    let _span =
+                        tracing::info_span!("write symlink", path = display(target_path.display()))
+                            .entered();
+                    // we use the sync std method here because `symlink` is fast
+                    // if we put it into a task, it will be slower
+                    #[cfg(not(target_family = "windows"))]
+                    {
+                        std::os::unix::fs::symlink(target_path, &full_path)
+                    }
+                    #[cfg(target_family = "windows")]
+                    {
+                        if link_type.contains(LinkType::DIRECTORY) {
+                            std::os::windows::fs::symlink_dir(target_path, &full_path)
+                        } else {
+                            std::os::windows::fs::symlink_file(target_path, &full_path)
                         }
-                        #[cfg(target_family = "windows")]
-                        {
-                            if link_type.contains(LinkType::DIRECTORY) {
-                                std::os::windows::fs::symlink_dir(target_path, &full_path)
-                            } else {
-                                std::os::windows::fs::symlink_file(target_path, &full_path)
-                            }
-                        }
-                    },
-                )
+                    }
+                })
                 .await
                 .with_context(|| format!("create symlink to {}", target))?;
             }
