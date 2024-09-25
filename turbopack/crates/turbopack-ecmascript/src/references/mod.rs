@@ -146,8 +146,6 @@ use crate::{
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug, Default)]
 pub struct DeclaredCjsGlobals {
-    pub dirname: bool,
-    pub filename: bool,
     pub require: bool,
 }
 
@@ -653,8 +651,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         set_handler_and_globals(&handler, globals, || create_graph(program, eval_context));
 
     analysis.set_declared_cjs_globals(DeclaredCjsGlobals {
-        dirname: var_graph.values.keys().any(|(k, _)| k == "__dirname"),
-        filename: var_graph.values.keys().any(|(k, _)| k == "__filename"),
         require: var_graph.values.keys().any(|(k, _)| k == "require"),
     });
 
