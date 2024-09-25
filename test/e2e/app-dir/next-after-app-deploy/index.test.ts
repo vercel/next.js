@@ -1,10 +1,10 @@
 /* eslint-env jest */
-import { nextTestSetup, isNextDev, isNextDeploy } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 const runtimes = ['nodejs', 'edge']
 
-const WAIT_BEFORE_REVALIDATING = isNextDeploy ? 10_000 : 5_000
+const WAIT_BEFORE_REVALIDATING = 1000
 
 // If we want to verify that `unstable_after()` ran its callback,
 // we need it to perform some kind of side effect (because it can't affect the response).

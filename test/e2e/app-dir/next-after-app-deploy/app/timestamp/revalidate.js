@@ -13,7 +13,7 @@ export async function revalidateTimestampPage(/** @type {string} */ key) {
   revalidatePath(path)
 }
 
-const WAIT_BEFORE_REVALIDATING_DEFAULT = 5000
+const WAIT_BEFORE_REVALIDATING_DEFAULT = 1000
 
 function getSleepDuration() {
   const raw = process.env.WAIT_BEFORE_REVALIDATING
