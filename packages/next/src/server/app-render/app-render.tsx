@@ -1284,6 +1284,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
           fallbackRouteParams,
           renderOpts,
           requestEndedState,
+          isPrefetchRequest: Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER]),
         },
         (staticGenerationStore) =>
           renderToHTMLOrFlightImpl(

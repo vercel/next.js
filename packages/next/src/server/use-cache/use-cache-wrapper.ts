@@ -24,13 +24,17 @@ import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-p
 
 type CacheEntry = {
   value: ReadableStream
+  // In-memory caches are fragile and should not use stale-while-revalidate
+  // semantics on the caches because it's not worth warming up an entry that's
+  // likely going to get evicted before we get to use it anyway. However,
+  // we also don't want to reuse a stale entry for too long so stale entries
+  // should be considered expired/missing in such CacheHandlers.
   stale: boolean
 }
 
 interface CacheHandler {
   get(cacheKey: string | ArrayBuffer): Promise<undefined | CacheEntry>
   set(cacheKey: string | ArrayBuffer, value: ReadableStream): Promise<void>
-  shouldRevalidateStale: boolean
 }
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
@@ -64,10 +68,6 @@ cacheHandlerMap.set('default', {
       await value.cancel()
     }
   },
-  // In-memory caches are fragile and should not use stale-while-revalidate
-  // semantics on the caches because it's not worth warming up an entry that's
-  // likely going to get evicted before we get to use it anyway.
-  shouldRevalidateStale: false,
 })
 
 // TODO: Consider moving this another module that is guaranteed to be required in a safe scope.
@@ -198,7 +198,7 @@ export function cache(kind: string, id: string, fn: any) {
       let stream
       if (
         entry === undefined ||
-        (staticGenerationStore.isStaticGeneration && entry.stale)
+        (entry.stale && staticGenerationStore.isStaticGeneration)
       ) {
         // Miss. Generate a new result.
 
@@ -221,11 +221,9 @@ export function cache(kind: string, id: string, fn: any) {
         )
       } else {
         stream = entry.value
-        if (entry.stale && cacheHandler.shouldRevalidateStale) {
+        if (entry.stale) {
           // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
-          // then we should warm up the cache with a fresh revalidated entry. We only do this
-          // for long lived cache handlers because it's not worth warming up the cache with an
-          // an entry that's just going to get evicted before we can use it anyway.
+          // then we should warm up the cache with a fresh revalidated entry.
           const ignoredStream = await runInCleanSnapshot(
             generateCacheEntry,
             staticGenerationStore,
