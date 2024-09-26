@@ -55,7 +55,7 @@ const nextBuildWorkflow =
 
       await measureTime('cleanup', {
         scenario: benchmarkName,
-        props: { turbopack: null, page: null },
+        props: { turbopack, page },
       })
 
       const buildArgs = [turbopack ? 'build-turbopack' : 'build-webpack']
@@ -67,7 +67,7 @@ const nextBuildWorkflow =
 
       await measureTime('build', {
         scenario: benchmarkName,
-        props: { turbopack: null, page: null },
+        props: { turbopack, page },
       })
 
       // startup browser
@@ -80,7 +80,7 @@ const nextBuildWorkflow =
       }
       cleanupTasks.push(closeSession)
       await measureTime('browser startup', {
-        props: { turbopack: null, page: null },
+        props: { turbopack, page },
       })
 
       // run command to start dev server
@@ -102,9 +102,9 @@ const nextBuildWorkflow =
       const {
         groups: { url },
       } = await shell.waitForOutput(START_SERVER_REGEXP)
-      await measureTime('server startup', { props: { page: null } })
+      await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
-        props: { page: null },
+        props: { turbopack, page },
       })
 
       // open page
@@ -187,13 +187,13 @@ const nextBuildWorkflow =
 
       await measureTime('build with cache', {
         scenario: benchmarkName,
-        props: { turbopack: null, page: null },
+        props: { turbopack, page },
       })
 
       // startup new browser
       session = await newBrowserSession({})
       await measureTime('browser startup', {
-        props: { turbopack: null, page: null },
+        props: { turbopack, page },
       })
 
       // run command to start dev server
@@ -247,7 +247,7 @@ const nextDevWorkflow =
 
       await measureTime('cleanup', {
         scenario: benchmarkName,
-        props: { turbopack: null, page: null },
+        props: { turbopack, page },
       })
 
       // startup browser
@@ -260,7 +260,7 @@ const nextDevWorkflow =
       }
       cleanupTasks.push(closeSession)
       await measureTime('browser startup', {
-        props: { turbopack: null, page: null },
+        props: { turbopack, page },
       })
 
       const env = {
@@ -296,9 +296,9 @@ const nextDevWorkflow =
       const {
         groups: { url },
       } = await shell.waitForOutput(START_SERVER_REGEXP)
-      await measureTime('server startup', { props: { page: null } })
+      await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
-        props: { page: null },
+        props: { turbopack, page },
       })
 
       // open page
@@ -509,7 +509,7 @@ const nextDevWorkflow =
       // startup new browser
       session = await newBrowserSession({})
       await measureTime('browser startup', {
-        props: { turbopack: null, page: null },
+        props: { turbopack, page },
       })
 
       // run command to start dev server
