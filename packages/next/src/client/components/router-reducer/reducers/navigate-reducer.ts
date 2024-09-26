@@ -21,7 +21,7 @@ import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
 import {
-  addSearchParamsIfPageSegment,
+  addSearchParamsToPageSegments,
   DEFAULT_SEGMENT_KEY,
 } from '../../../../shared/lib/segment'
 import {
@@ -184,14 +184,12 @@ export function navigateReducer(
 
         // Segments are keyed by searchParams (e.g. __PAGE__?{"foo":"bar"}). We might return a less specific, param-less entry,
         // so we ensure that the final tree contains the correct searchParams (reflected in the URL) are provided in the updated FlightRouterState tree.
-        if (prefetchValues.aliased) {
-          const [segment, ...rest] = treePatch
-          const finalSegment = addSearchParamsIfPageSegment(
-            segment,
+        // We only do this on the first read, as otherwise we'd be overwriting the searchParams that may have already been set
+        if (prefetchValues.aliased && isFirstRead) {
+          treePatch = addSearchParamsToPageSegments(
+            treePatch,
             Object.fromEntries(url.searchParams)
           )
-
-          treePatch = [finalSegment, ...rest]
         }
 
         // Create new tree based on the flightSegmentPath and router state patch
@@ -332,7 +330,7 @@ export function navigateReducer(
             } else if (
               prefetchValues.status === PrefetchCacheEntryStatus.stale &&
               !mutable.onlyHashChange &&
-              !isFirstRead
+              (!isFirstRead || prefetchValues.aliased)
             ) {
               // When we have a stale prefetch entry, we only want to re-use the loading state of the route we're navigating to, to support instant loading navigations
               // this will trigger a lazy fetch for the actual page data by nulling the `rsc` and `prefetchRsc` values for page data,
