@@ -55,14 +55,14 @@ export async function runUpgrade(version?: Version): Promise<void> {
             'Experimental version including the latest features and improvements.',
         },
         {
-          title: 'Latest',
-          value: 'latest',
-          description: 'Latest stable version of Next.js.',
-        },
-        {
           title: 'Release Candidate (RC)',
           value: 'rc',
           description: 'Release Candidate of Next.js.',
+        },
+        {
+          title: 'Latest',
+          value: 'latest',
+          description: 'Latest stable version of Next.js.',
         },
       ],
       onState: onPromptState,
@@ -131,6 +131,7 @@ export async function runUpgrade(version?: Version): Promise<void> {
   console.log(
     `\n${green('✔')} Your Next.js project has been upgraded successfully. ${bold('Time to ship! 🚢')}`
   )
+  process.exit(0)
 }
 
 async function getInstalledNextVersion(): Promise<string | null> {

@@ -1,6 +1,7 @@
 import execa from 'execa'
 import { join } from 'node:path'
 import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
+import { spawn, SpawnOptions } from 'node:child_process'
 
 export const NEXT_CODEMOD_PATH = require.resolve(
   '@next/codemod/bin/next-codemod.js'
@@ -13,6 +14,18 @@ export const runNextCodemod = (args: string[], options: execa.Options) => {
   return execa('node', [NEXT_CODEMOD_PATH].concat(args), {
     // tests with options.reject false are expected to exit(1) so don't inherit
     stdio: options.reject === false ? 'pipe' : 'inherit',
+    ...options,
+    env: {
+      ...process.env,
+      ...options.env,
+    },
+  })
+}
+
+export const runNextCodemodPrompt = (args: string[], options: SpawnOptions) => {
+  console.log(`[TEST] $ ${NEXT_CODEMOD_PATH} ${args.join(' ')}`, { options })
+
+  return spawn('node', [NEXT_CODEMOD_PATH].concat(args), {
     ...options,
     env: {
       ...process.env,
