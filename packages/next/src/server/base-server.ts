@@ -2082,6 +2082,11 @@ export default abstract class Server<
       typeof query.__nextppronly !== 'undefined' &&
       couldSupportPPR
 
+    // When enabled, this will allow the use of the `?__nextppronly` query
+    // to enable debugging of the fallback shell.
+    const hasDebugFallbackShellQuery =
+      hasDebugStaticShellQuery && query.__nextppronly === 'fallback'
+
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
@@ -2105,6 +2110,8 @@ export default abstract class Server<
     // debugging has been enabled and we're also in development mode.
     const isDebugDynamicAccesses =
       isDebugStaticShell && this.renderOpts.dev === true
+
+    const isDebugFallbackShell = hasDebugFallbackShellQuery && isRoutePPREnabled
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -2974,7 +2981,8 @@ export default abstract class Server<
       const fallbackRouteParams =
         isDynamic &&
         isRoutePPREnabled &&
-        getRequestMeta(req, 'didSetDefaultRouteMatches')
+        (getRequestMeta(req, 'didSetDefaultRouteMatches') ||
+          isDebugFallbackShell)
           ? getFallbackRouteParams(pathname)
           : null
 
