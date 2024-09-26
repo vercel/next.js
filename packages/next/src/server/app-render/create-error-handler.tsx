@@ -10,7 +10,7 @@ declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
 }
 
-type ErrorHandler = (err: unknown, errorInfo: unknown) => string | undefined
+type ErrorHandler = (err: unknown, errorInfo?: unknown) => string | undefined
 
 export type DigestedError = Error & { digest: string }
 
@@ -18,13 +18,18 @@ export function createFlightReactServerErrorHandler(
   dev: boolean,
   onReactServerRenderError: (err: any) => void
 ): ErrorHandler {
-  return (err: any, errorInfo: any) => {
+  return (err: any, errorInfo?: unknown) => {
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
     if (!err.digest) {
       // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
       err.digest = stringHash(
-        err.message + (errorInfo?.stack || err.stack || '')
+        err.message +
+          (typeof errorInfo === 'object' &&
+          errorInfo !== null &&
+          'stack' in errorInfo
+            ? errorInfo.stack
+            : err.stack || '')
       ).toString()
     }
 

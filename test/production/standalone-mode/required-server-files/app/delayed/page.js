@@ -18,13 +18,13 @@ export default function Page() {
 }
 
 async function Time() {
-  cookies()
+  await cookies()
   await new Promise((resolve) => setTimeout(resolve, 1000))
   return <p id="time">{Date.now()}</p>
 }
 
 async function Random() {
-  cookies()
+  await cookies()
   await new Promise((resolve) => setTimeout(resolve, 4000))
   return <p id="random">{Math.random()}</p>
 }

@@ -52,11 +52,10 @@ impl ManifestAsyncModule {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        Ok(this
+    pub(super) fn chunks(&self) -> Result<Vc<OutputAssets>> {
+        Ok(self
             .chunking_context
-            .chunk_group_assets(Vc::upcast(this.inner), Value::new(this.availability_info)))
+            .chunk_group_assets(Vc::upcast(self.inner), Value::new(self.availability_info)))
     }
 
     #[turbo_tasks::function]
@@ -140,7 +139,7 @@ impl Asset for ManifestAsyncModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for ManifestAsyncModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {

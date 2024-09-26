@@ -14,7 +14,7 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::StringifyJs;
 
 #[turbo_tasks::function]
-pub async fn route_bootstrap(
+pub fn route_bootstrap(
     asset: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
     base_path: Vc<FileSystemPath>,

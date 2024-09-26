@@ -48,8 +48,6 @@ use swc_core::{
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod app_structure;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod mdx;
 pub mod minify;

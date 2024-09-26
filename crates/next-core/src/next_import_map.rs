@@ -568,6 +568,15 @@ async fn insert_next_server_special_aliases(
     );
 
     import_map.insert_exact_alias(
+        "next/dist/server/ReactDOMServerPages",
+        ImportMapping::Alternatives(vec![
+            request_to_import_mapping(project_path, "react-dom/server.edge"),
+            request_to_import_mapping(project_path, "react-dom/server.browser"),
+        ])
+        .cell(),
+    );
+
+    import_map.insert_exact_alias(
         "@opentelemetry/api",
         // It needs to prefer the local version of @opentelemetry/api
         ImportMapping::Alternatives(vec![
@@ -921,6 +930,13 @@ async fn insert_next_shared_aliases(
     import_map.insert_exact_alias(
         "private-next-rsc-action-encryption",
         request_to_import_mapping(project_path, "next/dist/server/app-render/encryption"),
+    );
+    import_map.insert_exact_alias(
+        "private-next-rsc-cache-wrapper",
+        request_to_import_mapping(
+            project_path,
+            "next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper",
+        ),
     );
 
     insert_turbopack_dev_alias(import_map);

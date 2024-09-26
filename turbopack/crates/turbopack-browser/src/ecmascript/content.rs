@@ -47,22 +47,19 @@ impl EcmascriptDevChunkContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn entries(
-        self: Vc<EcmascriptDevChunkContent>,
-    ) -> Result<Vc<EcmascriptDevChunkContentEntries>> {
-        Ok(self.await?.entries)
+    pub fn entries(&self) -> Result<Vc<EcmascriptDevChunkContentEntries>> {
+        Ok(self.entries)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptDevChunkContent {
     #[turbo_tasks::function]
-    pub(crate) async fn own_version(self: Vc<Self>) -> Result<Vc<EcmascriptDevChunkVersion>> {
-        let this = self.await?;
+    pub(crate) fn own_version(&self) -> Result<Vc<EcmascriptDevChunkVersion>> {
         Ok(EcmascriptDevChunkVersion::new(
-            this.chunking_context.output_root(),
-            this.chunk.ident().path(),
-            this.entries,
+            self.chunking_context.output_root(),
+            self.chunk.ident().path(),
+            self.entries,
         ))
     }
 

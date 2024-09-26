@@ -46,9 +46,8 @@ impl NextServerComponentModule {
     }
 
     #[turbo_tasks::function]
-    pub async fn server_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        Ok(this.module.ident().path())
+    pub fn server_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.module.ident().path())
     }
 }
 
@@ -90,7 +89,7 @@ impl Asset for NextServerComponentModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for NextServerComponentModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
@@ -143,13 +142,12 @@ impl EcmascriptChunkItem for NextServerComponentChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
-        let inner = this.inner.await?;
+    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let inner = self.inner.await?;
 
         let module_id = inner
             .module
-            .as_chunk_item(Vc::upcast(this.chunking_context))
+            .as_chunk_item(Vc::upcast(self.chunking_context))
             .id()
             .await?;
         Ok(EcmascriptChunkItemContent {
@@ -179,7 +177,7 @@ impl ChunkItem for NextServerComponentChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         self.chunking_context
     }
 

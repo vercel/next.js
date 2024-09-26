@@ -40,7 +40,7 @@ impl WebAssemblyAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for WebAssemblyAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+    fn ident(&self) -> Result<Vc<AssetIdent>> {
         let ident = self.source.ident().with_modifier(modifier());
 
         let asset_path = self.chunking_context.chunk_path(ident, ".wasm".into());

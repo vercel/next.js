@@ -507,6 +507,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               pathname: z.string().optional(),
               port: z.string().max(5).optional(),
               protocol: z.enum(['http', 'https']).optional(),
+              search: z.string().optional(),
             })
           )
           .max(50)
@@ -601,8 +602,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         )
       )
       .optional(),
-    // saas option is unknown, use z.any() here
-    sassOptions: z.record(z.string(), z.any()).optional(),
+    // sassOptions properties are unknown besides implementation, use z.any() here
+    sassOptions: z
+      .object({
+        implementation: z.string().optional(),
+      })
+      .catchall(z.any())
+      .optional(),
     serverExternalPackages: z.array(z.string()).optional(),
     serverRuntimeConfig: z.record(z.string(), z.any()).optional(),
     skipMiddlewareUrlNormalize: z.boolean().optional(),

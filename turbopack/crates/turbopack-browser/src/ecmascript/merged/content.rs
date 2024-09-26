@@ -23,10 +23,9 @@ pub(super) struct EcmascriptDevMergedChunkContent {
 #[turbo_tasks::value_impl]
 impl EcmascriptDevMergedChunkContent {
     #[turbo_tasks::function]
-    pub async fn version(self: Vc<Self>) -> Result<Vc<EcmascriptDevMergedChunkVersion>> {
+    pub async fn version(&self) -> Result<Vc<EcmascriptDevMergedChunkVersion>> {
         Ok(EcmascriptDevMergedChunkVersion {
             versions: self
-                .await?
                 .contents
                 .iter()
                 .map(|content| async move { content.own_version().await })
