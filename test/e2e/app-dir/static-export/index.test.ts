@@ -7,17 +7,12 @@ describe('app-dir generateStaticParams - next export', () => {
     skipStart: true,
   })
   if (skipped) return
-  if (!isNextStart) {
-    it('should skip for non-next start', () => {})
-    return
-  }
-
   it('should be successful even if `generateStaticParams` return empty array', async () => {
     const out = await next.build()
     expect(out.exitCode).toBe(0)
   })
 
-  it('should be failed', async () => {
+  it('should when `generateStaticParams` is not defined', async () => {
     await next.patchFile(
       'app/[slug]/page.js',
       `
