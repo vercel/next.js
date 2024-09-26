@@ -135,6 +135,19 @@ impl<'a> ExecuteContext<'a> {
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Vec<CachedDataItem> {
+        let _span = match category {
+            TaskDataCategory::Data => tracing::trace_span!(
+                "restore task data",
+                task = self.backend.get_task_description(task_id)
+            ),
+            TaskDataCategory::Meta => tracing::trace_span!(
+                "restore task meta",
+                task = self.backend.get_task_description(task_id)
+            ),
+            _ => unreachable!(),
+        }
+        .entered();
+
         // Safety: `transaction` is a valid transaction from `self.backend.backing_storage`.
         unsafe {
             self.backend
