@@ -66,7 +66,9 @@ export function transformDynamicProps(
       }
 
       const params = decl.params
+      // target properties mapping, only contains `params` and `searchParams`
       const propertiesMap = new Map<string, any>()
+      let allProperties: ObjectPattern['properties'] = []
 
       // If there's no first param, return
       if (params.length !== 1) {
@@ -80,20 +82,27 @@ export function transformDynamicProps(
       if (currentParam.type === 'ObjectPattern') {
         // Validate if the properties are not `params` and `searchParams`,
         // if they are, quit the transformation
+        let foundTargetProp = false
         for (const prop of currentParam.properties) {
           if ('key' in prop && prop.key.type === 'Identifier') {
             const propName = prop.key.name
-            if (!TARGET_PROP_NAMES.has(propName)) {
-              return
+            if (TARGET_PROP_NAMES.has(propName)) {
+              foundTargetProp = true
             }
           }
         }
+
+        // If there's no `params` or `searchParams` matched, return
+        if (!foundTargetProp) return
+
+        allProperties = currentParam.properties
 
         currentParam.properties.forEach((prop) => {
           if (
             // Could be `Property` or `ObjectProperty`
             'key' in prop &&
-            prop.key.type === 'Identifier'
+            prop.key.type === 'Identifier' &&
+            TARGET_PROP_NAMES.has(prop.key.name)
           ) {
             const value = 'value' in prop ? prop.value : null
             propertiesMap.set(prop.key.name, value)
@@ -213,7 +222,12 @@ export function transformDynamicProps(
       }
 
       if (modified) {
-        resolveAsyncProp(path, propertiesMap, propsIdentifier.name)
+        resolveAsyncProp(
+          path,
+          propertiesMap,
+          propsIdentifier.name,
+          allProperties
+        )
       }
     }
 
@@ -240,7 +254,8 @@ export function transformDynamicProps(
     function resolveAsyncProp(
       path: ASTPath<FunctionalExportDeclaration>,
       propertiesMap: Map<string, ObjectPattern | undefined>,
-      propsIdentifierName: string
+      propsIdentifierName: string,
+      allProperties: ObjectPattern['properties']
     ) {
       const isDefaultExport = path.value.type === 'ExportDefaultDeclaration'
       // If it's sync default export, and it's also server component, make the function async
@@ -258,10 +273,111 @@ export function transformDynamicProps(
       const isAsyncFunc = isAsyncFunctionDeclaration(path)
       // @ts-ignore quick way to check if it's a function and it has a name
       const functionName = path.value.declaration.id?.name || 'default'
-
       const functionBody = getBodyOfFunctionDeclaration(path)
 
+      const hasOtherProperties = allProperties.length > propertiesMap.size
+
+      function createDestructuringDeclaration(
+        properties: ObjectPattern['properties'],
+        destructPropsIdentifierName: string
+      ) {
+        const propsToKeep = []
+        let restProperty = null
+
+        // Iterate over the destructured properties
+        properties.forEach((property) => {
+          if (j.ObjectProperty.check(property)) {
+            // Handle normal and computed properties
+            const keyName = j.Identifier.check(property.key)
+              ? property.key.name
+              : j.Literal.check(property.key)
+                ? property.key.value
+                : null // for computed properties
+
+            if (typeof keyName === 'string') {
+              propsToKeep.push(property)
+            }
+          } else if (j.RestElement.check(property)) {
+            restProperty = property
+          }
+        })
+
+        if (propsToKeep.length === 0 && !restProperty) {
+          return null
+        }
+
+        if (restProperty) {
+          propsToKeep.push(restProperty)
+        }
+
+        return j.variableDeclaration('const', [
+          j.variableDeclarator(
+            j.objectPattern(propsToKeep),
+            j.identifier(destructPropsIdentifierName)
+          ),
+        ])
+      }
+
+      if (hasOtherProperties) {
+        /**
+         * If there are other properties, we need to keep the original param with destructuring
+         * e.g.
+         * input:
+         * Page({ params: { slug }, otherProp }) {
+         *   const { slug } = await props.params;
+         * }
+         *
+         * output:
+         * Page(props) {
+         *   const { otherProp } = props; // inserted
+         *   // ...rest of the function body
+         * }
+         */
+        const restProperties = allProperties.filter((prop) => {
+          const isTargetProps =
+            'key' in prop &&
+            prop.key.type === 'Identifier' &&
+            TARGET_PROP_NAMES.has(prop.key.name)
+          return !isTargetProps
+        })
+        const destructionOtherPropertiesDeclaration =
+          createDestructuringDeclaration(restProperties, propsIdentifierName)
+        if (functionBody && destructionOtherPropertiesDeclaration) {
+          functionBody.unshift(destructionOtherPropertiesDeclaration)
+        }
+
+        // Insert the destructuring of other properties
+
+        // const otherPropertiesDestruct = j.variableDeclaration('const', [
+        //   j.variableDeclarator(
+        //     j.objectPattern(
+        //       otherProperties.map((prop) => {
+        //         if (
+        //           prop.type === 'Property' &&
+        //           prop.key.type === 'Identifier'
+        //         ) {
+        //           return j.objectProperty(
+        //             j.identifier(prop.key.name),
+        //             j.identifier(prop.key.name)
+        //           )
+        //         }
+        //         // handle rest spread properties
+        //         if (prop.type === '') {
+        //           // return j.restElement(j.identifier(prop.argument.name))
+        //         }
+
+        //         return prop
+        //       })
+        //     ),
+        //     j.identifier(propsIdentifierName)
+        //   ),
+        // ])
+      }
+
       for (const [propName, paramsProperty] of propertiesMap) {
+        if (!TARGET_PROP_NAMES.has(propName)) {
+          continue
+        }
         const propNameIdentifier = j.identifier(propName)
         const propsIdentifier = j.identifier(propsIdentifierName)
         const accessedPropId = j.memberExpression(

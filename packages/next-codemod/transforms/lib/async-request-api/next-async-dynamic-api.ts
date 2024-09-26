@@ -207,19 +207,21 @@ export function transformDynamicAPI(
   const isClientComponent = determineClientDirective(root, j, source)
 
   // Only transform the valid calls in server or shared components
-  if (!isClientComponent) {
-    // Import declaration case, e.g. import { cookies } from 'next/headers'
-    const importedNextAsyncRequestApisMapping =
-      findImportMappingFromNextHeaders(root, j)
-    for (const originName in importedNextAsyncRequestApisMapping) {
-      const aliasName = importedNextAsyncRequestApisMapping[originName]
-      processAsyncApiCalls(aliasName, originName)
-    }
+  if (isClientComponent) return null
 
-    // Add import { use } from 'react' if needed and not already imported
-    if (needsReactUseImport) {
-      insertReactUseImport(root, j)
-    }
+  // Import declaration case, e.g. import { cookies } from 'next/headers'
+  const importedNextAsyncRequestApisMapping = findImportMappingFromNextHeaders(
+    root,
+    j
+  )
+  for (const originName in importedNextAsyncRequestApisMapping) {
+    const aliasName = importedNextAsyncRequestApisMapping[originName]
+    processAsyncApiCalls(aliasName, originName)
+  }
+
+  // Add import { use } from 'react' if needed and not already imported
+  if (needsReactUseImport) {
+    insertReactUseImport(root, j)
   }
 
   return modified ? root.toSource() : null
