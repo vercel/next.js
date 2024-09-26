@@ -9,6 +9,7 @@ use syn::{
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
     token::Paren,
+    visit_mut::VisitMut,
     AngleBracketedGenericArguments, Block, Expr, ExprBlock, ExprPath, FnArg, GenericArgument,
     Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType,
     Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
@@ -332,6 +333,7 @@ impl TurboFn<'_> {
         &self,
         orig_block: &'a Block,
     ) -> (Signature, Cow<'a, Block>) {
+        let mut shadow_self = None;
         let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
             .orig_signature
             .inputs
@@ -340,39 +342,60 @@ impl TurboFn<'_> {
             .map(|(idx, arg)| match arg {
                 FnArg::Receiver(_) => (arg.clone(), None),
                 FnArg::Typed(pat_type) => {
-                    // arbitrary self types aren't `FnArg::Receiver` on syn 1.x (fixed in 2.x)
-                    if let Pat::Ident(pat_id) = &*pat_type.pat {
-                        // TODO: Support `self: ResolvedVc<Self>`
-                        if pat_id.ident == "self" {
-                            return (arg.clone(), None);
-                        }
-                    }
                     let Cow::Owned(expanded_ty) = expand_task_input_type(&pat_type.ty) else {
                         // common-case: skip if no type conversion is needed
                         return (arg.clone(), None);
                     };
-                    let arg_ident = Ident::new(
-                        &format!("arg{idx}"),
-                        pat_type.span().resolved_at(Span::mixed_site()),
-                    );
+
+                    let arg_id = if let Pat::Ident(pat_id) = &*pat_type.pat {
+                        // common case: argument is just an identifier
+                        Cow::Borrowed(&pat_id.ident)
+                    } else {
+                        // argument is a pattern, we need to rewrite it to a unique identifier
+                        Cow::Owned(Ident::new(
+                            &format!("arg{idx}"),
+                            pat_type.span().resolved_at(Span::mixed_site()),
+                        ))
+                    };
+
                     let arg = FnArg::Typed(PatType {
                         pat: Box::new(Pat::Ident(PatIdent {
                             attrs: Vec::new(),
                             by_ref: None,
                             mutability: None,
-                            ident: arg_ident.clone(),
+                            ident: arg_id.clone().into_owned(),
                             subpat: None,
                         })),
                         ty: Box::new(expanded_ty),
                         ..pat_type.clone()
                     });
+
+                    // We can't shadow `self` variables, so it this argument is a `self` argument,
+                    // generate a new identifier, and rewrite the body of the function later to use
+                    // that new identifier.
+                    // NOTE: arbitrary self types aren't `FnArg::Receiver` on syn 1.x (fixed in 2.x)
+                    let transform_pat = match &*pat_type.pat {
+                        Pat::Ident(pat_id) if pat_id.ident == "self" => {
+                            let shadow_self_id = Ident::new(
+                                "turbo_tasks_self",
+                                Span::mixed_site().located_at(pat_id.ident.span()),
+                            );
+                            shadow_self = Some(shadow_self_id.clone());
+                            Pat::Ident(PatIdent {
+                                ident: shadow_self_id,
+                                ..pat_id.clone()
+                            })
+                        }
+                        pat => pat.clone(),
+                    };
+
                     // convert an argument of type `FromTaskInput<T>::TaskInput` into `T`.
                     // essentially, replace any instances of `Vc` with `ResolvedVc`.
                     let orig_ty = &*pat_type.ty;
                     let transform_stmt = Some(Stmt::Local(Local {
                         attrs: Vec::new(),
                         let_token: Default::default(),
-                        pat: *pat_type.pat.clone(),
+                        pat: transform_pat,
                         init: Some((
                             Default::default(),
                             // we know the argument implements `FromTaskInput` because
@@ -380,12 +403,13 @@ impl TurboFn<'_> {
                             parse_quote_spanned! {
                                 pat_type.span() =>
                                 <#orig_ty as turbo_tasks::task::FromTaskInput>::from_task_input(
-                                    #arg_ident
+                                    #arg_id
                                 )
                             },
                         )),
                         semi_token: Default::default(),
                     }));
+
                     (arg, transform_stmt)
                 }
             })
@@ -399,13 +423,24 @@ impl TurboFn<'_> {
         };
 
         let inline_block = if transform_stmts.is_empty() {
+            // common case: No argument uses ResolvedVc, don't rewrite anything!
             Cow::Borrowed(orig_block)
         } else {
             let mut stmts = transform_stmts;
             stmts.push(Stmt::Expr(Expr::Block(ExprBlock {
                 attrs: Vec::new(),
                 label: None,
-                block: orig_block.clone(),
+                block: if let Some(shadow_self) = shadow_self {
+                    // if `self` is a `ResolvedVc<Self>`, we need to rewrite references to `self`
+                    let mut block = orig_block.clone();
+                    RewriteSelfVisitMut {
+                        self_ident: shadow_self,
+                    }
+                    .visit_block_mut(&mut block);
+                    block
+                } else {
+                    orig_block.clone()
+                },
             })));
             Cow::Owned(Block {
                 brace_token: Default::default(),
@@ -874,6 +909,26 @@ fn expand_vc_return_type(orig_output: &Type) -> Type {
     }
 
     new_output
+}
+
+struct RewriteSelfVisitMut {
+    self_ident: Ident,
+}
+
+impl VisitMut for RewriteSelfVisitMut {
+    fn visit_ident_mut(&mut self, ident: &mut Ident) {
+        if ident == "self" {
+            let span = self.self_ident.span().located_at(ident.span());
+            *ident = self.self_ident.clone();
+            ident.set_span(span);
+        }
+        // no children to visit
+    }
+
+    fn visit_item_impl_mut(&mut self, _: &mut syn::ItemImpl) {
+        // skip children of `impl`: the definition of "self" inside of an impl is different than the
+        // parent scope's definition of "self"
+    }
 }
 
 /// The context in which the function is being defined.

@@ -47,6 +47,7 @@ export interface StaticGenerationStore {
   forceStatic?: boolean
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
+  pendingRevalidateWrites?: Array<Promise<void>> // This is like pendingRevalidates but isn't used for deduping.
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string

@@ -8,8 +8,8 @@ export async function Dynamic({ fallback }) {
   let signedIn
   let active
   if (dynamic) {
-    signedIn = cookies().has('session')
-    active = cookies().has('delay')
+    signedIn = (await cookies()).has('session')
+    active = (await cookies()).has('delay')
     if (active) {
       await new Promise((resolve) => setTimeout(resolve, 1000))
     }

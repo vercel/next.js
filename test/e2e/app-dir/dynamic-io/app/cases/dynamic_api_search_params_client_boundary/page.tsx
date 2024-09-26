@@ -1,10 +1,10 @@
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, use } from 'react'
 
 import { getSentinelValue } from '../../getSentinelValue'
 
-export default function Page({ searchParams }) {
+export default function Page({ searchParams }: { searchParams: Promise<any> }) {
   return (
     <>
       <p>
@@ -23,18 +23,18 @@ export default function Page({ searchParams }) {
       </Suspense>
       <Suspense fallback={<Fallback>loading too...</Fallback>}>
         <ComponentTwo />
-        <div id="inner">{getSentinelValue()}</div>
       </Suspense>
       <div id="page">{getSentinelValue()}</div>
     </>
   )
 }
 
-function ComponentOne({ searchParams }) {
+function ComponentOne({ searchParams }: { searchParams: Promise<any> }) {
   let sentinelSearch
+  const sp = use(searchParams)
   try {
-    if (searchParams.sentinel) {
-      sentinelSearch = searchParams.sentinel
+    if (sp.sentinel) {
+      sentinelSearch = sp.sentinel
     } else {
       sentinelSearch = '~not-found~'
     }
@@ -51,7 +51,12 @@ function ComponentOne({ searchParams }) {
 }
 
 function ComponentTwo() {
-  return <div>This component didn't access any searchParams properties</div>
+  return (
+    <>
+      <div>This component didn't access any searchParams properties</div>
+      <div id="inner">{getSentinelValue()}</div>
+    </>
+  )
 }
 
 function Fallback({ children }) {

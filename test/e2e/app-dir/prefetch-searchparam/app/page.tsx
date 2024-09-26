@@ -1,11 +1,11 @@
 import Link from 'next/link'
 
-export default function Page({ searchParams }: { searchParams: any }) {
+export default async function Page({ searchParams }: { searchParams: any }) {
   return (
     <>
       <Link href="/">/</Link>
       <Link href="/?q=bar">/?q=bar</Link>
-      <p>{JSON.stringify(searchParams)}</p>
+      <p>{JSON.stringify(await searchParams)}</p>
     </>
   )
 }

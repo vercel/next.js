@@ -57,11 +57,10 @@ impl EcmascriptDevEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
-        let this = self.await?;
+    async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         Ok(ChunkData::from_assets(
-            this.chunking_context.output_root(),
-            this.other_chunks,
+            self.chunking_context.output_root(),
+            self.other_chunks,
         ))
     }
 

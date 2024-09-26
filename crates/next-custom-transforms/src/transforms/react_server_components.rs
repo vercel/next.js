@@ -21,7 +21,7 @@ use swc_core::{
     },
 };
 
-use super::cjs_finder::contains_cjs;
+use super::{cjs_finder::contains_cjs, import_analyzer::ImportMap};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -76,6 +76,7 @@ enum RSCErrorKind {
     NextRscErrConflictMetadataExport(Span),
     NextRscErrInvalidApi((String, Span)),
     NextRscErrDeprecatedApi((String, String, Span)),
+    NextSsrDynamicFalseNotAllowed(Span),
 }
 
 impl<C: Comments> VisitMut for ReactServerComponents<C> {
@@ -301,6 +302,11 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             ),
             _ => (format!("\"{source}\" is deprecated."), span),
         },
+        RSCErrorKind::NextSsrDynamicFalseNotAllowed(span) => (
+            "`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a client component."
+                .to_string(),
+            span,
+        ),
     };
 
     HANDLER.with(|handler| handler.struct_span_err(span, msg.as_str()).emit())
@@ -502,6 +508,7 @@ struct ReactServerComponentValidator {
     invalid_client_imports: Vec<JsWord>,
     invalid_client_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
     pub directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
+    imports: ImportMap,
 }
 
 // A type to workaround a clippy warning.
@@ -576,12 +583,20 @@ impl ReactServerComponentValidator {
             invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
 
             invalid_client_lib_apis_mapping: [("next/server", vec!["unstable_after"])].into(),
+            imports: ImportMap::default(),
         }
     }
 
     fn is_from_node_modules(&self, filepath: &str) -> bool {
         static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"node_modules[\\/]").unwrap());
         RE.is_match(filepath)
+    }
+
+    fn is_callee_next_dynamic(&self, callee: &Callee) -> bool {
+        match callee {
+            Callee::Expr(expr) => self.imports.is_import(expr, "next/dynamic", "default"),
+            _ => false,
+        }
     }
 
     // Asserts the server lib apis
@@ -817,6 +832,44 @@ impl ReactServerComponentValidator {
             }
         }
     }
+
+    /// ```
+    /// import dynamic from 'next/dynamic'
+    ///
+    /// dynamic(() => import(...)) // ✅
+    /// dynamic(() => import(...), { ssr: true }) // ✅
+    /// dynamic(() => import(...), { ssr: false }) // ❌
+    /// ```
+
+    fn check_for_next_ssr_false(&self, node: &CallExpr) -> Option<()> {
+        if !self.is_callee_next_dynamic(&node.callee) {
+            return None;
+        }
+
+        let ssr_arg = node.args.get(1)?;
+        let obj = ssr_arg.expr.as_object()?;
+
+        for prop in obj.props.iter().filter_map(|v| v.as_prop()?.as_key_value()) {
+            let is_ssr = match &prop.key {
+                PropName::Ident(IdentName { sym, .. }) => sym == "ssr",
+                PropName::Str(s) => s.value == "ssr",
+                _ => false,
+            };
+
+            if is_ssr {
+                let value = prop.value.as_lit()?;
+                if let Lit::Bool(Bool { value: false, .. }) = value {
+                    report_error(
+                        &self.app_dir,
+                        &self.filepath,
+                        RSCErrorKind::NextSsrDynamicFalseNotAllowed(node.span),
+                    );
+                }
+            }
+        }
+
+        None
+    }
 }
 
 impl Visit for ReactServerComponentValidator {
@@ -830,7 +883,17 @@ impl Visit for ReactServerComponentValidator {
         }
     }
 
+    fn visit_call_expr(&mut self, node: &CallExpr) {
+        node.visit_children_with(self);
+
+        if self.is_react_server_layer {
+            self.check_for_next_ssr_false(node);
+        }
+    }
+
     fn visit_module(&mut self, module: &Module) {
+        self.imports = ImportMap::analyze(module);
+
         let (is_client_entry, is_action_file, imports, export_names) =
             collect_top_level_directives_and_imports(&self.app_dir, &self.filepath, module);
         let imports = Rc::new(imports);

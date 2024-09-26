@@ -28,17 +28,17 @@ impl ExecutionContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.project_path)
+    pub async fn project_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.project_path)
     }
 
     #[turbo_tasks::function]
-    pub async fn chunking_context(self: Vc<Self>) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(self.await?.chunking_context)
+    pub async fn chunking_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        Ok(self.chunking_context)
     }
 
     #[turbo_tasks::function]
-    pub async fn env(self: Vc<Self>) -> Result<Vc<Box<dyn ProcessEnv>>> {
-        Ok(self.await?.env)
+    pub async fn env(&self) -> Result<Vc<Box<dyn ProcessEnv>>> {
+        Ok(self.env)
     }
 }

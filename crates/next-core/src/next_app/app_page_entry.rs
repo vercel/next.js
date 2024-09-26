@@ -107,7 +107,7 @@ pub async fn get_app_page_entry(
     let source = VirtualSource::new_with_ident(
         source
             .ident()
-            .with_query(Vc::cell(query.to_string().into())),
+            .with_query(Vc::cell(format!("?{}", query).into())),
         AssetContent::file(file.into()),
     );
 

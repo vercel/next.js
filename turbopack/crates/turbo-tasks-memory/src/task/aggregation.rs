@@ -574,7 +574,7 @@ impl<'l> AggregationNodeGuard for TaskGuard<'l> {
                     for (&(trait_type_id, collectible), count) in collectibles.iter() {
                         change
                             .collectibles
-                            .push((trait_type_id, collectible, -count));
+                            .push((trait_type_id, collectible, -*count));
                     }
                 }
                 if let TaskStateType::InProgress(box InProgressState {
