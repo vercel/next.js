@@ -41,7 +41,7 @@ impl StructuredImageModuleType {
         module_asset_context: Vc<ModuleAssetContext>,
     ) -> Vc<Box<dyn Module>> {
         let static_asset = StaticModuleAsset::new(source, Vc::upcast(module_asset_context));
-        let module = module_asset_context
+        module_asset_context
             .process(
                 Vc::upcast(
                     StructuredImageFileSource {
@@ -54,8 +54,7 @@ impl StructuredImageModuleType {
                     "IMAGE".into() => Vc::upcast(static_asset)
                 )))),
             )
-            .module();
-        module
+            .module()
     }
 
     #[turbo_tasks::function]

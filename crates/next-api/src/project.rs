@@ -535,8 +535,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        let disk_fs = DiskFileSystem::new("output".into(), self.project_path.clone(), vec![]);
-        disk_fs
+        DiskFileSystem::new("output".into(), self.project_path.clone(), vec![])
     }
 
     #[turbo_tasks::function]

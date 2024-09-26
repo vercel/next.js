@@ -303,13 +303,11 @@ async fn source(
         .cell(),
     );
     let main_source = Vc::upcast(main_source);
-    let source = Vc::upcast(PrefixedRouterContentSource::new(
+    Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
         vec![("__turbopack__".into(), introspect)],
         main_source,
-    ));
-
-    source
+    ))
 }
 
 pub fn register() {

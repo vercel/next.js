@@ -37,11 +37,10 @@ pub async fn wrap_edge_entry(
         "MODULE".into() => entry
     };
 
-    let module = asset_context
+    asset_context
         .process(
             Vc::upcast(virtual_source),
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
         )
-        .module();
-    module
+        .module()
 }
