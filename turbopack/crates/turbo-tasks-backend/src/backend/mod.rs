@@ -13,6 +13,7 @@ use std::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
     },
+    thread::available_parallelism,
     time::{Duration, Instant},
 };
 
@@ -51,7 +52,7 @@ use crate::{
         CachedDataItemValue, CachedDataUpdate, CellRef, InProgressCellState, InProgressState,
         OutputValue, RootState,
     },
-    utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
+    utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded},
 };
 
 const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
@@ -100,12 +101,12 @@ struct TurboTasksBackendInner {
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
 
-    persisted_task_cache_log: Mutex<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
+    persisted_task_cache_log: Sharded<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
     transient_tasks: DashMap<TaskId, Arc<TransientTask>>,
 
-    persisted_storage_data_log: Mutex<ChunkedVec<CachedDataUpdate>>,
-    persisted_storage_meta_log: Mutex<ChunkedVec<CachedDataUpdate>>,
+    persisted_storage_data_log: Sharded<ChunkedVec<CachedDataUpdate>>,
+    persisted_storage_meta_log: Sharded<ChunkedVec<CachedDataUpdate>>,
     storage: Storage<TaskId, CachedDataItem>,
 
     /// Number of executing operations + Highest bit is set when snapshot is
@@ -141,6 +142,8 @@ impl TurboTasksBackend {
 
 impl TurboTasksBackendInner {
     pub fn new(backing_storage: Arc<dyn BackingStorage + Sync + Send>) -> Self {
+        let shard_amount =
+            (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
         Self {
             start_time: Instant::now(),
             persisted_task_id_factory: IdFactoryWithReuse::new(
@@ -151,11 +154,11 @@ impl TurboTasksBackendInner {
                 TRANSIENT_TASK_BIT as u64,
                 u32::MAX as u64,
             ),
-            persisted_task_cache_log: Mutex::new(ChunkedVec::new()),
+            persisted_task_cache_log: Sharded::new(shard_amount),
             task_cache: BiMap::new(),
             transient_tasks: DashMap::new(),
-            persisted_storage_data_log: Mutex::new(ChunkedVec::new()),
-            persisted_storage_meta_log: Mutex::new(ChunkedVec::new()),
+            persisted_storage_data_log: Sharded::new(shard_amount),
+            persisted_storage_meta_log: Sharded::new(shard_amount),
             storage: Storage::new(),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -227,7 +230,7 @@ impl TurboTasksBackendInner {
     fn persisted_storage_log(
         &self,
         category: TaskDataCategory,
-    ) -> &Mutex<ChunkedVec<CachedDataUpdate>> {
+    ) -> &Sharded<ChunkedVec<CachedDataUpdate>> {
         match category {
             TaskDataCategory::Data => &self.persisted_storage_data_log,
             TaskDataCategory::Meta => &self.persisted_storage_meta_log,
@@ -523,9 +526,9 @@ impl TurboTasksBackendInner {
             .map(|op| op.arc().clone())
             .collect::<Vec<_>>();
         drop(snapshot_request);
-        let persisted_storage_meta_log = take(&mut *self.persisted_storage_meta_log.lock());
-        let persisted_storage_data_log = take(&mut *self.persisted_storage_data_log.lock());
-        let persisted_task_cache_log = take(&mut *self.persisted_task_cache_log.lock());
+        let persisted_storage_meta_log = self.persisted_storage_meta_log.take();
+        let persisted_storage_data_log = self.persisted_storage_data_log.take();
+        let persisted_task_cache_log = self.persisted_task_cache_log.take();
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = false;
         self.in_progress_operations
@@ -535,18 +538,24 @@ impl TurboTasksBackendInner {
         drop(snapshot_request);
 
         let mut counts: HashMap<TaskId, u32> = HashMap::new();
-        for CachedDataUpdate { task, .. } in persisted_storage_data_log
+        for log in persisted_storage_meta_log
             .iter()
-            .chain(persisted_storage_meta_log.iter())
+            .chain(persisted_storage_data_log.iter())
         {
-            *counts.entry(*task).or_default() += 1;
+            for CachedDataUpdate { task, .. } in log.iter() {
+                *counts.entry(*task).or_default() += 1;
+            }
         }
 
         let mut new_items = false;
 
-        if !persisted_task_cache_log.is_empty()
-            || !persisted_storage_meta_log.is_empty()
-            || !persisted_storage_data_log.is_empty()
+        fn shards_empty<T>(shards: &Vec<ChunkedVec<T>>) -> bool {
+            shards.iter().all(|shard| shard.is_empty())
+        }
+
+        if !shards_empty(&persisted_task_cache_log)
+            || !shards_empty(&persisted_storage_meta_log)
+            || !shards_empty(&persisted_storage_data_log)
         {
             new_items = true;
             if let Err(err) = self.backing_storage.save_snapshot(
@@ -619,13 +628,13 @@ impl TurboTasksBackendInner {
                 self.persisted_task_id_factory.reuse(task_id);
             }
             self.persisted_task_cache_log
-                .lock()
+                .lock(existing_task_id)
                 .push((task_type, existing_task_id));
             self.connect_child(parent_task, existing_task_id, turbo_tasks);
             return existing_task_id;
         }
         self.persisted_task_cache_log
-            .lock()
+            .lock(task_id)
             .push((task_type, task_id));
 
         self.connect_child(parent_task, task_id, turbo_tasks);

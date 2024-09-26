@@ -12,6 +12,8 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use lmdb::{Database, DatabaseFlags, Environment, EnvironmentFlags, Transaction, WriteFlags};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use tracing::Span;
 use turbo_tasks::{backend::CachedTaskType, KeyValuePair, TaskId};
 
 use crate::{
@@ -117,16 +119,16 @@ impl BackingStorage for LmdbBackingStorage {
     fn save_snapshot(
         &self,
         operations: Vec<Arc<AnyOperation>>,
-        task_cache_updates: ChunkedVec<(Arc<CachedTaskType>, TaskId)>,
-        meta_updates: ChunkedVec<CachedDataUpdate>,
-        data_updates: ChunkedVec<CachedDataUpdate>,
+        task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
+        meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
+        data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()> {
         println!(
             "Persisting {} operations, {} task cache updates, {} meta updates, {} data updates...",
             operations.len(),
-            task_cache_updates.len(),
-            meta_updates.len(),
-            data_updates.len()
+            task_cache_updates.iter().map(|u| u.len()).sum::<usize>(),
+            meta_updates.iter().map(|u| u.len()).sum::<usize>(),
+            data_updates.iter().map(|u| u.len()).sum::<usize>()
         );
         let start = Instant::now();
         let mut op_count = 0;
@@ -180,9 +182,9 @@ impl BackingStorage for LmdbBackingStorage {
                 let _span =
                     tracing::trace_span!("update task cache", items = task_cache_updates.len())
                         .entered();
-                for (task_type, task_id) in task_cache_updates.iter() {
-                    let task_id = **task_id;
-                    let task_type_bytes = pot::to_vec(&**task_type).with_context(|| {
+                for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
+                    let task_id = *task_id;
+                    let task_type_bytes = pot::to_vec(&*task_type).with_context(|| {
                         anyhow!("Unable to serialize task cache key {task_type:?}")
                     })?;
                     #[cfg(feature = "verify_serialization")]
@@ -354,51 +356,65 @@ impl BackingStorage for LmdbBackingStorage {
 }
 
 fn organize_task_data(
-    updates: ChunkedVec<CachedDataUpdate>,
-) -> HashMap<
-    TaskId,
-    HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
-> {
-    let mut task_updates: HashMap<
+    updates: Vec<ChunkedVec<CachedDataUpdate>>,
+) -> Vec<
+    HashMap<
         TaskId,
         HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
-    > = HashMap::new();
-    for CachedDataUpdate {
-        task,
-        key,
-        value,
-        old_value,
-    } in updates.into_iter()
-    {
-        let data = task_updates.entry(task).or_default();
-        match data.entry(key) {
-            Entry::Occupied(mut entry) => {
-                entry.get_mut().1 = value;
+    >,
+> {
+    let span = Span::current();
+    updates
+        .into_par_iter()
+        .map(|updates| {
+            let _span = span.clone().entered();
+            let mut task_updates: HashMap<
+                TaskId,
+                HashMap<
+                    CachedDataItemKey,
+                    (Option<CachedDataItemValue>, Option<CachedDataItemValue>),
+                >,
+            > = HashMap::new();
+            for CachedDataUpdate {
+                task,
+                key,
+                value,
+                old_value,
+            } in updates.into_iter()
+            {
+                let data = task_updates.entry(task).or_default();
+                match data.entry(key) {
+                    Entry::Occupied(mut entry) => {
+                        entry.get_mut().1 = value;
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert((old_value, value));
+                    }
+                }
             }
-            Entry::Vacant(entry) => {
-                entry.insert((old_value, value));
-            }
-        }
-    }
-    task_updates.retain(|_, data| {
-        data.retain(|_, (old_value, value)| *old_value != *value);
-        !data.is_empty()
-    });
-    task_updates
+            task_updates.retain(|_, data| {
+                data.retain(|_, (old_value, value)| *old_value != *value);
+                !data.is_empty()
+            });
+            task_updates
+        })
+        .collect()
 }
 
 fn restore_task_data(
     this: &LmdbBackingStorage,
     db: Database,
-    task_updates: HashMap<
-        TaskId,
-        HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
+    task_updates: Vec<
+        HashMap<
+            TaskId,
+            HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
+        >,
     >,
 ) -> Result<Vec<(TaskId, Vec<CachedDataItem>)>> {
-    let mut result = Vec::with_capacity(task_updates.len());
+    let mut result = Vec::with_capacity(task_updates.iter().map(|m| m.len()).sum());
 
     let tx = this.env.begin_ro_txn()?;
-    for (task, updates) in task_updates.into_iter() {
+    for (task, updates) in task_updates.into_iter().flatten() {
         let mut map;
         if let Ok(old_data) = tx.get(db, &IntKey::new(*task)) {
             let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data) {
