@@ -62,6 +62,7 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   serverComponents,
+  serverReferenceHashSalt,
   bundleLayer,
 }: {
   filename: string
@@ -77,6 +78,7 @@ function getBaseSWCOptions({
   jsConfig: any
   swcCacheDir?: string
   serverComponents?: boolean
+  serverReferenceHashSalt?: string
   bundleLayer?: WebpackLayerName
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
@@ -206,7 +208,7 @@ function getBaseSWCOptions({
             // TODO: remove this option
             enabled: true,
             isReactServerLayer,
-            hashSalt: '',
+            hashSalt: serverReferenceHashSalt || '',
           }
         : undefined,
     // For app router we prefer to bundle ESM,
@@ -274,6 +276,7 @@ export function getJestSWCOptions({
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
+  serverReferenceHashSalt,
 }: {
   isServer: boolean
   filename: string
@@ -285,6 +288,7 @@ export function getJestSWCOptions({
   resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
   serverComponents?: boolean
+  serverReferenceHashSalt?: string
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
@@ -302,6 +306,7 @@ export function getJestSWCOptions({
     // Disable server / client graph assertions for Jest
     bundleLayer: undefined,
     serverComponents: false,
+    serverReferenceHashSalt,
   })
 
   const useCjsModules = shouldOutputCommonJs(filename)
@@ -342,6 +347,7 @@ export function getLoaderSWCOptions({
   swcCacheDir,
   relativeFilePathFromRoot,
   serverComponents,
+  serverReferenceHashSalt,
   bundleLayer,
   esm,
 }: {
@@ -365,6 +371,7 @@ export function getLoaderSWCOptions({
   relativeFilePathFromRoot: string
   esm?: boolean
   serverComponents?: boolean
+  serverReferenceHashSalt?: string
   bundleLayer?: WebpackLayerName
 }) {
   let baseOptions: any = getBaseSWCOptions({
@@ -380,6 +387,7 @@ export function getLoaderSWCOptions({
     swcCacheDir,
     bundleLayer,
     serverComponents,
+    serverReferenceHashSalt,
     esm: !!esm,
   })
   baseOptions.fontLoaders = {
