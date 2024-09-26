@@ -205,7 +205,8 @@ async function startWatcher(opts: SetupOpts) {
   await hotReloader.start()
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
-    await verifyPartytownSetup(opts.dir, {
+    await verifyPartytownSetup({
+      dir,
       appDir,
       targetDir: path.join(distDir, CLIENT_STATIC_FILES_PATH),
     })

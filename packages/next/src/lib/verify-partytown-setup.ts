@@ -96,16 +96,15 @@ async function verifyRootLayoutImport(appDir: string) {
   }
 }
 
-export async function verifyPartytownSetup(
-  dir: string,
-  {
-    targetDir,
-    appDir,
-  }: {
-    targetDir: string
-    appDir?: string
-  }
-): Promise<void> {
+export async function verifyPartytownSetup({
+  dir,
+  targetDir,
+  appDir,
+}: {
+  dir: string
+  targetDir: string
+  appDir?: string
+}): Promise<void> {
   try {
     const partytownDeps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
