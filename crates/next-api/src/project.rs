@@ -542,7 +542,7 @@ impl Project {
         if self.watch.enable {
             disk_fs
                 .await?
-                .start_watching_with_invalidation_reason(this.watch.poll_interval)?;
+                .start_watching_with_invalidation_reason(self.watch.poll_interval)?;
         }
         Ok(disk_fs)
     }
