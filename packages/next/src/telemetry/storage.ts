@@ -6,7 +6,7 @@ import isDockerFunction from 'next/dist/compiled/is-docker'
 import path from 'path'
 
 import { getAnonymousMeta } from './anonymous-meta'
-import * as ciEnvironment from './ci-info'
+import * as ciEnvironment from '../server/ci-info'
 import { _postPayload } from './post-payload'
 import { getRawProjectId } from './project-id'
 import { AbortController } from 'next/dist/compiled/@edge-runtime/ponyfill'
