@@ -567,7 +567,7 @@ describe(
 )
 
 describe(
-  'heavy-npm-deps build test',
+  'heavy-npm-deps-build test',
   {
     turbopack: true,
     page: Object.keys(pages),
