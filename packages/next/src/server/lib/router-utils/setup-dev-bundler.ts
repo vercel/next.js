@@ -80,7 +80,7 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
 import {
   ModuleBuildError,
   TurbopackInternalError,
