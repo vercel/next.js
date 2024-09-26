@@ -3,12 +3,13 @@ import { join } from 'node:path'
 import { fetchViaHTTP, findPort, killApp, launchApp } from 'next-test-utils'
 import { spawn, SpawnOptions } from 'node:child_process'
 
-export const NEXT_CODEMOD_PATH = require.resolve(
-  '@next/codemod/bin/next-codemod.js'
-)
+// export const NEXT_CODEMOD_PATH = require.resolve(
+//   '@next/codemod/bin/next-codemod.js'
+// )
 export const CNA_PATH = require.resolve('create-next-app/dist/index.js')
 
 export const runNextCodemod = (args: string[], options: execa.Options) => {
+  const NEXT_CODEMOD_PATH = require.resolve('@next/codemod/bin/next-codemod.js')
   console.log(`[TEST] $ ${NEXT_CODEMOD_PATH} ${args.join(' ')}`)
 
   return execa('node', [NEXT_CODEMOD_PATH].concat(args), {
@@ -23,6 +24,7 @@ export const runNextCodemod = (args: string[], options: execa.Options) => {
 }
 
 export const runNextCodemodPrompt = (args: string[], options: SpawnOptions) => {
+  const NEXT_CODEMOD_PATH = require.resolve('@next/codemod/bin/next-codemod.js')
   console.log(`[TEST] $ ${NEXT_CODEMOD_PATH} ${args.join(' ')}`, { options })
 
   return spawn('node', [NEXT_CODEMOD_PATH].concat(args), {
