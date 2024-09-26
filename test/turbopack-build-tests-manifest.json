@@ -2191,6 +2191,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/metadata-revalidate/metadata-revalidate.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - metadata-revalidate should contain the routes in prerender manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/metadata-warnings/index.test.ts": {
       "passed": [
         "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
