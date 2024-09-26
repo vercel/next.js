@@ -86,7 +86,7 @@ async function generateCacheEntry(
 ): Promise<ReadableStream> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, args] = await decodeReply<any[]>(
+  const [, , args] = await decodeReply<any[]>(
     encodedArguments,
     getServerModuleMap(),
     {
@@ -174,9 +174,22 @@ export function cache(kind: string, id: string, fn: any) {
   const name = fn.name
   const cachedFn = {
     [name]: async function (...args: any[]) {
+      const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+      if (staticGenerationStore === undefined) {
+        throw new Error(
+          '"use cache" cannot be used outside of App Router. Expected a StaticGenerationStore.'
+        )
+      }
+
+      // Because the Action ID is not yet unique per implementation of that Action we can't
+      // safely reuse the results across builds yet. In the meantime we add the buildId to the
+      // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
+      // the implementation.
+      const buildId = staticGenerationStore.buildId
+
       const temporaryReferences = createClientTemporaryReferenceSet()
       const encodedArguments: FormData | string = await encodeReply(
-        [id, args],
+        [buildId, id, args],
         {
           temporaryReferences,
         }
@@ -194,13 +207,6 @@ export function cache(kind: string, id: string, fn: any) {
 
       let entry: undefined | CacheEntry =
         await cacheHandler.get(serializedCacheKey)
-
-      const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-      if (staticGenerationStore === undefined) {
-        throw new Error(
-          '"use cache" cannot be used outside of App Router. Expected a StaticGenerationStore.'
-        )
-      }
 
       let stream
       if (
