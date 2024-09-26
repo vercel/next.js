@@ -173,14 +173,14 @@ export type Videos = {
   rating?: number
   view_count?: number
   publication_date?: Date | string
-  family_friendly?: string
+  family_friendly?: 'yes' | 'no'
   restriction?: Restriction
   platform?: Restriction
-  requires_subscription?: string
+  requires_subscription?: 'yes' | 'no'
   uploader?: {
     info?: string
     content?: string
   }
-  live?: string
+  live?: 'yes' | 'no'
   tag?: string
 }

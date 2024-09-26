@@ -119,10 +119,10 @@ describe('app dir - metadata dynamic routes', () => {
       const xml = await (await next.fetch('/sitemap-video/sitemap.xml')).text()
 
       expect(xml).toContain(
-        `<video:video>\n<video:title>example</video:title>\n<video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>\n<video:description>this is the description</video:description>\n</video:video>`
+        `<video:video>\n<video:title>example</video:title>\n<video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>\n<video:description>this is the description</video:description>\n<video:content_loc>http://streamserver.example.com/video123.mp4</video:content_loc>\n<video:player_loc>https://www.example.com/videoplayer.php?video=123</video:player_loc>\n<video:duration>2</video:duration>\n<video:view_count>50</video:view_count>\n<video:tag>summer</video:tag>\n<video:rating>4</video:rating>\n<video:expiration_date>2025-09-16</video:expiration_date>\n<video:publication_date>2024-09-16</video:publication_date>\n<video:family_friendly>yes</video:family_friendly>\n<video:requires_subscription>no</video:requires_subscription>\n<video:live>no</video:live>\n</video:video>`
       )
       expect(xml).toContain(
-        `<video:video>\n<video:title>example</video:title>\n<video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>\n<video:description>this is the description</video:description>\n</video:video>`
+        `<video:video>\n<video:title>example</video:title>\n<video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>\n<video:description>this is the description</video:description>\n<video:content_loc>http://streamserver.example.com/video123.mp4</video:content_loc>\n<video:player_loc>https://www.example.com/videoplayer.php?video=123</video:player_loc>\n<video:duration>2</video:duration>\n<video:view_count>50</video:view_count>\n<video:tag>summer</video:tag>\n<video:rating>4</video:rating>\n<video:expiration_date>2025-09-16</video:expiration_date>\n<video:publication_date>2024-09-16</video:publication_date>\n<video:family_friendly>yes</video:family_friendly>\n<video:requires_subscription>no</video:requires_subscription>\n<video:live>no</video:live>\n</video:video>`
       )
     })
 
