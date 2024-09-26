@@ -24,7 +24,7 @@ describe('next-codemod upgrade prompt', () => {
 
   it('should upgrade to the canary version', async () => {
     await useTempDir(async (cwd) => {
-      const appName = 'no-dir-name'
+      const appName = 'canary'
       const appDir = join(cwd, appName)
       const app = await createApp([appName, '--yes', '--empty'], 'latest', {
         cwd,
@@ -44,7 +44,7 @@ describe('next-codemod upgrade prompt', () => {
 
   it('should upgrade to the rc version', async () => {
     await useTempDir(async (cwd) => {
-      const appName = 'no-dir-name'
+      const appName = 'rc'
       const appDir = join(cwd, appName)
       const app = await createApp([appName, '--yes', '--empty'], 'latest', {
         cwd,
@@ -64,7 +64,7 @@ describe('next-codemod upgrade prompt', () => {
 
   it('should upgrade to the latest version', async () => {
     await useTempDir(async (cwd) => {
-      const appName = 'no-dir-name'
+      const appName = 'latest'
       const appDir = join(cwd, appName)
       const app = await createApp([appName, '--yes', '--empty'], 'latest', {
         cwd,

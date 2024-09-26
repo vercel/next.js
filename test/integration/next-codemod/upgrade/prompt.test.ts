@@ -101,7 +101,7 @@ describe('next-codemod upgrade prompt', () => {
 
   it('should upgrade to the latest version when selected in prompt', async () => {
     await useTempDir(async (cwd) => {
-      const appName = 'no-dir-name'
+      const appName = 'latest'
       const appDir = join(cwd, appName)
       const app = await createApp([appName, '--yes', '--empty'], 'latest', {
         cwd,
