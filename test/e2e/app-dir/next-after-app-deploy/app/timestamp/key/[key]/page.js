@@ -8,16 +8,17 @@ export async function generateStaticParams() {
   return []
 }
 
-export default function Page({ params }) {
+export default async function Page({ params }) {
+  const { key } = await params
   const data = {
-    key: params.key,
+    key,
     timestamp: Date.now(),
   }
   console.log('/timestamp/key/[key] rendered', data)
 
   let path = null
   try {
-    const decoded = decodeURIComponent(params.key)
+    const decoded = decodeURIComponent(key)
     new URL(decoded, 'http://__n')
     path = decoded
   } catch (err) {}
