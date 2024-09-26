@@ -102,12 +102,7 @@ pub enum TraceResult {
 #[turbo_tasks::value_impl]
 impl SourceMapTrace {
     #[turbo_tasks::function]
-    pub async fn new(
-        map: Vc<SourceMap>,
-        line: usize,
-        column: usize,
-        name: Option<RcStr>,
-    ) -> Vc<Self> {
+    pub fn new(map: Vc<SourceMap>, line: usize, column: usize, name: Option<RcStr>) -> Vc<Self> {
         SourceMapTrace {
             map,
             line,

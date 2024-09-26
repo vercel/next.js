@@ -214,7 +214,7 @@ impl ChunkItem for ChunkGroupFilesChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 
@@ -249,12 +249,12 @@ impl Introspectable for ChunkGroupFilesAsset {
     }
 
     #[turbo_tasks::function]
-    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+    fn children(&self) -> Vc<IntrospectableChildren> {
         let mut children = IndexSet::new();
         children.insert((
             Vc::cell("inner asset".into()),
             IntrospectableModule::new(Vc::upcast(self.module)),
         ));
-        Ok(Vc::cell(children))
+        Vc::cell(children)
     }
 }

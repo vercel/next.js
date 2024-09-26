@@ -15,15 +15,26 @@ import {
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 
+import {
+  getClientReferenceManifestSingleton,
+  getServerModuleMap,
+} from '../app-render/encryption-utils'
+
+import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
+
 type CacheEntry = {
   value: ReadableStream
+  // In-memory caches are fragile and should not use stale-while-revalidate
+  // semantics on the caches because it's not worth warming up an entry that's
+  // likely going to get evicted before we get to use it anyway. However,
+  // we also don't want to reuse a stale entry for too long so stale entries
+  // should be considered expired/missing in such CacheHandlers.
   stale: boolean
 }
 
 interface CacheHandler {
   get(cacheKey: string | ArrayBuffer): Promise<undefined | CacheEntry>
   set(cacheKey: string | ArrayBuffer, value: ReadableStream): Promise<void>
-  shouldRevalidateStale: boolean
 }
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
@@ -57,18 +68,7 @@ cacheHandlerMap.set('default', {
       await value.cancel()
     }
   },
-  // In-memory caches are fragile and should not use stale-while-revalidate
-  // semantics on the caches because it's not worth warming up an entry that's
-  // likely going to get evicted before we get to use it anyway.
-  shouldRevalidateStale: false,
 })
-
-const serverManifest: any = null // TODO
-const clientManifest: any = null // TODO
-const ssrManifest: any = {
-  moduleMap: {},
-  moduleLoading: null,
-} // TODO
 
 // TODO: Consider moving this another module that is guaranteed to be required in a safe scope.
 const runInCleanSnapshot = createSnapshot()
@@ -81,9 +81,14 @@ async function generateCacheEntry(
   fn: any
 ): Promise<ReadableStream> {
   const temporaryReferences = createServerTemporaryReferenceSet()
-  const [, args] = await decodeReply(encodedArguments, serverManifest, {
-    temporaryReferences,
-  })
+
+  const [, args] = await decodeReply<any[]>(
+    encodedArguments,
+    getServerModuleMap(),
+    {
+      temporaryReferences,
+    }
+  )
 
   // Invoke the inner function to load a new result.
   const result = fn.apply(null, args)
@@ -91,18 +96,24 @@ async function generateCacheEntry(
   let didError = false
   let firstError: any = null
 
-  const stream = renderToReadableStream(result, clientManifest, {
-    environmentName: 'Cache',
-    temporaryReferences,
-    onError(error: any) {
-      // Report the error.
-      console.error(error)
-      if (!didError) {
-        didError = true
-        firstError = error
-      }
-    },
-  })
+  const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
+
+  const stream = renderToReadableStream(
+    result,
+    clientReferenceManifestSingleton.clientModules,
+    {
+      environmentName: 'Cache',
+      temporaryReferences,
+      onError(error: any) {
+        // Report the error.
+        console.error(error)
+        if (!didError) {
+          didError = true
+          firstError = error
+        }
+      },
+    }
+  )
 
   const [returnStream, savedStream] = stream.tee()
 
@@ -117,19 +128,17 @@ async function generateCacheEntry(
   const reader = savedStream.getReader()
   const erroringSavedStream = new ReadableStream({
     pull(controller) {
-      return reader
-        .read()
-        .then(({ done, value }: { done: boolean; value: any }) => {
-          if (done) {
-            if (didError) {
-              controller.error(firstError)
-            } else {
-              controller.close()
-            }
-            return
+      return reader.read().then(({ done, value }) => {
+        if (done) {
+          if (didError) {
+            controller.error(firstError)
+          } else {
+            controller.close()
           }
-          controller.enqueue(value)
-        })
+          return
+        }
+        controller.enqueue(value)
+      })
     },
     cancel(reason: any) {
       reader.cancel(reason)
@@ -189,7 +198,7 @@ export function cache(kind: string, id: string, fn: any) {
       let stream
       if (
         entry === undefined ||
-        (staticGenerationStore.isStaticGeneration && entry.stale)
+        (entry.stale && staticGenerationStore.isStaticGeneration)
       ) {
         // Miss. Generate a new result.
 
@@ -212,11 +221,9 @@ export function cache(kind: string, id: string, fn: any) {
         )
       } else {
         stream = entry.value
-        if (entry.stale && cacheHandler.shouldRevalidateStale) {
+        if (entry.stale) {
           // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
-          // then we should warm up the cache with a fresh revalidated entry. We only do this
-          // for long lived cache handlers because it's not worth warming up the cache with an
-          // an entry that's just going to get evicted before we can use it anyway.
+          // then we should warm up the cache with a fresh revalidated entry.
           const ignoredStream = await runInCleanSnapshot(
             generateCacheEntry,
             staticGenerationStore,
@@ -237,6 +244,22 @@ export function cache(kind: string, id: string, fn: any) {
       // server terminal. Once while generating the cache entry and once when replaying it on
       // the server, which is required to pick it up for replaying again on the client.
       const replayConsoleLogs = true
+
+      // TODO: We can't use the client reference manifest to resolve the modules
+      // on the server side - instead they need to be recovered as the module
+      // references (proxies) again.
+      // For now, we'll just use an empty module map.
+      const ssrModuleMap: {
+        [moduleExport: string]: ManifestNode
+      } = {}
+
+      const ssrManifest = {
+        // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
+        // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
+        // which themselves will handle the preloading.
+        moduleLoading: null,
+        moduleMap: ssrModuleMap,
+      }
       return createFromReadableStream(stream, {
         ssrManifest,
         temporaryReferences,

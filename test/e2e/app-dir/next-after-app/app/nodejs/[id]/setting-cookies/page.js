@@ -1,17 +1,17 @@
 import { unstable_after as after } from 'next/server'
 import { cookies } from 'next/headers'
 
-export default function Index() {
-  after(() => {
-    cookies().set('testCookie', 'after-render', { path: '/' })
+export default async function Index() {
+  after(async () => {
+    ;(await cookies()).set('testCookie', 'after-render', { path: '/' })
   })
 
   const action = async () => {
     'use server'
-    cookies().set('testCookie', 'action', { path: '/' })
+    ;(await cookies()).set('testCookie', 'action', { path: '/' })
 
-    after(() => {
-      cookies().set('testCookie', 'after-action', { path: '/' })
+    after(async () => {
+      ;(await cookies()).set('testCookie', 'after-action', { path: '/' })
     })
   }
 
@@ -19,7 +19,8 @@ export default function Index() {
     <div>
       <h1>Page with after() that tries to set cookies</h1>
       <div id="cookie">
-        Cookie: {JSON.stringify(cookies().get('testCookie')?.value ?? null)}
+        Cookie:{' '}
+        {JSON.stringify((await cookies()).get('testCookie')?.value ?? null)}
       </div>
       <form action={action}>
         <button type="submit">Submit</button>

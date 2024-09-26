@@ -1,18 +1,20 @@
 import path from 'path'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
-import { hasNextSupport } from '../../telemetry/ci-info'
+import { hasNextSupport } from '../../server/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 
 export async function createIncrementalCache({
   cacheHandler,
+  dynamicIO,
   cacheMaxMemorySize,
   fetchCacheKeyPrefix,
   distDir,
   dir,
   flushToDisk,
 }: {
+  dynamicIO: boolean
   cacheHandler?: string
   cacheMaxMemorySize?: number
   fetchCacheKeyPrefix?: string
@@ -34,6 +36,7 @@ export async function createIncrementalCache({
     dev: false,
     requestHeaders: {},
     flushToDisk,
+    dynamicIO,
     fetchCache: true,
     maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,

@@ -30,6 +30,7 @@ type RuntimeConfig = {
   configFileName: string
   publicRuntimeConfig: { [key: string]: any }
   serverRuntimeConfig: { [key: string]: any }
+  dynamicIO: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -115,6 +116,7 @@ export async function loadStaticPaths({
     return await buildAppStaticPaths({
       dir,
       page: pathname,
+      dynamicIO: config.dynamicIO,
       generateParams,
       configFileName: config.configFileName,
       distDir,

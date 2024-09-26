@@ -1455,6 +1455,9 @@ function renderModelDestructive(
             break;
           case "3":
             existingReference = "props";
+            break;
+          case "4":
+            existingReference = "_owner";
         }
       elementReference.set(value, writtenObjects + ":" + existingReference);
     }

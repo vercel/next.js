@@ -57,11 +57,8 @@ impl EcmascriptDevEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
-        Ok(ChunkData::from_assets(
-            self.chunking_context.output_root(),
-            self.other_chunks,
-        ))
+    fn chunks_data(&self) -> Vc<ChunksData> {
+        ChunkData::from_assets(self.chunking_context.output_root(), self.other_chunks)
     }
 
     #[turbo_tasks::function]
@@ -146,6 +143,7 @@ impl EcmascriptDevEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    Value::new(chunking_context.runtime_type()),
                     Vc::cell(output_root.to_string().into()),
                 );
                 code.push_code(&*runtime_code.await?);
@@ -154,6 +152,7 @@ impl EcmascriptDevEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    Value::new(chunking_context.runtime_type()),
                     Vc::cell(output_root.to_string().into()),
                 );
                 code.push_code(&*runtime_code.await?);
@@ -189,8 +188,8 @@ impl EcmascriptDevEvaluateChunk {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell("Ecmascript Dev Evaluate Chunk".into()))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("Ecmascript Dev Evaluate Chunk".into())
     }
 }
 

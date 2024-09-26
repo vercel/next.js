@@ -75,17 +75,17 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
-    async fn references(&self) -> Vc<ModuleReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()
     }
 
     #[turbo_tasks::function]
-    async fn asset_ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self.module.ident())
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

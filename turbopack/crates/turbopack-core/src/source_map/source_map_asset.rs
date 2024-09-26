@@ -28,12 +28,10 @@ impl SourceMapAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for SourceMapAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+    fn ident(&self) -> Vc<AssetIdent> {
         // NOTE(alexkirsz) We used to include the asset's version id in the path,
         // but this caused `all_assets_map` to be recomputed on every change.
-        Ok(AssetIdent::from_path(
-            self.asset.ident().path().append(".map".into()),
-        ))
+        AssetIdent::from_path(self.asset.ident().path().append(".map".into()))
     }
 }
 
