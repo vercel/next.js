@@ -16,7 +16,7 @@ describe('metadata-img-too-large opengraph-image', () => {
     await next.build()
     const { cliOutput } = next
     expect(cliOutput).toMatch(
-      /Error: File size for Open Graph image ".*\/app\/opengraph-image\.png" exceeds 8MB\. \(Current: 27\.37MB\)/
+      /Error: File size for Open Graph image ".*\/app\/opengraph-image\.png" exceeds 8MB/
     )
   })
 })

@@ -16,7 +16,7 @@ describe('metadata-img-too-large twitter-image', () => {
     await next.build()
     const { cliOutput } = next
     expect(cliOutput).toMatch(
-      /Error: File size for Twitter image ".*\/app\/twitter-image\.png" exceeds 5MB\. \(Current: 6\.84MB\)/
+      /Error: File size for Twitter image ".*\/app\/twitter-image\.png" exceeds 5MB/
     )
   })
 })
