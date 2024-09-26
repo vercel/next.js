@@ -118,6 +118,7 @@ function getImageConfig(
             // pass domains in development to allow validating on the client
             domains: config.images.domains,
             remotePatterns: config.images?.remotePatterns,
+            localPatterns: config.images?.localPatterns,
             output: config.output,
           }
         : {}),
