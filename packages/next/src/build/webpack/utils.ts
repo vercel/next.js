@@ -29,7 +29,8 @@ export function traverseModules(
         // TODO: Update type so that it doesn't have to be cast.
       ) as Iterable<NormalModule>
       for (const mod of chunkModules) {
-        const modId = compilation.chunkGraph.getModuleId(mod)?.toString()
+        const modId =
+          compilation.chunkGraph.getModuleId(mod)?.toString() ?? null
         callback(mod, chunk, chunkGroup, modId)
         const anyModule = mod as any
         if (anyModule.modules) {
