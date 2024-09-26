@@ -558,18 +558,20 @@ const pages = {
 }
 
 describe(
-  'heavy-npm-deps dev test',
+  'heavy-npm-deps-dev',
   {
     turbopack: true,
+    mode: 'dev',
     page: Object.keys(pages),
   },
   nextDevWorkflow('heavy-npm-deps', pages)
 )
 
 describe(
-  'heavy-npm-deps-build test',
+  'heavy-npm-deps-build',
   {
     turbopack: true,
+    mode: 'build',
     page: Object.keys(pages),
   },
   nextBuildWorkflow('heavy-npm-deps', pages)
