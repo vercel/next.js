@@ -1553,11 +1553,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     text: generate_server_actions_comment(actions).into(),
                 },
             );
-
-            if !self.config.is_react_server_layer {
-                // Make it the first item
-                // new.rotate_right(1);
-            }
         }
 
         // import { cache as $cache } from "private-next-rsc-cache-wrapper";
