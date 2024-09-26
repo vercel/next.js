@@ -56,7 +56,6 @@ pub struct LmdbBackingStorage {
 impl LmdbBackingStorage {
     pub fn new(path: &Path) -> Result<Self> {
         create_dir_all(path)?;
-        println!("opening lmdb {:?}", path);
         let env = Environment::new()
             .set_flags(
                 EnvironmentFlags::WRITE_MAP
