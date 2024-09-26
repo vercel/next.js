@@ -201,6 +201,7 @@ pub(crate) enum ImportedSymbol {
     Symbol(JsWord),
     Exports,
     Part(u32),
+    PartEvaluation(u32),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -331,7 +332,7 @@ impl Visit for Analyzer<'_> {
 
         let annotations = ImportAnnotations::parse(import.with.as_deref());
 
-        let internal_symbol = parse_with(import.with.as_deref());
+        let internal_symbol = parse_with(import.with.as_deref(), !import.specifiers.is_empty());
 
         if internal_symbol.is_none() {
             self.ensure_reference(
@@ -397,7 +398,7 @@ impl Visit for Analyzer<'_> {
             ImportedSymbol::ModuleEvaluation,
             annotations.clone(),
         );
-        let symbol = parse_with(export.with.as_deref());
+        let symbol = parse_with(export.with.as_deref(), true);
 
         let i = self.ensure_reference(
             export.span,
@@ -419,7 +420,7 @@ impl Visit for Analyzer<'_> {
 
         let annotations = ImportAnnotations::parse(export.with.as_deref());
 
-        let internal_symbol = parse_with(export.with.as_deref());
+        let internal_symbol = parse_with(export.with.as_deref(), true);
 
         if internal_symbol.is_none() || export.specifiers.is_empty() {
             self.ensure_reference(
@@ -560,9 +561,15 @@ pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
     }
 }
 
-fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
+fn parse_with(with: Option<&ObjectLit>, has_bindings: bool) -> Option<ImportedSymbol> {
     find_turbopack_part_id_in_asserts(with?).map(|v| match v {
-        PartId::Internal(index) => ImportedSymbol::Part(index),
+        PartId::Internal(index) => {
+            if has_bindings {
+                ImportedSymbol::Part(index)
+            } else {
+                ImportedSymbol::PartEvaluation(index)
+            }
+        }
         PartId::ModuleEvaluation => ImportedSymbol::ModuleEvaluation,
         PartId::Export(e) => ImportedSymbol::Symbol(e.as_str().into()),
         PartId::Exports => ImportedSymbol::Exports,
