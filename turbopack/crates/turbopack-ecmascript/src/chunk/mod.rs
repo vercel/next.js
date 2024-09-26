@@ -45,21 +45,21 @@ pub struct EcmascriptChunks(Vec<Vc<EcmascriptChunk>>);
 #[turbo_tasks::value_impl]
 impl EcmascriptChunk {
     #[turbo_tasks::function]
-    pub async fn new(
+    pub fn new(
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         content: Vc<EcmascriptChunkContent>,
-    ) -> Result<Vc<Self>> {
-        Ok(EcmascriptChunk {
+    ) -> Vc<Self> {
+        EcmascriptChunk {
             chunking_context,
             content,
         }
-        .cell())
+        .cell()
     }
 
     #[turbo_tasks::function]
-    pub async fn entry_ids(self: Vc<Self>) -> Result<Vc<ModuleIds>> {
+    pub fn entry_ids(self: Vc<Self>) -> Vc<ModuleIds> {
         // TODO return something usefull
-        Ok(Vc::cell(Default::default()))
+        Vc::cell(Default::default())
     }
 }
 

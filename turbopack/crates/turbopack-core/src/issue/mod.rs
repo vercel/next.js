@@ -368,8 +368,8 @@ pub struct CapturedIssues {
 #[turbo_tasks::value_impl]
 impl CapturedIssues {
     #[turbo_tasks::function]
-    pub async fn is_empty(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.is_empty_ref()))
+    pub fn is_empty(&self) -> Vc<bool> {
+        Vc::cell(self.is_empty_ref())
     }
 }
 
@@ -761,8 +761,8 @@ impl PlainIssue {
     /// same issue to pass from multiple processing paths, making for overly
     /// verbose logging.
     #[turbo_tasks::function]
-    pub async fn internal_hash(&self, full: bool) -> Result<Vc<u64>> {
-        Ok(Vc::cell(self.internal_hash_ref(full)))
+    pub fn internal_hash(&self, full: bool) -> Vc<u64> {
+        Vc::cell(self.internal_hash_ref(full))
     }
 }
 
