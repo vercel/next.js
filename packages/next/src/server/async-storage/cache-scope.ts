@@ -20,7 +20,6 @@ export function runWithCacheScope(
 ) {
   return cacheScopeAsyncLocalStorage.run(
     {
-      ...store,
       cache: store.cache || new Map(),
     },
     fn

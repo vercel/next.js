@@ -459,7 +459,7 @@ export default abstract class Server<
 
   private readonly isAppPPREnabled: boolean
 
-  private readonly prefetchCacheScopes = new PrefetchCacheScopes()
+  private readonly prefetchCacheScopesDev = new PrefetchCacheScopes()
 
   /**
    * This is used to persist cache scopes across
@@ -3013,7 +3013,7 @@ export default abstract class Server<
         let cache: CacheScopeStore['cache'] | undefined
 
         if (this.renderOpts.dev) {
-          cache = this.prefetchCacheScopes.get(urlPathname)
+          cache = this.prefetchCacheScopesDev.get(urlPathname)
 
           // we need to seed the prefetch cache scope in dev
           // since we did not have a prefetch cache available
@@ -3031,7 +3031,7 @@ export default abstract class Server<
             await runWithCacheScope({ cache }, () =>
               originalResponseGenerator(...args)
             )
-            this.prefetchCacheScopes.set(urlPathname, cache)
+            this.prefetchCacheScopesDev.set(urlPathname, cache)
 
             delete req.headers[RSC_HEADER]
             delete req.headers[NEXT_ROUTER_PREFETCH_HEADER]
@@ -3043,9 +3043,9 @@ export default abstract class Server<
         ).finally(() => {
           if (this.renderOpts.dev) {
             if (isPrefetchRSCRequest) {
-              this.prefetchCacheScopes.set(urlPathname, cache)
+              this.prefetchCacheScopesDev.set(urlPathname, cache)
             } else {
-              this.prefetchCacheScopes.del(urlPathname)
+              this.prefetchCacheScopesDev.del(urlPathname)
             }
           }
         })
