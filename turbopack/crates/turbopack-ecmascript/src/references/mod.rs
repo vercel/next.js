@@ -645,9 +645,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::PartEvaluation(part_id) => {
                         evaluation_references.push(i);
-                        Some(ModulePart::internal(*part_id))
+                        Some(ModulePart::internal(*part_id, true))
                     }
-                    ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
+                    ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id, false)),
                     ImportedSymbol::Exports => Some(ModulePart::exports()),
                 },
                 Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {

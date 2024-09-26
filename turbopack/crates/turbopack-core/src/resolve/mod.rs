@@ -2869,7 +2869,9 @@ pub enum ModulePart {
     /// Represents a namespace object of a module exported as named export.
     RenamedNamespace { export: Vc<RcStr> },
     /// A pointer to a specific part.
-    Internal(u32),
+    ///
+    /// `(part_id, is_for_eval)`
+    Internal(u32, bool),
     /// The local declarations of a module.
     Locals,
     /// The whole exports of a module.
@@ -2905,8 +2907,8 @@ impl ModulePart {
         .cell()
     }
     #[turbo_tasks::function]
-    pub fn internal(id: u32) -> Vc<Self> {
-        ModulePart::Internal(id).cell()
+    pub fn internal(id: u32, is_for_eval: bool) -> Vc<Self> {
+        ModulePart::Internal(id, is_for_eval).cell()
     }
     #[turbo_tasks::function]
     pub fn locals() -> Vc<Self> {
@@ -2940,7 +2942,12 @@ impl ValueToString for ModulePart {
             ModulePart::RenamedNamespace { export } => {
                 format!("export * as {}", export.await?).into()
             }
-            ModulePart::Internal(id) => format!("internal part {}", id).into(),
+            ModulePart::Internal(id, is_for_eval) => format!(
+                "internal part {} ({})",
+                id,
+                if *is_for_eval { "eval" } else { "" }
+            )
+            .into(),
             ModulePart::Locals => "locals".into(),
             ModulePart::Exports => "exports".into(),
             ModulePart::Facade => "facade".into(),

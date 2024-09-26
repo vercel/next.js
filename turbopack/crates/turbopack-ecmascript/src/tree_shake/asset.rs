@@ -166,7 +166,9 @@ impl Module for EcmascriptModulePartAsset {
                     Vc::upcast(EcmascriptModulePartAsset::new(
                         self.full_module,
                         match part_id {
-                            PartId::Internal(part_id) => ModulePart::internal(*part_id),
+                            PartId::Internal(part_id, is_for_eval) => {
+                                ModulePart::internal(*part_id, *is_for_eval)
+                            }
                             PartId::Export(name) => ModulePart::export(name.clone()),
                             _ => unreachable!(
                                 "PartId other than Internal and Export should not be used here"
