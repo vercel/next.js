@@ -180,7 +180,8 @@ impl DiskWatcher {
         // We need to invalidate all reads that happened before watching
         // Best is to start_watching before starting to read
         {
-            let span = tracing::info_span!("invalidate filesystem").entered();
+            let _span = tracing::info_span!("invalidate filesystem").entered();
+            let span = tracing::Span::current();
             let invalidator_map = take(&mut *invalidator_map.lock().unwrap());
             let dir_invalidator_map = take(&mut *dir_invalidator_map.lock().unwrap());
             let iter = invalidator_map
