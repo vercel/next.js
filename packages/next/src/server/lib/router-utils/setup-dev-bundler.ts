@@ -189,10 +189,13 @@ async function startWatcher(opts: SetupOpts) {
     : new HotReloaderWebpack(opts.dir, {
         appDir,
         pagesDir,
-        distDir: distDir,
+        distDir,
         config: opts.nextConfig,
         buildId: 'development',
-        encryptionKey: await generateEncryptionKeyBase64(),
+        encryptionKey: await generateEncryptionKeyBase64({
+          isBuild: false,
+          distDir,
+        }),
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
