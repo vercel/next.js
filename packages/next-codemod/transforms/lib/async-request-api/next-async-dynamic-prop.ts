@@ -5,6 +5,7 @@ import type {
   ExportDefaultDeclaration,
   ExportNamedDeclaration,
   ObjectPattern,
+  Identifier,
 } from 'jscodeshift'
 import {
   determineClientDirective,
@@ -253,7 +254,7 @@ export function transformDynamicProps(
     // Helper function to insert `const params = await asyncParams;` at the beginning of the function body
     function resolveAsyncProp(
       path: ASTPath<FunctionalExportDeclaration>,
-      propertiesMap: Map<string, ObjectPattern | undefined>,
+      propertiesMap: Map<string, Identifier | ObjectPattern | undefined>,
       propsIdentifierName: string,
       allProperties: ObjectPattern['properties']
     ) {
@@ -345,40 +346,24 @@ export function transformDynamicProps(
         if (functionBody && destructionOtherPropertiesDeclaration) {
           functionBody.unshift(destructionOtherPropertiesDeclaration)
         }
-
-        // Insert the destructuring of other properties
-
-        // const otherPropertiesDestruct = j.variableDeclaration('const', [
-        //   j.variableDeclarator(
-        //     j.objectPattern(
-        //       otherProperties.map((prop) => {
-        //         if (
-        //           prop.type === 'Property' &&
-        //           prop.key.type === 'Identifier'
-        //         ) {
-        //           return j.objectProperty(
-        //             j.identifier(prop.key.name),
-        //             j.identifier(prop.key.name)
-        //           )
-        //         }
-        //         // handle rest spread properties
-        //         if (prop.type === '') {
-        //           // return j.restElement(j.identifier(prop.argument.name))
-        //         }
-
-        //         return prop
-        //       })
-        //     ),
-        //     j.identifier(propsIdentifierName)
-        //   ),
-        // ])
       }
 
-      for (const [propName, paramsProperty] of propertiesMap) {
-        if (!TARGET_PROP_NAMES.has(propName)) {
+      for (const [matchedPropName, paramsProperty] of propertiesMap) {
+        if (!TARGET_PROP_NAMES.has(matchedPropName)) {
           continue
         }
-        const propNameIdentifier = j.identifier(propName)
+
+        const propRenamedId = j.Identifier.check(paramsProperty)
+          ? paramsProperty.name
+          : null
+        const propName = propRenamedId || matchedPropName
+
+        // if propName is not used in lower scope, and it stars with unused prefix `_`,
+        // also skip the transformation
+        const hasDeclared = path.scope.declares(propName)
+        if (!hasDeclared && propName.startsWith('_')) continue
+
+        const propNameIdentifier = j.identifier(matchedPropName)
         const propsIdentifier = j.identifier(propsIdentifierName)
         const accessedPropId = j.memberExpression(
           propsIdentifier,
