@@ -1,3 +1,4 @@
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { createSnapshot } from '../../client/components/async-local-storage'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
@@ -14,6 +15,8 @@ import {
 
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+
+import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 import {
   getClientReferenceManifestSingleton,
@@ -75,6 +78,7 @@ const runInCleanSnapshot = createSnapshot()
 
 async function generateCacheEntry(
   staticGenerationStore: StaticGenerationStore,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
   encodedArguments: FormData | string,
@@ -96,11 +100,9 @@ async function generateCacheEntry(
   let didError = false
   let firstError: any = null
 
-  const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
-
   const stream = renderToReadableStream(
     result,
-    clientReferenceManifestSingleton.clientModules,
+    clientReferenceManifest.clientModules,
     {
       environmentName: 'Cache',
       temporaryReferences,
@@ -216,9 +218,16 @@ export function cache(kind: string, id: string, fn: any) {
         // might include request specific things like cookies() inside a React.cache().
         // Note: It is important that we await at least once before this because it lets us
         // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
+
+        // Get the clientReferenceManifestSingleton while we're still in the outer Context.
+        // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
+        const clientReferenceManifestSingleton =
+          getClientReferenceManifestSingleton()
+
         stream = await runInCleanSnapshot(
           generateCacheEntry,
           staticGenerationStore,
+          clientReferenceManifestSingleton,
           cacheHandler,
           serializedCacheKey,
           encodedArguments,
@@ -229,9 +238,12 @@ export function cache(kind: string, id: string, fn: any) {
         if (entry.stale) {
           // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
           // then we should warm up the cache with a fresh revalidated entry.
+          const clientReferenceManifestSingleton =
+            getClientReferenceManifestSingleton()
           const ignoredStream = await runInCleanSnapshot(
             generateCacheEntry,
             staticGenerationStore,
+            clientReferenceManifestSingleton,
             cacheHandler,
             serializedCacheKey,
             encodedArguments,
