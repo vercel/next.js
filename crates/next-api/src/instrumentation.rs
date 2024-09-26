@@ -65,7 +65,7 @@ impl InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn core_modules(&self) -> Result<Vc<InstrumentationCoreModules>> {
+    fn core_modules(&self) -> Vc<InstrumentationCoreModules> {
         let userland_module = self
             .asset_context
             .process(
@@ -81,11 +81,11 @@ impl InstrumentationEndpoint {
             "instrumentation".into(),
         );
 
-        Ok(InstrumentationCoreModules {
+        InstrumentationCoreModules {
             userland_module,
             edge_entry_module,
         }
-        .cell())
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -155,6 +155,7 @@ impl InstrumentationEndpoint {
                     this.project.next_mode(),
                 )
                 .resolve_entries(this.asset_context),
+                OutputAssets::empty(),
                 Value::new(AvailabilityInfo::Root),
             )
             .await?;

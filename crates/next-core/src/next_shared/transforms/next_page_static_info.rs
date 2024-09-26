@@ -157,8 +157,8 @@ impl Issue for PageStaticInfoIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
             StyledString::Line(
                 self.messages
                     .iter()
@@ -166,6 +166,6 @@ impl Issue for PageStaticInfoIssue {
                     .collect::<Vec<StyledString>>(),
             )
             .cell(),
-        )))
+        ))
     }
 }

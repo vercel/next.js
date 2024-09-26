@@ -3,7 +3,7 @@ import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import type { DynamicServerError } from './hooks-server-context'
 import type { FetchMetrics } from '../../server/base-http'
 import type { Revalidate } from '../../server/lib/revalidate'
-import type { FallbackRouteParams } from './fallback-params'
+import type { FallbackRouteParams } from '../../server/request/fallback-params'
 
 // Share the instance module in the next-shared layer
 import { staticGenerationAsyncStorage } from './static-generation-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -47,6 +47,7 @@ export interface StaticGenerationStore {
   forceStatic?: boolean
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
+  pendingRevalidateWrites?: Array<Promise<void>> // This is like pendingRevalidates but isn't used for deduping.
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string

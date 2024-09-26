@@ -17,8 +17,8 @@ use turbopack_ecmascript::utils::StringifyJs;
 
 use super::app_entry::AppEntry;
 use crate::{
-    app_structure::LoaderTree,
-    loader_tree::{LoaderTreeModule, GLOBAL_ERROR},
+    app_page_loader_tree::{AppPageLoaderTreeModule, GLOBAL_ERROR},
+    app_structure::AppPageLoaderTree,
     next_app::{AppPage, AppPath},
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
@@ -32,7 +32,7 @@ use crate::{
 pub async fn get_app_page_entry(
     nodejs_context: Vc<ModuleAssetContext>,
     edge_context: Vc<ModuleAssetContext>,
-    loader_tree: Vc<LoaderTree>,
+    loader_tree: Vc<AppPageLoaderTree>,
     page: AppPage,
     project_root: Vc<FileSystemPath>,
     next_config: Vc<NextConfig>,
@@ -48,7 +48,7 @@ pub async fn get_app_page_entry(
     let server_component_transition = Vc::upcast(NextServerComponentTransition::new());
 
     let base_path = next_config.await?.base_path.clone();
-    let loader_tree = LoaderTreeModule::build(
+    let loader_tree = AppPageLoaderTreeModule::build(
         loader_tree,
         module_asset_context,
         server_component_transition,
@@ -56,7 +56,7 @@ pub async fn get_app_page_entry(
     )
     .await?;
 
-    let LoaderTreeModule {
+    let AppPageLoaderTreeModule {
         inner_assets,
         imports,
         loader_tree_code,
@@ -107,7 +107,7 @@ pub async fn get_app_page_entry(
     let source = VirtualSource::new_with_ident(
         source
             .ident()
-            .with_query(Vc::cell(query.to_string().into())),
+            .with_query(Vc::cell(format!("?{}", query).into())),
         AssetContent::file(file.into()),
     );
 

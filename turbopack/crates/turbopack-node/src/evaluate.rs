@@ -29,6 +29,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
+    output::OutputAssets,
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
 };
@@ -150,8 +151,12 @@ pub async fn get_evaluate_pool(
         Vc::<EvaluatableAssets>::cell(entries)
     };
 
-    let bootstrap =
-        chunking_context.root_entry_chunk_group_asset(path, entry_module, runtime_entries);
+    let bootstrap = chunking_context.root_entry_chunk_group_asset(
+        path,
+        entry_module,
+        OutputAssets::empty(),
+        runtime_entries,
+    );
 
     let output_root: Vc<FileSystemPath> = chunking_context.output_root();
     let _ = emit_package_json(output_root);

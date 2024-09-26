@@ -48,6 +48,7 @@ export const APP_DIR_ALIAS = 'private-next-app-dir'
 export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
 export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
 export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-server-reference'
+export const RSC_CACHE_WRAPPER_ALIAS = 'private-next-rsc-cache-wrapper'
 export const RSC_ACTION_ENCRYPTION_ALIAS = 'private-next-rsc-action-encryption'
 export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
   'private-next-rsc-action-client-wrapper'

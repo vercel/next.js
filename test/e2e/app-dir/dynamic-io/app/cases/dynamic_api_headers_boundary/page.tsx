@@ -30,7 +30,7 @@ export default async function Page() {
 async function ComponentThatReadsHeaders() {
   let sentinelHeader
   try {
-    sentinelHeader = headers().get('x-sentinel')
+    sentinelHeader = (await headers()).get('x-sentinel')
     if (!sentinelHeader) {
       sentinelHeader = '~not-found~'
     }

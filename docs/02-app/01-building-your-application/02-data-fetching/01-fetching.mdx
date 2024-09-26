@@ -97,7 +97,7 @@ let data = await fetch('https://api.vercel.app/blog', { cache: 'no-store' })
 
 ### Fetching data on the server with an ORM or database
 
-This component will fetch and display a list of blog posts. The response from the database will be cached.
+This component will fetch and display a list of blog posts. The response from the database is not cached by default but could be with [additional configuration](#caching-data-with-an-orm-or-database).
 
 ```tsx filename="app/page.tsx" switcher
 import { db, posts } from '@/lib/db'
@@ -131,7 +131,7 @@ export default async function Page() {
 
 If you are not using any [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) anywhere else in this route, it will be prerendered during `next build` to a static page. The data can then be updated using [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration).
 
-If you do _not_ want to cache the response from the database, you can add the following to your file:
+To prevent the page from prerendering, you can add the following to your file:
 
 ```js
 export const dynamic = 'force-dynamic'

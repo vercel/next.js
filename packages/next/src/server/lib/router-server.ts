@@ -47,7 +47,6 @@ import {
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
-import { canParseUrl } from '../../lib/url'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -677,7 +676,7 @@ export async function initialize(opts: {
         if (assetPrefix) {
           hmrPrefix = normalizedAssetPrefix(assetPrefix)
 
-          if (canParseUrl(hmrPrefix)) {
+          if (URL.canParse(hmrPrefix)) {
             // remove trailing slash from pathname
             // return empty string if pathname is '/'
             // to avoid conflicts with '/_next' below
