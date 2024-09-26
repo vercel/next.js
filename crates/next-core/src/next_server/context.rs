@@ -348,7 +348,7 @@ async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 }
 
 #[turbo_tasks::function]
-pub async fn get_server_compile_time_info(
+pub fn get_server_compile_time_info(
     process_env: Vc<Box<dyn ProcessEnv>>,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {

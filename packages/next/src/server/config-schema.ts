@@ -602,8 +602,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         )
       )
       .optional(),
-    // saas option is unknown, use z.any() here
-    sassOptions: z.record(z.string(), z.any()).optional(),
+    // sassOptions properties are unknown besides implementation, use z.any() here
+    sassOptions: z
+      .object({
+        implementation: z.string().optional(),
+      })
+      .catchall(z.any())
+      .optional(),
     serverExternalPackages: z.array(z.string()).optional(),
     serverRuntimeConfig: z.record(z.string(), z.any()).optional(),
     skipMiddlewareUrlNormalize: z.boolean().optional(),

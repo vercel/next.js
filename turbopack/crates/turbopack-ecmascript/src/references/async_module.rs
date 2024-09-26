@@ -173,7 +173,7 @@ impl AsyncModule {
 
     /// Returns
     #[turbo_tasks::function]
-    pub async fn module_options(
+    pub fn module_options(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<OptionAsyncModuleOptions>> {

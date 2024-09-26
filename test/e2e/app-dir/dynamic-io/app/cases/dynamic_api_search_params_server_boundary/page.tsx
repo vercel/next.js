@@ -2,7 +2,11 @@ import { Suspense } from 'react'
 
 import { getSentinelValue } from '../../getSentinelValue'
 
-export default async function Page({ searchParams }) {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<any>
+}) {
   return (
     <>
       <p>
@@ -21,18 +25,18 @@ export default async function Page({ searchParams }) {
       </Suspense>
       <Suspense fallback="loading too...">
         <ComponentTwo />
-        <div id="inner">{getSentinelValue()}</div>
       </Suspense>
       <div id="page">{getSentinelValue()}</div>
     </>
   )
 }
 
-function ComponentOne({ searchParams }) {
+async function ComponentOne({ searchParams }: { searchParams: Promise<any> }) {
   let sentinelSearch
+  const sp = await searchParams
   try {
-    if (searchParams.sentinel) {
-      sentinelSearch = searchParams.sentinel
+    if (sp.sentinel) {
+      sentinelSearch = sp.sentinel
     } else {
       sentinelSearch = '~not-found~'
     }
@@ -49,5 +53,10 @@ function ComponentOne({ searchParams }) {
 }
 
 function ComponentTwo() {
-  return <div>This component didn't access any searchParams properties</div>
+  return (
+    <>
+      <div>This component didn't access any searchParams properties</div>
+      <div id="inner">{getSentinelValue()}</div>
+    </>
+  )
 }

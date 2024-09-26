@@ -1,6 +1,6 @@
 import { getSentinelValue } from '../../getSentinelValue'
 
-export default function Page({ searchParams }) {
+export default function Page({ searchParams }: { searchParams: Promise<any> }) {
   return (
     <>
       <p>
@@ -21,11 +21,12 @@ export default function Page({ searchParams }) {
   )
 }
 
-function ComponentOne({ searchParams }) {
+async function ComponentOne({ searchParams }: { searchParams: Promise<any> }) {
   let sentinelSearch
+  const sp = await searchParams
   try {
-    if (searchParams.sentinel) {
-      sentinelSearch = searchParams.sentinel
+    if (sp.sentinel) {
+      sentinelSearch = sp.sentinel
     } else {
       sentinelSearch = '~not-found~'
     }
@@ -42,5 +43,10 @@ function ComponentOne({ searchParams }) {
 }
 
 function ComponentTwo() {
-  return <div>This component didn't access any searchParams properties</div>
+  return (
+    <>
+      <div>This component didn't access any searchParams properties</div>
+      <div id="inner">{getSentinelValue()}</div>
+    </>
+  )
 }

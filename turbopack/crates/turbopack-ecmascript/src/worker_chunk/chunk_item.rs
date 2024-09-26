@@ -112,7 +112,7 @@ impl ChunkItem for WorkerLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
+    fn content_ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(self.module.ident())
     }
 
@@ -136,7 +136,7 @@ impl ChunkItem for WorkerLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

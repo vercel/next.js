@@ -152,7 +152,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+    fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_client_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
@@ -164,7 +164,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+    fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_client_resolve_options_context(
             self.project().project_path(),
             Value::new(self.client_ty()),
@@ -180,13 +180,13 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn client_transition(self: Vc<Self>) -> Result<Vc<FullContextTransition>> {
+    fn client_transition(self: Vc<Self>) -> Result<Vc<FullContextTransition>> {
         let module_context = self.client_module_context();
         Ok(FullContextTransition::new(module_context))
     }
 
     #[turbo_tasks::function]
-    async fn rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+    fn rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
@@ -198,7 +198,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn edge_rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+    fn edge_rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
@@ -210,7 +210,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+    fn route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
@@ -222,7 +222,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn edge_route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+    fn edge_route_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
@@ -234,7 +234,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+    fn rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
             Value::new(self.rsc_ty()),
@@ -245,7 +245,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn edge_rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+    fn edge_rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
             Value::new(self.rsc_ty()),
@@ -256,7 +256,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn route_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+    fn route_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
             Value::new(self.route_ty()),
@@ -267,9 +267,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn edge_route_resolve_options_context(
-        self: Vc<Self>,
-    ) -> Result<Vc<ResolveOptionsContext>> {
+    fn edge_route_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
             Value::new(self.route_ty()),
@@ -446,7 +444,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+    fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
@@ -458,7 +456,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn edge_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
+    fn edge_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
@@ -470,7 +468,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+    fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
             Value::new(self.ssr_ty()),
@@ -481,7 +479,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
+    fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
             Value::new(self.ssr_ty()),
@@ -532,7 +530,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
+    fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         Ok(get_server_runtime_entries(
             Value::new(self.rsc_ty()),
             self.project().next_mode(),
@@ -560,7 +558,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
+    fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
         Ok(get_client_runtime_entries(
             self.project().project_path(),
             Value::new(self.client_ty()),

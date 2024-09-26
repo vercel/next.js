@@ -236,7 +236,7 @@ impl FileHashVersion {
 #[turbo_tasks::value_impl]
 impl Version for FileHashVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<RcStr>> {
+    fn id(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(self.hash.clone()))
     }
 }
@@ -250,7 +250,7 @@ pub struct VersionState {
 #[turbo_tasks::value_impl]
 impl VersionState {
     #[turbo_tasks::function]
-    pub async fn get(&self) -> Result<Vc<Box<dyn Version>>> {
+    pub fn get(&self) -> Result<Vc<Box<dyn Version>>> {
         let version = TraitRef::cell(self.version.get().clone());
         Ok(version)
     }

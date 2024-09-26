@@ -255,7 +255,7 @@ impl MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn userland_module(&self) -> Result<Vc<Box<dyn Module>>> {
+    fn userland_module(&self) -> Result<Vc<Box<dyn Module>>> {
         Ok(self
             .asset_context
             .process(

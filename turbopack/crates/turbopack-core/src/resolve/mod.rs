@@ -319,12 +319,12 @@ impl ModuleResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_unresolveable(&self) -> Result<Vc<bool>> {
+    pub fn is_unresolveable(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.is_unresolveable_ref()))
     }
 
     #[turbo_tasks::function]
-    pub async fn first_module(&self) -> Result<Vc<OptionModule>> {
+    pub fn first_module(&self) -> Result<Vc<OptionModule>> {
         Ok(Vc::cell(self.primary.iter().find_map(
             |(_, item)| match item {
                 &ModuleResolveResultItem::Module(a) => Some(a),
@@ -357,7 +357,7 @@ impl ModuleResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn primary_output_assets(&self) -> Result<Vc<OutputAssets>> {
+    pub fn primary_output_assets(&self) -> Result<Vc<OutputAssets>> {
         Ok(Vc::cell(
             self.primary
                 .iter()
@@ -847,12 +847,12 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_unresolveable(&self) -> Result<Vc<bool>> {
+    pub fn is_unresolveable(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.is_unresolveable_ref()))
     }
 
     #[turbo_tasks::function]
-    pub async fn first_source(&self) -> Result<Vc<OptionSource>> {
+    pub fn first_source(&self) -> Result<Vc<OptionSource>> {
         Ok(Vc::cell(self.primary.iter().find_map(|(_, item)| {
             if let &ResolveResultItem::Source(a) = item {
                 Some(a)
@@ -863,7 +863,7 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn primary_sources(&self) -> Result<Vc<Sources>> {
+    pub fn primary_sources(&self) -> Result<Vc<Sources>> {
         Ok(Vc::cell(
             self.primary
                 .iter()
@@ -883,7 +883,7 @@ impl ResolveResult {
     /// contains [RequestKey]s that don't have the `old_request_key` prefix, but if there are still
     /// some, they are discarded.
     #[turbo_tasks::function]
-    pub async fn with_replaced_request_key(
+    pub fn with_replaced_request_key(
         &self,
         old_request_key: RcStr,
         request_key: Value<RequestKey>,
@@ -953,7 +953,7 @@ impl ResolveResult {
     /// Returns a new [ResolveResult] where all [RequestKey]s are set to the
     /// passed `request`.
     #[turbo_tasks::function]
-    pub async fn with_request(&self, request: RcStr) -> Result<Vc<Self>> {
+    pub fn with_request(&self, request: RcStr) -> Result<Vc<Self>> {
         let new_primary = self
             .primary
             .iter()

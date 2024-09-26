@@ -519,7 +519,7 @@ impl Issue for TsConfigIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    fn title(&self) -> Result<Vc<StyledString>> {
         Ok(
             StyledString::Text("An issue occurred while parsing a tsconfig.json file.".into())
                 .cell(),

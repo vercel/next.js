@@ -27,9 +27,80 @@ declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/browserslist'
 
 declare module 'react-server-dom-webpack/client'
-declare module 'react-server-dom-webpack/server.edge'
+declare module 'react-server-dom-webpack/server.edge' {
+  export function renderToReadableStream(
+    model: any,
+    webpackMap: {
+      readonly [id: string]: {
+        readonly id: string | number
+        readonly chunks: readonly string[]
+        readonly name: string
+        readonly async?: boolean
+      }
+    },
+    options?: {
+      temporaryReferences?: string
+      environmentName?: string
+      filterStackFrame?: (url: string, functionName: string) => boolean
+      onError?: (error: unknown) => void
+      onPostpone?: (reason: string) => void
+      signal?: AbortSignal
+    }
+  ): ReadableStream<Uint8Array>
+
+  export function createTemporaryReferenceSet(...args: any[]): any
+
+  type ServerManifest = {}
+
+  export function decodeReply<T>(
+    body: string | FormData,
+    webpackMap: ServerManifest,
+    options?: {
+      temporaryReferences?: unknown
+    }
+  ): Promise<T>
+  export function decodeAction<T>(
+    body: FormData,
+    serverManifest: ServerManifest
+  ): Promise<() => T> | null
+  export function decodeFormState<S>(
+    actionResult: S,
+    body: FormData,
+    serverManifest: ServerManifest
+  ): Promise<unknown | null>
+
+  export function registerServerReference<T>(
+    reference: T,
+    id: string,
+    exportName: string | null
+  ): unknown
+
+  export function createClientModuleProxy(moduleId: string): unknown
+}
 declare module 'react-server-dom-webpack/server.node'
-declare module 'react-server-dom-webpack/static.edge'
+declare module 'react-server-dom-webpack/static.edge' {
+  export function prerender(
+    children: any,
+    webpackMap: {
+      readonly [id: string]: {
+        readonly id: string | number
+        readonly chunks: readonly string[]
+        readonly name: string
+        readonly async?: boolean
+      }
+    },
+    options?: {
+      environmentName?: string | (() => string)
+      filterStackFrame?: (url: string, functionName: string) => boolean
+      identifierPrefix?: string
+      signal?: AbortSignal
+      onError?: (error: unknown) => void
+      onPostpone?: (reason: string) => void
+    }
+  ): Promise<{
+    prelude: ReadableStream<Uint8Array>
+  }>
+}
 declare module 'react-server-dom-webpack/client.edge'
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
