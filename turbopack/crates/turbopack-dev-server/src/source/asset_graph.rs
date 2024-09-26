@@ -89,12 +89,11 @@ impl AssetGraphContentSource {
 
     #[turbo_tasks::function]
     async fn all_assets_map(&self) -> Result<Vc<OutputAssetsMap>> {
-        let this = self;
         Ok(Vc::cell(
             expand(
-                &*this.root_assets.await?,
-                &*this.root_path.await?,
-                this.expanded.as_ref(),
+                &*self.root_assets.await?,
+                &*self.root_path.await?,
+                self.expanded.as_ref(),
             )
             .await?,
         ))

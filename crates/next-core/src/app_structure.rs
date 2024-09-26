@@ -732,9 +732,8 @@ struct DuplicateParallelRouteIssue {
 #[turbo_tasks::value_impl]
 impl Issue for DuplicateParallelRouteIssue {
     #[turbo_tasks::function]
-    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        let this = self;
-        Ok(this.app_dir.join(this.page.to_string().into()))
+    fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.app_dir.join(self.page.to_string().into()))
     }
 
     #[turbo_tasks::function]
@@ -1356,7 +1355,7 @@ impl Issue for DirectoryTreeIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Text("An issue occurred while preparing your Next.js app".into()).cell())
     }
 

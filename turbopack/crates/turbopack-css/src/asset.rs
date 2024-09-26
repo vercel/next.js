@@ -65,7 +65,7 @@ impl CssModuleAsset {
 
     /// Retrns the asset ident of the source without the "css" modifier
     #[turbo_tasks::function]
-    pub async fn source_ident(&self) -> Result<Vc<AssetIdent>> {
+    pub fn source_ident(&self) -> Result<Vc<AssetIdent>> {
         Ok(self.source.ident())
     }
 }
@@ -90,14 +90,14 @@ impl ParseCss for CssModuleAsset {
 #[turbo_tasks::value_impl]
 impl ProcessCss for CssModuleAsset {
     #[turbo_tasks::function]
-    async fn get_css_with_placeholder(self: Vc<Self>) -> Result<Vc<CssWithPlaceholderResult>> {
+    fn get_css_with_placeholder(self: Vc<Self>) -> Result<Vc<CssWithPlaceholderResult>> {
         let parse_result = self.parse_css();
 
         Ok(process_css_with_placeholder(parse_result))
     }
 
     #[turbo_tasks::function]
-    async fn finalize_css(
+    fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<FinalCssResult>> {
@@ -192,7 +192,7 @@ impl ChunkItem for CssModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

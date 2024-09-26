@@ -49,7 +49,7 @@ pub struct ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    pub async fn new(
+    pub fn new(
         source: Vc<Box<dyn Source>>,
         asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Self>> {
@@ -152,10 +152,9 @@ struct ModuleCssClasses(IndexMap<String, Vec<ModuleCssClass>>);
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    async fn inner(&self) -> Result<Vc<ProcessResult>> {
-        let this = self;
-        Ok(this.asset_context.process(
-            this.source,
+    fn inner(&self) -> Result<Vc<ProcessResult>> {
+        Ok(self.asset_context.process(
+            self.source,
             Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
         ))
     }
@@ -235,7 +234,7 @@ impl ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for ModuleCssAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
@@ -289,7 +288,7 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 
@@ -440,7 +439,7 @@ impl Issue for CssModuleComposesIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Text(
             "An issue occurred while resolving a CSS module `composes:` rule".into(),
         )

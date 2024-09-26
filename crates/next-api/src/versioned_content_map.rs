@@ -230,7 +230,7 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    async fn raw_get(&self, path: Vc<FileSystemPath>) -> Result<Vc<OptionMapEntry>> {
+    fn raw_get(&self, path: Vc<FileSystemPath>) -> Result<Vc<OptionMapEntry>> {
         let assets = {
             let map = self.map_path_to_op.get();
             map.get(&path).and_then(|m| m.iter().last().copied())

@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server'
 
 import { getSentinelValue } from '../../getSentinelValue'
 
-export async function GET(request: NextRequest, { params }: { params: {} }) {
+export async function GET(request: NextRequest) {
   const fetcheda = await fetchRandomCached('a')
   const fetchedb = await fetchRandomCached('b')
   return new Response(

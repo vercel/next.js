@@ -90,7 +90,7 @@ impl UrlAssetReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for UrlAssetReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         url_resolve(
             self.origin,
             self.request,

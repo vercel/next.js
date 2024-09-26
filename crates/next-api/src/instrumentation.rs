@@ -65,7 +65,7 @@ impl InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn core_modules(&self) -> Result<Vc<InstrumentationCoreModules>> {
+    fn core_modules(&self) -> Result<Vc<InstrumentationCoreModules>> {
         let userland_module = self
             .asset_context
             .process(

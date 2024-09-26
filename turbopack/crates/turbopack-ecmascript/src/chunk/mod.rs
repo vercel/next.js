@@ -45,7 +45,7 @@ pub struct EcmascriptChunks(Vec<Vc<EcmascriptChunk>>);
 #[turbo_tasks::value_impl]
 impl EcmascriptChunk {
     #[turbo_tasks::function]
-    pub async fn new(
+    pub fn new(
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         content: Vc<EcmascriptChunkContent>,
     ) -> Result<Vc<Self>> {
@@ -57,7 +57,7 @@ impl EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    pub async fn entry_ids(self: Vc<Self>) -> Result<Vc<ModuleIds>> {
+    pub fn entry_ids(self: Vc<Self>) -> Result<Vc<ModuleIds>> {
         // TODO return something usefull
         Ok(Vc::cell(Default::default()))
     }
@@ -77,11 +77,9 @@ fn availability_root_key() -> Vc<RcStr> {
 impl Chunk for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let this = self;
-
         let mut assets = Vec::new();
 
-        let EcmascriptChunkContent { chunk_items, .. } = &*this.content.await?;
+        let EcmascriptChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some((chunk_item, _)) = chunk_items.first() {
             let path = chunk_item.asset_ident().path().resolve().await?;
             Some((path, path.await?))
@@ -136,8 +134,7 @@ impl Chunk for EcmascriptChunk {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let this = self;
-        let content = this.content.await?;
+        let content = self.content.await?;
         Ok(Vc::cell(content.referenced_output_assets.clone()))
     }
 }

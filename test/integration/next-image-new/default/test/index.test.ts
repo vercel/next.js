@@ -21,6 +21,8 @@ import { join } from 'path'
 import fs from 'fs/promises'
 import { pathExists } from 'fs-extra'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 const appDir = join(__dirname, '../')
 
 let appPort
@@ -1180,7 +1182,9 @@ function runTests(mode) {
 
       expect(warnings).toEqual([])
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('src')).toBe(
+        isReact18 ? '' : null
+      )
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(
@@ -1195,7 +1199,9 @@ function runTests(mode) {
       )
       expect(warnings).toEqual([])
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('src')).toBe(
+        isReact18 ? '' : null
+      )
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(

@@ -108,7 +108,7 @@ impl Introspectable for ConditionalContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<RcStr>> {
+    fn details(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
             if *self.activated.get() {
                 "activated"
