@@ -83,7 +83,11 @@ async function verifyRootLayoutImport(appDir: string) {
 
   if (!rootLayoutPath || !rootLayoutContent) return
 
-  const hasPartytownComponent = /<Partytown/i.test(rootLayoutContent)
+  const stripComments = (content: string) =>
+    content.replace(/\/\/.*|\/\*[\s\S]*?\*\//g, '')
+  const hasPartytownComponent = /<Partytown/i.test(
+    stripComments(rootLayoutContent)
+  )
 
   if (!hasPartytownComponent) {
     Log.warn(
