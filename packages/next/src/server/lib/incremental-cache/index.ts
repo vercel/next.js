@@ -6,11 +6,11 @@ import {
   type IncrementalCache as IncrementalCacheType,
   IncrementalCacheKind,
   CachedRouteKind,
-  type CachedFetchValue,
 } from '../../response-cache'
 import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
+import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope'
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
@@ -82,10 +82,6 @@ export class IncrementalCache implements IncrementalCacheType {
   private readonly locks = new Map<string, Promise<void>>()
   private readonly unlocks = new Map<string, () => Promise<void>>()
 
-  private readonly dynamicIOMemoryCache = new Map<
-    string,
-    CachedFetchValue | null
-  >()
   /**
    * The revalidate timings for routes. This will source the timings from the
    * prerender manifest until the in-memory cache is updated with new timings.
@@ -225,7 +221,6 @@ export class IncrementalCache implements IncrementalCacheType {
 
   resetRequestCache() {
     this.cacheHandler?.resetRequestCache?.()
-    this.dynamicIOMemoryCache.clear()
   }
 
   /**
@@ -415,14 +410,18 @@ export class IncrementalCache implements IncrementalCacheType {
     let revalidate = ctx.revalidate
 
     if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
-      const memoryCacheData = this.dynamicIOMemoryCache.get(cacheKey)
+      const cacheScope = cacheScopeAsyncLocalStorage.getStore()
 
-      if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
-        return {
-          isStale: false,
-          value: memoryCacheData,
-          revalidateAfter: false,
-          isFallback: false,
+      if (cacheScope?.cache) {
+        const memoryCacheData = cacheScope.cache.get(cacheKey)
+
+        if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
+          return {
+            isStale: false,
+            value: memoryCacheData,
+            revalidateAfter: false,
+            isFallback: false,
+          }
         }
       }
     }
@@ -529,7 +528,11 @@ export class IncrementalCache implements IncrementalCacheType {
     pathname = this._getPathname(pathname, ctx.fetchCache)
 
     if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
-      this.dynamicIOMemoryCache.set(pathname, data)
+      const cacheScope = cacheScopeAsyncLocalStorage.getStore()
+
+      if (cacheScope?.cache) {
+        cacheScope.cache.set(pathname, data)
+      }
     }
 
     // FetchCache has upper limit of 2MB per-entry currently
