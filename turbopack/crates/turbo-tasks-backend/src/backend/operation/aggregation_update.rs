@@ -638,20 +638,21 @@ impl AggregationUpdateQueue {
                 drop(follower);
             }
         }
-        for upper_id in upper_ids_as_follower {
-            let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
-            if update_count!(
+        upper_ids_as_follower.retain(|&upper_id| {
+            let upper = ctx.task(upper_id, TaskDataCategory::Meta);
+            update_count!(
                 upper,
                 Follower {
                     task: new_follower_id
                 },
                 1
-            ) {
-                self.push(AggregationUpdateJob::InnerHasNewFollower {
-                    upper_ids: vec![upper_id],
-                    new_follower_id,
-                })
-            }
+            )
+        });
+        if !upper_ids_as_follower.is_empty() {
+            self.push(AggregationUpdateJob::InnerHasNewFollower {
+                upper_ids: upper_ids_as_follower,
+                new_follower_id,
+            });
         }
     }
 
