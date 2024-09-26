@@ -146,6 +146,7 @@ impl EcmascriptDevEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    Value::new(chunking_context.runtime_type()),
                     Vc::cell(output_root.to_string().into()),
                 );
                 code.push_code(&*runtime_code.await?);
@@ -154,6 +155,7 @@ impl EcmascriptDevEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    Value::new(chunking_context.runtime_type()),
                     Vc::cell(output_root.to_string().into()),
                 );
                 code.push_code(&*runtime_code.await?);
