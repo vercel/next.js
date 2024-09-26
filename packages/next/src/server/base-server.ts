@@ -173,6 +173,11 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
+import { PrefetchCacheScopes } from './lib/prefetch-cache-scopes'
+import {
+  runWithCacheScope,
+  type CacheScopeStore,
+} from './async-storage/cache-scope'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -453,6 +458,14 @@ export default abstract class Server<
   }
 
   private readonly isAppPPREnabled: boolean
+
+  private readonly prefetchCacheScopesDev = new PrefetchCacheScopes()
+
+  /**
+   * This is used to persist cache scopes across
+   * prefetch -> full route requests for dynamic IO
+   * it's only fully used in dev
+   */
 
   public constructor(options: ServerOptions) {
     const {
@@ -2748,7 +2761,7 @@ export default abstract class Server<
       }
     }
 
-    const responseGenerator: ResponseGenerator = async ({
+    let responseGenerator: ResponseGenerator = async ({
       hasResolved,
       previousCacheEntry,
       isRevalidating,
@@ -2996,6 +3009,54 @@ export default abstract class Server<
       return {
         ...result,
         revalidate: result.revalidate,
+      }
+    }
+
+    if (this.nextConfig.experimental.dynamicIO) {
+      const originalResponseGenerator = responseGenerator
+
+      responseGenerator = async (
+        ...args: Parameters<typeof responseGenerator>
+      ): ReturnType<typeof responseGenerator> => {
+        let cache: CacheScopeStore['cache'] | undefined
+
+        if (this.renderOpts.dev) {
+          cache = this.prefetchCacheScopesDev.get(urlPathname)
+
+          // we need to seed the prefetch cache scope in dev
+          // since we did not have a prefetch cache available
+          // and this is not a prefetch request
+          if (
+            !cache &&
+            !isPrefetchRSCRequest &&
+            routeModule?.definition.kind === RouteKind.APP_PAGE
+          ) {
+            req.headers[RSC_HEADER] = '1'
+            req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+
+            cache = new Map()
+
+            await runWithCacheScope({ cache }, () =>
+              originalResponseGenerator(...args)
+            )
+            this.prefetchCacheScopesDev.set(urlPathname, cache)
+
+            delete req.headers[RSC_HEADER]
+            delete req.headers[NEXT_ROUTER_PREFETCH_HEADER]
+          }
+        }
+
+        return runWithCacheScope({ cache }, () =>
+          originalResponseGenerator(...args)
+        ).finally(() => {
+          if (this.renderOpts.dev) {
+            if (isPrefetchRSCRequest) {
+              this.prefetchCacheScopesDev.set(urlPathname, cache)
+            } else {
+              this.prefetchCacheScopesDev.del(urlPathname)
+            }
+          }
+        })
       }
     }
 

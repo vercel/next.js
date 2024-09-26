@@ -140,7 +140,10 @@ function createRenderSearchParams(
     // dictionary object.
     return Promise.resolve({})
   } else {
-    if (process.env.NODE_ENV === 'development') {
+    if (
+      process.env.NODE_ENV === 'development' &&
+      !staticGenerationStore.isPrefetchRequest
+    ) {
       return makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
         underlyingSearchParams,
         staticGenerationStore
