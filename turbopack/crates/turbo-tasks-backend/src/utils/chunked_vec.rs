@@ -41,14 +41,6 @@ impl<T> ChunkedVec<T> {
         }
     }
 
-    pub fn into_iter(self) -> impl Iterator<Item = T> {
-        let len = self.len();
-        ExactSizeIter {
-            iter: self.chunks.into_iter().flat_map(|chunk| chunk.into_iter()),
-            len,
-        }
-    }
-
     pub fn iter(&self) -> impl Iterator<Item = &T> {
         ExactSizeIter {
             iter: self.chunks.iter().flat_map(|chunk| chunk.iter()),
@@ -58,6 +50,19 @@ impl<T> ChunkedVec<T> {
 
     pub fn is_empty(&self) -> bool {
         self.chunks.first().map_or(true, |chunk| chunk.is_empty())
+    }
+}
+
+impl<T> IntoIterator for ChunkedVec<T> {
+    type Item = T;
+    type IntoIter = ExactSizeIter<std::iter::Flatten<std::vec::IntoIter<Vec<T>>>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let len = self.len();
+        ExactSizeIter {
+            iter: self.chunks.into_iter().flatten(),
+            len,
+        }
     }
 }
 
@@ -77,7 +82,7 @@ fn cummulative_chunk_size(chunk_index: usize) -> usize {
     (8 << (chunk_index + 1)) - 8
 }
 
-struct ExactSizeIter<I: Iterator> {
+pub struct ExactSizeIter<I: Iterator> {
     iter: I,
     len: usize,
 }

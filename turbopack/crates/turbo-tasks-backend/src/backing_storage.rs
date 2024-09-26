@@ -15,9 +15,9 @@ pub trait BackingStorage {
     fn save_snapshot(
         &self,
         operations: Vec<Arc<AnyOperation>>,
-        task_cache_updates: ChunkedVec<(Arc<CachedTaskType>, TaskId)>,
-        meta_updates: ChunkedVec<CachedDataUpdate>,
-        data_updates: ChunkedVec<CachedDataUpdate>,
+        task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
+        meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
+        data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()>;
     fn forward_lookup_task_cache(&self, key: &CachedTaskType) -> Option<TaskId>;
     fn reverse_lookup_task_cache(&self, task_id: TaskId) -> Option<Arc<CachedTaskType>>;
