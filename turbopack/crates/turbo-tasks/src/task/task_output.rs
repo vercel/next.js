@@ -6,6 +6,11 @@ use crate::{RawVc, Vc};
 
 /// Trait to implement in order for a type to be accepted as a
 /// `turbo_tasks::function` return type.
+#[diagnostic::on_unimplemented(
+    message = "not a valid turbo task output type",
+    label = "turbo tasks must return either a `Vc<T>`, `Result<Vc<T>>`, or `()`",
+    note = "please check out the documentation at https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html#defining-tasks"
+)]
 pub trait TaskOutput {
     type Return;
 
