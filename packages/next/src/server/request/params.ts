@@ -165,7 +165,10 @@ function createRenderParams(
   underlyingParams: Params,
   staticGenerationStore: StaticGenerationStore
 ): Promise<Params> {
-  if (process.env.NODE_ENV === 'development') {
+  if (
+    process.env.NODE_ENV === 'development' &&
+    !staticGenerationStore.isPrefetchRequest
+  ) {
     return makeDynamicallyTrackedExoticParamsWithDevWarnings(
       underlyingParams,
       staticGenerationStore

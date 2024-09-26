@@ -63,6 +63,7 @@ export interface StaticGenerationStore {
 
   isDraftMode?: boolean
   isUnstableNoStore?: boolean
+  isPrefetchRequest?: boolean
 
   requestEndedState?: { ended?: boolean }
 }

@@ -3018,7 +3018,11 @@ export default abstract class Server<
           // we need to seed the prefetch cache scope in dev
           // since we did not have a prefetch cache available
           // and this is not a prefetch request
-          if (!cache && !isPrefetchRSCRequest) {
+          if (
+            !cache &&
+            !isPrefetchRSCRequest &&
+            routeModule?.definition.kind === RouteKind.APP_PAGE
+          ) {
             req.headers[RSC_HEADER] = '1'
             req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
 
