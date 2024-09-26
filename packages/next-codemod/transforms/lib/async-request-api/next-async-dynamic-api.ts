@@ -152,7 +152,7 @@ export function transformDynamicAPI(
             // if parent is function and it's a hook, which starts with 'use', wrap the api call with 'use()'
             const parentFunction = findClosetParentFunctionScope(path, j)
 
-            if (parentFunction.size() > 0) {
+            if (parentFunction) {
               const parentFunctionName = parentFunction.get().node.id?.name
               const isParentFunctionHook = parentFunctionName?.startsWith('use')
               if (isParentFunctionHook) {
@@ -169,7 +169,8 @@ export function transformDynamicAPI(
                   originRequestApiName,
                   root,
                   filePath,
-                  insertedTypes
+                  insertedTypes,
+                  ` TODO: please manually await this call, if it's a server component, you can turn it to async function `
                 )
               }
             } else {
@@ -179,7 +180,8 @@ export function transformDynamicAPI(
                 originRequestApiName,
                 root,
                 filePath,
-                insertedTypes
+                insertedTypes,
+                ' TODO: please manually await this call, codemod cannot transform due to undetermined async scope '
               )
             }
             modified = true
@@ -224,7 +226,8 @@ function castTypesOrAddComment(
   originRequestApiName: string,
   root: Collection<any>,
   filePath: string,
-  insertedTypes: Set<string>
+  insertedTypes: Set<string>,
+  customMessage: string
 ) {
   const isTsFile = filePath.endsWith('.ts') || filePath.endsWith('.tsx')
   if (isTsFile) {
@@ -281,9 +284,7 @@ function castTypesOrAddComment(
   } else {
     // Otherwise for JS file, leave a message to the user to manually handle the transformation
     path.node.comments = [
-      j.commentBlock(
-        ' TODO: please manually await this call, codemod cannot transform due to undetermined async scope '
-      ),
+      j.commentBlock(customMessage),
       ...(path.node.comments || []),
     ]
   }
