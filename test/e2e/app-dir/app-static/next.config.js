@@ -3,7 +3,6 @@ module.exports = {
   logging: {
     fetches: {},
   },
-  cacheHandler: process.env.CUSTOM_CACHE_HANDLER,
 
   rewrites: async () => {
     return {
