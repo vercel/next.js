@@ -244,7 +244,9 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
             ResolveResult::primary(ResolveResultItem::External {
                 name: modified_path.into(),
                 typ: ExternalType::CommonJs,
-                source: None, // TODO(arlyon): source
+                // for the purposes of bundling, the next externals don't need to be considered
+                // since they will be injected automatically
+                source: None,
             })
             .into(),
         )))

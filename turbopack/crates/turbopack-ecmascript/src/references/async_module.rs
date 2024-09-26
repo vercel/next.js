@@ -112,7 +112,7 @@ impl AsyncModule {
                     return Ok(None);
                 };
                 Ok(match &*referenced_asset {
-                    ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
+                    ReferencedAsset::External(_, ExternalType::EcmaScriptModule, _) => {
                         if self.import_externals {
                             referenced_asset.get_ident().await?
                         } else {
@@ -161,7 +161,7 @@ impl AsyncModule {
                         };
                         Ok(matches!(
                             &*referenced_asset,
-                            ReferencedAsset::External(_, ExternalType::EcmaScriptModule)
+                            ReferencedAsset::External(_, ExternalType::EcmaScriptModule, _)
                         ))
                     })
                     .try_join()

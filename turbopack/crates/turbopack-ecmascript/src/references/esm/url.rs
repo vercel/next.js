@@ -182,7 +182,7 @@ impl CodeGenerateable for UrlAssetReference {
                             }
                         }));
                     }
-                    ReferencedAsset::External(request, ExternalType::Url) => {
+                    ReferencedAsset::External(request, ExternalType::Url, _) => {
                         let request = request.to_string();
                         visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
@@ -199,7 +199,7 @@ impl CodeGenerateable for UrlAssetReference {
                             }
                         }));
                     }
-                    ReferencedAsset::External(request, ty) => {
+                    ReferencedAsset::External(request, ty, _) => {
                         bail!(
                             "Unsupported external type {:?} for URL reference with request: {:?}",
                             ty,
@@ -271,7 +271,7 @@ impl CodeGenerateable for UrlAssetReference {
                             }
                         }));
                     }
-                    ReferencedAsset::External(request, ExternalType::Url) => {
+                    ReferencedAsset::External(request, ExternalType::Url, _) => {
                         let request = request.to_string();
                         visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
@@ -287,7 +287,7 @@ impl CodeGenerateable for UrlAssetReference {
                             }
                         }));
                     }
-                    ReferencedAsset::External(request, ty) => {
+                    ReferencedAsset::External(request, ty, _) => {
                         bail!(
                             "Unsupported external type {:?} for URL reference with request: {:?}",
                             ty,

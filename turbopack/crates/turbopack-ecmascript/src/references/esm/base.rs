@@ -17,6 +17,7 @@ use turbopack_core::{
         OptionStyledString, StyledString,
     },
     module::Module,
+    output::OutputAsset,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
@@ -41,7 +42,7 @@ use crate::{
 #[turbo_tasks::value]
 pub enum ReferencedAsset {
     Some(Vc<Box<dyn EcmascriptChunkPlaceable>>),
-    External(RcStr, ExternalType),
+    External(RcStr, ExternalType, Option<Vc<Box<dyn OutputAsset>>>),
     None,
 }
 
@@ -49,7 +50,7 @@ impl ReferencedAsset {
     pub async fn get_ident(&self) -> Result<Option<String>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => Some(Self::get_ident_from_placeable(asset).await?),
-            ReferencedAsset::External(request, ty) => Some(magic_identifier::mangle(&format!(
+            ReferencedAsset::External(request, ty, _) => Some(magic_identifier::mangle(&format!(
                 "{ty} external {request}"
             ))),
             ReferencedAsset::None => None,
@@ -76,10 +77,10 @@ impl ReferencedAsset {
             match result {
                 ModuleResolveResultItem::External {
                     name: request,
-                    typ: ty,
+                    typ,
                     source: _, // TODO(arlyon): handle source
                 } => {
-                    return Ok(ReferencedAsset::External(request.clone(), *ty).cell());
+                    return Ok(ReferencedAsset::External(request.clone(), *typ, None).cell());
                 }
                 &ModuleResolveResultItem::Module(module) => {
                     if let Some(placeable) =
@@ -300,7 +301,7 @@ impl CodeGenerateable for EsmAssetReference {
                             ),
                         ))
                     }
-                    ReferencedAsset::External(request, ExternalType::EcmaScriptModule) => {
+                    ReferencedAsset::External(request, ExternalType::EcmaScriptModule, _) => {
                         if !*chunking_context
                             .environment()
                             .supports_esm_externals()
@@ -336,6 +337,7 @@ impl CodeGenerateable for EsmAssetReference {
                     ReferencedAsset::External(
                         request,
                         ExternalType::CommonJs | ExternalType::Url,
+                        _,
                     ) => {
                         if !*chunking_context
                             .environment()
@@ -361,8 +363,9 @@ impl CodeGenerateable for EsmAssetReference {
                             ),
                         ))
                     }
+                    // fallback in case we introduce a new `ExternalType`
                     #[allow(unreachable_patterns)]
-                    ReferencedAsset::External(request, ty) => {
+                    ReferencedAsset::External(request, ty, _) => {
                         bail!(
                             "Unsupported external type {:?} for ESM reference with request: {:?}",
                             ty,
