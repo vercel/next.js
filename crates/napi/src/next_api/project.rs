@@ -48,7 +48,7 @@ use super::{
         TurbopackResult, VcArc,
     },
 };
-use crate::{register, util::log_panic_and_inform};
+use crate::register;
 
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
@@ -256,7 +256,7 @@ pub struct ProjectInstance {
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
 pub async fn project_new(
     options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
@@ -421,7 +421,7 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
     Ok(Completion::new())
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi]
 pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     options: NapiPartialProjectOptions,
@@ -439,7 +439,7 @@ pub async fn project_update(
     Ok(())
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi]
 pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
@@ -733,17 +733,17 @@ pub fn project_hmr_events(
                 async move {
                     let project = project.project().resolve().await?;
                     let state = project.hmr_version_state(identifier.clone(), session);
-                    let update = hmr_update(project, identifier, state)
+
+                    let update = hmr_update(project, identifier.clone(), state)
                         .strongly_consistent()
-                        .await
-                        .inspect_err(|e| log_panic_and_inform(e))?;
+                        .await?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,
                         diagnostics,
                     } = &*update;
                     match &**update {
-                        Update::None => {}
+                        Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
                             state.set(to.clone()).await?;
                         }
@@ -751,7 +751,7 @@ pub fn project_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    Ok((update.clone(), issues.clone(), diagnostics.clone()))
+                    Ok((Some(update.clone()), issues.clone(), diagnostics.clone()))
                 }
                 .instrument(tracing::info_span!(
                     "HMR subscription",
@@ -775,14 +775,16 @@ pub fn project_hmr_events(
                 path: identifier.clone(),
                 headers: None,
             };
-            let update = match &*update {
-                Update::Total(_) => ClientUpdateInstruction::restart(&identifier, &update_issues),
-                Update::Partial(update) => ClientUpdateInstruction::partial(
+            let update = match update.as_deref() {
+                None | Some(Update::Missing) | Some(Update::Total(_)) => {
+                    ClientUpdateInstruction::restart(&identifier, &update_issues)
+                }
+                Some(Update::Partial(update)) => ClientUpdateInstruction::partial(
                     &identifier,
                     &update.instruction,
                     &update_issues,
                 ),
-                Update::None => ClientUpdateInstruction::issues(&identifier, &update_issues),
+                Some(Update::None) => ClientUpdateInstruction::issues(&identifier, &update_issues),
             };
 
             Ok(vec![TurbopackResult {
@@ -1030,18 +1032,22 @@ pub async fn project_trace_source(
                 .client_relative_path()
                 .join(chunk_base.into());
 
-            let mut map_result = project
+            let mut map = project
                 .container
                 .get_source_map(server_path, module.clone())
-                .await;
-            if map_result.is_err() {
+                .await?;
+
+            if map.is_none() {
                 // If the chunk doesn't exist as a server chunk, try a client chunk.
                 // TODO: Properly tag all server chunks and use the `isServer` query param.
                 // Currently, this is inaccurate as it does not cover RSC server
                 // chunks.
-                map_result = project.container.get_source_map(client_path, module).await;
+                map = project
+                    .container
+                    .get_source_map(client_path, module)
+                    .await?;
             }
-            let map = map_result?.context("chunk/module is missing a sourcemap")?;
+            let map = map.context("chunk/module is missing a sourcemap")?;
 
             let Some(line) = frame.line else {
                 return Ok(None);

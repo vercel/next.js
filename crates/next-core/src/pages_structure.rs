@@ -26,21 +26,21 @@ pub struct PagesStructureItem {
 #[turbo_tasks::value_impl]
 impl PagesStructureItem {
     #[turbo_tasks::function]
-    async fn new(
+    fn new(
         base_path: Vc<FileSystemPath>,
         extensions: Vc<Vec<RcStr>>,
         fallback_path: Option<Vc<FileSystemPath>>,
         next_router_path: Vc<FileSystemPath>,
         original_path: Vc<FileSystemPath>,
-    ) -> Result<Vc<Self>> {
-        Ok(PagesStructureItem {
+    ) -> Vc<Self> {
+        PagesStructureItem {
             base_path,
             extensions,
             fallback_path,
             next_router_path,
             original_path,
         }
-        .cell())
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -102,8 +102,8 @@ impl PagesDirectoryStructure {
     /// Returns the path to the directory of this structure in the project file
     /// system.
     #[turbo_tasks::function]
-    pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.project_path)
+    pub fn project_path(&self) -> Vc<FileSystemPath> {
+        self.project_path
     }
 }
 

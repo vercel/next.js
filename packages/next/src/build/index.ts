@@ -86,7 +86,7 @@ import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
-import * as ciEnvironment from '../telemetry/ci-info'
+import * as ciEnvironment from '../server/ci-info'
 import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
@@ -174,6 +174,7 @@ import {
   recordFrameworkVersion,
   updateBuildDiagnostics,
   recordFetchMetrics,
+  updateIncrementalBuildMetrics,
 } from '../diagnostics/build-diagnostics'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
@@ -500,11 +501,12 @@ async function writeImagesManifest(
   const { deviceSizes, imageSizes } = images
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
-    // Should be the same as matchRemotePattern()
+    // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol,
     hostname: makeRe(p.hostname).source,
     port: p.port,
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+    search: p.search,
   }))
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
@@ -770,6 +772,15 @@ export default async function build(
         await fs.mkdir(shuttleDir, {
           recursive: true,
         })
+
+        // since inlining comes after static generation we need
+        // to ensure this value is assigned to process env so it
+        // can still be accessed
+        for (const key in config.env) {
+          if (!process.env[key]) {
+            process.env[key] = config.env[key]
+          }
+        }
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
@@ -859,6 +870,30 @@ export default async function build(
         cacheDir,
       }
 
+      const distDirCreated = await nextBuildSpan
+        .traceChild('create-dist-dir')
+        .traceAsyncFn(async () => {
+          try {
+            await fs.mkdir(distDir, { recursive: true })
+            return true
+          } catch (err) {
+            if (isError(err) && err.code === 'EPERM') {
+              return false
+            }
+            throw err
+          }
+        })
+
+      if (!distDirCreated || !(await isWriteable(distDir))) {
+        throw new Error(
+          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
+        )
+      }
+
+      if (config.cleanDistDir && !isGenerateMode) {
+        await recursiveDelete(distDir, /^cache/)
+      }
+
       // For app directory, we run type checking after build. That's because
       // we dynamically generate types for each layout and page in the app
       // directory.
@@ -887,8 +922,13 @@ export default async function build(
         appDir
       )
 
-      let pagesPaths =
-        !appDirOnly && pagesDir
+      const providedPagePaths: string[] = JSON.parse(
+        process.env.NEXT_PRIVATE_PAGE_PATHS || '[]'
+      )
+
+      let pagesPaths = Boolean(process.env.NEXT_PRIVATE_PAGE_PATHS)
+        ? providedPagePaths
+        : !appDirOnly && pagesDir
           ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
               recursiveReadDir(pagesDir, {
                 pathnameFilter: validFileMatcher.isPageFile,
@@ -904,23 +944,22 @@ export default async function build(
           }
 
       if (pagesPaths && isFullFlyingShuttle) {
-        changedPagePathsResult = await detectChangedEntries({
-          pagesPaths,
-          pageExtensions: config.pageExtensions,
-          distDir,
-          shuttleDir,
-          config,
-        })
-        console.log(
-          JSON.stringify(
-            {
-              changedPagePathsResult: changedPagePathsResult.changed.pages,
-            },
-            null,
-            2
-          )
-        )
-        pagesPaths = changedPagePathsResult.changed.pages
+        await nextBuildSpan
+          .traceChild('detect-changed-entries', { type: 'pages' })
+          .traceAsyncFn(async () => {
+            changedPagePathsResult = await detectChangedEntries({
+              pagesPaths,
+              pageExtensions: config.pageExtensions,
+              distDir,
+              shuttleDir,
+              config,
+            })
+            await updateIncrementalBuildMetrics({
+              changedPagePaths: changedPagePathsResult.changed.pages,
+              unchangedPagePaths: changedPagePathsResult.unchanged.pages,
+            })
+            pagesPaths = changedPagePathsResult.changed.pages
+          })
       }
 
       const middlewareDetectionRegExp = new RegExp(
@@ -984,37 +1023,42 @@ export default async function build(
           }
 
       if (appDir) {
-        let appPaths = await nextBuildSpan
-          .traceChild('collect-app-paths')
-          .traceAsyncFn(() =>
-            recursiveReadDir(appDir, {
-              pathnameFilter: (absolutePath) =>
-                validFileMatcher.isAppRouterPage(absolutePath) ||
-                // For now we only collect the root /not-found page in the app
-                // directory as the 404 fallback
-                validFileMatcher.isRootNotFound(absolutePath),
-              ignorePartFilter: (part) => part.startsWith('_'),
-            })
-          )
+        const providedAppPaths: string[] = JSON.parse(
+          process.env.NEXT_PRIVATE_APP_PATHS || '[]'
+        )
+
+        let appPaths = Boolean(process.env.NEXT_PRIVATE_APP_PATHS)
+          ? providedAppPaths
+          : await nextBuildSpan
+              .traceChild('collect-app-paths')
+              .traceAsyncFn(() =>
+                recursiveReadDir(appDir, {
+                  pathnameFilter: (absolutePath) =>
+                    validFileMatcher.isAppRouterPage(absolutePath) ||
+                    // For now we only collect the root /not-found page in the app
+                    // directory as the 404 fallback
+                    validFileMatcher.isRootNotFound(absolutePath),
+                  ignorePartFilter: (part) => part.startsWith('_'),
+                })
+              )
 
         if (appPaths && isFullFlyingShuttle) {
-          changedAppPathsResult = await detectChangedEntries({
-            appPaths,
-            pageExtensions: config.pageExtensions,
-            distDir,
-            shuttleDir,
-            config,
-          })
-          console.log(
-            JSON.stringify(
-              {
-                changedAppPathsResult: changedAppPathsResult.changed.app,
-              },
-              null,
-              2
-            )
-          )
-          appPaths = changedAppPathsResult.changed.app
+          await nextBuildSpan
+            .traceChild('detect-changed-entries', { type: 'app' })
+            .traceAsyncFn(async () => {
+              changedAppPathsResult = await detectChangedEntries({
+                appPaths,
+                pageExtensions: config.pageExtensions,
+                distDir,
+                shuttleDir,
+                config,
+              })
+              await updateIncrementalBuildMetrics({
+                changedAppPaths: changedAppPathsResult.changed.app,
+                unchangedAppPaths: changedAppPathsResult.unchanged.app,
+              })
+              appPaths = changedAppPathsResult.changed.app
+            })
         }
 
         mappedAppPages = await nextBuildSpan
@@ -1267,30 +1311,6 @@ export default async function build(
           config.experimental.clientRouterFilterAllowedRate
         )
         NextBuildContext.clientRouterFilters = clientRouterFilters
-      }
-
-      const distDirCreated = await nextBuildSpan
-        .traceChild('create-dist-dir')
-        .traceAsyncFn(async () => {
-          try {
-            await fs.mkdir(distDir, { recursive: true })
-            return true
-          } catch (err) {
-            if (isError(err) && err.code === 'EPERM') {
-              return false
-            }
-            throw err
-          }
-        })
-
-      if (!distDirCreated || !(await isWriteable(distDir))) {
-        throw new Error(
-          '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
-        )
-      }
-
-      if (config.cleanDistDir && !isGenerateMode) {
-        await recursiveDelete(distDir, /^cache/)
       }
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
@@ -1766,9 +1786,12 @@ export default async function build(
             {
               filter(item) {
                 // we copy page chunks separately to not copy stale entries
-                return !item.match(/^[/\\](pages|app)[/\\]/)
+                return (
+                  !item.startsWith('/middleware.js') &&
+                  !item.match(/^[/\\](pages|app)[/\\]/)
+                )
               },
-              overwrite: true,
+              overwrite: false,
             }
           )
         }
@@ -2600,53 +2623,65 @@ export default async function build(
             console.log('skipping stitching builds due to store-only mode')
           } else {
             console.log('stitching builds...')
-            const stitchResult = await stitchBuilds(
-              {
-                config,
-                buildId,
-                distDir,
-                shuttleDir,
-                rewrites,
-                redirects,
-                edgePreviewProps: {
-                  __NEXT_PREVIEW_MODE_ID:
-                    NextBuildContext.previewProps!.previewModeId,
-                  __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
-                    NextBuildContext.previewProps!.previewModeEncryptionKey,
-                  __NEXT_PREVIEW_MODE_SIGNING_KEY:
-                    NextBuildContext.previewProps!.previewModeSigningKey,
-                },
-                encryptionKey,
-                allowedErrorRate:
-                  config.experimental.clientRouterFilterAllowedRate,
-              },
-              {
-                changed: {
-                  pages: changedPagePathsResult?.changed.pages || [],
-                  app: changedAppPathsResult?.changed.app || [],
-                },
-                unchanged: {
-                  pages: changedPagePathsResult?.unchanged.pages || [],
-                  app: changedAppPathsResult?.unchanged.app || [],
-                },
-                pageExtensions: config.pageExtensions,
-              }
-            )
-            // reload pagesManifest since it's been updated on disk
-            if (stitchResult.pagesManifest) {
-              pagesManifest = stitchResult.pagesManifest
-            }
+            await nextBuildSpan
+              .traceChild('stitch-incremental-builds')
+              .traceAsyncFn(async () => {
+                const stitchResult = await stitchBuilds(
+                  {
+                    config,
+                    buildId,
+                    distDir,
+                    shuttleDir,
+                    rewrites,
+                    redirects,
+                    edgePreviewProps: {
+                      __NEXT_PREVIEW_MODE_ID:
+                        NextBuildContext.previewProps!.previewModeId,
+                      __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
+                        NextBuildContext.previewProps!.previewModeEncryptionKey,
+                      __NEXT_PREVIEW_MODE_SIGNING_KEY:
+                        NextBuildContext.previewProps!.previewModeSigningKey,
+                    },
+                    encryptionKey,
+                    allowedErrorRate:
+                      config.experimental.clientRouterFilterAllowedRate,
+                  },
+                  {
+                    changed: {
+                      pages: changedPagePathsResult?.changed.pages || [],
+                      app: changedAppPathsResult?.changed.app || [],
+                    },
+                    unchanged: {
+                      pages: changedPagePathsResult?.unchanged.pages || [],
+                      app: changedAppPathsResult?.unchanged.app || [],
+                    },
+                    pageExtensions: config.pageExtensions,
+                  }
+                )
+                // reload pagesManifest since it's been updated on disk
+                if (stitchResult.pagesManifest) {
+                  pagesManifest = stitchResult.pagesManifest
+                }
+              })
           }
 
           console.log('storing shuttle')
-          await storeShuttle({
-            config,
-            distDir,
-            shuttleDir,
-          })
+          await nextBuildSpan
+            .traceChild('store-cache-shuttle')
+            .traceAsyncFn(async () => {
+              await storeShuttle({
+                config,
+                distDir,
+                shuttleDir,
+              })
+            })
 
           console.log('inlining static env')
-          await inlineStaticEnv({ distDir })
+          await nextBuildSpan
+            .traceChild('inline-static-env')
+            .traceAsyncFn(async () => {
+              await inlineStaticEnv({ config, distDir })
+            })
         }
       }
 

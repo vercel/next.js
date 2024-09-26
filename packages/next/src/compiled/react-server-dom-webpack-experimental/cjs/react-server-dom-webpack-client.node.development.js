@@ -1301,17 +1301,22 @@
             }
           value = value[path[i]];
         }
-        parentObject[key] = map(response, value);
-        "" === key &&
-          null === handler.value &&
-          (handler.value = parentObject[key]);
-        parentObject[0] === REACT_ELEMENT_TYPE &&
-          "3" === key &&
+        i = map(response, value);
+        parentObject[key] = i;
+        "" === key && null === handler.value && (handler.value = i);
+        if (
+          parentObject[0] === REACT_ELEMENT_TYPE &&
           "object" === typeof handler.value &&
           null !== handler.value &&
-          handler.value.$$typeof === REACT_ELEMENT_TYPE &&
-          null === handler.value.props &&
-          (handler.value.props = parentObject[key]);
+          handler.value.$$typeof === REACT_ELEMENT_TYPE
+        )
+          switch (((value = handler.value), key)) {
+            case "3":
+              value.props = i;
+              break;
+            case "4":
+              value._owner = i;
+          }
         handler.deps--;
         0 === handler.deps &&
           ((i = handler.chunk),
@@ -1339,7 +1344,8 @@
                 owner: blockedValue._owner
               };
               erroredComponent.debugStack = blockedValue._debugStack;
-              erroredComponent.debugTask = blockedValue._debugTask;
+              supportsCreateTask &&
+                (erroredComponent.debugTask = blockedValue._debugTask);
               (chunk._debugInfo || (chunk._debugInfo = [])).push(
                 erroredComponent
               );
@@ -1383,11 +1389,8 @@
       }
       switch (id.status) {
         case "fulfilled":
-          for (var value = id.value, i = 1; i < reference.length; i++)
-            if (
-              ((value = value[reference[i]]),
-              value.$$typeof === REACT_LAZY_TYPE)
-            )
+          for (var value = id.value, i = 1; i < reference.length; i++) {
+            for (; value.$$typeof === REACT_LAZY_TYPE; )
               if (((value = value._payload), "fulfilled" === value.status))
                 value = value.value;
               else
@@ -1397,8 +1400,10 @@
                   key,
                   response,
                   map,
-                  reference.slice(i)
+                  reference.slice(i - 1)
                 );
+            value = value[reference[i]];
+          }
           response = map(response, value);
           id._debugInfo &&
             ("object" !== typeof response ||
@@ -1613,14 +1618,21 @@
       this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
       this._buffer = [];
       this._tempRefs = temporaryReferences;
-      bundlerConfig = void 0 === environmentName ? "Server" : environmentName;
+      this._debugRootOwner = bundlerConfig =
+        void 0 === ReactSharedInteralsServer ||
+        null === ReactSharedInteralsServer.A
+          ? null
+          : ReactSharedInteralsServer.A.getOwner();
+      this._debugRootStack =
+        null !== bundlerConfig ? Error("react-stack-top-frame") : null;
+      environmentName = void 0 === environmentName ? "Server" : environmentName;
       supportsCreateTask &&
         (this._debugRootTask = console.createTask(
-          '"use ' + bundlerConfig.toLowerCase() + '"'
+          '"use ' + environmentName.toLowerCase() + '"'
         ));
       this._debugFindSourceMapURL = findSourceMapURL;
       this._replayConsole = replayConsole;
-      this._rootEnvironmentName = bundlerConfig;
+      this._rootEnvironmentName = environmentName;
       this._fromJSON = createFromJSONCallback(this);
     }
     function resolveBuffer(response, id, buffer) {
@@ -2155,39 +2167,39 @@
           break;
         case 72:
           id = row[0];
-          var model = row.slice(1);
-          response = JSON.parse(model, response._fromJSON);
-          model = ReactDOMSharedInternals.d;
+          row = row.slice(1);
+          response = JSON.parse(row, response._fromJSON);
+          row = ReactDOMSharedInternals.d;
           switch (id) {
             case "D":
-              model.D(response);
+              row.D(response);
               break;
             case "C":
               "string" === typeof response
-                ? model.C(response)
-                : model.C(response[0], response[1]);
+                ? row.C(response)
+                : row.C(response[0], response[1]);
               break;
             case "L":
               id = response[0];
-              var as = response[1];
+              tag = response[1];
               3 === response.length
-                ? model.L(id, as, response[2])
-                : model.L(id, as);
+                ? row.L(id, tag, response[2])
+                : row.L(id, tag);
               break;
             case "m":
               "string" === typeof response
-                ? model.m(response)
-                : model.m(response[0], response[1]);
+                ? row.m(response)
+                : row.m(response[0], response[1]);
               break;
             case "X":
               "string" === typeof response
-                ? model.X(response)
-                : model.X(response[0], response[1]);
+                ? row.X(response)
+                : row.X(response[0], response[1]);
               break;
             case "S":
               "string" === typeof response
-                ? model.S(response)
-                : model.S(
+                ? row.S(response)
+                : row.S(
                     response[0],
                     0 === response[1] ? void 0 : response[1],
                     3 === response.length ? response[2] : void 0
@@ -2195,119 +2207,72 @@
               break;
             case "M":
               "string" === typeof response
-                ? model.M(response)
-                : model.M(response[0], response[1]);
+                ? row.M(response)
+                : row.M(response[0], response[1]);
           }
           break;
         case 69:
           var errorInfo = JSON.parse(row);
-          model = errorInfo.digest;
-          as = errorInfo.env;
+          row = errorInfo.digest;
+          tag = errorInfo.env;
           errorInfo = buildFakeCallStack(
             response,
             errorInfo.stack,
-            as,
+            tag,
             Error.bind(
               null,
               errorInfo.message ||
                 "An error occurred in the Server Components render but no message was provided"
             )
           );
-          var rootTask = getRootTask(response, as);
+          var rootTask = getRootTask(response, tag);
           errorInfo = null != rootTask ? rootTask.run(errorInfo) : errorInfo();
-          errorInfo.digest = model;
-          errorInfo.environmentName = as;
-          model = response._chunks;
-          (as = model.get(id))
-            ? triggerErrorOnChunk(as, errorInfo)
-            : model.set(
+          errorInfo.digest = row;
+          errorInfo.environmentName = tag;
+          row = response._chunks;
+          (tag = row.get(id))
+            ? triggerErrorOnChunk(tag, errorInfo)
+            : row.set(
                 id,
                 new ReactPromise("rejected", null, errorInfo, response)
               );
           break;
         case 84:
-          model = response._chunks;
-          (as = model.get(id)) && "pending" !== as.status
-            ? as.reason.enqueueValue(row)
-            : model.set(id, new ReactPromise("fulfilled", row, null, response));
+          tag = response._chunks;
+          (errorInfo = tag.get(id)) && "pending" !== errorInfo.status
+            ? errorInfo.reason.enqueueValue(row)
+            : tag.set(id, new ReactPromise("fulfilled", row, null, response));
           break;
         case 68:
-          model = JSON.parse(row, response._fromJSON);
+          row = JSON.parse(row, response._fromJSON);
           initializeFakeTask(
             response,
-            model,
-            void 0 === model.env ? response._rootEnvironmentName : model.env
+            row,
+            void 0 === row.env ? response._rootEnvironmentName : row.env
           );
-          initializeFakeStack(response, model);
+          null === row.owner && null != response._debugRootOwner
+            ? ((row.owner = response._debugRootOwner),
+              (row.debugStack = response._debugRootStack))
+            : initializeFakeStack(response, row);
           response = getChunk(response, id);
-          (response._debugInfo || (response._debugInfo = [])).push(model);
+          (response._debugInfo || (response._debugInfo = [])).push(row);
           break;
         case 87:
-          a: if (response._replayConsole) {
-            var payload = JSON.parse(row, response._fromJSON);
-            id = payload[0];
-            row = payload[1];
-            tag = payload[2];
-            var env = payload[3];
-            payload = payload.slice(4);
-            var prevStack = ReactSharedInternals.getCurrentStack;
-            ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
-            currentOwnerInDEV = tag;
-            try {
-              b: {
-                var offset = 0;
-                switch (id) {
-                  case "dir":
-                  case "dirxml":
-                  case "groupEnd":
-                  case "table":
-                    model = bind$1.apply(
-                      console[id],
-                      [console].concat(payload)
-                    );
-                    break b;
-                  case "assert":
-                    offset = 1;
-                }
-                as = payload.slice(0);
-                "string" === typeof as[offset]
-                  ? as.splice(
-                      offset,
-                      1,
-                      "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + as[offset],
-                      "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                      " " + env + " ",
-                      ""
-                    )
-                  : as.splice(
-                      offset,
-                      0,
-                      "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
-                      "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                      " " + env + " ",
-                      ""
-                    );
-                as.unshift(console);
-                model = bind$1.apply(console[id], as);
-              }
-              errorInfo = buildFakeCallStack(response, row, env, model);
-              if (
-                null != tag &&
-                ((rootTask = initializeFakeTask(response, tag, env)),
-                initializeFakeStack(response, tag),
-                null !== rootTask)
-              ) {
-                rootTask.run(errorInfo);
-                break a;
-              }
-              var rootTask$jscomp$0 = getRootTask(response, env);
-              null != rootTask$jscomp$0
-                ? rootTask$jscomp$0.run(errorInfo)
-                : errorInfo();
-            } finally {
-              ReactSharedInternals.getCurrentStack = prevStack;
-            }
-          }
+          response._replayConsole &&
+            ((rootTask = JSON.parse(row, response._fromJSON)),
+            (id = rootTask[0]),
+            (row = rootTask[1]),
+            (tag = rootTask[2]),
+            (errorInfo = rootTask[3]),
+            (rootTask = rootTask.slice(4)),
+            replayConsoleWithCallStackInDEV(
+              response,
+              id,
+              row,
+              tag,
+              errorInfo,
+              rootTask
+            ));
           break;
         case 82:
           startReadableStream(response, id, void 0);
@@ -2327,26 +2292,26 @@
             response.reason.close("" === row ? '"$undefined"' : row);
           break;
         case 80:
-          model = JSON.parse(row);
-          model = buildFakeCallStack(
+          row = JSON.parse(row);
+          row = buildFakeCallStack(
             response,
-            model.stack,
-            model.env,
-            Error.bind(null, model.reason || "")
+            row.stack,
+            row.env,
+            Error.bind(null, row.reason || "")
           );
-          as = response._debugRootTask;
-          model = null != as ? as.run(model) : model();
-          model.$$typeof = REACT_POSTPONE_TYPE;
-          as = response._chunks;
-          (errorInfo = as.get(id))
-            ? triggerErrorOnChunk(errorInfo, model)
-            : as.set(id, new ReactPromise("rejected", null, model, response));
+          tag = response._debugRootTask;
+          row = null != tag ? tag.run(row) : row();
+          row.$$typeof = REACT_POSTPONE_TYPE;
+          tag = response._chunks;
+          (errorInfo = tag.get(id))
+            ? triggerErrorOnChunk(errorInfo, row)
+            : tag.set(id, new ReactPromise("rejected", null, row, response));
           break;
         default:
-          (model = response._chunks),
-            (as = model.get(id))
-              ? resolveModelChunk(as, row)
-              : model.set(
+          (tag = response._chunks),
+            (errorInfo = tag.get(id))
+              ? resolveModelChunk(errorInfo, row)
+              : tag.set(
                   id,
                   new ReactPromise("resolved_model", row, null, response)
                 );
@@ -2367,7 +2332,7 @@
               type: type,
               key: value[2],
               props: value[3],
-              _owner: key
+              _owner: null === key ? response._debugRootOwner : key
             };
             Object.defineProperty(value, "ref", {
               enumerable: !1,
@@ -2389,12 +2354,14 @@
             validated = response._rootEnvironmentName;
             null !== key && null != key.env && (validated = key.env);
             var normalizedStackTrace = null;
-            null !== stack &&
-              (normalizedStackTrace = createFakeJSXCallStackInDEV(
-                response,
-                stack,
-                validated
-              ));
+            null === key && null != response._debugRootStack
+              ? (normalizedStackTrace = response._debugRootStack)
+              : null !== stack &&
+                (normalizedStackTrace = createFakeJSXCallStackInDEV(
+                  response,
+                  stack,
+                  validated
+                ));
             Object.defineProperty(value, "_debugStack", {
               configurable: !1,
               enumerable: !1,
@@ -2437,7 +2404,7 @@
                       owner: value._owner
                     }),
                     (stack.debugStack = value._debugStack),
-                    (stack.debugTask = value._debugTask),
+                    supportsCreateTask && (stack.debugTask = value._debugTask),
                     (key._debugInfo = [stack]),
                     (value = createLazyChunkWrapper(key)))
                   : 0 < stack.deps &&
@@ -2501,9 +2468,11 @@
       prefix,
       suffix;
     new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var ReactSharedInternals =
-      React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
-      React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+    var ReactSharedInteralsServer =
+        React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+      ReactSharedInternals =
+        React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
+        ReactSharedInteralsServer;
     ReactPromise.prototype = Object.create(Promise.prototype);
     ReactPromise.prototype.then = function (resolve, reject) {
       switch (this.status) {
@@ -2551,7 +2520,84 @@
       createFakeJSXCallStackInDEV = createFakeJSXCallStack[
         "react-stack-bottom-frame"
       ].bind(createFakeJSXCallStack),
-      currentOwnerInDEV = null;
+      currentOwnerInDEV = null,
+      replayConsoleWithCallStack = {
+        "react-stack-bottom-frame": function (
+          response,
+          methodName,
+          stackTrace,
+          owner,
+          env,
+          args
+        ) {
+          var prevStack = ReactSharedInternals.getCurrentStack;
+          ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
+          currentOwnerInDEV = null === owner ? response._debugRootOwner : owner;
+          try {
+            a: {
+              var offset = 0;
+              switch (methodName) {
+                case "dir":
+                case "dirxml":
+                case "groupEnd":
+                case "table":
+                  var JSCompiler_inline_result = bind$1.apply(
+                    console[methodName],
+                    [console].concat(args)
+                  );
+                  break a;
+                case "assert":
+                  offset = 1;
+              }
+              var newArgs = args.slice(0);
+              "string" === typeof newArgs[offset]
+                ? newArgs.splice(
+                    offset,
+                    1,
+                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c " + newArgs[offset],
+                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                    " " + env + " ",
+                    ""
+                  )
+                : newArgs.splice(
+                    offset,
+                    0,
+                    "\u001b[0m\u001b[7m%c%s\u001b[0m%c ",
+                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                    " " + env + " ",
+                    ""
+                  );
+              newArgs.unshift(console);
+              JSCompiler_inline_result = bind$1.apply(
+                console[methodName],
+                newArgs
+              );
+            }
+            var callStack = buildFakeCallStack(
+              response,
+              stackTrace,
+              env,
+              JSCompiler_inline_result
+            );
+            if (null != owner) {
+              var task = initializeFakeTask(response, owner, env);
+              initializeFakeStack(response, owner);
+              if (null !== task) {
+                task.run(callStack);
+                return;
+              }
+            }
+            var rootTask = getRootTask(response, env);
+            null != rootTask ? rootTask.run(callStack) : callStack();
+          } finally {
+            (currentOwnerInDEV = null),
+              (ReactSharedInternals.getCurrentStack = prevStack);
+          }
+        }
+      },
+      replayConsoleWithCallStackInDEV = replayConsoleWithCallStack[
+        "react-stack-bottom-frame"
+      ].bind(replayConsoleWithCallStack);
     exports.createFromNodeStream = function (stream, ssrManifest, options) {
       var response = new ResponseInstance(
         ssrManifest.moduleMap,

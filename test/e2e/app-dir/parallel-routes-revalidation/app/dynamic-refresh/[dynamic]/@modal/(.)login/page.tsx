@@ -9,7 +9,7 @@ export default async function Page({ params, searchParams }) {
 
   return (
     <dialog open>
-      <div>{params.dynamic}</div>
+      <div>{(await params).dynamic}</div>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         <div>
           <span>Modal Page</span>
@@ -17,7 +17,10 @@ export default async function Page({ params, searchParams }) {
         </div>
         <RefreshButton />
         <RevalidateButton />
-        <UpdateSearchParamsButton searchParams={searchParams} id="modal" />
+        <UpdateSearchParamsButton
+          searchParams={await searchParams}
+          id="modal"
+        />
       </div>
     </dialog>
   )

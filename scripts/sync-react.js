@@ -330,8 +330,9 @@ Or, run this command with no arguments to use the most recently published versio
   const nextjsPackageJson = JSON.parse(
     await fsp.readFile(nextjsPackageJsonPath, 'utf-8')
   )
-  nextjsPackageJson.peerDependencies.react = `${newVersionStr}`
-  nextjsPackageJson.peerDependencies['react-dom'] = `${newVersionStr}`
+  nextjsPackageJson.peerDependencies.react = `^18.2.0 || ${newVersionStr}`
+  nextjsPackageJson.peerDependencies['react-dom'] =
+    `^18.2.0 || ${newVersionStr}`
   await fsp.writeFile(
     nextjsPackageJsonPath,
     JSON.stringify(nextjsPackageJson, null, 2) +

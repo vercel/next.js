@@ -21,6 +21,7 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
     source::Source,
+    source_map::{GenerateSourceMap, OptionSourceMap},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -170,7 +171,7 @@ struct ProcessPostCssResult {
 async fn config_changed(
     asset_context: Vc<Box<dyn AssetContext>>,
     postcss_config_path: Vc<FileSystemPath>,
-) -> Result<Vc<Completion>> {
+) -> Vc<Completion> {
     let config_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(postcss_config_path)),
@@ -178,11 +179,11 @@ async fn config_changed(
         )
         .module();
 
-    Ok(Vc::<Completions>::cell(vec![
+    Vc::<Completions>::cell(vec![
         any_content_changed_of_module(config_asset),
         extra_configs_changed(asset_context, postcss_config_path),
     ])
-    .completed())
+    .completed()
 }
 
 #[turbo_tasks::function]
@@ -355,11 +356,11 @@ pub(crate) async fn config_loader_source(
 }
 
 #[turbo_tasks::function]
-async fn postcss_executor(
+fn postcss_executor(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_path: Vc<FileSystemPath>,
     postcss_config_path: Vc<FileSystemPath>,
-) -> Result<Vc<ProcessResult>> {
+) -> Vc<ProcessResult> {
     let config_asset = asset_context
         .process(
             config_loader_source(project_path, postcss_config_path),
@@ -367,7 +368,7 @@ async fn postcss_executor(
         )
         .module();
 
-    Ok(asset_context.process(
+    asset_context.process(
         Vc::upcast(VirtualSource::new(
             postcss_config_path.join("transform.ts".into()),
             AssetContent::File(embed_file("transforms/postcss.ts".into())).cell(),
@@ -375,7 +376,7 @@ async fn postcss_executor(
         Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
             "CONFIG".into() => config_asset
         }))),
-    ))
+    )
 }
 
 async fn find_config_in_location(
@@ -409,15 +410,26 @@ async fn find_config_in_location(
 }
 
 #[turbo_tasks::value_impl]
+impl GenerateSourceMap for PostCssTransformedAsset {
+    #[turbo_tasks::function]
+    async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
+        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.source).await?;
+        match source {
+            Some(source) => Ok(source.generate_source_map()),
+            None => Ok(Vc::cell(None)),
+        }
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn process(self: Vc<Self>) -> Result<Vc<ProcessPostCssResult>> {
-        let this = self.await?;
+    async fn process(&self) -> Result<Vc<ProcessPostCssResult>> {
         let ExecutionContext {
             project_path,
             chunking_context,
             env,
-        } = *this.execution_context.await?;
+        } = *self.execution_context.await?;
 
         // For this postcss transform, there is no gaurantee that looking up for the
         // source path will arrives specific project config for the postcss.
@@ -431,16 +443,16 @@ impl PostCssTransformedAsset {
         //
         // We look for the config in the project path first, then the source path
         let Some(config_path) =
-            find_config_in_location(project_path, this.config_location, this.source).await?
+            find_config_in_location(project_path, self.config_location, self.source).await?
         else {
             return Ok(ProcessPostCssResult {
-                content: this.source.content(),
+                content: self.source.content(),
                 assets: Vec::new(),
             }
             .cell());
         };
 
-        let source_content = this.source.content();
+        let source_content = self.source.content();
         let AssetContent::File(file) = *source_content.await? else {
             bail!("PostCSS transform only support transforming files");
         };
@@ -452,14 +464,14 @@ impl PostCssTransformedAsset {
             .cell());
         };
         let content = content.content().to_str()?;
-        let evaluate_context = this.evaluate_context;
+        let evaluate_context = self.evaluate_context;
 
         // This invalidates the transform when the config changes.
         let config_changed = config_changed(evaluate_context, config_path);
 
         let postcss_executor =
             postcss_executor(evaluate_context, project_path, config_path).module();
-        let css_fs_path = this.source.ident().path();
+        let css_fs_path = self.source.ident().path();
 
         // We need to get a path relative to the project because the postcss loader
         // runs with the project as the current working directory.
@@ -477,7 +489,7 @@ impl PostCssTransformedAsset {
             module_asset: postcss_executor,
             cwd: project_path,
             env,
-            context_ident_for_issue: this.source.ident(),
+            context_ident_for_issue: self.source.ident(),
             asset_context: evaluate_context,
             chunking_context,
             resolve_options_context: None,

@@ -5,14 +5,14 @@ import type {
   SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
 import type {
-  Endpoint,
-  Entrypoints as RawEntrypoints,
   Issue,
   StyledString,
   TurbopackResult,
+  Endpoint,
+  Entrypoints as RawEntrypoints,
   Update as TurbopackUpdate,
   WrittenEndpoint,
-} from '../../build/swc'
+} from '../../build/swc/types'
 import {
   decodeMagicIdentifier,
   MAGIC_IDENTIFIER_REGEX,
@@ -307,7 +307,8 @@ export type StartChangeSubscription = (
   endpoint: Endpoint,
   makePayload: (
     change: TurbopackResult
-  ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
+  ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void,
+  onError?: (e: Error) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
 ) => Promise<void>
 
 export type StopChangeSubscription = (key: EntryKey) => Promise<void>
@@ -449,6 +450,9 @@ export async function handleRouteType({
                 event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                 pages: [page],
               }
+            },
+            () => {
+              return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
             }
           )
           hooks?.subscribeToChanges(
@@ -459,6 +463,9 @@ export async function handleRouteType({
               return {
                 event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
               }
+            },
+            () => {
+              return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
             }
           )
           if (entrypoints.global.document) {
@@ -466,6 +473,9 @@ export async function handleRouteType({
               getEntryKey('pages', 'server', '_document'),
               false,
               entrypoints.global.document,
+              () => {
+                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+              },
               () => {
                 return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
               }
@@ -511,18 +521,28 @@ export async function handleRouteType({
       if (dev) {
         // TODO subscriptions should only be caused by the WebSocket connections
         // otherwise we don't known when to unsubscribe and this leaking
-        hooks?.subscribeToChanges(key, true, route.rscEndpoint, (change) => {
-          if (change.issues.some((issue) => issue.severity === 'error')) {
-            // Ignore any updates that has errors
-            // There will be another update without errors eventually
-            return
+        hooks?.subscribeToChanges(
+          key,
+          true,
+          route.rscEndpoint,
+          (change) => {
+            if (change.issues.some((issue) => issue.severity === 'error')) {
+              // Ignore any updates that has errors
+              // There will be another update without errors eventually
+              return
+            }
+            // Report the next compilation again
+            readyIds?.delete(pathname)
+            return {
+              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+            }
+          },
+          () => {
+            return {
+              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+            }
           }
-          // Report the next compilation again
-          readyIds?.delete(pathname)
-          return {
-            action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-          }
-        })
+        )
       }
 
       const type = writtenEndpoint.type
@@ -866,30 +886,40 @@ export async function handleEntrypoints({
     await processMiddleware()
 
     if (dev) {
-      dev?.hooks.subscribeToChanges(key, false, endpoint, async () => {
-        const finishBuilding = dev.hooks.startBuilding(
-          'middleware',
-          undefined,
-          true
-        )
-        await processMiddleware()
-        await dev.hooks.propagateServerField(
-          'actualMiddlewareFile',
-          dev.serverFields.actualMiddlewareFile
-        )
-        await dev.hooks.propagateServerField(
-          'middleware',
-          dev.serverFields.middleware
-        )
-        await manifestLoader.writeManifests({
-          devRewrites,
-          productionRewrites,
-          entrypoints: currentEntrypoints,
-        })
+      dev?.hooks.subscribeToChanges(
+        key,
+        false,
+        endpoint,
+        async () => {
+          const finishBuilding = dev.hooks.startBuilding(
+            'middleware',
+            undefined,
+            true
+          )
+          await processMiddleware()
+          await dev.hooks.propagateServerField(
+            'actualMiddlewareFile',
+            dev.serverFields.actualMiddlewareFile
+          )
+          await dev.hooks.propagateServerField(
+            'middleware',
+            dev.serverFields.middleware
+          )
+          await manifestLoader.writeManifests({
+            devRewrites,
+            productionRewrites,
+            entrypoints: currentEntrypoints,
+          })
 
-        finishBuilding?.()
-        return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
-      })
+          finishBuilding?.()
+          return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
+        },
+        () => {
+          return {
+            event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+          }
+        }
+      )
     }
   } else {
     manifestLoader.deleteMiddlewareManifest(
@@ -1000,11 +1030,21 @@ export async function handlePagesErrorRoute({
     const writtenEndpoint = await entrypoints.global.app.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
     if (dev) {
-      hooks?.subscribeToChanges(key, false, entrypoints.global.app, () => {
-        // There's a special case for this in `../client/page-bootstrap.ts`.
-        // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
-        return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
-      })
+      hooks?.subscribeToChanges(
+        key,
+        false,
+        entrypoints.global.app,
+        () => {
+          // There's a special case for this in `../client/page-bootstrap.ts`.
+          // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
+          return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+        },
+        () => {
+          return {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+          }
+        }
+      )
     }
     processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
@@ -1018,9 +1058,17 @@ export async function handlePagesErrorRoute({
     const writtenEndpoint = await entrypoints.global.document.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
     if (dev) {
-      hooks?.subscribeToChanges(key, false, entrypoints.global.document, () => {
-        return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-      })
+      hooks?.subscribeToChanges(
+        key,
+        false,
+        entrypoints.global.document,
+        () => {
+          return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+        },
+        () => {
+          return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+        }
+      )
     }
     processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }
@@ -1032,11 +1080,19 @@ export async function handlePagesErrorRoute({
     const writtenEndpoint = await entrypoints.global.error.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
     if (dev) {
-      hooks?.subscribeToChanges(key, false, entrypoints.global.error, () => {
-        // There's a special case for this in `../client/page-bootstrap.ts`.
-        // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
-        return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
-      })
+      hooks?.subscribeToChanges(
+        key,
+        false,
+        entrypoints.global.error,
+        () => {
+          // There's a special case for this in `../client/page-bootstrap.ts`.
+          // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
+          return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+        },
+        () => {
+          return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+        }
+      )
     }
     processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
   }

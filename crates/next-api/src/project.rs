@@ -26,8 +26,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, RcStr, ReadRef, State, TaskInput, TraitRef,
-    TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, IntoTraitRef, RcStr, ReadRef, State, TaskInput, TransientInstance,
+    TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -48,9 +48,10 @@ use turbopack_core::{
     module::Modules,
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
-    source::Source,
     source_map::OptionSourceMap,
-    version::{Update, Version, VersionState, VersionedContent},
+    version::{
+        NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
+    },
     PROJECT_FILESYSTEM_NAME,
 };
 use turbopack_node::execution_context::ExecutionContext;
@@ -59,6 +60,7 @@ use turbopack_nodejs::NodeJsChunkingContext;
 use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
+    empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
@@ -299,9 +301,7 @@ impl ProjectContainer {
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function]
-    pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
-        let this = self.await?;
-
+    pub async fn project(&self) -> Result<Vc<Project>> {
         let env_map: Vc<EnvMap>;
         let next_config;
         let define_env;
@@ -315,7 +315,7 @@ impl ProjectContainer {
         let preview_props;
         let browserslist_query;
         {
-            let options = this.options_state.get();
+            let options = self.options_state.get();
             let options = options
                 .as_ref()
                 .context("ProjectContainer need to be initialized with initialize()")?;
@@ -359,7 +359,7 @@ impl ProjectContainer {
             } else {
                 NextMode::Build.cell()
             },
-            versioned_content_map: this.versioned_content_map,
+            versioned_content_map: self.versioned_content_map,
             build_id,
             encryption_key,
             preview_props,
@@ -382,16 +382,16 @@ impl ProjectContainer {
     /// Gets a source map for a particular `file_path`. If `dev` mode is
     /// disabled, this will always return [`OptionSourceMap::none`].
     #[turbo_tasks::function]
-    pub async fn get_source_map(
-        self: Vc<Self>,
+    pub fn get_source_map(
+        &self,
         file_path: Vc<FileSystemPath>,
         section: Option<RcStr>,
-    ) -> Result<Vc<OptionSourceMap>> {
-        Ok(if let Some(map) = self.await?.versioned_content_map {
+    ) -> Vc<OptionSourceMap> {
+        if let Some(map) = self.versioned_content_map {
             map.get_source_map(file_path, section)
         } else {
             OptionSourceMap::none()
-        })
+        }
     }
 }
 
@@ -510,40 +510,37 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
-        Ok(PagesProject::new(self))
+    pub fn pages_project(self: Vc<Self>) -> Vc<PagesProject> {
+        PagesProject::new(self)
     }
 
     #[turbo_tasks::function]
-    async fn project_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
-        let this = self.await?;
+    async fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
         let disk_fs = DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
-            this.root_path.clone(),
+            self.root_path.clone(),
             vec![],
         );
-        if this.watch {
+        if self.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
         }
         Ok(disk_fs)
     }
 
     #[turbo_tasks::function]
-    async fn client_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
         let virtual_fs = VirtualFileSystem::new();
-        Ok(Vc::upcast(virtual_fs))
+        Vc::upcast(virtual_fs)
     }
 
     #[turbo_tasks::function]
-    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
-        let this = self.await?;
-        let disk_fs = DiskFileSystem::new("output".into(), this.project_path.clone(), vec![]);
-        Ok(disk_fs)
+    pub fn output_fs(&self) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new("output".into(), self.project_path.clone(), vec![])
     }
 
     #[turbo_tasks::function]
-    pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.await?.dist_dir.clone()))
+    pub fn dist_dir(&self) -> Vc<RcStr> {
+        Vc::cell(self.dist_dir.clone())
     }
 
     #[turbo_tasks::function]
@@ -587,23 +584,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn env(self: Vc<Self>) -> Result<Vc<Box<dyn ProcessEnv>>> {
-        Ok(self.await?.env)
+    pub(super) fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
+        self.env
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn next_config(self: Vc<Self>) -> Result<Vc<NextConfig>> {
-        Ok(self.await?.next_config)
+    pub(super) fn next_config(&self) -> Vc<NextConfig> {
+        self.next_config
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn next_mode(self: Vc<Self>) -> Result<Vc<NextMode>> {
-        Ok(self.await?.mode)
+    pub(super) fn next_mode(&self) -> Vc<NextMode> {
+        self.mode
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn js_config(self: Vc<Self>) -> Result<Vc<JsConfig>> {
-        Ok(self.await?.js_config)
+    pub(super) fn js_config(&self) -> Vc<JsConfig> {
+        self.js_config
     }
 
     #[turbo_tasks::function]
@@ -632,11 +629,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
-        Ok(get_client_compile_time_info(
-            self.browserslist_query.clone(),
-            self.define_env.client(),
-        ))
+    pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
+        get_client_compile_time_info(self.browserslist_query.clone(), self.define_env.client())
     }
 
     #[turbo_tasks::function]
@@ -670,17 +664,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn client_chunking_context(
-        self: Vc<Self>,
-    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(get_client_chunking_context(
+    pub(super) fn client_chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>> {
+        get_client_chunking_context(
             self.project_path(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
@@ -860,57 +852,24 @@ impl Project {
             }
         }
 
-        let pages_document_endpoint = TraitRef::cell(
-            self.pages_project()
-                .document_endpoint()
-                .into_trait_ref()
-                .await?,
-        );
-        let pages_app_endpoint =
-            TraitRef::cell(self.pages_project().app_endpoint().into_trait_ref().await?);
-        let pages_error_endpoint = TraitRef::cell(
-            self.pages_project()
-                .error_endpoint()
-                .into_trait_ref()
-                .await?,
-        );
+        let pages_document_endpoint = self.pages_project().document_endpoint();
+        let pages_app_endpoint = self.pages_project().app_endpoint();
+        let pages_error_endpoint = self.pages_project().error_endpoint();
 
-        let middleware = find_context_file(
-            self.project_path(),
-            middleware_files(self.next_config().page_extensions()),
-        );
-        let middleware = if let FindContextFileResult::Found(fs_path, _) = *middleware.await? {
-            let source = Vc::upcast(FileSource::new(fs_path));
+        let middleware = self.find_middleware();
+        let middleware = if let FindContextFileResult::Found(..) = *middleware.await? {
             Some(Middleware {
-                endpoint: TraitRef::cell(
-                    Vc::upcast::<Box<dyn Endpoint>>(self.middleware_endpoint(source))
-                        .into_trait_ref()
-                        .await?,
-                ),
+                endpoint: self.middleware_endpoint(),
             })
         } else {
             None
         };
 
-        let instrumentation = find_context_file(
-            self.project_path(),
-            instrumentation_files(self.next_config().page_extensions()),
-        );
-        let instrumentation = if let FindContextFileResult::Found(fs_path, _) =
-            *instrumentation.await?
-        {
-            let source = Vc::upcast(FileSource::new(fs_path));
+        let instrumentation = self.find_instrumentation();
+        let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
             Some(Instrumentation {
-                node_js: TraitRef::cell(
-                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, false))
-                        .into_trait_ref()
-                        .await?,
-                ),
-                edge: TraitRef::cell(
-                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, true))
-                        .into_trait_ref()
-                        .await?,
-                ),
+                node_js: self.instrumentation_endpoint(false),
+                edge: self.instrumentation_endpoint(true),
             })
         } else {
             None
@@ -978,10 +937,20 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn middleware_endpoint(
-        self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
-    ) -> Result<Vc<MiddlewareEndpoint>> {
+    fn find_middleware(self: Vc<Self>) -> Vc<FindContextFileResult> {
+        find_context_file(
+            self.project_path(),
+            middleware_files(self.next_config().page_extensions()),
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn middleware_endpoint(self: Vc<Self>) -> Result<Vc<Box<dyn Endpoint>>> {
+        let middleware = self.find_middleware();
+        let FindContextFileResult::Found(fs_path, _) = *middleware.await? else {
+            return Ok(Vc::upcast(EmptyEndpoint::new()));
+        };
+        let source = Vc::upcast(FileSource::new(fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -989,13 +958,13 @@ impl Project {
 
         let middleware_asset_context = self.middleware_context();
 
-        Ok(MiddlewareEndpoint::new(
+        Ok(Vc::upcast(MiddlewareEndpoint::new(
             self,
             middleware_asset_context,
             source,
             app_dir,
             ecmascript_client_reference_transition_name,
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
@@ -1099,11 +1068,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    fn find_instrumentation(self: Vc<Self>) -> Vc<FindContextFileResult> {
+        find_context_file(
+            self.project_path(),
+            instrumentation_files(self.next_config().page_extensions()),
+        )
+    }
+
+    #[turbo_tasks::function]
     async fn instrumentation_endpoint(
         self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
         is_edge: bool,
-    ) -> Result<Vc<InstrumentationEndpoint>> {
+    ) -> Result<Vc<Box<dyn Endpoint>>> {
+        let instrumentation = self.find_instrumentation();
+        let FindContextFileResult::Found(fs_path, _) = *instrumentation.await? else {
+            return Ok(Vc::upcast(EmptyEndpoint::new()));
+        };
+        let source = Vc::upcast(FileSource::new(fs_path));
         let app_dir = *find_app_dir(self.project_path()).await?;
         let ecmascript_client_reference_transition_name = (*self.app_project().await?)
             .as_ref()
@@ -1115,14 +1096,14 @@ impl Project {
             self.node_instrumentation_context()
         };
 
-        Ok(InstrumentationEndpoint::new(
+        Ok(Vc::upcast(InstrumentationEndpoint::new(
             self,
             instrumentation_asset_context,
             source,
             is_edge,
             app_dir,
             ecmascript_client_reference_transition_name,
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
@@ -1166,12 +1147,10 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn hmr_content(
-        self: Vc<Self>,
-        identifier: RcStr,
-    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+    async fn hmr_content(self: Vc<Self>, identifier: RcStr) -> Result<Vc<OptionVersionedContent>> {
         if let Some(map) = self.await?.versioned_content_map {
-            Ok(map.get(self.client_relative_path().join(identifier)))
+            let content = map.get(self.client_relative_path().join(identifier.clone()));
+            Ok(content)
         } else {
             bail!("must be in dev mode to hmr")
         }
@@ -1179,9 +1158,12 @@ impl Project {
 
     #[turbo_tasks::function]
     async fn hmr_version(self: Vc<Self>, identifier: RcStr) -> Result<Vc<Box<dyn Version>>> {
-        let content = self.hmr_content(identifier);
-
-        Ok(content.version())
+        let content = self.hmr_content(identifier).await?;
+        if let Some(content) = &*content {
+            Ok(content.version())
+        } else {
+            Ok(Vc::upcast(NotFoundVersion::new()))
+        }
     }
 
     /// Get the version state for a session. Initialized with the first seen
@@ -1201,12 +1183,13 @@ impl Project {
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
         // first seen version of the session.
-        VersionState::new(
+        let state = VersionState::new(
             version
                 .into_trait_ref_strongly_consistent_untracked()
                 .await?,
         )
-        .await
+        .await?;
+        Ok(state)
     }
 
     /// Emits opaque HMR events whenever a change is detected in the chunk group
@@ -1218,7 +1201,12 @@ impl Project {
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        Ok(self.hmr_content(identifier).update(from))
+        let content = self.hmr_content(identifier).await?;
+        if let Some(content) = *content {
+            Ok(content.update(from))
+        } else {
+            Ok(Update::Missing.cell())
+        }
     }
 
     /// Gets a list of all HMR identifiers that can be subscribed to. This is
@@ -1327,4 +1315,9 @@ fn all_assets_from_entries_operation(
     operation: Vc<OutputAssetsOperation>,
 ) -> Vc<OutputAssetsOperation> {
     Vc::cell(all_assets_from_entries_operation_inner(operation))
+}
+
+#[turbo_tasks::function]
+fn stable_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Vc<Box<dyn Endpoint>> {
+    endpoint
 }

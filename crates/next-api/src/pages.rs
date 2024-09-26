@@ -81,8 +81,8 @@ pub struct PagesProject {
 #[turbo_tasks::value_impl]
 impl PagesProject {
     #[turbo_tasks::function]
-    pub async fn new(project: Vc<Project>) -> Result<Vc<Self>> {
-        Ok(PagesProject { project }.cell())
+    pub fn new(project: Vc<Project>) -> Vc<Self> {
+        PagesProject { project }.cell()
     }
 
     #[turbo_tasks::function]
@@ -279,8 +279,8 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_client_module_options_context(
+    fn client_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_client_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
@@ -289,12 +289,12 @@ impl PagesProject {
             }),
             self.project().next_mode(),
             self.project().next_config(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(get_client_resolve_options_context(
+    fn client_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
+        get_client_resolve_options_context(
             self.project().project_path(),
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
@@ -302,7 +302,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
@@ -385,8 +385,8 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    async fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn ssr_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::Pages {
@@ -395,12 +395,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    async fn edge_ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn edge_ssr_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::Pages {
@@ -409,12 +409,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    async fn api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn api_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesApi {
@@ -423,12 +423,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    async fn edge_api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn edge_api_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesApi {
@@ -437,12 +437,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    async fn ssr_data_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn ssr_data_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesData {
@@ -451,14 +451,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    async fn edge_ssr_data_module_options_context(
-        self: Vc<Self>,
-    ) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(get_server_module_options_context(
+    fn edge_ssr_data_module_options_context(self: Vc<Self>) -> Vc<ModuleOptionsContext> {
+        get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesData {
@@ -467,12 +465,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(get_server_resolve_options_context(
+    fn ssr_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
+        get_server_resolve_options_context(
             self.project().project_path(),
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
             // matter (for now at least) because `get_server_resolve_options_context` doesn't
@@ -483,12 +481,12 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(get_edge_resolve_options_context(
+    fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Vc<ResolveOptionsContext> {
+        get_edge_resolve_options_context(
             self.project().project_path(),
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
             // matter (for now at least) because `get_server_resolve_options_context` doesn't
@@ -499,11 +497,11 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
+    fn client_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
         let client_runtime_entries = get_client_runtime_entries(
             self.project().project_path(),
             Value::new(ClientContextType::Pages {
@@ -513,27 +511,27 @@ impl PagesProject {
             self.project().next_config(),
             self.project().execution_context(),
         );
-        Ok(client_runtime_entries.resolve_entries(self.client_module_context()))
+        client_runtime_entries.resolve_entries(self.client_module_context())
     }
 
     #[turbo_tasks::function]
-    async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        Ok(get_server_runtime_entries(
+    fn runtime_entries(self: Vc<Self>) -> Vc<RuntimeEntries> {
+        get_server_runtime_entries(
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
             self.project().next_mode(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
-    async fn data_runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        Ok(get_server_runtime_entries(
+    fn data_runtime_entries(self: Vc<Self>) -> Vc<RuntimeEntries> {
+        get_server_runtime_entries(
             Value::new(ServerContextType::PagesData {
                 pages_dir: self.pages_dir(),
             }),
             self.project().next_mode(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
@@ -640,9 +638,8 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
-        let this = self.await?;
-        Ok(Vc::upcast(FileSource::new(this.page.project_path())))
+    fn source(&self) -> Vc<Box<dyn Source>> {
+        Vc::upcast(FileSource::new(self.page.project_path()))
     }
 
     #[turbo_tasks::function]
@@ -661,7 +658,6 @@ impl PageEndpoint {
                 return Ok(Vc::upcast(HmrEntryModule::new(
                     AssetIdent::from_path(this.page.await?.base_path),
                     chunkable,
-                    true,
                 )));
             }
         }
@@ -862,6 +858,7 @@ impl PageEndpoint {
                         ssr_entry_chunk_path,
                         ssr_module,
                         runtime_entries,
+                        OutputAssets::empty(),
                         Value::new(AvailabilityInfo::Root),
                     )
                     .await?;
@@ -946,11 +943,10 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     async fn pages_manifest(
-        self: Vc<Self>,
+        &self,
         entry_chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self.await?;
-        let node_root = this.pages_project.project().node_root();
+        let node_root = self.pages_project.project().node_root();
         let chunk_path = entry_chunk.ident().path().await?;
 
         let asset_path = node_root
@@ -960,11 +956,11 @@ impl PageEndpoint {
             .context("ssr chunk entry path must be inside the node root")?;
 
         let pages_manifest = PagesManifest {
-            pages: [(this.pathname.await?.clone_value(), asset_path.into())]
+            pages: [(self.pathname.await?.clone_value(), asset_path.into())]
                 .into_iter()
                 .collect(),
         };
-        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root
                 .join(format!("server/pages{manifest_path_prefix}/pages-manifest.json",).into()),
@@ -991,16 +987,15 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     async fn build_manifest(
-        self: Vc<Self>,
+        &self,
         client_chunks: Vc<OutputAssets>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self.await?;
-        let node_root = this.pages_project.project().node_root();
-        let client_relative_path = this.pages_project.project().client_relative_path();
+        let node_root = self.pages_project.project().node_root();
+        let client_relative_path = self.pages_project.project().client_relative_path();
         let client_relative_path_ref = client_relative_path.await?;
         let build_manifest = BuildManifest {
             pages: [(
-                this.pathname.await?.clone_value(),
+                self.pathname.await?.clone_value(),
                 client_chunks
                     .await?
                     .iter()
@@ -1022,7 +1017,7 @@ impl PageEndpoint {
             .collect(),
             ..Default::default()
         };
-        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname.await?);
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root
                 .join(format!("server/pages{manifest_path_prefix}/build-manifest.json",).into()),

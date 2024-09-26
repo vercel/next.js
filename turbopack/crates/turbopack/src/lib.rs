@@ -190,11 +190,10 @@ async fn apply_module_type(
                 let options = options.await?;
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
-                        Vc::upcast(if let Some(part) = part {
-                            EcmascriptModulePartAsset::new(module, part)
-                        } else {
-                            EcmascriptModulePartAsset::new(module, ModulePart::facade())
-                        })
+                        Vc::upcast(EcmascriptModulePartAsset::select_part(
+                            module,
+                            part.unwrap_or(ModulePart::facade()),
+                        ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
                         if let Some(part) = part {
@@ -369,18 +368,18 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(self.await?.module_options_context)
+    pub fn module_options_context(&self) -> Vc<ModuleOptionsContext> {
+        self.module_options_context
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(self.await?.resolve_options_context)
+    pub fn resolve_options_context(&self) -> Vc<ResolveOptionsContext> {
+        self.resolve_options_context
     }
 
     #[turbo_tasks::function]
-    pub async fn is_types_resolving_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
-        let resolve_options_context = self.await?.resolve_options_context.await?;
+    pub async fn is_types_resolving_enabled(&self) -> Result<Vc<bool>> {
+        let resolve_options_context = self.resolve_options_context.await?;
         Ok(Vc::cell(
             resolve_options_context.enable_types && resolve_options_context.enable_typescript,
         ))
@@ -770,12 +769,8 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    async fn side_effect_free_packages(self: Vc<Self>) -> Result<Vc<Glob>> {
-        let pkgs = &*self
-            .await?
-            .module_options_context
-            .await?
-            .side_effect_free_packages;
+    async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
+        let pkgs = &*self.module_options_context.await?.side_effect_free_packages;
 
         let mut globs = Vec::with_capacity(pkgs.len());
 
@@ -788,7 +783,7 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_with_completion(
+pub fn emit_with_completion(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -796,7 +791,7 @@ pub async fn emit_with_completion(
 }
 
 #[turbo_tasks::function]
-async fn emit_assets_aggregated(
+fn emit_assets_aggregated(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -821,7 +816,7 @@ async fn emit_aggregated_assets(
 }
 
 #[turbo_tasks::function]
-pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
+pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
     asset.content().write(asset.ident().path())
 }
 

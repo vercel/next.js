@@ -41,7 +41,7 @@ function stringifySourceInfo(source: SourceInfo): string {
 type ExternalRequire = (id: ModuleId) => Exports | EsmNamespaceObject;
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
-interface TurbopackNodeBuildContext extends TurbopackBaseContext {
+interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
   R: ResolvePathFromModule;
   x: ExternalRequire;
   y: ExternalImport;
@@ -57,7 +57,7 @@ const fs = require("fs/promises");
 const vm = require("vm");
 
 const moduleFactories: ModuleFactories = Object.create(null);
-const moduleCache: ModuleCache = Object.create(null);
+const moduleCache: ModuleCache<ModuleWithDirection> = Object.create(null);
 
 /**
  * Returns an absolute path to the given module's id.
@@ -177,11 +177,11 @@ function loadWebAssemblyModule(chunkPath: ChunkPath) {
   return compileWebAssemblyFromPath(resolved);
 }
 
-function getWorkerBlobURL(_chunks: ChunkPath[]) {
+function getWorkerBlobURL(_chunks: ChunkPath[]): string {
   throw new Error("Worker blobs are not implemented yet for Node.js");
 }
 
-function instantiateModule(id: ModuleId, source: SourceInfo): Module {
+function instantiateModule(id: ModuleId, source: SourceInfo): ModuleWithDirection {
   const moduleFactory = moduleFactories[id];
   if (typeof moduleFactory !== "function") {
     // This can happen if modules incorrectly handle HMR disposes/updates,
@@ -217,7 +217,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       invariant(source, (source) => `Unknown source type: ${source?.type}`);
   }
 
-  const module: Module = {
+  const module: ModuleWithDirection = {
     exports: {},
     error: undefined,
     loaded: false,
@@ -255,6 +255,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       U: relativeURL,
       R: createResolvePathFromModule(r),
       b: getWorkerBlobURL,
+      z: requireStub,
       __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
     });
   } catch (error) {
@@ -274,10 +275,11 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  */
+// @ts-ignore
 function getOrInstantiateModuleFromParent(
   id: ModuleId,
-  sourceModule: Module
-): Module {
+  sourceModule: ModuleWithDirection
+): ModuleWithDirection {
   const module = moduleCache[id];
 
   if (sourceModule.children.indexOf(id) === -1) {
@@ -311,6 +313,7 @@ function instantiateRuntimeModule(
 /**
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */
+// @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(
   moduleId: ModuleId,
   chunkPath: ChunkPath

@@ -211,10 +211,9 @@ export async function copy_vercel_og(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // Refers to copied satori types
-      file.data = source.replace(
-        /['"]satori['"]/g,
-        '"next/dist/compiled/@vercel/og/satori"'
-      )
+      file.data = source
+        .replace(/['"]satori['"]/g, '"next/dist/compiled/@vercel/og/satori"')
+        .replace("typeof import('@resvg/resvg-wasm')", 'any')
     })
     .target('src/compiled/@vercel/og')
 
@@ -2260,6 +2259,21 @@ export async function precompile(task, opts) {
   await task.parallel(
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
     opts
+  )
+
+  const validatorRes = await fetch(
+    'https://cdn.ampproject.org/v0/validator_wasm.js'
+  )
+
+  if (!validatorRes.ok) {
+    throw new Error(
+      `Failed to get the AMP validator, status: ${validatorRes.status}`
+    )
+  }
+
+  await fs.writeFile(
+    join(__dirname, 'dist/compiled/amphtml-validator/validator_wasm.js'),
+    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
   )
 }
 

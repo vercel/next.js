@@ -27,7 +27,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { hasNextSupport } from '../telemetry/ci-info'
+import { hasNextSupport } from '../server/ci-info'
 import { exportAppRoute } from './routes/app-route'
 import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
@@ -40,11 +40,11 @@ import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
-import type { Params } from '../client/components/params'
+import type { Params } from '../server/request/params'
 import {
   getFallbackRouteParams,
   type FallbackRouteParams,
-} from '../client/components/fallback-params'
+} from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 
 const envConfig = require('../shared/lib/runtime-config.external')

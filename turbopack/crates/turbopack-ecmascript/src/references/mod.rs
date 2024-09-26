@@ -71,7 +71,7 @@ use turbopack_core::{
         resolve, FindContextFileResult, ModulePart,
     },
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, OptionSourceMap, SourceMap},
 };
 use turbopack_resolve::{
     ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
@@ -126,7 +126,8 @@ use crate::{
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
-    magic_identifier, parse,
+    magic_identifier,
+    parse::parse,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
@@ -451,7 +452,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let parsed = if let Some(part) = part {
         let parsed = parse(source, ty, transforms);
-        let split_data = split(source.ident(), source, parsed);
+        let split_data = split(source.ident(), source, parsed, options.special_exports);
         part_of_module(split_data, part)
     } else {
         module.failsafe_parse()
@@ -3202,15 +3203,4 @@ fn maybe_decode_data_url(url: RcStr) -> Vc<OptionSourceMap> {
     } else {
         Vc::cell(None)
     }
-}
-
-#[turbo_tasks::function]
-async fn convert_to_turbopack_source_map(
-    source_map: Vc<OptionSourceMap>,
-    origin: Vc<FileSystemPath>,
-) -> Result<Vc<OptionSourceMap>> {
-    let Some(source_map) = *source_map.await? else {
-        return Ok(Vc::cell(None));
-    };
-    Ok(Vc::cell(Some(source_map.with_resolved_sources(origin))))
 }

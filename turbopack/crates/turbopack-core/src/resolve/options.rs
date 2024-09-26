@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::{bail, Result};
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
@@ -19,6 +20,10 @@ use crate::resolve::{parse::Request, plugin::AfterResolvePlugin};
 #[derive(Hash, Debug)]
 pub struct LockedVersions {}
 
+#[turbo_tasks::value(transparent)]
+#[derive(Debug)]
+pub struct ExcludedExtensions(pub IndexSet<RcStr>);
+
 /// A location where to resolve modules.
 #[derive(
     TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, ValueDebugFormat,
@@ -27,8 +32,11 @@ pub enum ResolveModules {
     /// when inside of path, use the list of directories to
     /// resolve inside these
     Nested(Vc<FileSystemPath>, Vec<RcStr>),
-    /// look into that directory
-    Path(Vc<FileSystemPath>),
+    /// look into that directory, unless the request has an excluded extension
+    Path {
+        dir: Vc<FileSystemPath>,
+        excluded_extensions: Vc<ExcludedExtensions>,
+    },
     /// lookup versions based on lockfile in the registry filesystem
     /// registry filesystem is assumed to have structure like
     /// @scope/module/version/<path-in-package>
@@ -436,14 +444,13 @@ impl ImportMap {
 impl ResolvedMap {
     #[turbo_tasks::function]
     pub async fn lookup(
-        self: Vc<Self>,
+        &self,
         resolved: Vc<FileSystemPath>,
         lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
-        let this = self.await?;
         let resolved = resolved.await?;
-        for (root, glob, mapping) in this.by_glob.iter() {
+        for (root, glob, mapping) in self.by_glob.iter() {
             let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
                 if glob.await?.execute(path) {
