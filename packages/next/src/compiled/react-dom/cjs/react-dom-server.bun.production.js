@@ -3486,7 +3486,7 @@ function RequestInstance(
   this.rootFormatContext = rootFormatContext;
   this.progressiveChunkSize =
     void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize;
-  this.status = 0;
+  this.status = 10;
   this.fatalError = null;
   this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
   this.completedRootSegment = null;
@@ -3565,7 +3565,7 @@ function pingTask(request, task) {
   request.pingedTasks.push(task);
   1 === request.pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
-    null !== request.trackedPostpones
+    null !== request.trackedPostpones || 10 === request.status
       ? scheduleMicrotask(function () {
           return performWork(request);
         })
@@ -3741,8 +3741,8 @@ function fatalError(request, error) {
   onShellError(error);
   onFatalError(error);
   null !== request.destination
-    ? ((request.status = 3), closeWithError(request.destination, error))
-    : ((request.status = 2), (request.fatalError = error));
+    ? ((request.status = 14), closeWithError(request.destination, error))
+    : ((request.status = 13), (request.fatalError = error));
 }
 function renderWithHooks(request, task, keyPath, Component, props, secondArg) {
   var prevThenableState = task.thenableState;
@@ -3887,14 +3887,14 @@ function renderElement(request, task, keyPath, type, props, ref) {
           }
         else defaultProps.queue = null;
       type = newProps.render();
-      if (1 === request.status) throw null;
+      if (12 === request.status) throw null;
       props = task.keyPath;
       task.keyPath = keyPath;
       renderNodeDestructive(request, task, type, -1);
       task.keyPath = props;
     } else {
       type = renderWithHooks(request, task, keyPath, type, props, void 0);
-      if (1 === request.status) throw null;
+      if (12 === request.status) throw null;
       finishFunctionComponent(
         request,
         task,
@@ -4057,7 +4057,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 (boundarySegment.status = 1);
             } catch (thrownValue) {
               throw (
-                ((boundarySegment.status = 1 === request.status ? 3 : 4),
+                ((boundarySegment.status = 12 === request.status ? 3 : 4),
                 thrownValue)
               );
             } finally {
@@ -4102,7 +4102,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
               }
             } catch (thrownValue$28) {
               (propName.status = 4),
-                1 === request.status
+                12 === request.status
                   ? ((contentRootSegment.status = 3),
                     (newProps = request.fatalError))
                   : ((contentRootSegment.status = 4),
@@ -4211,7 +4211,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         case REACT_LAZY_TYPE:
           newProps = type._init;
           type = newProps(type._payload);
-          if (1 === request.status) throw null;
+          if (12 === request.status) throw null;
           renderElement(request, task, keyPath, type, props, ref);
           return;
       }
@@ -4446,7 +4446,7 @@ function retryNode(request, task) {
         case REACT_LAZY_TYPE:
           childNodes = node._init;
           node = childNodes(node._payload);
-          if (1 === request.status) throw null;
+          if (12 === request.status) throw null;
           renderNodeDestructive(request, task, node, childIndex);
           return;
       }
@@ -4800,7 +4800,7 @@ function abortTask(task, request, error) {
   }
   segment = getThrownInfo(task.componentStack);
   if (null === boundary) {
-    if (2 !== request.status && 3 !== request.status) {
+    if (13 !== request.status && 14 !== request.status) {
       boundary = task.replay;
       if (null === boundary) {
         logRecoverableError(request, error, segment);
@@ -4966,7 +4966,7 @@ function finishedTask(request, boundary, segment) {
   0 === request.allPendingTasks && completeAll(request);
 }
 function performWork(request$jscomp$2) {
-  if (3 !== request$jscomp$2.status && 2 !== request$jscomp$2.status) {
+  if (14 !== request$jscomp$2.status && 13 !== request$jscomp$2.status) {
     var prevContext = currentActiveSnapshot,
       prevDispatcher = ReactSharedInternals.H;
     ReactSharedInternals.H = HooksDispatcher;
@@ -5029,7 +5029,7 @@ function performWork(request$jscomp$2) {
                 var request$jscomp$1 = request$jscomp$0,
                   boundary = task.blockedBoundary,
                   error$jscomp$0 =
-                    1 === request$jscomp$0.status
+                    12 === request$jscomp$0.status
                       ? request$jscomp$0.fatalError
                       : x,
                   replayNodes = task.replay.nodes,
@@ -5081,7 +5081,7 @@ function performWork(request$jscomp$2) {
             var x$jscomp$0 =
               thrownValue === SuspenseException
                 ? getSuspendedThenable()
-                : 1 === request.status
+                : 12 === request.status
                   ? request.fatalError
                   : thrownValue;
             if (
@@ -5536,7 +5536,7 @@ function flushCompletedQueues(request, destination) {
         i.hasBody && writeChunk(destination, endChunkForTag("body")),
         i.hasHtml && writeChunk(destination, endChunkForTag("html")),
         flushBuffered(destination),
-        (request.status = 3),
+        (request.status = 14),
         destination.end(),
         (request.destination = null))
       : flushBuffered(destination);
@@ -5544,16 +5544,14 @@ function flushCompletedQueues(request, destination) {
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
-  null !== request.trackedPostpones
-    ? scheduleMicrotask(function () {
-        return performWork(request);
-      })
-    : (setTimeout(function () {
-        return performWork(request);
-      }, 0),
-      setTimeout(function () {
-        safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
-      }, 0));
+  scheduleMicrotask(function () {
+    return performWork(request);
+  });
+  setTimeout(function () {
+    10 === request.status && (request.status = 11);
+    null === request.trackedPostpones &&
+      safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
+  }, 0);
 }
 function enqueueFlush(request) {
   !1 === request.flushScheduled &&
@@ -5568,7 +5566,7 @@ function enqueueFlush(request) {
     }, 0));
 }
 function abort(request, reason) {
-  0 === request.status && (request.status = 1);
+  if (11 === request.status || 10 === request.status) request.status = 12;
   try {
     var abortableTasks = request.abortableTasks;
     if (0 < abortableTasks.size) {
@@ -5592,15 +5590,15 @@ function abort(request, reason) {
     logRecoverableError(request, error$53, {}), fatalError(request, error$53);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_734 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_731 = React.version;
 if (
-  "19.0.0-rc-778e1ed2-20240926" !==
-  isomorphicReactPackageVersion$jscomp$inline_734
+  "19.0.0-rc-67fee58b-20240926" !==
+  isomorphicReactPackageVersion$jscomp$inline_731
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-      (isomorphicReactPackageVersion$jscomp$inline_734 +
-        "\n  - react-dom:  19.0.0-rc-778e1ed2-20240926\nLearn more: https://react.dev/warnings/version-mismatch")
+      (isomorphicReactPackageVersion$jscomp$inline_731 +
+        "\n  - react-dom:  19.0.0-rc-67fee58b-20240926\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -5643,10 +5641,13 @@ exports.renderToReadableStream = function (children, options) {
             {
               type: "direct",
               pull: function (controller) {
-                if (2 === request.status)
-                  (request.status = 3),
+                if (13 === request.status)
+                  (request.status = 14),
                     closeWithError(controller, request.fatalError);
-                else if (3 !== request.status && null === request.destination) {
+                else if (
+                  14 !== request.status &&
+                  null === request.destination
+                ) {
                   request.destination = controller;
                   try {
                     flushCompletedQueues(request, controller);
@@ -5688,4 +5689,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-rc-778e1ed2-20240926";
+exports.version = "19.0.0-rc-67fee58b-20240926";

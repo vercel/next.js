@@ -4033,7 +4033,7 @@ function RequestInstance(
   this.rootFormatContext = rootFormatContext;
   this.progressiveChunkSize =
     void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize;
-  this.status = 0;
+  this.status = 10;
   this.fatalError = null;
   this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
   this.completedRootSegment = null;
@@ -4265,7 +4265,7 @@ function pingTask(request, task) {
   request.pingedTasks.push(task);
   1 === request.pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
-    null !== request.trackedPostpones
+    null !== request.trackedPostpones || 10 === request.status
       ? scheduleMicrotask(function () {
           return performWork(request);
         })
@@ -4445,8 +4445,8 @@ function fatalError(request, error) {
   onShellError(error);
   onFatalError(error);
   null !== request.destination
-    ? ((request.status = 3), closeWithError(request.destination, error))
-    : ((request.status = 2), (request.fatalError = error));
+    ? ((request.status = 14), closeWithError(request.destination, error))
+    : ((request.status = 13), (request.fatalError = error));
 }
 function renderWithHooks(request, task, keyPath, Component, props, secondArg) {
   var prevThenableState = task.thenableState;
@@ -4591,14 +4591,14 @@ function renderElement(request, task, keyPath, type, props, ref) {
           }
         else defaultProps.queue = null;
       type = newProps.render();
-      if (1 === request.status) throw null;
+      if (12 === request.status) throw null;
       props = task.keyPath;
       task.keyPath = keyPath;
       renderNodeDestructive(request, task, type, -1);
       task.keyPath = props;
     } else {
       type = renderWithHooks(request, task, keyPath, type, props, void 0);
-      if (1 === request.status) throw null;
+      if (12 === request.status) throw null;
       finishFunctionComponent(
         request,
         task,
@@ -4761,7 +4761,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
                 (boundarySegment.status = 1);
             } catch (thrownValue) {
               throw (
-                ((boundarySegment.status = 1 === request.status ? 3 : 4),
+                ((boundarySegment.status = 12 === request.status ? 3 : 4),
                 thrownValue)
               );
             } finally {
@@ -4806,7 +4806,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
               }
             } catch (thrownValue$29) {
               (propName.status = 4),
-                1 === request.status
+                12 === request.status
                   ? ((contentRootSegment.status = 3),
                     (newProps = request.fatalError))
                   : ((contentRootSegment.status = 4),
@@ -4920,7 +4920,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         case REACT_LAZY_TYPE:
           newProps = type._init;
           type = newProps(type._payload);
-          if (1 === request.status) throw null;
+          if (12 === request.status) throw null;
           renderElement(request, task, keyPath, type, props, ref);
           return;
       }
@@ -5157,7 +5157,7 @@ function retryNode(request, task) {
         case REACT_LAZY_TYPE:
           childNodes = node._init;
           node = childNodes(node._payload);
-          if (1 === request.status) throw null;
+          if (12 === request.status) throw null;
           renderNodeDestructive(request, task, node, childIndex);
           return;
       }
@@ -5685,7 +5685,7 @@ function abortTask(task, request, error) {
   }
   var errorInfo = getThrownInfo(task.componentStack);
   if (null === boundary) {
-    if (2 !== request.status && 3 !== request.status) {
+    if (13 !== request.status && 14 !== request.status) {
       boundary = task.replay;
       if (null === boundary) {
         "object" === typeof error &&
@@ -5907,7 +5907,7 @@ function finishedTask(request, boundary, segment) {
   0 === request.allPendingTasks && completeAll(request);
 }
 function performWork(request$jscomp$1) {
-  if (3 !== request$jscomp$1.status && 2 !== request$jscomp$1.status) {
+  if (14 !== request$jscomp$1.status && 13 !== request$jscomp$1.status) {
     var prevContext = currentActiveSnapshot,
       prevDispatcher = ReactSharedInternals.H;
     ReactSharedInternals.H = HooksDispatcher;
@@ -5969,7 +5969,7 @@ function performWork(request$jscomp$1) {
                 erroredReplay(
                   request$jscomp$0,
                   task.blockedBoundary,
-                  1 === request$jscomp$0.status
+                  12 === request$jscomp$0.status
                     ? request$jscomp$0.fatalError
                     : x,
                   errorInfo,
@@ -6010,10 +6010,13 @@ function performWork(request$jscomp$1) {
                 var x$jscomp$0 =
                   thrownValue === SuspenseException
                     ? getSuspendedThenable()
-                    : 1 === request.status
+                    : 12 === request.status
                       ? request.fatalError
                       : thrownValue;
-                if (1 === request.status && null !== request.trackedPostpones) {
+                if (
+                  12 === request.status &&
+                  null !== request.trackedPostpones
+                ) {
                   var trackedPostpones = request.trackedPostpones,
                     thrownInfo = getThrownInfo(task.componentStack);
                   task.abortSet.delete(task);
@@ -6554,7 +6557,7 @@ function flushCompletedQueues(request, destination) {
           i.hasBody && writeChunk(destination, endChunkForTag("body")),
           i.hasHtml && writeChunk(destination, endChunkForTag("html"))),
         completeWriting(destination),
-        (request.status = 3),
+        (request.status = 14),
         destination.close(),
         (request.destination = null))
       : completeWriting(destination);
@@ -6562,32 +6565,24 @@ function flushCompletedQueues(request, destination) {
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
-  null !== request.trackedPostpones
-    ? supportsRequestStorage
-      ? scheduleMicrotask(function () {
-          return requestStorage.run(request, performWork, request);
-        })
-      : scheduleMicrotask(function () {
-          return performWork(request);
-        })
-    : (supportsRequestStorage
-        ? setTimeoutOrImmediate(function () {
-            return requestStorage.run(request, performWork, request);
-          }, 0)
-        : setTimeoutOrImmediate(function () {
-            return performWork(request);
-          }, 0),
-      supportsRequestStorage
-        ? setTimeoutOrImmediate(function () {
-            return requestStorage.run(
-              request,
-              enqueueEarlyPreloadsAfterInitialWork,
-              request
-            );
-          }, 0)
-        : setTimeoutOrImmediate(function () {
-            return enqueueEarlyPreloadsAfterInitialWork(request);
-          }, 0));
+  supportsRequestStorage
+    ? scheduleMicrotask(function () {
+        return requestStorage.run(request, performWork, request);
+      })
+    : scheduleMicrotask(function () {
+        return performWork(request);
+      });
+  setTimeoutOrImmediate(function () {
+    10 === request.status && (request.status = 11);
+    null === request.trackedPostpones &&
+      (supportsRequestStorage
+        ? requestStorage.run(
+            request,
+            enqueueEarlyPreloadsAfterInitialWork,
+            request
+          )
+        : enqueueEarlyPreloadsAfterInitialWork(request));
+  }, 0);
 }
 function enqueueEarlyPreloadsAfterInitialWork(request) {
   safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
@@ -6605,9 +6600,9 @@ function enqueueFlush(request) {
     }, 0));
 }
 function startFlowing(request, destination) {
-  if (2 === request.status)
-    (request.status = 3), closeWithError(destination, request.fatalError);
-  else if (3 !== request.status && null === request.destination) {
+  if (13 === request.status)
+    (request.status = 14), closeWithError(destination, request.fatalError);
+  else if (14 !== request.status && null === request.destination) {
     request.destination = destination;
     try {
       flushCompletedQueues(request, destination);
@@ -6617,7 +6612,7 @@ function startFlowing(request, destination) {
   }
 }
 function abort(request, reason) {
-  0 === request.status && (request.status = 1);
+  if (11 === request.status || 10 === request.status) request.status = 12;
   try {
     var abortableTasks = request.abortableTasks;
     if (0 < abortableTasks.size) {
@@ -6694,11 +6689,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.0.0-experimental-778e1ed2-20240926" !== isomorphicReactPackageVersion)
+  if ("19.0.0-experimental-67fee58b-20240926" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.0.0-experimental-778e1ed2-20240926\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.0.0-experimental-67fee58b-20240926\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6963,4 +6958,4 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-exports.version = "19.0.0-experimental-778e1ed2-20240926";
+exports.version = "19.0.0-experimental-67fee58b-20240926";
