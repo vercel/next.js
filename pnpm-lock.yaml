@@ -635,6 +635,9 @@ importers:
       next:
         specifier: workspace:*
         version: link:../../packages/next
+      tailwindcss:
+        specifier: 3.2.7
+        version: 3.2.7(postcss@8.4.31)
 
   bench/nested-deps:
     devDependencies:
@@ -860,7 +863,11 @@ importers:
         version: 0.5.13
       babel-plugin-react-compiler:
         specifier: '*'
+<<<<<<< Updated upstream
         version: 0.0.0-experimental-6067d4e-20240925
+=======
+        version: 0.0.0-experimental-57db2f6-20240926
+>>>>>>> Stashed changes
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -5950,8 +5957,13 @@ packages:
     peerDependencies:
       '@babel/core': 7.22.5
 
+<<<<<<< Updated upstream
   babel-plugin-react-compiler@0.0.0-experimental-6067d4e-20240925:
     resolution: {integrity: sha512-PFMEEvTj2jWIPXh3C0PnDNhfAlQLJjwn/24PrvOzN8KIkQHfPawn95xIj0LnYyz/EnY6hYWNe45iGJoJYSOZ5g==}
+=======
+  babel-plugin-react-compiler@0.0.0-experimental-57db2f6-20240926:
+    resolution: {integrity: sha512-zbDaQPCUcTlPgLXzYMkhA/7ozI3P45vagP3Vc97s/ykEzT0Mi9n3Td4mCTRP0NiWt5iu31/iUDNQyfNy8Qn45A==}
+>>>>>>> Stashed changes
 
   babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
@@ -12992,10 +13004,6 @@ packages:
     resolution: {integrity: sha512-Hhtrw0nLeSrFQ7phPp4OOcVjLPIeMnRlr5mcnVuMe7M/7eBn98A3hmFRLoFo3DLZkivSYwhRUJTyPyWAk56WLw==}
     hasBin: true
 
-  resolve@1.22.1:
-    resolution: {integrity: sha512-nBpuuYuY5jFsli/JIs1oldw6fOQCBioohqWZg/2hiaOybXOft4lonv85uDOKXdf8rhyK159cxU5cDcK/NKk8zw==}
-    hasBin: true
-
   resolve@1.22.4:
     resolution: {integrity: sha512-PXNdCiPqDqeUou+w1C2eTQbNfxKSuMxqTCuvlmmMsk1NWHL5fRrhY6Pl0qEYYc6+QqGClco1Qj8XnjPego4wfg==}
     hasBin: true
@@ -15245,7 +15253,7 @@ snapshots:
       slash: 2.0.0
     optionalDependencies:
       '@nicolo-ribaudo/chokidar-2': 2.1.8-no-fsevents.3
-      chokidar: 3.5.3
+      chokidar: 3.6.0
 
   '@babel/code-frame@7.12.11':
     dependencies:
@@ -15469,7 +15477,7 @@ snapshots:
       '@babel/helper-plugin-utils': 7.24.8
       debug: 4.1.1
       lodash.debounce: 4.0.8
-      resolve: 1.22.4
+      resolve: 1.22.8
       semver: 6.3.1
     transitivePeerDependencies:
       - supports-color
@@ -17718,7 +17726,7 @@ snapshots:
       jest-util: 29.7.0
       jest-validate: 29.7.0
       jest-watcher: 29.7.0
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       pretty-format: 29.7.0
       slash: 3.0.0
       strip-ansi: 6.0.1
@@ -17883,7 +17891,7 @@ snapshots:
       jest-haste-map: 27.5.1
       jest-regex-util: 27.5.1
       jest-util: 27.5.1
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       pirates: 4.0.5
       slash: 3.0.0
       source-map: 0.6.1
@@ -17924,7 +17932,7 @@ snapshots:
       jest-haste-map: 29.7.0
       jest-regex-util: 29.6.3
       jest-util: 29.7.0
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       pirates: 4.0.5
       slash: 3.0.0
       write-file-atomic: 4.0.2
@@ -19101,7 +19109,7 @@ snapshots:
       glob: 7.1.7
       is-reference: 1.2.1
       magic-string: 0.25.7
-      resolve: 1.22.4
+      resolve: 1.22.8
       rollup: 2.35.1
 
   '@rollup/plugin-json@4.1.0(rollup@2.35.1)':
@@ -19116,7 +19124,7 @@ snapshots:
       builtin-modules: 3.1.0
       deepmerge: 4.2.2
       is-module: 1.0.0
-      resolve: 1.22.4
+      resolve: 1.22.8
       rollup: 2.35.1
 
   '@rollup/pluginutils@3.1.0(rollup@2.35.1)':
@@ -20624,13 +20632,13 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.22.5
       cosmiconfig: 7.0.0
-      resolve: 1.22.4
+      resolve: 1.22.8
 
   babel-plugin-macros@3.1.0:
     dependencies:
       '@babel/runtime': 7.22.5
       cosmiconfig: 7.0.0
-      resolve: 1.22.4
+      resolve: 1.22.8
 
   babel-plugin-polyfill-corejs2@0.4.11(@babel/core@7.22.5):
     dependencies:
@@ -20683,7 +20691,11 @@ snapshots:
       - supports-color
     optional: true
 
+<<<<<<< Updated upstream
   babel-plugin-react-compiler@0.0.0-experimental-6067d4e-20240925:
+=======
+  babel-plugin-react-compiler@0.0.0-experimental-57db2f6-20240926:
+>>>>>>> Stashed changes
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
@@ -25295,7 +25307,7 @@ snapshots:
       jest-runner: 29.7.0
       jest-util: 29.7.0
       jest-validate: 29.7.0
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       parse-json: 5.2.0
       pretty-format: 29.7.0
       slash: 3.0.0
@@ -25396,7 +25408,7 @@ snapshots:
       jest-serializer: 27.5.1
       jest-util: 27.5.1
       jest-worker: 27.5.1
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
@@ -25412,7 +25424,7 @@ snapshots:
       jest-regex-util: 29.4.3
       jest-util: 29.5.0
       jest-worker: 29.5.0
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
@@ -25428,7 +25440,7 @@ snapshots:
       jest-regex-util: 29.6.3
       jest-util: 29.7.0
       jest-worker: 29.7.0
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
@@ -25466,7 +25478,7 @@ snapshots:
       '@types/stack-utils': 2.0.1
       chalk: 4.1.2
       graceful-fs: 4.2.11
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       pretty-format: 27.5.1
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -25478,7 +25490,7 @@ snapshots:
       '@types/stack-utils': 2.0.1
       chalk: 4.1.2
       graceful-fs: 4.2.11
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       pretty-format: 29.7.0
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -25530,7 +25542,7 @@ snapshots:
       jest-pnp-resolver: 1.2.2(jest-resolve@27.5.1)
       jest-util: 27.5.1
       jest-validate: 27.5.1
-      resolve: 1.22.4
+      resolve: 1.22.8
       resolve.exports: 1.1.1
       slash: 3.0.0
 
@@ -25542,7 +25554,7 @@ snapshots:
       jest-pnp-resolver: 1.2.2(jest-resolve@29.7.0)
       jest-util: 29.7.0
       jest-validate: 29.7.0
-      resolve: 1.22.4
+      resolve: 1.22.8
       resolve.exports: 2.0.2
       slash: 3.0.0
 
@@ -27291,14 +27303,14 @@ snapshots:
   normalize-package-data@2.5.0:
     dependencies:
       hosted-git-info: 2.8.5
-      resolve: 1.22.4
+      resolve: 1.22.8
       semver: 5.7.1
       validate-npm-package-license: 3.0.4
 
   normalize-package-data@3.0.0:
     dependencies:
       hosted-git-info: 3.0.8
-      resolve: 1.22.4
+      resolve: 1.22.8
       semver: 7.3.7
       validate-npm-package-license: 3.0.4
 
@@ -28189,7 +28201,7 @@ snapshots:
       postcss: 8.4.31
       postcss-value-parser: 4.2.0
       read-cache: 1.0.0
-      resolve: 1.22.4
+      resolve: 1.22.8
 
   postcss-initial@4.0.1(postcss@8.4.31):
     dependencies:
@@ -29243,7 +29255,7 @@ snapshots:
 
   rechoir@0.6.2:
     dependencies:
-      resolve: 1.22.4
+      resolve: 1.22.8
 
   recursive-copy@2.0.11:
     dependencies:
@@ -29542,12 +29554,6 @@ snapshots:
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
 
-  resolve@1.22.1:
-    dependencies:
-      is-core-module: 2.13.0
-      path-parse: 1.0.7
-      supports-preserve-symlinks-flag: 1.0.0
-
   resolve@1.22.4:
     dependencies:
       is-core-module: 2.13.0
@@ -29668,7 +29674,7 @@ snapshots:
       postcss-load-config: 3.1.4(postcss@8.4.31)
       postcss-modules: 4.0.0(postcss@8.4.31)
       promise.series: 0.2.0
-      resolve: 1.22.4
+      resolve: 1.22.8
       rollup-pluginutils: 2.8.2
       safe-identifier: 0.4.2
       style-inject: 0.3.0
@@ -30602,7 +30608,7 @@ snapshots:
   tailwindcss@3.2.7(postcss@8.4.31):
     dependencies:
       arg: 5.0.2
-      chokidar: 3.5.3
+      chokidar: 3.6.0
       color-name: 1.1.4
       detective: 5.2.1
       didyoumean: 1.2.2
@@ -30611,7 +30617,7 @@ snapshots:
       glob-parent: 6.0.2
       is-glob: 4.0.3
       lilconfig: 2.1.0
-      micromatch: 4.0.5
+      micromatch: 4.0.8
       normalize-path: 3.0.0
       object-hash: 3.0.0
       picocolors: 1.0.1
@@ -30623,7 +30629,7 @@ snapshots:
       postcss-selector-parser: 6.0.11
       postcss-value-parser: 4.2.0
       quick-lru: 5.1.1
-      resolve: 1.22.1
+      resolve: 1.22.8
     transitivePeerDependencies:
       - ts-node
 

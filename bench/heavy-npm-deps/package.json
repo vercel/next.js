@@ -17,7 +17,7 @@
     "lodash-es": "^4.17.21",
     "lucide-react": "^0.383.0",
     "mermaid": "^10.9.1",
-    "next": "workspace:*"
-  },
-  "devDependencies": {}
+    "next": "workspace:*",
+    "tailwindcss": "3.2.7"
+  }
 }
