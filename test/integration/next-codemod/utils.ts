@@ -7,15 +7,21 @@ export const NEXT_CODEMOD_PATH = require.resolve(
 )
 export const CNA_PATH = require.resolve('create-next-app/dist/index.js')
 
-export const runNextCodemod = (args: string[]) => {
+export const runNextCodemod = (args: string[], options: execa.Options) => {
   console.log(`[TEST] $ ${NEXT_CODEMOD_PATH} ${args.join(' ')}`)
 
   return execa('node', [NEXT_CODEMOD_PATH].concat(args), {
-    stdio: 'inherit',
+    // tests with options.reject false are expected to exit(1) so don't inherit
+    stdio: options.reject === false ? 'pipe' : 'inherit',
+    ...options,
+    env: {
+      ...process.env,
+      ...options.env,
+    },
   })
 }
 
-export const run = async (
+export const createApp = async (
   args: string[],
   nextJSVersion: string,
   options:
