@@ -2260,6 +2260,21 @@ export async function precompile(task, opts) {
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
     opts
   )
+
+  const validatorRes = await fetch(
+    'https://cdn.ampproject.org/v0/validator_wasm.js'
+  )
+
+  if (!validatorRes.ok) {
+    throw new Error(
+      `Failed to get the AMP validator, status: ${validatorRes.status}`
+    )
+  }
+
+  await fs.writeFile(
+    join(__dirname, 'dist/compiled/amphtml-validator/validator_wasm.js'),
+    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
+  )
 }
 
 // eslint-disable-next-line camelcase

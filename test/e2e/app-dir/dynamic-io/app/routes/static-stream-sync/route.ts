@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server'
 
 import { getSentinelValue } from '../../getSentinelValue'
 
-export function GET(request: NextRequest, { params }: { params: {} }) {
+export function GET(request: NextRequest) {
   const response = JSON.stringify({
     value: getSentinelValue(),
     message: 'stream response',

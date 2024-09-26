@@ -7,6 +7,7 @@ import cheerio from 'cheerio'
 // on experimental flags. For example, as a first step we could all the common
 // gates like this one into a single module.
 const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -504,8 +505,7 @@ describe('app dir - rsc basics', () => {
   const bundledReactVersionPattern =
     process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-rc-'
 
-  // TODO: (React 19) During Beta, bundled and installed version match.
-  it.skip('should not use bundled react for pages with app', async () => {
+  it('should not use bundled react for pages with app', async () => {
     const ssrPaths = ['/pages-react', '/edge-pages-react']
     const promises = ssrPaths.map(async (pathname) => {
       const resPages$ = await next.render$(pathname)
@@ -516,7 +516,14 @@ describe('app dir - rsc basics', () => {
       ]
 
       ssrPagesReactVersions.forEach((version) => {
-        expect(version).not.toMatch(bundledReactVersionPattern)
+        if (isReact18 || isPPREnabledByDefault) {
+          expect(version).not.toMatch(bundledReactVersionPattern)
+        } else {
+          // TODO: Pages router only supports React 19 that is bundled
+          // Once we run with React 19 stable, this branch should be removed in
+          // favor of unconditional `not.toMatch`
+          expect(version).toMatch(bundledReactVersionPattern)
+        }
       })
     })
     await Promise.all(promises)
@@ -525,7 +532,6 @@ describe('app dir - rsc basics', () => {
     const ssrAppReactVersions = [
       await resApp$('#react').text(),
       await resApp$('#react-dom').text(),
-      await resApp$('#react-dom-server').text(),
     ]
 
     ssrAppReactVersions.forEach((version) =>
@@ -550,12 +556,26 @@ describe('app dir - rsc basics', () => {
       ]
     `)
 
-    browserPagesReactVersions.forEach((version) =>
-      expect(version).not.toMatch(bundledReactVersionPattern)
-    )
-    browserEdgePagesReactVersions.forEach((version) =>
-      expect(version).not.toMatch(bundledReactVersionPattern)
-    )
+    browserPagesReactVersions.forEach((version) => {
+      if (isReact18 || isPPREnabledByDefault) {
+        expect(version).not.toMatch(bundledReactVersionPattern)
+      } else {
+        // TODO: Pages router only supports React 19 that is bundled
+        // Once we run with React 19 stable, this branch should be removed in
+        // favor of unconditional `not.toMatch`
+        expect(version).toMatch(bundledReactVersionPattern)
+      }
+    })
+    browserEdgePagesReactVersions.forEach((version) => {
+      if (isReact18 || isPPREnabledByDefault) {
+        expect(version).not.toMatch(bundledReactVersionPattern)
+      } else {
+        // TODO: Pages router only supports React 19 that is bundled
+        // Once we run with React 19 stable, this branch should be removed in
+        // favor of unconditional `not.toMatch`
+        expect(version).toMatch(bundledReactVersionPattern)
+      }
+    })
   })
 
   it('should use canary react for app', async () => {

@@ -102,8 +102,8 @@ impl PagesDirectoryStructure {
     /// Returns the path to the directory of this structure in the project file
     /// system.
     #[turbo_tasks::function]
-    pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.project_path)
+    pub async fn project_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.project_path)
     }
 }
 
