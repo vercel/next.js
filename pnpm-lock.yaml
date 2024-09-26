@@ -12490,6 +12490,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -15243,7 +15244,7 @@ snapshots:
       slash: 2.0.0
     optionalDependencies:
       '@nicolo-ribaudo/chokidar-2': 2.1.8-no-fsevents.3
-      chokidar: 3.6.0
+      chokidar: 3.5.3
 
   '@babel/code-frame@7.12.11':
     dependencies:
@@ -17716,7 +17717,7 @@ snapshots:
       jest-util: 29.7.0
       jest-validate: 29.7.0
       jest-watcher: 29.7.0
-      micromatch: 4.0.8
+      micromatch: 4.0.5
       pretty-format: 29.7.0
       slash: 3.0.0
       strip-ansi: 6.0.1
@@ -19099,7 +19100,7 @@ snapshots:
       glob: 7.1.7
       is-reference: 1.2.1
       magic-string: 0.25.7
-      resolve: 1.22.8
+      resolve: 1.22.4
       rollup: 2.35.1
 
   '@rollup/plugin-json@4.1.0(rollup@2.35.1)':
@@ -19114,7 +19115,7 @@ snapshots:
       builtin-modules: 3.1.0
       deepmerge: 4.2.2
       is-module: 1.0.0
-      resolve: 1.22.8
+      resolve: 1.22.4
       rollup: 2.35.1
 
   '@rollup/pluginutils@3.1.0(rollup@2.35.1)':
@@ -20622,7 +20623,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.22.5
       cosmiconfig: 7.0.0
-      resolve: 1.22.8
+      resolve: 1.22.4
 
   babel-plugin-macros@3.1.0:
     dependencies:
@@ -25410,7 +25411,7 @@ snapshots:
       jest-regex-util: 29.4.3
       jest-util: 29.5.0
       jest-worker: 29.5.0
-      micromatch: 4.0.8
+      micromatch: 4.0.5
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
@@ -25476,7 +25477,7 @@ snapshots:
       '@types/stack-utils': 2.0.1
       chalk: 4.1.2
       graceful-fs: 4.2.11
-      micromatch: 4.0.8
+      micromatch: 4.0.5
       pretty-format: 29.7.0
       slash: 3.0.0
       stack-utils: 2.0.6
@@ -29660,7 +29661,7 @@ snapshots:
       postcss-load-config: 3.1.4(postcss@8.4.31)
       postcss-modules: 4.0.0(postcss@8.4.31)
       promise.series: 0.2.0
-      resolve: 1.22.8
+      resolve: 1.22.4
       rollup-pluginutils: 2.8.2
       safe-identifier: 0.4.2
       style-inject: 0.3.0
