@@ -201,6 +201,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        exclude:
+          # Excluding React 18 tests unless on `canary` branch until budget is approved.
+          - react: ${{ github.event_name == 'pull_request' && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         react: ['', '18.3.1']
@@ -218,6 +221,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        exclude:
+          # Excluding React 18 tests unless on `canary` branch until budget is approved.
+          - react: ${{ github.event_name == 'pull_request' && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         react: ['']
@@ -236,6 +242,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        exclude:
+          # Excluding React 18 tests unless on `canary` branch until budget is approved.
+          - react: ${{ github.event_name == 'pull_request' && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         # TODO: Run with React 18.
@@ -371,6 +380,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        exclude:
+          # Excluding React 18 tests unless on `canary` branch until budget is approved.
+          - react: ${{ github.event_name == 'pull_request' && '18.3.1' }}
         group: [1/4, 2/4, 3/4, 4/4]
         # Empty value uses default
         react: ['', '18.3.1']
@@ -388,6 +400,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        exclude:
+          # Excluding React 18 tests unless on `canary` branch until budget is approved.
+          - react: ${{ github.event_name == 'pull_request' && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
         # Empty value uses default
         react: ['', '18.3.1']
