@@ -48,7 +48,7 @@ describe('app-dir - custom-cache-handler - cjs-default-export', () => {
     files: __dirname,
     skipDeployment: true,
     env: {
-      NEXT_CACHE_HANDLER_PATH: 'cache-handler-cjs-default-export.js',
+      CUSTOM_CACHE_HANDLER: 'cache-handler-cjs-default-export.js',
     },
   })
 
