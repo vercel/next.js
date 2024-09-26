@@ -122,6 +122,6 @@ export async function runTransform(
 
   if (!dry && codemod === 'next-request-geo-ip') {
     console.log('Installing `@vercel/functions`...')
-    installPackage('@vercel/functions')
+    await installPackage('@vercel/functions')
   }
 }

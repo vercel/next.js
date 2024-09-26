@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import execa from 'execa'
-import { execSync } from 'node:child_process'
+import spawn from 'cross-spawn'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 
@@ -57,23 +57,46 @@ export function uninstallPackage(
   execa.sync(pkgManager, [command, packageToUninstall], { stdio: 'inherit' })
 }
 
-export function installPackage(
+export async function installPackage(
   packageToInstall: string | string[],
-  pkgManager?: PackageManager
+  pkgManager?: PackageManager,
+  cwd?: string
 ) {
-  pkgManager ??= getPkgManager(process.cwd())
+  pkgManager ??= getPkgManager(cwd ?? process.cwd())
   if (!pkgManager) throw new Error('Failed to find package manager')
-
-  if (Array.isArray(packageToInstall)) {
-    packageToInstall = packageToInstall.join(' ')
+  if (typeof packageToInstall === 'string') {
+    packageToInstall = [packageToInstall]
   }
 
-  try {
-    execSync(`${pkgManager} add ${packageToInstall}`, { stdio: 'inherit' })
-  } catch (error) {
-    throw new Error(
-      `Failed to install "${packageToInstall}". Please install it manually.`,
-      { cause: error }
-    )
-  }
+  const args = ['install', ...packageToInstall]
+
+  // try {
+
+  // } catch (error) {
+  //   throw new Error(
+  //     `Failed to install "${packageToInstall}". Please install it manually.`,
+  //     { cause: error }
+  //   )
+  // }
+
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn(pkgManager, args, {
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        ADBLOCK: '1',
+        // we set NODE_ENV to development as pnpm skips dev
+        // dependencies when production
+        NODE_ENV: 'development',
+        DISABLE_OPENCOLLECTIVE: '1',
+      },
+    })
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject({ command: `${pkgManager} ${args.join(' ')}` })
+        return
+      }
+      resolve()
+    })
+  })
 }

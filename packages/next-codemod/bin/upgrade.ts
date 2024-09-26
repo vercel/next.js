@@ -9,7 +9,7 @@ import { runTransform } from './transform'
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 type Version = 'canary' | 'rc' | 'latest' | string
 
-const cwd = process.cwd()
+const cwd: string = process.cwd()
 
 export async function runUpgrade(version?: Version): Promise<void> {
   const installedNextVersion = await getInstalledNextVersion()
@@ -22,14 +22,15 @@ export async function runUpgrade(version?: Version): Promise<void> {
   let targetNextVersion = ''
 
   const isValidVersion = validateStrict(version)
-  if (version && !isValidVersion) {
+  const isTag = ['canary', 'rc', 'latest'].includes(version)
+
+  if (version && !isValidVersion && !isTag) {
     console.log(
       `"${version}" is an invalid version syntax. See "https://www.npmjs.com/package/next?activeTab=versions".`
     )
     console.log()
   }
 
-  const isTag = ['canary', 'rc', 'latest'].includes(version)
   if (isTag || isValidVersion) {
     const res = await fetch(`https://registry.npmjs.org/next/${version}`)
     if (!res.ok) {
@@ -117,10 +118,14 @@ export async function runUpgrade(version?: Version): Promise<void> {
     }
   } catch {}
 
-  const packageManager: PackageManager = getPkgManager(cwd)
-  installPackage([nextDependency, ...reactDependencies], packageManager)
-
   console.log(`Upgrading your project to Next.js v${targetNextVersion}...`)
+
+  const packageManager: PackageManager = getPkgManager(cwd)
+  await installPackage(
+    [nextDependency, ...reactDependencies],
+    packageManager,
+    cwd
+  )
 
   await suggestCodemods(installedNextVersion, targetNextVersion)
 
@@ -131,13 +136,13 @@ export async function runUpgrade(version?: Version): Promise<void> {
 
 async function getInstalledNextVersion(): Promise<string | null> {
   try {
-    const installedNextPkgJsonPath = require.resolve('next/package.json', {
-      paths: [cwd],
-    })
-
-    return require(installedNextPkgJsonPath).version
+    return require(
+      require.resolve('next/package.json', {
+        paths: [cwd],
+      })
+    ).version
   } catch (error) {
-    throw new Error('Failed to get installed Next.js version.', {
+    throw new Error('Failed to get the installed Next.js version.', {
       cause: error,
     })
   }

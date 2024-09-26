@@ -77,6 +77,9 @@ importers:
       '@next/bundle-analyzer':
         specifier: workspace:*
         version: link:packages/next-bundle-analyzer
+      '@next/codemod':
+        specifier: workspace:*
+        version: link:packages/next-codemod
       '@next/env':
         specifier: workspace:*
         version: link:packages/next-env
@@ -857,7 +860,7 @@ importers:
         version: 0.5.13
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-6067d4e-20240924
+        version: 0.0.0-experimental-6067d4e-20240925
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -1496,6 +1499,9 @@ importers:
 
   packages/next-codemod:
     dependencies:
+      '@types/cross-spawn':
+        specifier: 6.0.0
+        version: 6.0.0
       cheerio:
         specifier: 1.0.0-rc.9
         version: 1.0.0-rc.9
@@ -1505,6 +1511,9 @@ importers:
       compare-versions:
         specifier: 6.1.1
         version: 6.1.1
+      cross-spawn:
+        specifier: 7.0.3
+        version: 7.0.3
       execa:
         specifier: 4.0.3
         version: 4.0.3
@@ -5947,8 +5956,8 @@ packages:
     peerDependencies:
       '@babel/core': 7.22.5
 
-  babel-plugin-react-compiler@0.0.0-experimental-6067d4e-20240924:
-    resolution: {integrity: sha512-Xprt5PqHZKqF2H8Di7y+o9j1RTFsNGJ6ntBcRFu8kcChy5sVSVVIKXq+FBezcBhVChzaRrUb+OV/nWZlJH1aJA==}
+  babel-plugin-react-compiler@0.0.0-experimental-6067d4e-20240925:
+    resolution: {integrity: sha512-PFMEEvTj2jWIPXh3C0PnDNhfAlQLJjwn/24PrvOzN8KIkQHfPawn95xIj0LnYyz/EnY6hYWNe45iGJoJYSOZ5g==}
 
   babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
@@ -20684,7 +20693,7 @@ snapshots:
       - supports-color
     optional: true
 
-  babel-plugin-react-compiler@0.0.0-experimental-6067d4e-20240924:
+  babel-plugin-react-compiler@0.0.0-experimental-6067d4e-20240925:
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
