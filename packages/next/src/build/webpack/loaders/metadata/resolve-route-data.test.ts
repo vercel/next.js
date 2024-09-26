@@ -213,9 +213,9 @@ describe('resolveRouteData', () => {
         <video:family_friendly>yes</video:family_friendly>
         <video:requires_subscription>no</video:requires_subscription>
         <video:live>no</video:live>
-        <video:restriction relationship='allow'>IE GB US CA</video:restriction>
-        <video:platform relationship='allow'>web</video:platform>
-        <video:uploader info='https://www.example.com/users/grillymcgrillerson'>GrillyMcGrillerson</video:uploader>
+        <video:restriction relationship="allow">IE GB US CA</video:restriction>
+        <video:platform relationship="allow">web</video:platform>
+        <video:uploader info="https://www.example.com/users/grillymcgrillerson">GrillyMcGrillerson</video:uploader>
         </video:video>
         <lastmod>2021-01-01</lastmod>
         <changefreq>weekly</changefreq>
