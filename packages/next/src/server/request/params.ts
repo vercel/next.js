@@ -14,11 +14,7 @@ import {
   type PrerenderStore,
 } from '../app-render/prerender-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import {
-  makeResolvedReactPromise,
-  describeStringPropertyAccess,
-  throwWithStaticGenerationBailoutErrorWithDynamicError,
-} from './utils'
+import { makeResolvedReactPromise, describeStringPropertyAccess } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 
 export type Params = Record<string, string | Array<string> | undefined>
@@ -259,12 +255,13 @@ function makeErroringExoticParams(
           Object.defineProperty(augmentedUnderlying, prop, {
             get() {
               const expression = describeStringPropertyAccess('params', prop)
-              if (staticGenerationStore.dynamicShouldError) {
-                throwWithStaticGenerationBailoutErrorWithDynamicError(
-                  staticGenerationStore.route,
-                  expression
-                )
-              } else if (prerenderStore) {
+              // In most dynamic APIs we also throw if `dynamic = "error"` however
+              // for params is only dynamic when we're generating a fallback shell
+              // and even when `dynamic = "error"` we still support generating dynamic
+              // fallback shells
+              // TODO remove this comment when dynamicIO is the default since there
+              // will be no `dynamic = "error"`
+              if (prerenderStore) {
                 postponeWithTracking(
                   staticGenerationStore.route,
                   expression,
@@ -282,12 +279,13 @@ function makeErroringExoticParams(
           Object.defineProperty(promise, prop, {
             get() {
               const expression = describeStringPropertyAccess('params', prop)
-              if (staticGenerationStore.dynamicShouldError) {
-                throwWithStaticGenerationBailoutErrorWithDynamicError(
-                  staticGenerationStore.route,
-                  expression
-                )
-              } else if (prerenderStore) {
+              // In most dynamic APIs we also throw if `dynamic = "error"` however
+              // for params is only dynamic when we're generating a fallback shell
+              // and even when `dynamic = "error"` we still support generating dynamic
+              // fallback shells
+              // TODO remove this comment when dynamicIO is the default since there
+              // will be no `dynamic = "error"`
+              if (prerenderStore) {
                 postponeWithTracking(
                   staticGenerationStore.route,
                   expression,
