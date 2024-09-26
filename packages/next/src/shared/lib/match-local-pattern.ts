@@ -26,5 +26,4 @@ export function hasLocalMatch(
   }
   const url = new URL(urlPathAndQuery, 'http://n')
   return localPatterns.some((p) => matchLocalPattern(p, url))
-  
 }

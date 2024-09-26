@@ -18,7 +18,6 @@ export type ImageLoaderPropsWithConfig = ImageLoaderProps & {
   config: Readonly<ImageConfig>
 }
 
-
 export type LocalPattern = {
   /**
    * Can be literal or wildcard.
@@ -139,6 +138,6 @@ export const imageConfigDefault: ImageConfigComplete = {
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
   contentDispositionType: 'attachment',
   localPatterns: undefined, // default: allow all local images
-  remotePatterns: [],  // default: allow no remote images
+  remotePatterns: [], // default: allow no remote images
   unoptimized: false,
 }

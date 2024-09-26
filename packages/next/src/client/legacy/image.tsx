@@ -156,7 +156,9 @@ function defaultLoader({
         process.env.NEXT_RUNTIME !== 'edge'
       ) {
         // We use dynamic require because this should only error in development
-        const { hasRemoteMatch } = require('../../shared/lib/match-remote-pattern')
+        const {
+          hasRemoteMatch,
+        } = require('../../shared/lib/match-remote-pattern')
         if (!hasRemoteMatch(config.domains, config.remotePatterns, parsedSrc)) {
           throw new Error(
             `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
