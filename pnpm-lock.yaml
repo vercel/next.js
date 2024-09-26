@@ -863,11 +863,7 @@ importers:
         version: 0.5.13
       babel-plugin-react-compiler:
         specifier: '*'
-<<<<<<< Updated upstream
-        version: 0.0.0-experimental-6067d4e-20240925
-=======
         version: 0.0.0-experimental-57db2f6-20240926
->>>>>>> Stashed changes
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -5957,13 +5953,8 @@ packages:
     peerDependencies:
       '@babel/core': 7.22.5
 
-<<<<<<< Updated upstream
-  babel-plugin-react-compiler@0.0.0-experimental-6067d4e-20240925:
-    resolution: {integrity: sha512-PFMEEvTj2jWIPXh3C0PnDNhfAlQLJjwn/24PrvOzN8KIkQHfPawn95xIj0LnYyz/EnY6hYWNe45iGJoJYSOZ5g==}
-=======
   babel-plugin-react-compiler@0.0.0-experimental-57db2f6-20240926:
     resolution: {integrity: sha512-zbDaQPCUcTlPgLXzYMkhA/7ozI3P45vagP3Vc97s/ykEzT0Mi9n3Td4mCTRP0NiWt5iu31/iUDNQyfNy8Qn45A==}
->>>>>>> Stashed changes
 
   babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
@@ -12499,7 +12490,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -20691,11 +20681,7 @@ snapshots:
       - supports-color
     optional: true
 
-<<<<<<< Updated upstream
-  babel-plugin-react-compiler@0.0.0-experimental-6067d4e-20240925:
-=======
   babel-plugin-react-compiler@0.0.0-experimental-57db2f6-20240926:
->>>>>>> Stashed changes
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
