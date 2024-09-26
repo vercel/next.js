@@ -160,6 +160,11 @@ async function generateCacheEntry(
 }
 
 export function cache(kind: string, id: string, fn: any) {
+  if (!process.env.__NEXT_DYNAMIC_IO) {
+    throw new Error(
+      '"use cache" is only available with the experimental.dynamicIO config.'
+    )
+  }
   const cacheHandler = cacheHandlerMap.get(kind)
   if (cacheHandler === undefined) {
     throw new Error('Unknown cache handler: ' + kind)
