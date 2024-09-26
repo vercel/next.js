@@ -6,7 +6,6 @@ import { CODEMOD_CHOICES } from '../lib/utils'
 import { onPromptState } from './next-codemod'
 import { runTransform } from './transform'
 
-type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 type Version = 'canary' | 'rc' | 'latest' | string
 
 const cwd: string = process.cwd()
@@ -94,7 +93,7 @@ export async function runUpgrade(version?: Version): Promise<void> {
       compare(nextPkgJson.version, installedNextVersion, '<=')
     ) {
       console.log(
-        `Current version v${installedNextVersion} is newer than the latest Release Candidate v${nextPkgJson.version}.`
+        `Current version v${installedNextVersion} is equivalent or newer than the latest Release Candidate v${nextPkgJson.version}.`
       )
       return
     }
@@ -120,7 +119,7 @@ export async function runUpgrade(version?: Version): Promise<void> {
 
   console.log(`Upgrading your project to Next.js v${targetNextVersion}...`)
 
-  const packageManager: PackageManager = getPkgManager(cwd)
+  const packageManager = await getPkgManager(cwd)
   await installPackage(
     [nextDependency, ...reactDependencies],
     packageManager,
