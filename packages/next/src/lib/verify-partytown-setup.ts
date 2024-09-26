@@ -91,7 +91,7 @@ async function verifyRootLayoutImport(appDir: string) {
 
   if (!hasPartytownComponent) {
     Log.warn(
-      `Partytown is installed, but the Partytown component is not properly set up in your root layout file ${bold(rootLayoutPath)}. Make sure to import and use the Partytown component for proper setup with the App Router.`
+      `Partytown is installed, but the <Partytown /> component is not properly set up in your root layout file ${bold(rootLayoutPath)}. Make sure to import and use the <Partytown /> component for proper setup with the App Router.`
     )
   }
 }
