@@ -63,7 +63,7 @@ export default async function Page() {
       <p>
         random cookie:{' '}
         <span id="random-cookie">
-          {JSON.stringify(cookies().get('random'))}
+          {JSON.stringify((await cookies()).get('random'))}
         </span>
       </p>
       <form>
@@ -71,7 +71,7 @@ export default async function Page() {
           id="set-cookie"
           formAction={async () => {
             'use server'
-            cookies().set('random', `${Math.random()}`)
+            ;(await cookies()).set('random', `${Math.random()}`)
           }}
         >
           set cookie

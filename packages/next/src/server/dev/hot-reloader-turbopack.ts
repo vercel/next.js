@@ -15,13 +15,13 @@ import type {
   TurbopackConnectedAction,
 } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import type { Update as TurbopackUpdate } from '../../build/swc'
-import {
-  createDefineEnv,
-  type Endpoint,
-  type TurbopackResult,
-  type WrittenEndpoint,
-} from '../../build/swc'
+import type {
+  Update as TurbopackUpdate,
+  Endpoint,
+  WrittenEndpoint,
+  TurbopackResult,
+} from '../../build/swc/types'
+import { createDefineEnv } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import {
   getVersionInfo,

@@ -10,6 +10,20 @@ describe('dynamic-io', () => {
     return
   }
 
+  let cliIndex = 0
+  beforeEach(() => {
+    cliIndex = next.cliOutput.length
+  })
+  function getLines(containing: string): Array<string> {
+    const warnings = next.cliOutput
+      .slice(cliIndex)
+      .split('\n')
+      .filter((l) => l.includes(containing))
+
+    cliIndex = next.cliOutput.length
+    return warnings
+  }
+
   it('should not prerender GET route handlers that use dynamic APIs', async () => {
     let str = await next.render('/routes/dynamic-cookies', {})
     let json = JSON.parse(str)
@@ -223,5 +237,79 @@ describe('dynamic-io', () => {
 
     expect(json.value).toEqual('at runtime')
     expect(json.message).toBe('task')
+  })
+
+  it('should prerender GET route handlers when accessing awaited params', async () => {
+    expect(getLines('In route /routes/[dyn]')).toEqual([])
+    let str = await next.render('/routes/1/async', {})
+    let json = JSON.parse(str)
+
+    if (isNextDev) {
+      expect(json.value).toEqual('at runtime')
+      expect(json.type).toBe('dynamic params')
+      expect(json.param).toBe('1')
+      expect(getLines('In route /routes/[dyn]')).toEqual([])
+    } else {
+      expect(json.value).toEqual('at buildtime')
+      expect(json.type).toBe('dynamic params')
+      expect(json.param).toBe('1')
+      expect(getLines('In route /routes/[dyn]')).toEqual([])
+    }
+
+    str = await next.render('/routes/2/async', {})
+    json = JSON.parse(str)
+
+    if (isNextDev) {
+      expect(json.value).toEqual('at runtime')
+      expect(json.type).toBe('dynamic params')
+      expect(json.param).toBe('2')
+      expect(getLines('In route /routes/[dyn]')).toEqual([])
+    } else {
+      expect(json.value).toEqual('at runtime')
+      expect(json.type).toBe('dynamic params')
+      expect(json.param).toBe('2')
+      expect(getLines('In route /routes/[dyn]')).toEqual([])
+    }
+  })
+
+  it('should prerender GET route handlers when accessing params without awaiting first', async () => {
+    expect(getLines('In route /routes/[dyn]')).toEqual([])
+    let str = await next.render('/routes/1/sync', {})
+    let json = JSON.parse(str)
+
+    if (isNextDev) {
+      expect(json.value).toEqual('at runtime')
+      expect(json.type).toBe('dynamic params')
+      expect(json.param).toBe('1')
+      expect(getLines('In route /routes/[dyn]')).toEqual([
+        expect.stringContaining(
+          'a param property was accessed directly with `params.dyn`.'
+        ),
+      ])
+    } else {
+      expect(json.value).toEqual('at buildtime')
+      expect(json.type).toBe('dynamic params')
+      expect(json.param).toBe('1')
+      expect(getLines('In route /routes/[dyn]')).toEqual([])
+    }
+
+    str = await next.render('/routes/2/sync', {})
+    json = JSON.parse(str)
+
+    if (isNextDev) {
+      expect(json.value).toEqual('at runtime')
+      expect(json.type).toBe('dynamic params')
+      expect(json.param).toBe('2')
+      expect(getLines('In route /routes/[dyn]')).toEqual([
+        expect.stringContaining(
+          'a param property was accessed directly with `params.dyn`.'
+        ),
+      ])
+    } else {
+      expect(json.value).toEqual('at runtime')
+      expect(json.type).toBe('dynamic params')
+      expect(json.param).toBe('2')
+      expect(getLines('In route /routes/[dyn]')).toEqual([])
+    }
   })
 })

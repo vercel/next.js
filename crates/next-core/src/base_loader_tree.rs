@@ -8,6 +8,7 @@ use turbopack_core::{
     file_source::FileSource,
     module::Module,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    source::Source,
 };
 use turbopack_ecmascript::{magic_identifier, utils::StringifyJs};
 
@@ -64,9 +65,7 @@ impl BaseLoaderTreeBuilder {
         i
     }
 
-    pub fn process_module(&self, path: Vc<FileSystemPath>) -> Vc<Box<dyn Module>> {
-        let source = Vc::upcast(FileSource::new(path));
-
+    pub fn process_source(&self, source: Vc<Box<dyn Source>>) -> Vc<Box<dyn Module>> {
         let reference_type = Value::new(ReferenceType::EcmaScriptModules(
             EcmaScriptModulesReferenceSubType::Undefined,
         ));
@@ -74,6 +73,11 @@ impl BaseLoaderTreeBuilder {
         self.server_component_transition
             .process(source, self.module_asset_context, reference_type)
             .module()
+    }
+
+    pub fn process_module(&self, module: Vc<Box<dyn Module>>) -> Vc<Box<dyn Module>> {
+        self.server_component_transition
+            .process_module(module, self.module_asset_context)
     }
 
     pub async fn create_module_tuple_code(
@@ -96,7 +100,7 @@ impl BaseLoaderTreeBuilder {
             .into(),
         );
 
-        let module = self.process_module(path);
+        let module = self.process_source(Vc::upcast(FileSource::new(path)));
 
         self.inner_assets
             .insert(format!("MODULE_{i}").into(), module);

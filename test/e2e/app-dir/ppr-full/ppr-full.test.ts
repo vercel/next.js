@@ -458,7 +458,14 @@ describe('ppr-full', () => {
 
           // We expect to get the fallback shell.
           $ = await next.render$(pathname)
-          expect($('[data-layout]').data('layout')).toBe(fallbackID)
+
+          // When deployed to Vercel, it will serve a stale version of the dynamic shell
+          // Whereas with `next start` it will serve the fallback shell
+          if (isNextDeploy) {
+            expect($('[data-layout]').data('layout')).toBe(dynamicID)
+          } else {
+            expect($('[data-layout]').data('layout')).toBe(fallbackID)
+          }
 
           // Let's wait for the page to be revalidated.
           let revalidatedDynamicID: string

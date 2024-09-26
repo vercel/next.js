@@ -21,8 +21,8 @@ describe('dynamic = "error" in devmode', () => {
 
         import Component from '../../index'
 
-        export default function Page() {
-          cookies()
+        export default async function Page() {
+          await cookies()
           return <Component />
         }
 

@@ -32,16 +32,15 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
     #[turbo_tasks::function]
     async fn content_with_async_module_info(
-        self: Vc<Self>,
+        &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let this = self.await?;
-        let module = this.module.await?;
+        let module = self.module.await?;
 
         let split_data = split_module(module.full_module);
         let parsed = part_of_module(split_data, module.part);
 
-        let analyze = this.module.analyze().await?;
+        let analyze = self.module.analyze().await?;
         let async_module_options = analyze.async_module.module_options(async_module_info);
 
         let module_type_result = *module.full_module.determine_module_type().await?;
@@ -50,7 +49,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             parsed,
             module.full_module.ident(),
             module_type_result.module_type,
-            this.chunking_context,
+            self.chunking_context,
             analyze.references,
             analyze.code_generation,
             analyze.async_module,
@@ -61,7 +60,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
         Ok(EcmascriptChunkItemContent::new(
             content,
-            this.chunking_context,
+            self.chunking_context,
             module.full_module.await?.options,
             async_module_options,
         ))
@@ -76,17 +75,17 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
-    async fn references(&self) -> Vc<ModuleReferences> {
+    fn references(&self) -> Vc<ModuleReferences> {
         self.module.references()
     }
 
     #[turbo_tasks::function]
-    async fn asset_ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self.module.ident())
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

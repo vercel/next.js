@@ -9,7 +9,8 @@ import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/midd
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
-import { createDefineEnv, type Project } from '../../../build/swc'
+import { createDefineEnv } from '../../../build/swc'
+import type { Project } from '../../../build/swc/types'
 import fs from 'fs'
 import { mkdir } from 'fs/promises'
 import url from 'url'
@@ -953,7 +954,7 @@ async function startWatcher(opts: SetupOpts) {
                   file: frameFile,
                   methodName: frame.methodName,
                   line: frame.lineNumber ?? 0,
-                  column: frame.column,
+                  column: frame.column ?? undefined,
                   isServer: true,
                 }
               )
@@ -1124,7 +1125,7 @@ async function traceTurbopackErrorStack(
           file: f.file!,
           methodName: f.methodName,
           line: f.lineNumber ?? 0,
-          column: f.column,
+          column: f.column ?? undefined,
           isServer: true,
         })
 

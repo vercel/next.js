@@ -86,7 +86,7 @@ import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
-import * as ciEnvironment from '../telemetry/ci-info'
+import * as ciEnvironment from '../server/ci-info'
 import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
@@ -501,11 +501,12 @@ async function writeImagesManifest(
   const { deviceSizes, imageSizes } = images
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
-    // Should be the same as matchRemotePattern()
+    // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol,
     hostname: makeRe(p.hostname).source,
     port: p.port,
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+    search: p.search,
   }))
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
@@ -771,6 +772,15 @@ export default async function build(
         await fs.mkdir(shuttleDir, {
           recursive: true,
         })
+
+        // since inlining comes after static generation we need
+        // to ensure this value is assigned to process env so it
+        // can still be accessed
+        for (const key in config.env) {
+          if (!process.env[key]) {
+            process.env[key] = config.env[key]
+          }
+        }
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan

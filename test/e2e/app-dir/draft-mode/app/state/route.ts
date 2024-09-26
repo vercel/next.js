@@ -1,6 +1,6 @@
 import { draftMode } from 'next/headers'
 
-export function GET() {
-  const { isEnabled } = draftMode()
+export async function GET() {
+  const { isEnabled } = await draftMode()
   return new Response(isEnabled ? 'ENABLED' : 'DISABLED')
 }

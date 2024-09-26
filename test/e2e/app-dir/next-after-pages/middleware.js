@@ -8,11 +8,11 @@ export function middleware(
   const url = new URL(request.url)
   if (url.pathname.startsWith('/middleware/redirect-source')) {
     const requestId = url.searchParams.get('requestId')
-    after(() => {
+    after(async () => {
       cliLog({
         source: '[middleware] /middleware/redirect-source',
         requestId,
-        cookies: { testCookie: cookies().get('testCookie')?.value },
+        cookies: { testCookie: (await cookies()).get('testCookie')?.value },
       })
     })
     return NextResponse.redirect(new URL('/middleware/redirect', request.url))

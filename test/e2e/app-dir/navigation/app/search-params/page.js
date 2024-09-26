@@ -1,9 +1,9 @@
 import Link from 'next/link'
 
-export default function page({ searchParams }) {
+export default async function page({ searchParams }) {
   return (
     <div>
-      <p id="name">{searchParams.name ?? ''}</p>
+      <p id="name">{(await searchParams).name ?? ''}</p>
       <Link id="link" href="/">
         home
       </Link>

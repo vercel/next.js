@@ -24,7 +24,7 @@ import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 
 import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
 import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
-import { hasNextSupport } from '../telemetry/ci-info'
+import { hasNextSupport } from '../server/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
 
@@ -1178,9 +1178,12 @@ export default async function loadConfig(
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const unsupportedConfig = findUp.sync(
       [
+        `${configBaseName}.cjs`,
+        `${configBaseName}.cts`,
+        `${configBaseName}.mts`,
+        `${configBaseName}.json`,
         `${configBaseName}.jsx`,
         `${configBaseName}.tsx`,
-        `${configBaseName}.json`,
       ],
       { cwd: dir }
     )
