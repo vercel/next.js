@@ -93,13 +93,13 @@ impl ConnectChildOperation {
                 });
             }
             if is_aggregating_node {
-                queue.push(AggregationUpdateJob::InnerHasNewFollower {
+                queue.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
                     upper_ids: vec![parent_task_id],
                     new_follower_id: child_task_id,
                 });
             } else {
                 let upper_ids = get_uppers(&parent_task);
-                queue.push(AggregationUpdateJob::InnerHasNewFollower {
+                queue.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
                     upper_ids,
                     new_follower_id: child_task_id,
                 });
