@@ -352,6 +352,10 @@ function Script(props: ScriptProps): JSX.Element | null {
           />
         )
       }
+    } else if (strategy === 'worker') {
+      return (
+        <script nonce={nonce} type="text/partytown" {...restProps} id={id} />
+      )
     } else if (strategy === 'afterInteractive') {
       if (src) {
         // @ts-ignore
