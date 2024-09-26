@@ -205,10 +205,10 @@ async function startWatcher(opts: SetupOpts) {
   await hotReloader.start()
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
-    await verifyPartytownSetup(
-      opts.dir,
-      path.join(distDir, CLIENT_STATIC_FILES_PATH)
-    )
+    await verifyPartytownSetup(opts.dir, {
+      appDir,
+      targetDir: path.join(distDir, CLIENT_STATIC_FILES_PATH),
+    })
   }
 
   opts.fsChecker.ensureCallback(async function ensure(item) {
