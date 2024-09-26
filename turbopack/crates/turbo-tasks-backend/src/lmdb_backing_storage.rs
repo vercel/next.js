@@ -66,7 +66,7 @@ impl LmdbBackingStorage {
             )
             .set_max_readers((available_parallelism().map_or(16, |v| v.get()) * 8) as u32)
             .set_max_dbs(5)
-            .set_map_size(20 * 1024 * 1024 * 1024)
+            .set_map_size(40 * 1024 * 1024 * 1024)
             .open(path)?;
         let infra_db = env.create_db(Some("infra"), DatabaseFlags::INTEGER_KEY)?;
         let data_db = env.create_db(Some("data"), DatabaseFlags::INTEGER_KEY)?;
