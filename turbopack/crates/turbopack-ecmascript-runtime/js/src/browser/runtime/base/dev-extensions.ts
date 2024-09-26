@@ -1,3 +1,5 @@
+/// <reference path="../../../shared/runtime-utils.ts" />
+
 /**
  * Extensions to the shared runtime types that are specific to the development
  * runtime (e.g. `module.hot`).
@@ -13,6 +15,8 @@ interface HotData {
   prevExports?: Exports;
 }
 
+// Used through reference comments
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface HotState {
   selfAccepted: boolean | Function;
   selfDeclined: boolean;
@@ -60,6 +64,8 @@ interface Hot {
   check: (autoApply: boolean) => Promise<any[] | null>;
 }
 
-interface Module {
+// Used through reference comments
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface HotModule extends ModuleWithDirection {
   hot: Hot;
 }

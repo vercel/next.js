@@ -7,9 +7,7 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/// <reference path="../../../../shared/require-type.d.ts" />
-
-declare var BACKEND: RuntimeBackend;
+declare var DEV_BACKEND: DevRuntimeBackend;
 declare var _eval: (code: EcmascriptModuleEntry) => any;
 /**
  * Adds additional properties to the `TurbopackDevBaseContext` interface.
@@ -17,13 +15,3 @@ declare var _eval: (code: EcmascriptModuleEntry) => any;
 declare var augmentContext: (
   context: TurbopackDevBaseContext
 ) => TurbopackDevContext;
-declare var loadWebAssembly: (
-  source: SourceInfo,
-  wasmChunkPath: ChunkPath,
-  imports: WebAssembly.Imports
-) => Exports;
-declare var loadWebAssemblyModule: (
-  source: SourceInfo,
-  wasmChunkPath: ChunkPath
-) => WebAssembly.Module;
-declare var relativeURL: (inputUrl: string) => void;

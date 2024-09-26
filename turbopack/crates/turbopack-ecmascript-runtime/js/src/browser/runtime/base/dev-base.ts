@@ -1,3 +1,7 @@
+/// <reference path="./dev-globals.d.ts" />
+/// <reference path="./dev-protocol.d.ts" />
+/// <reference path="./dev-extensions.ts" />
+
 /**
  * This file contains runtime types and functions that are shared between all
  * Turbopack *development* ECMAScript runtimes.
@@ -8,10 +12,7 @@
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-/// <reference path="../../../../shared/runtime-utils.ts" />
-/// <reference path="./globals.d.ts" />
-/// <reference path="./protocol.d.ts" />
-/// <reference path="./extensions.d.ts" />
+const devModuleCache: ModuleCache<HotModule> = Object.create(null);
 
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
@@ -21,8 +22,8 @@ type RefreshRuntimeGlobals =
 
 // Workers are loaded via blob object urls and aren't relative to the main context, this gets
 // prefixed to chunk urls in the worker.
-declare var TURBOPACK_WORKER_LOCATION: string;
-declare var CHUNK_BASE_PATH: string;
+// declare var TURBOPACK_WORKER_LOCATION: string;
+// declare var CHUNK_BASE_PATH: string;
 declare var $RefreshHelpers$: RefreshRuntimeGlobals["$RefreshHelpers$"];
 declare var $RefreshReg$: RefreshRuntimeGlobals["$RefreshReg$"];
 declare var $RefreshSig$: RefreshRuntimeGlobals["$RefreshSig$"];
@@ -37,74 +38,21 @@ type RefreshContext = {
 
 type RefreshHelpers = RefreshRuntimeGlobals["$RefreshHelpers$"];
 
-interface TurbopackDevBaseContext extends TurbopackBaseContext {
+interface TurbopackDevBaseContext extends TurbopackBaseContext<Module> {
   k: RefreshContext;
   R: ResolvePathFromModule;
 }
 
 interface TurbopackDevContext extends TurbopackDevBaseContext {}
 
-// string encoding of a module factory (used in hmr updates)
-type ModuleFactoryString = string;
-
 type ModuleFactory = (
   this: Module["exports"],
-  context: TurbopackDevContext
-) => undefined;
+  context: TurbopackDevBaseContext
+) => undefined
 
-type DevRuntimeParams = {
-  otherChunks: ChunkData[];
-  runtimeModuleIds: ModuleId[];
-};
-
-type ChunkRegistration = [
-  chunkPath: ChunkPath,
-  chunkModules: ModuleFactories,
-  params: DevRuntimeParams | undefined
-];
-type ChunkList = {
-  path: ChunkPath;
-  chunks: ChunkData[];
-  source: "entry" | "dynamic";
-};
-
-enum SourceType {
-  /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   */
-  Runtime = 0,
-  /**
-   * The module was instantiated because a parent module imported it.
-   */
-  Parent = 1,
-  /**
-   * The module was instantiated because it was included in a chunk's hot module
-   * update.
-   */
-  Update = 2,
-}
-
-type SourceInfo =
-  | {
-      type: SourceType.Runtime;
-      chunkPath: ChunkPath;
-    }
-  | {
-      type: SourceType.Parent;
-      parentId: ModuleId;
-    }
-  | {
-      type: SourceType.Update;
-      parents?: ModuleId[];
-    };
-
-interface RuntimeBackend {
-  registerChunk: (chunkPath: ChunkPath, params?: DevRuntimeParams) => void;
-  loadChunk: (chunkPath: ChunkPath, source: SourceInfo) => Promise<void>;
+interface DevRuntimeBackend {
   reloadChunk?: (chunkPath: ChunkPath) => Promise<void>;
   unloadChunk?: (chunkPath: ChunkPath) => void;
-
   restart: () => void;
 }
 
@@ -119,8 +67,6 @@ class UpdateApplyError extends Error {
   }
 }
 
-const moduleFactories: ModuleFactories = Object.create(null);
-const moduleCache: ModuleCache = Object.create(null);
 /**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
@@ -134,161 +80,62 @@ const moduleHotState: Map<Module, HotState> = new Map();
  * Modules that call `module.hot.invalidate()` (while being updated).
  */
 const queuedInvalidatedModules: Set<ModuleId> = new Set();
-/**
- * Module IDs that are instantiated as part of the runtime of a chunk.
- */
-const runtimeModules: Set<ModuleId> = new Set();
-/**
- * Map from module ID to the chunks that contain this module.
- *
- * In HMR, we need to keep track of which modules are contained in which so
- * chunks. This is so we don't eagerly dispose of a module when it is removed
- * from chunk A, but still exists in chunk B.
- */
-const moduleChunksMap: Map<ModuleId, Set<ChunkPath>> = new Map();
-/**
- * Map from a chunk path to all modules it contains.
- */
-const chunkModulesMap: Map<ModuleId, Set<ChunkPath>> = new Map();
-/**
- * Chunk lists that contain a runtime. When these chunk lists receive an update
- * that can't be reconciled with the current state of the page, we need to
- * reload the runtime entirely.
- */
-const runtimeChunkLists: Set<ChunkPath> = new Set();
-/**
- * Map from a chunk list to the chunk paths it contains.
- */
-const chunkListChunksMap: Map<ChunkPath, Set<ChunkPath>> = new Map();
-/**
- * Map from a chunk path to the chunk lists it belongs to.
- */
-const chunkChunkListsMap: Map<ChunkPath, Set<ChunkPath>> = new Map();
 
-const availableModules: Map<ModuleId, Promise<any> | true> = new Map();
-
-const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map();
-
-async function loadChunk(
-  source: SourceInfo,
-  chunkData: ChunkData
-): Promise<any> {
-  if (typeof chunkData === "string") {
-    return loadChunkPath(source, chunkData);
+/**
+ * Gets or instantiates a runtime module.
+ */
+// @ts-ignore
+function getOrInstantiateRuntimeModule(
+  moduleId: ModuleId,
+  chunkPath: ChunkPath,
+): Module {
+  const module = devModuleCache[moduleId];
+  if (module) {
+    if (module.error) {
+      throw module.error;
+    }
+    return module;
   }
 
-  const includedList = chunkData.included || [];
-  const modulesPromises = includedList.map((included) => {
-    if (moduleFactories[included]) return true;
-    return availableModules.get(included);
-  });
-  if (modulesPromises.length > 0 && modulesPromises.every((p) => p)) {
-    // When all included items are already loaded or loading, we can skip loading ourselves
-    return Promise.all(modulesPromises);
-  }
-
-  const includedModuleChunksList = chunkData.moduleChunks || [];
-  const moduleChunksPromises = includedModuleChunksList
-    .map((included) => {
-      // TODO(alexkirsz) Do we need this check?
-      // if (moduleFactories[included]) return true;
-      return availableModuleChunks.get(included);
-    })
-    .filter((p) => p);
-
-  let promise;
-  if (moduleChunksPromises.length > 0) {
-    // Some module chunks are already loaded or loading.
-
-    if (moduleChunksPromises.length === includedModuleChunksList.length) {
-      // When all included module chunks are already loaded or loading, we can skip loading ourselves
-      return Promise.all(moduleChunksPromises);
-    }
-
-    const moduleChunksToLoad: Set<ChunkPath> = new Set();
-    for (const moduleChunk of includedModuleChunksList) {
-      if (!availableModuleChunks.has(moduleChunk)) {
-        moduleChunksToLoad.add(moduleChunk);
-      }
-    }
-
-    for (const moduleChunkToLoad of moduleChunksToLoad) {
-      const promise = loadChunkPath(source, moduleChunkToLoad);
-
-      availableModuleChunks.set(moduleChunkToLoad, promise);
-
-      moduleChunksPromises.push(promise);
-    }
-
-    promise = Promise.all(moduleChunksPromises);
-  } else {
-    promise = loadChunkPath(source, chunkData.path);
-
-    // Mark all included module chunks as loading if they are not already loaded or loading.
-    for (const includedModuleChunk of includedModuleChunksList) {
-      if (!availableModuleChunks.has(includedModuleChunk)) {
-        availableModuleChunks.set(includedModuleChunk, promise);
-      }
-    }
-  }
-
-  for (const included of includedList) {
-    if (!availableModules.has(included)) {
-      // It might be better to race old and new promises, but it's rare that the new promise will be faster than a request started earlier.
-      // In production it's even more rare, because the chunk optimization tries to deduplicate modules anyway.
-      availableModules.set(included, promise);
-    }
-  }
-
-  return promise;
+  // @ts-ignore
+  return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath });
 }
 
-async function loadChunkPath(
-  source: SourceInfo,
-  chunkPath: ChunkPath
-): Promise<any> {
-  try {
-    await BACKEND.loadChunk(chunkPath, source);
-  } catch (error) {
-    let loadReason;
-    switch (source.type) {
-      case SourceType.Runtime:
-        loadReason = `as a runtime dependency of chunk ${source.chunkPath}`;
-        break;
-      case SourceType.Parent:
-        loadReason = `from module ${source.parentId}`;
-        break;
-      case SourceType.Update:
-        loadReason = "from an HMR update";
-        break;
-      default:
-        invariant(source, (source) => `Unknown source type: ${source?.type}`);
-    }
-    throw new Error(
-      `Failed to load chunk ${chunkPath} ${loadReason}${
-        error ? `: ${error}` : ""
-      }`,
-      error
-        ? {
-            cause: error,
-          }
-        : undefined
+/**
+ * Retrieves a module from the cache, or instantiate it if it is not cached.
+ */
+// @ts-ignore Defined in `runtime-utils.ts`
+const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<HotModule> = (
+  id,
+  sourceModule,
+) => {
+  if (!sourceModule.hot.active) {
+    console.warn(
+      `Unexpected import of module ${id} from module ${sourceModule.id}, which was deleted by an HMR update`
     );
   }
-}
 
-/**
- * Returns an absolute url to an asset.
- */
-function createResolvePathFromModule(
-  resolver: (moduleId: string) => Exports
-): (moduleId: string) => string {
-  return function resolvePathFromModule(moduleId: string): string {
-    const exported = resolver(moduleId);
-    return exported?.default ?? exported;
-  };
-}
+  const module = devModuleCache[id];
 
+  if (sourceModule.children.indexOf(id) === -1) {
+    sourceModule.children.push(id);
+  }
+
+  if (module) {
+    if (module.parents.indexOf(sourceModule.id) === -1) {
+      module.parents.push(sourceModule.id);
+    }
+
+    return module;
+  }
+
+  return instantiateModule(id, {
+    type: SourceType.Parent,
+    parentId: sourceModule.id,
+  });
+};
+
+// @ts-ignore Defined in `runtime-base.ts`
 function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   const moduleFactory = moduleFactories[id];
   if (typeof moduleFactory !== "function") {
@@ -335,7 +182,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       invariant(source, (source) => `Unknown source type: ${source?.type}`);
   }
 
-  const module: Module = {
+  const module: HotModule = {
     exports: {},
     error: undefined,
     loaded: false,
@@ -346,7 +193,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
     hot,
   };
 
-  moduleCache[id] = module;
+  devModuleCache[id] = module;
   moduleHotState.set(module, hotState);
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
@@ -369,7 +216,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           v: exportValue.bind(null, module),
           n: exportNamespace.bind(null, module),
           m: module,
-          c: moduleCache,
+          c: devModuleCache,
           M: moduleFactories,
           l: loadChunk.bind(null, sourceInfo),
           w: loadWebAssembly.bind(null, sourceInfo),
@@ -397,20 +244,6 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
   }
 
   return module;
-}
-
-/**
- * no-op for browser
- * @param modulePath
- */
-function resolveAbsolutePath(modulePath?: string): string {
-  return `/ROOT/${modulePath ?? ""}`;
-}
-
-function getWorkerBlobURL(chunks: ChunkPath[]): string {
-  let bootstrap = `TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map(c => (`TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`)).join(", ")});`;
-  let blob = new Blob([bootstrap], { type: "text/javascript" });
-  return URL.createObjectURL(blob);
 }
 
 /**
@@ -442,43 +275,10 @@ function runModuleExecutionHooks(
 }
 
 /**
- * Retrieves a module from the cache, or instantiate it if it is not cached.
- */
-const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent = (
-  id,
-  sourceModule
-) => {
-  if (!sourceModule.hot.active) {
-    console.warn(
-      `Unexpected import of module ${id} from module ${sourceModule.id}, which was deleted by an HMR update`
-    );
-  }
-
-  const module = moduleCache[id];
-
-  if (sourceModule.children.indexOf(id) === -1) {
-    sourceModule.children.push(id);
-  }
-
-  if (module) {
-    if (module.parents.indexOf(sourceModule.id) === -1) {
-      module.parents.push(sourceModule.id);
-    }
-
-    return module;
-  }
-
-  return instantiateModule(id, {
-    type: SourceType.Parent,
-    parentId: sourceModule.id,
-  });
-};
-
-/**
  * This is adapted from https://github.com/vercel/next.js/blob/3466862d9dc9c8bb3131712134d38757b918d1c0/packages/react-refresh-utils/internal/ReactRefreshModule.runtime.ts
  */
 function registerExportsAndSetupBoundaryForReactRefresh(
-  module: Module,
+  module: HotModule,
   helpers: RefreshHelpers
 ) {
   const currentExports = module.exports;
@@ -600,9 +400,9 @@ function computedInvalidatedModules(
 function computeOutdatedSelfAcceptedModules(
   outdatedModules: Iterable<ModuleId>
 ): { moduleId: ModuleId; errorHandler: true | Function }[] {
-  const outdatedSelfAcceptedModules = [];
+  const outdatedSelfAcceptedModules: { moduleId: ModuleId; errorHandler: true | Function }[] = [];
   for (const moduleId of outdatedModules) {
-    const module = moduleCache[moduleId];
+    const module = devModuleCache[moduleId];
     const hotState = moduleHotState.get(module)!;
     if (module && hotState.selfAccepted && !hotState.selfInvalidated) {
       outdatedSelfAcceptedModules.push({
@@ -657,9 +457,9 @@ function disposePhase(
   // We also want to keep track of previous parents of the outdated modules.
   const outdatedModuleParents = new Map();
   for (const moduleId of outdatedModules) {
-    const oldModule = moduleCache[moduleId];
+    const oldModule = devModuleCache[moduleId];
     outdatedModuleParents.set(moduleId, oldModule?.parents);
-    delete moduleCache[moduleId];
+    delete devModuleCache[moduleId];
   }
 
   // TODO(alexkirsz) Dependencies: remove outdated dependency from module
@@ -674,15 +474,15 @@ function disposePhase(
  * Returns the persistent hot data that should be kept for the next module
  * instance.
  *
- * NOTE: mode = "replace" will not remove modules from the moduleCache.
+ * NOTE: mode = "replace" will not remove modules from the devModuleCache
  * This must be done in a separate step afterwards.
  * This is important because all modules need to be disposed to update the
- * parent/child relationships before they are actually removed from the moduleCache.
+ * parent/child relationships before they are actually removed from the devModuleCache.
  * If this was done in this method, the following disposeModule calls won't find
  * the module from the module id in the cache.
  */
 function disposeModule(moduleId: ModuleId, mode: "clear" | "replace") {
-  const module = moduleCache[moduleId];
+  const module = devModuleCache[moduleId];
   if (!module) {
     return;
   }
@@ -708,7 +508,7 @@ function disposeModule(moduleId: ModuleId, mode: "clear" | "replace") {
   // It will be added back once the module re-instantiates and imports its
   // children again.
   for (const childId of module.children) {
-    const child = moduleCache[childId];
+    const child = devModuleCache[childId];
     if (!child) {
       continue;
     }
@@ -721,7 +521,7 @@ function disposeModule(moduleId: ModuleId, mode: "clear" | "replace") {
 
   switch (mode) {
     case "clear":
-      delete moduleCache[module.id];
+      delete devModuleCache[module.id];
       moduleHotData.delete(module.id);
       break;
     case "replace":
@@ -760,7 +560,7 @@ function applyPhase(
     } catch (err) {
       if (typeof errorHandler === "function") {
         try {
-          errorHandler(err, { moduleId, module: moduleCache[moduleId] });
+          errorHandler(err, { moduleId, module: devModuleCache[moduleId] });
         } catch (err2) {
           reportError(err2);
           reportError(err);
@@ -802,10 +602,10 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
           BACKEND.loadChunk(chunkPath, { type: SourceType.Update });
           break;
         case "total":
-          BACKEND.reloadChunk?.(chunkPath);
+          DEV_BACKEND.reloadChunk?.(chunkPath);
           break;
         case "deleted":
-          BACKEND.unloadChunk?.(chunkPath);
+          DEV_BACKEND.unloadChunk?.(chunkPath);
           break;
         case "partial":
           invariant(
@@ -1019,7 +819,7 @@ function getAffectedModuleEffects(moduleId: ModuleId): ModuleEffect {
       };
     }
 
-    const module = moduleCache[moduleId];
+    const module = devModuleCache[moduleId];
     const hotState = moduleHotState.get(module)!;
 
     if (
@@ -1049,7 +849,7 @@ function getAffectedModuleEffects(moduleId: ModuleId): ModuleEffect {
     }
 
     for (const parentId of module.parents) {
-      const parent = moduleCache[parentId];
+      const parent = devModuleCache[parentId];
 
       if (!parent) {
         // TODO(alexkirsz) Is this even possible?
@@ -1084,7 +884,7 @@ function handleApply(chunkListPath: ChunkPath, update: ServerMessage) {
       // This indicates that there is no way to apply the update to the
       // current state of the application, and that the application must be
       // restarted.
-      BACKEND.restart();
+      DEV_BACKEND.restart();
       break;
     }
     case "notFound": {
@@ -1093,7 +893,7 @@ function handleApply(chunkListPath: ChunkPath, update: ServerMessage) {
       // If it is a dynamic import, we simply discard all modules that the chunk has exclusive access to.
       // If it is a runtime chunk list, we restart the application.
       if (runtimeChunkLists.has(chunkListPath)) {
-        BACKEND.restart();
+        DEV_BACKEND.restart();
       } else {
         disposeChunkList(chunkListPath);
       }
@@ -1185,41 +985,6 @@ function createModuleHot(
 }
 
 /**
- * Adds a module to a chunk.
- */
-function addModuleToChunk(moduleId: ModuleId, chunkPath: ChunkPath) {
-  let moduleChunks = moduleChunksMap.get(moduleId);
-  if (!moduleChunks) {
-    moduleChunks = new Set([chunkPath]);
-    moduleChunksMap.set(moduleId, moduleChunks);
-  } else {
-    moduleChunks.add(chunkPath);
-  }
-
-  let chunkModules = chunkModulesMap.get(chunkPath);
-  if (!chunkModules) {
-    chunkModules = new Set([moduleId]);
-    chunkModulesMap.set(chunkPath, chunkModules);
-  } else {
-    chunkModules.add(moduleId);
-  }
-}
-
-/**
- * Returns the first chunk that included a module.
- * This is used by the Node.js backend, hence why it's marked as unused in this
- * file.
- */
-function getFirstModuleChunk(moduleId: ModuleId) {
-  const moduleChunkPaths = moduleChunksMap.get(moduleId);
-  if (moduleChunkPaths == null) {
-    return null;
-  }
-
-  return moduleChunkPaths.values().next().value;
-}
-
-/**
  * Removes a module from a chunk.
  * Returns `true` if there are no remaining chunks including this module.
  */
@@ -1268,7 +1033,7 @@ function disposeChunkList(chunkListPath: ChunkPath): boolean {
 
   // We must also dispose of the chunk list's chunk itself to ensure it may
   // be reloaded properly in the future.
-  BACKEND.unloadChunk?.(chunkListPath);
+  DEV_BACKEND.unloadChunk?.(chunkListPath);
 
   return true;
 }
@@ -1281,7 +1046,7 @@ function disposeChunkList(chunkListPath: ChunkPath): boolean {
 function disposeChunk(chunkPath: ChunkPath): boolean {
   // This should happen whether the chunk has any modules in it or not.
   // For instance, CSS chunks have no modules in them, but they still need to be unloaded.
-  BACKEND.unloadChunk?.(chunkPath);
+  DEV_BACKEND.unloadChunk?.(chunkPath);
 
   const chunkModules = chunkModulesMap.get(chunkPath);
   if (chunkModules == null) {
@@ -1304,43 +1069,6 @@ function disposeChunk(chunkPath: ChunkPath): boolean {
   return true;
 }
 
-/**
- * Instantiates a runtime module.
- */
-function instantiateRuntimeModule(
-  moduleId: ModuleId,
-  chunkPath: ChunkPath
-): Module {
-  return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath });
-}
-
-/**
- * Gets or instantiates a runtime module.
- */
-function getOrInstantiateRuntimeModule(
-  moduleId: ModuleId,
-  chunkPath: ChunkPath
-): Module {
-  const module = moduleCache[moduleId];
-  if (module) {
-    if (module.error) {
-      throw module.error;
-    }
-    return module;
-  }
-
-  return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath });
-}
-
-/**
- * Returns the URL relative to the origin where a chunk can be fetched from.
- */
-function getChunkRelativeUrl(chunkPath: ChunkPath): string {
-  return `${CHUNK_BASE_PATH}${chunkPath
-    .split("/")
-    .map((p) => encodeURIComponent(p))
-    .join("/")}`;
-}
 
 /**
  * Subscribes to chunk list updates from the update server and applies them.
@@ -1370,30 +1098,6 @@ function registerChunkList(
   if (chunkList.source === "entry") {
     markChunkListAsRuntime(chunkList.path);
   }
-}
-
-/**
- * Marks a chunk list as a runtime chunk list. There can be more than one
- * runtime chunk list. For instance, integration tests can have multiple chunk
- * groups loaded at runtime, each with its own chunk list.
- */
-function markChunkListAsRuntime(chunkListPath: ChunkPath) {
-  runtimeChunkLists.add(chunkListPath);
-}
-
-function registerChunk([
-  chunkPath,
-  chunkModules,
-  runtimeParams,
-]: ChunkRegistration) {
-  for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
-    if (!moduleFactories[moduleId]) {
-      moduleFactories[moduleId] = moduleFactory;
-    }
-    addModuleToChunk(moduleId, chunkPath);
-  }
-
-  return BACKEND.registerChunk(chunkPath, runtimeParams);
 }
 
 globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];

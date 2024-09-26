@@ -9,6 +9,9 @@ type PartialServerMessage = {
   instruction: PartialUpdate;
 };
 
+// string encoding of a module factory (used in hmr updates)
+type ModuleFactoryString = string;
+
 type ServerMessage = {
   resource: ResourceIdentifier;
   issues: Issue[];

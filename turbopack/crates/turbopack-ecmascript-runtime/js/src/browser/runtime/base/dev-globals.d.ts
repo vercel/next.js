@@ -7,20 +7,10 @@
 
 type UpdateCallback = (update: ServerMessage) => void;
 
-type ChunkRegistry = {
-  push: (registration: ChunkRegistration) => void;
-};
-
-type ChunkListProvider = {
-  push: (registration: ChunkList) => void;
-};
-
 type ChunkUpdateProvider = {
   push: (registration: [ChunkPath, UpdateCallback]) => void;
 };
 
-declare var TURBOPACK: ChunkRegistry | ChunkRegistration[] | undefined;
-declare var TURBOPACK_CHUNK_LISTS: ChunkListProvider | ChunkList[] | undefined;
 declare var TURBOPACK_CHUNK_UPDATE_LISTENERS:
   | ChunkUpdateProvider
   | [ChunkPath, UpdateCallback][]

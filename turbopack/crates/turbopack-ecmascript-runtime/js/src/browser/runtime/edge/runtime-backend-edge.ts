@@ -8,8 +8,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../base/runtime-base.ts" />
-/// <reference path="../../../../shared-node/base-externals-utils.ts" />
-/// <reference path="../../../../shared/require-type.d.ts" />
+/// <reference path="../../../shared/require-type.d.ts" />
+/// <reference path="../../../shared-node/base-externals-utils.ts" />
 
 type ChunkRunner = {
   requiredChunks: Set<ChunkPath>;
@@ -23,15 +23,16 @@ type ExternalRequire = (
   id: ModuleId,
   esm?: boolean
 ) => Exports | EsmNamespaceObject;
+
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
-interface TurbopackDevContext extends TurbopackDevBaseContext {
+interface TurbopackEdgeContext extends TurbopackBaseContext<Module> {
   x: ExternalRequire;
   y: ExternalImport;
 }
 
-function augmentContext(context: TurbopackDevBaseContext): TurbopackDevContext {
-  const nodejsContext = context as TurbopackDevContext;
+function augmentContext(context: TurbopackBaseContext<Module>): TurbopackEdgeContext {
+  const nodejsContext = context as TurbopackEdgeContext;
   nodejsContext.x = externalRequire;
   nodejsContext.y = externalImport;
   return nodejsContext;
@@ -121,10 +122,6 @@ async function loadWebAssemblyModule(
     loadChunk(_chunkPath, _fromChunkPath) {
       throw new Error("chunk loading is not supported");
     },
-
-    restart: () => {
-      throw new Error("restart is not supported");
-    },
   };
 
   const registeredChunks: Set<ChunkPath> = new Set();
@@ -198,7 +195,3 @@ async function loadWebAssemblyModule(
     }
   }
 })();
-
-function _eval(_: EcmascriptModuleEntry): ModuleFactory {
-  throw new Error("HMR evaluation is not implemented on this backend");
-}
