@@ -112,7 +112,10 @@ export function headers(): Promise<ReadonlyHeaders> {
     trackDynamicDataInDynamicRender(staticGenerationStore)
   }
 
-  if (process.env.NODE_ENV === 'development') {
+  if (
+    process.env.NODE_ENV === 'development' &&
+    !staticGenerationStore?.isPrefetchRequest
+  ) {
     return makeUntrackedExoticHeadersWithDevWarnings(
       requestStore.headers,
       staticGenerationStore?.route
