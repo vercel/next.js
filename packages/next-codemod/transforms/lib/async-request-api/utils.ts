@@ -265,3 +265,26 @@ export function generateUniqueIdentifier(
   const propsIdentifier = j.identifier(idName)
   return propsIdentifier
 }
+
+export function isFunctionScope(path: ASTPath, j: API['jscodeshift']) {
+  const node = path.node
+
+  // Check if the node is a function (declaration, expression, or arrow function)
+  return (
+    j.FunctionDeclaration.check(node) ||
+    j.FunctionExpression.check(node) ||
+    j.ArrowFunctionExpression.check(node)
+  )
+}
+
+export function findClosetParentFunctionScope(
+  path: ASTPath,
+  j: API['jscodeshift']
+) {
+  let parentFunctionPath = path.scope.path
+  while (parentFunctionPath && !isFunctionScope(parentFunctionPath, j)) {
+    parentFunctionPath = parentFunctionPath.parent
+  }
+
+  return parentFunctionPath
+}

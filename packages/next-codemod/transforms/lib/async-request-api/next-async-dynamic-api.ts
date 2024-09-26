@@ -5,6 +5,8 @@ import {
   isMatchedFunctionExported,
   turnFunctionReturnTypeToAsync,
   insertReactUseImport,
+  isFunctionScope,
+  findClosetParentFunctionScope,
 } from './utils'
 
 function wrapParathnessIfNeeded(
@@ -13,17 +15,6 @@ function wrapParathnessIfNeeded(
   expression
 ) {
   return hasChainAccess ? j.parenthesizedExpression(expression) : expression
-}
-
-function isFunctionScope(path: ASTPath, j: API['jscodeshift']) {
-  const node = path.node
-
-  // Check if the node is a function (declaration, expression, or arrow function)
-  return (
-    j.FunctionDeclaration.check(node) ||
-    j.FunctionExpression.check(node) ||
-    j.ArrowFunctionExpression.check(node)
-  )
 }
 
 export function transformDynamicAPI(
@@ -66,14 +57,10 @@ export function transformDynamicAPI(
         if (!isImportedTopLevel) {
           return
         }
-
-        let parentFunctionPath = path.scope.path
-        let parentFunctionNode
-        while (parentFunctionPath && !isFunctionScope(parentFunctionPath, j)) {
-          parentFunctionPath = parentFunctionPath.parent
-        }
+        let parentFunctionPath = findClosetParentFunctionScope(path, j)
 
         // We found the parent scope is not a function
+        let parentFunctionNode
         if (parentFunctionPath) {
           if (isFunctionScope(parentFunctionPath, j)) {
             parentFunctionNode = parentFunctionPath.node
@@ -163,10 +150,7 @@ export function transformDynamicAPI(
             }
           } else {
             // if parent is function and it's a hook, which starts with 'use', wrap the api call with 'use()'
-            const parentFunction =
-              j(path).closest(j.FunctionDeclaration) ||
-              j(path).closest(j.FunctionExpression) ||
-              j(path).closest(j.ArrowFunctionExpression)
+            const parentFunction = findClosetParentFunctionScope(path, j)
 
             if (parentFunction.size() > 0) {
               const parentFunctionName = parentFunction.get().node.id?.name

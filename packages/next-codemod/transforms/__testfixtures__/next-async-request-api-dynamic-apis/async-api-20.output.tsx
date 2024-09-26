@@ -1,8 +1,7 @@
-import { cookies, draftMode } from 'cookies'
+import { cookies } from 'cookies'
 
-export async function myFun() {
-  const isDraft = (await draftMode()).isEnabled
-  return async function () {
+export function MyCls() {
+  return async function Page() {
     return (await cookies()).get('token')
   }
 }
