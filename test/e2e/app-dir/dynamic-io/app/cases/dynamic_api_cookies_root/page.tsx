@@ -26,7 +26,7 @@ export default async function Page() {
 async function ComponentThatReadsCookies() {
   let sentinelCookie
   try {
-    const cookie = cookies().get('x-sentinel')
+    const cookie = (await cookies()).get('x-sentinel')
     if (cookie) {
       sentinelCookie = cookie.value
     } else {

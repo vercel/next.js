@@ -35,5 +35,9 @@ export type PrerenderStore = {
   readonly dynamicTracking: null | DynamicTrackingState
 }
 
+export function isDynamicIOPrerender(prerenderStore: PrerenderStore): boolean {
+  return !!(prerenderStore.controller || prerenderStore.cacheSignal)
+}
+
 export type PrerenderAsyncStorage = AsyncLocalStorage<PrerenderStore>
 export { prerenderAsyncStorage }
