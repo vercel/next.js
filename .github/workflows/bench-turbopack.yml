@@ -81,10 +81,10 @@ jobs:
           tool: cargo-codspeed
 
       - name: Build the benchmark target(s)
-        run: cargo codspeed build --workspace
+        run: cargo codspeed build --workspace --exclude turbopack-bench --exclude turbopack-cli --exclude next-swc-napi --exclude wasm
 
       - name: Run the benchmarks
         uses: CodSpeedHQ/action@v3
         with:
-          run: cargo codspeed run --workspace --exclude turbopack-bench
+          run: cargo codspeed run --workspace --exclude turbopack-bench --exclude turbopack-cli --exclude next-swc-napi --exclude wasm
 #          token: ${{ secrets.CODSPEED_TOKEN }}
