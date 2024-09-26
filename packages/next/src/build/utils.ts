@@ -1360,6 +1360,7 @@ export async function buildAppStaticPaths({
   ComponentMod,
   isRoutePPREnabled,
   isAppPPRFallbacksEnabled,
+  buildId,
 }: {
   dir: string
   page: string
@@ -1376,6 +1377,7 @@ export async function buildAppStaticPaths({
   ComponentMod: AppPageModule
   isRoutePPREnabled: boolean | undefined
   isAppPPRFallbacksEnabled: boolean | undefined
+  buildId: string
 }): Promise<PartialStaticPathsResult> {
   ComponentMod.patchFetch()
 
@@ -1424,6 +1426,7 @@ export async function buildAppStaticPaths({
           after: false,
           dynamicIO: false,
         },
+        buildId,
       },
     },
     async (): Promise<PartialStaticPathsResult> => {
@@ -1592,6 +1595,7 @@ export async function isPageStatic({
   cacheHandler,
   pprConfig,
   isAppPPRFallbacksEnabled,
+  buildId,
 }: {
   dir: string
   page: string
@@ -1613,6 +1617,7 @@ export async function isPageStatic({
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
   isAppPPRFallbacksEnabled: boolean | undefined
+  buildId: string
 }): Promise<PageIsStaticResult> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
@@ -1739,6 +1744,7 @@ export async function isPageStatic({
               nextConfigOutput,
               isRoutePPREnabled,
               isAppPPRFallbacksEnabled,
+              buildId,
             }))
         }
       } else {

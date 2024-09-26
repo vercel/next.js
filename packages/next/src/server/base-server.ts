@@ -2506,6 +2506,7 @@ export default abstract class Server<
               onClose: res.onClose.bind(res),
               onInstrumentationRequestError:
                 this.renderOpts.onInstrumentationRequestError,
+              buildId: this.renderOpts.buildId,
             },
           }
 
