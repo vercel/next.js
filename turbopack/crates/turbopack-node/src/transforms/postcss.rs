@@ -356,7 +356,7 @@ pub(crate) async fn config_loader_source(
 }
 
 #[turbo_tasks::function]
-async fn postcss_executor(
+fn postcss_executor(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_path: Vc<FileSystemPath>,
     postcss_config_path: Vc<FileSystemPath>,

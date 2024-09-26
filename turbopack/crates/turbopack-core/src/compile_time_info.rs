@@ -263,7 +263,7 @@ impl CompileTimeInfo {
     }
 
     #[turbo_tasks::function]
-    pub async fn environment(&self) -> Result<Vc<Environment>> {
+    pub fn environment(&self) -> Result<Vc<Environment>> {
         Ok(self.environment)
     }
 }

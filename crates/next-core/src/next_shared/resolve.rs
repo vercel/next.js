@@ -125,7 +125,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
     }
 
     #[turbo_tasks::function]
-    async fn before_resolve(
+    fn before_resolve(
         &self,
         lookup_path: Vc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,

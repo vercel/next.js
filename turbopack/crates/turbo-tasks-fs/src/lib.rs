@@ -1195,7 +1195,7 @@ impl FileSystemPath {
     }
 
     #[turbo_tasks::function]
-    pub async fn read_glob(
+    pub fn read_glob(
         self: Vc<Self>,
         glob: Vc<Glob>,
         include_dot_files: bool,
@@ -1209,12 +1209,12 @@ impl FileSystemPath {
     }
 
     #[turbo_tasks::function]
-    pub async fn fs(&self) -> Result<Vc<Box<dyn FileSystem>>> {
+    pub fn fs(&self) -> Result<Vc<Box<dyn FileSystem>>> {
         Ok(self.fs)
     }
 
     #[turbo_tasks::function]
-    pub async fn extension(&self) -> Result<Vc<RcStr>> {
+    pub fn extension(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(self.extension_ref().unwrap_or("").into()))
     }
 
@@ -1253,7 +1253,7 @@ impl FileSystemPath {
     /// * The entire file name if the file name begins with `.` and has no other `.`s within;
     /// * Otherwise, the portion of the file name before the final `.`
     #[turbo_tasks::function]
-    pub async fn file_stem(&self) -> Result<Vc<Option<RcStr>>> {
+    pub fn file_stem(&self) -> Result<Vc<Option<RcStr>>> {
         let (_, file_stem, _) = self.split_file_stem_extension();
         if file_stem.is_empty() {
             return Ok(Vc::cell(None));
@@ -1478,7 +1478,7 @@ pub struct RealPathResult {
 #[turbo_tasks::value_impl]
 impl RealPathResult {
     #[turbo_tasks::function]
-    pub async fn path(&self) -> Result<Vc<FileSystemPath>> {
+    pub fn path(&self) -> Result<Vc<FileSystemPath>> {
         Ok(self.path)
     }
 }

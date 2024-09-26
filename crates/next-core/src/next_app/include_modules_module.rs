@@ -75,7 +75,7 @@ impl EcmascriptChunkPlaceable for IncludeModulesModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for IncludeModulesModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
@@ -165,7 +165,7 @@ impl ValueToString for IncludedModuleReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for IncludedModuleReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+    fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(ModuleResolveResult::module(self.module).cell())
     }
 }
