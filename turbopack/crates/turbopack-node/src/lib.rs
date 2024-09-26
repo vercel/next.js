@@ -261,13 +261,13 @@ pub fn get_intermediate_asset(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     main_entry: Vc<Box<dyn Module>>,
     other_entries: Vc<EvaluatableAssets>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
-    Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
+) -> Vc<Box<dyn OutputAsset>> {
+    Vc::upcast(chunking_context.root_entry_chunk_group_asset(
         chunking_context.chunk_path(main_entry.ident(), ".js".into()),
         main_entry,
         OutputAssets::empty(),
         other_entries,
-    )))
+    ))
 }
 
 #[derive(Clone, Debug)]

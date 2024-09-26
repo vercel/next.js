@@ -80,8 +80,8 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn asset_ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self.module.ident())
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
     }
 
     #[turbo_tasks::function]

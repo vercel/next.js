@@ -70,13 +70,13 @@ impl ChunkableModule for WorkerLoaderModule {
     fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             WorkerLoaderChunkItem {
                 chunking_context,
                 module: self,
             }
             .cell(),
-        ))
+        )
     }
 }

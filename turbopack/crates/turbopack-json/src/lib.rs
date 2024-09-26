@@ -66,11 +66,11 @@ impl ChunkableModule for JsonModuleAsset {
     fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(JsonChunkItem::cell(JsonChunkItem {
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(JsonChunkItem::cell(JsonChunkItem {
             module: self,
             chunking_context,
-        })))
+        }))
     }
 }
 

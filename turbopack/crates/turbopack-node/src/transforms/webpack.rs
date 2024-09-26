@@ -820,7 +820,7 @@ impl Issue for EvaluateErrorLoggingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Result<Vc<OptionStyledString>> {
+    fn description(&self) -> Vc<OptionStyledString> {
         fn fmt_args(prefix: String, args: &[JsonValue]) -> String {
             let mut iter = args.iter();
             let Some(first) = iter.next() else {
@@ -854,6 +854,6 @@ impl Issue for EvaluateErrorLoggingIssue {
                 }
             })
             .collect::<Vec<_>>();
-        Ok(Vc::cell(Some(StyledString::Stack(lines).cell())))
+        Vc::cell(Some(StyledString::Stack(lines).cell()))
     }
 }

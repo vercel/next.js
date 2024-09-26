@@ -321,8 +321,8 @@ impl Issue for FontResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.origin_path)
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.origin_path
     }
 
     #[turbo_tasks::function]

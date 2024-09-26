@@ -60,11 +60,8 @@ impl StaticModuleAsset {
     }
 
     #[turbo_tasks::function]
-    fn static_asset(
-        &self,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<StaticAsset>> {
-        Ok(StaticAsset::new(chunking_context, self.source))
+    fn static_asset(&self, chunking_context: Vc<Box<dyn ChunkingContext>>) -> Vc<StaticAsset> {
+        StaticAsset::new(chunking_context, self.source)
     }
 }
 
@@ -93,12 +90,12 @@ impl ChunkableModule for StaticModuleAsset {
     fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
             module: self,
             chunking_context,
             static_asset: self.static_asset(Vc::upcast(chunking_context)),
-        })))
+        }))
     }
 }
 
