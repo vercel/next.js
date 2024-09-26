@@ -15,6 +15,17 @@ function wrapParathnessIfNeeded(
   return hasChainAccess ? j.parenthesizedExpression(expression) : expression
 }
 
+function isFunctionScope(path: ASTPath, j: API['jscodeshift']) {
+  const node = path.node
+
+  // Check if the node is a function (declaration, expression, or arrow function)
+  return (
+    j.FunctionDeclaration.check(node) ||
+    j.FunctionExpression.check(node) ||
+    j.ArrowFunctionExpression.check(node)
+  )
+}
+
 export function transformDynamicAPI(
   source: string,
   api: API,
@@ -56,21 +67,28 @@ export function transformDynamicAPI(
           return
         }
 
-        const closetScope = j(path).closestScope()
-
-        // First search the closed function of the current path
-        let closestFunction: Collection<any>
-        closestFunction = j(path).closest(j.FunctionDeclaration)
-        if (closestFunction.size() === 0) {
-          closestFunction = j(path).closest(j.FunctionExpression)
-        }
-        if (closestFunction.size() === 0) {
-          closestFunction = j(path).closest(j.ArrowFunctionExpression)
+        let parentFunctionPath = path.scope.path
+        let parentFunctionNode
+        while (parentFunctionPath && !isFunctionScope(parentFunctionPath, j)) {
+          parentFunctionPath = parentFunctionPath.parent
         }
 
-        const isAsyncFunction = closestFunction
-          .nodes()
-          .some((node) => node.async)
+        // We found the parent scope is not a function
+        if (parentFunctionPath) {
+          if (isFunctionScope(parentFunctionPath, j)) {
+            parentFunctionNode = parentFunctionPath.node
+          } else {
+            const scopeNode = parentFunctionPath.node
+            if (
+              scopeNode.type === 'ReturnStatement' &&
+              isFunctionType(scopeNode.argument.type)
+            ) {
+              parentFunctionNode = scopeNode.argument
+            }
+          }
+        }
+
+        const isAsyncFunction = parentFunctionNode?.async || false
 
         const isCallAwaited = path.parentPath?.node?.type === 'AwaitExpression'
 
@@ -78,6 +96,7 @@ export function transformDynamicAPI(
           path.parentPath.value.type === 'MemberExpression' &&
           path.parentPath.value.object === path.node
 
+        const closetScope = j(path).closestScope()
         // For cookies/headers API, only transform server and shared components
         if (isAsyncFunction) {
           if (!isCallAwaited) {
@@ -187,13 +206,11 @@ export function transformDynamicAPI(
 
   const isClientComponent = determineClientDirective(root, j, source)
 
-  const importedNextAsyncRequestApisMapping = findImportMappingFromNextHeaders(
-    root,
-    j
-  )
-
   // Only transform the valid calls in server or shared components
   if (!isClientComponent) {
+    // Import declaration case, e.g. import { cookies } from 'next/headers'
+    const importedNextAsyncRequestApisMapping =
+      findImportMappingFromNextHeaders(root, j)
     for (const originName in importedNextAsyncRequestApisMapping) {
       const aliasName = importedNextAsyncRequestApisMapping[originName]
       processAsyncApiCalls(aliasName, originName)
