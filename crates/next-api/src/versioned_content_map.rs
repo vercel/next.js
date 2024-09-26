@@ -230,13 +230,13 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    fn raw_get(&self, path: Vc<FileSystemPath>) -> Result<Vc<OptionMapEntry>> {
+    fn raw_get(&self, path: Vc<FileSystemPath>) -> Vc<OptionMapEntry> {
         let assets = {
             let map = self.map_path_to_op.get();
             map.get(&path).and_then(|m| m.iter().last().copied())
         };
         let Some(assets) = assets else {
-            return Ok(Vc::cell(None));
+            return Vc::cell(None);
         };
         // Need to reconnect the operation to the map
         Vc::connect(assets);
@@ -246,11 +246,11 @@ impl VersionedContentMap {
             map.get(&assets).copied()
         };
         let Some(compute_entry) = compute_entry else {
-            return Ok(Vc::cell(None));
+            return Vc::cell(None);
         };
         // Need to reconnect the operation to the map
         Vc::connect(compute_entry);
 
-        Ok(compute_entry)
+        compute_entry
     }
 }

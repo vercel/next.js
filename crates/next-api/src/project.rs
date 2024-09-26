@@ -386,12 +386,12 @@ impl ProjectContainer {
         &self,
         file_path: Vc<FileSystemPath>,
         section: Option<RcStr>,
-    ) -> Result<Vc<OptionSourceMap>> {
-        Ok(if let Some(map) = self.versioned_content_map {
+    ) -> Vc<OptionSourceMap> {
+        if let Some(map) = self.versioned_content_map {
             map.get_source_map(file_path, section)
         } else {
             OptionSourceMap::none()
-        })
+        }
     }
 }
 
@@ -510,8 +510,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
-        Ok(PagesProject::new(self))
+    pub fn pages_project(self: Vc<Self>) -> Vc<PagesProject> {
+        PagesProject::new(self)
     }
 
     #[turbo_tasks::function]
@@ -528,20 +528,19 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn client_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
         let virtual_fs = VirtualFileSystem::new();
-        Ok(Vc::upcast(virtual_fs))
+        Vc::upcast(virtual_fs)
     }
 
     #[turbo_tasks::function]
-    pub fn output_fs(&self) -> Result<Vc<DiskFileSystem>> {
-        let disk_fs = DiskFileSystem::new("output".into(), self.project_path.clone(), vec![]);
-        Ok(disk_fs)
+    pub fn output_fs(&self) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new("output".into(), self.project_path.clone(), vec![])
     }
 
     #[turbo_tasks::function]
-    pub fn dist_dir(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.dist_dir.clone()))
+    pub fn dist_dir(&self) -> Vc<RcStr> {
+        Vc::cell(self.dist_dir.clone())
     }
 
     #[turbo_tasks::function]
@@ -585,23 +584,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn env(&self) -> Result<Vc<Box<dyn ProcessEnv>>> {
-        Ok(self.env)
+    pub(super) fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
+        self.env
     }
 
     #[turbo_tasks::function]
-    pub(super) fn next_config(&self) -> Result<Vc<NextConfig>> {
-        Ok(self.next_config)
+    pub(super) fn next_config(&self) -> Vc<NextConfig> {
+        self.next_config
     }
 
     #[turbo_tasks::function]
-    pub(super) fn next_mode(&self) -> Result<Vc<NextMode>> {
-        Ok(self.mode)
+    pub(super) fn next_mode(&self) -> Vc<NextMode> {
+        self.mode
     }
 
     #[turbo_tasks::function]
-    pub(super) fn js_config(&self) -> Result<Vc<JsConfig>> {
-        Ok(self.js_config)
+    pub(super) fn js_config(&self) -> Vc<JsConfig> {
+        self.js_config
     }
 
     #[turbo_tasks::function]
@@ -630,11 +629,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
-        Ok(get_client_compile_time_info(
-            self.browserslist_query.clone(),
-            self.define_env.client(),
-        ))
+    pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
+        get_client_compile_time_info(self.browserslist_query.clone(), self.define_env.client())
     }
 
     #[turbo_tasks::function]
@@ -668,15 +664,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) fn client_chunking_context(self: Vc<Self>) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(get_client_chunking_context(
+    pub(super) fn client_chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>> {
+        get_client_chunking_context(
             self.project_path(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
@@ -1322,6 +1318,6 @@ fn all_assets_from_entries_operation(
 }
 
 #[turbo_tasks::function]
-fn stable_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<Box<dyn Endpoint>>> {
-    Ok(endpoint)
+fn stable_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Vc<Box<dyn Endpoint>> {
+    endpoint
 }

@@ -46,8 +46,8 @@ impl NextServerComponentModule {
     }
 
     #[turbo_tasks::function]
-    pub fn server_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.module.ident().path())
+    pub fn server_path(&self) -> Vc<FileSystemPath> {
+        self.module.ident().path()
     }
 }
 
@@ -92,14 +92,14 @@ impl ChunkableModule for NextServerComponentModule {
     fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             NextServerComponentChunkItem {
                 chunking_context,
                 inner: self,
             }
             .cell(),
-        ))
+        )
     }
 }
 

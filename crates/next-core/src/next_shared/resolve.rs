@@ -130,7 +130,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
         lookup_path: Vc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,
         _request: Vc<Request>,
-    ) -> Result<Vc<ResolveResultOption>> {
+    ) -> Vc<ResolveResultOption> {
         InvalidImportModuleIssue {
             file_path: lookup_path,
             messages: self.message.clone(),
@@ -140,12 +140,12 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
         .cell()
         .emit();
 
-        Ok(ResolveResultOption::some(
+        ResolveResultOption::some(
             ResolveResult::primary(ResolveResultItem::Error(Vc::cell(
                 self.message.join("\n").into(),
             )))
             .cell(),
-        ))
+        )
     }
 }
 

@@ -35,13 +35,13 @@ impl EcmascriptBuildNodeChunkContent {
         chunking_context: Vc<NodeJsChunkingContext>,
         chunk: Vc<EcmascriptBuildNodeChunk>,
         content: Vc<EcmascriptChunkContent>,
-    ) -> Result<Vc<Self>> {
-        Ok(EcmascriptBuildNodeChunkContent {
+    ) -> Vc<Self> {
+        EcmascriptBuildNodeChunkContent {
             content,
             chunking_context,
             chunk,
         }
-        .cell())
+        .cell()
     }
 }
 

@@ -29,11 +29,8 @@ pub(super) struct ManifestChunkItem {
 #[turbo_tasks::value_impl]
 impl ManifestChunkItem {
     #[turbo_tasks::function]
-    fn chunks_data(&self) -> Result<Vc<ChunksData>> {
-        Ok(ChunkData::from_assets(
-            self.chunking_context.output_root(),
-            self.manifest.chunks(),
-        ))
+    fn chunks_data(&self) -> Vc<ChunksData> {
+        ChunkData::from_assets(self.chunking_context.output_root(), self.manifest.chunks())
     }
 }
 

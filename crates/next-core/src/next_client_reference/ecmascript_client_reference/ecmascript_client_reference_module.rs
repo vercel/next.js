@@ -57,10 +57,10 @@ impl Module for EcmascriptClientReferenceModule {
     }
 
     #[turbo_tasks::function]
-    fn additional_layers_modules(&self) -> Result<Vc<Modules>> {
+    fn additional_layers_modules(&self) -> Vc<Modules> {
         let client_module = Vc::upcast(self.client_module);
         let ssr_module = Vc::upcast(self.ssr_module);
-        Ok(Vc::cell(vec![client_module, ssr_module]))
+        Vc::cell(vec![client_module, ssr_module])
     }
 }
 

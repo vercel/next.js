@@ -1209,13 +1209,13 @@ impl FileSystemPath {
     }
 
     #[turbo_tasks::function]
-    pub fn fs(&self) -> Result<Vc<Box<dyn FileSystem>>> {
-        Ok(self.fs)
+    pub fn fs(&self) -> Vc<Box<dyn FileSystem>> {
+        self.fs
     }
 
     #[turbo_tasks::function]
-    pub fn extension(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.extension_ref().unwrap_or("").into()))
+    pub fn extension(&self) -> Vc<RcStr> {
+        Vc::cell(self.extension_ref().unwrap_or("").into())
     }
 
     #[turbo_tasks::function]
@@ -1231,9 +1231,9 @@ impl FileSystemPath {
     /// Creates a new [`Vc<FileSystemPath>`] like `self` but with the given
     /// extension.
     #[turbo_tasks::function]
-    pub async fn with_extension(&self, extension: RcStr) -> Result<Vc<FileSystemPath>> {
+    pub async fn with_extension(&self, extension: RcStr) -> Vc<FileSystemPath> {
         let (path_without_extension, _) = self.split_extension();
-        Ok(Self::new_normalized(
+        Self::new_normalized(
             self.fs,
             // Like `Path::with_extension` and `PathBuf::set_extension`, if the extension is empty,
             // we remove the extension altogether.
@@ -1241,7 +1241,7 @@ impl FileSystemPath {
                 true => path_without_extension.into(),
                 false => format!("{path_without_extension}.{extension}").into(),
             },
-        ))
+        )
     }
 
     /// Extracts the stem (non-extension) portion of self.file_name.
@@ -1253,12 +1253,12 @@ impl FileSystemPath {
     /// * The entire file name if the file name begins with `.` and has no other `.`s within;
     /// * Otherwise, the portion of the file name before the final `.`
     #[turbo_tasks::function]
-    pub fn file_stem(&self) -> Result<Vc<Option<RcStr>>> {
+    pub fn file_stem(&self) -> Vc<Option<RcStr>> {
         let (_, file_stem, _) = self.split_file_stem_extension();
         if file_stem.is_empty() {
-            return Ok(Vc::cell(None));
+            return Vc::cell(None);
         }
-        Ok(Vc::cell(Some(file_stem.into())))
+        Vc::cell(Some(file_stem.into()))
     }
 
     /// See [`truncate_file_name_with_hash`]. Preserves the input [`Vc`] if no truncation was
@@ -1478,8 +1478,8 @@ pub struct RealPathResult {
 #[turbo_tasks::value_impl]
 impl RealPathResult {
     #[turbo_tasks::function]
-    pub fn path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.path)
+    pub fn path(&self) -> Vc<FileSystemPath> {
+        self.path
     }
 }
 

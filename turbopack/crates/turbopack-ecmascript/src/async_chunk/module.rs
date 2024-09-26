@@ -80,13 +80,13 @@ impl ChunkableModule for AsyncLoaderModule {
     fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             AsyncLoaderChunkItem {
                 chunking_context,
                 module: self,
             }
             .cell(),
-        ))
+        )
     }
 }
