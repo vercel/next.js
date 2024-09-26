@@ -29,11 +29,10 @@ pub(super) struct ManifestChunkItem {
 #[turbo_tasks::value_impl]
 impl ManifestChunkItem {
     #[turbo_tasks::function]
-    async fn chunks_data(self: Vc<Self>) -> Result<Vc<ChunksData>> {
-        let this = self.await?;
+    fn chunks_data(&self) -> Result<Vc<ChunksData>> {
         Ok(ChunkData::from_assets(
-            this.chunking_context.output_root(),
-            this.manifest.chunks(),
+            self.chunking_context.output_root(),
+            self.manifest.chunks(),
         ))
     }
 }
@@ -98,7 +97,7 @@ impl ChunkItem for ManifestChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

@@ -202,10 +202,12 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        # Empty value uses default
+        react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1  NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
-      stepName: 'test-turbopack-dev-${{ matrix.group }}'
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1  NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
+      stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-turbopack-integration:
@@ -217,11 +219,13 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        # Empty value uses default
+        react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
-      stepName: 'test-turbopack-integration-${{ matrix.group }}'
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      stepName: 'test-turbopack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-turbopack-production:
@@ -233,11 +237,17 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.include:
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimensions until we can figure out a way to test multiple React versions.
+        react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
-      stepName: 'test-turbopack-production-${{ matrix.group }}'
+      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-turbopack-production-integration:
@@ -362,10 +372,12 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/4, 2/4, 3/4, 4/4]
+        # Empty value uses default
+        react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
-      stepName: 'test-dev-${{ matrix.group }}'
+      afterBuild: NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
+      stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-prod:
@@ -377,10 +389,12 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        # Empty value uses default
+        react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
-      stepName: 'test-prod-${{ matrix.group }}'
+      afterBuild: NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-integration:
@@ -404,11 +418,17 @@ jobs:
           - 10/12
           - 11/12
           - 12/12
+          # Empty value uses default
+          # TODO: Run with React 18.
+          # Integration tests use the installed React version in next/package.json.include:
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimensions until we can figure out a way to test multiple React versions.
+        react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
-      stepName: 'test-integration-${{ matrix.group }}'
+      afterBuild: NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+      stepName: 'test-integration-${{ matrix.group }}-react-${{ matrix.react }}'
     secrets: inherit
 
   test-firefox-safari:

@@ -56,6 +56,12 @@ export async function exportPagesPage(
     hybrid: components.pageConfig?.amp === 'hybrid',
   }
 
+  if (!ampValidatorPath) {
+    ampValidatorPath = require.resolve(
+      'next/dist/compiled/amphtml-validator/validator_wasm.js'
+    )
+  }
+
   const inAmpMode = isInAmpMode(ampState)
   const hybridAmp = ampState.hybrid
 

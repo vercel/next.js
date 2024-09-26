@@ -124,9 +124,8 @@ struct ChunkGroupFilesChunkItem {
 #[turbo_tasks::value_impl]
 impl ChunkGroupFilesChunkItem {
     #[turbo_tasks::function]
-    async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let inner = this.inner.await?;
+    async fn chunks(&self) -> Result<Vc<OutputAssets>> {
+        let inner = self.inner.await?;
         let chunks = if let Some(ecma) =
             Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(inner.module).await?
         {
@@ -215,7 +214,7 @@ impl ChunkItem for ChunkGroupFilesChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 
@@ -250,11 +249,11 @@ impl Introspectable for ChunkGroupFilesAsset {
     }
 
     #[turbo_tasks::function]
-    async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
+    fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = IndexSet::new();
         children.insert((
             Vc::cell("inner asset".into()),
-            IntrospectableModule::new(Vc::upcast(self.await?.module)),
+            IntrospectableModule::new(Vc::upcast(self.module)),
         ));
         Ok(Vc::cell(children))
     }

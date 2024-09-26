@@ -14,12 +14,9 @@ pub struct SourceTransforms(Vec<Vc<Box<dyn SourceTransform>>>);
 #[turbo_tasks::value_impl]
 impl SourceTransforms {
     #[turbo_tasks::function]
-    pub async fn transform(
-        self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
-    ) -> Result<Vc<Box<dyn Source>>> {
+    pub fn transform(&self, source: Vc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
         Ok(self
-            .await?
+            .0
             .iter()
             .fold(source, |source, transform| transform.transform(source)))
     }

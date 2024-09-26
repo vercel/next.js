@@ -255,13 +255,11 @@ impl MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn userland_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        let this = self.await?;
-
-        Ok(this
+    fn userland_module(&self) -> Result<Vc<Box<dyn Module>>> {
+        Ok(self
             .asset_context
             .process(
-                this.source,
+                self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
             .module())

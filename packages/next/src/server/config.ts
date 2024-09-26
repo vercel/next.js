@@ -1178,9 +1178,12 @@ export default async function loadConfig(
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const unsupportedConfig = findUp.sync(
       [
+        `${configBaseName}.cjs`,
+        `${configBaseName}.cts`,
+        `${configBaseName}.mts`,
+        `${configBaseName}.json`,
         `${configBaseName}.jsx`,
         `${configBaseName}.tsx`,
-        `${configBaseName}.json`,
       ],
       { cwd: dir }
     )

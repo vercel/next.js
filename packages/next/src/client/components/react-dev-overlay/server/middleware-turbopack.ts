@@ -12,7 +12,7 @@ import {
 import fs, { constants as FS } from 'fs/promises'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { Project, TurbopackStackFrame } from '../../../../build/swc'
+import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
 export async function batchedTraceSource(

@@ -4,6 +4,7 @@ import type {
   GetDynamicParamFromSegment,
 } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
+import type { CreateServerParamsForMetadata } from '../../server/request/params'
 
 import React from 'react'
 import {
@@ -30,7 +31,6 @@ import type {
 } from './types/metadata-interface'
 import { isNotFoundError } from '../../client/components/not-found'
 import type { MetadataContext } from './types/resolvers'
-import type { CreateDynamicallyTrackedParams } from '../../server/request/fallback-params'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 
@@ -84,24 +84,22 @@ export function createTrackedMetadataContext(
 // and the error will be caught by the error boundary and trigger fallbacks.
 export function createMetadataComponents({
   tree,
-  query,
+  searchParams,
   metadataContext,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
   errorType,
-  createDynamicallyTrackedSearchParams,
-  createDynamicallyTrackedParams,
+  createServerParamsForMetadata,
+  staticGenerationStore,
 }: {
   tree: LoaderTree
-  query: ParsedUrlQuery
+  searchParams: Promise<ParsedUrlQuery>
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
-  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams
-  createDynamicallyTrackedSearchParams: (
-    searchParams: ParsedUrlQuery
-  ) => ParsedUrlQuery
+  createServerParamsForMetadata: CreateServerParamsForMetadata
+  staticGenerationStore: StaticGenerationStore
 }): [React.ComponentType, () => Promise<void>] {
   let currentMetadataReady:
     | null
@@ -113,11 +111,11 @@ export function createMetadataComponents({
   async function MetadataTree() {
     const pendingMetadata = getResolvedMetadata(
       tree,
-      query,
+      searchParams,
       getDynamicParamFromSegment,
       metadataContext,
-      createDynamicallyTrackedSearchParams,
-      createDynamicallyTrackedParams,
+      createServerParamsForMetadata,
+      staticGenerationStore,
       errorType
     )
 
@@ -177,18 +175,15 @@ export function createMetadataComponents({
 
 async function getResolvedMetadata(
   tree: LoaderTree,
-  query: ParsedUrlQuery,
+  searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
-  createDynamicallyTrackedSearchParams: (
-    searchParams: ParsedUrlQuery
-  ) => ParsedUrlQuery,
-  createDynamicallyTrackedParams: CreateDynamicallyTrackedParams,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  staticGenerationStore: StaticGenerationStore,
   errorType?: 'not-found' | 'redirect'
 ): Promise<[any, Array<React.ReactNode>]> {
   const errorMetadataItem: [null, null, null] = [null, null, null]
   const errorConvention = errorType === 'redirect' ? undefined : errorType
-  const searchParams = createDynamicallyTrackedSearchParams(query)
 
   const [error, metadata, viewport] = await resolveMetadata({
     tree,
@@ -199,7 +194,8 @@ async function getResolvedMetadata(
     getDynamicParamFromSegment,
     errorConvention,
     metadataContext,
-    createDynamicallyTrackedParams,
+    createServerParamsForMetadata,
+    staticGenerationStore,
   })
   if (!error) {
     return [null, createMetadataElements(metadata, viewport)]
@@ -219,7 +215,8 @@ async function getResolvedMetadata(
           getDynamicParamFromSegment,
           errorConvention: 'not-found',
           metadataContext,
-          createDynamicallyTrackedParams,
+          createServerParamsForMetadata,
+          staticGenerationStore,
         })
       return [
         notFoundMetadataError || error,

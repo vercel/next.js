@@ -176,9 +176,13 @@ export default class DevServer extends Server {
       this.nextConfig.experimental?.amp?.skipValidation ?? false
     this.renderOpts.ampValidator = (html: string, pathname: string) => {
       const validatorPath =
-        this.nextConfig.experimental &&
-        this.nextConfig.experimental.amp &&
-        this.nextConfig.experimental.amp.validator
+        (this.nextConfig.experimental &&
+          this.nextConfig.experimental.amp &&
+          this.nextConfig.experimental.amp.validator) ||
+        require.resolve(
+          'next/dist/compiled/amphtml-validator/validator_wasm.js'
+        )
+
       const AmpHtmlValidator =
         require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
       return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {

@@ -68,6 +68,7 @@ import { ReflectAdapter } from '../../web/spec-extension/adapters/reflect'
 import type { RenderOptsPartial } from '../../app-render/types'
 import { CacheSignal } from '../../app-render/cache-signal'
 import { scheduleImmediate } from '../../../lib/scheduler'
+import { createServerParamsForRoute } from '../../request/params'
 
 /**
  * The AppRouteModule is the type of the module exported by the bundled App
@@ -90,7 +91,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
  * second argument.
  */
 type AppRouteHandlerFnContext = {
-  params?: Record<string, string | string[]>
+  params?: Promise<Record<string, string | string[] | undefined>>
 }
 
 /**
@@ -276,6 +277,7 @@ export class AppRouteRouteModule extends RouteModule<
     // Get the context for the request.
     const requestContext: RequestContext = {
       req: rawRequest,
+      res: undefined,
       url: rawRequest.nextUrl,
       renderOpts: {
         previewProps: context.prerenderManifest.preview,
@@ -401,9 +403,12 @@ export class AppRouteRouteModule extends RouteModule<
                       prerenderAsyncStorage: this.prerenderAsyncStorage,
                     })
 
-                    const handlerContext = {
+                    const handlerContext: AppRouteHandlerFnContext = {
                       params: context.params
-                        ? parsedUrlQueryToParams(context.params)
+                        ? createServerParamsForRoute(
+                            parsedUrlQueryToParams(context.params),
+                            staticGenerationStore
+                          )
                         : undefined,
                     }
 

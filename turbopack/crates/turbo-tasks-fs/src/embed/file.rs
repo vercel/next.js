@@ -30,7 +30,7 @@ pub async fn content_from_relative_path(
 }
 
 #[turbo_tasks::function]
-pub async fn content_from_str(string: RcStr) -> Result<Vc<FileContent>> {
+pub fn content_from_str(string: RcStr) -> Result<Vc<FileContent>> {
     Ok(File::from(string).into())
 }
 

@@ -85,6 +85,7 @@ checkFields<Diff<{
   }
 }, TEntry, ''>>()
 
+${options.type === 'route' ? `type RouteContext = { params: Promise<SegmentParams> }` : ''}
 ${
   options.type === 'route'
     ? HTTP_METHODS.map(
@@ -103,7 +104,7 @@ if ('${method}' in entry) {
   >()
   checkFields<
     Diff<
-      ParamCheck<PageParams>,
+      ParamCheck<RouteContext>,
       {
         __tag__: '${method}'
         __param_position__: 'second'
@@ -158,14 +159,14 @@ if ('generateViewport' in entry) {
 }
 // Check the arguments and return type of the generateStaticParams function
 if ('generateStaticParams' in entry) {
-  checkFields<Diff<{ params: PageParams }, FirstArg<MaybeField<TEntry, 'generateStaticParams'>>, 'generateStaticParams'>>()
+  checkFields<Diff<{ params: SegmentParams }, FirstArg<MaybeField<TEntry, 'generateStaticParams'>>, 'generateStaticParams'>>()
   checkFields<Diff<{ __tag__: 'generateStaticParams', __return_type__: any[] | Promise<any[]> }, { __tag__: 'generateStaticParams', __return_type__: ReturnType<MaybeField<TEntry, 'generateStaticParams'>> }>>()
 }
 
-type PageParams = any
+type SegmentParams = {[param: string]: string | string[] | undefined}
 export interface PageProps {
-  params?: any
-  searchParams?: any
+  params?: Promise<SegmentParams>
+  searchParams?: Promise<any>
 }
 export interface LayoutProps {
   children?: React.ReactNode
@@ -174,7 +175,7 @@ ${
     ? options.slots.map((slot) => `  ${slot}: React.ReactNode`).join('\n')
     : ''
 }
-  params?: any
+  params?: Promise<SegmentParams>
 }
 
 // =============
