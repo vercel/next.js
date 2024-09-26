@@ -169,7 +169,7 @@ async fn static_route_source(
                 const fileSizeInMB = buffer.byteLength / 1024 / 1024
                 if (fileSizeInMB > {file_size_limit}) {{
                     throw new Error('File size for {img_name} image "{path}" exceeds {file_size_limit}MB. ' +
-                    `(Current: ${{fileSizeInMB.toFixed(2)}}MB)` +
+                    `(Current: ${{fileSizeInMB.toFixed(2)}}MB)\n` +
                     'Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif'
                     )
                 }}
