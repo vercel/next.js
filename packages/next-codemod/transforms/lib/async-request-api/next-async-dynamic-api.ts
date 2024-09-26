@@ -222,7 +222,7 @@ const API_CAST_TYPE_MAP = {
 
 function castTypesOrAddComment(
   j: API['jscodeshift'],
-  path: ASTPath<any>,
+  path: ASTPath<CallExpression>,
   originRequestApiName: string,
   root: Collection<any>,
   filePath: string,
@@ -231,6 +231,9 @@ function castTypesOrAddComment(
 ) {
   const isTsFile = filePath.endsWith('.ts') || filePath.endsWith('.tsx')
   if (isTsFile) {
+    // if the path of call expression is already being awaited, no need to cast
+    if (path.parentPath?.node?.type === 'AwaitExpression') return
+
     /* Do type cast for headers, cookies, draftMode
       import {
         type UnsafeUnwrappedHeaders,
