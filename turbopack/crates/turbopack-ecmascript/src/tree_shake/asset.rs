@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use turbo_tasks::{vdbg, ValueToString, Vc};
+use turbo_tasks::Vc;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
@@ -140,6 +140,14 @@ impl Module for EcmascriptModulePartAsset {
             return Ok(analyze.references);
         }
 
+        // Techinally we don't require the logic below, but turbopack erases imports like
+        //
+        // import "__TURBOPACK_PART__" with {
+        //     __turbopack_part__: "export $$RSC_SERVER_ACTION_0"
+        // };
+        //
+        // So we need to add them back.
+
         let split_data = split_module(self.full_module).await?;
 
         let deps = match &*split_data {
@@ -157,13 +165,6 @@ impl Module for EcmascriptModulePartAsset {
                 None => &[],
             }
         };
-
-        // if !deps.is_empty() {
-        //     vdbg!(self.full_module.ident().with_part(self.part).to_string());
-        //     let rs = analyze.references.await?;
-        //     dbg!(analyze.references.await?.len());
-        //     dbg!(deps.to_vec());
-        // }
 
         let mut assets = deps
             .iter()

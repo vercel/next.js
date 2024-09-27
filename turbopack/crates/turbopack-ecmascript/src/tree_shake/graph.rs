@@ -404,8 +404,6 @@ impl DepGraph {
                         continue;
                     }
 
-                    let deps = part_deps.entry(ix as u32).or_default();
-
                     for other_item in other_group {
                         if let ItemId::Group(ItemIdGroupKind::Export(export, _)) = other_item {
                             if !export.0.as_str().starts_with("$$RSC_SERVER_") {
@@ -434,7 +432,10 @@ impl DepGraph {
 
                             required_vars.remove(export);
 
-                            deps.push(PartId::Export(export.0.as_str().into()));
+                            part_deps
+                                .entry(ix as u32)
+                                .or_default()
+                                .push(PartId::Export(export.0.as_str().into()));
 
                             chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
                                 ImportDecl {
