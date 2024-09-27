@@ -21,9 +21,10 @@ describe('next-codemod', () => {
     const files = await readdir(c, { withFileTypes: true, recursive: true })
     files.forEach((file) => {
       if (file.isDirectory()) {
-        console.log(file.name + '/')
-      } else {
-        console.log(file.name)
+        console.log(file.path)
+      }
+      if (file.isFile()) {
+        console.log(file.path + '/' + file.name)
       }
     })
 
