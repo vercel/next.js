@@ -1,3 +1,1 @@
-export function cache(_kind: string, _id: string, fn: any) {
-  return fn
-}
+export { cache } from '../../../../server/use-cache/use-cache-wrapper'

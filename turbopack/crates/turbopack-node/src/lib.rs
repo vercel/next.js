@@ -257,17 +257,17 @@ pub async fn get_renderer_pool(
 
 /// Converts a module graph into node.js executable assets
 #[turbo_tasks::function]
-pub async fn get_intermediate_asset(
+pub fn get_intermediate_asset(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     main_entry: Vc<Box<dyn Module>>,
     other_entries: Vc<EvaluatableAssets>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
-    Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
+) -> Vc<Box<dyn OutputAsset>> {
+    Vc::upcast(chunking_context.root_entry_chunk_group_asset(
         chunking_context.chunk_path(main_entry.ident(), ".js".into()),
         main_entry,
         OutputAssets::empty(),
         other_entries,
-    )))
+    ))
 }
 
 #[derive(Clone, Debug)]

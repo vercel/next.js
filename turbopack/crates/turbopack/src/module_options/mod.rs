@@ -30,26 +30,26 @@ use crate::{
 async fn package_import_map_from_import_mapping(
     package_name: RcStr,
     package_mapping: Vc<ImportMapping>,
-) -> Result<Vc<ImportMap>> {
+) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
         format!("@vercel/turbopack/{}", package_name),
         package_mapping,
     );
-    Ok(import_map.cell())
+    import_map.cell()
 }
 
 #[turbo_tasks::function]
 async fn package_import_map_from_context(
     package_name: RcStr,
     context_path: Vc<FileSystemPath>,
-) -> Result<Vc<ImportMap>> {
+) -> Vc<ImportMap> {
     let mut import_map = ImportMap::default();
     import_map.insert_exact_alias(
         format!("@vercel/turbopack/{}", package_name),
         ImportMapping::PrimaryAlternative(package_name, Some(context_path)).cell(),
     );
-    Ok(import_map.cell())
+    import_map.cell()
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]

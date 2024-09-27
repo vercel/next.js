@@ -239,7 +239,7 @@ impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
 }
 
 #[turbo_tasks::function]
-pub async fn css_resolve(
+pub fn css_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     ty: Value<CssReferenceSubType>,

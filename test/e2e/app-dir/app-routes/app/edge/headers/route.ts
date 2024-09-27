@@ -4,7 +4,7 @@ import { getRequestMeta } from '../../../helpers'
 
 export const runtime = 'experimental-edge'
 
-export function GET() {
-  const meta = getRequestMeta(headers())
+export async function GET() {
+  const meta = getRequestMeta(await headers())
   return NextResponse.json(meta)
 }

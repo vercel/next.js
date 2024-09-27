@@ -1171,10 +1171,9 @@ impl FileSystemPath {
     /// None when the joined path would leave the filesystem root.
     #[turbo_tasks::function]
     pub async fn try_join(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
-        let this = self;
-        if let Some(path) = join_path(&this.path, &path) {
+        if let Some(path) = join_path(&self.path, &path) {
             Ok(Vc::cell(Some(
-                Self::new_normalized(this.fs, path.into()).resolve().await?,
+                Self::new_normalized(self.fs, path.into()).resolve().await?,
             )))
         } else {
             Ok(FileSystemPathOption::none())
@@ -1185,11 +1184,10 @@ impl FileSystemPath {
     /// None when the joined path would leave the current path.
     #[turbo_tasks::function]
     pub async fn try_join_inside(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
-        let this = self;
-        if let Some(path) = join_path(&this.path, &path) {
-            if path.starts_with(&*this.path) {
+        if let Some(path) = join_path(&self.path, &path) {
+            if path.starts_with(&*self.path) {
                 return Ok(Vc::cell(Some(
-                    Self::new_normalized(this.fs, path.into()).resolve().await?,
+                    Self::new_normalized(self.fs, path.into()).resolve().await?,
                 )));
             }
         }
@@ -1197,7 +1195,7 @@ impl FileSystemPath {
     }
 
     #[turbo_tasks::function]
-    pub async fn read_glob(
+    pub fn read_glob(
         self: Vc<Self>,
         glob: Vc<Glob>,
         include_dot_files: bool,
@@ -1211,14 +1209,13 @@ impl FileSystemPath {
     }
 
     #[turbo_tasks::function]
-    pub async fn fs(&self) -> Result<Vc<Box<dyn FileSystem>>> {
-        Ok(self.fs)
+    pub fn fs(&self) -> Vc<Box<dyn FileSystem>> {
+        self.fs
     }
 
     #[turbo_tasks::function]
-    pub async fn extension(&self) -> Result<Vc<RcStr>> {
-        let this = self;
-        Ok(Vc::cell(this.extension_ref().unwrap_or("").into()))
+    pub fn extension(&self) -> Vc<RcStr> {
+        Vc::cell(self.extension_ref().unwrap_or("").into())
     }
 
     #[turbo_tasks::function]
@@ -1234,18 +1231,17 @@ impl FileSystemPath {
     /// Creates a new [`Vc<FileSystemPath>`] like `self` but with the given
     /// extension.
     #[turbo_tasks::function]
-    pub async fn with_extension(&self, extension: RcStr) -> Result<Vc<FileSystemPath>> {
-        let this = self;
-        let (path_without_extension, _) = this.split_extension();
-        Ok(Self::new_normalized(
-            this.fs,
+    pub async fn with_extension(&self, extension: RcStr) -> Vc<FileSystemPath> {
+        let (path_without_extension, _) = self.split_extension();
+        Self::new_normalized(
+            self.fs,
             // Like `Path::with_extension` and `PathBuf::set_extension`, if the extension is empty,
             // we remove the extension altogether.
             match extension.is_empty() {
                 true => path_without_extension.into(),
                 false => format!("{path_without_extension}.{extension}").into(),
             },
-        ))
+        )
     }
 
     /// Extracts the stem (non-extension) portion of self.file_name.
@@ -1257,13 +1253,12 @@ impl FileSystemPath {
     /// * The entire file name if the file name begins with `.` and has no other `.`s within;
     /// * Otherwise, the portion of the file name before the final `.`
     #[turbo_tasks::function]
-    pub async fn file_stem(&self) -> Result<Vc<Option<RcStr>>> {
-        let this = self;
-        let (_, file_stem, _) = this.split_file_stem_extension();
+    pub fn file_stem(&self) -> Vc<Option<RcStr>> {
+        let (_, file_stem, _) = self.split_file_stem_extension();
         if file_stem.is_empty() {
-            return Ok(Vc::cell(None));
+            return Vc::cell(None);
         }
-        Ok(Vc::cell(Some(file_stem.into())))
+        Vc::cell(Some(file_stem.into()))
     }
 
     /// See [`truncate_file_name_with_hash`]. Preserves the input [`Vc`] if no truncation was
@@ -1483,8 +1478,8 @@ pub struct RealPathResult {
 #[turbo_tasks::value_impl]
 impl RealPathResult {
     #[turbo_tasks::function]
-    pub async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.path)
+    pub fn path(&self) -> Vc<FileSystemPath> {
+        self.path
     }
 }
 

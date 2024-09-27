@@ -99,8 +99,7 @@ impl PageLoaderAsset {
         &self,
         rebase_prefix_path: Vc<FileSystemPathOption>,
     ) -> Result<Vc<ChunksData>> {
-        let this = self;
-        let mut chunks = this.page_chunks;
+        let mut chunks = self.page_chunks;
 
         // If we are provided a prefix path, we need to rewrite our chunk paths to
         // remove that prefix.
@@ -119,7 +118,7 @@ impl PageLoaderAsset {
             chunks = Vc::cell(rebased);
         };
 
-        Ok(ChunkData::from_assets(this.server_root, chunks))
+        Ok(ChunkData::from_assets(self.server_root, chunks))
     }
 }
 

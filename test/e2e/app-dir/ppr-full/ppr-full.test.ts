@@ -458,7 +458,14 @@ describe('ppr-full', () => {
 
           // We expect to get the fallback shell.
           $ = await next.render$(pathname)
-          expect($('[data-layout]').data('layout')).toBe(fallbackID)
+
+          // When deployed to Vercel, it will serve a stale version of the dynamic shell
+          // Whereas with `next start` it will serve the fallback shell
+          if (isNextDeploy) {
+            expect($('[data-layout]').data('layout')).toBe(dynamicID)
+          } else {
+            expect($('[data-layout]').data('layout')).toBe(fallbackID)
+          }
 
           // Let's wait for the page to be revalidated.
           let revalidatedDynamicID: string
@@ -468,6 +475,18 @@ describe('ppr-full', () => {
             expect(revalidatedDynamicID).not.toBe(dynamicID)
             expect(revalidatedDynamicID).not.toBe(fallbackID)
           })
+        })
+
+        /**
+         * This test is really here to just to force the the suite to have the expected route
+         * as part of the build. If this failed we'd get a build error and all the tests would fail
+         */
+        it('will allow dynamic fallback shells even when static is enforced', async () => {
+          const random = Math.random().toString(16).slice(2)
+          const pathname = `/fallback/dynamic/params/revalidate-${random}`
+
+          let $ = await next.render$(pathname)
+          expect($('[data-slug]').text()).toBe(`revalidate-${random}`)
         })
       })
 

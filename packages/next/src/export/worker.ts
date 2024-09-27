@@ -27,7 +27,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { hasNextSupport } from '../telemetry/ci-info'
+import { hasNextSupport } from '../server/ci-info'
 import { exportAppRoute } from './routes/app-route'
 import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
@@ -46,6 +46,7 @@ import {
   type FallbackRouteParams,
 } from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
+import { runWithCacheScope } from '../server/async-storage/cache-scope'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -245,7 +246,8 @@ async function exportPageImpl(
         distDir,
         htmlFilepath,
         fileWriter,
-        input.renderOpts.experimental
+        input.renderOpts.experimental,
+        input.renderOpts.buildId
       )
     }
 
@@ -352,6 +354,7 @@ export async function exportPages(
     fetchCacheKeyPrefix,
     distDir,
     dir,
+    dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
@@ -459,21 +462,26 @@ export async function exportPages(
 
     return { result, path, pageKey }
   }
+  // for each build worker we share one dynamic IO cache scope
+  // this is only leveraged if the flag is enabled
+  const dynamicIOCacheScope = new Map()
 
-  for (let i = 0; i < paths.length; i += maxConcurrency) {
-    const subset = paths.slice(i, i + maxConcurrency)
+  await runWithCacheScope({ cache: dynamicIOCacheScope }, async () => {
+    for (let i = 0; i < paths.length; i += maxConcurrency) {
+      const subset = paths.slice(i, i + maxConcurrency)
 
-    const subsetResults = await Promise.all(
-      subset.map((path) =>
-        exportPageWithRetry(
-          path,
-          nextConfig.experimental.staticGenerationRetryCount ?? 1
+      const subsetResults = await Promise.all(
+        subset.map((path) =>
+          exportPageWithRetry(
+            path,
+            nextConfig.experimental.staticGenerationRetryCount ?? 1
+          )
         )
       )
-    )
 
-    results.push(...subsetResults)
-  }
+      results.push(...subsetResults)
+    }
+  })
 
   return results
 }

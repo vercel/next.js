@@ -117,6 +117,7 @@ export class EdgeRouteModuleWrapper {
           after: isAfterEnabled,
           dynamicIO: false,
         },
+        buildId: '', // TODO: Populate this properly.
       },
     }
 

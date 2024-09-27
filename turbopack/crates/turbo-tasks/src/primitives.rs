@@ -87,9 +87,8 @@ impl Bools {
 
     #[turbo_tasks::function]
     async fn into_bools(&self) -> Result<Vc<Vec<bool>>> {
-        let this = &self.0;
-
-        let bools = this
+        let bools = self
+            .0
             .iter()
             .map(|b| b.into_future().map_ok(|b| *b))
             .try_join()

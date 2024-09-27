@@ -71,8 +71,8 @@ pub struct NodeApiContentSource {
 #[turbo_tasks::value_impl]
 impl NodeApiContentSource {
     #[turbo_tasks::function]
-    pub async fn get_pathname(&self) -> Result<Vc<RcStr>> {
-        Ok(self.pathname)
+    pub fn get_pathname(&self) -> Vc<RcStr> {
+        self.pathname
     }
 }
 
@@ -174,14 +174,14 @@ impl Introspectable for NodeApiContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
+    async fn details(&self) -> Vc<RcStr> {
+        Vc::cell(
             format!(
                 "base: {:?}\ntype: {:?}",
                 self.base_segments, self.route_type
             )
             .into(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
