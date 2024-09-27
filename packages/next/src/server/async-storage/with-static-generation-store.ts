@@ -21,6 +21,7 @@ export type StaticGenerationContext = {
   fallbackRouteParams: FallbackRouteParams | null
 
   requestEndedState?: { ended?: boolean }
+  isPrefetchRequest?: boolean
   renderOpts: {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
@@ -55,6 +56,7 @@ export type StaticGenerationContext = {
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
+    | 'buildId'
   > &
     Partial<RequestLifecycleOpts>
 }
@@ -69,6 +71,7 @@ export const withStaticGenerationStore: WithStore<
     fallbackRouteParams,
     renderOpts,
     requestEndedState,
+    isPrefetchRequest,
   }: StaticGenerationContext,
   callback: (store: StaticGenerationStore) => Result
 ): Result => {
@@ -111,6 +114,8 @@ export const withStaticGenerationStore: WithStore<
     isDraftMode: renderOpts.isDraftMode,
 
     requestEndedState,
+    isPrefetchRequest,
+    buildId: renderOpts.buildId,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

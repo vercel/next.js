@@ -1,3 +1,4 @@
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import { createSnapshot } from '../../client/components/async-local-storage'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
@@ -15,6 +16,8 @@ import {
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 
+import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+
 import {
   getClientReferenceManifestSingleton,
   getServerModuleMap,
@@ -24,13 +27,17 @@ import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-p
 
 type CacheEntry = {
   value: ReadableStream
+  // In-memory caches are fragile and should not use stale-while-revalidate
+  // semantics on the caches because it's not worth warming up an entry that's
+  // likely going to get evicted before we get to use it anyway. However,
+  // we also don't want to reuse a stale entry for too long so stale entries
+  // should be considered expired/missing in such CacheHandlers.
   stale: boolean
 }
 
 interface CacheHandler {
   get(cacheKey: string | ArrayBuffer): Promise<undefined | CacheEntry>
   set(cacheKey: string | ArrayBuffer, value: ReadableStream): Promise<void>
-  shouldRevalidateStale: boolean
 }
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
@@ -64,10 +71,6 @@ cacheHandlerMap.set('default', {
       await value.cancel()
     }
   },
-  // In-memory caches are fragile and should not use stale-while-revalidate
-  // semantics on the caches because it's not worth warming up an entry that's
-  // likely going to get evicted before we get to use it anyway.
-  shouldRevalidateStale: false,
 })
 
 // TODO: Consider moving this another module that is guaranteed to be required in a safe scope.
@@ -75,6 +78,7 @@ const runInCleanSnapshot = createSnapshot()
 
 async function generateCacheEntry(
   staticGenerationStore: StaticGenerationStore,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
   encodedArguments: FormData | string,
@@ -82,7 +86,7 @@ async function generateCacheEntry(
 ): Promise<ReadableStream> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, args] = await decodeReply<any[]>(
+  const [, , args] = await decodeReply<any[]>(
     encodedArguments,
     getServerModuleMap(),
     {
@@ -96,11 +100,9 @@ async function generateCacheEntry(
   let didError = false
   let firstError: any = null
 
-  const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
-
   const stream = renderToReadableStream(
     result,
-    clientReferenceManifestSingleton.clientModules,
+    clientReferenceManifest.clientModules,
     {
       environmentName: 'Cache',
       temporaryReferences,
@@ -160,6 +162,11 @@ async function generateCacheEntry(
 }
 
 export function cache(kind: string, id: string, fn: any) {
+  if (!process.env.__NEXT_DYNAMIC_IO) {
+    throw new Error(
+      '"use cache" is only available with the experimental.dynamicIO config.'
+    )
+  }
   const cacheHandler = cacheHandlerMap.get(kind)
   if (cacheHandler === undefined) {
     throw new Error('Unknown cache handler: ' + kind)
@@ -167,9 +174,22 @@ export function cache(kind: string, id: string, fn: any) {
   const name = fn.name
   const cachedFn = {
     [name]: async function (...args: any[]) {
+      const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+      if (staticGenerationStore === undefined) {
+        throw new Error(
+          '"use cache" cannot be used outside of App Router. Expected a StaticGenerationStore.'
+        )
+      }
+
+      // Because the Action ID is not yet unique per implementation of that Action we can't
+      // safely reuse the results across builds yet. In the meantime we add the buildId to the
+      // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
+      // the implementation.
+      const buildId = staticGenerationStore.buildId
+
       const temporaryReferences = createClientTemporaryReferenceSet()
       const encodedArguments: FormData | string = await encodeReply(
-        [id, args],
+        [buildId, id, args],
         {
           temporaryReferences,
         }
@@ -188,17 +208,10 @@ export function cache(kind: string, id: string, fn: any) {
       let entry: undefined | CacheEntry =
         await cacheHandler.get(serializedCacheKey)
 
-      const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-      if (staticGenerationStore === undefined) {
-        throw new Error(
-          '"use cache" cannot be used outside of App Router. Expected a StaticGenerationStore.'
-        )
-      }
-
       let stream
       if (
         entry === undefined ||
-        (staticGenerationStore.isStaticGeneration && entry.stale)
+        (entry.stale && staticGenerationStore.isStaticGeneration)
       ) {
         // Miss. Generate a new result.
 
@@ -211,9 +224,16 @@ export function cache(kind: string, id: string, fn: any) {
         // might include request specific things like cookies() inside a React.cache().
         // Note: It is important that we await at least once before this because it lets us
         // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
+
+        // Get the clientReferenceManifestSingleton while we're still in the outer Context.
+        // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
+        const clientReferenceManifestSingleton =
+          getClientReferenceManifestSingleton()
+
         stream = await runInCleanSnapshot(
           generateCacheEntry,
           staticGenerationStore,
+          clientReferenceManifestSingleton,
           cacheHandler,
           serializedCacheKey,
           encodedArguments,
@@ -221,14 +241,15 @@ export function cache(kind: string, id: string, fn: any) {
         )
       } else {
         stream = entry.value
-        if (entry.stale && cacheHandler.shouldRevalidateStale) {
+        if (entry.stale) {
           // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
-          // then we should warm up the cache with a fresh revalidated entry. We only do this
-          // for long lived cache handlers because it's not worth warming up the cache with an
-          // an entry that's just going to get evicted before we can use it anyway.
+          // then we should warm up the cache with a fresh revalidated entry.
+          const clientReferenceManifestSingleton =
+            getClientReferenceManifestSingleton()
           const ignoredStream = await runInCleanSnapshot(
             generateCacheEntry,
             staticGenerationStore,
+            clientReferenceManifestSingleton,
             cacheHandler,
             serializedCacheKey,
             encodedArguments,
