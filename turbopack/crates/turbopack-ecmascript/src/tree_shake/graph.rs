@@ -473,11 +473,6 @@ impl DepGraph {
                     is_type_only: false,
                 })];
 
-                part_deps
-                    .entry(ix as u32)
-                    .or_default()
-                    .push(PartId::Internal(dep));
-
                 chunk
                     .body
                     .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -1322,8 +1317,12 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
         })) if &*key.sym == ASSERT_CHUNK_KEY => match &*s.value {
             "module evaluation" => Some(PartId::ModuleEvaluation),
             "exports" => Some(PartId::Exports),
-            _ if s.value.starts_with("export ") => Some(PartId::Export(s.value[7..].into())),
-            _ => None,
+            _ => Some(
+                s.value
+                    .strip_prefix("export ")
+                    .map(|s| PartId::Export(s.into()))
+                    .expect("failed to strip prefix of PartId"),
+            ),
         },
         _ => None,
     })

@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{vdbg, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
@@ -136,8 +136,7 @@ impl Module for EcmascriptModulePartAsset {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let analyze = analyze(self.full_module, self.part).await?;
 
-        // Facade depends on evaluation and re-exports
-        if matches!(&*self.part.await?, ModulePart::Facade | ModulePart::Exports) {
+        if !matches!(&*self.part.await?, ModulePart::Export(..)) {
             return Ok(analyze.references);
         }
 
@@ -159,6 +158,13 @@ impl Module for EcmascriptModulePartAsset {
             }
         };
 
+        // if !deps.is_empty() {
+        //     vdbg!(self.full_module.ident().with_part(self.part).to_string());
+        //     let rs = analyze.references.await?;
+        //     dbg!(analyze.references.await?.len());
+        //     dbg!(deps.to_vec());
+        // }
+
         let mut assets = deps
             .iter()
             .map(|part_id| {
@@ -166,11 +172,8 @@ impl Module for EcmascriptModulePartAsset {
                     Vc::upcast(EcmascriptModulePartAsset::new(
                         self.full_module,
                         match part_id {
-                            PartId::Internal(part_id) => ModulePart::internal(*part_id),
                             PartId::Export(name) => ModulePart::export(name.clone()),
-                            _ => unreachable!(
-                                "PartId other than Internal and Export should not be used here"
-                            ),
+                            _ => unreachable!("PartId other than Export should not be used here"),
                         },
                     )),
                     Vc::cell("ecmascript module part".into()),
