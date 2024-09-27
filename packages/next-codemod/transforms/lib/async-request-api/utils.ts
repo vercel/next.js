@@ -443,3 +443,11 @@ export function getFunctionPathFromExportPath(
 
   return undefined
 }
+
+export function wrapParentheseIfNeeded(
+  hasChainAccess: boolean,
+  j: API['jscodeshift'],
+  expression
+) {
+  return hasChainAccess ? j.parenthesizedExpression(expression) : expression
+}

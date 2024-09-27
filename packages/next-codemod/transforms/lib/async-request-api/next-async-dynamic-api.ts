@@ -7,15 +7,8 @@ import {
   insertReactUseImport,
   isFunctionScope,
   findClosetParentFunctionScope,
+  wrapParentheseIfNeeded,
 } from './utils'
-
-function wrapParathnessIfNeeded(
-  hasChainAccess: boolean,
-  j: API['jscodeshift'],
-  expression
-) {
-  return hasChainAccess ? j.parenthesizedExpression(expression) : expression
-}
 
 export function transformDynamicAPI(
   source: string,
@@ -92,7 +85,7 @@ export function transformDynamicAPI(
               // add parentheses to wrap the function call
               j.callExpression(j.identifier(asyncRequestApiName), [])
             )
-            j(path).replaceWith(wrapParathnessIfNeeded(hasChainAccess, j, expr))
+            j(path).replaceWith(wrapParentheseIfNeeded(hasChainAccess, j, expr))
             modified = true
           }
         } else {
@@ -140,7 +133,7 @@ export function transformDynamicAPI(
                   j.callExpression(j.identifier(asyncRequestApiName), [])
                 )
                 j(path).replaceWith(
-                  wrapParathnessIfNeeded(hasChainAccess, j, expr)
+                  wrapParentheseIfNeeded(hasChainAccess, j, expr)
                 )
 
                 turnFunctionReturnTypeToAsync(closetScopePath.node, j)

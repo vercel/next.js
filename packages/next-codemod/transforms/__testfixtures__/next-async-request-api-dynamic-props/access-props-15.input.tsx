@@ -10,5 +10,3 @@ async function generateMetadata({ params }) {
 
 export default Page
 export { generateMetadata }
-
-

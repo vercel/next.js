@@ -14,10 +14,120 @@ import {
   TARGET_NAMED_EXPORTS,
   TARGET_PROP_NAMES,
   turnFunctionReturnTypeToAsync,
+  wrapParentheseIfNeeded,
   type FunctionScope,
 } from './utils'
 
 const PAGE_PROPS = 'props'
+
+function findFunctionBody(path: ASTPath<FunctionScope>) {
+  let functionBody = path.node.body
+  if (functionBody && functionBody.type === 'BlockStatement') {
+    return functionBody.body
+  }
+  return null
+}
+
+function awaitMemberAccessOfProp(
+  propIdName: string,
+  path: ASTPath<FunctionScope>,
+  j: API['jscodeshift']
+) {
+  // search the member access of the prop
+  const functionBody = findFunctionBody(path)
+  const memberAccess = j(functionBody).find(j.MemberExpression, {
+    object: {
+      type: 'Identifier',
+      name: propIdName,
+    },
+  })
+
+  let hasAwaited = false
+  // await each member access
+  memberAccess.forEach((memberAccessPath) => {
+    const member = memberAccessPath.value
+
+    // check if it's already awaited
+    if (memberAccessPath.parentPath?.value.type === 'AwaitExpression') {
+      return
+    }
+    const awaitedExpr = j.awaitExpression(member)
+
+    const awaitMemberAccess = wrapParentheseIfNeeded(true, j, awaitedExpr)
+    memberAccessPath.replace(awaitMemberAccess)
+    hasAwaited = true
+  })
+
+  // If there's any awaited member access, we need to make the function async
+  if (hasAwaited) {
+    if (!path.value.async) {
+      if ('async' in path.value) {
+        path.value.async = true
+        turnFunctionReturnTypeToAsync(path.value, j)
+      }
+    }
+  }
+}
+
+function applyUseAndRenameAccessedProp(
+  propIdName: string,
+  path: ASTPath<FunctionScope>,
+  j: API['jscodeshift']
+) {
+  // search the member access of the prop, and rename the member access to the member value
+  // e.g.
+  // props.params => params
+  // props.params.foo => params.foo
+  // props.searchParams.search => searchParams.search
+  let needsReactUseImport = false
+  const functionBody = findFunctionBody(path)
+  const memberAccess = j(functionBody).find(j.MemberExpression, {
+    object: {
+      type: 'Identifier',
+      name: propIdName,
+    },
+  })
+
+  const accessedNames: string[] = []
+  // rename each member access
+  memberAccess.forEach((memberAccessPath) => {
+    const member = memberAccessPath.value
+    const memberProperty = member.property
+    if (j.Identifier.check(memberProperty)) {
+      accessedNames.push(memberProperty.name)
+    } else if (j.MemberExpression.check(memberProperty)) {
+      let currentMember = memberProperty
+      if (j.Identifier.check(currentMember.object)) {
+        accessedNames.push(currentMember.object.name)
+      }
+    }
+    memberAccessPath.replace(memberProperty)
+  })
+
+  // If there's any renamed member access, need to call `use()` onto member access
+  // e.g. ['params'] => insert `const params = use(props.params)`
+  if (accessedNames.length > 0) {
+    const accessedPropId = j.identifier(propIdName)
+    const accessedProp = j.memberExpression(
+      accessedPropId,
+      j.identifier(accessedNames[0])
+    )
+
+    const useCall = j.callExpression(j.identifier('use'), [accessedProp])
+    const useDeclaration = j.variableDeclaration('const', [
+      j.variableDeclarator(j.identifier(accessedNames[0]), useCall),
+    ])
+
+    if (functionBody) {
+      functionBody.unshift(useDeclaration)
+    }
+
+    needsReactUseImport = true
+  }
+  return {
+    needsReactUseImport,
+  }
+}
 
 export function transformDynamicProps(
   source: string,
@@ -25,6 +135,7 @@ export function transformDynamicProps(
   _filePath: string
 ) {
   let modified = false
+  let modifiedPropArgument = false
   const j = api.jscodeshift.withParser('tsx')
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported
@@ -43,22 +154,18 @@ export function transformDynamicProps(
       isDefaultExport: boolean
     ) {
       const decl = path.value
-      if (
-        decl.type !== 'FunctionDeclaration' &&
-        decl.type !== 'FunctionExpression' &&
-        decl.type !== 'ArrowFunctionExpression'
-      ) {
-        return
-      }
-
       const params = decl.params
+      const functionName = decl.id?.name || 'default'
       // target properties mapping, only contains `params` and `searchParams`
       const propertiesMap = new Map<string, any>()
       let allProperties: ObjectPattern['properties'] = []
 
-      // If there's no first param, return
-      if (params.length !== 1) {
-        return
+      // generateMetadata API has 2 params
+      if (functionName === 'generateMetadata') {
+        if (params.length > 2 || params.length === 0) return
+      } else {
+        // Page/Layout/Route handlers have 1 param
+        if (params.length !== 1) return
       }
       const propsIdentifier = generateUniqueIdentifier(PAGE_PROPS, path, j)
 
@@ -205,9 +312,26 @@ export function transformDynamicProps(
         params[0] = propsIdentifier
 
         modified = true
+        modifiedPropArgument = true
+      } else if (currentParam.type === 'Identifier') {
+        // case of accessing the props.params.<name>:
+        // Page(props) {}
+        // generateMetadata(props, parent?) {}
+        const argName = currentParam.name
+
+        if (isClientComponent) {
+          needsReactUseImport = applyUseAndRenameAccessedProp(
+            argName,
+            path,
+            j
+          ).needsReactUseImport
+        } else {
+          awaitMemberAccessOfProp(argName, path, j)
+        }
+        modified = true
       }
 
-      if (modified) {
+      if (modifiedPropArgument) {
         resolveAsyncProp(
           path,
           propertiesMap,
@@ -240,12 +364,7 @@ export function transformDynamicProps(
 
       const isAsyncFunc = !!node.async
       const functionName = path.value.id?.name || 'default'
-      let functionBody: any = node.body
-      if (functionBody && functionBody.type === 'BlockStatement') {
-        functionBody = functionBody.body
-      }
-      // getBodyOfFunctionDeclaration(functionPath)
-
+      const functionBody = findFunctionBody(path)
       const hasOtherProperties = allProperties.length > propertiesMap.size
 
       function createDestructuringDeclaration(
