@@ -5,7 +5,7 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::Module,
-    reference::{ModuleReferences, SingleModuleReference},
+    reference::{ModuleReference, ModuleReferences, SingleModuleReference},
     resolve::ModulePart,
 };
 
@@ -143,8 +143,19 @@ impl Module for EcmascriptModulePartAsset {
             SplitResult::Failed { .. } => return Ok(analyze.references),
         };
 
+        let part_dep = |part: Vc<ModulePart>| -> Vc<Box<dyn ModuleReference>> {
+            Vc::upcast(SingleModuleReference::new(
+                Vc::upcast(EcmascriptModulePartAsset::new(self.full_module, part)),
+                Vc::cell("ecmascript module part".into()),
+            ))
+        };
+
         // Facade depends on evaluation and re-exports
-        if matches!(&*self.part.await?, ModulePart::Facade | ModulePart::Exports) {
+        if matches!(&*self.part.await?, ModulePart::Facade) {
+            return Ok(analyze.references);
+        }
+
+        if matches!(&*self.part.await?, ModulePart::Exports) {
             return Ok(analyze.references);
         }
 
@@ -162,23 +173,17 @@ impl Module for EcmascriptModulePartAsset {
         let mut assets = deps
             .iter()
             .map(|part_id| {
-                Ok(Vc::upcast(SingleModuleReference::new(
-                    Vc::upcast(EcmascriptModulePartAsset::new(
-                        self.full_module,
-                        match part_id {
-                            PartId::Internal(part_id, is_for_eval) => {
-                                ModulePart::internal(*part_id, *is_for_eval)
-                            }
-                            PartId::Export(name) => ModulePart::export(name.clone()),
-                            _ => unreachable!(
-                                "PartId other than Internal and Export should not be used here"
-                            ),
-                        },
-                    )),
-                    Vc::cell("ecmascript module part".into()),
-                )))
+                part_dep(match part_id {
+                    PartId::Internal(part_id, is_for_eval) => {
+                        ModulePart::internal(*part_id, *is_for_eval)
+                    }
+                    PartId::Export(name) => ModulePart::export(name.clone()),
+                    _ => unreachable!(
+                        "PartId other than Internal and Export should not be used here"
+                    ),
+                })
             })
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Vec<_>>();
 
         assets.extend(analyze.references.await?.iter().cloned());
 
