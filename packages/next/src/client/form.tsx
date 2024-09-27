@@ -41,6 +41,8 @@ type InternalFormProps = {
    * - `null` (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
    * - `false`: This will not prefetch any data.
    *
+   * In pages dir, prefetching is not supported, and passing this prop will emit a warning.
+   *
    * @defaultValue `null`
    */
   prefetch?: false | null
