@@ -2,38 +2,22 @@ import type {
   API,
   Collection,
   ASTPath,
-  ExportDefaultDeclaration,
-  ExportNamedDeclaration,
   ObjectPattern,
   Identifier,
 } from 'jscodeshift'
 import {
   determineClientDirective,
   generateUniqueIdentifier,
+  getFunctionPathFromExportPath,
   insertReactUseImport,
   isFunctionType,
   TARGET_NAMED_EXPORTS,
   TARGET_PROP_NAMES,
   turnFunctionReturnTypeToAsync,
+  type FunctionScope,
 } from './utils'
 
 const PAGE_PROPS = 'props'
-
-type FunctionalExportDeclaration =
-  | ExportDefaultDeclaration
-  | ExportNamedDeclaration
-
-function isAsyncFunctionDeclaration(
-  path: ASTPath<FunctionalExportDeclaration>
-) {
-  const decl = path.value.declaration
-  const isAsyncFunction =
-    (decl.type === 'FunctionDeclaration' ||
-      decl.type === 'FunctionExpression' ||
-      decl.type === 'ArrowFunctionExpression') &&
-    decl.async
-  return isAsyncFunction
-}
 
 export function transformDynamicProps(
   source: string,
@@ -55,9 +39,10 @@ export function transformDynamicProps(
   function processAsyncPropOfEntryFile(isClientComponent: boolean) {
     // find `params` and `searchParams` in file, and transform the access to them
     function renameAsyncPropIfExisted(
-      path: ASTPath<FunctionalExportDeclaration>
+      path: ASTPath<FunctionScope>,
+      isDefaultExport: boolean
     ) {
-      const decl = path.value.declaration
+      const decl = path.value
       if (
         decl.type !== 'FunctionDeclaration' &&
         decl.type !== 'FunctionExpression' &&
@@ -227,54 +212,39 @@ export function transformDynamicProps(
           path,
           propertiesMap,
           propsIdentifier.name,
-          allProperties
+          allProperties,
+          isDefaultExport
         )
       }
     }
 
-    function getBodyOfFunctionDeclaration(
-      path: ASTPath<FunctionalExportDeclaration>
-    ) {
-      const decl = path.value.declaration
-
-      let functionBody
-      if (
-        decl.type === 'FunctionDeclaration' ||
-        decl.type === 'FunctionExpression' ||
-        decl.type === 'ArrowFunctionExpression'
-      ) {
-        if (decl.body && decl.body.type === 'BlockStatement') {
-          functionBody = decl.body.body
-        }
-      }
-
-      return functionBody
-    }
-
     // Helper function to insert `const params = await asyncParams;` at the beginning of the function body
     function resolveAsyncProp(
-      path: ASTPath<FunctionalExportDeclaration>,
+      path: ASTPath<FunctionScope>,
       propertiesMap: Map<string, Identifier | ObjectPattern | undefined>,
       propsIdentifierName: string,
-      allProperties: ObjectPattern['properties']
+      allProperties: ObjectPattern['properties'],
+      isDefaultExport: boolean
     ) {
-      const isDefaultExport = path.value.type === 'ExportDefaultDeclaration'
+      const node = path.value
+
       // If it's sync default export, and it's also server component, make the function async
-      if (
-        isDefaultExport &&
-        !isClientComponent &&
-        !isAsyncFunctionDeclaration(path)
-      ) {
-        if ('async' in path.value.declaration) {
-          path.value.declaration.async = true
-          turnFunctionReturnTypeToAsync(path.value.declaration, j)
+      if (isDefaultExport && !isClientComponent) {
+        if (!node.async) {
+          if ('async' in node) {
+            node.async = true
+            turnFunctionReturnTypeToAsync(node, j)
+          }
         }
       }
 
-      const isAsyncFunc = isAsyncFunctionDeclaration(path)
-      // @ts-ignore quick way to check if it's a function and it has a name
-      const functionName = path.value.declaration.id?.name || 'default'
-      const functionBody = getBodyOfFunctionDeclaration(path)
+      const isAsyncFunc = !!node.async
+      const functionName = path.value.id?.name || 'default'
+      let functionBody: any = node.body
+      if (functionBody && functionBody.type === 'BlockStatement') {
+        functionBody = functionBody.body
+      }
+      // getBodyOfFunctionDeclaration(functionPath)
 
       const hasOtherProperties = allProperties.length > propertiesMap.size
 
@@ -420,16 +390,16 @@ export function transformDynamicProps(
             insertedRenamedPropFunctionNames.add(uid)
           }
         } else {
-          const isFromExport = path.value.type === 'ExportNamedDeclaration'
-          if (isFromExport) {
+          // const isFromExport = true
+          if (!isClientComponent) {
             // If it's export function, populate the function to async
             if (
-              isFunctionType(path.value.declaration.type) &&
+              isFunctionType(node.type) &&
               // Make TS happy
-              'async' in path.value.declaration
+              'async' in node
             ) {
-              path.value.declaration.async = true
-              turnFunctionReturnTypeToAsync(path.value.declaration, j)
+              node.async = true
+              turnFunctionReturnTypeToAsync(node, j)
 
               // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
               const paramAssignment = j.variableDeclaration('const', [
@@ -460,51 +430,37 @@ export function transformDynamicProps(
       }
     }
 
-    // Process Function Declarations
-    // Matching: default export function XXX(...) { ... }
-    const defaultExportFunctionDeclarations = root.find(
-      j.ExportDefaultDeclaration,
-      {
-        declaration: {
-          type: (type) =>
-            type === 'FunctionDeclaration' ||
-            type === 'FunctionExpression' ||
-            type === 'ArrowFunctionExpression',
-        },
-      }
-    )
+    const defaultExportsDeclarations = root.find(j.ExportDefaultDeclaration)
 
-    defaultExportFunctionDeclarations.forEach((path) => {
-      renameAsyncPropIfExisted(path)
+    defaultExportsDeclarations.forEach((path) => {
+      const functionPath = getFunctionPathFromExportPath(
+        path,
+        j,
+        root,
+        () => true
+      )
+      if (functionPath) {
+        renameAsyncPropIfExisted(functionPath, true)
+      }
     })
 
     // Matching Next.js functional named export of route entry:
     // - export function <named>(...) { ... }
     // - export const <named> = ...
-    const targetNamedExportDeclarations = root.find(
-      j.ExportNamedDeclaration,
-      // Filter the name is in TARGET_NAMED_EXPORTS
-      {
-        declaration: {
-          id: {
-            name: (idName: string) => {
-              return TARGET_NAMED_EXPORTS.has(idName)
-            },
-          },
-        },
-      }
-    )
+    const namedExportDeclarations = root.find(j.ExportNamedDeclaration)
 
-    targetNamedExportDeclarations.forEach((path) => {
-      renameAsyncPropIfExisted(path)
+    namedExportDeclarations.forEach((path) => {
+      const functionPath = getFunctionPathFromExportPath(
+        path,
+        j,
+        root,
+        (idName) => TARGET_NAMED_EXPORTS.has(idName)
+      )
+
+      if (functionPath) {
+        renameAsyncPropIfExisted(functionPath, false)
+      }
     })
-    // TDOO: handle targetNamedDeclarators
-    // const targetNamedDeclarators = root.find(
-    //   j.VariableDeclarator,
-    //   (node) =>
-    //     node.id.type === 'Identifier' &&
-    //     TARGET_NAMED_EXPORTS.has(node.id.name)
-    // )
   }
 
   const isClientComponent = determineClientDirective(root, j, source)

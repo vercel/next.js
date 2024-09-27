@@ -1,11 +1,19 @@
 import type {
   API,
+  ArrowFunctionExpression,
   ASTPath,
   Collection,
+  ExportDefaultDeclaration,
+  ExportNamedDeclaration,
   FunctionDeclaration,
+  FunctionExpression,
   JSCodeshift,
-  Node,
 } from 'jscodeshift'
+
+export type FunctionScope =
+  | FunctionDeclaration
+  | FunctionExpression
+  | ArrowFunctionExpression
 
 export const TARGET_NAMED_EXPORTS = new Set([
   // For custom route
@@ -153,7 +161,7 @@ export function isPromiseType(typeAnnotation) {
 }
 
 export function turnFunctionReturnTypeToAsync(
-  node: Node,
+  node: any,
   j: API['jscodeshift']
 ) {
   if (
@@ -266,7 +274,11 @@ export function generateUniqueIdentifier(
   return propsIdentifier
 }
 
-export function isFunctionScope(path: ASTPath, j: API['jscodeshift']) {
+export function isFunctionScope(
+  path: ASTPath,
+  j: API['jscodeshift']
+): path is ASTPath<FunctionScope> {
+  if (!path) return false
   const node = path.node
 
   // Check if the node is a function (declaration, expression, or arrow function)
@@ -287,4 +299,147 @@ export function findClosetParentFunctionScope(
   }
 
   return parentFunctionPath
+}
+
+function getFunctionNodeFromBinding(
+  bindingPath: ASTPath<any>,
+  idName: string,
+  j: API['jscodeshift'],
+  root: Collection<any>
+): ASTPath<FunctionScope> | undefined {
+  const bindingNode = bindingPath.node
+  if (
+    j.FunctionDeclaration.check(bindingNode) ||
+    j.FunctionExpression.check(bindingNode) ||
+    j.ArrowFunctionExpression.check(bindingNode)
+  ) {
+    return bindingPath
+  } else if (j.VariableDeclarator.check(bindingNode)) {
+    const init = bindingNode.init
+    // If the initializer is a function (arrow or function expression), record it
+    if (
+      j.FunctionExpression.check(init) ||
+      j.ArrowFunctionExpression.check(init)
+    ) {
+      return bindingPath.get('init')
+    }
+  } else if (j.Identifier.check(bindingNode)) {
+    const variablePath = root.find(j.VariableDeclaration, {
+      // declarations, each is VariableDeclarator
+      declarations: [
+        {
+          // VariableDeclarator
+          type: 'VariableDeclarator',
+          // id is Identifier
+          id: {
+            type: 'Identifier',
+            name: idName,
+          },
+        },
+      ],
+    })
+
+    if (variablePath.size()) {
+      const variableDeclarator = variablePath.get()?.node?.declarations?.[0]
+      if (j.VariableDeclarator.check(variableDeclarator)) {
+        const init = variableDeclarator.init
+        if (
+          j.FunctionExpression.check(init) ||
+          j.ArrowFunctionExpression.check(init)
+        ) {
+          return variablePath.get('declarations', 0, 'init')
+        }
+      }
+    }
+
+    const functionDeclarations = root.find(j.FunctionDeclaration, {
+      id: {
+        name: idName,
+      },
+    })
+    if (functionDeclarations.size()) {
+      return functionDeclarations.get()
+    }
+  }
+  return undefined
+}
+
+export function getFunctionPathFromExportPath(
+  exportPath: ASTPath<ExportDefaultDeclaration | ExportNamedDeclaration>,
+  j: API['jscodeshift'],
+  root: Collection<any>,
+  namedExportFilter: (idName: string) => boolean
+): ASTPath<FunctionScope> | undefined {
+  // Default export
+  if (j.ExportDefaultDeclaration.check(exportPath.node)) {
+    const { declaration } = exportPath.node
+    if (declaration) {
+      if (
+        j.FunctionDeclaration.check(declaration) ||
+        j.FunctionExpression.check(declaration) ||
+        j.ArrowFunctionExpression.check(declaration)
+      ) {
+        return exportPath.get('declaration')
+      } else if (j.Identifier.check(declaration)) {
+        const idName = declaration.name
+        if (!namedExportFilter(idName)) return
+
+        const exportBinding = exportPath.scope.getBindings()[idName]?.[0]
+        if (exportBinding) {
+          return getFunctionNodeFromBinding(exportBinding, idName, j, root)
+        }
+      }
+    }
+  } else if (
+    // Named exports
+    j.ExportNamedDeclaration.check(exportPath.node)
+  ) {
+    const namedExportPath = exportPath as ASTPath<ExportNamedDeclaration>
+    // extract the named exports, name specifiers, and default specifiers
+    const { declaration, specifiers } = namedExportPath.node
+    if (declaration) {
+      if (j.VariableDeclaration.check(declaration)) {
+        const { declarations } = declaration
+        for (const decl of declarations) {
+          if (j.VariableDeclarator.check(decl) && j.Identifier.check(decl.id)) {
+            const idName = decl.id.name
+
+            if (!namedExportFilter(idName)) return
+
+            // get bindings for each variable declarator
+            const exportBinding =
+              namedExportPath.scope.getBindings()[idName]?.[0]
+            if (exportBinding) {
+              return getFunctionNodeFromBinding(exportBinding, idName, j, root)
+            }
+          }
+        }
+      } else if (
+        j.FunctionDeclaration.check(declaration) ||
+        j.FunctionExpression.check(declaration) ||
+        j.ArrowFunctionExpression.check(declaration)
+      ) {
+        const funcName = declaration.id?.name
+        if (!namedExportFilter(funcName)) return
+
+        return namedExportPath.get('declaration')
+      }
+    }
+    if (specifiers) {
+      for (const specifier of specifiers) {
+        if (j.ExportSpecifier.check(specifier)) {
+          const idName = specifier.local.name
+
+          if (!namedExportFilter(idName)) return
+
+          const exportBinding = namedExportPath.scope.getBindings()[idName]?.[0]
+          if (exportBinding) {
+            return getFunctionNodeFromBinding(exportBinding, idName, j, root)
+          }
+        }
+      }
+    }
+  }
+
+  return undefined
 }
