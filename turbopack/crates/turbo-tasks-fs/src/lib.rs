@@ -60,7 +60,7 @@ use tokio::{
 use tracing::Instrument;
 use turbo_tasks::{
     mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef,
-    SerializationInvalidator, ValueDefault, ValueToString, Vc,
+    SerializationInvalidator, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -397,20 +397,6 @@ fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<
 
 pub fn path_to_key(path: impl AsRef<Path>) -> String {
     path.as_ref().to_string_lossy().to_string()
-}
-
-#[turbo_tasks::value(shared)]
-#[derive(Default)]
-pub struct DiskFileSystemConfig {
-    pub poll_interval: Option<Duration>,
-}
-
-#[turbo_tasks::value_impl]
-impl ValueDefault for DiskFileSystemConfig {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Self::default().cell()
-    }
 }
 
 #[turbo_tasks::value_impl]
