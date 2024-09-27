@@ -20,12 +20,16 @@ const CNA_PATH = require.resolve('create-next-app/dist/index.js')
 //   })
 // }
 
-export function runNode(args: string[], options: execa.Options) {
-  return execa('node', args, {
+export function command(
+  command: string,
+  args: string[],
+  options?: execa.Options
+) {
+  return execa(command, args, {
     ...options,
     env: {
       ...process.env,
-      ...options.env,
+      ...options?.env,
     },
   })
 }
