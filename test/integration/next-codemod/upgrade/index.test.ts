@@ -1,10 +1,13 @@
 import { join } from 'node:path'
-import { createApp, runNextCodemod, useTempDir } from '../utils'
+import { getPkgPaths } from '../../../lib/create-next-install'
+import { createApp, runNode, useTempDir } from '../utils'
 
 describe('next-codemod upgrade prompt', () => {
   let canaryVersion: string | undefined
   let rcVersion: string | undefined
   let latestVersion: string | undefined
+
+  let nextCodemodPath: string
 
   beforeAll(async () => {
     try {
@@ -20,6 +23,18 @@ describe('next-codemod upgrade prompt', () => {
     } catch (error) {
       console.error('Failed to fetch next versions:\n', error)
     }
+
+    try {
+      nextCodemodPath = require.resolve('@next/codemod/package.json')
+    } catch (error) {
+      console.error('Failed to resolve next-codemod path:\n', error)
+      nextCodemodPath = (
+        await getPkgPaths({
+          repoDir: join(__dirname, '../../../'),
+          nextSwcVersion: '',
+        })
+      ).get('@next/codemod')
+    }
   })
 
   it('should upgrade to the canary version', async () => {
@@ -31,7 +46,9 @@ describe('next-codemod upgrade prompt', () => {
       })
       expect(app.exitCode).toBe(0)
 
-      const cp = await runNextCodemod(['upgrade', 'canary'], { cwd: appDir })
+      const cp = await runNode([nextCodemodPath, 'upgrade', 'canary'], {
+        cwd: appDir,
+      })
       expect(cp.exitCode).toBe(0)
 
       const pkg = require(join(appDir, 'package.json'))
@@ -51,7 +68,9 @@ describe('next-codemod upgrade prompt', () => {
       })
       expect(app.exitCode).toBe(0)
 
-      const cp = await runNextCodemod(['upgrade', 'rc'], { cwd: appDir })
+      const cp = await runNode([nextCodemodPath, 'upgrade', 'rc'], {
+        cwd: appDir,
+      })
       expect(cp.exitCode).toBe(0)
 
       const pkg = require(join(appDir, 'package.json'))
@@ -71,7 +90,9 @@ describe('next-codemod upgrade prompt', () => {
       })
       expect(app.exitCode).toBe(0)
 
-      const cp = await runNextCodemod(['upgrade', 'latest'], { cwd: appDir })
+      const cp = await runNode([nextCodemodPath, 'upgrade', 'latest'], {
+        cwd: appDir,
+      })
       expect(cp.exitCode).toBe(0)
 
       const pkg = require(join(appDir, 'package.json'))
