@@ -40,3 +40,15 @@ export function createAsyncLocalStorage<
   }
   return new FakeAsyncLocalStorage()
 }
+
+export function createSnapshot(): <R, TArgs extends any[]>(
+  fn: (...args: TArgs) => R,
+  ...args: TArgs
+) => R {
+  if (maybeGlobalAsyncLocalStorage) {
+    return maybeGlobalAsyncLocalStorage.snapshot()
+  }
+  return function (fn: any, ...args: any[]) {
+    return fn(...args)
+  }
+}

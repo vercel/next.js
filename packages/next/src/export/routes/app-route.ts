@@ -22,7 +22,7 @@ import type {
 } from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import { SERVER_DIRECTORY } from '../../shared/lib/constants'
-import { hasNextSupport } from '../../telemetry/ci-info'
+import { hasNextSupport } from '../../server/ci-info'
 import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers/is-static-gen-enabled'
 import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
@@ -43,7 +43,8 @@ export async function exportAppRoute(
   distDir: string,
   htmlFilepath: string,
   fileWriter: FileWriter,
-  experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>
+  experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>,
+  buildId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -76,6 +77,7 @@ export async function exportAppRoute(
       incrementalCache,
       waitUntil: undefined,
       onClose: undefined,
+      buildId,
     },
   }
 

@@ -19,6 +19,8 @@ import {
 import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 describe('Prerender', () => {
   let next: NextInstance
 
@@ -2062,7 +2064,9 @@ describe('Prerender', () => {
               /webpack-runtime\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
-              /node_modules\/react\/cjs\/react\.production\.js/,
+              isReact18
+                ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+                : /node_modules\/react\/cjs\/react\.production\.js/,
             ],
             notTests: [],
           },
@@ -2073,7 +2077,9 @@ describe('Prerender', () => {
               /chunks\/.*?\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
-              /node_modules\/react\/cjs\/react\.production\.js/,
+              isReact18
+                ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+                : /node_modules\/react\/cjs\/react\.production\.js/,
               /\/world.txt/,
             ],
             notTests: [
@@ -2088,7 +2094,9 @@ describe('Prerender', () => {
               /chunks\/.*?\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
-              /node_modules\/react\/cjs\/react\.production\.js/,
+              isReact18
+                ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+                : /node_modules\/react\/cjs\/react\.production\.js/,
               /node_modules\/@firebase\/firestore\/.*?\.js/,
             ],
             notTests: [/\/world.txt/],
@@ -2109,7 +2117,7 @@ describe('Prerender', () => {
               )
             )
           } catch (error) {
-            error.message += `\n\nFiles:\n${files.join('\n')}`
+            error.message += `\n\nPage: ${check.page}\nFiles:\n${files.join('\n')}`
             throw error
           }
 

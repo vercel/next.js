@@ -255,16 +255,13 @@ impl MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn userland_module(&self) -> Result<Vc<Box<dyn Module>>> {
-        let this = self;
-
-        Ok(this
-            .asset_context
+    fn userland_module(&self) -> Vc<Box<dyn Module>> {
+        self.asset_context
             .process(
-                this.source,
+                self.source,
                 Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
             )
-            .module())
+            .module()
     }
 }
 
@@ -313,7 +310,7 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        Ok(Vc::cell(vec![self.userland_module()]))
+    fn root_modules(self: Vc<Self>) -> Vc<Modules> {
+        Vc::cell(vec![self.userland_module()])
     }
 }

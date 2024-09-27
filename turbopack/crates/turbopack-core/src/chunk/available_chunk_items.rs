@@ -66,14 +66,13 @@ impl AvailableChunkItems {
 
     #[turbo_tasks::function]
     pub async fn hash(&self) -> Result<Vc<u64>> {
-        let this = self;
         let mut hasher = Xxh3Hash64Hasher::new();
-        if let Some(parent) = this.parent {
+        if let Some(parent) = self.parent {
             hasher.write_value(parent.hash().await?);
         } else {
             hasher.write_value(0u64);
         }
-        let item_idents = this
+        let item_idents = self
             .chunk_items
             .await?
             .iter()
@@ -91,11 +90,10 @@ impl AvailableChunkItems {
         &self,
         chunk_item: Vc<Box<dyn ChunkItem>>,
     ) -> Result<Vc<OptionAvailableChunkItemInfo>> {
-        let this = self;
-        if let Some(&info) = this.chunk_items.await?.get(&chunk_item) {
+        if let Some(&info) = self.chunk_items.await?.get(&chunk_item) {
             return Ok(Vc::cell(Some(info)));
         };
-        if let Some(parent) = this.parent {
+        if let Some(parent) = self.parent {
             return Ok(parent.get(chunk_item));
         }
         Ok(Vc::cell(None))

@@ -1,7 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-process.env.__TEST_SENTINEL = 'at buildtime'
-
 const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
 
 describe('dynamic-io', () => {
@@ -286,86 +284,54 @@ describe('dynamic-io', () => {
 
   if (WITH_PPR) {
     it('should partially prerender pages that use `headers()`', async () => {
-      let $ = await next.render$(
-        '/cases/dynamic_api_headers_boundary',
-        {},
-        {
-          headers: {
-            'x-sentinel': 'my sentinel',
-          },
-        }
-      )
+      let $ = await next.render$('/cases/dynamic_api_headers_boundary')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#inner').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
+        expect($('#value').text()).toBe('hello')
       } else {
         expect($('#layout').text()).toBe('at buildtime')
         expect($('#page').text()).toBe('at buildtime')
         expect($('#inner').text()).toBe('at buildtime')
-        expect($('#value').text()).toBe('my sentinel')
+        expect($('#value').text()).toBe('hello')
       }
 
-      $ = await next.render$(
-        '/cases/dynamic_api_headers_root',
-        {},
-        {
-          headers: {
-            'x-sentinel': 'my sentinel',
-          },
-        }
-      )
+      $ = await next.render$('/cases/dynamic_api_headers_root')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
+        expect($('#value').text()).toBe('hello')
       } else {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
+        expect($('#value').text()).toBe('hello')
       }
     })
   } else {
     it('should not prerender pages that use `headers()`', async () => {
-      let $ = await next.render$(
-        '/cases/dynamic_api_headers_boundary',
-        {},
-        {
-          headers: {
-            'x-sentinel': 'my sentinel',
-          },
-        }
-      )
+      let $ = await next.render$('/cases/dynamic_api_headers_boundary')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#inner').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
+        expect($('#value').text()).toBe('hello')
       } else {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#inner').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
+        expect($('#value').text()).toBe('hello')
       }
 
-      $ = await next.render$(
-        '/cases/dynamic_api_headers_root',
-        {},
-        {
-          headers: {
-            'x-sentinel': 'my sentinel',
-          },
-        }
-      )
+      $ = await next.render$('/cases/dynamic_api_headers_root')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
+        expect($('#value').text()).toBe('hello')
       } else {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
+        expect($('#value').text()).toBe('hello')
       }
     })
   }
@@ -496,7 +462,9 @@ describe('dynamic-io', () => {
       } else {
         expect($('#layout').text()).toBe('at buildtime')
         expect($('#page').text()).toBe('at buildtime')
-        expect($('#inner').text()).toBe('at runtime')
+        // The second component renders before the first one aborts so we end up
+        // capturing the static value during buildtime
+        expect($('#inner').text()).toBe('at buildtime')
         expect($('#value').text()).toBe('my sentinel')
       }
 
@@ -547,4 +515,92 @@ describe('dynamic-io', () => {
       }
     })
   }
+
+  it('can prerender pages with parallel routes that are static', async () => {
+    const $ = await next.render$('/cases/parallel/static', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page-slot').text()).toBe('at runtime')
+      expect($('#page-children').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page-slot').text()).toBe('at buildtime')
+      expect($('#page-children').text()).toBe('at buildtime')
+    }
+  })
+
+  it('can prerender pages with parallel routes that resolve in a microtask', async () => {
+    const $ = await next.render$('/cases/parallel/microtask', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page-slot').text()).toBe('at runtime')
+      expect($('#page-children').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page-slot').text()).toBe('at buildtime')
+      expect($('#page-children').text()).toBe('at buildtime')
+    }
+  })
+
+  it('does not prerender pages with parallel routes that resolve in a task', async () => {
+    const $ = await next.render$('/cases/parallel/task', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page-slot').text()).toBe('at runtime')
+      expect($('#page-children').text()).toBe('at runtime')
+    } else {
+      if (WITH_PPR) {
+        expect($('#layout').text()).toBe('at buildtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at buildtime')
+      } else {
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at runtime')
+      }
+    }
+  })
+
+  it('does not prerender pages with parallel routes that uses a dynamic API', async () => {
+    let $ = await next.render$('/cases/parallel/no-store', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page-slot').text()).toBe('at runtime')
+      expect($('#page-children').text()).toBe('at runtime')
+    } else {
+      if (WITH_PPR) {
+        // When using a sync dynamic API like noStore the prerender aborts
+        // before the shell can complete
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at runtime')
+      } else {
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at runtime')
+      }
+    }
+
+    $ = await next.render$('/cases/parallel/cookies', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page-slot').text()).toBe('at runtime')
+      expect($('#page-children').text()).toBe('at runtime')
+    } else {
+      if (WITH_PPR) {
+        expect($('#layout').text()).toBe('at buildtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at buildtime')
+      } else {
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page-slot').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at runtime')
+      }
+    }
+  })
 })

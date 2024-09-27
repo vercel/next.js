@@ -362,6 +362,7 @@ export function unstable_cache<T extends Callback>(
             page: '/',
             isStaticGeneration: false,
             fallbackRouteParams: null,
+            buildId: '', // Since this is a fake one it can't "use cache" anyway.
           },
           cb,
           ...args

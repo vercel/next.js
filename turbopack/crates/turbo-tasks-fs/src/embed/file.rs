@@ -30,8 +30,8 @@ pub async fn content_from_relative_path(
 }
 
 #[turbo_tasks::function]
-pub async fn content_from_str(string: RcStr) -> Result<Vc<FileContent>> {
-    Ok(File::from(string).into())
+pub fn content_from_str(string: RcStr) -> Vc<FileContent> {
+    File::from(string).into()
 }
 
 /// Loads a file's content from disk and invalidates on change (debug builds).
