@@ -872,7 +872,6 @@ impl AggregationUpdateQueue {
 
 impl Operation for AggregationUpdateQueue {
     fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
-        let _span = tracing::trace_span!("aggregation update queue").entered();
         loop {
             ctx.operation_suspend_point(&self);
             if self.process(ctx) {
