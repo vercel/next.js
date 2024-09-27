@@ -10,15 +10,17 @@ describe('next-codemod', () => {
 
   it('should work using cheerio', async () => {
     const $ = await next.render$('/')
-    const nextCodemodPath = join(
-      next.testDir,
-      'node_modules',
-      '@next',
-      'codemod',
-      'bin',
-      'next-codemod.js'
-    )
-    expect(existsSync(nextCodemodPath)).toBeTruthy()
+    expect(existsSync(next.testDir)).toBe(true)
+    const n = join(next.testDir, 'node_modules')
+    expect(existsSync(n)).toBe(true)
+    const ne = join(n, '@next')
+    expect(existsSync(ne)).toBe(true)
+    const c = join(ne, 'codemod')
+    expect(existsSync(c)).toBe(true)
+    const b = join(c, 'bin')
+    expect(existsSync(b)).toBe(true)
+    const nc = join(b, 'next-codemod.js')
+    expect(existsSync(nc)).toBe(true)
     expect($('p').text()).toBe('hello world')
   })
 })
