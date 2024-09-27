@@ -98,11 +98,11 @@ export default function Form({
     }
   }
 
-  const { isAppRouter, router } = useAppOrPagesRouter()
+  const router = useAppOrPagesRouter()
 
   const isPrefetchEnabled =
     // there is no notion of instant loading states in pages dir, so prefetching is pointless
-    isAppRouter &&
+    isAppRouter(router) &&
     // if we don't have an action path, we can't preload anything anyway.
     isNavigatingForm &&
     prefetch === null
@@ -185,7 +185,7 @@ function onFormSubmit(
     onSubmit: FormProps['onSubmit']
     replace: FormProps['replace']
     scroll: FormProps['scroll']
-    router: AppRouterInstance | NextRouter
+    router: SomeRouter
   }
 ) {
   if (typeof onSubmit === 'function') {
@@ -285,9 +285,8 @@ function onFormSubmit(
   event.preventDefault()
 
   const method = replace ? 'replace' : 'push'
-  const isAppRouter = !('asPath' in router) // FIXME
 
-  if (isAppRouter) {
+  if (isAppRouter(router)) {
     const targetHref = targetUrl.href
     router[method](targetHref, { scroll })
   } else {
@@ -298,16 +297,20 @@ function onFormSubmit(
   }
 }
 
-function useAppOrPagesRouter():
-  | { isAppRouter: true; router: AppRouterInstance }
-  | { isAppRouter: false; router: NextRouter } {
+type SomeRouter = AppRouterInstance | NextRouter
+
+function isAppRouter(router: SomeRouter): router is AppRouterInstance {
+  return !('asPath' in router)
+}
+
+function useAppOrPagesRouter(): SomeRouter {
   const pagesRouter = useContext(RouterContext)
   const appRouter = useContext(AppRouterContext)
   if (pagesRouter) {
-    return { isAppRouter: false, router: pagesRouter }
+    return pagesRouter
   } else {
     // We're in the app directory if there is no pages router.
-    return { isAppRouter: true, router: appRouter! }
+    return appRouter!
   }
 }
 
