@@ -171,9 +171,7 @@ export class NextInstance {
           'react-dom': reactVersion,
           '@types/react': 'latest',
           '@types/react-dom': 'latest',
-          // TODO: fix the TS error with the TS 5.6
-          // x-ref: https://github.com/vercel/next.js/actions/runs/10777104696/job/29887663970?pr=69784
-          typescript: '5.5.4',
+          typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
