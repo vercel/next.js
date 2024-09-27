@@ -67,6 +67,7 @@ function awaitMemberAccessOfProp(
       }
     }
   }
+  return hasAwaited
 }
 
 function applyUseAndRenameAccessedProp(
@@ -79,7 +80,7 @@ function applyUseAndRenameAccessedProp(
   // props.params => params
   // props.params.foo => params.foo
   // props.searchParams.search => searchParams.search
-  let needsReactUseImport = false
+  let modified = false
   const functionBody = findFunctionBody(path)
   const memberAccess = j(functionBody).find(j.MemberExpression, {
     object: {
@@ -122,11 +123,9 @@ function applyUseAndRenameAccessedProp(
       functionBody.unshift(useDeclaration)
     }
 
-    needsReactUseImport = true
+    modified = true
   }
-  return {
-    needsReactUseImport,
-  }
+  return modified
 }
 
 export function transformDynamicProps(
@@ -320,15 +319,50 @@ export function transformDynamicProps(
         const argName = currentParam.name
 
         if (isClientComponent) {
-          needsReactUseImport = applyUseAndRenameAccessedProp(
-            argName,
-            path,
-            j
-          ).needsReactUseImport
+          const modifiedProp = applyUseAndRenameAccessedProp(argName, path, j)
+          if (modifiedProp) {
+            needsReactUseImport = true
+            modified = true
+          }
         } else {
-          awaitMemberAccessOfProp(argName, path, j)
+          modified = awaitMemberAccessOfProp(argName, path, j)
         }
-        modified = true
+
+        // cases of passing down `props` into any function
+        // Page(props) { callback(props) }
+
+        // search for all the argument of CallExpression, where currentParam is one of the arguments
+        const callExpressions = j(path).find(j.CallExpression, {
+          arguments: (args) => {
+            return args.some((arg) => {
+              return (
+                j.Identifier.check(arg) &&
+                arg.name === argName &&
+                arg.type === 'Identifier'
+              )
+            })
+          },
+        })
+
+        // Add a comment to warn users that properties of `props` need to be awaited when accessed
+        callExpressions.forEach((callExpression) => {
+          // find the argument `currentParam`
+          const args = callExpression.value.arguments
+          const propPassedAsArg = args.find(
+            (arg) => j.Identifier.check(arg) && arg.name === argName
+          )
+          // insert a comment to the argument
+          const comment = j.commentBlock(
+            ` '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `,
+            true,
+            false
+          )
+          propPassedAsArg.comments = [
+            comment,
+            ...(propPassedAsArg.comments || []),
+          ]
+          modified = true
+        })
       }
 
       if (modifiedPropArgument) {
