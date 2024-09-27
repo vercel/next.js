@@ -151,6 +151,26 @@ export function navigateReducer(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
+      const updatedCanonicalUrl = canonicalUrlOverride
+        ? createHrefFromUrl(canonicalUrlOverride)
+        : href
+
+      const onlyHashChange =
+        !!hash &&
+        state.canonicalUrl.split('#', 1)[0] ===
+          updatedCanonicalUrl.split('#', 1)[0]
+
+      // If only the hash has changed, the server hasn't sent us any new data. We can just update
+      // the mutable properties responsible for URL and scroll handling and return early.
+      if (onlyHashChange) {
+        mutable.onlyHashChange = true
+        mutable.canonicalUrl = updatedCanonicalUrl
+        mutable.shouldScroll = shouldScroll
+        mutable.hashFragment = hash
+        mutable.scrollableSegments = []
+        return handleMutable(state, mutable)
+      }
+
       if (prefetchValues.aliased) {
         const result = handleAliasedPrefetchEntry(
           state,
@@ -168,16 +188,6 @@ export function navigateReducer(
 
         return result
       }
-
-      const updatedCanonicalUrl = canonicalUrlOverride
-        ? createHrefFromUrl(canonicalUrlOverride)
-        : href
-
-      // Track if the navigation was only an update to the hash fragment
-      mutable.onlyHashChange =
-        !!hash &&
-        state.canonicalUrl.split('#', 1)[0] ===
-          updatedCanonicalUrl.split('#', 1)[0]
 
       let currentTree = state.tree
       let currentCache = state.cache
@@ -237,8 +247,7 @@ export function navigateReducer(
               currentTree,
               treePatch,
               seedData,
-              head,
-              mutable.onlyHashChange
+              head
             )
 
             if (task !== null) {
@@ -305,7 +314,6 @@ export function navigateReducer(
 
             if (
               prefetchValues.status === PrefetchCacheEntryStatus.stale &&
-              !mutable.onlyHashChange &&
               !isFirstRead
             ) {
               // When we have a stale prefetch entry, we only want to re-use the loading state of the route we're navigating to, to support instant loading navigations
