@@ -70,7 +70,7 @@ importers:
         version: 1.3.0
       '@mdx-js/loader':
         specifier: 2.2.1
-        version: 2.2.1(webpack@5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13)))
+        version: 2.2.1(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13)))
       '@mdx-js/react':
         specifier: 2.2.1
         version: 2.2.1(react@19.0.0-rc-778e1ed2-20240926)
@@ -487,10 +487,10 @@ importers:
         version: react-server-dom-turbopack@0.0.0-experimental-778e1ed2-20240926(react-dom@19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926))(react@19.0.0-rc-778e1ed2-20240926)
       react-server-dom-webpack:
         specifier: 19.0.0-rc-778e1ed2-20240926
-        version: 19.0.0-rc-778e1ed2-20240926(react-dom@19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926))(react@19.0.0-rc-778e1ed2-20240926)(webpack@5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13)))
+        version: 19.0.0-rc-778e1ed2-20240926(react-dom@19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926))(react@19.0.0-rc-778e1ed2-20240926)(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13)))
       react-server-dom-webpack-experimental:
         specifier: npm:react-server-dom-webpack@0.0.0-experimental-778e1ed2-20240926
-        version: react-server-dom-webpack@0.0.0-experimental-778e1ed2-20240926(react-dom@19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926))(react@19.0.0-rc-778e1ed2-20240926)(webpack@5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13)))
+        version: react-server-dom-webpack@0.0.0-experimental-778e1ed2-20240926(react-dom@19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926))(react@19.0.0-rc-778e1ed2-20240926)(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13)))
       react-ssr-prepass:
         specifier: 1.0.8
         version: 1.0.8(react-is@19.0.0-rc-f90a6bcc-20240827)(react@19.0.0-rc-778e1ed2-20240926)
@@ -573,8 +573,8 @@ importers:
         specifier: 0.2.2
         version: 0.2.2
       webpack:
-        specifier: 5.95.0
-        version: 5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13))
+        specifier: 5.90.0
+        version: 5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13))
       webpack-bundle-analyzer:
         specifier: 4.7.0
         version: 4.7.0
@@ -4990,6 +4990,12 @@ packages:
 
   '@types/debug@4.1.5':
     resolution: {integrity: sha512-Q1y515GcOdTHgagaVFhHnIFQ38ygs/kmxdNpvpou+raI9UO3YZcHDngBSYKQklcKlvA7iuQlmIKbzvmxcOE9CQ==}
+
+  '@types/eslint-scope@3.7.7':
+    resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
+
+  '@types/eslint@9.6.1':
+    resolution: {integrity: sha512-FXx2pKgId/WyYo2jXw63kk7/+TY7u7AziEJxJAnSFzHlqTAS3Ync6SvgYAN/k4/PQpnnVuzoMuVnByKK2qp0ag==}
 
   '@types/estree-jsx@1.0.0':
     resolution: {integrity: sha512-3qvGd0z8F2ENTGr/GG1yViqfiKmRfrXVx5sJyHGFu3z7m5g5utCQtGp/g29JnjflhtQJBv1WDQukHiT58xPcYQ==}
@@ -14838,6 +14844,16 @@ packages:
   webpack-stats-plugin@1.1.0:
     resolution: {integrity: sha512-D0meHk1WYryUbuCnWJuomJFAYvqs0rxv/JFu1XJT1YYpczdgnP1/vz+u/5Z31jrTxT6dJSxCg+TuKTgjhoZS6g==}
 
+  webpack@5.90.0:
+    resolution: {integrity: sha512-bdmyXRCXeeNIePv6R6tGPyy20aUobw4Zy8r0LUS2EWO+U+Ke/gYDgsCh7bl5rB6jPpr4r0SZa6dPxBxLooDT3w==}
+    engines: {node: '>=10.13.0'}
+    hasBin: true
+    peerDependencies:
+      webpack-cli: '*'
+    peerDependenciesMeta:
+      webpack-cli:
+        optional: true
+
   webpack@5.95.0:
     resolution: {integrity: sha512-2t3XstrKULz41MNMBF+cJ97TyHdyQ8HCt//pqErqDvNjU9YQBnZxIHa11VXsi7F3mb5/aO2tuDxdeTPdU7xu9Q==}
     engines: {node: '>=10.13.0'}
@@ -18553,6 +18569,14 @@ snapshots:
       - encoding
       - supports-color
 
+  '@mdx-js/loader@2.2.1(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13)))':
+    dependencies:
+      '@mdx-js/mdx': 2.2.1
+      source-map: 0.7.4
+      webpack: 5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13))
+    transitivePeerDependencies:
+      - supports-color
+
   '@mdx-js/loader@2.2.1(webpack@5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13)))':
     dependencies:
       '@mdx-js/mdx': 2.2.1
@@ -19538,6 +19562,16 @@ snapshots:
   '@types/d3-time@3.0.3': {}
 
   '@types/debug@4.1.5': {}
+
+  '@types/eslint-scope@3.7.7':
+    dependencies:
+      '@types/eslint': 9.6.1
+      '@types/estree': 1.0.5
+
+  '@types/eslint@9.6.1':
+    dependencies:
+      '@types/estree': 1.0.5
+      '@types/json-schema': 7.0.12
 
   '@types/estree-jsx@1.0.0':
     dependencies:
@@ -29105,22 +29139,22 @@ snapshots:
       react: 19.0.0-rc-778e1ed2-20240926
       react-dom: 19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926)
 
-  react-server-dom-webpack@0.0.0-experimental-778e1ed2-20240926(react-dom@19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926))(react@19.0.0-rc-778e1ed2-20240926)(webpack@5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13))):
+  react-server-dom-webpack@0.0.0-experimental-778e1ed2-20240926(react-dom@19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926))(react@19.0.0-rc-778e1ed2-20240926)(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13))):
     dependencies:
       acorn-loose: 8.3.0
       neo-async: 2.6.1
       react: 19.0.0-rc-778e1ed2-20240926
       react-dom: 19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926)
-      webpack: 5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13))
+      webpack: 5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13))
       webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
 
-  react-server-dom-webpack@19.0.0-rc-778e1ed2-20240926(react-dom@19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926))(react@19.0.0-rc-778e1ed2-20240926)(webpack@5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13))):
+  react-server-dom-webpack@19.0.0-rc-778e1ed2-20240926(react-dom@19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926))(react@19.0.0-rc-778e1ed2-20240926)(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13))):
     dependencies:
       acorn-loose: 8.3.0
       neo-async: 2.6.1
       react: 19.0.0-rc-778e1ed2-20240926
       react-dom: 19.0.0-rc-778e1ed2-20240926(react@19.0.0-rc-778e1ed2-20240926)
-      webpack: 5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13))
+      webpack: 5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13))
       webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
 
   react-shallow-renderer@16.15.0(react@19.0.0-rc-778e1ed2-20240926):
@@ -30756,6 +30790,17 @@ snapshots:
 
   term-size@3.0.2: {}
 
+  terser-webpack-plugin@5.3.10(@swc/core@1.6.13(@swc/helpers@0.5.13))(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13))):
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.22
+      jest-worker: 27.5.1
+      schema-utils: 3.2.0
+      serialize-javascript: 6.0.1
+      terser: 5.27.0
+      webpack: 5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13))
+    optionalDependencies:
+      '@swc/core': 1.6.13(@swc/helpers@0.5.13)
+
   terser-webpack-plugin@5.3.10(@swc/core@1.6.13(@swc/helpers@0.5.13))(webpack@5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13))):
     dependencies:
       '@jridgewell/trace-mapping': 0.3.22
@@ -31694,6 +31739,37 @@ snapshots:
   webpack-sources@3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq): {}
 
   webpack-stats-plugin@1.1.0: {}
+
+  webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13)):
+    dependencies:
+      '@types/eslint-scope': 3.7.7
+      '@types/estree': 1.0.5
+      '@webassemblyjs/ast': 1.12.1
+      '@webassemblyjs/wasm-edit': 1.12.1
+      '@webassemblyjs/wasm-parser': 1.12.1
+      acorn: 8.11.3
+      acorn-import-assertions: 1.9.0(acorn@8.11.3)
+      browserslist: 4.22.2
+      chrome-trace-event: 1.0.2
+      enhanced-resolve: 5.17.1
+      es-module-lexer: 1.2.1
+      eslint-scope: 5.1.1
+      events: 3.3.0
+      glob-to-regexp: 0.4.1
+      graceful-fs: 4.2.11
+      json-parse-even-better-errors: 2.3.1
+      loader-runner: 4.3.0
+      mime-types: 2.1.30
+      neo-async: 2.6.2
+      schema-utils: 3.2.0
+      tapable: 2.2.0
+      terser-webpack-plugin: 5.3.10(@swc/core@1.6.13(@swc/helpers@0.5.13))(webpack@5.90.0(@swc/core@1.6.13(@swc/helpers@0.5.13)))
+      watchpack: 2.4.0
+      webpack-sources: 3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
+    transitivePeerDependencies:
+      - '@swc/core'
+      - esbuild
+      - uglify-js
 
   webpack@5.95.0(@swc/core@1.6.13(@swc/helpers@0.5.13)):
     dependencies:
