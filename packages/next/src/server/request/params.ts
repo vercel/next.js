@@ -192,10 +192,32 @@ function makeAbortingExoticParams(
 
   Object.keys(underlyingParams).forEach((prop) => {
     switch (prop) {
+      // Object prototype
+      case 'hasOwnProperty':
+      case 'isPrototypeOf':
+      case 'propertyIsEnumerable':
+      case 'toString':
+      case 'valueOf':
+      case 'toLocaleString':
+
+      // Promise prototype
+      // fallthrough
       case 'then':
-      case 'status': {
-        // We can't assign params over these properties because the VM and React use
-        // them to reason about the Promise.
+      case 'catch':
+      case 'finally':
+
+      // React Promise extension
+      // fallthrough
+      case 'value':
+      case 'status':
+
+      // Common tested properties
+      // fallthrough
+      case 'toJSON':
+      case '$$typeof':
+      case '__esModule': {
+        // These properties cannot be shadowed because they need to be the
+        // true underlying value for Promises to work correctly at runtime
         break
       }
       default: {
@@ -246,11 +268,32 @@ function makeErroringExoticParams(
 
   Object.keys(underlyingParams).forEach((prop) => {
     switch (prop) {
+      // Object prototype
+      case 'hasOwnProperty':
+      case 'isPrototypeOf':
+      case 'propertyIsEnumerable':
+      case 'toString':
+      case 'valueOf':
+      case 'toLocaleString':
+
+      // Promise prototype
+      // fallthrough
       case 'then':
+      case 'catch':
+      case 'finally':
+
+      // React Promise extension
+      // fallthrough
+      case 'value':
       case 'status':
-      case 'value': {
-        // We can't assign params over these properties because the VM and React use
-        // them to reason about the Promise.
+
+      // Common tested properties
+      // fallthrough
+      case 'toJSON':
+      case '$$typeof':
+      case '__esModule': {
+        // These properties cannot be shadowed because they need to be the
+        // true underlying value for Promises to work correctly at runtime
         break
       }
       default: {
@@ -335,11 +378,32 @@ function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
 
   Object.keys(underlyingParams).forEach((prop) => {
     switch (prop) {
+      // Object prototype
+      case 'hasOwnProperty':
+      case 'isPrototypeOf':
+      case 'propertyIsEnumerable':
+      case 'toString':
+      case 'valueOf':
+      case 'toLocaleString':
+
+      // Promise prototype
+      // fallthrough
       case 'then':
+      case 'catch':
+      case 'finally':
+
+      // React Promise extension
+      // fallthrough
       case 'value':
-      case 'status': {
-        // These properties cannot be shadowed with a search param because they
-        // are necessary for ReactPromise's to work correctly with `use`
+      case 'status':
+
+      // Common tested properties
+      // fallthrough
+      case 'toJSON':
+      case '$$typeof':
+      case '__esModule': {
+        // These properties cannot be shadowed because they need to be the
+        // true underlying value for Promises to work correctly at runtime
         break
       }
       default: {
@@ -370,11 +434,32 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
 
   Object.keys(underlyingParams).forEach((prop) => {
     switch (prop) {
+      // Object prototype
+      case 'hasOwnProperty':
+      case 'isPrototypeOf':
+      case 'propertyIsEnumerable':
+      case 'toString':
+      case 'valueOf':
+      case 'toLocaleString':
+
+      // Promise prototype
+      // fallthrough
       case 'then':
+      case 'catch':
+      case 'finally':
+
+      // React Promise extension
+      // fallthrough
       case 'value':
-      case 'status': {
-        // These properties cannot be shadowed with a search param because they
-        // are necessary for ReactPromise's to work correctly with `use`
+      case 'status':
+
+      // Common tested properties
+      // fallthrough
+      case 'toJSON':
+      case '$$typeof':
+      case '__esModule': {
+        // These properties cannot be shadowed because they need to be the
+        // true underlying value for Promises to work correctly at runtime
         unproxiedProperties.push(prop)
         break
       }
