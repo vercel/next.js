@@ -1676,13 +1676,20 @@ export default async function build(
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (turboNextBuild) {
-          console.time('Turbopack build')
+          const start = Date.now()
           const {
             duration: compilerDuration,
             shutdownPromise: p,
             ...rest
           } = await turbopackBuild()
-          console.timeEnd('Turbopack build')
+          const duration = Date.now() - start
+          const msg =
+            duration > 2000
+              ? `Turbopack build: ${Math.round(duration / 10) / 100}s`
+              : `Turbopack build: ${Math.round(duration)}ms`
+          console.log(`\x1b[1;91;103m  ${' '.repeat(msg.length)}  \x1b[0m`)
+          console.log(`\x1b[1;91;103m  ${msg}  \x1b[0m`)
+          console.log(`\x1b[1;91;103m  ${' '.repeat(msg.length)}  \x1b[0m`)
           shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
 
