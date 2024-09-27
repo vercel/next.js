@@ -206,10 +206,6 @@ function makeAbortingExoticSearchParams(
         case 'catch':
         case 'finally':
 
-        // React Promise extension
-        // fallthrough
-        case 'value':
-
         // Common tested properties
         // fallthrough
         case 'toJSON':
@@ -306,10 +302,6 @@ function makeErroringExoticSearchParams(
         // fallthrough
         case 'catch':
         case 'finally':
-
-        // React Promise extension
-        // fallthrough
-        case 'value':
 
         // Common tested properties
         // fallthrough
@@ -471,7 +463,6 @@ function makeUntrackedExoticSearchParams(
 
       // React Promise extension
       // fallthrough
-      case 'value':
       case 'status':
 
       // Common tested properties
@@ -593,7 +584,6 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
 
       // React Promise extension
       // fallthrough
-      case 'value':
       case 'status':
 
       // Common tested properties
@@ -640,6 +630,12 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return Reflect.set(target, prop, value, receiver)
     },
     has(target, prop) {
       if (typeof prop === 'string') {

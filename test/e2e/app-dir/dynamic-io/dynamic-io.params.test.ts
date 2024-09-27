@@ -2351,7 +2351,7 @@ describe('dynamic-io', () => {
       }
     })
 
-    it('should not allow param names like then, value, and status when accessing params directly in a server component', async () => {
+    it('should not allow param names like then and status when accessing params directly in a server component', async () => {
       expect(getLines('In route /params')).toEqual([])
       let $ = await next.render$(
         '/params/shadowing/foo/bar/baz/qux/sync/layout/server'
@@ -2363,14 +2363,16 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toEqual(
           expect.stringContaining('native code')
         )
-        expect($('#param-value').text()).toBe('undefined')
+        expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([
           expect.stringContaining(
-            'The following properties were not copied: `then`, `value`, , and `status`.'
+            'The following properties were not copied: `then` and `status`.'
           ),
           expect.stringContaining('accessed directly with `params.dyn`'),
+          expect.stringContaining('accessed directly with `params.value`'),
           expect.stringContaining('accessed directly with `params.dyn`'),
+          expect.stringContaining('accessed directly with `params.value`'),
         ])
       } else {
         expect($('#layout').text()).toBe('at runtime')
@@ -2379,7 +2381,7 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toEqual(
           expect.stringContaining('native code')
         )
-        expect($('#param-value').text()).toBe('undefined')
+        expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([])
       }
@@ -2394,14 +2396,16 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toEqual(
           expect.stringContaining('native code')
         )
-        expect($('#param-value').text()).toBe('undefined')
+        expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([
           expect.stringContaining(
-            'The following properties were not copied: `then`, `value`, , and `status`.'
+            'The following properties were not copied: `then` and `status`.'
           ),
           expect.stringContaining('accessed directly with `params.dyn`'),
+          expect.stringContaining('accessed directly with `params.value`'),
           expect.stringContaining('accessed directly with `params.dyn`'),
+          expect.stringContaining('accessed directly with `params.value`'),
         ])
       } else {
         expect($('#layout').text()).toBe('at runtime')
@@ -2410,13 +2414,13 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toEqual(
           expect.stringContaining('native code')
         )
-        expect($('#param-value').text()).toBe('undefined')
+        expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([])
       }
     })
 
-    it('should not allow param names like then, value, and status when accessing params directly in a client component', async () => {
+    it('should not allow param names like then and status when accessing params directly in a client component', async () => {
       expect(getLines('In route /params')).toEqual([])
       let $ = await next.render$(
         '/params/shadowing/foo/bar/baz/qux/sync/layout/client'
@@ -2428,14 +2432,16 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toEqual(
           expect.stringContaining('native code')
         )
-        expect($('#param-value').text()).toBe('undefined')
+        expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([
           expect.stringContaining(
-            'The following properties were not copied: `then`, `value`, , and `status`.'
+            'The following properties were not copied: `then` and `status`.'
           ),
           expect.stringContaining('accessed directly with `params.dyn`'),
+          expect.stringContaining('accessed directly with `params.value`'),
           expect.stringContaining('accessed directly with `params.dyn`'),
+          expect.stringContaining('accessed directly with `params.value`'),
         ])
       } else {
         expect($('#layout').text()).toBe('at runtime')
@@ -2444,7 +2450,7 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toEqual(
           expect.stringContaining('native code')
         )
-        expect($('#param-value').text()).toBe('undefined')
+        expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([])
       }
@@ -2459,14 +2465,16 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toEqual(
           expect.stringContaining('native code')
         )
-        expect($('#param-value').text()).toBe('undefined')
+        expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([
           expect.stringContaining(
-            'The following properties were not copied: `then`, `value`, , and `status`.'
+            'The following properties were not copied: `then` and `status`.'
           ),
           expect.stringContaining('accessed directly with `params.dyn`'),
+          expect.stringContaining('accessed directly with `params.value`'),
           expect.stringContaining('accessed directly with `params.dyn`'),
+          expect.stringContaining('accessed directly with `params.value`'),
         ])
       } else {
         expect($('#layout').text()).toBe('at runtime')
@@ -2475,7 +2483,7 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toEqual(
           expect.stringContaining('native code')
         )
-        expect($('#param-value').text()).toBe('undefined')
+        expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([])
       }
