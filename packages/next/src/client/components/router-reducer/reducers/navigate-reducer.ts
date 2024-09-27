@@ -160,7 +160,7 @@ export function navigateReducer(
         state.canonicalUrl.split('#', 1)[0] ===
           updatedCanonicalUrl.split('#', 1)[0]
 
-      // If only the hash has changed, the server hasn't set us any new data. We can just update
+      // If only the hash has changed, the server hasn't sent us any new data. We can just update
       // the mutable properties responsible for URL and scroll handling and return early.
       if (onlyHashChange) {
         mutable.onlyHashChange = true
