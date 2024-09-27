@@ -68,7 +68,7 @@ export type FormProps<RouteInferType = any> = InternalFormProps
 export default function Form({
   replace,
   scroll,
-  prefetch: prefetchProp = null,
+  prefetch: prefetchProp,
   ref: externalRef,
   ...props
 }: FormProps) {
@@ -76,7 +76,13 @@ export default function Form({
   const isNavigatingForm = typeof actionProp === 'string'
 
   if (process.env.NODE_ENV === 'development') {
-    if (!(prefetchProp === false || prefetchProp === null)) {
+    if (
+      !(
+        prefetchProp === undefined ||
+        prefetchProp === false ||
+        prefetchProp === null
+      )
+    ) {
       console.error('The `prefetch` prop of <Form> must be `false` or `null`')
     }
   }
