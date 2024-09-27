@@ -301,6 +301,7 @@ impl DepGraph {
                 body: directives.to_vec(),
                 shebang: None,
             };
+            let mut part_deps_done = FxHashSet::default();
 
             let mut required_vars = group
                 .iter()
@@ -378,6 +379,8 @@ impl DepGraph {
                     .entry(ix as u32)
                     .or_default()
                     .push(PartId::Internal(dep, true));
+
+                part_deps_done.insert(dep);
 
                 chunk
                     .body
@@ -478,6 +481,9 @@ impl DepGraph {
                     is_type_only: false,
                 })];
 
+                if part_deps_done.contains(&dep) {
+                    continue;
+                }
                 part_deps
                     .entry(ix as u32)
                     .or_default()
