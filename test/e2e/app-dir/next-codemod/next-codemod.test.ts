@@ -1,4 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
+import { existsSync } from 'node:fs'
+import { join } from 'path'
 
 describe('next-codemod', () => {
   const { next } = nextTestSetup({
@@ -8,11 +10,15 @@ describe('next-codemod', () => {
 
   it('should work using cheerio', async () => {
     const $ = await next.render$('/')
-    console.log({
-      fofo: require.resolve('@next/codemod/bin/next-codemod.js', {
-        paths: [next.testDir],
-      }),
-    })
+    const nextCodemodPath = join(
+      next.testDir,
+      'node_modules',
+      '@next',
+      'codemod',
+      'bin',
+      'next-codemod.js'
+    )
+    expect(existsSync(nextCodemodPath)).toBeTruthy()
     expect($('p').text()).toBe('hello world')
   })
 })
