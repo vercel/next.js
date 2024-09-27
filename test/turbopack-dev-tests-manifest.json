@@ -178,6 +178,61 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next-codemod/transforms/__tests__/next-async-request-api-dynamic-apis.test.js": {
+    "passed": [
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-01\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-02\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-03\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-04\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-05\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-06\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-07\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-08\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-09\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-10\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-11\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-12\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-13\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-14\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-15\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-16\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-17\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-18\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-type-cast-01\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/async-api-type-cast-02\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/custom-routes-access-api-prop-01\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/generate-metadata-access-api-prop-01\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/generate-metadata-access-api-prop-02\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/generate-metadata-access-api-prop-03\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/no-transform-local-call\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-apis/no-transform-non-nextjs-cookies\" data"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next-codemod/transforms/__tests__/next-async-request-api-dynamic-props.test.js": {
+    "passed": [
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/access-props-01\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/access-props-02\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/access-props-03\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/access-props-04\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/access-props-05\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/access-props-06\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/access-props-07\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/access-props-08\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/access-props-09\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/access-props-10\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/custom-routes-access-api-prop-01\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/generate-metadata-access-prop-01\" data",
+      "next-async-request-api transforms correctly using \"next-async-request-api-dynamic-props/no-transform-non-default-function\" data"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next-codemod/transforms/__tests__/next-dynamic-access-named-export.test.js": {
     "passed": [
       "next-dynamic-access-named-export transforms correctly using \"next-dynamic-access-named-export/access-named-export\" data",
@@ -231,6 +286,30 @@
       "next-og-import transforms correctly using \"next-og-import/mixed-import\" data",
       "next-og-import transforms correctly using \"next-og-import/next-server-only-import\" data",
       "next-og-import transforms correctly using \"next-og-import/og-only-import\" data"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next-codemod/transforms/__tests__/next-request-geo-ip.test.js": {
+    "passed": [
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/destructure\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/destructure-alias\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/direct-access\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/duplicate-identifiers\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/function-param\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/geo-properties\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/geo-type-import\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/has-imports\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/has-imports-alias\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/has-other-import\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/multiple-imports\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/replace-type\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/replace-type-geo-only\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/replace-type-ip-only\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/skip-empty-ast\" data",
+      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/skip-no-next-request\" data"
     ],
     "failed": [],
     "pending": [],
@@ -665,6 +744,21 @@
       "AfterContext shadows requestAsyncStorage within after callbacks",
       "AfterContext throws from after() if onClose is not provided",
       "AfterContext throws from after() if waitUntil is not provided"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/app-render/csrf-protection.test.ts": {
+    "passed": [
+      "isCsrfOriginAllowed should return false when allowedOrigins contains originDomain with non-matching pattern",
+      "isCsrfOriginAllowed should return false when allowedOrigins does not contain originDomain",
+      "isCsrfOriginAllowed should return false when allowedOrigins is empty",
+      "isCsrfOriginAllowed should return false when allowedOrigins is empty string",
+      "isCsrfOriginAllowed should return false when allowedOrigins is undefined",
+      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain",
+      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain with matching pattern"
     ],
     "failed": [],
     "pending": [],
@@ -1300,6 +1394,7 @@
       "ReactRefreshLogBox app turbo Can't resolve @import in CSS file",
       "ReactRefreshLogBox app turbo Import trace when module not found in layout",
       "ReactRefreshLogBox app turbo Server component errors should open up in fullscreen",
+      "ReactRefreshLogBox app turbo Should collapse bundler internal stack frames",
       "ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app turbo Should show error location for server actions in client component",
       "ReactRefreshLogBox app turbo Should show error location for server actions in server component",
@@ -1322,6 +1417,7 @@
       "ReactRefreshLogBox app default Can't resolve @import in CSS file",
       "ReactRefreshLogBox app default Import trace when module not found in layout",
       "ReactRefreshLogBox app default Server component errors should open up in fullscreen",
+      "ReactRefreshLogBox app default Should collapse bundler internal stack frames",
       "ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app default Should show error location for server actions in client component",
       "ReactRefreshLogBox app default Should show error location for server actions in server component",
@@ -1367,10 +1463,10 @@
       "ReactRefreshRegression app can fast refresh a page with config",
       "ReactRefreshRegression app can fast refresh a page with dynamic rendering",
       "ReactRefreshRegression app can fast refresh a page with static generation",
+      "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
       "ReactRefreshRegression app shows an overlay for server-side error in client component",
-      "ReactRefreshRegression app shows an overlay for server-side error in server component",
-      "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled"
+      "ReactRefreshRegression app shows an overlay for server-side error in server component"
     ],
     "failed": [],
     "pending": [
@@ -1486,21 +1582,22 @@
   },
   "test/development/acceptance-app/hydration-error.test.ts": {
     "passed": [
-      "Error overlay for hydration errors should collapse and uncollapse properly when there are many frames",
-      "Error overlay for hydration errors should not show a hydration error when using `useId` in a client component",
-      "Error overlay for hydration errors should only show one hydration error when bad nesting happened - div > tr",
-      "Error overlay for hydration errors should only show one hydration error when bad nesting happened - div under p",
-      "Error overlay for hydration errors should only show one hydration error when bad nesting happened - p under p",
-      "Error overlay for hydration errors should show correct hydration error when client and server render different text",
-      "Error overlay for hydration errors should show correct hydration error when client renders an extra element",
-      "Error overlay for hydration errors should show correct hydration error when client renders an extra node inside Suspense content",
-      "Error overlay for hydration errors should show correct hydration error when client renders an extra text node",
-      "Error overlay for hydration errors should show correct hydration error when server renders an extra element",
-      "Error overlay for hydration errors should show correct hydration error when server renders an extra text node",
-      "Error overlay for hydration errors should show correct hydration error when server renders an extra text node in an invalid place",
-      "Error overlay for hydration errors should show correct hydration error when server renders an extra whitespace in an invalid place",
-      "Error overlay for hydration errors should show error if script is directly placed under html instead of body",
-      "Error overlay for hydration errors should show the highlighted bad nesting html snippet when bad nesting happened"
+      "Error overlay for hydration errors in App router includes a React docs link when hydration error does occur",
+      "Error overlay for hydration errors in App router should collapse and uncollapse properly when there are many frames",
+      "Error overlay for hydration errors in App router should not show a hydration error when using `useId` in a client component",
+      "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - div > tr",
+      "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - div under p",
+      "Error overlay for hydration errors in App router should only show one hydration error when bad nesting happened - p under p",
+      "Error overlay for hydration errors in App router should show correct hydration error when client and server render different text",
+      "Error overlay for hydration errors in App router should show correct hydration error when client renders an extra element",
+      "Error overlay for hydration errors in App router should show correct hydration error when client renders an extra node inside Suspense content",
+      "Error overlay for hydration errors in App router should show correct hydration error when client renders an extra text node",
+      "Error overlay for hydration errors in App router should show correct hydration error when server renders an extra element",
+      "Error overlay for hydration errors in App router should show correct hydration error when server renders an extra text node",
+      "Error overlay for hydration errors in App router should show correct hydration error when server renders an extra text node in an invalid place",
+      "Error overlay for hydration errors in App router should show correct hydration error when server renders an extra whitespace in an invalid place",
+      "Error overlay for hydration errors in App router should show error if script is directly placed under html instead of body",
+      "Error overlay for hydration errors in App router should show the highlighted bad nesting html snippet when bad nesting happened"
     ],
     "failed": [],
     "pending": [],
@@ -1731,9 +1828,9 @@
       "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression can fast refresh a page with getServerSideProps",
       "ReactRefreshRegression can fast refresh a page with getStaticProps",
+      "ReactRefreshRegression custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression shows an overlay for a server-side error",
-      "ReactRefreshRegression styled-components hydration mismatch",
-      "ReactRefreshRegression custom loader mdx should have Fast Refresh enabled"
+      "ReactRefreshRegression styled-components hydration mismatch"
     ],
     "failed": [],
     "pending": [],
@@ -1787,7 +1884,22 @@
   },
   "test/development/acceptance/hydration-error.test.ts": {
     "passed": [
-      "Error overlay for hydration errors should show correct hydration error when client and server render different text"
+      "Error overlay for hydration errors in Pages router includes a React docs link when hydration error does occur",
+      "Error overlay for hydration errors in Pages router should collapse and uncollapse properly when there are many frames",
+      "Error overlay for hydration errors in Pages router should not show a hydration error when using `useId` in a client component",
+      "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - div > tr",
+      "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - div under p",
+      "Error overlay for hydration errors in Pages router should only show one hydration error when bad nesting happened - p under p",
+      "Error overlay for hydration errors in Pages router should show correct hydration error when client and server render different text",
+      "Error overlay for hydration errors in Pages router should show correct hydration error when client renders an extra element",
+      "Error overlay for hydration errors in Pages router should show correct hydration error when client renders an extra node inside Suspense content",
+      "Error overlay for hydration errors in Pages router should show correct hydration error when client renders an extra text node",
+      "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra element",
+      "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra text node",
+      "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra text node in an invalid place",
+      "Error overlay for hydration errors in Pages router should show correct hydration error when server renders an extra whitespace in an invalid place",
+      "Error overlay for hydration errors in Pages router should show error if script is directly placed under html instead of body",
+      "Error overlay for hydration errors in Pages router should show the highlighted bad nesting html snippet when bad nesting happened"
     ],
     "failed": [],
     "pending": [],
@@ -1886,6 +1998,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/externalize-node-binary-browser-error/externalize-node-binary-browser-error.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "externalize-node-binary-browser-error should error when import node binary on browser side"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-asset-prefix-full-url/asset-prefix.test.ts": {
     "passed": [
       "app-dir assetPrefix full URL should not break HMR when asset prefix set to full URL"
@@ -1963,6 +2084,15 @@
       "prerender indicator should hide the indicator when changing to dynamic",
       "prerender indicator should not have the indicator on dynamic page on load",
       "prerender indicator should not show the indicator if disabled in next.config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/server-component-next-dynamic-ssr-false/server-component-next-dynamic-ssr-false.test.ts": {
+    "passed": [
+      "app-dir - server-component-next-dynamic-ssr-false should error when use dynamic ssr:false in server component"
     ],
     "failed": [],
     "pending": [],
@@ -2159,7 +2289,6 @@
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct router.isReady for auto-export page",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should have correct router.isReady for getStaticProps page",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '' } should show hydration error correctly",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } Error Recovery should detect runtime errors on the module scope",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } Error Recovery should detect syntax errors and recover",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } Error Recovery should recover after a bad return from the render function",
@@ -2185,7 +2314,6 @@
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct router.isReady for auto-export page",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have correct router.isReady for getStaticProps page",
       "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should show hydration error correctly",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } Error Recovery should detect runtime errors on the module scope",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } Error Recovery should detect syntax errors and recover",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } Error Recovery should recover after a bad return from the render function",
@@ -2211,7 +2339,6 @@
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct router.isReady for auto-export page",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should have correct router.isReady for getStaticProps page",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '' } should show hydration error correctly",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } Error Recovery should detect runtime errors on the module scope",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } Error Recovery should detect syntax errors and recover",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } Error Recovery should recover after a bad return from the render function",
@@ -2236,8 +2363,7 @@
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct compile timing after fixing error",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct router.isReady for auto-export page",
       "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have correct router.isReady for getStaticProps page",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should reload the page when the server restarts",
-      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should show hydration error correctly"
+      "basic HMR, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should reload the page when the server restarts"
     ],
     "failed": [],
     "pending": [
@@ -3015,6 +3141,122 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/actions/app-action-form-state.test.ts": {
+    "passed": [
+      "app-dir action useActionState should send the action to the provided permalink with form state when JS disabled",
+      "app-dir action useActionState should support hydrating the app from progressively enhanced form request",
+      "app-dir action useActionState should support submitting form state with JS",
+      "app-dir action useActionState should support submitting form state without JS"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts": {
+    "passed": [
+      "app-dir action progressive enhancement should support actions from client without JS",
+      "app-dir action progressive enhancement should support formData and redirect without JS"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions/app-action-size-limit-invalid.test.ts": {
+    "passed": [
+      "app-dir action size limit invalid config skip test for development mode"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions/app-action.test.ts": {
+    "passed": [
+      "app-dir action handling \"use server\" export values should error when exporting non async functions at build time",
+      "app-dir action handling Edge SSR should allow cookie and header async storages",
+      "app-dir action handling Edge SSR should handle basic actions correctly",
+      "app-dir action handling Edge SSR should handle calls to redirect() with a absolute URL in a single pass",
+      "app-dir action handling Edge SSR should handle calls to redirect() with a relative URL in a single pass",
+      "app-dir action handling Edge SSR should handle calls to redirect() with external URLs",
+      "app-dir action handling Edge SSR should handle unicode search params",
+      "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
+      "app-dir action handling HMR should support updating the action",
+      "app-dir action handling caching disabled by default should not override force-cache in server action",
+      "app-dir action handling caching disabled by default should not override revalidate in server action",
+      "app-dir action handling caching disabled by default should use no-store as default for server action",
+      "app-dir action handling encryption should send encrypted values from the closed over closure",
+      "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
+      "app-dir action handling fetch actions should handle calls to redirect() with a absolute URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
+      "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
+      "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
+      "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
+      "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+      "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
+      "app-dir action handling fetch actions should revalidate when cookies.set is called",
+      "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
+      "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+      "app-dir action handling redirects displays searchParams correctly when redirecting with SearchParams",
+      "app-dir action handling redirects merges cookies correctly when redirecting",
+      "app-dir action handling redirects redirects properly when server action handler redirects with a 307 status code",
+      "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
+      "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
+      "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
+      "app-dir action handling redirects should not forward next-action header to a redirected RSC request",
+      "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
+      "app-dir action handling should 404 when POSTing an invalid server action",
+      "app-dir action handling should be possible to catch network errors",
+      "app-dir action handling should be possible to catch regular errors",
+      "app-dir action handling should bundle external libraries if they are on the action layer",
+      "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
+      "app-dir action handling should forward action request to a worker that contains the action handler (node)",
+      "app-dir action handling should handle action correctly with middleware rewrite",
+      "app-dir action handling should handle actions executed in quick succession",
+      "app-dir action handling should handle basic actions correctly",
+      "app-dir action handling should log a warning when a server action is not found but an id is provided",
+      "app-dir action handling should not block navigation events while a server action is in flight",
+      "app-dir action handling should not block router.back() while a server action is in flight",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
+      "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
+      "app-dir action handling should not log errors for non-action form POSTs",
+      "app-dir action handling should only submit action once when resubmitting an action after navigation",
+      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
+      "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should replace current route when redirecting with type set to replace",
+      "app-dir action handling should report errors with bad inputs correctly",
+      "app-dir action handling should reset the form state when the action redirects to a page that contains the same form",
+      "app-dir action handling should reset the form state when the action redirects to itself",
+      "app-dir action handling should support .bind",
+      "app-dir action handling should support chained .bind",
+      "app-dir action handling should support formData and redirect",
+      "app-dir action handling should support headers and cookies",
+      "app-dir action handling should support headers in client imported actions",
+      "app-dir action handling should support hoc auth wrappers",
+      "app-dir action handling should support importing actions in client components",
+      "app-dir action handling should support importing the same action module instance in both server and action layers",
+      "app-dir action handling should support next/dynamic with ssr: false",
+      "app-dir action handling should support next/dynamic with ssr: false (edge)",
+      "app-dir action handling should support notFound",
+      "app-dir action handling should support notFound (javascript disabled)",
+      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
+      "app-dir action handling should support uploading files",
+      "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
+      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
+      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
+      "app-dir action handling should work with interception routes"
+    ],
+    "failed": [],
+    "pending": [
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
+      "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-a11y/index.test.ts": {
     "passed": [
       "app a11y features route announcer should announce document.title changes",
@@ -3444,8 +3686,8 @@
       "app-custom-routes error conditions responds with 405 (Method Not Allowed) when method is not implemented",
       "app-custom-routes error conditions responds with 500 (Internal Server Error) when the handler calls NextResponse.next()",
       "app-custom-routes error conditions responds with 500 (Internal Server Error) when the handler throws an error",
+      "app-custom-routes hooks (await cookies()).has() gets the correct values",
       "app-custom-routes hooks cookies gets the correct values",
-      "app-custom-routes hooks cookies().has() gets the correct values",
       "app-custom-routes hooks headers gets the correct values",
       "app-custom-routes hooks notFound can respond correctly in edge",
       "app-custom-routes hooks notFound can respond correctly in nodejs",
@@ -3521,8 +3763,8 @@
       "app-custom-routes error conditions responds with 405 (Method Not Allowed) when method is not implemented",
       "app-custom-routes error conditions responds with 500 (Internal Server Error) when the handler calls NextResponse.next()",
       "app-custom-routes error conditions responds with 500 (Internal Server Error) when the handler throws an error",
+      "app-custom-routes hooks (await cookies()).has() gets the correct values",
       "app-custom-routes hooks cookies gets the correct values",
-      "app-custom-routes hooks cookies().has() gets the correct values",
       "app-custom-routes hooks headers gets the correct values",
       "app-custom-routes hooks notFound can respond correctly in edge",
       "app-custom-routes hooks notFound can respond correctly in nodejs",
@@ -4280,6 +4522,67 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/dynamic-io/dynamic-io.cookies.test.ts": {
+    "passed": [
+      "dynamic-io should be able to access cookie properties asynchronously",
+      "dynamic-io should be able to access cookie properties synchronously",
+      "dynamic-io should produce dynamic pages when using async or sync cookies"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-io/dynamic-io.draft-mode.test.ts": {
+    "passed": ["dynamic-io should fully prerender pages that use draftMode"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-io/dynamic-io.headers.test.ts": {
+    "passed": [
+      "dynamic-io should be able to access headers properties asynchronously",
+      "dynamic-io should be able to access headers properties synchronously",
+      "dynamic-io should produce dynamic pages when using async or sync headers"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-io/dynamic-io.params.test.ts": {
+    "passed": [
+      "dynamic-io Async Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
+      "dynamic-io Async Params should fully prerender pages that check individual param keys after awaiting params in a server component",
+      "dynamic-io Async Params should prerender pages that `use` params in a client component when prebuilt",
+      "dynamic-io Async Params should prerender pages that await params in a server component when prebuilt",
+      "dynamic-io Async Params should prerender pages that spread `use`ed params in a client component when prebuilt",
+      "dynamic-io Async Params should prerender pages that spread awaited params in a server component when prebuilt",
+      "dynamic-io Async Params should render pages that `use` params in a client component when not prebuilt",
+      "dynamic-io Async Params should render pages that await params in a server component when not prebuilt",
+      "dynamic-io Async Params should render pages that spread `use`ed params in a client component when not prebuilt",
+      "dynamic-io Async Params should render pages that spread awaited params in a server component when not prebuilt",
+      "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
+      "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
+      "dynamic-io Param Shadowing should not allow param names like then, value, and status when accessing params directly in a client component",
+      "dynamic-io Param Shadowing should not allow param names like then, value, and status when accessing params directly in a server component",
+      "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a client component",
+      "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a server component",
+      "dynamic-io Synchronous Params access should prerender pages that access params synchronously in a client component when prebuilt",
+      "dynamic-io Synchronous Params access should prerender pages that access params synchronously in a server component when prebuilt",
+      "dynamic-io Synchronous Params access should prerender pages that spread params without `use`ing first in a client component when not prebuilt",
+      "dynamic-io Synchronous Params access should prerender pages that spread params without `use`ing first in a client component when prebuilt",
+      "dynamic-io Synchronous Params access should prerender pages that spread params without awaiting first in a server component when not prebuilt",
+      "dynamic-io Synchronous Params access should prerender pages that spread params without awaiting first in a server component when prebuilt",
+      "dynamic-io Synchronous Params access should render pages that access params synchronously in a client component when not prebuilt",
+      "dynamic-io Synchronous Params access should render pages that access params synchronously in a server component when not prebuilt"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/dynamic-io/dynamic-io.routes.test.ts": {
     "passed": [
       "dynamic-io should not prerender GET route handlers that complete in a new Task",
@@ -4288,7 +4591,26 @@
       "dynamic-io should not prerender GET route handlers that use dynamic APIs",
       "dynamic-io should prerender GET route handlers that complete synchronously or in a microtask",
       "dynamic-io should prerender GET route handlers that have entirely cached io (fetches)",
-      "dynamic-io should prerender GET route handlers that have entirely cached io (unstable_cache)"
+      "dynamic-io should prerender GET route handlers that have entirely cached io (unstable_cache)",
+      "dynamic-io should prerender GET route handlers when accessing awaited params",
+      "dynamic-io should prerender GET route handlers when accessing params without awaiting first"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-io/dynamic-io.search.test.ts": {
+    "passed": [
+      "dynamic-io should not prerender a page that accesses a searchParam property synchronously in a client component",
+      "dynamic-io should not prerender a page that accesses a searchParam property synchronously in a server component",
+      "dynamic-io should not prerender a page that checks for the existence of a searchParam property synchronously in a client component",
+      "dynamic-io should not prerender a page that checks for the existence of a searchParam property synchronously in a server component",
+      "dynamic-io should not prerender a page that spreads ...searchParam synchronously in a client component",
+      "dynamic-io should not prerender a page that spreads ...searchParam synchronously in a server component",
+      "dynamic-io should not prerender pages that `use` searchParams in a client component",
+      "dynamic-io should not prerender pages that `use` searchParams in a server component",
+      "dynamic-io should not prerender pages that await searchParams in a server component"
     ],
     "failed": [],
     "pending": [],
@@ -4297,6 +4619,10 @@
   },
   "test/e2e/app-dir/dynamic-io/dynamic-io.test.ts": {
     "passed": [
+      "dynamic-io can prerender pages with parallel routes that are static",
+      "dynamic-io can prerender pages with parallel routes that resolve in a microtask",
+      "dynamic-io does not prerender pages with parallel routes that resolve in a task",
+      "dynamic-io does not prerender pages with parallel routes that uses a dynamic API",
       "dynamic-io should not prerender pages that do any uncached IO",
       "dynamic-io should not prerender pages that take longer than a single task to render",
       "dynamic-io should not prerender pages that use `cookies()`",
@@ -4329,6 +4655,7 @@
     "passed": [
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components",
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime",
+      "app dir - next/dynamic no SSR should support dynamic import with TLA in client components",
       "app dir - next/dynamic no SSR should support dynamic import with accessing named exports from client component",
       "app dir - next/dynamic should directly raise error when dynamic component error on server",
       "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
@@ -4445,6 +4772,15 @@
       "app-dir - errors error component should trigger error component when an error happens during rendering",
       "app-dir - errors error component should trigger error component when an error happens during server components rendering",
       "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/externalize-node-binary/externalize-node-binary.test.ts": {
+    "passed": [
+      "externalize-node-binary should render correctly when node_modules require node binary module"
     ],
     "failed": [],
     "pending": [],
@@ -5312,6 +5648,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/no-duplicate-headers-middleware/no-duplicate-headers-middleware.test.ts": {
+    "passed": [
+      "no-duplicate-headers-next-config should prioritise headers in middleware for static assets"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/no-duplicate-headers-next-config/no-duplicate-headers-next-config.test.ts": {
+    "passed": [
+      "no-duplicate-headers-next-config should prioritise headers in next config for static assets"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/not-found-default/index.test.ts": {
     "passed": [
       "app dir - not found with default 404 page should be able to navigate to page calling not-found",
@@ -6047,6 +6401,10 @@
   },
   "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts": {
     "passed": [
+      "app dir - rsc basics client references with TLA (edge) should support TLA in lazy client reference",
+      "app dir - rsc basics client references with TLA (edge) should support TLA in sync client reference imports",
+      "app dir - rsc basics client references with TLA (node) should support TLA in lazy client reference",
+      "app dir - rsc basics client references with TLA (node) should support TLA in sync client reference imports",
       "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
@@ -6067,6 +6425,7 @@
       "app dir - rsc basics should handle various kinds of exports correctly",
       "app dir - rsc basics should link correctly with next/link without mpa navigation to the page",
       "app dir - rsc basics should not apply rsc syntax checks in pages/api",
+      "app dir - rsc basics should not use bundled react for pages with app",
       "app dir - rsc basics should render built-in 404 page for missing route if pagesDir is not presented",
       "app dir - rsc basics should render css-in-js suspense boundary correctly",
       "app dir - rsc basics should render initial styles of css-in-js in edge SSR correctly",
@@ -6087,7 +6446,6 @@
     ],
     "failed": [],
     "pending": [
-      "app dir - rsc basics should not use bundled react for pages with app",
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
     "flakey": [],
@@ -6106,6 +6464,56 @@
     "passed": [
       "3rd Party CSS Module Support ({\"sass\": \"1.54.0\"}) should render the module",
       "3rd Party CSS Module Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/basic-module-additional-data/basic-module-additional-data.test.ts": {
+    "passed": [
+      "Basic Module Additional Data Support ({\"sass\": \"1.54.0\"}) should render the module",
+      "Basic Module Additional Data Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/basic-module-include-paths/basic-module-include-paths.test.ts": {
+    "passed": [
+      "Basic Module Include Paths Support ({\"sass\": \"1.54.0\"}) should render the module",
+      "Basic Module Include Paths Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/basic-module-prepend-data/basic-module-prepend-data.test.ts": {
+    "passed": [
+      "Basic Module Prepend Data Support ({\"sass\": \"1.54.0\"}) should render the module",
+      "Basic Module Prepend Data Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/basic-module/basic-module.test.ts": {
+    "passed": [
+      "Basic SCSS Module Support ({\"sass\": \"1.54.0\"}) should render the module",
+      "Basic SCSS Module Support ({\"sass-embedded\": \"1.75.0\"}) should render the module"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/scss/catch-all-module/catch-all-module.test.ts": {
+    "passed": [
+      "Catch-all Route CSS Module Usage ({\"sass\": \"1.54.0\"}) should render the module",
+      "Catch-all Route CSS Module Usage ({\"sass-embedded\": \"1.75.0\"}) should render the module"
     ],
     "failed": [],
     "pending": [],
@@ -6650,6 +7058,39 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/third-parties/basic.test.ts": {
+    "passed": [
+      "@next/third-parties basic usage renders GA",
+      "@next/third-parties basic usage renders GTM",
+      "@next/third-parties basic usage renders GoogleMapsEmbed",
+      "@next/third-parties basic usage renders YoutubeEmbed"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/trailingslash/trailingslash.test.ts": {
+    "passed": [
+      "app-dir trailingSlash handling should contain trailing slash to canonical url",
+      "app-dir trailingSlash handling should not add trailing slash to external url or relative url with query",
+      "app-dir trailingSlash handling should redirect route when clicking link",
+      "app-dir trailingSlash handling should redirect route when requesting it directly",
+      "app-dir trailingSlash handling should redirect route when requesting it directly by browser",
+      "app-dir trailingSlash handling should render link with trailing slash"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/turbopack-loader-resource-query/turbopack-loader-resource-query.test.ts": {
+    "passed": ["turbopack-loader-resource-query should pass query to loader"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
     "passed": ["turbopack-reports should render page importing sqlite3"],
     "failed": [],
@@ -6680,6 +7121,13 @@
       "unstable-rethrow should correctly trigger the not found page as not found",
       "unstable-rethrow should handle an internal error that gets propagated to the `cause` field"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-cache/use-cache.test.ts": {
+    "passed": ["use-cache should cache results"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -8212,6 +8660,66 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/next-phase/index.test.ts": {
+    "passed": ["next-phase should render page with next phase correctly"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-script/index.test.ts": {
+    "passed": [
+      "beforeInteractive in document Head Script is injected server-side",
+      "beforeInteractive in document body Script is injected server-side",
+      "empty strategy in document Head Script is injected server-side",
+      "empty strategy in document body Script is injected server-side"
+    ],
+    "failed": [],
+    "pending": [
+      "experimental.nextScriptWorkers experimental.nextScriptWorkers: false with no Partytown dependency Partytown snippet is not injected to head if not enabled in configuration",
+      "experimental.nextScriptWorkers experimental.nextScriptWorkers: true with config override Partytown config script is overwritten",
+      "experimental.nextScriptWorkers experimental.nextScriptWorkers: true with required Partytown dependency for external script Partytown snippets are injected to head if enabled in configuration",
+      "experimental.nextScriptWorkers experimental.nextScriptWorkers: true with required Partytown dependency for external script Worker scripts are modified by Partytown to execute on a worker thread",
+      "experimental.nextScriptWorkers experimental.nextScriptWorkers: true with required Partytown dependency for inline script Inline worker script through children is modified by Partytown to execute on a worker thread",
+      "experimental.nextScriptWorkers experimental.nextScriptWorkers: true with required Partytown dependency for inline script Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-test/next-test.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next test first time setup should correctly install missing dependencies and generate missing configuration file for first-time-setup-js",
+      "next test first time setup should correctly install missing dependencies and generate missing configuration file for first-time-setup-ts",
+      "next test first time setup should fail if next.js config is missing experimental#testProxy",
+      "next test should execute playwright tests",
+      "next test should pass args to test runner",
+      "next test test runner validation should validate configured/specified test runner"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/no-eslint-warn-with-no-eslint-config/index.test.ts": {
+    "passed": [
+      "no-eslint-warn-with-no-eslint-config should not have eslint warnings when no eslint config",
+      "no-eslint-warn-with-no-eslint-config should render"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/nonce-head-manager/index.test.ts": {
+    "passed": [
+      "nonce head manager should not re-execute the script when re-rendering",
+      "nonce head manager should not re-execute the script when re-rendering with CSP header"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/og-api/index.test.ts": {
     "passed": [
       "og-api should respond from index",
@@ -9527,7 +10035,6 @@
       "Auto Export dev Refreshes query on mount",
       "Auto Export dev Supports commonjs 1",
       "Auto Export dev Supports commonjs 2",
-      "Auto Export dev should include error link when hydration error does occur",
       "Auto Export dev should not replace URL with page name while asPath is delayed",
       "Auto Export dev should not show hydration warning from mismatching asPath",
       "Auto Export dev should update asPath after mount"
