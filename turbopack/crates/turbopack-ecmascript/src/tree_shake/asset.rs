@@ -150,13 +150,13 @@ impl Module for EcmascriptModulePartAsset {
             ))
         };
 
+        let mut references = analyze.references.await?.to_vec();
+
         // Facade depends on evaluation and re-exports
         if matches!(&*self.part.await?, ModulePart::Facade) {
-            return Ok(analyze.references);
-        }
-
-        if matches!(&*self.part.await?, ModulePart::Exports) {
-            return Ok(analyze.references);
+            references.push(part_dep(ModulePart::evaluation()));
+            references.push(part_dep(ModulePart::exports()));
+            return Ok(Vc::cell(references));
         }
 
         let deps = {
@@ -170,24 +170,23 @@ impl Module for EcmascriptModulePartAsset {
             }
         };
 
-        let mut assets = deps
-            .iter()
-            .map(|part_id| {
-                part_dep(match part_id {
-                    PartId::Internal(part_id, is_for_eval) => {
-                        ModulePart::internal(*part_id, *is_for_eval)
-                    }
-                    PartId::Export(name) => ModulePart::export(name.clone()),
-                    _ => unreachable!(
-                        "PartId other than Internal and Export should not be used here"
-                    ),
+        references.extend(
+            deps.iter()
+                .map(|part_id| {
+                    part_dep(match part_id {
+                        PartId::Internal(part_id, is_for_eval) => {
+                            ModulePart::internal(*part_id, *is_for_eval)
+                        }
+                        PartId::Export(name) => ModulePart::export(name.clone()),
+                        _ => unreachable!(
+                            "PartId other than Internal and Export should not be used here"
+                        ),
+                    })
                 })
-            })
-            .collect::<Vec<_>>();
+                .collect::<Vec<_>>(),
+        );
 
-        assets.extend(analyze.references.await?.iter().cloned());
-
-        Ok(Vc::cell(assets))
+        Ok(Vc::cell(references))
     }
 }
 
