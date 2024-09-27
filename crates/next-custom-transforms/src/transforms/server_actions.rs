@@ -156,7 +156,7 @@ impl<C: Comments> ServerActions<C> {
 
             if cache_type.is_some()
                 && !self.config.is_react_server_layer
-                && !self.in_cache_file.is_some()
+                && self.in_cache_file.is_none()
             {
                 HANDLER.with(|handler| {
                     handler
@@ -727,7 +727,7 @@ impl<C: Comments> ServerActions<C> {
                                         ..*f.take()
                                     }),
                                 })),
-                                &cache_type,
+                                cache_type,
                                 &reference_id,
                             )),
                             definite: false,
@@ -1062,11 +1062,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if !is_action_fn && !cache_type.is_some() {
+        if !is_action_fn && cache_type.is_none() {
             return;
         }
 
-        if !a.is_async && !self.in_action_file && !self.in_cache_file.is_some() {
+        if !a.is_async && !self.in_action_file && self.in_cache_file.is_none() {
             HANDLER.with(|handler| {
                 handler
                     .struct_span_err(a.span, "Server Actions must be async functions")
