@@ -22,7 +22,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 
-import React, { type JSX } from 'react'
+import React, { type ErrorInfo, type JSX } from 'react'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,
@@ -1284,6 +1284,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
           fallbackRouteParams,
           renderOpts,
           requestEndedState,
+          isPrefetchRequest: Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER]),
         },
         (staticGenerationStore) =>
           renderToHTMLOrFlightImpl(
@@ -1958,13 +1959,13 @@ async function prerenderToStream(
           dynamicTracking,
         }
         let SSRIsDynamic = false
-        function SSROnError(err: unknown) {
+        function SSROnError(err: unknown, errorInfo?: ErrorInfo) {
           if (err === abortReason || isPrerenderInterruptedError(err)) {
             SSRIsDynamic = true
             return
           }
 
-          return htmlRendererErrorHandler(err)
+          return htmlRendererErrorHandler(err, errorInfo)
         }
 
         function SSROnPostpone(reason: string) {
@@ -2255,7 +2256,7 @@ async function prerenderToStream(
           const err = new DynamicServerError(
             `Route ${staticGenerationStore.route} couldn't be rendered statically because it used IO that was not cached in a Server Component. See more info here: https://nextjs.org/docs/messages/dynamic-io`
           )
-          serverComponentsErrorHandler(err, {})
+          serverComponentsErrorHandler(err)
           throw err
         }
 

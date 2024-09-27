@@ -833,7 +833,7 @@ impl ReactServerComponentValidator {
         }
     }
 
-    /// ```
+    /// ```js
     /// import dynamic from 'next/dynamic'
     ///
     /// dynamic(() => import(...)) // ✅
