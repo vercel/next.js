@@ -114,7 +114,7 @@
     "@types/html-validator": "5.0.3",
     "@types/http-proxy": "1.17.3",
     "@types/jest": "29.5.5",
-    "@types/node": "22.5.4",
+    "@types/node": "20.16.9",
     "@types/node-fetch": "2.6.1",
     "@types/react": "npm:types-react@19.0.0-rc.0",
     "@types/react-dom": "npm:types-react-dom@19.0.0-rc.0",
