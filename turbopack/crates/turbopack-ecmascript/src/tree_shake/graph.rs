@@ -377,7 +377,7 @@ impl DepGraph {
                 part_deps
                     .entry(ix as u32)
                     .or_default()
-                    .push(PartId::Internal(dep, false));
+                    .push(PartId::Internal(dep, true));
 
                 chunk
                     .body
@@ -387,7 +387,7 @@ impl DepGraph {
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
                         with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, false,
+                            dep, true,
                         )))),
                         phase: Default::default(),
                     })));
