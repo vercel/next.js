@@ -1,13 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
-use indexmap::IndexMap;
 use swc_core::{
-    common::{util::take::Take, Globals, GLOBALS},
+    common::{util::take::Take, Globals},
     ecma::{
-        ast::{self, ModuleItem, Program, Script},
+        ast::Program,
         codegen::{text_writer::JsWriter, Emitter},
-        visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
 use turbo_tasks::{TryJoinIterExt, Vc};
@@ -25,8 +23,8 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
-    code_gen::{CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerationHoistedStmt},
-    path_visitor::ApplyVisitors,
+    code_gen::{CodeGenerateable, CodeGenerateableWithAsyncModuleInfo},
+    process_content_with_code_gens,
 };
 
 /// The chunk item for [EcmascriptModuleFacadeModule].
@@ -92,48 +90,8 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
 
-        let mut visitors = Vec::new();
-        let mut root_visitors = Vec::new();
-        let mut hoisted_stmts = IndexMap::new();
-        for code_gen in code_gens {
-            for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
-                hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());
-            }
-            for (path, visitor) in &code_gen.visitors {
-                if path.is_empty() {
-                    root_visitors.push(&**visitor);
-                } else {
-                    visitors.push((path, &**visitor));
-                }
-            }
-        }
-
-        // TODO call gen_content_with_visitors here
-
         let mut program = Program::Module(swc_core::ecma::ast::Module::dummy());
-        GLOBALS.set(&Globals::new(), || {
-            if !visitors.is_empty() {
-                program.visit_mut_with_ast_path(
-                    &mut ApplyVisitors::new(visitors),
-                    &mut Default::default(),
-                );
-            }
-            for visitor in root_visitors {
-                program.visit_mut_with(&mut visitor.create());
-            }
-
-            program.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
-            program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
-        });
-
-        match &mut program {
-            Program::Module(ast::Module { body, .. }) => {
-                body.splice(0..0, hoisted_stmts.into_values().map(ModuleItem::Stmt));
-            }
-            Program::Script(Script { body, .. }) => {
-                body.splice(0..0, hoisted_stmts.into_values());
-            }
-        };
+        process_content_with_code_gens(&mut program, &Globals::new(), None, &code_gens);
 
         let mut bytes: Vec<u8> = vec![];
 
