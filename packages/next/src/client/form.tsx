@@ -72,9 +72,19 @@ export default function Form({
   ref: externalRef,
   ...props
 }: FormProps) {
+  const router = useAppOrPagesRouter()
+
   const actionProp = props.action
   const isNavigatingForm = typeof actionProp === 'string'
 
+  // Validate `action`
+  if (process.env.NODE_ENV === 'development') {
+    if (isNavigatingForm) {
+      checkActionUrl(actionProp, 'action')
+    }
+  }
+
+  // Validate `prefetch`
   if (process.env.NODE_ENV === 'development') {
     if (
       !(
@@ -85,10 +95,36 @@ export default function Form({
     ) {
       console.error('The `prefetch` prop of <Form> must be `false` or `null`')
     }
+
+    if (prefetchProp !== undefined) {
+      if (!isAppRouter(router)) {
+        console.error(
+          'Passing `prefetch` to a <Form> has no effect in the pages directory.'
+        )
+      } else if (!isNavigatingForm) {
+        console.error(
+          'Passing `prefetch` to a <Form> whose `action` is a function has no effect.'
+        )
+      }
+    }
   }
+
   const prefetch =
     prefetchProp === false || prefetchProp === null ? prefetchProp : null
 
+  // Validate `scroll` and `replace`
+  if (process.env.NODE_ENV === 'development') {
+    if (!isNavigatingForm && (replace !== undefined || scroll !== undefined)) {
+      console.error(
+        'Passing `replace` or `scroll` to a <Form> whose `action` is a function has no effect.\n' +
+          'See the relevant docs to learn how to control this behavior for navigations triggered from actions:\n' +
+          '  `redirect()`       - https://nextjs.org/docs/app/api-reference/functions/redirect#parameters\n' +
+          '  `router.replace()` - https://nextjs.org/docs/app/api-reference/functions/use-router#userouter\n'
+      )
+    }
+  }
+
+  // Clean up any unsupported form props (and warn if present)
   for (const key of DISALLOWED_FORM_PROPS) {
     if (key in props) {
       if (process.env.NODE_ENV === 'development') {
@@ -103,8 +139,6 @@ export default function Form({
       delete (props as Record<string, unknown>)[key]
     }
   }
-
-  const router = useAppOrPagesRouter()
 
   const isPrefetchEnabled =
     // there is no notion of instant loading states in pages dir, so prefetching is pointless
@@ -137,27 +171,9 @@ export default function Form({
   }, [isPrefetchEnabled, isVisible, actionProp, prefetch, router])
 
   if (!isNavigatingForm) {
-    if (process.env.NODE_ENV === 'development') {
-      if (replace !== undefined || scroll !== undefined) {
-        console.error(
-          'Passing `replace` or `scroll` to a <Form> whose `action` is a function has no effect.\n' +
-            'See the relevant docs to learn how to control this behavior for navigations triggered from actions:\n' +
-            '  `redirect()`       - https://nextjs.org/docs/app/api-reference/functions/redirect#parameters\n' +
-            '  `router.replace()` - https://nextjs.org/docs/app/api-reference/functions/use-router#userouter\n'
-        )
-      }
-      if (prefetchProp !== undefined) {
-        console.error(
-          'Passing `prefetch` to a <Form> whose `action` is a function has no effect.'
-        )
-      }
-    }
     return <form {...props} ref={ownRef} />
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    checkActionUrl(actionProp, 'action')
-  }
   const actionHref = addBasePath(actionProp)
 
   return (
