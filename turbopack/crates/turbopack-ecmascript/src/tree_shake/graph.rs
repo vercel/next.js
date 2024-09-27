@@ -374,6 +374,11 @@ impl DepGraph {
                 .idx_graph
                 .neighbors_directed(ix as u32, petgraph::Direction::Outgoing)
             {
+                part_deps
+                    .entry(ix as u32)
+                    .or_default()
+                    .push(PartId::Internal(dep, false));
+
                 chunk
                     .body
                     .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
