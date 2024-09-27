@@ -101,18 +101,18 @@ export const CODEMOD_CHOICES = [
     title:
       'next-dynamic-access-named-export: Transforms dynamic imports that return the named export itself to a module like object.',
     value: 'next-dynamic-access-named-export',
-    version: '15.0',
+    version: '15.0.0-rc.1',
   },
   {
     title:
       'next-request-geo-ip: Install `@vercel/functions` to replace `geo` and `ip` properties on `NextRequest`',
     value: 'next-request-geo-ip',
-    version: '15.0',
+    version: '15.0.0-rc.1',
   },
   {
     title:
       'next-async-request-api: Transforms usage of Next.js async Request APIs',
     value: 'next-async-request-api',
-    version: '15.0',
+    version: '15.0.0-rc.1',
   },
 ]

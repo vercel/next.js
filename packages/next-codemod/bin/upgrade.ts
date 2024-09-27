@@ -192,7 +192,7 @@ async function suggestCodemods(
   }
 
   for (const codemod of selectedCodeMods) {
-    await runTransform(codemod, cwd, {
+    await runTransform(codemod, '.', {
       force: true,
     })
   }
