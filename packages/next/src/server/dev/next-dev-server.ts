@@ -776,6 +776,7 @@ export default class DevServer extends Server {
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           isAppPPRFallbacksEnabled: this.nextConfig.experimental.pprFallbacks,
+          buildId: this.renderOpts.buildId,
         })
         return pathsResult
       } finally {

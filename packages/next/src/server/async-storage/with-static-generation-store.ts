@@ -56,6 +56,7 @@ export type StaticGenerationContext = {
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
+    | 'buildId'
   > &
     Partial<RequestLifecycleOpts>
 }
@@ -114,6 +115,7 @@ export const withStaticGenerationStore: WithStore<
 
     requestEndedState,
     isPrefetchRequest,
+    buildId: renderOpts.buildId,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context
