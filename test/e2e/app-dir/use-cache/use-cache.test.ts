@@ -25,4 +25,12 @@ describe('use-cache', () => {
     // The navigation to n=2 should be some other random value.
     expect(random1a).not.toBe(random2)
   })
+
+  it('should dedupe with react cache inside "use cache"', async () => {
+    const browser = await next.browser('/react-cache')
+    const a = await browser.waitForElementByCss('#a').text()
+    const b = await browser.waitForElementByCss('#b').text()
+    // TODO: This is broken. It is expected to pass once we fix it.
+    expect(a).not.toBe(b)
+  })
 })
