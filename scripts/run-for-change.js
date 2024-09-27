@@ -43,7 +43,7 @@ const CHANGE_ITEM_GROUPS = {
     'examples/with-next-sass',
     'examples/with-eslint',
   ],
-  'next-codemod': ['packages/next-codemod'],
+  'next-codemod': ['packages/next-codemod', 'test/integration/next-codemod'],
   'next-swc': [
     'packages/next-swc',
     'scripts/normalize-version-bump.js',
