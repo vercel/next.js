@@ -134,19 +134,19 @@ impl Module for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let split_data = split_module(self.full_module).await?;
-
         let analyze = analyze(self.full_module, self.part).await?;
-
-        let deps = match &*split_data {
-            SplitResult::Ok { deps, .. } => deps,
-            SplitResult::Failed { .. } => return Ok(analyze.references),
-        };
 
         // Facade depends on evaluation and re-exports
         if matches!(&*self.part.await?, ModulePart::Facade | ModulePart::Exports) {
             return Ok(analyze.references);
         }
+
+        let split_data = split_module(self.full_module).await?;
+
+        let deps = match &*split_data {
+            SplitResult::Ok { deps, .. } => deps,
+            SplitResult::Failed { .. } => return Ok(analyze.references),
+        };
 
         let deps = {
             let part_id = get_part_id(&split_data, self.part)
