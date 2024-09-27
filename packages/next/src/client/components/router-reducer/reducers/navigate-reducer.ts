@@ -20,10 +20,7 @@ import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
-import {
-  addSearchParamsIfPageSegment,
-  DEFAULT_SEGMENT_KEY,
-} from '../../../../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
 import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
@@ -33,7 +30,7 @@ import {
   prunePrefetchCache,
 } from '../prefetch-cache-utils'
 import { clearCacheNodeDataForSegmentPath } from '../clear-cache-node-data-for-segment-path'
-import { fillCacheWithNewSubTreeDataButOnlyLoading } from '../fill-cache-with-new-subtree-data'
+import { handleAliasedPrefetchEntry } from '../aliased-prefetch-navigations'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -105,7 +102,8 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, shouldScroll } = action
+  const { url, isExternalUrl, navigateType, shouldScroll, allowAliasing } =
+    action
   const mutable: Mutable = {}
   const { hash } = url
   const href = createHrefFromUrl(url)
@@ -114,6 +112,7 @@ export function navigateReducer(
   prunePrefetchCache(state.prefetchCache)
 
   mutable.preserveCustomHistoryState = false
+  mutable.pendingPush = pendingPush
 
   if (isExternalUrl) {
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
@@ -131,6 +130,7 @@ export function navigateReducer(
     tree: state.tree,
     buildId: state.buildId,
     prefetchCache: state.prefetchCache,
+    allowAliasing,
   })
   const { treeAtTimeOfPrefetch, data } = prefetchValues
 
@@ -151,15 +151,27 @@ export function navigateReducer(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
-      // When the server indicates an override for the canonical URL (such as a redirect in middleware)
-      // we only want to use that if we're not using an aliased entry as the redirect will correspond with
-      // the aliased prefetch which might have different search params. Since we're only using the aliased entry
-      // for the loading state, the proper override will happen in the server patch action when the dynamic
-      // data is loaded.
-      const updatedCanonicalUrl =
-        canonicalUrlOverride && !prefetchValues.aliased
-          ? createHrefFromUrl(canonicalUrlOverride)
-          : href
+      if (prefetchValues.aliased) {
+        const result = handleAliasedPrefetchEntry(
+          state,
+          flightData,
+          url,
+          mutable
+        )
+
+        // We didn't return new router state because we didn't apply the aliased entry for some reason.
+        // We'll re-invoke the navigation handler but ensure that we don't attempt to use the aliased entry. This
+        // will create an on-demand prefetch entry.
+        if (result === false) {
+          return navigateReducer(state, { ...action, allowAliasing: false })
+        }
+
+        return result
+      }
+
+      const updatedCanonicalUrl = canonicalUrlOverride
+        ? createHrefFromUrl(canonicalUrlOverride)
+        : href
 
       // Track if the navigation was only an update to the hash fragment
       mutable.onlyHashChange =
@@ -181,18 +193,6 @@ export function navigateReducer(
 
         // TODO-APP: remove ''
         const flightSegmentPathWithLeadingEmpty = ['', ...flightSegmentPath]
-
-        // Segments are keyed by searchParams (e.g. __PAGE__?{"foo":"bar"}). We might return a less specific, param-less entry,
-        // so we ensure that the final tree contains the correct searchParams (reflected in the URL) are provided in the updated FlightRouterState tree.
-        if (prefetchValues.aliased) {
-          const [segment, ...rest] = treePatch
-          const finalSegment = addSearchParamsIfPageSegment(
-            segment,
-            Object.fromEntries(url.searchParams)
-          )
-
-          treePatch = [finalSegment, ...rest]
-        }
 
         // Create new tree based on the flightSegmentPath and router state patch
         let newTree = applyRouterStatePatchToTree(
@@ -303,33 +303,7 @@ export function navigateReducer(
             const cache: CacheNode = createEmptyCacheNode()
             let applied = false
 
-            // The prefetch cache entry was aliased -- this signals that we only fill in the cache with the
-            // loading state and not the actual parallel route seed data.
-            if (prefetchValues.aliased && seedData) {
-              if (isRootRender) {
-                // Fill in the cache with the new loading / rsc data
-                const rsc = seedData[1]
-                const loading = seedData[3]
-                cache.loading = loading
-                cache.rsc = rsc
-              } else {
-                // Copy rsc for the root node of the cache.
-                cache.rsc = currentCache.rsc
-                cache.prefetchRsc = currentCache.prefetchRsc
-                cache.loading = currentCache.loading
-                cache.parallelRoutes = new Map(currentCache.parallelRoutes)
-
-                // recursively fill in `rsc` and `loading` but skip everything else
-                fillCacheWithNewSubTreeDataButOnlyLoading(
-                  cache,
-                  currentCache,
-                  normalizedFlightData,
-                  prefetchValues
-                )
-              }
-
-              applied = true
-            } else if (
+            if (
               prefetchValues.status === PrefetchCacheEntryStatus.stale &&
               !mutable.onlyHashChange &&
               !isFirstRead
@@ -401,7 +375,6 @@ export function navigateReducer(
 
       mutable.patchedTree = currentTree
       mutable.canonicalUrl = updatedCanonicalUrl
-      mutable.pendingPush = pendingPush
       mutable.scrollableSegments = scrollableSegments
       mutable.hashFragment = hash
       mutable.shouldScroll = shouldScroll
