@@ -476,6 +476,18 @@ describe('ppr-full', () => {
             expect(revalidatedDynamicID).not.toBe(fallbackID)
           })
         })
+
+        /**
+         * This test is really here to just to force the the suite to have the expected route
+         * as part of the build. If this failed we'd get a build error and all the tests would fail
+         */
+        it('will allow dynamic fallback shells even when static is enforced', async () => {
+          const random = Math.random().toString(16).slice(2)
+          const pathname = `/fallback/dynamic/params/revalidate-${random}`
+
+          let $ = await next.render$(pathname)
+          expect($('[data-slug]').text()).toBe(`revalidate-${random}`)
+        })
       })
 
       it('should allow client layouts without postponing fallback if params are not accessed', async () => {

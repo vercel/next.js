@@ -8,6 +8,8 @@ import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { isThenable } from '../../shared/lib/is-thenable'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { withExecuteRevalidates } from './revalidation-utils'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
@@ -105,10 +107,14 @@ export class AfterContext {
     const readonlyRequestStore: RequestStore =
       wrapRequestStoreForAfterCallbacks(requestStore)
 
-    return requestAsyncStorage.run(readonlyRequestStore, () => {
-      this.callbackQueue.start()
-      return this.callbackQueue.onIdle()
-    })
+    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+
+    return withExecuteRevalidates(staticGenerationStore, () =>
+      requestAsyncStorage.run(readonlyRequestStore, async () => {
+        this.callbackQueue.start()
+        await this.callbackQueue.onIdle()
+      })
+    )
   }
 }
 
