@@ -46,9 +46,7 @@ async function loadOrGenerateKey(
   if (!cacheBaseDir) {
     // There's no persistent storage available. We generate a new key.
     // This also covers development time.
-    const key = await generateKey()
-    await writeCache(distDir, key)
-    return key
+    return await generateKey()
   }
 
   const configPath = path.join(cacheBaseDir, CONFIG_FILE)

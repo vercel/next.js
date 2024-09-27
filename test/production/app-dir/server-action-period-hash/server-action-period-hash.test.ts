@@ -44,4 +44,31 @@ describe('app-dir - server-action-period-hash', () => {
 
     expect(firstManifest).not.toEqual(secondManifest)
   })
+
+  it('should have different manifest if the encryption key from process env is changed', async () => {
+    await next.build()
+    const firstManifest = await getServerActionManifest(next)
+
+    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key'
+    await next.build()
+    delete process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+
+    const secondManifest = await getServerActionManifest(next)
+
+    expect(firstManifest).not.toEqual(secondManifest)
+  })
+
+  it('should have different manifest if the encryption key from process env is same', async () => {
+    process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key'
+    await next.build()
+    const firstManifest = await getServerActionManifest(next)
+
+    await next.remove('.next') // dismiss cache
+    await next.build() // build with the same secret key
+    delete process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+
+    const secondManifest = await getServerActionManifest(next)
+
+    expect(firstManifest).not.toEqual(secondManifest)
+  })
 })
