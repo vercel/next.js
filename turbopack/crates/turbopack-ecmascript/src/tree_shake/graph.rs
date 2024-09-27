@@ -481,13 +481,13 @@ impl DepGraph {
                     is_type_only: false,
                 })];
 
-                if part_deps_done.contains(&dep) {
-                    continue;
+                let is_for_eval = part_deps_done.contains(&dep);
+                if !is_for_eval {
+                    part_deps
+                        .entry(ix as u32)
+                        .or_default()
+                        .push(PartId::Internal(dep, false));
                 }
-                part_deps
-                    .entry(ix as u32)
-                    .or_default()
-                    .push(PartId::Internal(dep, false));
 
                 chunk
                     .body
@@ -497,7 +497,8 @@ impl DepGraph {
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
                         with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, false,
+                            dep,
+                            is_for_eval,
                         )))),
                         phase: Default::default(),
                     })));
