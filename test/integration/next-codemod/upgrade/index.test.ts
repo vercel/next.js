@@ -24,17 +24,14 @@ describe('next-codemod upgrade prompt', () => {
       console.error('Failed to fetch next versions:\n', error)
     }
 
-    try {
-      nextCodemodPath = require.resolve('@next/codemod/bin/next-codemod.js')
-    } catch (error) {
-      console.error('Failed to resolve next-codemod path:\n', error)
-      nextCodemodPath = (
-        await getPkgPaths({
-          repoDir: join(__dirname, '../../../'),
-          nextSwcVersion: '',
-        })
-      ).get('@next/codemod')
-    }
+    nextCodemodPath = (
+      await getPkgPaths({
+        repoDir: join(__dirname, '../../../'),
+        nextSwcVersion: '',
+      })
+    ).get('@next/codemod')
+
+    console.log({ FOFOFOFOFO: nextCodemodPath })
   })
 
   it('should upgrade to the canary version', async () => {
