@@ -591,7 +591,7 @@ impl CodeGenerateable for EsmExports {
             None
         };
 
-        Ok(CodeGeneration::hoisted_stmts(
+        Ok(CodeGeneration::early_hoisted_stmts(
             [
                 Some(CodeGenerationHoistedStmt::new(
                     "__turbopack_esm__".into(),

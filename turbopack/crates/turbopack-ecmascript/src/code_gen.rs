@@ -15,18 +15,19 @@ use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
     into = "new",
     cell = "new"
 )]
+#[derive(Default)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
     #[turbo_tasks(debug_ignore, trace_ignore)]
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+    pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
 }
 
 impl CodeGeneration {
     pub fn empty() -> Vc<Self> {
         CodeGeneration {
-            visitors: vec![],
-            hoisted_stmts: vec![],
+            ..Default::default()
         }
         .cell()
     }
@@ -34,23 +35,39 @@ impl CodeGeneration {
     pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Vc<Self> {
         CodeGeneration {
             visitors,
-            hoisted_stmts: vec![],
+            ..Default::default()
         }
         .cell()
     }
 
     pub fn hoisted_stmt(key: RcStr, stmt: Stmt) -> Vc<Self> {
         CodeGeneration {
-            visitors: vec![],
             hoisted_stmts: vec![CodeGenerationHoistedStmt::new(key, stmt)],
+            ..Default::default()
         }
         .cell()
     }
 
     pub fn hoisted_stmts(hoisted_stmts: Vec<CodeGenerationHoistedStmt>) -> Vc<Self> {
         CodeGeneration {
-            visitors: vec![],
             hoisted_stmts,
+            ..Default::default()
+        }
+        .cell()
+    }
+
+    pub fn early_hoisted_stmt(key: RcStr, stmt: Stmt) -> Vc<Self> {
+        CodeGeneration {
+            early_hoisted_stmts: vec![CodeGenerationHoistedStmt::new(key, stmt)],
+            ..Default::default()
+        }
+        .cell()
+    }
+
+    pub fn early_hoisted_stmts(early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>) -> Vc<Self> {
+        CodeGeneration {
+            early_hoisted_stmts,
+            ..Default::default()
         }
         .cell()
     }

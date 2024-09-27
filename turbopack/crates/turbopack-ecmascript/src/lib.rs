@@ -888,10 +888,14 @@ fn process_content_with_code_gens(
 ) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
+    let mut early_hoisted_stmts = IndexMap::new();
     let mut hoisted_stmts = IndexMap::new();
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
             hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());
+        }
+        for CodeGenerationHoistedStmt { key, stmt } in &code_gen.early_hoisted_stmts {
+            early_hoisted_stmts.insert(key.clone(), stmt.clone());
         }
         for (path, visitor) in &code_gen.visitors {
             if path.is_empty() {
@@ -929,10 +933,21 @@ fn process_content_with_code_gens(
 
     match program {
         Program::Module(ast::Module { body, .. }) => {
-            body.splice(0..0, hoisted_stmts.into_values().map(ModuleItem::Stmt));
+            body.splice(
+                0..0,
+                early_hoisted_stmts
+                    .into_values()
+                    .chain(hoisted_stmts.into_values())
+                    .map(ModuleItem::Stmt),
+            );
         }
         Program::Script(Script { body, .. }) => {
-            body.splice(0..0, hoisted_stmts.into_values());
+            body.splice(
+                0..0,
+                early_hoisted_stmts
+                    .into_values()
+                    .chain(hoisted_stmts.into_values()),
+            );
         }
     };
 }
