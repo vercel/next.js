@@ -1492,7 +1492,8 @@ export default async function build(
           'Building'
         )
         const promises: Promise<any>[] = []
-        const sema = new Sema(10)
+        const sema = new Sema(5)
+        let extraSema = 5
         const enqueue = (fn: () => Promise<void>) => {
           promises.push(
             (async () => {
@@ -1501,6 +1502,10 @@ export default async function build(
                 await fn()
               } finally {
                 sema.release()
+                if (extraSema > 0) {
+                  extraSema--
+                  sema.release()
+                }
                 progress()
               }
             })()
