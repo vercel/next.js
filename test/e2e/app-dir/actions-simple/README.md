@@ -2,8 +2,8 @@ The main purpose of this end-to-end test app is to allow manual testing of
 server action source mapping within the React DevTools.
 
 Until we have properly implemented `findSourceMapURL` in Next.js, this demo only
-works with Turbopack. This is because we can easily mock `findSourceMapURL` for
-the test app, as Turbopack generates source map files, whereas Webpack uses
+works with Turbopack. This is because we can mock `findSourceMapURL` for the
+test app, as Turbopack generates source map files, whereas Webpack uses
 `eval-source-map`.
 
 For client bundles, the source map files are served directly through
