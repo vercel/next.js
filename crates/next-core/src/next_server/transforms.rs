@@ -36,7 +36,7 @@ pub async fn get_next_server_transforms_rules(
     let mdx_rs = next_config.mdx_rs().await?.is_some();
     if !modularize_imports_config.is_empty() {
         rules.push(get_next_modularize_imports_rule(
-            &modularize_imports_config,
+            modularize_imports_config,
             mdx_rs,
         ));
     }
