@@ -208,7 +208,6 @@ function makeAbortingExoticParams(
 
       // React Promise extension
       // fallthrough
-      case 'value':
       case 'status':
 
       // Common tested properties
@@ -284,7 +283,6 @@ function makeErroringExoticParams(
 
       // React Promise extension
       // fallthrough
-      case 'value':
       case 'status':
 
       // Common tested properties
@@ -394,7 +392,6 @@ function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
 
       // React Promise extension
       // fallthrough
-      case 'value':
       case 'status':
 
       // Common tested properties
@@ -450,7 +447,6 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
 
       // React Promise extension
       // fallthrough
-      case 'value':
       case 'status':
 
       // Common tested properties
@@ -482,6 +478,12 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return ReflectAdapter.set(target, prop, value, receiver)
     },
     ownKeys(target) {
       warnForEnumeration(store.route, unproxiedProperties)
