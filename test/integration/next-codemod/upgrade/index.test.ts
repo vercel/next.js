@@ -1,5 +1,4 @@
 import { join } from 'node:path'
-import { getPkgPaths } from '../../../lib/create-next-install'
 import { createApp, runNode, useTempDir } from '../utils'
 
 describe('next-codemod upgrade prompt', () => {
@@ -24,14 +23,13 @@ describe('next-codemod upgrade prompt', () => {
       console.error('Failed to fetch next versions:\n', error)
     }
 
-    nextCodemodPath = (
-      await getPkgPaths({
-        repoDir: join(__dirname, '../../../'),
-        nextSwcVersion: '',
+    try {
+      nextCodemodPath = require.resolve('@next/codemod/bin/next-codemod.js', {
+        paths: [join(__dirname, '../../../../')],
       })
-    ).get('@next/codemod')
-
-    console.log({ FOFOFOFOFO: nextCodemodPath })
+    } catch (error) {
+      throw new Error('Failed to resolve next-codemod path', { cause: error })
+    }
   })
 
   it('should upgrade to the canary version', async () => {
