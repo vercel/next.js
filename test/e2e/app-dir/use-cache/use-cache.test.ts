@@ -41,28 +41,28 @@ describe('use-cache', () => {
     const browser = await next.browser('/errors')
     expect(await browser.waitForElementByCss('#cookies').text()).toContain(
       isNextDev
-        ? '`cookies` was called outside a request scope.'
+        ? '`cookies` cannot be called inside "use cache".'
         : GENERIC_RSC_ERROR
     )
     expect(await browser.waitForElementByCss('#headers').text()).toContain(
       isNextDev
-        ? '`headers` was called outside a request scope.'
+        ? '`headers` cannot be called inside "use cache".'
         : GENERIC_RSC_ERROR
     )
     expect(await browser.waitForElementByCss('#draft-mode').text()).toContain(
       isNextDev
-        ? '`draftMode` was called outside a request scope.'
+        ? '`draftMode` cannot be called inside "use cache".'
         : GENERIC_RSC_ERROR
     )
 
     expect(next.cliOutput).toContain(
-      '`cookies` was called outside a request scope.'
+      '`cookies` cannot be called inside "use cache".'
     )
     expect(next.cliOutput).toContain(
-      '`headers` was called outside a request scope.'
+      '`headers` cannot be called inside "use cache".'
     )
     expect(next.cliOutput).toContain(
-      '`draftMode` was called outside a request scope.'
+      '`draftMode` cannot be called inside "use cache".'
     )
   })
 })
