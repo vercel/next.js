@@ -1897,12 +1897,14 @@ export default async function build(
               distDir,
               configFileName,
               runtimeEnvConfig,
+              dynamicIO: Boolean(config.experimental.dynamicIO),
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
               isAppPPRFallbacksEnabled: config.experimental.pprFallbacks,
+              buildId,
             })
         )
 
@@ -2112,6 +2114,7 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
+                            dynamicIO: Boolean(config.experimental.dynamicIO),
                             cacheHandler: config.cacheHandler,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
@@ -2121,6 +2124,7 @@ export default async function build(
                             pprConfig: config.experimental.ppr,
                             isAppPPRFallbacksEnabled:
                               config.experimental.pprFallbacks,
+                            buildId,
                           })
                         }
                       )

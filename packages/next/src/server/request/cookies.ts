@@ -126,7 +126,10 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     underlyingCookies = requestStore.cookies
   }
 
-  if (process.env.NODE_ENV === 'development') {
+  if (
+    process.env.NODE_ENV === 'development' &&
+    !staticGenerationStore?.isPrefetchRequest
+  ) {
     return makeUntrackedExoticCookiesWithDevWarnings(
       underlyingCookies,
       staticGenerationStore?.route
