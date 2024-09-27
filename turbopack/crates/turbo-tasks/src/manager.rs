@@ -851,6 +851,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         {
             *self.start.lock().unwrap() = Some(Instant::now());
             self.event_start.notify(usize::MAX);
+            self.backend.idle_end(self);
         }
     }
 
