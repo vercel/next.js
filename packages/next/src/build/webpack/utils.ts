@@ -30,11 +30,11 @@ export function traverseModules(
       ) as Iterable<NormalModule>
       for (const mod of chunkModules) {
         const modId = compilation.chunkGraph.getModuleId(mod)?.toString()
-        callback(mod, chunk, chunkGroup, modId)
+        callback(mod, chunk, chunkGroup, modId!)
         const anyModule = mod as any
         if (anyModule.modules) {
           for (const subMod of anyModule.modules)
-            callback(subMod, chunk, chunkGroup, modId)
+            callback(subMod, chunk, chunkGroup, modId!)
         }
       }
     })

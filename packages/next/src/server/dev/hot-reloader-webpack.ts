@@ -1112,7 +1112,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
 
     this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
-      inputFileSystem.purge!()
+      inputFileSystem?.purge!()
     })
     watchCompilers(
       this.multiCompiler.compilers[0],
