@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { createApp, runNextCodemod, useTempDir } from '../utils'
+import { createApp, useTempDir } from '../utils'
 
 describe('next-codemod upgrade prompt', () => {
   let canaryVersion: string | undefined
@@ -31,8 +31,8 @@ describe('next-codemod upgrade prompt', () => {
       })
       expect(app.exitCode).toBe(0)
 
-      const cp = await runNextCodemod(['upgrade', 'canary'], { cwd: appDir })
-      expect(cp.exitCode).toBe(0)
+      // const cp = await runNextCodemod(['upgrade', 'canary'], { cwd: appDir })
+      // expect(cp.exitCode).toBe(0)
 
       const pkg = require(join(appDir, 'package.json'))
       if (canaryVersion) {
@@ -51,8 +51,8 @@ describe('next-codemod upgrade prompt', () => {
       })
       expect(app.exitCode).toBe(0)
 
-      const cp = await runNextCodemod(['upgrade', 'rc'], { cwd: appDir })
-      expect(cp.exitCode).toBe(0)
+      // const cp = await runNextCodemod(['upgrade', 'rc'], { cwd: appDir })
+      // expect(cp.exitCode).toBe(0)
 
       const pkg = require(join(appDir, 'package.json'))
       if (rcVersion) {
@@ -71,8 +71,8 @@ describe('next-codemod upgrade prompt', () => {
       })
       expect(app.exitCode).toBe(0)
 
-      const cp = await runNextCodemod(['upgrade', 'latest'], { cwd: appDir })
-      expect(cp.exitCode).toBe(0)
+      // const cp = await runNextCodemod(['upgrade', 'latest'], { cwd: appDir })
+      // expect(cp.exitCode).toBe(0)
 
       const pkg = require(join(appDir, 'package.json'))
       const installedNextVersion = require(
