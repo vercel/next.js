@@ -60,7 +60,7 @@ export interface SWCLoaderOptions {
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
   serverComponents?: boolean
-  serverReferenceHashSalt?: string
+  serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   esm?: boolean
   transpilePackages?: string[]

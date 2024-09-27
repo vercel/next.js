@@ -78,7 +78,7 @@ function getBaseSWCOptions({
   jsConfig: any
   swcCacheDir?: string
   serverComponents?: boolean
-  serverReferenceHashSalt?: string
+  serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
@@ -208,7 +208,7 @@ function getBaseSWCOptions({
             // TODO: remove this option
             enabled: true,
             isReactServerLayer,
-            hashSalt: serverReferenceHashSalt || '',
+            hashSalt: serverReferenceHashSalt,
           }
         : undefined,
     // For app router we prefer to bundle ESM,
@@ -288,7 +288,7 @@ export function getJestSWCOptions({
   resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
   serverComponents?: boolean
-  serverReferenceHashSalt?: string
+  serverReferenceHashSalt: string
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
@@ -371,7 +371,7 @@ export function getLoaderSWCOptions({
   relativeFilePathFromRoot: string
   esm?: boolean
   serverComponents?: boolean
-  serverReferenceHashSalt?: string
+  serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
 }) {
   let baseOptions: any = getBaseSWCOptions({
