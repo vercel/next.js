@@ -6,7 +6,7 @@ var { r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_
 {
 __turbopack_export_value__((__turbopack_import__) => {
     return Promise.all([
-  "output/b1abf_turbopack-tests_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_e521f1.js"
+  "output/b1abf_turbopack-tests_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_f24e80.js"
 ].map((chunk) => __turbopack_load__(chunk))).then(() => {
         return __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import/input/lib.js [test] (ecmascript)");
     });
