@@ -13,6 +13,23 @@ const ENCRYPTION_KEY = 'encryption.key'
 const ENCRYPTION_EXPIRE_AT = 'encryption.expire_at'
 const EXPIRATION = 1000 * 60 * 60 * 24 * 14 // 14 days
 
+async function writeCache(distDir: string, configValue: string) {
+  const cacheBaseDir = getStorageDirectory(distDir)
+  if (!cacheBaseDir) return
+
+  const configPath = path.join(cacheBaseDir, CONFIG_FILE)
+  if (!fs.existsSync(cacheBaseDir)) {
+    await fs.promises.mkdir(cacheBaseDir, { recursive: true })
+  }
+  await fs.promises.writeFile(
+    configPath,
+    JSON.stringify({
+      [ENCRYPTION_KEY]: configValue,
+      [ENCRYPTION_EXPIRE_AT]: Date.now() + EXPIRATION,
+    })
+  )
+}
+
 // This utility is used to get a key for the cache directory. If the
 // key is not present, it will generate a new one and store it in the
 // cache directory inside dist.
@@ -25,11 +42,15 @@ async function loadOrGenerateKey(
   generateKey: () => Promise<string>
 ): Promise<string> {
   const cacheBaseDir = getStorageDirectory(distDir)
+
   if (!cacheBaseDir) {
     // There's no persistent storage available. We generate a new key.
     // This also covers development time.
-    return generateKey()
+    const key = await generateKey()
+    await writeCache(distDir, key)
+    return key
   }
+
   const configPath = path.join(cacheBaseDir, CONFIG_FILE)
   async function hasValidKey(): Promise<false | string> {
     if (!fs.existsSync(configPath)) return false
@@ -59,16 +80,8 @@ async function loadOrGenerateKey(
     return maybeValidKey
   }
   const key = await generateKey()
-  if (!fs.existsSync(cacheBaseDir)) {
-    await fs.promises.mkdir(cacheBaseDir, { recursive: true })
-  }
-  await fs.promises.writeFile(
-    configPath,
-    JSON.stringify({
-      [ENCRYPTION_KEY]: key,
-      [ENCRYPTION_EXPIRE_AT]: Date.now() + EXPIRATION,
-    })
-  )
+  await writeCache(distDir, key)
+
   return key
 }
 
