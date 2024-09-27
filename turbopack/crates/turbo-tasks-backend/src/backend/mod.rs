@@ -129,7 +129,8 @@ struct TurboTasksBackendInner {
 
     stopping: AtomicBool,
     stopping_event: Event,
-    idle_event: Event,
+    idle_start_event: Event,
+    idle_end_event: Event,
 
     backing_storage: Arc<dyn BackingStorage + Sync + Send>,
 }
@@ -167,7 +168,8 @@ impl TurboTasksBackendInner {
             last_snapshot: AtomicU64::new(0),
             stopping: AtomicBool::new(false),
             stopping_event: Event::new(|| "TurboTasksBackend::stopping_event".to_string()),
-            idle_event: Event::new(|| "TurboTasksBackend::idle_event".to_string()),
+            idle_start_event: Event::new(|| "TurboTasksBackend::idle_start_event".to_string()),
+            idle_end_event: Event::new(|| "TurboTasksBackend::idle_end_event".to_string()),
             backing_storage,
         }
     }
@@ -630,7 +632,11 @@ impl TurboTasksBackendInner {
     }
 
     fn idle_start(&self) {
-        self.idle_event.notify(usize::MAX);
+        self.idle_start_event.notify(usize::MAX);
+    }
+
+    fn idle_end(&self) {
+        self.idle_end_event.notify(usize::MAX);
     }
 
     fn get_or_create_persistent_task(
@@ -1170,16 +1176,21 @@ impl TurboTasksBackendInner {
                     if until > Instant::now() {
                         let mut stop_listener = self.stopping_event.listen();
                         if !self.stopping.load(Ordering::Acquire) {
-                            let mut idle_listener = self.idle_event.listen();
+                            let mut idle_start_listener = self.idle_start_event.listen();
+                            let mut idle_end_listener = self.idle_end_event.listen();
                             let mut idle_time = until + IDLE_TIMEOUT;
                             loop {
                                 tokio::select! {
                                     _ = &mut stop_listener => {
                                         break;
                                     },
-                                    _ = &mut idle_listener => {
+                                    _ = &mut idle_start_listener => {
                                         idle_time = Instant::now() + IDLE_TIMEOUT;
-                                        idle_listener = self.idle_event.listen()
+                                        idle_start_listener = self.idle_start_event.listen()
+                                    },
+                                    _ = &mut idle_end_listener => {
+                                        idle_time = until + IDLE_TIMEOUT;
+                                        idle_end_listener = self.idle_end_event.listen()
                                     },
                                     _ = tokio::time::sleep_until(until.into()) => {
                                         break;
@@ -1298,6 +1309,10 @@ impl Backend for TurboTasksBackend {
 
     fn idle_start(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         self.0.idle_start();
+    }
+
+    fn idle_end(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.idle_end();
     }
 
     fn get_or_create_persistent_task(
