@@ -8,7 +8,11 @@ describe('next-codemod', () => {
 
   it('should work using cheerio', async () => {
     const $ = await next.render$('/')
-    console.log({ fofo: require.resolve('@next/codemod/bin/next-codemod.js') })
+    console.log({
+      fofo: require.resolve('@next/codemod/bin/next-codemod.js', {
+        paths: [next.testDir],
+      }),
+    })
     expect($('p').text()).toBe('hello world')
   })
 })
