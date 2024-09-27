@@ -1,8 +1,11 @@
 // @ts-check
 import { nextTestSetup } from 'e2e-utils'
 
+const GENERIC_RSC_ERROR =
+  'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+
 describe('use-cache', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
@@ -32,5 +35,34 @@ describe('use-cache', () => {
     const b = await browser.waitForElementByCss('#b').text()
     // TODO: This is broken. It is expected to pass once we fix it.
     expect(a).not.toBe(b)
+  })
+
+  it('should error when cookies/headers/draftMode is used inside "use cache"', async () => {
+    const browser = await next.browser('/errors')
+    expect(await browser.waitForElementByCss('#cookies').text()).toContain(
+      isNextDev
+        ? '`cookies` was called outside a request scope.'
+        : GENERIC_RSC_ERROR
+    )
+    expect(await browser.waitForElementByCss('#headers').text()).toContain(
+      isNextDev
+        ? '`headers` was called outside a request scope.'
+        : GENERIC_RSC_ERROR
+    )
+    expect(await browser.waitForElementByCss('#draft-mode').text()).toContain(
+      isNextDev
+        ? '`draftMode` was called outside a request scope.'
+        : GENERIC_RSC_ERROR
+    )
+
+    expect(next.cliOutput).toContain(
+      '`cookies` was called outside a request scope.'
+    )
+    expect(next.cliOutput).toContain(
+      '`headers` was called outside a request scope.'
+    )
+    expect(next.cliOutput).toContain(
+      '`draftMode` was called outside a request scope.'
+    )
   })
 })

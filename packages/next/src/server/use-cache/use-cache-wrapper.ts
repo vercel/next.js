@@ -1,5 +1,4 @@
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
-import { createSnapshot } from '../../client/components/async-local-storage'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
   renderToReadableStream,
@@ -17,6 +16,7 @@ import type { StaticGenerationStore } from '../../client/components/static-gener
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 import type { CacheStore } from '../app-render/cache-async-storage.external'
 import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
+import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -74,9 +74,6 @@ cacheHandlerMap.set('default', {
     }
   },
 })
-
-// TODO: Consider moving this another module that is guaranteed to be required in a safe scope.
-const runInCleanSnapshot = createSnapshot()
 
 function generateCacheEntry(
   staticGenerationStore: StaticGenerationStore,
