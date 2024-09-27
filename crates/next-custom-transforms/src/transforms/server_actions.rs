@@ -1626,7 +1626,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
             // Inlined actions are only allowed on the server layer.
             // import { registerServerReference } from 'private-next-rsc-server-reference'
-            // registerServerReference("action_id")
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
                 specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
@@ -1825,21 +1824,22 @@ fn annotate_ident_as_server_reference(
     bound: Vec<Option<ExprOrSpread>>,
     action_id: String,
 ) -> Expr {
-    // Add the proxy wrapper call `registerServerReference($$id, $$bound, myAction,
-    // maybe_orig_action)`.
-
+    // registerServerReference(reference, id, null)
     let proxy_expr = Expr::Call(CallExpr {
         span: DUMMY_SP,
         callee: quote_ident!("registerServerReference").as_callee(),
         args: vec![
-            // $$id
+            ExprOrSpread {
+                spread: None,
+                expr: Box::new(Expr::Ident(ident)),
+            },
             ExprOrSpread {
                 spread: None,
                 expr: Box::new(action_id.clone().into()),
             },
             ExprOrSpread {
                 spread: None,
-                expr: Box::new(Expr::Ident(ident)),
+                expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
             },
         ],
         ..Default::default()
