@@ -2481,4 +2481,49 @@ describe('dynamic-io', () => {
       }
     })
   })
+
+  if (!isNextDev) {
+    describe('generateStaticParams', () => {
+      it('should have dynamicIO semantics inside generateStaticParams', async () => {
+        // This test is named what we want but our current implementation is not actually correct yet.
+        // We are asserting current behavior and will update the test when we land the correct behavior
+
+        const lines: Array<string> = next.cliOutput.split('\n')
+        let i = 0
+        while (true) {
+          const line = lines[i++]
+          if (typeof line !== 'string') {
+            throw new Error(
+              'Could not find expected route output for /params/generate-static-params/[slug]/page/...'
+            )
+          }
+
+          if (
+            line.startsWith('├') &&
+            line.includes('/params/generate-static-params/[slug]')
+          ) {
+            let nextLine = lines[i++]
+            if (WITH_PPR) {
+              // when PPR is on (in this test suite) we also turn on fallbacks.
+              // we expect the fallback shell first
+              expect(nextLine).toContain(
+                '/params/generate-static-params/[slug]'
+              )
+              nextLine = lines[i++]
+            }
+            expect(nextLine).toMatch(
+              /\/params\/generate-static-params\/\d+\/page/
+            )
+            nextLine = lines[i++]
+            // Because we force-cache we only end up with one prebuilt page.
+            // When dynamicIO semantics are fully respected we will end up with two.
+            expect(nextLine).not.toMatch(
+              /\/params\/generate-static-params\/\d+\/page/
+            )
+            break
+          }
+        }
+      })
+    })
+  }
 })

@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 
-import { getSentinelValue } from '../../getSentinelValue'
+import { getSentinelValue } from '../../../getSentinelValue'
 
 export const runtime = 'edge'
 
