@@ -591,21 +591,20 @@ impl CodeGenerateable for EsmExports {
             None
         };
 
-        Ok(CodeGeneration::early_hoisted_stmts(
-            [
-                Some(CodeGenerationHoistedStmt::new(
-                    "__turbopack_esm__".into(),
-                    quote!("__turbopack_esm__($getters);" as Stmt,
-                        getters: Expr = getters.clone()
-                    ),
-                )),
-                dynamic_stmt.clone().map(|stmt| {
-                    CodeGenerationHoistedStmt::new("__turbopack_dynamic__".into(), stmt)
-                }),
-            ]
+        Ok(CodeGeneration::new(
+            vec![],
+            [dynamic_stmt
+                .clone()
+                .map(|stmt| CodeGenerationHoistedStmt::new("__turbopack_dynamic__".into(), stmt))]
             .into_iter()
             .flatten()
             .collect(),
+            vec![CodeGenerationHoistedStmt::new(
+                "__turbopack_esm__".into(),
+                quote!("__turbopack_esm__($getters);" as Stmt,
+                    getters: Expr = getters.clone()
+                ),
+            )],
         ))
     }
 }

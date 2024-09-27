@@ -32,6 +32,19 @@ impl CodeGeneration {
         .cell()
     }
 
+    pub fn new(
+        visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
+        hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+        early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+    ) -> Vc<Self> {
+        CodeGeneration {
+            visitors,
+            hoisted_stmts,
+            early_hoisted_stmts,
+        }
+        .cell()
+    }
+
     pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Vc<Self> {
         CodeGeneration {
             visitors,
@@ -51,22 +64,6 @@ impl CodeGeneration {
     pub fn hoisted_stmts(hoisted_stmts: Vec<CodeGenerationHoistedStmt>) -> Vc<Self> {
         CodeGeneration {
             hoisted_stmts,
-            ..Default::default()
-        }
-        .cell()
-    }
-
-    pub fn early_hoisted_stmt(key: RcStr, stmt: Stmt) -> Vc<Self> {
-        CodeGeneration {
-            early_hoisted_stmts: vec![CodeGenerationHoistedStmt::new(key, stmt)],
-            ..Default::default()
-        }
-        .cell()
-    }
-
-    pub fn early_hoisted_stmts(early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>) -> Vc<Self> {
-        CodeGeneration {
-            early_hoisted_stmts,
             ..Default::default()
         }
         .cell()
