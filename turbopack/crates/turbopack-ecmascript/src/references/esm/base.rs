@@ -1,9 +1,8 @@
 use anyhow::{anyhow, bail, Result};
-use lazy_static::lazy_static;
 use strsim::jaro;
 use swc_core::{
     common::{BytePos, Span, DUMMY_SP},
-    ecma::ast::{self, Decl, Expr, ExprStmt, Ident, Lit, ModuleItem, Program, Script, Stmt},
+    ecma::ast::{Decl, Expr, ExprStmt, Ident, Stmt},
     quote,
 };
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
@@ -389,78 +388,6 @@ fn var_decl_with_span(mut decl: Stmt, span: Span) -> Stmt {
         _ => panic!("Expected Stmt::Decl::Var"),
     };
     decl
-}
-
-lazy_static! {
-    static ref ESM_HOISTING_LOCATION: &'static str = Box::leak(Box::new(magic_identifier::mangle(
-        "ecmascript hoisting location"
-    )));
-}
-
-pub(crate) fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
-    match program {
-        Program::Module(ast::Module { body, .. }) => {
-            let pos = body.iter().position(|item| {
-                if let ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                    expr: box Expr::Lit(Lit::Str(s)),
-                    ..
-                })) = item
-                {
-                    &*s.value == *ESM_HOISTING_LOCATION
-                } else {
-                    false
-                }
-            });
-            if let Some(pos) = pos {
-                let has_stmt = body[0..pos].iter().any(|item| {
-                    if let ModuleItem::Stmt(item_stmt) = item {
-                        stmt == *item_stmt
-                    } else {
-                        false
-                    }
-                });
-                if !has_stmt {
-                    body.insert(pos, ModuleItem::Stmt(stmt));
-                }
-            } else {
-                body.splice(
-                    0..0,
-                    [
-                        ModuleItem::Stmt(stmt),
-                        ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                            expr: Box::new(Expr::Lit(Lit::Str((*ESM_HOISTING_LOCATION).into()))),
-                            span: DUMMY_SP,
-                        })),
-                    ],
-                );
-            }
-        }
-        Program::Script(Script { body, .. }) => {
-            let pos = body.iter().position(|item| {
-                if let Stmt::Expr(ExprStmt {
-                    expr: box Expr::Lit(Lit::Str(s)),
-                    ..
-                }) = item
-                {
-                    &*s.value == *ESM_HOISTING_LOCATION
-                } else {
-                    false
-                }
-            });
-            if let Some(pos) = pos {
-                body.insert(pos, stmt);
-            } else {
-                body.insert(
-                    0,
-                    Stmt::Expr(ExprStmt {
-                        expr: Box::new(Expr::Lit(Lit::Str((*ESM_HOISTING_LOCATION).into()))),
-                        span: DUMMY_SP,
-                    }),
-                );
-                body.insert(0, stmt);
-            }
-        }
-    }
 }
 
 #[turbo_tasks::value(shared)]
