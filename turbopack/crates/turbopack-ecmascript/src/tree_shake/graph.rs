@@ -382,7 +382,7 @@ impl DepGraph {
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
                         with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, true,
+                            dep, false,
                         )))),
                         phase: Default::default(),
                     })));
