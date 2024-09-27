@@ -112,8 +112,8 @@ struct ServerActions<C: Comments> {
     rewrite_default_fn_expr_to_proxy_expr: Option<Box<Expr>>,
     rewrite_expr_to_proxy_expr: Option<Box<Expr>>,
 
-    // (ident, export name)
-    exported_idents: Vec<(Id, String)>,
+    // (ident, export name, span)
+    exported_idents: Vec<(Id, String, Span)>,
 
     annotations: Vec<Stmt>,
     extra_items: Vec<ModuleItem>,
@@ -121,6 +121,22 @@ struct ServerActions<C: Comments> {
     export_actions: Vec<String>,
 
     private_ctxt: SyntaxContext,
+}
+
+trait IdentCollector {
+    fn collect(&mut self, id: Id, span: Option<Span>);
+}
+
+impl IdentCollector for Vec<Id> {
+    fn collect(&mut self, id: Id, _span: Option<Span>) {
+        self.push(id);
+    }
+}
+
+impl IdentCollector for Vec<(Id, Span)> {
+    fn collect(&mut self, id: Id, span: Option<Span>) {
+        self.push((id, span.expect("Span is required")));
+    }
 }
 
 impl<C: Comments> ServerActions<C> {
@@ -193,7 +209,7 @@ impl<C: Comments> ServerActions<C> {
         self.has_action = true;
         self.export_actions.push(action_name.to_string());
 
-        let action_ident = Ident::new(action_name.clone(), DUMMY_SP, self.private_ctxt);
+        let action_ident = Ident::new(action_name.clone(), arrow.span, self.private_ctxt);
 
         let register_action_expr = annotate_ident_as_server_reference(
             action_ident.clone(),
@@ -347,7 +363,7 @@ impl<C: Comments> ServerActions<C> {
         self.has_action = true;
         self.export_actions.push(action_name.to_string());
 
-        let action_ident = Ident::new(action_name.clone(), DUMMY_SP, self.private_ctxt);
+        let action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
 
         let register_action_expr = annotate_ident_as_server_reference(
             action_ident.clone(),
@@ -1209,15 +1225,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         match decl {
                             Decl::Fn(f) => {
                                 // export function foo() {}
-                                self.exported_idents
-                                    .push((f.ident.to_id(), f.ident.sym.to_string()));
+                                self.exported_idents.push((
+                                    f.ident.to_id(),
+                                    f.ident.sym.to_string(),
+                                    f.ident.span,
+                                ));
                             }
                             Decl::Var(var) => {
                                 // export const foo = 1
-                                let mut ids: Vec<Id> = Vec::new();
+                                let mut ids: Vec<(Id, Span)> = Vec::new();
                                 collect_idents_in_var_decls(&var.decls, &mut ids);
                                 self.exported_idents.extend(
-                                    ids.into_iter().map(|id| (id.clone(), id.0.to_string())),
+                                    ids.into_iter()
+                                        .map(|(id, span)| (id.clone(), id.0.to_string(), span)),
                                 );
 
                                 for decl in &mut var.decls {
@@ -1250,17 +1270,26 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             export_name
                                         {
                                             // export { foo as bar }
-                                            self.exported_idents
-                                                .push((ident.to_id(), sym.to_string()));
+                                            self.exported_idents.push((
+                                                ident.to_id(),
+                                                sym.to_string(),
+                                                ident.span,
+                                            ));
                                         } else if let ModuleExportName::Str(str) = export_name {
                                             // export { foo as "bar" }
-                                            self.exported_idents
-                                                .push((ident.to_id(), str.value.to_string()));
+                                            self.exported_idents.push((
+                                                ident.to_id(),
+                                                str.value.to_string(),
+                                                ident.span,
+                                            ));
                                         }
                                     } else {
                                         // export { foo }
-                                        self.exported_idents
-                                            .push((ident.to_id(), ident.sym.to_string()));
+                                        self.exported_idents.push((
+                                            ident.to_id(),
+                                            ident.sym.to_string(),
+                                            ident.span,
+                                        ));
                                     }
                                 } else {
                                     disallowed_export_span = named.span;
@@ -1276,17 +1305,29 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         DefaultDecl::Fn(f) => {
                             if let Some(ident) = &f.ident {
                                 // export default function foo() {}
-                                self.exported_idents.push((ident.to_id(), "default".into()));
+                                self.exported_idents.push((
+                                    ident.to_id(),
+                                    "default".into(),
+                                    ident.span,
+                                ));
                             } else {
                                 // export default function() {}
+                                // Use the span from the function expression
+                                let span = f.function.span;
+
                                 let new_ident = Ident::new(
                                     gen_action_ident(&mut self.reference_index),
-                                    DUMMY_SP,
+                                    span,
                                     self.private_ctxt,
                                 );
+
                                 f.ident = Some(new_ident.clone());
-                                self.exported_idents
-                                    .push((new_ident.to_id(), "default".into()));
+
+                                self.exported_idents.push((
+                                    new_ident.to_id(),
+                                    "default".into(),
+                                    span,
+                                ));
                             }
                         }
                         _ => {
@@ -1301,14 +1342,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     disallowed_export_span = default_expr.span;
                                 } else {
                                     // export default async () => {}
+                                    // Use the span of the arrow function
+                                    let span = arrow.span;
+
                                     let new_ident = Ident::new(
                                         gen_action_ident(&mut self.reference_index),
-                                        DUMMY_SP,
+                                        span,
                                         self.private_ctxt,
                                     );
 
-                                    self.exported_idents
-                                        .push((new_ident.to_id(), "default".into()));
+                                    self.exported_idents.push((
+                                        new_ident.to_id(),
+                                        "default".into(),
+                                        span,
+                                    ));
 
                                     *default_expr.expr = attach_name_to_expr(
                                         new_ident,
@@ -1319,18 +1366,28 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }
                             Expr::Ident(ident) => {
                                 // export default foo
-                                self.exported_idents.push((ident.to_id(), "default".into()));
+                                self.exported_idents.push((
+                                    ident.to_id(),
+                                    "default".into(),
+                                    ident.span,
+                                ));
                             }
                             Expr::Call(call) => {
                                 // export default fn()
+                                // Determining a useful span here is tricky.
+                                let span = call.span;
+
                                 let new_ident = Ident::new(
                                     gen_action_ident(&mut self.reference_index),
-                                    DUMMY_SP,
+                                    span,
                                     self.private_ctxt,
                                 );
 
-                                self.exported_idents
-                                    .push((new_ident.to_id(), "default".into()));
+                                self.exported_idents.push((
+                                    new_ident.to_id(),
+                                    "default".into(),
+                                    span,
+                                ));
 
                                 *default_expr.expr = attach_name_to_expr(
                                     new_ident,
@@ -1433,21 +1490,21 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 new.rotate_right(1);
             }
 
-            for (id, export_name) in self.exported_idents.iter() {
-                let ident = Ident::new(id.0.clone(), DUMMY_SP, id.1);
+            for (id, export_name, span) in self.exported_idents.iter() {
+                let ident = Ident::new(id.0.clone(), *span, id.1);
 
                 if !self.config.is_react_server_layer {
                     let action_id =
                         generate_action_id(&self.config.hash_salt, &self.file_name, export_name);
 
-                    let span = Span::dummy_with_cmt();
-                    self.comments.add_pure_comment(span.lo);
+                    let call_expr_span = Span::dummy_with_cmt();
+                    self.comments.add_pure_comment(call_expr_span.lo);
                     if export_name == "default" {
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
                             ExportDefaultExpr {
-                                span: DUMMY_SP,
+                                span: *span,
                                 expr: Box::new(Expr::Call(CallExpr {
-                                    span,
+                                    span: call_expr_span,
                                     callee: Callee::Expr(Box::new(Expr::Ident(
                                         create_ref_ident.clone(),
                                     ))),
@@ -1473,11 +1530,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,
                                         name: Pat::Ident(
-                                            IdentName::new(export_name.clone().into(), DUMMY_SP)
+                                            IdentName::new(export_name.clone().into(), *span)
                                                 .into(),
                                         ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
-                                            span,
+                                            span: call_expr_span,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
                                             ))),
@@ -1826,7 +1883,7 @@ fn annotate_ident_as_server_reference(
 ) -> Expr {
     // registerServerReference(reference, id, null)
     let proxy_expr = Expr::Call(CallExpr {
-        span: DUMMY_SP,
+        span: ident.span,
         callee: quote_ident!("registerServerReference").as_callee(),
         args: vec![
             ExprOrSpread {
@@ -2198,96 +2255,99 @@ fn remove_server_directive_index_in_fn(
     });
 }
 
-fn collect_idents_in_array_pat(elems: &[Option<Pat>], ids: &mut Vec<Id>) {
+fn collect_idents_in_array_pat<C: IdentCollector>(elems: &[Option<Pat>], collector: &mut C) {
     for elem in elems.iter().flatten() {
         match elem {
             Pat::Ident(ident) => {
-                ids.push(ident.id.to_id());
+                collector.collect(ident.id.to_id(), Some(ident.id.span));
             }
             Pat::Array(array) => {
-                collect_idents_in_array_pat(&array.elems, ids);
+                collect_idents_in_array_pat(&array.elems, collector);
             }
             Pat::Object(object) => {
-                collect_idents_in_object_pat(&object.props, ids);
+                collect_idents_in_object_pat(&object.props, collector);
             }
             Pat::Rest(rest) => {
                 if let Pat::Ident(ident) = &*rest.arg {
-                    ids.push(ident.id.to_id());
+                    collector.collect(ident.id.to_id(), Some(ident.id.span));
                 }
             }
             Pat::Assign(AssignPat { left, .. }) => {
-                collect_idents_in_pat(left, ids);
+                collect_idents_in_pat(left, collector);
             }
             Pat::Expr(..) | Pat::Invalid(..) => {}
         }
     }
 }
 
-fn collect_idents_in_object_pat(props: &[ObjectPatProp], ids: &mut Vec<Id>) {
+fn collect_idents_in_object_pat<C: IdentCollector>(props: &[ObjectPatProp], collector: &mut C) {
     for prop in props {
         match prop {
             ObjectPatProp::KeyValue(KeyValuePatProp { key, value }) => {
                 if let PropName::Ident(ident) = key {
-                    ids.push((ident.sym.clone(), SyntaxContext::empty()));
+                    collector.collect(
+                        (ident.sym.clone(), SyntaxContext::empty()),
+                        Some(ident.span),
+                    );
                 }
 
                 match &**value {
                     Pat::Ident(ident) => {
-                        ids.push(ident.id.to_id());
+                        collector.collect(ident.id.to_id(), Some(ident.id.span));
                     }
                     Pat::Array(array) => {
-                        collect_idents_in_array_pat(&array.elems, ids);
+                        collect_idents_in_array_pat(&array.elems, collector);
                     }
                     Pat::Object(object) => {
-                        collect_idents_in_object_pat(&object.props, ids);
+                        collect_idents_in_object_pat(&object.props, collector);
                     }
                     _ => {}
                 }
             }
             ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
-                ids.push(key.to_id());
+                collector.collect(key.to_id(), Some(key.id.span));
             }
             ObjectPatProp::Rest(RestPat { arg, .. }) => {
                 if let Pat::Ident(ident) = &**arg {
-                    ids.push(ident.id.to_id());
+                    collector.collect(ident.id.to_id(), Some(ident.id.span));
                 }
             }
         }
     }
 }
 
-fn collect_idents_in_var_decls(decls: &[VarDeclarator], ids: &mut Vec<Id>) {
+fn collect_idents_in_var_decls<C: IdentCollector>(decls: &[VarDeclarator], collector: &mut C) {
     for decl in decls {
-        collect_idents_in_pat(&decl.name, ids);
+        collect_idents_in_pat(&decl.name, collector);
     }
 }
 
-fn collect_idents_in_pat(pat: &Pat, ids: &mut Vec<Id>) {
+fn collect_idents_in_pat<C: IdentCollector>(pat: &Pat, collector: &mut C) {
     match pat {
         Pat::Ident(ident) => {
-            ids.push(ident.id.to_id());
+            collector.collect(ident.id.to_id(), Some(ident.id.span));
         }
         Pat::Array(array) => {
-            collect_idents_in_array_pat(&array.elems, ids);
+            collect_idents_in_array_pat(&array.elems, collector);
         }
         Pat::Object(object) => {
-            collect_idents_in_object_pat(&object.props, ids);
+            collect_idents_in_object_pat(&object.props, collector);
         }
         Pat::Assign(AssignPat { left, .. }) => {
-            collect_idents_in_pat(left, ids);
+            collect_idents_in_pat(left, collector);
         }
         Pat::Rest(RestPat { arg, .. }) => {
             if let Pat::Ident(ident) = &**arg {
-                ids.push(ident.id.to_id());
+                collector.collect(ident.id.to_id(), Some(ident.id.span));
             }
         }
         Pat::Expr(..) | Pat::Invalid(..) => {}
     }
 }
 
-fn collect_decl_idents_in_stmt(stmt: &Stmt, ids: &mut Vec<Id>) {
+fn collect_decl_idents_in_stmt<C: IdentCollector>(stmt: &Stmt, collector: &mut C) {
     if let Stmt::Decl(Decl::Var(var)) = &stmt {
-        collect_idents_in_var_decls(&var.decls, ids);
+        collect_idents_in_var_decls(&var.decls, collector);
     }
 }
 
