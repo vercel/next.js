@@ -17,7 +17,6 @@ import {
 import { PrefetchKind } from './components/router-reducer/router-reducer-types'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import type { NextRouter } from './router'
-import { resolveHref } from './resolve-href'
 
 const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
@@ -309,13 +308,11 @@ function onFormSubmit(
   event.preventDefault()
 
   const method = replace ? 'replace' : 'push'
-
+  const targetHref = targetUrl.href
   if (isAppRouter(router)) {
-    const targetHref = targetUrl.href
     router[method](targetHref, { scroll })
   } else {
     startTransition(() => {
-      const targetHref = resolveHref(router, targetUrl) // TODO: is this necessary?
       router[method](targetHref, undefined, { scroll })
     })
   }
