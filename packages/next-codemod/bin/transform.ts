@@ -41,6 +41,7 @@ export async function runTransform(
       name: 'source',
       message: 'On which files or directory should the codemods be applied?',
       onState: onPromptState,
+      initial: '.',
     })
 
     source = res.source
