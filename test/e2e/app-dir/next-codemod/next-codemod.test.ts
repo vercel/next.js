@@ -18,15 +18,17 @@ describe('next-codemod', () => {
     expect(existsSync(ne)).toBe(true)
     const c = join(ne, 'codemod')
     expect(existsSync(c)).toBe(true)
+    let output = ''
     const files = await readdir(c, { withFileTypes: true, recursive: true })
     files.forEach((file) => {
       if (file.isDirectory()) {
-        console.log(file.path)
+        output += file.path + '\n'
       }
       if (file.isFile()) {
-        console.log(file.path + '/' + file.name)
+        output += file.path + '/' + file.name + '\n'
       }
     })
+    expect(output).toBe('')
 
     const b = join(c, 'bin')
     expect(existsSync(b)).toBe(true)
