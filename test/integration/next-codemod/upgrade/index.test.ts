@@ -25,7 +25,7 @@ describe('next-codemod upgrade prompt', () => {
     }
 
     try {
-      nextCodemodPath = require.resolve('@next/codemod/package.json')
+      nextCodemodPath = require.resolve('@next/codemod/bin/next-codemod.js')
     } catch (error) {
       console.error('Failed to resolve next-codemod path:\n', error)
       nextCodemodPath = (
