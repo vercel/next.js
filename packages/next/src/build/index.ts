@@ -1904,6 +1904,7 @@ export default async function build(
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
               isAppPPRFallbacksEnabled: config.experimental.pprFallbacks,
+              buildId,
             })
         )
 
@@ -2123,6 +2124,7 @@ export default async function build(
                             pprConfig: config.experimental.ppr,
                             isAppPPRFallbacksEnabled:
                               config.experimental.pprFallbacks,
+                            buildId,
                           })
                         }
                       )
