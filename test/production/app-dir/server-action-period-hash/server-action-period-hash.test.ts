@@ -69,6 +69,6 @@ describe('app-dir - server-action-period-hash', () => {
 
     const secondManifest = await getServerActionManifest(next)
 
-    expect(firstManifest).not.toEqual(secondManifest)
+    expect(firstManifest).toEqual(secondManifest)
   })
 })
