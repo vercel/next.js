@@ -5,8 +5,9 @@
     "esModuleInterop": true,
     "target": "ES2022",
     "downlevelIteration": true,
-    "preserveWatchOutput": true
+    "preserveWatchOutput": true,
+    "outDir": "dist"
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "transforms/__testfixtures__/**"]
+  "exclude": ["node_modules", "src/transforms/__testfixtures__/**"]
 }
