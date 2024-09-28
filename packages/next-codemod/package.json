@@ -21,10 +21,7 @@
     "prompts": "2.4.2"
   },
   "files": [
-    "dist/transforms/*.js",
-    "dist/transforms/lib/**/*.js",
-    "dist/bin/*.js",
-    "dist/lib/**/*.js",
+    "dist/**/*.js",
     "dist/lib/cra-to-next/gitignore"
   ],
   "scripts": {
