@@ -704,7 +704,7 @@ async fn dir_dependency(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
     let glob = glob.await?;
     glob.inner
         .values()
-        .map(|&inner| dir_dependency(inner))
+        .map(|&inner| dir_dependency(*inner))
         .try_join()
         .await?;
     shallow.await?;

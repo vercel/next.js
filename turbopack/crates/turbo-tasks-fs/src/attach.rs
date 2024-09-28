@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use auto_hash_map::AutoMap;
-use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, ValueToString, Vc};
 
 use crate::{
     DirectoryContent, DirectoryEntry, FileContent, FileMeta, FileSystem, FileSystemPath,
@@ -13,11 +13,11 @@ use crate::{
 /// Caveat: The `child_path` itself is not visible as a directory entry.
 #[turbo_tasks::value]
 pub struct AttachedFileSystem {
-    root_fs: Vc<Box<dyn FileSystem>>,
+    root_fs: ResolvedVc<Box<dyn FileSystem>>,
     // we turn this into a string because creating a FileSystemPath requires the filesystem which
     // we are creating (circular reference)
     child_path: RcStr,
-    child_fs: Vc<Box<dyn FileSystem>>,
+    child_fs: ResolvedVc<Box<dyn FileSystem>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -27,7 +27,7 @@ impl AttachedFileSystem {
     #[turbo_tasks::function]
     pub async fn new(
         child_path: Vc<FileSystemPath>,
-        child_fs: Vc<Box<dyn FileSystem>>,
+        child_fs: ResolvedVc<Box<dyn FileSystem>>,
     ) -> Result<Vc<Self>> {
         let child_path = child_path.await?;
 
@@ -45,11 +45,11 @@ impl AttachedFileSystem {
     /// [FileSystem] or this [AttachedFileSystem].
     #[turbo_tasks::function]
     pub async fn convert_path(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         contained_path_vc: Vc<FileSystemPath>,
     ) -> Result<Vc<FileSystemPath>> {
         let contained_path = contained_path_vc.await?;
-        let self_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(self);
+        let self_fs: ResolvedVc<Box<dyn FileSystem>> = ResolvedVc::upcast(self);
         let this = self.await?;
 
         match contained_path.fs {
@@ -89,12 +89,12 @@ impl AttachedFileSystem {
     /// on the [AttachedFileSystem]
     #[turbo_tasks::function]
     pub async fn get_inner_fs_path(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let path = path.await?;
-        let self_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(self);
+        let self_fs: ResolvedVc<Box<dyn FileSystem>> = ResolvedVc::upcast(self);
 
         if path.fs != self_fs {
             let self_fs_str = self_fs.to_string().await?;
@@ -144,10 +144,10 @@ impl FileSystem for AttachedFileSystem {
             use DirectoryEntry::*;
 
             let entry = match *entry {
-                File(path) => File(self.convert_path(path)),
-                Directory(path) => Directory(self.convert_path(path)),
-                Symlink(path) => Symlink(self.convert_path(path)),
-                Other(path) => Other(self.convert_path(path)),
+                File(path) => File(self.convert_path(*path).to_resolved().await?),
+                Directory(path) => Directory(self.convert_path(*path).to_resolved().await?),
+                Symlink(path) => Symlink(self.convert_path(*path).to_resolved().await?),
+                Other(path) => Other(self.convert_path(*path).to_resolved().await?),
                 Error => Error,
             };
 

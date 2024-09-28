@@ -1180,8 +1180,14 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn client_relative_path(&self) -> Vc<FileSystemPathOption> {
-        Vc::cell(Some(self.pages_project.project().client_relative_path()))
+    async fn client_relative_path(&self) -> Result<Vc<FileSystemPathOption>> {
+        Ok(Vc::cell(Some(
+            self.pages_project
+                .project()
+                .client_relative_path()
+                .to_resolved()
+                .await?,
+        )))
     }
 }
 
