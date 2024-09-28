@@ -451,3 +451,19 @@ export function wrapParentheseIfNeeded(
 ) {
   return hasChainAccess ? j.parenthesizedExpression(expression) : expression
 }
+
+export function insertCommentOnce(
+  path: ASTPath<any>,
+  j: API['j'],
+  comment: string
+) {
+  if (path.node.comments) {
+    const hasComment = path.node.comments.some(
+      (commentNode) => commentNode.value === comment
+    )
+    if (hasComment) {
+      return
+    }
+  }
+  path.node.comments = [j.commentBlock(comment), ...(path.node.comments || [])]
+}

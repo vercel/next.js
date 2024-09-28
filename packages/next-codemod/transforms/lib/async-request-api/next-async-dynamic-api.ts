@@ -8,7 +8,32 @@ import {
   isFunctionScope,
   findClosetParentFunctionScope,
   wrapParentheseIfNeeded,
+  insertCommentOnce,
 } from './utils'
+
+const DYNAMIC_IMPORT_WARN_COMMENT = ` The APIs under 'next/headers' are async now, need to be manually awaited. `
+
+function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
+  let modified = false
+  // find all the dynamic imports of `next/headers`,
+  // and add a comment to the import expression to inform this needs to be manually handled
+
+  // find all the dynamic imports of `next/cookies`,
+  // Notice, import() is not handled as ImportExpression in current jscodeshift version,
+  // we need to use CallExpression to capture the dynamic imports.
+  const importPaths = root.find(j.CallExpression, {
+    callee: {
+      type: 'Import',
+    },
+    arguments: [{ value: 'next/headers' }],
+  })
+
+  importPaths.forEach((path) => {
+    insertCommentOnce(path, j, DYNAMIC_IMPORT_WARN_COMMENT)
+    modified = true
+  })
+  return modified
+}
 
 export function transformDynamicAPI(
   source: string,
@@ -201,6 +226,10 @@ export function transformDynamicAPI(
   // Add import { use } from 'react' if needed and not already imported
   if (needsReactUseImport) {
     insertReactUseImport(root, j)
+  }
+
+  if (findDynamicImportsAndComment(root, j)) {
+    modified = true
   }
 
   return modified ? root.toSource() : null
