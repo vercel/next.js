@@ -5,14 +5,34 @@ import {
   isMatchedFunctionExported,
   turnFunctionReturnTypeToAsync,
   insertReactUseImport,
+  isFunctionScope,
+  findClosetParentFunctionScope,
+  wrapParentheseIfNeeded,
+  insertCommentOnce,
 } from './utils'
 
-function wrapParathnessIfNeeded(
-  hasChainAccess: boolean,
-  j: API['jscodeshift'],
-  expression
-) {
-  return hasChainAccess ? j.parenthesizedExpression(expression) : expression
+const DYNAMIC_IMPORT_WARN_COMMENT = ` The APIs under 'next/headers' are async now, need to be manually awaited. `
+
+function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
+  let modified = false
+  // find all the dynamic imports of `next/headers`,
+  // and add a comment to the import expression to inform this needs to be manually handled
+
+  // find all the dynamic imports of `next/cookies`,
+  // Notice, import() is not handled as ImportExpression in current jscodeshift version,
+  // we need to use CallExpression to capture the dynamic imports.
+  const importPaths = root.find(j.CallExpression, {
+    callee: {
+      type: 'Import',
+    },
+    arguments: [{ value: 'next/headers' }],
+  })
+
+  importPaths.forEach((path) => {
+    insertCommentOnce(path, j, DYNAMIC_IMPORT_WARN_COMMENT)
+    modified = true
+  })
+  return modified
 }
 
 export function transformDynamicAPI(
@@ -55,22 +75,25 @@ export function transformDynamicAPI(
         if (!isImportedTopLevel) {
           return
         }
+        let parentFunctionPath = findClosetParentFunctionScope(path, j)
 
-        const closetScope = j(path).closestScope()
-
-        // First search the closed function of the current path
-        let closestFunction: Collection<any>
-        closestFunction = j(path).closest(j.FunctionDeclaration)
-        if (closestFunction.size() === 0) {
-          closestFunction = j(path).closest(j.FunctionExpression)
+        // We found the parent scope is not a function
+        let parentFunctionNode
+        if (parentFunctionPath) {
+          if (isFunctionScope(parentFunctionPath, j)) {
+            parentFunctionNode = parentFunctionPath.node
+          } else {
+            const scopeNode = parentFunctionPath.node
+            if (
+              scopeNode.type === 'ReturnStatement' &&
+              isFunctionType(scopeNode.argument.type)
+            ) {
+              parentFunctionNode = scopeNode.argument
+            }
+          }
         }
-        if (closestFunction.size() === 0) {
-          closestFunction = j(path).closest(j.ArrowFunctionExpression)
-        }
 
-        const isAsyncFunction = closestFunction
-          .nodes()
-          .some((node) => node.async)
+        const isAsyncFunction = parentFunctionNode?.async || false
 
         const isCallAwaited = path.parentPath?.node?.type === 'AwaitExpression'
 
@@ -78,6 +101,7 @@ export function transformDynamicAPI(
           path.parentPath.value.type === 'MemberExpression' &&
           path.parentPath.value.object === path.node
 
+        const closetScope = j(path).closestScope()
         // For cookies/headers API, only transform server and shared components
         if (isAsyncFunction) {
           if (!isCallAwaited) {
@@ -86,7 +110,7 @@ export function transformDynamicAPI(
               // add parentheses to wrap the function call
               j.callExpression(j.identifier(asyncRequestApiName), [])
             )
-            j(path).replaceWith(wrapParathnessIfNeeded(hasChainAccess, j, expr))
+            j(path).replaceWith(wrapParentheseIfNeeded(hasChainAccess, j, expr))
             modified = true
           }
         } else {
@@ -134,7 +158,7 @@ export function transformDynamicAPI(
                   j.callExpression(j.identifier(asyncRequestApiName), [])
                 )
                 j(path).replaceWith(
-                  wrapParathnessIfNeeded(hasChainAccess, j, expr)
+                  wrapParentheseIfNeeded(hasChainAccess, j, expr)
                 )
 
                 turnFunctionReturnTypeToAsync(closetScopePath.node, j)
@@ -144,12 +168,9 @@ export function transformDynamicAPI(
             }
           } else {
             // if parent is function and it's a hook, which starts with 'use', wrap the api call with 'use()'
-            const parentFunction =
-              j(path).closest(j.FunctionDeclaration) ||
-              j(path).closest(j.FunctionExpression) ||
-              j(path).closest(j.ArrowFunctionExpression)
+            const parentFunction = findClosetParentFunctionScope(path, j)
 
-            if (parentFunction.size() > 0) {
+            if (parentFunction) {
               const parentFunctionName = parentFunction.get().node.id?.name
               const isParentFunctionHook = parentFunctionName?.startsWith('use')
               if (isParentFunctionHook) {
@@ -166,7 +187,8 @@ export function transformDynamicAPI(
                   originRequestApiName,
                   root,
                   filePath,
-                  insertedTypes
+                  insertedTypes,
+                  ` TODO: please manually await this call, if it's a server component, you can turn it to async function `
                 )
               }
             } else {
@@ -176,7 +198,8 @@ export function transformDynamicAPI(
                 originRequestApiName,
                 root,
                 filePath,
-                insertedTypes
+                insertedTypes,
+                ' TODO: please manually await this call, codemod cannot transform due to undetermined async scope '
               )
             }
             modified = true
@@ -187,22 +210,26 @@ export function transformDynamicAPI(
 
   const isClientComponent = determineClientDirective(root, j, source)
 
+  // Only transform the valid calls in server or shared components
+  if (isClientComponent) return null
+
+  // Import declaration case, e.g. import { cookies } from 'next/headers'
   const importedNextAsyncRequestApisMapping = findImportMappingFromNextHeaders(
     root,
     j
   )
+  for (const originName in importedNextAsyncRequestApisMapping) {
+    const aliasName = importedNextAsyncRequestApisMapping[originName]
+    processAsyncApiCalls(aliasName, originName)
+  }
 
-  // Only transform the valid calls in server or shared components
-  if (!isClientComponent) {
-    for (const originName in importedNextAsyncRequestApisMapping) {
-      const aliasName = importedNextAsyncRequestApisMapping[originName]
-      processAsyncApiCalls(aliasName, originName)
-    }
+  // Add import { use } from 'react' if needed and not already imported
+  if (needsReactUseImport) {
+    insertReactUseImport(root, j)
+  }
 
-    // Add import { use } from 'react' if needed and not already imported
-    if (needsReactUseImport) {
-      insertReactUseImport(root, j)
-    }
+  if (findDynamicImportsAndComment(root, j)) {
+    modified = true
   }
 
   return modified ? root.toSource() : null
@@ -217,14 +244,18 @@ const API_CAST_TYPE_MAP = {
 
 function castTypesOrAddComment(
   j: API['jscodeshift'],
-  path: ASTPath<any>,
+  path: ASTPath<CallExpression>,
   originRequestApiName: string,
   root: Collection<any>,
   filePath: string,
-  insertedTypes: Set<string>
+  insertedTypes: Set<string>,
+  customMessage: string
 ) {
   const isTsFile = filePath.endsWith('.ts') || filePath.endsWith('.tsx')
   if (isTsFile) {
+    // if the path of call expression is already being awaited, no need to cast
+    if (path.parentPath?.node?.type === 'AwaitExpression') return
+
     /* Do type cast for headers, cookies, draftMode
       import {
         type UnsafeUnwrappedHeaders,
@@ -278,9 +309,7 @@ function castTypesOrAddComment(
   } else {
     // Otherwise for JS file, leave a message to the user to manually handle the transformation
     path.node.comments = [
-      j.commentBlock(
-        ' TODO: please manually await this call, codemod cannot transform due to undetermined async scope '
-      ),
+      j.commentBlock(customMessage),
       ...(path.node.comments || []),
     ]
   }
