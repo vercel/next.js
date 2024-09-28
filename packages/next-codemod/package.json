@@ -21,12 +21,16 @@
     "prompts": "2.4.2"
   },
   "files": [
-    "dist/**/*.js",
+    "dist/transforms/*.js",
+    "dist/transforms/lib/**/*.js",
+    "dist/bin/*.js",
+    "dist/lib/**/*.js",
     "dist/lib/cra-to-next/gitignore"
   ],
   "scripts": {
-    "build": "pnpm tsc -d -p tsconfig.json && pnpm build-dist",
+    "build": "pnpm tsc -d -p tsconfig.json && pnpm build-dist && pnpm copy-testfixtures",
     "build-dist": "rm -rf dist && pnpm tsc -d -p tsconfig.json --outDir dist",
+    "copy-testfixtures": "cp -r ./src/transforms/__tests__ ./dist/transforms && cp -r ./src/transforms/__testfixtures__ ./dist/transforms",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm tsc -d -w -p tsconfig.json",
     "test": "jest"
