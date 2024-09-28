@@ -46,7 +46,7 @@ pub fn server_actions<C: Comments>(
         file_name: file_name.to_string(),
         start_pos: BytePos(0),
         in_action_file: false,
-        in_cache_file: false,
+        in_cache_file: None,
         in_export_decl: false,
         in_default_export_decl: false,
         in_callee: false,
@@ -93,7 +93,7 @@ struct ServerActions<C: Comments> {
 
     start_pos: BytePos,
     in_action_file: bool,
-    in_cache_file: bool,
+    in_cache_file: Option<String>,
     in_export_decl: bool,
     in_default_export_decl: bool,
     in_callee: bool,
@@ -125,42 +125,62 @@ struct ServerActions<C: Comments> {
 
 impl<C: Comments> ServerActions<C> {
     // Check if the function or arrow function is an action function
-    fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, bool) {
+    fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, Option<String>) {
         let mut is_action_fn = false;
-        let mut is_cache_fn = false;
+        let mut cache_type = None;
 
-        if self.in_action_file && self.in_export_decl {
-            // All export functions in a server file are actions
-            is_action_fn = true;
-        } else if self.in_cache_file && self.in_export_decl {
-            // All export functions in a cache file are cache functions
-            is_cache_fn = true;
-        } else {
-            // Check if the function has `"use server"`
-            if let Some(body) = maybe_body {
-                let mut action_span = None;
-                remove_server_directive_index_in_fn(
-                    &mut body.stmts,
-                    &mut is_action_fn,
-                    &mut is_cache_fn,
-                    &mut action_span,
-                    self.config.enabled,
-                );
+        // Even if it's a file-level action or cache module, the function body
+        // might still have directives that override the module-level annotations.
 
-                if is_action_fn && !self.config.is_react_server_layer && !self.in_action_file {
-                    HANDLER.with(|handler| {
-                        handler
-                            .struct_span_err(
-                                action_span.unwrap_or(body.span),
-                                "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components\n",
-                            )
-                            .emit()
-                    });
-                }
+        // Check if the function has a directive.
+        if let Some(body) = maybe_body {
+            let mut span = None;
+            remove_server_directive_index_in_fn(
+                &mut body.stmts,
+                &mut is_action_fn,
+                &mut cache_type,
+                &mut span,
+                self.config.enabled,
+            );
+
+            if is_action_fn && !self.config.is_react_server_layer && !self.in_action_file {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(
+                            span.unwrap_or(body.span),
+                            "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components\n",
+                        )
+                        .emit()
+                });
+            }
+
+            if cache_type.is_some()
+                && !self.config.is_react_server_layer
+                && self.in_cache_file.is_none()
+            {
+                HANDLER.with(|handler| {
+                    handler
+                        .struct_span_err(
+                            span.unwrap_or(body.span),
+                            "It is not allowed to define inline \"use cache\" annotated Cache \
+                             Functions in Client Components.",
+                        )
+                        .emit()
+                });
             }
         }
 
-        (is_action_fn, is_cache_fn)
+        if self.in_export_decl {
+            if self.in_action_file {
+                // All export functions in a server file are actions
+                is_action_fn = true;
+            } else if let Some(cache_file_type) = &self.in_cache_file {
+                // All export functions in a cache file are cache functions
+                cache_type = Some(cache_file_type.clone());
+            }
+        }
+
+        (is_action_fn, cache_type)
     }
 
     fn maybe_hoist_and_create_proxy(
@@ -437,6 +457,7 @@ impl<C: Comments> ServerActions<C> {
         &mut self,
         ids_from_closure: Vec<Name>,
         fn_name: Option<Ident>,
+        cache_type: &str,
         function: Option<&mut Box<Function>>,
         arrow: Option<&mut ArrowExpr>,
     ) -> Option<Box<Expr>> {
@@ -588,7 +609,7 @@ impl<C: Comments> ServerActions<C> {
                                         ..Default::default()
                                     }),
                                 })),
-                                "default",
+                                cache_type,
                                 &reference_id,
                             )),
                             definite: false,
@@ -706,7 +727,7 @@ impl<C: Comments> ServerActions<C> {
                                         ..*f.take()
                                     }),
                                 })),
-                                "default",
+                                cache_type,
                                 &reference_id,
                             )),
                             definite: false,
@@ -753,7 +774,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
-        let (is_action_fn, is_cache_fn) = self.get_body_info(f.function.body.as_mut());
+        let (is_action_fn, cache_type) = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -784,7 +805,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if (is_action_fn || is_cache_fn) && !f.function.is_async {
+        if (is_action_fn || cache_type.is_some()) && !f.function.is_async {
             HANDLER.with(|handler| {
                 handler
                     .struct_span_err(f.function.span, "Server actions must be async functions")
@@ -792,39 +813,42 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
-        if is_cache_fn && !(self.in_cache_file && self.in_export_decl) {
-            // It's a cache function. If it doesn't have a name, give it one.
-            match f.ident.as_mut() {
-                None => {
-                    let action_name = gen_cache_ident(&mut self.reference_index);
-                    let ident = Ident::new(action_name, DUMMY_SP, Default::default());
-                    f.ident.insert(ident)
+        if let Some(cache_type_str) = cache_type {
+            if !(self.in_cache_file.is_some() && self.in_export_decl) {
+                // It's a cache function. If it doesn't have a name, give it one.
+                match f.ident.as_mut() {
+                    None => {
+                        let action_name = gen_cache_ident(&mut self.reference_index);
+                        let ident = Ident::new(action_name, DUMMY_SP, Default::default());
+                        f.ident.insert(ident)
+                    }
+                    Some(i) => i,
+                };
+
+                // Collect all the identifiers defined inside the closure and used
+                // in the cache function. With deduplication.
+                retain_names_from_declared_idents(
+                    &mut child_names,
+                    &self.declared_idents[..declared_idents_until],
+                );
+
+                let maybe_new_expr = self.maybe_hoist_and_create_proxy_to_cache(
+                    child_names.clone(),
+                    f.ident.clone(),
+                    cache_type_str.as_str(),
+                    Some(&mut f.function),
+                    None,
+                );
+
+                if self.in_default_export_decl {
+                    // This function expression is also the default export:
+                    // `export default async function() {}`
+                    // This specific case (default export) isn't handled by `visit_mut_expr`.
+                    // Replace the original function expr with a action proxy expr.
+                    self.rewrite_default_fn_expr_to_proxy_expr = maybe_new_expr;
+                } else {
+                    self.rewrite_expr_to_proxy_expr = maybe_new_expr;
                 }
-                Some(i) => i,
-            };
-
-            // Collect all the identifiers defined inside the closure and used
-            // in the cache function. With deduplication.
-            retain_names_from_declared_idents(
-                &mut child_names,
-                &self.declared_idents[..declared_idents_until],
-            );
-
-            let maybe_new_expr = self.maybe_hoist_and_create_proxy_to_cache(
-                child_names.clone(),
-                f.ident.clone(),
-                Some(&mut f.function),
-                None,
-            );
-
-            if self.in_default_export_decl {
-                // This function expression is also the default export:
-                // `export default async function() {}`
-                // This specific case (default export) isn't handled by `visit_mut_expr`.
-                // Replace the original function expr with a action proxy expr.
-                self.rewrite_default_fn_expr_to_proxy_expr = maybe_new_expr;
-            } else {
-                self.rewrite_expr_to_proxy_expr = maybe_new_expr;
             }
         }
 
@@ -873,7 +897,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
-        let (is_action_fn, is_cache_fn) = self.get_body_info(f.function.body.as_mut());
+        let (is_action_fn, cache_type) = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
         let current_names = take(&mut self.names);
@@ -904,7 +928,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if is_cache_fn {
+        if let Some(cache_type_str) = cache_type {
             if !f.function.is_async {
                 HANDLER.with(|handler| {
                     handler
@@ -916,6 +940,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let maybe_new_expr = self.maybe_hoist_and_create_proxy_to_cache(
                 [].to_vec(),
                 Some(f.ident.clone()),
+                cache_type_str.as_str(),
                 Some(&mut f.function),
                 None,
             );
@@ -996,7 +1021,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_arrow_expr(&mut self, a: &mut ArrowExpr) {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
-        let (is_action_fn, is_cache_fn) =
+        let (is_action_fn, cache_type) =
             self.get_body_info(if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
                 Some(block)
             } else {
@@ -1037,14 +1062,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if !is_action_fn && !is_cache_fn {
+        if !is_action_fn && cache_type.is_none() {
             return;
         }
 
-        if !a.is_async && !self.in_action_file && !self.in_cache_file {
+        if !a.is_async && !self.in_action_file && self.in_cache_file.is_none() {
             HANDLER.with(|handler| {
                 handler
-                    .struct_span_err(a.span, "Server actions must be async functions")
+                    .struct_span_err(a.span, "Server Actions must be async functions")
                     .emit();
             });
         }
@@ -1058,8 +1083,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         let maybe_new_expr = if is_action_fn {
             self.maybe_hoist_and_create_proxy(child_names, None, Some(a))
+        } else if let Some(cache_type_str) = cache_type {
+            self.maybe_hoist_and_create_proxy_to_cache(
+                child_names,
+                None,
+                cache_type_str.as_str(),
+                None,
+                Some(a),
+            )
         } else {
-            self.maybe_hoist_and_create_proxy_to_cache(child_names, None, None, Some(a))
+            None
         };
 
         self.rewrite_expr_to_proxy_expr = maybe_new_expr;
@@ -1156,7 +1189,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         for mut stmt in stmts.take() {
             // For server boundary files, it's not allowed to export things other than async
             // functions.
-            if self.in_action_file || self.in_cache_file {
+            if self.in_action_file || self.in_cache_file.is_some() {
                 let mut disallowed_export_span = DUMMY_SP;
 
                 // Currently only function exports are allowed.
@@ -1906,7 +1939,7 @@ fn detect_similar_strings(a: &str, b: &str) -> bool {
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
-    in_cache_file: &mut bool,
+    in_cache_file: &mut Option<String>,
     has_action: &mut bool,
     has_cache: &mut bool,
     enabled: bool,
@@ -1944,9 +1977,20 @@ fn remove_server_directive_index_in_module(
                                 .emit();
                         });
                     }
-                } else if value == "use cache" {
+                } else
+                // `use cache` or `use cache: foo`
+                if value == "use cache" || value.starts_with("use cache: ") {
                     if is_directive {
-                        *in_cache_file = true;
+                        *in_cache_file = Some(
+                            if value == "use cache" {
+                                "default".into()
+                            } else {
+                                // Slice the value after "use cache: "
+                                value.split_at(
+                                    "use cache: ".len(),
+                                ).1.into()
+                            }
+                        );
                         *has_cache = true;
                         return false;
                     } else {
@@ -2044,7 +2088,7 @@ fn remove_server_directive_index_in_module(
 fn remove_server_directive_index_in_fn(
     stmts: &mut Vec<Stmt>,
     is_action_fn: &mut bool,
-    is_cache_fn: &mut bool,
+    cache_type: &mut Option<String>,
     action_span: &mut Option<Span>,
     enabled: bool,
 ) {
@@ -2097,10 +2141,18 @@ fn remove_server_directive_index_in_fn(
                             )
                             .emit();
                     });
-            } else if value == "use cache" {
+            } else if value == "use cache" || value.starts_with("use cache: ") {
                 if is_directive {
-                    // Detect typo of "use server"
-                    *is_cache_fn = true;
+                    *cache_type = Some(
+                        if value == "use cache" {
+                            "default".into()
+                        } else {
+                            // Slice the value after "use cache: "
+                            value.split_at(
+                                "use cache: ".len(),
+                            ).1.into()
+                        },
+                    );
                     return false;
                 } else {
                     HANDLER.with(|handler| {
