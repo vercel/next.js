@@ -50,7 +50,7 @@ async function loadOrGenerateKey(
   }
 
   const configPath = path.join(cacheBaseDir, CONFIG_FILE)
-  async function hasValidKey(): Promise<false | string> {
+  async function hasCachedKey(): Promise<false | string> {
     if (!fs.existsSync(configPath)) return false
     try {
       const config = JSON.parse(await fs.promises.readFile(configPath, 'utf8'))
@@ -67,13 +67,24 @@ async function loadOrGenerateKey(
       if (isBuild && config[ENCRYPTION_EXPIRE_AT] < Date.now()) {
         return false
       }
-      return config[ENCRYPTION_KEY]
+      const cachedKey = config[ENCRYPTION_KEY]
+
+      // If encryption key is provided via env, and it's not same as valid cache,
+      //  we should not use the cached key and respect the env key.
+      if (
+        cachedKey &&
+        process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY &&
+        cachedKey !== process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+      ) {
+        return false
+      }
+      return cachedKey
     } catch {
       // Broken config file. We should generate a new key and overwrite it.
       return false
     }
   }
-  const maybeValidKey = await hasValidKey()
+  const maybeValidKey = await hasCachedKey()
   if (typeof maybeValidKey === 'string') {
     return maybeValidKey
   }
@@ -92,29 +103,25 @@ export async function generateEncryptionKeyBase64({
 }) {
   // This avoids it being generated multiple times in parallel.
   if (!__next_encryption_key_generation_promise) {
-    __next_encryption_key_generation_promise = new Promise(
-      async (resolve, reject) => {
-        try {
-          const b64 = await loadOrGenerateKey(distDir, isBuild, async () => {
-            const providedKey = process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
-            if (providedKey) {
-              return providedKey
-            }
-            const key = await crypto.subtle.generateKey(
-              {
-                name: 'AES-GCM',
-                length: 256,
-              },
-              true,
-              ['encrypt', 'decrypt']
-            )
-            const exported = await crypto.subtle.exportKey('raw', key)
-            return btoa(arrayBufferToString(exported))
-          })
-          resolve(b64)
-        } catch (error) {
-          reject(error)
+    __next_encryption_key_generation_promise = loadOrGenerateKey(
+      distDir,
+      isBuild,
+      async () => {
+        const providedKey = process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
+
+        if (providedKey) {
+          return providedKey
         }
+        const key = await crypto.subtle.generateKey(
+          {
+            name: 'AES-GCM',
+            length: 256,
+          },
+          true,
+          ['encrypt', 'decrypt']
+        )
+        const exported = await crypto.subtle.exportKey('raw', key)
+        return btoa(arrayBufferToString(exported))
       }
     )
   }

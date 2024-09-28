@@ -2115,6 +2115,7 @@ export default async function getBaseWebpackConfig(
     clientTraceMetadata: config.experimental.clientTraceMetadata,
     serverSourceMaps: config.experimental.serverSourceMaps,
     flyingShuttle: config.experimental.flyingShuttle,
+    serverReferenceHashSalt: encryptionKey,
   })
 
   const cache: any = {
