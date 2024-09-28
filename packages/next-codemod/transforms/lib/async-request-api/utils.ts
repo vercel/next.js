@@ -453,17 +453,17 @@ export function wrapParentheseIfNeeded(
 }
 
 export function insertCommentOnce(
-  path: ASTPath<any>,
+  node: ASTPath<any>['node'],
   j: API['j'],
   comment: string
 ) {
-  if (path.node.comments) {
-    const hasComment = path.node.comments.some(
+  if (node.comments) {
+    const hasComment = node.comments.some(
       (commentNode) => commentNode.value === comment
     )
     if (hasComment) {
       return
     }
   }
-  path.node.comments = [j.commentBlock(comment), ...(path.node.comments || [])]
+  node.comments = [j.commentBlock(comment), ...(node.comments || [])]
 }

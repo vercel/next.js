@@ -29,7 +29,7 @@ function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
   })
 
   importPaths.forEach((path) => {
-    insertCommentOnce(path, j, DYNAMIC_IMPORT_WARN_COMMENT)
+    insertCommentOnce(path.node, j, DYNAMIC_IMPORT_WARN_COMMENT)
     modified = true
   })
   return modified
@@ -308,10 +308,7 @@ function castTypesOrAddComment(
     }
   } else {
     // Otherwise for JS file, leave a message to the user to manually handle the transformation
-    path.node.comments = [
-      j.commentBlock(customMessage),
-      ...(path.node.comments || []),
-    ]
+    insertCommentOnce(path.node, j, customMessage)
   }
 }
 

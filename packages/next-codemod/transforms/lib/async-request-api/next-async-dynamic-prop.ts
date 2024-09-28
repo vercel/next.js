@@ -16,6 +16,7 @@ import {
   turnFunctionReturnTypeToAsync,
   wrapParentheseIfNeeded,
   type FunctionScope,
+  insertCommentOnce,
 } from './utils'
 
 const PAGE_PROPS = 'props'
@@ -351,16 +352,9 @@ export function transformDynamicProps(
           const propPassedAsArg = args.find(
             (arg) => j.Identifier.check(arg) && arg.name === argName
           )
-          // insert a comment to the argument
-          const comment = j.commentBlock(
-            ` '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `,
-            true,
-            false
-          )
-          propPassedAsArg.comments = [
-            comment,
-            ...(propPassedAsArg.comments || []),
-          ]
+          const comment = ` '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
+          insertCommentOnce(propPassedAsArg, j, comment)
+
           modified = true
         })
       }
