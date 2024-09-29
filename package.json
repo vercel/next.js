@@ -83,6 +83,7 @@
     "@mdx-js/loader": "2.2.1",
     "@mdx-js/react": "2.2.1",
     "@next/bundle-analyzer": "workspace:*",
+    "@next/codemod": "workspace:*",
     "@next/env": "workspace:*",
     "@next/eslint-plugin-next": "workspace:*",
     "@next/font": "workspace:*",
