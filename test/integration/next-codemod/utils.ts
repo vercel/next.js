@@ -16,6 +16,7 @@ export const runNextCodemod = (args: string[], options: execa.Options) => {
     env: {
       ...process.env,
       ...options.env,
+      __NEXT_TEST_MODE: '1',
     },
   })
 }
@@ -28,6 +29,7 @@ export const runNextCodemodPrompt = (args: string[], options: SpawnOptions) => {
     env: {
       ...process.env,
       ...options.env,
+      __NEXT_TEST_MODE: '1',
     },
   })
 }

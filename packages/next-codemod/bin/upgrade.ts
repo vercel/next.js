@@ -208,6 +208,11 @@ async function suggestCodemods(
 }
 
 async function suggestReactCodemods(packageManager: PackageManager) {
+  // TODO: write test for this
+  if (process.env.__NEXT_TEST_MODE) {
+    return
+  }
+
   const { runReactCodemod } = await prompts({
     onState: onPromptState,
     type: 'toggle',
@@ -220,15 +225,16 @@ async function suggestReactCodemods(packageManager: PackageManager) {
 
   if (runReactCodemod) {
     try {
-      const command =
-        packageManager === 'yarn'
-          ? 'yarn dlx'
-          : packageManager === 'pnpm'
-            ? 'pnpx'
-            : packageManager === 'bun'
-              ? 'bunx'
-              : 'npx'
+      const commandMap = {
+        yarn: 'yarn dlx',
+        pnpm: 'pnpx',
+        bun: 'bunx',
+        npm: 'npx',
+      }
+      const command = commandMap[packageManager] || 'npx'
 
+      // TODO: FYI, remove this comment:
+      // Pass `--no-interactive` flag to YES to all prompts.
       await execa(command, ['codemod@latest', 'react/19/migration-recipe'], {
         stdio: 'inherit',
       })
