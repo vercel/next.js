@@ -1,321 +1,199 @@
 import prompts from 'prompts'
-import fs from 'fs'
-import { execSync } from 'child_process'
-import path from 'path'
-import { compareVersions } from 'compare-versions'
-import chalk from 'chalk'
-import { availableCodemods } from '../lib/codemods'
+import { green, bold } from 'picocolors'
+import { compare, validateStrict } from 'compare-versions'
 import { getPkgManager, installPackage } from '../lib/handle-package'
+import { CODEMOD_CHOICES } from '../lib/utils'
+import { onPromptState } from './next-codemod'
+import { runTransform } from './transform'
 
-type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
-type CustomVersionSpecifier = string
-type VersionSpecifier = StandardVersionSpecifier | CustomVersionSpecifier
-type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
+type Version = 'canary' | 'rc' | 'latest' | string
 
-interface Response {
-  version: StandardVersionSpecifier
-}
+const cwd: string = process.cwd()
 
-export async function runUpgrade(): Promise<void> {
-  const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
-  let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
-
-  await detectWorkspace(appPackageJson)
-
-  let targetNextPackageJson
-  let targetVersionSpecifier: VersionSpecifier = ''
-
-  const shortcutVersion = process.argv[2]?.replace('@', '')
-  if (shortcutVersion) {
-    const res = await fetch(
-      `https://registry.npmjs.org/next/${shortcutVersion}`
-    )
-    if (res.status === 200) {
-      targetNextPackageJson = await res.json()
-      targetVersionSpecifier = targetNextPackageJson.version
-    } else {
-      console.error(
-        `${chalk.yellow('Next.js ' + shortcutVersion)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}, or choose one from below\n`
-      )
-    }
-  }
-
+export async function runUpgrade(version?: Version): Promise<void> {
   const installedNextVersion = await getInstalledNextVersion()
 
-  if (!targetNextPackageJson) {
-    let nextPackageJson: { [key: string]: any } = {}
+  console.log()
+  console.log(`Current Next.js version: v${installedNextVersion}`)
+  console.log()
+
+  let targetPkgJson
+  let targetNextVersion = ''
+
+  const isValidVersion = validateStrict(version)
+  const isTag = ['canary', 'rc', 'latest'].includes(version)
+
+  if (version && !isValidVersion && !isTag) {
+    console.log(
+      `"${version}" is an invalid version syntax. See "https://www.npmjs.com/package/next?activeTab=versions".`
+    )
+    console.log()
+  }
+
+  if (isTag || isValidVersion) {
+    const res = await fetch(`https://registry.npmjs.org/next/${version}`)
+    if (!res.ok) {
+      throw new Error(`Failed to fetch Next.js ${version} version.`, {
+        cause: res.statusText,
+      })
+    }
+
+    targetPkgJson = await res.json()
+    targetNextVersion = targetPkgJson.version
+  }
+
+  if (!targetPkgJson) {
+    const { release } = await prompts({
+      type: 'select',
+      name: 'release',
+      message: 'Which Next.js release do you want to upgrade to?',
+      choices: [
+        {
+          title: 'Canary',
+          value: 'canary',
+          description:
+            'Experimental version including the latest features and improvements.',
+        },
+        {
+          title: 'Release Candidate (RC)',
+          value: 'rc',
+          description: 'Release Candidate of Next.js.',
+        },
+        {
+          title: 'Latest',
+          value: 'latest',
+          description: 'Latest stable version of Next.js.',
+        },
+      ],
+      onState: onPromptState,
+    })
+
+    let nextPkgJson
     try {
-      const resCanary = await fetch(`https://registry.npmjs.org/next/canary`)
-      nextPackageJson['canary'] = await resCanary.json()
+      const res = await fetch(`https://registry.npmjs.org/next/${release}`)
+      if (!res.ok) {
+        throw new Error(`Failed to fetch Next.js ${release} version.`, {
+          cause: res.statusText,
+        })
+      }
 
-      const resRc = await fetch(`https://registry.npmjs.org/next/rc`)
-      nextPackageJson['rc'] = await resRc.json()
-
-      const resLatest = await fetch(`https://registry.npmjs.org/next/latest`)
-      nextPackageJson['latest'] = await resLatest.json()
+      nextPkgJson = await res.json()
     } catch (error) {
-      console.error('Failed to fetch versions from npm registry.')
+      throw new Error('Failed to fetch versions from npm registry.', {
+        cause: error,
+      })
+    }
+
+    if (!nextPkgJson.version) {
+      throw new Error(`Failed to fetch the target Next.js ${release} version.`)
+    }
+
+    if (
+      release === 'rc' &&
+      compare(nextPkgJson.version, installedNextVersion, '<=')
+    ) {
+      console.log(
+        `Current version v${installedNextVersion} is equivalent or newer than the latest Release Candidate v${nextPkgJson.version}.`
+      )
       return
     }
 
-    let showRc = true
-    if (nextPackageJson['latest'].version && nextPackageJson['rc'].version) {
-      showRc =
-        compareVersions(
-          nextPackageJson['rc'].version,
-          nextPackageJson['latest'].version
-        ) === 1
-    }
-
-    const choices = [
-      {
-        title: 'Canary',
-        value: 'canary',
-        description: `Experimental version with latest features (${nextPackageJson['canary'].version})`,
-      },
-    ]
-    if (showRc) {
-      choices.push({
-        title: 'Release Candidate',
-        value: 'rc',
-        description: `Pre-release version for final testing (${nextPackageJson['rc'].version})`,
-      })
-    }
-    choices.push({
-      title: 'Stable',
-      value: 'latest',
-      description: `Production-ready release (${nextPackageJson['latest'].version})`,
-    })
-
-    if (installedNextVersion) {
-      console.log(
-        `You are currently using ${chalk.blue('Next.js ' + installedNextVersion)}`
-      )
-    }
-
-    const initialVersionSpecifierIdx = await getVersionSpecifierIdx(
-      installedNextVersion,
-      showRc
-    )
-
-    const response: Response = await prompts(
-      {
-        type: 'select',
-        name: 'version',
-        message: 'What Next.js version do you want to upgrade to?',
-        choices: choices,
-        initial: initialVersionSpecifierIdx,
-      },
-      { onCancel: () => process.exit(0) }
-    )
-
-    targetNextPackageJson = nextPackageJson[response.version]
-    targetVersionSpecifier = response.version
+    targetPkgJson = nextPkgJson
+    targetNextVersion = nextPkgJson.version
   }
 
-  const targetNextVersion = targetNextPackageJson.version
-
-  if (
-    targetNextVersion &&
-    compareVersions(targetNextVersion, '15.0.0-canary') >= 0
-  ) {
-    await suggestTurbopack(appPackageJson)
-  }
-
-  fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
-
-  const packageManager: PackageManager = getPkgManager(process.cwd())
   const nextDependency = `next@${targetNextVersion}`
   const reactDependencies = [
-    `react@${targetNextPackageJson.peerDependencies['react']}`,
-    `@types/react@${targetNextPackageJson.devDependencies['@types/react']}`,
-    `react-dom@${targetNextPackageJson.peerDependencies['react-dom']}`,
-    `@types/react-dom@${targetNextPackageJson.devDependencies['@types/react-dom']}`,
+    `react@${targetPkgJson.peerDependencies['react']}`,
+    `react-dom@${targetPkgJson.peerDependencies['react-dom']}`,
   ]
 
-  installPackage([nextDependency, ...reactDependencies], packageManager)
+  try {
+    if (require.resolve('typescript')) {
+      reactDependencies.push(
+        `@types/react@${targetPkgJson.devDependencies['@types/react']}`,
+        `@types/react-dom@${targetPkgJson.devDependencies['@types/react-dom']}`
+      )
+    }
+  } catch {}
 
-  console.log(
-    `Upgrading your project to ${chalk.blue('Next.js ' + targetVersionSpecifier)}...\n`
+  console.log(`Upgrading your project to Next.js v${targetNextVersion}...`)
+
+  const packageManager = await getPkgManager(cwd)
+  await installPackage(
+    [nextDependency, ...reactDependencies],
+    packageManager,
+    cwd
   )
 
   await suggestCodemods(installedNextVersion, targetNextVersion)
 
   console.log(
-    `\n${chalk.green('✔')} Your Next.js project has been upgraded successfully. ${chalk.bold('Time to ship! 🚢')}`
+    `\n${green('✔')} Your Next.js project has been upgraded successfully. ${bold('Time to ship! 🚢')}`
   )
+  process.exit(0)
 }
 
-async function detectWorkspace(appPackageJson: any): Promise<void> {
-  let isWorkspace =
-    appPackageJson.workspaces ||
-    fs.existsSync(path.resolve(process.cwd(), 'pnpm-workspace.yaml'))
-
-  if (!isWorkspace) return
-
-  console.log(
-    `${chalk.red('⚠️')} You seem to be in the root of a monorepo. ${chalk.blue('@next/upgrade')} should be run in a specific app directory within the monorepo.`
-  )
-
-  const response = await prompts(
-    {
-      type: 'confirm',
-      name: 'value',
-      message: 'Do you still want to continue?',
-      initial: false,
-    },
-    { onCancel: () => process.exit(0) }
-  )
-
-  if (!response.value) {
-    process.exit(0)
+async function getInstalledNextVersion(): Promise<string | null> {
+  try {
+    return require(
+      require.resolve('next/package.json', {
+        paths: [cwd],
+      })
+    ).version
+  } catch (error) {
+    throw new Error('Failed to get the installed Next.js version.', {
+      cause: error,
+    })
   }
-}
-
-async function getInstalledNextVersion(): Promise<string> {
-  const installedNextPackageJsonDir = require.resolve('next/package.json', {
-    paths: [process.cwd()],
-  })
-  const installedNextPackageJson = JSON.parse(
-    fs.readFileSync(installedNextPackageJsonDir, 'utf8')
-  )
-
-  return installedNextPackageJson.version
-}
-
-/*
- * Returns the index of the current version's specifier in the
- * array ['canary', 'rc', 'latest'] or ['canary', 'latest']
- */
-async function getVersionSpecifierIdx(
-  installedNextVersion: string,
-  showRc: boolean
-): Promise<number> {
-  if (installedNextVersion == null) {
-    return 0
-  }
-
-  if (installedNextVersion.includes('canary')) {
-    return 0
-  }
-  if (installedNextVersion.includes('rc')) {
-    return 1
-  }
-  return showRc ? 2 : 1
-}
-
-/*
- * Heuristics are used to determine whether to Turbopack is enabled or not and
- * to determine how to update the dev script.
- *
- * 1. If the dev script contains `--turbo` option, we assume that Turbopack is
- *    already enabled.
- * 2. If the dev script contains the string `next dev`, we replace it to
- *    `next dev --turbo`.
- * 3. Otherwise, we ask the user to manually add `--turbo` to their dev command,
- *    showing the current dev command as the initial value.
- */
-async function suggestTurbopack(packageJson: any): Promise<void> {
-  const devScript = packageJson.scripts['dev']
-  if (devScript.includes('--turbo')) return
-
-  const responseTurbopack = await prompts(
-    {
-      type: 'confirm',
-      name: 'enable',
-      message: 'Turbopack is now the stable default for dev mode. Enable it?',
-      initial: true,
-    },
-    {
-      onCancel: () => {
-        process.exit(0)
-      },
-    }
-  )
-
-  if (!responseTurbopack.enable) {
-    return
-  }
-
-  if (devScript.includes('next dev')) {
-    packageJson.scripts['dev'] = devScript.replace(
-      'next dev',
-      'next dev --turbo'
-    )
-    return
-  }
-
-  const responseCustomDevScript = await prompts({
-    type: 'text',
-    name: 'customDevScript',
-    message: 'Please add `--turbo` to your dev command:',
-    initial: devScript,
-  })
-
-  packageJson.scripts['dev'] =
-    responseCustomDevScript.customDevScript || devScript
 }
 
 async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string
 ): Promise<void> {
-  const initialVersionIndex = availableCodemods.findIndex(
-    (versionCodemods) =>
-      compareVersions(versionCodemods.version, initialNextVersion) > 0
+  const initialVersionIndex = CODEMOD_CHOICES.findIndex((codemod) =>
+    compare(codemod.version, initialNextVersion, '>')
   )
   if (initialVersionIndex === -1) {
+    console.log('No codemods available for your upgrade.')
     return
   }
 
-  let targetVersionIndex = availableCodemods.findIndex(
-    (versionCodemods) =>
-      compareVersions(versionCodemods.version, targetNextVersion) > 0
+  let targetNextVersionIndex = CODEMOD_CHOICES.findIndex((codemod) =>
+    compare(codemod.version, targetNextVersion, '>')
   )
-  if (targetVersionIndex === -1) {
-    targetVersionIndex = availableCodemods.length
+  if (targetNextVersionIndex === -1) {
+    targetNextVersionIndex = CODEMOD_CHOICES.length
   }
 
-  const relevantCodemods = availableCodemods
-    .slice(initialVersionIndex, targetVersionIndex)
-    .flatMap((versionCodemods) => versionCodemods.codemods)
+  const relevantCodemods = CODEMOD_CHOICES.slice(
+    initialVersionIndex,
+    targetNextVersionIndex
+  )
 
   if (relevantCodemods.length === 0) {
+    console.log('No codemods available for your upgrade.')
     return
   }
 
-  let codemodsString = `\nThe following ${chalk.blue('codemods')} are available for your upgrade:`
-  relevantCodemods.forEach((codemod) => {
-    codemodsString += `\n- ${codemod.title} ${chalk.gray(`(${codemod.value})`)}`
+  // returns the "value" property of the selected codemods
+  const { selectedCodeMods } = await prompts({
+    type: 'multiselect',
+    name: 'selectedCodeMods',
+    message: 'Select the codemods you want to apply.',
+    choices: relevantCodemods,
+    onState: onPromptState,
   })
-  codemodsString += '\n'
 
-  console.log(codemodsString)
-
-  const responseCodemods = await prompts(
-    {
-      type: 'confirm',
-      name: 'apply',
-      message: `Do you want to apply these codemods?`,
-      initial: true,
-    },
-    {
-      onCancel: () => {
-        process.exit(0)
-      },
-    }
-  )
-
-  if (!responseCodemods.apply) {
+  if (!selectedCodeMods) {
+    console.log('No codemods selected. Exiting.')
     return
   }
 
-  for (const codemod of relevantCodemods) {
-    execSync(
-      `npx @next/codemod@latest ${codemod.value} ${process.cwd()} --force`,
-      {
-        stdio: 'inherit',
-      }
-    )
+  for (const codemod of selectedCodeMods) {
+    await runTransform(codemod, '.', {
+      force: true,
+    })
   }
 }

@@ -1,39 +1,30 @@
-import fs from 'fs'
-import path from 'path'
+import findUp from 'find-up'
 import execa from 'execa'
+import { basename } from 'path'
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
+const lockFiles = [
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'bun.lockb',
+]
 
-export function getPkgManager(baseDir: string): PackageManager {
+export async function getPkgManager(baseDir: string): Promise<PackageManager> {
   try {
-    for (const { lockFile, packageManager } of [
-      { lockFile: 'yarn.lock', packageManager: 'yarn' },
-      { lockFile: 'pnpm-lock.yaml', packageManager: 'pnpm' },
-      { lockFile: 'package-lock.json', packageManager: 'npm' },
-      { lockFile: 'bun.lockb', packageManager: 'bun' },
-    ]) {
-      if (fs.existsSync(path.join(baseDir, lockFile))) {
-        return packageManager as PackageManager
-      }
-    }
-    const userAgent = process.env.npm_config_user_agent
-    if (userAgent) {
-      if (userAgent.startsWith('yarn')) {
-        return 'yarn'
-      } else if (userAgent.startsWith('pnpm')) {
-        return 'pnpm'
-      }
-    }
-    try {
-      execa.sync('yarn --version', { stdio: 'ignore' })
-      return 'yarn'
-    } catch {
-      try {
-        execa.sync('pnpm --version', { stdio: 'ignore' })
-        return 'pnpm'
-      } catch {
-        execa.sync('bun --version', { stdio: 'ignore' })
-        return 'bun'
+    const lockFile = await findUp(lockFiles, { cwd: baseDir })
+    if (lockFile) {
+      switch (basename(lockFile)) {
+        case 'package-lock.json':
+          return 'npm'
+        case 'yarn.lock':
+          return 'yarn'
+        case 'pnpm-lock.yaml':
+          return 'pnpm'
+        case 'bun.lockb':
+          return 'bun'
+        default:
+          return 'npm'
       }
     }
   } catch {
@@ -41,11 +32,11 @@ export function getPkgManager(baseDir: string): PackageManager {
   }
 }
 
-export function uninstallPackage(
+export async function uninstallPackage(
   packageToUninstall: string,
   pkgManager?: PackageManager
 ) {
-  pkgManager ??= getPkgManager(process.cwd())
+  pkgManager ??= await getPkgManager(process.cwd())
   if (!pkgManager) throw new Error('Failed to find package manager')
 
   let command = 'uninstall'
@@ -56,19 +47,22 @@ export function uninstallPackage(
   execa.sync(pkgManager, [command, packageToUninstall], { stdio: 'inherit' })
 }
 
-export function installPackage(
+export async function installPackage(
   packageToInstall: string | string[],
-  pkgManager?: PackageManager
+  pkgManager?: PackageManager,
+  cwd?: string
 ) {
-  pkgManager ??= getPkgManager(process.cwd())
+  pkgManager ??= await getPkgManager(cwd ?? process.cwd())
   if (!pkgManager) throw new Error('Failed to find package manager')
 
-  if (Array.isArray(packageToInstall)) {
-    packageToInstall = packageToInstall.join(' ')
+  if (typeof packageToInstall === 'string') {
+    packageToInstall = [packageToInstall]
   }
 
+  const args = ['add', ...packageToInstall]
+
   try {
-    execa.sync(pkgManager, ['add', packageToInstall], { stdio: 'inherit' })
+    execa.sync(pkgManager, args, { stdio: 'inherit' })
   } catch (error) {
     throw new Error(
       `Failed to install "${packageToInstall}". Please install it manually.`,
