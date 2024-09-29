@@ -25,6 +25,8 @@ import {
   getServerModuleMap,
 } from '../app-render/encryption-utils'
 
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
 type CacheEntry = {
   value: ReadableStream
   // In-memory caches are fragile and should not use stale-while-revalidate
@@ -339,7 +341,9 @@ export function cache(kind: string, id: string, fn: any) {
         // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
         // which themselves will handle the preloading.
         moduleLoading: null,
-        moduleMap: clientReferenceManifestSingleton.rscModuleMapping,
+        moduleMap: isEdgeRuntime
+          ? clientReferenceManifestSingleton.edgeRscModuleMapping
+          : clientReferenceManifestSingleton.rscModuleMapping,
       }
       return createFromReadableStream(stream, {
         ssrManifest,

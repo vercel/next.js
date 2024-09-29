@@ -23,6 +23,8 @@ import {
   stringToUint8Array,
 } from './encryption-utils'
 
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
 
@@ -113,7 +115,9 @@ export async function decryptActionBoundArgs(
         // to be added to the current execution. Instead, we'll wait for any ClientReference
         // to be emitted which themselves will handle the preloading.
         moduleLoading: null,
-        moduleMap: clientReferenceManifestSingleton.rscModuleMapping,
+        moduleMap: isEdgeRuntime
+          ? clientReferenceManifestSingleton.edgeRscModuleMapping
+          : clientReferenceManifestSingleton.rscModuleMapping,
       },
     }
   )
