@@ -66,6 +66,8 @@ export interface StaticGenerationStore {
   isPrefetchRequest?: boolean
 
   requestEndedState?: { ended?: boolean }
+
+  buildId: string
 }
 
 export type StaticGenerationAsyncStorage =

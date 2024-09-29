@@ -53,6 +53,7 @@ export async function loadStaticPaths({
   cacheHandler,
   nextConfigOutput,
   isAppPPRFallbacksEnabled,
+  buildId,
 }: {
   dir: string
   distDir: string
@@ -70,6 +71,7 @@ export async function loadStaticPaths({
   cacheHandler?: string
   nextConfigOutput: 'standalone' | 'export' | undefined
   isAppPPRFallbacksEnabled: boolean | undefined
+  buildId: string
 }): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
@@ -129,6 +131,7 @@ export async function loadStaticPaths({
       nextConfigOutput,
       isRoutePPREnabled,
       isAppPPRFallbacksEnabled,
+      buildId,
     })
   }
 

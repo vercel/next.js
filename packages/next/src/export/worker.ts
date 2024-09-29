@@ -246,7 +246,8 @@ async function exportPageImpl(
         distDir,
         htmlFilepath,
         fileWriter,
-        input.renderOpts.experimental
+        input.renderOpts.experimental,
+        input.renderOpts.buildId
       )
     }
 

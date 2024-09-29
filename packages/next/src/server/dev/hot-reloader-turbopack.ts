@@ -76,7 +76,7 @@ import {
   splitEntryKey,
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
-import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getNodeDebugType } from '../lib/utils'
@@ -127,7 +127,10 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
-  const encryptionKey = await generateEncryptionKeyBase64(dev)
+  const encryptionKey = await generateEncryptionKeyBase64({
+    isBuild: false,
+    distDir,
+  })
 
   // TODO: Implement
   let clientRouterFilters: any

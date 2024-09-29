@@ -842,6 +842,7 @@ export class FlightClientEntryPlugin {
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),
+      encryptionKey: this.encryptionKey,
       __client_imported__: fromClient,
     })}!`
 
@@ -851,7 +852,7 @@ export class FlightClientEntryPlugin {
 
     for (const [actionFilePath, actionNames] of actionsArray) {
       for (const name of actionNames) {
-        const id = generateActionId(actionFilePath, name)
+        const id = generateActionId(this.encryptionKey, actionFilePath, name)
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
