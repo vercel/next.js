@@ -6,9 +6,9 @@ import { revalidateTag } from 'next/cache'
 const RevalidateViaPage = async ({
   searchParams,
 }: {
-  searchParams: { tag: string }
+  searchParams: Promise<{ tag: string }>
 }) => {
-  const { tag } = searchParams
+  const { tag } = await searchParams
   revalidateTag(tag)
 
   return (
