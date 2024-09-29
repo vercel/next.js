@@ -5,7 +5,7 @@ const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 describe('use-cache', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -55,14 +55,17 @@ describe('use-cache', () => {
         : GENERIC_RSC_ERROR
     )
 
-    expect(next.cliOutput).toContain(
-      '`cookies` cannot be called inside "use cache".'
-    )
-    expect(next.cliOutput).toContain(
-      '`headers` cannot be called inside "use cache".'
-    )
-    expect(next.cliOutput).toContain(
-      '`draftMode` cannot be called inside "use cache".'
-    )
+    // CLI assertions are skipped in deploy mode because `next.cliOutput` will only contain build-time logs.
+    if (!isNextDeploy) {
+      expect(next.cliOutput).toContain(
+        '`cookies` cannot be called inside "use cache".'
+      )
+      expect(next.cliOutput).toContain(
+        '`headers` cannot be called inside "use cache".'
+      )
+      expect(next.cliOutput).toContain(
+        '`draftMode` cannot be called inside "use cache".'
+      )
+    }
   })
 })
