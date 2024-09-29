@@ -30,6 +30,9 @@ describe('use-cache', () => {
 
     // Client component should have rendered.
     expect(await browser.waitForElementByCss('#z').text()).toBe('foo')
+
+    // Client component child should have rendered but not invalidated the cache.
+    expect(await browser.waitForElementByCss('#r').text()).toContain('rnd')
   })
 
   it('should dedupe with react cache inside "use cache"', async () => {
