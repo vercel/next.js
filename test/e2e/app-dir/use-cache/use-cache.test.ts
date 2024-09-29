@@ -27,6 +27,9 @@ describe('use-cache', () => {
 
     // The navigation to n=2 should be some other random value.
     expect(random1a).not.toBe(random2)
+
+    // Client component should have rendered.
+    expect(await browser.waitForElementByCss('#z').text()).toBe('foo')
   })
 
   it('should dedupe with react cache inside "use cache"', async () => {
