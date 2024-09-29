@@ -148,9 +148,12 @@ async function getInstalledNextVersion(): Promise<string | null> {
       })
     ).version
   } catch (error) {
-    throw new Error('Failed to get the installed Next.js version.', {
-      cause: error,
-    })
+    throw new Error(
+      `Failed to get the installed Next.js version at "${cwd}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      {
+        cause: error,
+      }
+    )
   }
 }
 
