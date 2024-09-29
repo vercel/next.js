@@ -33,7 +33,7 @@ export const onPromptState = (state: {
   }
 }
 
-const packageJson = require('../package.json')
+const packageJson = require('../../package.json')
 const program = new Command(packageJson.name)
   .description('Codemods for updating Next.js apps.')
   .version(

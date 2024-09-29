@@ -8,5 +8,5 @@
     "preserveWatchOutput": true
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "transforms/__testfixtures__/**"]
+  "exclude": ["node_modules", "dist", "src/transforms/__testfixtures__/**"]
 }

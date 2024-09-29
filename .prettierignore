@@ -29,8 +29,9 @@ crates/next-custom-transforms/tests/fixture/react-server-components/server-graph
 packages/next-swc/native/**/*
 packages/next-swc/docs/assets/**/*
 
-packages/next-codemod/transforms/__testfixtures__/**
-packages/next-codemod/transforms/__tests__/**
+packages/next-codemod/dist/**
+packages/next-codemod/src/transforms/__testfixtures__/**/*
+packages/next-codemod/src/transforms/__tests__/**/*
 packages/next-codemod/**/*.js
 packages/next-codemod/**/*.d.ts
 
