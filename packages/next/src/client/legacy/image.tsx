@@ -9,6 +9,8 @@ import React, {
   useState,
   type JSX,
 } from 'react'
+import * as ReactDOM from 'react-dom'
+import Head from '../../shared/lib/head'
 import {
   imageConfigDefault,
   VALID_LOADERS,
@@ -25,6 +27,8 @@ import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
+
+const supportsFloat = typeof ReactDOM.preload === 'function'
 
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
@@ -978,6 +982,20 @@ export default function Image({
     }
   }
 
+  const linkProps:
+    | React.DetailedHTMLProps<
+        React.LinkHTMLAttributes<HTMLLinkElement>,
+        HTMLLinkElement
+      >
+    | undefined = supportsFloat
+    ? undefined
+    : {
+        imageSrcSet: imgAttributes.srcSet,
+        imageSizes: imgAttributes.sizes,
+        crossOrigin: rest.crossOrigin,
+        referrerPolicy: rest.referrerPolicy,
+      }
+
   const useLayoutEffect =
     typeof window === 'undefined' ? React.useEffect : React.useLayoutEffect
   const onLoadingCompleteRef = useRef(onLoadingComplete)
@@ -1044,6 +1062,27 @@ export default function Image({
         ) : null}
         <ImageElement {...imgElementArgs} />
       </span>
+      {!supportsFloat && priority ? (
+        // Note how we omit the `href` attribute, as it would only be relevant
+        // for browsers that do not support `imagesrcset`, and in those cases
+        // it would likely cause the incorrect image to be preloaded.
+        //
+        // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
+        <Head>
+          <link
+            key={
+              '__nimg-' +
+              imgAttributes.src +
+              imgAttributes.srcSet +
+              imgAttributes.sizes
+            }
+            rel="preload"
+            as="image"
+            href={imgAttributes.srcSet ? undefined : imgAttributes.src}
+            {...linkProps}
+          />
+        </Head>
+      ) : null}
     </>
   )
 }

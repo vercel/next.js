@@ -33,8 +33,8 @@ impl OutputAssets {
     }
 
     #[turbo_tasks::function]
-    pub async fn concatenate(self: Vc<Self>, other: Vc<Self>) -> Result<Vc<Self>> {
-        let mut assets: IndexSet<_> = self.await?.iter().copied().collect();
+    pub async fn concatenate(&self, other: Vc<Self>) -> Result<Vc<Self>> {
+        let mut assets: IndexSet<_> = self.0.iter().copied().collect();
         assets.extend(other.await?.iter().copied());
         Ok(Vc::cell(assets.into_iter().collect()))
     }

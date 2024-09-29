@@ -143,6 +143,14 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+    /// The list of export names that should make tree shaking bail off. This is
+    /// required because tree shaking can split imports like `export const
+    /// runtime = 'edge'` as a separate module.
+    ///
+    /// Currently the analysis of these exports are statically verified by `NextPageStaticInfo`,
+    /// which is a `CustomTransformer` implementation and we don't have a way to apply it after
+    /// tree shaking.
+    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -344,13 +352,13 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        Ok(self.failsafe_parse())
+    fn parse_original(self: Vc<Self>) -> Vc<ParseResult> {
+        self.failsafe_parse()
     }
 
     #[turbo_tasks::function]
-    async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
-        Ok(self.await?.ty.cell())
+    fn ty(&self) -> Vc<EcmascriptModuleAssetType> {
+        self.ty.cell()
     }
 }
 
@@ -436,7 +444,6 @@ impl EcmascriptModuleAsset {
         asset_context: Vc<Box<dyn AssetContext>>,
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
-
         options: Vc<EcmascriptOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
         inner_assets: Vc<InnerAssets>,
@@ -454,8 +461,8 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
-        Ok(self.await?.source)
+    pub fn source(&self) -> Vc<Box<dyn Source>> {
+        self.source
     }
 
     #[turbo_tasks::function]
@@ -464,8 +471,8 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn options(self: Vc<Self>) -> Result<Vc<EcmascriptOptions>> {
-        Ok(self.await?.options)
+    pub fn options(&self) -> Vc<EcmascriptOptions> {
+        self.options
     }
 
     #[turbo_tasks::function]
@@ -562,14 +569,14 @@ impl Asset for EcmascriptModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        Ok(Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
+    ) -> Vc<Box<dyn ChunkItem>> {
+        Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
             module: self,
             chunking_context,
-        })))
+        }))
     }
 }
 
@@ -634,7 +641,7 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

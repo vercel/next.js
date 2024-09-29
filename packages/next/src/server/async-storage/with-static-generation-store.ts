@@ -5,7 +5,7 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOptsPartial } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
-import type { FallbackRouteParams } from '../../client/components/fallback-params'
+import type { FallbackRouteParams } from '../../server/request/fallback-params'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
@@ -21,6 +21,7 @@ export type StaticGenerationContext = {
   fallbackRouteParams: FallbackRouteParams | null
 
   requestEndedState?: { ended?: boolean }
+  isPrefetchRequest?: boolean
   renderOpts: {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
@@ -55,6 +56,7 @@ export type StaticGenerationContext = {
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
+    | 'buildId'
   > &
     Partial<RequestLifecycleOpts>
 }
@@ -69,6 +71,7 @@ export const withStaticGenerationStore: WithStore<
     fallbackRouteParams,
     renderOpts,
     requestEndedState,
+    isPrefetchRequest,
   }: StaticGenerationContext,
   callback: (store: StaticGenerationStore) => Result
 ): Result => {
@@ -111,6 +114,8 @@ export const withStaticGenerationStore: WithStore<
     isDraftMode: renderOpts.isDraftMode,
 
     requestEndedState,
+    isPrefetchRequest,
+    buildId: renderOpts.buildId,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

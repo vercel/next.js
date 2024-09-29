@@ -67,8 +67,7 @@ export function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   prefetchData: CacheNodeSeedData,
-  prefetchHead: React.ReactNode,
-  onlyHashChange: boolean
+  prefetchHead: React.ReactNode
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
   const oldRouterStateChildren = oldRouterState[1]
@@ -137,12 +136,7 @@ export function updateCacheNodeOnNavigation(
         : undefined
 
     let taskChild: Task | null
-    if (onlyHashChange && oldRouterStateChild !== undefined) {
-      // If only the hash fragment changed, we can re-use the existing cache.
-      // We spawn a "task" just to keep track of the updated router state; unlike most, it's
-      // already fulfilled and won't be affected by the dynamic response.
-      taskChild = spawnReusedTask(oldRouterStateChild)
-    } else if (isPageSegment) {
+    if (isPageSegment) {
       // This is a leaf segment — a page, not a shared layout. We always apply
       // its data.
       taskChild = spawnPendingTask(
@@ -187,8 +181,7 @@ export function updateCacheNodeOnNavigation(
             oldRouterStateChild,
             newRouterStateChild,
             prefetchDataChild,
-            prefetchHead,
-            onlyHashChange
+            prefetchHead
           )
         } else {
           // The server didn't send any prefetch data for this segment. This

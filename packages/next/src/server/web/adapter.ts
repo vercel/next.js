@@ -238,6 +238,7 @@ export async function adapter(
               requestAsyncStorage,
               {
                 req: request,
+                res: undefined,
                 url: request.nextUrl,
                 renderOpts: {
                   onUpdateCookies: (cookies) => {

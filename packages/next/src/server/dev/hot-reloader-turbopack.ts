@@ -15,13 +15,13 @@ import type {
   TurbopackConnectedAction,
 } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import type { Update as TurbopackUpdate } from '../../build/swc'
-import {
-  createDefineEnv,
-  type Endpoint,
-  type TurbopackResult,
-  type WrittenEndpoint,
-} from '../../build/swc'
+import type {
+  Update as TurbopackUpdate,
+  Endpoint,
+  WrittenEndpoint,
+  TurbopackResult,
+} from '../../build/swc/types'
+import { createDefineEnv } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import {
   getVersionInfo,
@@ -76,7 +76,7 @@ import {
   splitEntryKey,
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
-import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getNodeDebugType } from '../lib/utils'
@@ -127,7 +127,10 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
-  const encryptionKey = await generateEncryptionKeyBase64(dev)
+  const encryptionKey = await generateEncryptionKeyBase64({
+    isBuild: false,
+    distDir,
+  })
 
   // TODO: Implement
   let clientRouterFilters: any

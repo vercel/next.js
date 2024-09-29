@@ -319,28 +319,23 @@ impl ModuleResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_unresolveable(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
-        Ok(Vc::cell(this.is_unresolveable_ref()))
+    pub fn is_unresolveable(&self) -> Vc<bool> {
+        Vc::cell(self.is_unresolveable_ref())
     }
 
     #[turbo_tasks::function]
-    pub async fn first_module(self: Vc<Self>) -> Result<Vc<OptionModule>> {
-        let this = self.await?;
-        Ok(Vc::cell(this.primary.iter().find_map(
-            |(_, item)| match item {
-                &ModuleResolveResultItem::Module(a) => Some(a),
-                _ => None,
-            },
-        )))
+    pub fn first_module(&self) -> Vc<OptionModule> {
+        Vc::cell(self.primary.iter().find_map(|(_, item)| match item {
+            &ModuleResolveResultItem::Module(a) => Some(a),
+            _ => None,
+        }))
     }
 
     /// Returns a set (no duplicates) of primary modules in the result. All
     /// modules are already resolved Vc.
     #[turbo_tasks::function]
-    pub async fn primary_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let this = self.await?;
-        let mut iter = this.primary_modules_iter();
+    pub async fn primary_modules(&self) -> Result<Vc<Modules>> {
+        let mut iter = self.primary_modules_iter();
         let Some(first) = iter.next() else {
             return Ok(Vc::cell(vec![]));
         };
@@ -353,24 +348,23 @@ impl ModuleResolveResult {
 
         // We have at least two items, so we need to deduplicate them
         let mut set = IndexSet::from([first, second]);
-        for module in this.primary_modules_iter() {
+        for module in self.primary_modules_iter() {
             set.insert(module.resolve().await?);
         }
         Ok(Vc::cell(set.into_iter().collect()))
     }
 
     #[turbo_tasks::function]
-    pub async fn primary_output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        Ok(Vc::cell(
-            this.primary
+    pub fn primary_output_assets(&self) -> Vc<OutputAssets> {
+        Vc::cell(
+            self.primary
                 .iter()
                 .filter_map(|(_, item)| match item {
                     &ModuleResolveResultItem::OutputAsset(a) => Some(a),
                     _ => None,
                 })
                 .collect(),
-        ))
+        )
     }
 }
 
@@ -746,9 +740,8 @@ impl ResolveResult {
 #[turbo_tasks::value_impl]
 impl ResolveResult {
     #[turbo_tasks::function]
-    pub async fn as_raw_module_result(self: Vc<Self>) -> Result<Vc<ModuleResolveResult>> {
+    pub async fn as_raw_module_result(&self) -> Result<Vc<ModuleResolveResult>> {
         Ok(self
-            .await?
             .map_module(|asset| async move {
                 Ok(ModuleResolveResultItem::Module(Vc::upcast(RawModule::new(
                     asset,
@@ -852,28 +845,25 @@ impl ResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn is_unresolveable(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
-        Ok(Vc::cell(this.is_unresolveable_ref()))
+    pub fn is_unresolveable(&self) -> Vc<bool> {
+        Vc::cell(self.is_unresolveable_ref())
     }
 
     #[turbo_tasks::function]
-    pub async fn first_source(self: Vc<Self>) -> Result<Vc<OptionSource>> {
-        let this = self.await?;
-        Ok(Vc::cell(this.primary.iter().find_map(|(_, item)| {
+    pub fn first_source(&self) -> Vc<OptionSource> {
+        Vc::cell(self.primary.iter().find_map(|(_, item)| {
             if let &ResolveResultItem::Source(a) = item {
                 Some(a)
             } else {
                 None
             }
-        })))
+        }))
     }
 
     #[turbo_tasks::function]
-    pub async fn primary_sources(self: Vc<Self>) -> Result<Vc<Sources>> {
-        let this = self.await?;
-        Ok(Vc::cell(
-            this.primary
+    pub fn primary_sources(&self) -> Vc<Sources> {
+        Vc::cell(
+            self.primary
                 .iter()
                 .filter_map(|(_, item)| {
                     if let &ResolveResultItem::Source(a) = item {
@@ -883,7 +873,7 @@ impl ResolveResult {
                     }
                 })
                 .collect(),
-        ))
+        )
     }
 
     /// Returns a new [ResolveResult] where all [RequestKey]s are updated. The `old_request_key`
@@ -891,14 +881,13 @@ impl ResolveResult {
     /// contains [RequestKey]s that don't have the `old_request_key` prefix, but if there are still
     /// some, they are discarded.
     #[turbo_tasks::function]
-    pub async fn with_replaced_request_key(
-        self: Vc<Self>,
+    pub fn with_replaced_request_key(
+        &self,
         old_request_key: RcStr,
         request_key: Value<RequestKey>,
     ) -> Result<Vc<Self>> {
-        let this = self.await?;
         let request_key = request_key.into_value();
-        let new_primary = this
+        let new_primary = self
             .primary
             .iter()
             .filter_map(|(k, v)| {
@@ -917,7 +906,7 @@ impl ResolveResult {
             .collect();
         Ok(ResolveResult {
             primary: new_primary,
-            affecting_sources: this.affecting_sources.clone(),
+            affecting_sources: self.affecting_sources.clone(),
         }
         .into())
     }
@@ -928,14 +917,14 @@ impl ResolveResult {
     /// if there are still some, they are discarded.
     #[turbo_tasks::function]
     pub async fn with_replaced_request_key_pattern(
-        self: Vc<Self>,
+        &self,
         old_request_key: Vc<Pattern>,
         request_key: Vc<Pattern>,
     ) -> Result<Vc<Self>> {
         let old_request_key = &*old_request_key.await?;
         let request_key = &*request_key.await?;
-        let this = self.await?;
-        let new_primary = this
+
+        let new_primary = self
             .primary
             .iter()
             .map(|(k, v)| {
@@ -954,7 +943,7 @@ impl ResolveResult {
             .collect();
         Ok(ResolveResult {
             primary: new_primary,
-            affecting_sources: this.affecting_sources.clone(),
+            affecting_sources: self.affecting_sources.clone(),
         }
         .into())
     }
@@ -962,9 +951,8 @@ impl ResolveResult {
     /// Returns a new [ResolveResult] where all [RequestKey]s are set to the
     /// passed `request`.
     #[turbo_tasks::function]
-    pub async fn with_request(self: Vc<Self>, request: RcStr) -> Result<Vc<Self>> {
-        let this = self.await?;
-        let new_primary = this
+    pub fn with_request(&self, request: RcStr) -> Vc<Self> {
+        let new_primary = self
             .primary
             .iter()
             .map(|(k, v)| {
@@ -977,11 +965,11 @@ impl ResolveResult {
                 )
             })
             .collect();
-        Ok(ResolveResult {
+        ResolveResult {
             primary: new_primary,
-            affecting_sources: this.affecting_sources.clone(),
+            affecting_sources: self.affecting_sources.clone(),
         }
-        .into())
+        .into()
     }
 }
 
@@ -1271,8 +1259,12 @@ async fn find_package(
                     lookup_path_value = new_context_value;
                 }
             }
-            ResolveModules::Path(context) => {
-                let package_dir = context.join(package_name.clone());
+            ResolveModules::Path {
+                dir,
+                excluded_extensions,
+            } => {
+                let excluded_extensions = excluded_extensions.await?;
+                let package_dir = dir.join(package_name.clone());
                 if let Some((ty, package_dir)) =
                     any_exists(package_dir, &mut affecting_sources).await?
                 {
@@ -1287,6 +1279,9 @@ async fn find_package(
                     }
                 }
                 for extension in &options.extensions {
+                    if excluded_extensions.contains(extension) {
+                        continue;
+                    }
                     let package_file = package_dir.append(extension.clone());
                     if let Some(package_file) = exists(package_file, &mut affecting_sources).await?
                     {

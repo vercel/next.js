@@ -2100,6 +2100,8 @@
         "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
         "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
         "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
+        "app dir - metadata dynamic routes sitemap should support images in sitemap",
+        "app dir - metadata dynamic routes sitemap should support videos in sitemap",
         "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
         "app dir - metadata dynamic routes sitemap should support images in sitemap",
         "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
@@ -2881,13 +2883,12 @@
     },
     "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
       "passed": [
+        "parallel-routes-catchall should match both the catch-all page & slot",
         "parallel-routes-catchall should match correctly when defining an explicit page & slot",
+        "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
         "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
       ],
-      "failed": [
-        "parallel-routes-catchall should match both the catch-all page & slot",
-        "parallel-routes-catchall should match correctly when defining an explicit page but no slot"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -9056,13 +9057,13 @@
         "Edge runtime code with imports Middleware importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
-        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
       ],
       "failed": [
         "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
-        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime"
+        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime",
+        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
       ],
       "pending": [],
       "flakey": [],
@@ -15608,64 +15609,68 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/basic/basic.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - basic should not have the unused action in the manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "failed": [
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
       ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "failed": [
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
       ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16030,10 +16035,10 @@
     },
     "test/production/edge-config-validations/index.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Edge config validations fails to build when unstable_allowDynamic is not a string"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16041,10 +16046,10 @@
       "passed": [
         "Dynamic Code Evaluation (DCE) should not fail when \"function-bind\" package is used"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Dynamic Code Evaluation (DCE) should show the user's import trace"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16293,6 +16298,15 @@
     "test/production/jest/transpile-packages.test.ts": {
       "passed": ["next/jest should work"],
       "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/metadata-revalidate/metadata-revalidate.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - metadata-revalidate should contain the routes in prerender manifest"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
