@@ -1,7 +1,12 @@
+import execa from 'execa'
 import prompts from 'prompts'
 import { green, bold } from 'picocolors'
 import { compare, validateStrict } from 'compare-versions'
-import { getPkgManager, installPackage } from '../lib/handle-package'
+import {
+  getPkgManager,
+  installPackage,
+  type PackageManager,
+} from '../lib/handle-package'
 import { CODEMOD_CHOICES } from '../lib/utils'
 import { onPromptState } from './next-codemod'
 import { runTransform } from './transform'
@@ -127,6 +132,7 @@ export async function runUpgrade(version?: Version): Promise<void> {
   )
 
   await suggestCodemods(installedNextVersion, targetNextVersion)
+  await suggestReactCodemods(packageManager)
 
   console.log(
     `\n${green('✔')} Your Next.js project has been upgraded successfully. ${bold('Time to ship! 🚢')}`
@@ -195,5 +201,37 @@ async function suggestCodemods(
     await runTransform(codemod, '.', {
       force: true,
     })
+  }
+}
+
+async function suggestReactCodemods(packageManager: PackageManager) {
+  const { runReactCodemod } = await prompts({
+    onState: onPromptState,
+    type: 'toggle',
+    name: 'runReactCodemod',
+    message: 'Do you want to run the React codemod?',
+    initial: true,
+    active: 'Yes',
+    inactive: 'No',
+  })
+
+  if (runReactCodemod) {
+    try {
+      const command =
+        packageManager === 'yarn'
+          ? 'yarn dlx'
+          : packageManager === 'pnpm'
+            ? 'pnpx'
+            : packageManager === 'bun'
+              ? 'bunx'
+              : 'npx'
+
+      await execa(command, ['codemod@latest', 'react/19/migration-recipe'], {
+        stdio: 'inherit',
+      })
+    } catch (error) {
+      // Don't fail the upgrade if the React codemod fails
+      console.error('Failed to run React codemod:', error)
+    }
   }
 }
