@@ -77,6 +77,9 @@ importers:
       '@next/bundle-analyzer':
         specifier: workspace:*
         version: link:packages/next-bundle-analyzer
+      '@next/codemod':
+        specifier: workspace:*
+        version: link:packages/next-codemod
       '@next/env':
         specifier: workspace:*
         version: link:packages/next-env
