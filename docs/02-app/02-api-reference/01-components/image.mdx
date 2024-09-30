@@ -778,6 +778,20 @@ module.exports = {
 }
 ```
 
+### `disableWriteToCacheDir`
+
+Awoid writing optimized images to the cache directory. This can be useful if you want to avoid writing to disk.
+
+The `x-nextjs-cache` response header will be `MISS` for every request.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    disableWriteToCacheDir: true,
+  },
+}
+```
+
 ## Animated Images
 
 The default [loader](#loader) will automatically bypass Image Optimization for animated images and serve the image as-is.

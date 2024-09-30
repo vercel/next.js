@@ -102,6 +102,9 @@ export type ImageConfigComplete = {
 
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
   unoptimized: boolean
+
+  /** @see [Disable Write To Cache Dir](https://nextjs.org/docs/app/api-reference/components/image#disablewritetocachedir) */
+  disableWriteToCacheDir: boolean
 }
 
 export type ImageConfig = Partial<ImageConfigComplete>
@@ -121,4 +124,5 @@ export const imageConfigDefault: ImageConfigComplete = {
   contentDispositionType: 'attachment',
   remotePatterns: [],
   unoptimized: false,
+  disableWriteToCacheDir: false,
 }

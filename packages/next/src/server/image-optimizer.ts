@@ -411,6 +411,10 @@ export class ImageOptimizerCache {
       revalidate?: number | false
     }
   ) {
+    if (this.nextConfig.images.disableWriteToCacheDir) {
+      return
+    }
+
     if (value?.kind !== CachedRouteKind.IMAGE) {
       throw new Error('invariant attempted to set non-image to image-cache')
     }
