@@ -514,6 +514,22 @@ async function generateDynamicFlightRenderResult(
       onError,
     }
   )
+  await waitAtLeastOneReactRenderTask()
+
+  if (
+    ctx.staticGenerationStore.pendingRevalidates ||
+    ctx.staticGenerationStore.revalidatedTags ||
+    ctx.staticGenerationStore.pendingRevalidateWrites
+  ) {
+    const promises = Promise.all([
+      ctx.staticGenerationStore.incrementalCache?.revalidateTag(
+        ctx.staticGenerationStore.revalidatedTags || []
+      ),
+      ...Object.values(ctx.staticGenerationStore.pendingRevalidates || {}),
+      ...(ctx.staticGenerationStore.pendingRevalidateWrites || []),
+    ])
+    ctx.renderOpts.waitUntil = (p) => promises.then(() => p)
+  }
 
   return new FlightRenderResult(flightReadableStream, {
     fetchMetrics: ctx.staticGenerationStore.fetchMetrics,
@@ -1086,7 +1102,8 @@ async function renderToHTMLOrFlightImpl(
     // If we have pending revalidates, wait until they are all resolved.
     if (
       staticGenerationStore.pendingRevalidates ||
-      staticGenerationStore.pendingRevalidateWrites
+      staticGenerationStore.pendingRevalidateWrites ||
+      staticGenerationStore.revalidatedTags
     ) {
       options.waitUntil = Promise.all([
         staticGenerationStore.incrementalCache?.revalidateTag(
@@ -1195,7 +1212,8 @@ async function renderToHTMLOrFlightImpl(
     // If we have pending revalidates, wait until they are all resolved.
     if (
       staticGenerationStore.pendingRevalidates ||
-      staticGenerationStore.pendingRevalidateWrites
+      staticGenerationStore.pendingRevalidateWrites ||
+      staticGenerationStore.revalidatedTags
     ) {
       options.waitUntil = Promise.all([
         staticGenerationStore.incrementalCache?.revalidateTag(
