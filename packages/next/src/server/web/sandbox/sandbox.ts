@@ -12,7 +12,6 @@ const FORBIDDEN_HEADERS = [
   'content-length',
   'content-encoding',
   'transfer-encoding',
-  'x-middleware-set-cookie',
 ]
 
 interface RunnerFnParams {
