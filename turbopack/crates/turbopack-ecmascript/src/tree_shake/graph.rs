@@ -370,32 +370,6 @@ impl DepGraph {
                 }
             }
 
-            // Depend on direct dependencies so that they are executed before this module.
-            for dep in groups
-                .idx_graph
-                .neighbors_directed(ix as u32, petgraph::Direction::Outgoing)
-            {
-                part_deps
-                    .entry(ix as u32)
-                    .or_default()
-                    .push(PartId::Internal(dep, true));
-
-                part_deps_done.insert(dep);
-
-                chunk
-                    .body
-                    .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                        span: DUMMY_SP,
-                        specifiers: vec![],
-                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                        type_only: false,
-                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, true,
-                        )))),
-                        phase: Default::default(),
-                    })));
-            }
-
             // Workaround for implcit export issue of server actions.
             //
             // Inline server actions require the generated `$$RSC_SERVER_0` to be **exported**.
@@ -481,13 +455,12 @@ impl DepGraph {
                     is_type_only: false,
                 })];
 
-                let is_for_eval = part_deps_done.contains(&dep);
-                if !is_for_eval {
-                    part_deps
-                        .entry(ix as u32)
-                        .or_default()
-                        .push(PartId::Internal(dep, false));
-                }
+                part_deps_done.insert(dep);
+
+                part_deps
+                    .entry(ix as u32)
+                    .or_default()
+                    .push(PartId::Internal(dep, false));
 
                 chunk
                     .body
@@ -497,8 +470,35 @@ impl DepGraph {
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
                         with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep,
-                            is_for_eval,
+                            dep, false,
+                        )))),
+                        phase: Default::default(),
+                    })));
+            }
+
+            // Depend on direct dependencies so that they are executed before this module.
+            for dep in groups
+                .idx_graph
+                .neighbors_directed(ix as u32, petgraph::Direction::Outgoing)
+            {
+                if !part_deps_done.insert(dep) {
+                    continue;
+                }
+
+                part_deps
+                    .entry(ix as u32)
+                    .or_default()
+                    .push(PartId::Internal(dep, true));
+
+                chunk
+                    .body
+                    .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                        span: DUMMY_SP,
+                        specifiers: vec![],
+                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                        type_only: false,
+                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
+                            dep, true,
                         )))),
                         phase: Default::default(),
                     })));
