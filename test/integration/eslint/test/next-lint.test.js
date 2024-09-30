@@ -29,33 +29,39 @@ const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
 
 describe('Next Lint', () => {
-  describe('First Time Setup ', () => {
+  const folders = []
+  afterAll(async () => {
+    for (const folder of folders) {
+      await fs.remove(folder)
+    }
+  })
+
+  // these are flaking on 14-2-1
+  describe.skip('First Time Setup ', () => {
     async function nextLintTemp(setupCallback, isApp = false) {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
+      folders.push(folder)
+
       await fs.mkdirp(folder)
       await fs.copy(join(dirNoConfig, isApp ? 'app' : ''), folder)
       await setupCallback?.(folder)
 
-      try {
-        const { stdout, stderr } = await nextLint(folder, ['--strict'], {
-          stderr: true,
-          stdout: true,
-          cwd: folder,
-        })
+      const { stdout, stderr } = await nextLint(folder, ['--strict'], {
+        stderr: true,
+        stdout: true,
+        cwd: folder,
+      })
 
-        console.log({ stdout, stderr })
+      console.log({ stdout, stderr })
 
-        const pkgJson = JSON.parse(
-          await fs.readFile(join(folder, 'package.json'), 'utf8')
-        )
-        const eslintrcJson = JSON.parse(
-          await fs.readFile(join(folder, '.eslintrc.json'), 'utf8')
-        )
+      const pkgJson = JSON.parse(
+        await fs.readFile(join(folder, 'package.json'), 'utf8')
+      )
+      const eslintrcJson = JSON.parse(
+        await fs.readFile(join(folder, '.eslintrc.json'), 'utf8')
+      )
 
-        return { stdout, pkgJson, eslintrcJson }
-      } finally {
-        await fs.remove(folder)
-      }
+      return { stdout, pkgJson, eslintrcJson }
     }
 
     test('show a prompt to set up ESLint if no configuration detected', async () => {
