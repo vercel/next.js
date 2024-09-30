@@ -35,7 +35,7 @@ async function loadHighestNPMVersionMatching(query: string) {
   return versions[versions.length - 1]
 }
 
-export async function runUpgrade(): Promise<void> {
+export async function runUpgrade(revision: string | undefined): Promise<void> {
   const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
@@ -47,17 +47,14 @@ export async function runUpgrade(): Promise<void> {
   }
   let targetVersionSpecifier: VersionSpecifier = ''
 
-  const shortcutVersion = process.argv[2]?.replace('@', '')
-  if (shortcutVersion) {
-    const res = await fetch(
-      `https://registry.npmjs.org/next/${shortcutVersion}`
-    )
+  if (revision !== undefined) {
+    const res = await fetch(`https://registry.npmjs.org/next/${revision}`)
     if (res.status === 200) {
       targetNextPackageJson = await res.json()
       targetVersionSpecifier = targetNextPackageJson.version
     } else {
       console.error(
-        `${chalk.yellow('Next.js ' + shortcutVersion)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}, or choose one from below\n`
+        `${chalk.yellow(`next@${revision}`)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}, or choose one from below\n`
       )
     }
   }
@@ -182,11 +179,11 @@ export async function runUpgrade(): Promise<void> {
     reactDependencies.push(`@types/react-dom@${targetReactDOMTypesVersion}`)
   }
 
-  installPackages([nextDependency, ...reactDependencies], packageManager)
-
   console.log(
     `Upgrading your project to ${chalk.blue('Next.js ' + targetVersionSpecifier)}...\n`
   )
+
+  installPackages([nextDependency, ...reactDependencies], packageManager)
 
   await suggestCodemods(installedNextVersion, targetNextVersion)
 
