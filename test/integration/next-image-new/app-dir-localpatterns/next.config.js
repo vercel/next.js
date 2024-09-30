@@ -1,10 +1,10 @@
 module.exports = {
-    images: {
-        localPatterns: [
-            {
-                pathname: '/assets/**',
-                search: '',
-            }
-        ]
-    }
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/**',
+        search: '',
+      },
+    ],
+  },
 }
