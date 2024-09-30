@@ -15856,6 +15856,26 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/server-action-period-hash/server-action-period-hash.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - server-action-period-hash should have same manifest between continuous two builds",
+        "app-dir - server-action-period-hash should have different manifest between two builds with period hash"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/server-action-period-hash/server-action-period-hash-custom-key.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - server-action-period-hash-custom-key should have different manifest if the encryption key from process env is changed",
+        "app-dir - server-action-period-hash-custom-key should have different manifest if the encryption key from process env is same"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/ssg-single-pass/ssg-single-pass.test.ts": {
       "passed": [
         "ssg-single-pass should only render the page once during an ISR revalidation",
