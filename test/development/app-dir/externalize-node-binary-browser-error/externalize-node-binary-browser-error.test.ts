@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  hasRedbox,
   getRedboxDescription,
   getRedboxSource,
 } from 'next-test-utils'
@@ -13,7 +13,7 @@ import {
 
     it('should error when import node binary on browser side', async () => {
       const browser = await next.browser('/')
-      await assertHasRedbox(browser)
+      await hasRedbox(browser)
       const redbox = {
         description: await getRedboxDescription(browser),
         source: await getRedboxSource(browser),
