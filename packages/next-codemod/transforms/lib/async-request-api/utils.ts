@@ -7,7 +7,6 @@ import type {
   ExportNamedDeclaration,
   FunctionDeclaration,
   FunctionExpression,
-  JSCodeshift,
 } from 'jscodeshift'
 
 export type FunctionScope =
@@ -103,46 +102,25 @@ export function isMatchedFunctionExported(
   return isNamedExport
 }
 
-export function determineClientDirective(
-  root: Collection<any>,
-  j: JSCodeshift,
-  source: string
-) {
-  const hasStringDirective =
-    root
-      .find(j.Literal)
-      .filter((path) => {
-        const expr = path.node
+// directive is not parsed into AST, so we need to manually find it
+// by going through the tokens. Use the 1st string token as the directive
+export function determineClientDirective(root: Collection<any>) {
+  const { tokens } = root.get().node
+  let directive = undefined
+  for (const token of tokens) {
+    if (token.type === 'CommentBlock') {
+      continue
+    } else if (token.type?.label === 'string') {
+      // Skip 'use strict' directive
+      if (token.value === 'use strict') continue
+      directive = token.value
+      break
+    } else {
+      break
+    }
+  }
 
-        return (
-          expr.value === 'use client' && path.parentPath.node.type === 'Program'
-        )
-      })
-      .size() > 0
-
-  // 'use client';
-  const hasStringDirectiveWithSemicolon =
-    root
-      .find(j.StringLiteral)
-      .filter((path) => {
-        const expr = path.node
-        return (
-          expr.type === 'StringLiteral' &&
-          expr.value === 'use client' &&
-          path.parentPath.node.type === 'Program'
-        )
-      })
-      .size() > 0
-
-  if (hasStringDirective || hasStringDirectiveWithSemicolon) return true
-
-  // Since the client detection is not reliable with AST in jscodeshift,
-  // determine if 'use client' or "use client" is leading in the source code.
-  const trimmedSource = source.trim()
-  const containsClientDirective =
-    /^'use client'/.test(trimmedSource) || /^"use client"/g.test(trimmedSource)
-
-  return containsClientDirective
+  return directive === 'use client'
 }
 
 export function isPromiseType(typeAnnotation) {
