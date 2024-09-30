@@ -55,7 +55,7 @@ export const AppSegmentConfigSchema = z.object({
   /**
    * The runtime to use for the page.
    */
-  runtime: z.enum(['edge', 'nodejs', 'experimental-edge']).optional(),
+  runtime: z.enum(['edge', 'nodejs']).optional(),
 
   /**
    * The maximum duration for the page in seconds.
@@ -109,7 +109,7 @@ export type AppSegmentConfig = {
   /**
    * The runtime to use for the page.
    */
-  runtime?: 'edge' | 'nodejs' | 'experimental-edge'
+  runtime?: 'edge' | 'nodejs'
 
   /**
    * The maximum duration for the page in seconds.

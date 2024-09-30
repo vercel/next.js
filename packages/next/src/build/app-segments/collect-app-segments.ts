@@ -25,20 +25,6 @@ import { getLayoutOrPageModule } from '../../server/lib/app-dir-module'
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
 /**
- * Filters out segments that don't contribute to static generation.
- *
- * @param segments the segments to filter
- * @returns the filtered segments
- */
-function filterSegments(segments: AppSegment[]) {
-  return segments.filter((result) => {
-    return (
-      result.config || result.generateStaticParams || result.isDynamicSegment
-    )
-  })
-}
-
-/**
  * Parses the app config and attaches it to the segment.
  */
 function attach(segment: AppSegment, userland: unknown) {
@@ -60,6 +46,13 @@ function attach(segment: AppSegment, userland: unknown) {
   ) {
     segment.generateStaticParams =
       userland.generateStaticParams as GenerateStaticParams
+
+    // Validate that `generateStaticParams` makes sense in this context.
+    if (segment.config?.runtime === 'edge') {
+      throw new Error(
+        'Edge runtime is not supported with `generateStaticParams`.'
+      )
+    }
   }
 }
 
@@ -112,7 +105,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     current = parallelRoutes.children
   }
 
-  return filterSegments(segments)
+  return segments
 }
 
 /**
@@ -154,7 +147,7 @@ function collectAppRouteSegments(
   // Extract the segment config from the userland module.
   attach(segment, routeModule.userland)
 
-  return filterSegments(segments)
+  return segments
 }
 
 /**

@@ -76,6 +76,7 @@ import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
 import { isClientReference } from '../lib/client-reference'
 import { withStaticGenerationStore } from '../server/async-storage/with-static-generation-store'
+import type { CacheHandler } from '../server/lib/incremental-cache'
 import { IncrementalCache } from '../server/lib/incremental-cache'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../server/ci-info'
@@ -1240,12 +1241,20 @@ export async function buildAppStaticPaths({
   isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
 }): Promise<PartialStaticPathsResult> {
+  if (
+    segments.some((generate) => generate.config?.dynamicParams === true) &&
+    nextConfigOutput === 'export'
+  ) {
+    throw new Error(
+      '"dynamicParams: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/app/building-your-application/deploying/static-exports'
+    )
+  }
+
   ComponentMod.patchFetch()
 
-  let CacheHandler: any
-
+  let CurCacheHandler: typeof CacheHandler | undefined
   if (cacheHandler) {
-    CacheHandler = interopDefault(
+    CurCacheHandler = interopDefault(
       await import(formatDynamicImportPath(dir, cacheHandler)).then(
         (mod) => mod.default || mod
       )
@@ -1267,7 +1276,7 @@ export async function buildAppStaticPaths({
       notFoundRoutes: [],
       preview: null as any, // `preview` is special case read in next-dev-server
     }),
-    CurCacheHandler: CacheHandler,
+    CurCacheHandler,
     requestHeaders,
     minimalMode: ciEnvironment.hasNextSupport,
   })
@@ -1360,15 +1369,6 @@ export async function buildAppStaticPaths({
       return builtRouteParams()
     }
   )
-
-  if (
-    segments.some((generate) => generate.config?.dynamicParams === true) &&
-    nextConfigOutput === 'export'
-  ) {
-    throw new Error(
-      '"dynamicParams: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/app/building-your-application/deploying/static-exports'
-    )
-  }
 
   for (const segment of segments) {
     // Check to see if there are any missing params for segments that have
@@ -1588,7 +1588,14 @@ export async function isPageStatic({
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
 
-        const segments = await collectSegments(componentsResult)
+        let segments
+        try {
+          segments = await collectSegments(componentsResult)
+        } catch (err) {
+          throw new Error(`Failed to collect configuration for ${page}`, {
+            cause: err,
+          })
+        }
 
         appConfig = reduceAppConfig(await collectSegments(componentsResult))
 

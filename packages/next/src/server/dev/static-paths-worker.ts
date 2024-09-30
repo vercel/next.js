@@ -18,6 +18,7 @@ import {
   checkIsRoutePPREnabled,
   type ExperimentalPPRConfig,
 } from '../lib/experimental/ppr'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
@@ -80,14 +81,6 @@ export async function loadStaticPaths({
     isAppPath,
   })
 
-  if (!components.getStaticPaths && !isAppPath) {
-    // we shouldn't get to this point since the worker should
-    // only be called for SSG pages with getStaticPaths
-    throw new Error(
-      `Invariant: failed to load page with getStaticPaths for ${pathname}`
-    )
-  }
-
   if (isAppPath) {
     const segments = await collectSegments(components)
 
@@ -95,7 +88,7 @@ export async function loadStaticPaths({
       isAppPageRouteModule(components.routeModule) &&
       checkIsRoutePPREnabled(config.pprConfig, reduceAppConfig(segments))
 
-    return await buildAppStaticPaths({
+    return buildAppStaticPaths({
       dir,
       page: pathname,
       dynamicIO: config.dynamicIO,
@@ -113,9 +106,15 @@ export async function loadStaticPaths({
       isAppPPRFallbacksEnabled,
       buildId,
     })
+  } else if (!components.getStaticPaths) {
+    // We shouldn't get to this point since the worker should only be called for
+    // SSG pages with getStaticPaths.
+    throw new InvariantError(
+      `Failed to load page with getStaticPaths for ${pathname}`
+    )
   }
 
-  return await buildStaticPaths({
+  return buildStaticPaths({
     page: pathname,
     getStaticPaths: components.getStaticPaths,
     configFileName: config.configFileName,
