@@ -35,7 +35,11 @@ async function loadHighestNPMVersionMatching(query: string) {
   return versions[versions.length - 1]
 }
 
-export async function runUpgrade(revision: string | undefined): Promise<void> {
+export async function runUpgrade(
+  revision: string | undefined,
+  options: { verbose: boolean }
+): Promise<void> {
+  const { verbose } = options
   const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
@@ -183,7 +187,10 @@ export async function runUpgrade(revision: string | undefined): Promise<void> {
     `Upgrading your project to ${chalk.blue('Next.js ' + targetVersionSpecifier)}...\n`
   )
 
-  installPackages([nextDependency, ...reactDependencies], packageManager)
+  installPackages([nextDependency, ...reactDependencies], {
+    packageManager,
+    silent: !verbose,
+  })
 
   await suggestCodemods(installedNextVersion, targetNextVersion)
 
