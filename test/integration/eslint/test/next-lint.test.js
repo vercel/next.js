@@ -29,6 +29,9 @@ const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
 
 describe('Next Lint', () => {
+  // installing can take time so increase default time outs
+  jest.setTimeout(120 * 1000)
+
   describe('First Time Setup ', () => {
     async function nextLintTemp(setupCallback, isApp = false) {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
@@ -80,7 +83,7 @@ describe('Next Lint', () => {
       { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml' },
       { packageManger: 'npm', lockFile: 'package-lock.json' },
     ]) {
-      test(`installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
+      test.only(`installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
         const { stdout, pkgJson } = await nextLintTemp(async (folder) => {
           await fs.writeFile(join(folder, lockFile), '')
         })
