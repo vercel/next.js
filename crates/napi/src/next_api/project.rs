@@ -256,7 +256,7 @@ pub struct ProjectInstance {
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
 pub async fn project_new(
     options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
@@ -421,7 +421,7 @@ async fn benchmark_file_io(directory: Vc<FileSystemPath>) -> Result<Vc<Completio
     Ok(Completion::new())
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi]
 pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     options: NapiPartialProjectOptions,
@@ -439,7 +439,7 @@ pub async fn project_update(
     Ok(())
 }
 
-#[napi(ts_return_type = "{ __napiType: \"Project\" }")]
+#[napi]
 pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {

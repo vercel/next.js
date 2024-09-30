@@ -4,8 +4,8 @@ import type { FlightDataPath } from '../../../server/app-render/types'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
-import { createPrefetchCacheEntryForInitialLoad } from './prefetch-cache-utils'
-import type { PrefetchCacheEntry } from './router-reducer-types'
+import { createSeededPrefetchCacheEntry } from './prefetch-cache-utils'
+import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
 import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 
@@ -112,7 +112,7 @@ export function createInitialRouterState({
       location.origin
     )
 
-    createPrefetchCacheEntryForInitialLoad({
+    createSeededPrefetchCacheEntry({
       url,
       data: {
         flightData: [normalizedFlightData],
@@ -125,6 +125,7 @@ export function createInitialRouterState({
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,
       nextUrl: initialState.nextUrl,
+      kind: PrefetchKind.AUTO,
     })
   }
 

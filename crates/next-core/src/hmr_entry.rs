@@ -121,8 +121,8 @@ impl ValueToString for HmrEntryModuleReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for HmrEntryModuleReference {
     #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(ModuleResolveResult::module(self.module).cell())
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.module).cell()
     }
 }
 

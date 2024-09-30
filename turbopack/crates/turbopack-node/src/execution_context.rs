@@ -1,4 +1,3 @@
-use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
@@ -28,17 +27,17 @@ impl ExecutionContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.project_path)
+    pub fn project_path(&self) -> Vc<FileSystemPath> {
+        self.project_path
     }
 
     #[turbo_tasks::function]
-    pub async fn chunking_context(self: Vc<Self>) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(self.await?.chunking_context)
+    pub fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        self.chunking_context
     }
 
     #[turbo_tasks::function]
-    pub async fn env(self: Vc<Self>) -> Result<Vc<Box<dyn ProcessEnv>>> {
-        Ok(self.await?.env)
+    pub fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
+        self.env
     }
 }

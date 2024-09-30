@@ -51,7 +51,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-5dcb0097-20240918";
+const nextjsReactPeerVersion = "19.0.0-rc-3edc000d-20240926";
 
 export class NextInstance {
   protected files: FileRef | { [filename: string]: string | FileRef }
@@ -490,6 +490,13 @@ export class NextInstance {
     return JSON.parse(
       await fs.readFile(path.join(this.testDir, filename), 'utf-8')
     )
+  }
+
+  public async remove(fileOrDirPath: string) {
+    await fs.rm(path.join(this.testDir, fileOrDirPath), {
+      recursive: true,
+      force: true,
+    })
   }
 
   public async patchFile(
