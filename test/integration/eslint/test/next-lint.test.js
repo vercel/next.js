@@ -83,7 +83,7 @@ describe('Next Lint', () => {
       { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml' },
       { packageManger: 'npm', lockFile: 'package-lock.json' },
     ]) {
-      test.only(`installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
+      test(`installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
         const { stdout, pkgJson } = await nextLintTemp(async (folder) => {
           await fs.writeFile(join(folder, lockFile), '')
         })
