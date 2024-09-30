@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('revalidateTag-rsc', () => {
   const { next } = nextTestSetup({
@@ -13,9 +14,11 @@ describe('revalidateTag-rsc', () => {
     expect(randomNumber).toEqual(randomNumber2)
 
     await browser.elementByCss('#submit-form').click()
-    await browser.waitForIdleNetwork()
-    const randomNumber3 = await browser.elementById('data').text()
-    expect(randomNumber3).not.toEqual(randomNumber)
+
+    await retry(async () => {
+      const randomNumber3 = await browser.elementById('data').text()
+      expect(randomNumber3).not.toEqual(randomNumber)
+    })
   })
 
   it('should revalidate fetch cache if revalidateTag invoked via server component', async () => {
