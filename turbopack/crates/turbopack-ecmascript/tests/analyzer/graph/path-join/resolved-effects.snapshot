@@ -27,3 +27,33 @@
 - *1* FreeVar(global)
   ⚠️  unknown global
   ⚠️  This value might have side effects
+
+0 -> 17 member call = path*0*["resolve"]("foo", "bar")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 19 member call = path*0*["resolve"]("/", "foo", "bar")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 21 member call = path*0*["resolve"]("pre", "/", "foo", "bar")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 23 member call = path*0*["resolve"]("pre", "\\\\", "foo", "bar")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+
+0 -> 24 free var = FreeVar(global)
+
+0 -> 25 conditional = ???*0*
+- *0* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 27 member call = path*0*["resolve"]("pre", (???*1* ? "/" : "\\\\"), "foo", "bar")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
+- *1* FreeVar(global)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 28 free var = FreeVar(global)
+
+0 -> 30 member call = path*0*["resolve"]("pre", ("/" | "\\\\"), "foo", "bar")
+- *0* path: The Node.js path module: https://nodejs.org/api/path.html
