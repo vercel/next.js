@@ -1841,6 +1841,20 @@ async function prerenderToStream(
         }
 
         let flightController = new AbortController()
+
+        let reactServerIsDynamic = false
+        function onError(err: unknown) {
+          if (err === abortReason) {
+            reactServerIsDynamic = true
+            return PRERENDER_COMPLETE
+          } else if (isPrerenderInterruptedError(err)) {
+            reactServerIsDynamic = true
+            return err.digest
+          }
+
+          return serverComponentsErrorHandler(err)
+        }
+
         // We're not going to use the result of this render because the only time it could be used
         // is if it completes in a microtask and that's likely very rare for any non-trivial app
         const firstAttemptRSCPayload = await prerenderAsyncStorage.run(
@@ -1851,6 +1865,8 @@ async function prerenderToStream(
           res.statusCode === 404
         )
 
+        let didError = false
+        let prospectiveRenderError: unknown = null
         ;(
           prerenderAsyncStorage.run(
             // The store to scope
@@ -1862,23 +1878,41 @@ async function prerenderToStream(
             clientReferenceManifest.clientModules,
             {
               // This render will be thrown away so we don't need to track errors or postpones
-              onError: undefined,
+              onError,
               onPostpone: undefined,
               // we don't care to track postpones during the prospective render because we need
               // to always do a final render anyway
               signal: flightController.signal,
             }
           ) as Promise<ReactServerPrerenderResolveToType>
-        ).catch(() => {})
+        ).catch((err) => {
+          if (
+            err !== abortReason &&
+            !isPrerenderInterruptedError(err) &&
+            !isDynamicServerError(err)
+          ) {
+            didError = true
+            prospectiveRenderError = err
+          }
+        })
 
         // When this resolves the cache has no inflight reads and we can ascertain the dynamic outcome
         await cacheSignal.cacheReady()
         flightController.abort(abortReason)
+        // We wait a microtask to to ensure the catch handler has a chance to run if the root errors when we abort.
+        await 1
+        if (didError) {
+          // We errored with something other than prerender errors during the warmup. We throw here
+          // to allow the user error to be handled
+          throw prospectiveRenderError
+        }
+
         // When PPR is enabled we don't synchronously abort the render when performing a prospective render
         // because it might prevent us from discovering all caches during the render which is essential
         // when we perform the second single-task render.
 
         // Reset the dynamic IO state for the final render
+        reactServerIsDynamic = false
         flightController = new AbortController()
         dynamicTracking = createDynamicTrackingState(
           renderOpts.isDebugDynamicAccesses
@@ -1891,16 +1925,6 @@ async function prerenderToStream(
           // include the flight controller in the store.
           controller: flightController,
           dynamicTracking,
-        }
-
-        let reactServerIsDynamic = false
-        function onError(err: unknown) {
-          if (err === abortReason || isPrerenderInterruptedError(err)) {
-            reactServerIsDynamic = true
-            return
-          }
-
-          return serverComponentsErrorHandler(err)
         }
 
         function onPostpone(reason: string) {
@@ -2152,35 +2176,64 @@ async function prerenderToStream(
           res.statusCode === 404
         )
 
-        const prospectiveStream = prerenderAsyncStorage.run(
-          // The store to scope
-          prospectiveRenderPrerenderStore,
-          // The function to run
-          ComponentMod.renderToReadableStream,
-          // ... the arguments for the function to run
-          firstAttemptRSCPayload,
-          clientReferenceManifest.clientModules,
-          {
-            onError: () => {},
-            signal: flightController.signal,
+        let reactServerIsDynamic = false
+        let reactServerIsSynchronouslyDynamic = false
+
+        function onError(err: unknown) {
+          if (err === abortReason) {
+            reactServerIsDynamic = true
+            return PRERENDER_COMPLETE
+          } else if (isPrerenderInterruptedError(err)) {
+            reactServerIsSynchronouslyDynamic = true
+            return err.digest
           }
-        ) as ReadableStream<Uint8Array>
 
-        // When this resolves the cache has no inflight reads and we can ascertain the dynamic outcome
-        await cacheSignal.cacheReady()
-        // Even though we could detect whether a sync dynamic API was used we still need to render SSR to
-        // do error validation so we just abort and re-render.
-        flightController.abort(abortReason)
+          return serverComponentsErrorHandler(err)
+        }
 
-        await warmFlightResponse(prospectiveStream, clientReferenceManifest)
+        try {
+          const prospectiveStream = prerenderAsyncStorage.run(
+            // The store to scope
+            prospectiveRenderPrerenderStore,
+            // The function to run
+            ComponentMod.renderToReadableStream,
+            // ... the arguments for the function to run
+            firstAttemptRSCPayload,
+            clientReferenceManifest.clientModules,
+            {
+              onError,
+              signal: flightController.signal,
+            }
+          ) as ReadableStream<Uint8Array>
+
+          // When this resolves the cache has no inflight reads and we can ascertain the dynamic outcome
+          await cacheSignal.cacheReady()
+          // Even though we could detect whether a sync dynamic API was used we still need to render SSR to
+          // do error validation so we just abort and re-render.
+          flightController.abort(abortReason)
+
+          await warmFlightResponse(prospectiveStream, clientReferenceManifest)
+        } catch (err) {
+          if (
+            err === abortReason ||
+            isPrerenderInterruptedError(err) ||
+            isDynamicServerError(err)
+          ) {
+            // We aborted with an incomplete shell. We'll handle this below with the handling
+            // for dynamic.
+          } else {
+            // We have some other kind of shell error, we want to bubble this up to be handled
+            throw err
+          }
+        }
 
         // Reset the prerenderState because we are going to retry the render
         flightController = new AbortController()
         dynamicTracking = createDynamicTrackingState(
           renderOpts.isDebugDynamicAccesses
         )
-        let reactServerIsDynamic = false
-        let reactServerIsSynchronouslyDynamic = false
+        reactServerIsDynamic = false
+        reactServerIsSynchronouslyDynamic = false
         let SSRIsDynamic = false
 
         const finalRenderPrerenderStore: PrerenderStore = {
@@ -2209,18 +2262,6 @@ async function prerenderToStream(
           ctx,
           res.statusCode === 404
         )
-
-        function onError(err: unknown) {
-          if (err === abortReason) {
-            reactServerIsDynamic = true
-            return PRERENDER_COMPLETE
-          } else if (isPrerenderInterruptedError(err)) {
-            reactServerIsSynchronouslyDynamic = true
-            return err.digest
-          }
-
-          return serverComponentsErrorHandler(err)
-        }
 
         function SSROnError(err: unknown, errorInfo?: ErrorInfo) {
           if (err === abortReason) {

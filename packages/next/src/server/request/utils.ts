@@ -33,7 +33,7 @@ export function describeHasCheckingStringProperty(
   prop: string
 ) {
   const stringifiedProp = JSON.stringify(prop)
-  return `\`Reflect.has(${target}, ${stringifiedProp}\`, \`${stringifiedProp} in ${target}\`, or similar`
+  return `\`Reflect.has(${target}, ${stringifiedProp})\`, \`${stringifiedProp} in ${target}\`, or similar`
 }
 
 export function throwWithStaticGenerationBailoutError(
