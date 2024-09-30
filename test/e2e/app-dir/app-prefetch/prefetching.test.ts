@@ -331,6 +331,16 @@ describe('app dir - prefetching', () => {
           0
         )
       })
+
+      // navigate to the static page
+      await browser.elementByCss('[href="/static-page"]').click()
+
+      // We still shouldn't see any requests
+      await retry(async () => {
+        expect(rscRequests.filter((req) => req === '/static-page').length).toBe(
+          0
+        )
+      })
     })
 
     it('should not re-fetch the initial dynamic page if the same page is prefetched with prefetch={true}', async () => {

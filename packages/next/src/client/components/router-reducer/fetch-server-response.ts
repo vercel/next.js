@@ -23,7 +23,6 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
-  NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
@@ -176,7 +175,6 @@ export async function fetchServerResponse(
 
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
-    const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
@@ -223,7 +221,7 @@ export async function fetchServerResponse(
       flightData: normalizeFlightData(response.f),
       canonicalUrl: canonicalUrl,
       couldBeIntercepted: interception,
-      isPrerender: isPrerender,
+      isPrerender: response.S,
       postponed,
     }
   } catch (err) {
