@@ -15694,10 +15694,10 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/client-actions-tree-shaking/client-actions-tree-shaking.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app-dir - client-actions-tree-shaking should not bundle unused server reference id in client bundles"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

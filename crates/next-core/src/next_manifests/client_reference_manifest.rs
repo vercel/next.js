@@ -61,11 +61,7 @@ impl ClientReferenceManifest {
             {
                 let ecmascript_client_reference = ecmascript_client_reference.await?;
 
-                let server_path = ecmascript_client_reference
-                    .server_ident
-                    .path()
-                    .to_string()
-                    .await?;
+                let server_path = ecmascript_client_reference.server_ident.to_string().await?;
 
                 let client_chunk_item = ecmascript_client_reference
                     .client_module
