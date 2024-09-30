@@ -492,6 +492,13 @@ export class NextInstance {
     )
   }
 
+  public async remove(fileOrDirPath: string) {
+    await fs.rm(path.join(this.testDir, fileOrDirPath), {
+      recursive: true,
+      force: true,
+    })
+  }
+
   public async patchFile(
     filename: string,
     content: string | ((content: string) => string),

@@ -405,7 +405,13 @@ function createPrerenderInterruptedError(message: string): Error {
   return error
 }
 
-export function isPrerenderInterruptedError(error: unknown) {
+type DigestError = Error & {
+  digest: string
+}
+
+export function isPrerenderInterruptedError(
+  error: unknown
+): error is DigestError {
   return (
     typeof error === 'object' &&
     error !== null &&

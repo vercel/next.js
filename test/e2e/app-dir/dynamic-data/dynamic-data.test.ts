@@ -199,6 +199,16 @@ describe('dynamic-data with dynamic = "error"', () => {
         await browser.close()
       }
 
+      browser = await next.browser('/connection')
+      try {
+        await assertHasRedbox(browser)
+        expect(await getRedboxHeader(browser)).toMatch(
+          'Error: Route /connection with `dynamic = "error"` couldn\'t be rendered statically because it used `connection`'
+        )
+      } finally {
+        await browser.close()
+      }
+
       browser = await next.browser('/headers?foo=foosearch')
       try {
         await assertHasRedbox(browser)
@@ -229,6 +239,9 @@ describe('dynamic-data with dynamic = "error"', () => {
       // Error: Page with `dynamic = "error"` couldn't be rendered statically because it used `headers`
       expect(next.cliOutput).toMatch(
         'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
+      )
+      expect(next.cliOutput).toMatch(
+        'Error: Route /connection with `dynamic = "error"` couldn\'t be rendered statically because it used `connection`'
       )
       expect(next.cliOutput).toMatch(
         'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
@@ -277,6 +290,16 @@ describe('dynamic-data inside cache scope', () => {
         await browser.close()
       }
 
+      browser = await next.browser('/connection')
+      try {
+        await assertHasRedbox(browser)
+        expect(await getRedboxHeader(browser)).toMatch(
+          'Error: Route /connection used "connection" inside a function cached with "unstable_cache(...)".'
+        )
+      } finally {
+        await browser.close()
+      }
+
       browser = await next.browser('/headers')
       try {
         await assertHasRedbox(browser)
@@ -296,6 +319,9 @@ describe('dynamic-data inside cache scope', () => {
       }
       expect(next.cliOutput).toMatch(
         'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
+      )
+      expect(next.cliOutput).toMatch(
+        'Error: Route /connection used "connection" inside a function cached with "unstable_cache(...)".'
       )
       expect(next.cliOutput).toMatch(
         'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'
