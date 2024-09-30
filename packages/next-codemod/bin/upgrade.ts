@@ -41,7 +41,10 @@ export async function runUpgrade(): Promise<void> {
 
   await detectWorkspace(appPackageJson)
 
-  let targetNextPackageJson
+  let targetNextPackageJson: {
+    version: string
+    peerDependencies: Record<string, string>
+  }
   let targetVersionSpecifier: VersionSpecifier = ''
 
   const shortcutVersion = process.argv[2]?.replace('@', '')
@@ -155,10 +158,7 @@ export async function runUpgrade(): Promise<void> {
     ),
   ])
 
-  if (
-    targetNextVersion &&
-    compareVersions(targetNextVersion, '15.0.0-canary') >= 0
-  ) {
+  if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
     await suggestTurbopack(appPackageJson)
   }
 
