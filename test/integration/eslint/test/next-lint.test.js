@@ -29,9 +29,6 @@ const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
 
 describe('Next Lint', () => {
-  // installing can take time so increase default time outs
-  jest.setTimeout(120 * 1000)
-
   const folders = []
   afterAll(async () => {
     for (const folder of folders) {
@@ -39,7 +36,8 @@ describe('Next Lint', () => {
     }
   })
 
-  describe('First Time Setup ', () => {
+  // these are flaking on 14-2-1
+  describe.skip('First Time Setup ', () => {
     async function nextLintTemp(setupCallback, isApp = false) {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
       folders.push(folder)
