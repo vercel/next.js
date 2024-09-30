@@ -51,6 +51,7 @@ program
     '[revision]',
     'NPM dist tag or exact version to upgrade to (e.g. "latest" or "15.0.0-canary.167"). Prompts to choose a dist tag if omitted.'
   )
+  .option('--verbose', 'Verbose output', false)
   .action(runUpgrade)
 
 program.parse(process.argv)
