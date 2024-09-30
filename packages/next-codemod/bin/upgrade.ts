@@ -5,7 +5,7 @@ import path from 'path'
 import { compareVersions } from 'compare-versions'
 import chalk from 'chalk'
 import { availableCodemods } from '../lib/codemods'
-import { getPkgManager, installPackage } from '../lib/handle-package'
+import { getPkgManager, installPackages } from '../lib/handle-package'
 
 type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
 type CustomVersionSpecifier = string
@@ -133,7 +133,7 @@ export async function runUpgrade(): Promise<void> {
     `@types/react-dom@${targetNextPackageJson.devDependencies['@types/react-dom']}`,
   ]
 
-  installPackage([nextDependency, ...reactDependencies], packageManager)
+  installPackages([nextDependency, ...reactDependencies], packageManager)
 
   console.log(
     `Upgrading your project to ${chalk.blue('Next.js ' + targetVersionSpecifier)}...\n`
