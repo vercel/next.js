@@ -116,14 +116,11 @@ export { baz as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+import { a as baz } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
-};
-import { a as baz } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
 };
 if (1 + 1 == 3) {
     baz();
@@ -182,14 +179,11 @@ export { baz as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+import { a as baz } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
-};
-import { a as baz } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
 };
 if (1 + 1 == 3) {
     baz();
