@@ -115,8 +115,9 @@ export class EdgeRouteModuleWrapper {
           : undefined,
         experimental: {
           after: isAfterEnabled,
-          dynamicIO: false,
+          dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
         },
+        buildId: '', // TODO: Populate this properly.
       },
     }
 

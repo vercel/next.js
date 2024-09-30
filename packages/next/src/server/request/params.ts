@@ -14,11 +14,7 @@ import {
   type PrerenderStore,
 } from '../app-render/prerender-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import {
-  makeResolvedReactPromise,
-  describeStringPropertyAccess,
-  throwWithStaticGenerationBailoutErrorWithDynamicError,
-} from './utils'
+import { makeResolvedReactPromise, describeStringPropertyAccess } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 
 export type Params = Record<string, string | Array<string> | undefined>
@@ -165,7 +161,10 @@ function createRenderParams(
   underlyingParams: Params,
   staticGenerationStore: StaticGenerationStore
 ): Promise<Params> {
-  if (process.env.NODE_ENV === 'development') {
+  if (
+    process.env.NODE_ENV === 'development' &&
+    !staticGenerationStore.isPrefetchRequest
+  ) {
     return makeDynamicallyTrackedExoticParamsWithDevWarnings(
       underlyingParams,
       staticGenerationStore
@@ -193,10 +192,31 @@ function makeAbortingExoticParams(
 
   Object.keys(underlyingParams).forEach((prop) => {
     switch (prop) {
+      // Object prototype
+      case 'hasOwnProperty':
+      case 'isPrototypeOf':
+      case 'propertyIsEnumerable':
+      case 'toString':
+      case 'valueOf':
+      case 'toLocaleString':
+
+      // Promise prototype
+      // fallthrough
       case 'then':
-      case 'status': {
-        // We can't assign params over these properties because the VM and React use
-        // them to reason about the Promise.
+      case 'catch':
+      case 'finally':
+
+      // React Promise extension
+      // fallthrough
+      case 'status':
+
+      // Common tested properties
+      // fallthrough
+      case 'toJSON':
+      case '$$typeof':
+      case '__esModule': {
+        // These properties cannot be shadowed because they need to be the
+        // true underlying value for Promises to work correctly at runtime
         break
       }
       default: {
@@ -247,11 +267,31 @@ function makeErroringExoticParams(
 
   Object.keys(underlyingParams).forEach((prop) => {
     switch (prop) {
+      // Object prototype
+      case 'hasOwnProperty':
+      case 'isPrototypeOf':
+      case 'propertyIsEnumerable':
+      case 'toString':
+      case 'valueOf':
+      case 'toLocaleString':
+
+      // Promise prototype
+      // fallthrough
       case 'then':
+      case 'catch':
+      case 'finally':
+
+      // React Promise extension
+      // fallthrough
       case 'status':
-      case 'value': {
-        // We can't assign params over these properties because the VM and React use
-        // them to reason about the Promise.
+
+      // Common tested properties
+      // fallthrough
+      case 'toJSON':
+      case '$$typeof':
+      case '__esModule': {
+        // These properties cannot be shadowed because they need to be the
+        // true underlying value for Promises to work correctly at runtime
         break
       }
       default: {
@@ -259,12 +299,13 @@ function makeErroringExoticParams(
           Object.defineProperty(augmentedUnderlying, prop, {
             get() {
               const expression = describeStringPropertyAccess('params', prop)
-              if (staticGenerationStore.dynamicShouldError) {
-                throwWithStaticGenerationBailoutErrorWithDynamicError(
-                  staticGenerationStore.route,
-                  expression
-                )
-              } else if (prerenderStore) {
+              // In most dynamic APIs we also throw if `dynamic = "error"` however
+              // for params is only dynamic when we're generating a fallback shell
+              // and even when `dynamic = "error"` we still support generating dynamic
+              // fallback shells
+              // TODO remove this comment when dynamicIO is the default since there
+              // will be no `dynamic = "error"`
+              if (prerenderStore) {
                 postponeWithTracking(
                   staticGenerationStore.route,
                   expression,
@@ -282,12 +323,13 @@ function makeErroringExoticParams(
           Object.defineProperty(promise, prop, {
             get() {
               const expression = describeStringPropertyAccess('params', prop)
-              if (staticGenerationStore.dynamicShouldError) {
-                throwWithStaticGenerationBailoutErrorWithDynamicError(
-                  staticGenerationStore.route,
-                  expression
-                )
-              } else if (prerenderStore) {
+              // In most dynamic APIs we also throw if `dynamic = "error"` however
+              // for params is only dynamic when we're generating a fallback shell
+              // and even when `dynamic = "error"` we still support generating dynamic
+              // fallback shells
+              // TODO remove this comment when dynamicIO is the default since there
+              // will be no `dynamic = "error"`
+              if (prerenderStore) {
                 postponeWithTracking(
                   staticGenerationStore.route,
                   expression,
@@ -334,11 +376,31 @@ function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
 
   Object.keys(underlyingParams).forEach((prop) => {
     switch (prop) {
+      // Object prototype
+      case 'hasOwnProperty':
+      case 'isPrototypeOf':
+      case 'propertyIsEnumerable':
+      case 'toString':
+      case 'valueOf':
+      case 'toLocaleString':
+
+      // Promise prototype
+      // fallthrough
       case 'then':
-      case 'value':
-      case 'status': {
-        // These properties cannot be shadowed with a search param because they
-        // are necessary for ReactPromise's to work correctly with `use`
+      case 'catch':
+      case 'finally':
+
+      // React Promise extension
+      // fallthrough
+      case 'status':
+
+      // Common tested properties
+      // fallthrough
+      case 'toJSON':
+      case '$$typeof':
+      case '__esModule': {
+        // These properties cannot be shadowed because they need to be the
+        // true underlying value for Promises to work correctly at runtime
         break
       }
       default: {
@@ -369,11 +431,31 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
 
   Object.keys(underlyingParams).forEach((prop) => {
     switch (prop) {
+      // Object prototype
+      case 'hasOwnProperty':
+      case 'isPrototypeOf':
+      case 'propertyIsEnumerable':
+      case 'toString':
+      case 'valueOf':
+      case 'toLocaleString':
+
+      // Promise prototype
+      // fallthrough
       case 'then':
-      case 'value':
-      case 'status': {
-        // These properties cannot be shadowed with a search param because they
-        // are necessary for ReactPromise's to work correctly with `use`
+      case 'catch':
+      case 'finally':
+
+      // React Promise extension
+      // fallthrough
+      case 'status':
+
+      // Common tested properties
+      // fallthrough
+      case 'toJSON':
+      case '$$typeof':
+      case '__esModule': {
+        // These properties cannot be shadowed because they need to be the
+        // true underlying value for Promises to work correctly at runtime
         unproxiedProperties.push(prop)
         break
       }
@@ -396,6 +478,12 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return ReflectAdapter.set(target, prop, value, receiver)
     },
     ownKeys(target) {
       warnForEnumeration(store.route, unproxiedProperties)
