@@ -780,7 +780,9 @@ module.exports = {
 
 ### `disableWriteToCacheDir`
 
-Awoid writing optimized images to the cache directory. This can be useful if you want to avoid writing to disk.
+Awoid writing optimized images to the cache directory.
+
+This feature can be useful in scenarios where disk writes need to be avoided, such as in environments with limited disk space or read-only file systems.
 
 The `x-nextjs-cache` response header will be `MISS` for every request.
 
