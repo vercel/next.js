@@ -333,6 +333,21 @@ const runTests = (isDev) => {
       if (browser) await browser.close()
     }
   })
+
+  it('priority worker with inline script', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/partytown-app-router')
+
+      const partytownScript = await browser.waitForElementByCss(
+        'script[type="text/partytown"]'
+      )
+      const scriptContent = await partytownScript.text()
+      expect(scriptContent).toBe('console.log("inline script!");')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
 }
 
 describe('Next.js Script - Primary Strategies - Strict Mode', () => {

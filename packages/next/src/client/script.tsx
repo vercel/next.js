@@ -353,8 +353,24 @@ function Script(props: ScriptProps): JSX.Element | null {
         )
       }
     } else if (strategy === 'worker') {
+      const { children, ...propsWithoutChildren } = restProps
+
+      const htmlContent = Array.isArray(children)
+        ? children.join('')
+        : String(children)
+
       return (
-        <script nonce={nonce} type="text/partytown" {...restProps} id={id} />
+        <script
+          nonce={nonce}
+          type="text/partytown"
+          {...propsWithoutChildren}
+          dangerouslySetInnerHTML={
+            children
+              ? { __html: htmlContent }
+              : propsWithoutChildren.dangerouslySetInnerHTML
+          }
+          id={id}
+        />
       )
     } else if (strategy === 'afterInteractive') {
       if (src) {
