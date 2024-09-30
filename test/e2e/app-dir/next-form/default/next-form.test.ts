@@ -12,9 +12,8 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
   const pathPrefix = isAppDir ? '' : '/pages-dir'
 
   it(
-    'should soft-navigate on submit' + isAppDir
-      ? ' and show the prefetched loading state'
-      : '',
+    'should soft-navigate on submit' +
+      (isAppDir ? ' and show the prefetched loading state' : ''),
     async () => {
       const session = await next.browser(pathPrefix + '/forms/basic')
       const navigationTracker = await trackMpaNavs(session)
