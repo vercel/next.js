@@ -1074,11 +1074,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_dynamic_io(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.dynamic_io.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
     pub fn use_swc_css(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
