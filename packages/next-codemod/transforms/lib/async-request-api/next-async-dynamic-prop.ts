@@ -129,15 +129,20 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
-const MATCHED_FILE_PATTERN =
-  /([\\/]|^)((page|layout|route)|(opengraph-image\d?|twitter-image\d?|sitemap|manifest|robots))\.(t|jxs?)$/
+const MATCHED_FILE_PATTERNS = [
+  /([\\/]|^)(page|layout|route)\.(t|j)sx?$/,
+  /([\\/]|^)(opengraph-image\d?|twitter-image\d?|sitemap|manifest|robots)\.t|jsx?$/,
+]
 
 export function transformDynamicProps(
   source: string,
   api: API,
   filePath: string
 ) {
-  if (!MATCHED_FILE_PATTERN.test(filePath)) {
+  const isMatched = MATCHED_FILE_PATTERNS.some((pattern) =>
+    pattern.test(filePath)
+  )
+  if (!isMatched) {
     return null
   }
 
