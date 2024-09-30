@@ -171,7 +171,7 @@ jobs:
       - run: turbo run get-test-timings -- --build ${{ github.sha }}
 
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
-        timeout-minutes: 15
+        timeout-minutes: 20
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
