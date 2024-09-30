@@ -184,13 +184,13 @@ async fn test_no_execution() {
     .await;
 }
 
-// Internally, this function uses `PersistentTaskType::Native`.
+// Internally, this function uses `CachedTaskType::Native`.
 #[turbo_tasks::function]
 fn double(val: u64) -> Vc<u64> {
     Vc::cell(val * 2)
 }
 
-// Internally, this function uses `PersistentTaskType::ResolveNative`.
+// Internally, this function uses `CachedTaskType::ResolveNative`.
 #[turbo_tasks::function]
 async fn double_vc(val: Vc<u64>) -> Result<Vc<u64>> {
     let val = *val.await?;
@@ -224,8 +224,8 @@ impl Doublable for WrappedU64 {
     }
 
     #[turbo_tasks::function]
-    async fn double_vc(self: Vc<Self>) -> Result<Vc<Self>> {
-        let val = self.await?.0;
+    async fn double_vc(&self) -> Result<Vc<Self>> {
+        let val = self.0;
         Ok(WrappedU64(val * 2).cell())
     }
 }

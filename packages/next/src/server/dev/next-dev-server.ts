@@ -1,11 +1,11 @@
 import type { FindComponentsResult, NodeRequestHandler } from '../next-server'
 import type { LoadComponentsReturnType } from '../load-components'
 import type { Options as ServerOptions } from '../next-server'
-import type { Params } from '../../client/components/params'
+import type { Params } from '../request/params'
 import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
-import type { FallbackMode, MiddlewareRoutingItem } from '../base-server'
+import type { MiddlewareRoutingItem } from '../base-server'
 import type { FunctionComponent } from 'react'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
@@ -69,6 +69,7 @@ import { decorateServerError } from '../../shared/lib/error-source'
 import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
+import { FallbackMode } from '../../lib/fallback'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -162,23 +163,26 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.storeGlobals()
     this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ReactDevOverlay
     this.staticPathsCache = new LRUCache({
       // 5MB
       max: 5 * 1024 * 1024,
       length(value) {
-        return JSON.stringify(value.staticPaths).length
+        return JSON.stringify(value.staticPaths)?.length ?? 0
       },
     })
     this.renderOpts.ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
     this.renderOpts.ampValidator = (html: string, pathname: string) => {
       const validatorPath =
-        this.nextConfig.experimental &&
-        this.nextConfig.experimental.amp &&
-        this.nextConfig.experimental.amp.validator
+        (this.nextConfig.experimental &&
+          this.nextConfig.experimental.amp &&
+          this.nextConfig.experimental.amp.validator) ||
+        require.resolve(
+          'next/dist/compiled/amphtml-validator/validator_wasm.js'
+        )
+
       const AmpHtmlValidator =
         require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
       return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
@@ -293,9 +297,6 @@ export default class DevServer extends Server {
 
     await super.prepareImpl()
     await this.matchers.reload()
-
-    // Store globals again to preserve changes made by the instrumentation hook.
-    this.storeGlobals()
 
     this.ready?.resolve()
     this.ready = undefined
@@ -736,7 +737,7 @@ export default class DevServer extends Server {
     isAppPath: boolean
   }): Promise<{
     staticPaths?: string[]
-    fallbackMode?: false | 'static' | 'blocking'
+    fallbackMode?: FallbackMode
   }> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
@@ -757,9 +758,11 @@ export default class DevServer extends Server {
           distDir: this.distDir,
           pathname,
           config: {
+            pprConfig: this.nextConfig.experimental.ppr,
             configFileName,
             publicRuntimeConfig,
             serverRuntimeConfig,
+            dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
           },
           httpAgentOptions,
           locales,
@@ -771,6 +774,9 @@ export default class DevServer extends Server {
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
+          nextConfigOutput: this.nextConfig.output,
+          isAppPPRFallbacksEnabled: this.nextConfig.experimental.pprFallbacks,
+          buildId: this.renderOpts.buildId,
         })
         return pathsResult
       } finally {
@@ -785,29 +791,26 @@ export default class DevServer extends Server {
       []
     )
       .then((res) => {
-        const { prerenderedRoutes: staticPaths = [], fallback } = res.value
+        const { prerenderedRoutes: staticPaths, fallbackMode: fallback } =
+          res.value
         if (!isAppPath && this.nextConfig.output === 'export') {
-          if (fallback === 'blocking') {
+          if (fallback === FallbackMode.BLOCKING_STATIC_RENDER) {
             throw new Error(
               'getStaticPaths with "fallback: blocking" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
-          } else if (fallback === true) {
+          } else if (fallback === FallbackMode.PRERENDER) {
             throw new Error(
               'getStaticPaths with "fallback: true" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export'
             )
           }
         }
+
         const value: {
-          staticPaths: string[]
-          fallbackMode: FallbackMode
+          staticPaths: string[] | undefined
+          fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths: staticPaths.map((route) => route.path),
-          fallbackMode:
-            fallback === 'blocking'
-              ? 'blocking'
-              : fallback === true
-                ? 'static'
-                : fallback,
+          staticPaths: staticPaths?.map((route) => route.path),
+          fallbackMode: fallback,
         }
         this.staticPathsCache.set(pathname, value)
         return value
@@ -823,14 +826,6 @@ export default class DevServer extends Server {
       return result
     }
     return nextInvoke as NonNullable<typeof result>
-  }
-
-  private storeGlobals(): void {
-    this.originalFetch = global.fetch
-  }
-
-  private restorePatchedGlobals(): void {
-    global.fetch = this.originalFetch ?? global.fetch
   }
 
   protected async ensurePage(opts: {
@@ -880,11 +875,6 @@ export default class DevServer extends Server {
       }
 
       this.nextFontManifest = super.getNextFontManifest()
-      // before we re-evaluate a route module, we want to restore globals that might
-      // have been patched previously to their original state so that we don't
-      // patch on top of the previous patch, which would keep the context of the previous
-      // patched global in memory, creating a memory leak.
-      this.restorePatchedGlobals()
 
       return await super.findPageComponents({
         page,

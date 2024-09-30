@@ -19,7 +19,7 @@ use crate::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
-    EcmascriptAnalyzable, EcmascriptModuleAsset,
+    EcmascriptModuleAsset,
 };
 
 /// A module derived from an original ecmascript module that only contains the
@@ -41,10 +41,10 @@ impl EcmascriptModuleLocalsModule {
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+    fn ident(&self) -> Vc<AssetIdent> {
         let inner = self.module.ident();
 
-        Ok(inner.with_part(ModulePart::locals()))
+        inner.with_part(ModulePart::locals())
     }
 
     #[turbo_tasks::function]
@@ -112,16 +112,16 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             EcmascriptModuleLocalsChunkItem {
                 module: self,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }

@@ -1,4 +1,3 @@
-use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueStage, OptionStyledString, StyledString};
@@ -34,7 +33,7 @@ impl Issue for RenderingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn detail(&self) -> Result<Vc<OptionStyledString>> {
+    async fn detail(&self) -> Vc<OptionStyledString> {
         let mut details = vec![];
 
         if let Some(status) = self.status {
@@ -45,7 +44,7 @@ impl Issue for RenderingIssue {
             }
         }
 
-        Ok(Vc::cell(Some(StyledString::Stack(details).cell())))
+        Vc::cell(Some(StyledString::Stack(details).cell()))
     }
 
     // TODO parse stack trace into source location

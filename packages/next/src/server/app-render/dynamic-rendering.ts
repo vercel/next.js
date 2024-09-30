@@ -27,7 +27,13 @@ import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { prerenderAsyncStorage } from './prerender-async-storage.external'
+import {
+  isDynamicIOPrerender,
+  prerenderAsyncStorage,
+  type PrerenderStore,
+} from './prerender-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { makeHangingPromise } from '../dynamic-rendering-utils'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -55,7 +61,7 @@ export type DynamicTrackingState = {
   /**
    * The dynamic accesses that occurred during the render.
    */
-  readonly dynamicAccesses: DynamicAccess[]
+  readonly dynamicAccesses: Array<DynamicAccess>
 }
 
 export function createDynamicTrackingState(
@@ -65,6 +71,12 @@ export function createDynamicTrackingState(
     isDebugDynamicAccesses,
     dynamicAccesses: [],
   }
+}
+
+export function getFirstDynamicReason(
+  trackingState: DynamicTrackingState
+): undefined | string {
+  return trackingState.dynamicAccesses[0]?.expression
 }
 
 /**
@@ -96,11 +108,25 @@ export function markCurrentScopeAsDynamic(
 
   const prerenderStore = prerenderAsyncStorage.getStore()
   if (prerenderStore) {
-    postponeWithTracking(
-      prerenderStore.dynamicTracking,
-      expression,
-      store.route
-    )
+    if (prerenderStore.controller) {
+      // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
+      // current render because something dynamic is being used.
+      // This won't throw so we still need to fall through to determine if/how we handle
+      // this specific dynamic request.
+      abortRender(prerenderStore.controller, store.route, expression)
+      errorWithTracking(prerenderStore.dynamicTracking, store.route, expression)
+    } else if (prerenderStore.cacheSignal) {
+      // we're prerendering with dynamicIO but we don't want to eagerly abort this
+      // prospective render. We error here to avoid returning anything from whatever
+      // is trying to access dynamic data.
+      errorWithTracking(prerenderStore.dynamicTracking, store.route, expression)
+    } else {
+      postponeWithTracking(
+        store.route,
+        expression,
+        prerenderStore.dynamicTracking
+      )
+    }
   } else {
     store.revalidate = 0
 
@@ -115,6 +141,24 @@ export function markCurrentScopeAsDynamic(
       throw err
     }
   }
+}
+
+/**
+ * This function communicates that some dynamic path parameter was read. This
+ * differs from the more general `trackDynamicDataAccessed` in that it is will
+ * not error when `dynamic = "error"` is set.
+ *
+ * @param store The static generation store
+ * @param expression The expression that was accessed dynamically
+ */
+export function trackFallbackParamAccessed(
+  store: StaticGenerationStore,
+  expression: string
+): void {
+  const prerenderStore = prerenderAsyncStorage.getStore()
+  if (!prerenderStore) return
+
+  postponeWithTracking(store.route, expression, prerenderStore.dynamicTracking)
 }
 
 /**
@@ -142,11 +186,25 @@ export function trackDynamicDataAccessed(
 
   const prerenderStore = prerenderAsyncStorage.getStore()
   if (prerenderStore) {
-    postponeWithTracking(
-      prerenderStore.dynamicTracking,
-      expression,
-      store.route
-    )
+    if (prerenderStore.controller) {
+      // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
+      // current render because something dynamic is being used.
+      // This won't throw so we still need to fall through to determine if/how we handle
+      // this specific dynamic request.
+      abortRender(prerenderStore.controller, store.route, expression)
+      errorWithTracking(prerenderStore.dynamicTracking, store.route, expression)
+    } else if (prerenderStore.cacheSignal) {
+      // we're prerendering with dynamicIO but we don't want to eagerly abort this
+      // prospective render. We error here to avoid returning anything from whatever
+      // is trying to access dynamic data.
+      errorWithTracking(prerenderStore.dynamicTracking, store.route, expression)
+    } else {
+      postponeWithTracking(
+        store.route,
+        expression,
+        prerenderStore.dynamicTracking
+      )
+    }
   } else {
     store.revalidate = 0
 
@@ -164,6 +222,90 @@ export function trackDynamicDataAccessed(
 }
 
 /**
+ * This function is meant to be used when prerendering without dynamicIO or PPR.
+ * When called during a build it will cause Next.js to consider the route as dynamic.
+ *
+ * @internal
+ */
+export function throwToInterruptStaticGeneration(
+  expression: string,
+  store: StaticGenerationStore
+): never {
+  store.revalidate = 0
+
+  // We aren't prerendering but we are generating a static page. We need to bail out of static generation
+  const err = new DynamicServerError(
+    `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+  )
+  store.dynamicUsageDescription = expression
+  store.dynamicUsageStack = err.stack
+
+  throw err
+}
+
+/**
+ * This function should be used to track whether something dynamic happened even when
+ * we are in a dynamic render. This is useful for Dev where all renders are dynamic but
+ * we still track whether dynamic APIs were accessed for helpful messaging
+ *
+ * @internal
+ */
+export function trackDynamicDataInDynamicRender(store: StaticGenerationStore) {
+  store.revalidate = 0
+}
+
+// Despite it's name we don't actually abort unless we have a controller to call abort on
+// There are times when we let a prerender run long to discover caches where we want the semantics
+// of tracking dynamic access without terminating the prerender early
+function abortOnSynchronousDynamicDataAccess(
+  route: string,
+  expression: string,
+  prerenderStore: PrerenderStore
+): void {
+  const reason = `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
+
+  const error = createPrerenderInterruptedError(reason)
+
+  if (prerenderStore.controller) {
+    prerenderStore.controller.abort(error)
+  }
+
+  const dynamicTracking = prerenderStore.dynamicTracking
+  if (dynamicTracking) {
+    dynamicTracking.dynamicAccesses.push({
+      // When we aren't debugging, we don't need to create another error for the
+      // stack trace.
+      stack: dynamicTracking.isDebugDynamicAccesses
+        ? new Error().stack
+        : undefined,
+      expression,
+    })
+  }
+}
+
+/**
+ * use this function when prerendering with dynamicIO. If we are doing a
+ * prospective prerender we don't actually abort because we want to discover
+ * all caches for the shell. If this is the actual prerender we do abort.
+ *
+ * This function accepts a prerenderStore but the caller should ensure we're
+ * actually running in dynamicIO mode.
+ *
+ *
+ * @internal
+ */
+export function abortAndThrowOnSynchronousDynamicDataAccess(
+  route: string,
+  expression: string,
+  prerenderStore: PrerenderStore
+): never {
+  abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
+  throw new Error(
+    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
+  )
+}
+
+/**
  * This component will call `React.postpone` that throws the postponed error.
  */
 type PostponeProps = {
@@ -173,15 +315,14 @@ type PostponeProps = {
 export function Postpone({ reason, route }: PostponeProps): never {
   const prerenderStore = prerenderAsyncStorage.getStore()
   const dynamicTracking = prerenderStore?.dynamicTracking || null
-  postponeWithTracking(dynamicTracking, reason, route)
+  postponeWithTracking(route, reason, dynamicTracking)
 }
 
-function postponeWithTracking(
+function errorWithTracking(
   dynamicTracking: null | DynamicTrackingState,
-  expression: string,
-  route: string
+  route: string,
+  expression: string
 ): never {
-  assertPostpone()
   if (dynamicTracking) {
     dynamicTracking.dynamicAccesses.push({
       // When we aren't debugging, we don't need to create another error for the
@@ -197,10 +338,101 @@ function postponeWithTracking(
     `React throws this special object to indicate where. It should not be caught by ` +
     `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
 
-  React.unstable_postpone(reason)
+  throw createPrerenderInterruptedError(reason)
 }
 
-export function usedDynamicAPIs(
+export function postponeWithTracking(
+  route: string,
+  expression: string,
+  dynamicTracking: null | DynamicTrackingState
+): never {
+  assertPostpone()
+  if (dynamicTracking) {
+    dynamicTracking.dynamicAccesses.push({
+      // When we aren't debugging, we don't need to create another error for the
+      // stack trace.
+      stack: dynamicTracking.isDebugDynamicAccesses
+        ? new Error().stack
+        : undefined,
+      expression,
+    })
+  }
+
+  React.unstable_postpone(createPostponeReason(route, expression))
+}
+
+function createPostponeReason(route: string, expression: string) {
+  return (
+    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}. ` +
+    `React throws this special object to indicate where. It should not be caught by ` +
+    `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
+  )
+}
+
+export function isDynamicPostpone(err: unknown) {
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    typeof (err as any).message === 'string'
+  ) {
+    return isDynamicPostponeReason((err as any).message)
+  }
+  return false
+}
+
+function isDynamicPostponeReason(reason: string) {
+  return (
+    reason.includes(
+      'needs to bail out of prerendering at this point because it used'
+    ) &&
+    reason.includes(
+      'Learn more: https://nextjs.org/docs/messages/ppr-caught-error'
+    )
+  )
+}
+
+if (isDynamicPostponeReason(createPostponeReason('%%%', '^^^')) === false) {
+  throw new Error(
+    'Invariant: isDynamicPostpone misidentified a postpone reason. This is a bug in Next.js'
+  )
+}
+
+const NEXT_PRERENDER_INTERRUPTED = 'NEXT_PRERENDER_INTERRUPTED'
+
+function createPrerenderInterruptedError(message: string): Error {
+  const error = new Error(message)
+  ;(error as any).digest = NEXT_PRERENDER_INTERRUPTED
+  return error
+}
+
+export function isPrerenderInterruptedError(error: unknown) {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as any).digest === NEXT_PRERENDER_INTERRUPTED
+  )
+}
+
+function abortRender(
+  controller: AbortController,
+  route: string,
+  expression: string
+): void {
+  // TODO improve the error message to communicate what it means to have a complete
+  // prerender that was interrupted
+  const reason =
+    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}. ` +
+    `React throws this special object to indicate where. It should not be caught by ` +
+    `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
+
+  controller.abort(createPrerenderInterruptedError(reason))
+}
+
+export function isRenderInterruptedReason(reason: string) {
+  return reason === NEXT_PRERENDER_INTERRUPTED
+}
+
+export function accessedDynamicData(
   dynamicTracking: DynamicTrackingState
 ): boolean {
   return dynamicTracking.dynamicAccesses.length > 0
@@ -266,4 +498,55 @@ export function createPostponedAbortSignal(reason: string): AbortSignal {
     controller.abort(x)
   }
   return controller.signal
+}
+
+export function annotateDynamicAccess(
+  expression: string,
+  prerenderStore: PrerenderStore
+) {
+  const dynamicTracking = prerenderStore.dynamicTracking
+  if (dynamicTracking) {
+    dynamicTracking.dynamicAccesses.push({
+      stack: dynamicTracking.isDebugDynamicAccesses
+        ? new Error().stack
+        : undefined,
+      expression,
+    })
+  }
+}
+
+export function useDynamicRouteParams(expression: string) {
+  if (typeof window === 'undefined') {
+    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+
+    if (
+      staticGenerationStore &&
+      staticGenerationStore.isStaticGeneration &&
+      staticGenerationStore.fallbackRouteParams &&
+      staticGenerationStore.fallbackRouteParams.size > 0
+    ) {
+      // There are fallback route params, we should track these as dynamic
+      // accesses.
+      const prerenderStore = prerenderAsyncStorage.getStore()
+      if (prerenderStore) {
+        // We're prerendering with dynamicIO or PPR or both
+        if (isDynamicIOPrerender(prerenderStore)) {
+          // We are in a prerender with dynamicIO semantics
+          // We are going to hang here and never resolve. This will cause the currently
+          // rendering component to effectively be a dynamic hole
+          React.use(makeHangingPromise())
+        } else {
+          // We're prerendering with PPR
+          postponeWithTracking(
+            staticGenerationStore.route,
+            expression,
+            prerenderStore.dynamicTracking
+          )
+        }
+      } else {
+        // We're prerendering in legacy mode
+        throwToInterruptStaticGeneration(expression, staticGenerationStore)
+      }
+    }
+  }
 }

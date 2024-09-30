@@ -50,10 +50,20 @@ bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-bytes = (???*0* | ???*1*)
+bytes = (???*0* | new ???*1*(???*2*))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* FreeVar(Array)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *2* ???*3*["length"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* ???*4*(FreeVar(encodeURIComponent)(bytes))
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *4* FreeVar(unescape)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 bytesToWords = (...) => output

@@ -8,24 +8,26 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn recompute() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let input = ChangingInput {
             state: State::new(1),
         }
         .cell();
         let output = compute(input, 100);
-        let read = output.await.unwrap();
+        let read = output.await?;
         assert_eq!(read.value, 42);
         assert_eq!(read.collectible, "1");
 
         for i in 2..100 {
-            input.await.unwrap().state.set(i);
-            let read = output.strongly_consistent().await.unwrap();
+            input.await?.state.set(i);
+            let read = output.strongly_consistent().await?;
             assert_eq!(read.value, 42);
             assert_eq!(read.collectible, i.to_string());
         }
+        anyhow::Ok(())
     })
     .await
+    .unwrap()
 }
 
 #[turbo_tasks::value]

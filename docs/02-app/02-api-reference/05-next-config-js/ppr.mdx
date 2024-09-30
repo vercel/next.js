@@ -1,7 +1,7 @@
 ---
-title: Partial Prerendering
-nav_title: ppr (experimental)
-description: Learn how to enable Partial Prerendering (experimental) in Next.js.
+title: ppr
+description: Learn how to enable Partial Prerendering in Next.js.
+version: experimental
 related:
   title: Learn more about Partial Prerendering
   links:
@@ -9,8 +9,6 @@ related:
 ---
 
 Partial Prerendering (PPR) enables you to combine static and dynamic components together in the same route. Learn more about [PPR](/docs/app/building-your-application/rendering/partial-prerendering).
-
-> **Note:** Partial Prerendering is an **experimental** feature and subject to change. It is not ready for production use.
 
 ## Using Partial Prerendering
 
@@ -85,7 +83,7 @@ export default function Page() {
 
 ### Enabling PPR (Version 14)
 
-For version 14, you can enable it by adding the [`ppr`](/docs/app/api-reference/next-config-js/ppr) option to your `next.config.js` file. This will apply to all routes in your application:
+For version 14, you can enable it by adding the [`ppr`](/docs/app/api-reference/next-config-js/ppr) option to your `next.config.js` file. You must also be on the canary version to enable PPR. This will apply to all routes in your application:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -109,3 +107,8 @@ const nextConfig = {
 
 module.exports = nextConfig
 ```
+
+| Version   | Changes                                     |
+| --------- | ------------------------------------------- |
+| `v15.0.0` | experimental `incremental` value introduced |
+| `v14.0.0` | experimental `ppr` introduced               |

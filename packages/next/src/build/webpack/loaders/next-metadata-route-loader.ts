@@ -14,6 +14,27 @@ function errorOnBadHandler(resourcePath: string) {
   `
 }
 
+/* re-export the userland route configs */
+async function createReExportsCode(
+  resourcePath: string,
+  loaderContext: webpack.LoaderContext<any>
+) {
+  const exportNames = await getLoaderModuleNamedExports(
+    resourcePath,
+    loaderContext
+  )
+  // Re-export configs but avoid conflicted exports
+  const reExportNames = exportNames.filter(
+    (name) => name !== 'default' && name !== 'generateSitemaps'
+  )
+
+  return reExportNames.length > 0
+    ? `export { ${reExportNames.join(', ')} } from ${JSON.stringify(
+        resourcePath
+      )}\n`
+    : ''
+}
+
 const cacheHeader = {
   none: 'no-cache, no-store',
   longCache: 'public, immutable, no-transform, max-age=31536000',
@@ -85,7 +106,10 @@ export const dynamic = 'force-static'
   return code
 }
 
-function getDynamicTextRouteCode(resourcePath: string) {
+async function getDynamicTextRouteCode(
+  resourcePath: string,
+  loaderContext: webpack.LoaderContext<any>
+) {
   return `\
 /* dynamic asset route */
 import { NextResponse } from 'next/server'
@@ -96,6 +120,7 @@ const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
 ${errorOnBadHandler(resourcePath)}
+${await createReExportsCode(resourcePath, loaderContext)}
 
 export async function GET() {
   const data = await handler()
@@ -112,7 +137,10 @@ export async function GET() {
 }
 
 // <metadata-image>/[id]/route.js
-function getDynamicImageRouteCode(resourcePath: string) {
+async function getDynamicImageRouteCode(
+  resourcePath: string,
+  loaderContext: webpack.LoaderContext<any>
+) {
   return `\
 /* dynamic image route */
 import { NextResponse } from 'next/server'
@@ -124,6 +152,7 @@ const handler = imageModule.default
 const generateImageMetadata = imageModule.generateImageMetadata
 
 ${errorOnBadHandler(resourcePath)}
+${await createReExportsCode(resourcePath, loaderContext)}
 
 export async function GET(_, ctx) {
   const { __metadata_id__, ...params } = ctx.params || {}
@@ -162,10 +191,6 @@ async function getDynamicSitemapRouteCode(
     resourcePath,
     loaderContext
   )
-  // Re-export configs but avoid conflicted exports
-  const reExportNames = exportNames.filter(
-    (name) => name !== 'default' && name !== 'generateSitemaps'
-  )
 
   const hasGenerateSitemaps = exportNames.includes('generateSitemaps')
 
@@ -195,15 +220,7 @@ const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
 ${errorOnBadHandler(resourcePath)}
-
-${'' /* re-export the userland route configs */}
-${
-  reExportNames.length > 0
-    ? `export { ${reExportNames.join(', ')} } from ${JSON.stringify(
-        resourcePath
-      )}\n`
-    : ''
-}
+${await createReExportsCode(resourcePath, loaderContext)}
 
 export async function GET(_, ctx) {
   const { __metadata_id__: id, ...params } = ctx.params || {}
@@ -253,11 +270,11 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
     let code = ''
     if (isDynamicRouteExtension === '1') {
       if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
-        code = getDynamicTextRouteCode(filePath)
+        code = await getDynamicTextRouteCode(filePath, this)
       } else if (fileBaseName === 'sitemap') {
         code = await getDynamicSitemapRouteCode(filePath, this)
       } else {
-        code = getDynamicImageRouteCode(filePath)
+        code = await getDynamicImageRouteCode(filePath, this)
       }
     } else {
       code = await getStaticAssetRouteCode(filePath, fileBaseName)

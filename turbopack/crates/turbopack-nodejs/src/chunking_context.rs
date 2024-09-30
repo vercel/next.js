@@ -8,13 +8,14 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
+        module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
         EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -53,6 +54,11 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn module_id_strategy(mut self, module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>) -> Self {
+        self.chunking_context.module_id_strategy = module_id_strategy;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::new(Value::new(self.chunking_context))
@@ -84,6 +90,8 @@ pub struct NodeJsChunkingContext {
     minify_type: MinifyType,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
+    /// The strategy to use for generating module ids
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 }
 
 impl NodeJsChunkingContext {
@@ -109,6 +117,7 @@ impl NodeJsChunkingContext {
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
+                module_id_strategy: Vc::upcast(DevModuleIdStrategy::new()),
             },
         }
     }
@@ -247,6 +256,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     async fn chunk_group(
         self: Vc<Self>,
+        _ident: Vc<AssetIdent>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -294,6 +304,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn Module>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        extra_chunks: Vc<OutputAssets>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let availability_info = availability_info.into_value();
@@ -313,9 +324,11 @@ impl ChunkingContext for NodeJsChunkingContext {
         )
         .await?;
 
-        let other_chunks: Vec<_> = chunks
+        let extra_chunks = extra_chunks.await?;
+        let other_chunks: Vec<_> = extra_chunks
             .iter()
-            .map(|chunk| self.generate_chunk(*chunk))
+            .copied()
+            .chain(chunks.iter().map(|chunk| self.generate_chunk(*chunk)))
             .collect();
 
         let Some(module) = Vc::try_resolve_downcast(module).await? else {
@@ -347,6 +360,11 @@ impl ChunkingContext for NodeJsChunkingContext {
         // TODO(alexkirsz) This method should be part of a separate trait that is
         // only implemented for client/edge runtimes.
         bail!("the build chunking context does not support evaluated chunk groups")
+    }
+
+    #[turbo_tasks::function]
+    fn chunk_item_id_from_ident(&self, ident: Vc<AssetIdent>) -> Vc<ModuleId> {
+        self.module_id_strategy.get_module_id(ident)
     }
 
     #[turbo_tasks::function]

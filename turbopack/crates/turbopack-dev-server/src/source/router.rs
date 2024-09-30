@@ -25,17 +25,17 @@ pub struct PrefixedRouterContentSource {
 #[turbo_tasks::value_impl]
 impl PrefixedRouterContentSource {
     #[turbo_tasks::function]
-    pub async fn new(
+    pub fn new(
         prefix: Vc<RcStr>,
         routes: Vec<(RcStr, Vc<Box<dyn ContentSource>>)>,
         fallback: Vc<Box<dyn ContentSource>>,
-    ) -> Result<Vc<Self>> {
-        Ok(PrefixedRouterContentSource {
+    ) -> Vc<Self> {
+        PrefixedRouterContentSource {
             prefix,
             routes,
             fallback,
         }
-        .cell())
+        .cell()
     }
 }
 

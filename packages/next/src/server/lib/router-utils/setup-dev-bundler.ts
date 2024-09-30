@@ -9,7 +9,8 @@ import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/midd
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
-import { createDefineEnv, type Project } from '../../../build/swc'
+import { createDefineEnv } from '../../../build/swc'
+import type { Project } from '../../../build/swc/types'
 import fs from 'fs'
 import { mkdir } from 'fs/promises'
 import url from 'url'
@@ -79,7 +80,7 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
 import {
   ModuleBuildError,
   TurbopackInternalError,
@@ -104,6 +105,7 @@ export type SetupOpts = {
   nextConfig: NextConfigComplete
   port: number
   onCleanup: (listener: () => Promise<void>) => void
+  resetFetch: () => void
 }
 
 export type ServerFields = {
@@ -122,6 +124,7 @@ export type ServerFields = {
     typeof import('./filesystem').buildCustomRoute
   >[]
   setAppIsrStatus?: (key: string, value: false | number | null) => void
+  resetFetch?: () => void
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
@@ -152,7 +155,7 @@ export async function propagateServerField(
 }
 
 async function startWatcher(opts: SetupOpts) {
-  const { nextConfig, appDir, pagesDir, dir } = opts
+  const { nextConfig, appDir, pagesDir, dir, resetFetch } = opts
   const { useFileSystemPublicRoutes } = nextConfig
   const usingTypeScript = await verifyTypeScript(opts)
 
@@ -182,17 +185,21 @@ async function startWatcher(opts: SetupOpts) {
   })
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
-    ? await createHotReloaderTurbopack(opts, serverFields, distDir)
+    ? await createHotReloaderTurbopack(opts, serverFields, distDir, resetFetch)
     : new HotReloaderWebpack(opts.dir, {
         appDir,
         pagesDir,
-        distDir: distDir,
+        distDir,
         config: opts.nextConfig,
         buildId: 'development',
-        encryptionKey: await generateEncryptionKeyBase64(),
+        encryptionKey: await generateEncryptionKeyBase64({
+          isBuild: false,
+          distDir,
+        }),
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
+        resetFetch,
       })
 
   await hotReloader.start()
@@ -393,10 +400,7 @@ async function startWatcher(opts: SetupOpts) {
           ]
           continue
         }
-        if (
-          isInstrumentationHookFile(rootFile) &&
-          nextConfig.experimental.instrumentationHook
-        ) {
+        if (isInstrumentationHookFile(rootFile)) {
           serverFields.actualInstrumentationHookFile = rootFile
           await propagateServerField(
             opts,
@@ -953,7 +957,7 @@ async function startWatcher(opts: SetupOpts) {
                   file: frameFile,
                   methodName: frame.methodName,
                   line: frame.lineNumber ?? 0,
-                  column: frame.column,
+                  column: frame.column ?? undefined,
                   isServer: true,
                 }
               )
@@ -1124,7 +1128,7 @@ async function traceTurbopackErrorStack(
           file: f.file!,
           methodName: f.methodName,
           line: f.lineNumber ?? 0,
-          column: f.column,
+          column: f.column ?? undefined,
           isServer: true,
         })
 

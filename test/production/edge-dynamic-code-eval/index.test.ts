@@ -17,25 +17,30 @@ describe('Dynamic Code Evaluation (DCE)', () => {
       `Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime`
     )
   })
-
-  it("should show the user's import trace", async () => {
-    await next.patchFile(
-      'middleware.js',
-      `
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    "should show the user's import trace",
+    async () => {
+      await next.patchFile(
+        'middleware.js',
+        `
       import { foo } from './lib/foo'
       export function middleware() {
         foo()
       }`
-    )
-    const { exitCode, cliOutput } = await next.build()
-    expect(exitCode).toBe(1)
+      )
+      const { exitCode, cliOutput } = await next.build()
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(exitCode).toBe(1)
 
-    expect(cliOutput).toContain(`./lib/foo.js
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(cliOutput).toContain(`./lib/foo.js
 Dynamic Code Evaluation (e. g. 'eval', 'new Function', 'WebAssembly.compile') not allowed in Edge Runtime 
 Used by bar`)
 
-    expect(cliOutput).toContain(`Import trace for requested module:
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(cliOutput).toContain(`Import trace for requested module:
   ./lib/foo.js
   ./middleware.js`)
-  })
+    }
+  )
 })

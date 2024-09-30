@@ -5,6 +5,7 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOptsPartial } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
+import type { FallbackRouteParams } from '../../server/request/fallback-params'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
@@ -14,7 +15,13 @@ export type StaticGenerationContext = {
    */
   page: string
 
+  /**
+   * The route parameters that are currently unknown.
+   */
+  fallbackRouteParams: FallbackRouteParams | null
+
   requestEndedState?: { ended?: boolean }
+  isPrefetchRequest?: boolean
   renderOpts: {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
@@ -23,7 +30,7 @@ export type StaticGenerationContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOptsPartial['experimental'],
-      'isRoutePPREnabled' | 'after'
+      'isRoutePPREnabled' | 'after' | 'dynamicIO'
     >
 
     /**
@@ -49,6 +56,7 @@ export type StaticGenerationContext = {
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
+    | 'buildId'
   > &
     Partial<RequestLifecycleOpts>
 }
@@ -58,7 +66,13 @@ export const withStaticGenerationStore: WithStore<
   StaticGenerationContext
 > = <Result>(
   storage: AsyncLocalStorage<StaticGenerationStore>,
-  { page, renderOpts, requestEndedState }: StaticGenerationContext,
+  {
+    page,
+    fallbackRouteParams,
+    renderOpts,
+    requestEndedState,
+    isPrefetchRequest,
+  }: StaticGenerationContext,
   callback: (store: StaticGenerationStore) => Result
 ): Result => {
   /**
@@ -86,6 +100,7 @@ export const withStaticGenerationStore: WithStore<
   const store: StaticGenerationStore = {
     isStaticGeneration,
     page,
+    fallbackRouteParams,
     route: normalizeAppPath(page),
     incrementalCache:
       // we fallback to a global incremental cache for edge-runtime locally
@@ -99,6 +114,8 @@ export const withStaticGenerationStore: WithStore<
     isDraftMode: renderOpts.isDraftMode,
 
     requestEndedState,
+    isPrefetchRequest,
+    buildId: renderOpts.buildId,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

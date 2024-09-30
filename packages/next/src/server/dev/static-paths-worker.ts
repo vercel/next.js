@@ -7,6 +7,7 @@ import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
+  reduceAppConfig,
 } from '../../build/utils'
 import type {
   GenerateParamsResults,
@@ -15,12 +16,21 @@ import type {
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import { isAppRouteRouteModule } from '../route-modules/checks'
+import {
+  isAppPageRouteModule,
+  isAppRouteRouteModule,
+} from '../route-modules/checks'
+import {
+  checkIsRoutePPREnabled,
+  type ExperimentalPPRConfig,
+} from '../lib/experimental/ppr'
 
 type RuntimeConfig = {
+  pprConfig: ExperimentalPPRConfig | undefined
   configFileName: string
   publicRuntimeConfig: { [key: string]: any }
   serverRuntimeConfig: { [key: string]: any }
+  dynamicIO: boolean
 }
 
 // we call getStaticPaths in a separate process to ensure
@@ -41,6 +51,9 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   cacheHandler,
+  nextConfigOutput,
+  isAppPPRFallbacksEnabled,
+  buildId,
 }: {
   dir: string
   distDir: string
@@ -56,6 +69,9 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
+  nextConfigOutput: 'standalone' | 'export' | undefined
+  isAppPPRFallbacksEnabled: boolean | undefined
+  buildId: string
 }): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
@@ -95,9 +111,14 @@ export async function loadStaticPaths({
           ]
         : await collectGenerateParams(components.ComponentMod.tree)
 
+    const isRoutePPREnabled =
+      isAppPageRouteModule(routeModule) &&
+      checkIsRoutePPREnabled(config.pprConfig, reduceAppConfig(generateParams))
+
     return await buildAppStaticPaths({
       dir,
       page: pathname,
+      dynamicIO: config.dynamicIO,
       generateParams,
       configFileName: config.configFileName,
       distDir,
@@ -107,6 +128,10 @@ export async function loadStaticPaths({
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
       ComponentMod: components.ComponentMod,
+      nextConfigOutput,
+      isRoutePPREnabled,
+      isAppPPRFallbacksEnabled,
+      buildId,
     })
   }
 

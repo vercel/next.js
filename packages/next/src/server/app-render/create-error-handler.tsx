@@ -1,3 +1,5 @@
+import type { ErrorInfo } from 'react'
+
 import stringHash from 'next/dist/compiled/string-hash'
 import { formatServerError } from '../../lib/format-server-error'
 import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
@@ -10,22 +12,24 @@ declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
 }
 
-type ErrorHandler = (err: unknown, errorInfo: unknown) => string | undefined
+type RSCErrorHandler = (err: unknown) => string | undefined
+type SSRErrorHandler = (
+  err: unknown,
+  errorInfo?: ErrorInfo
+) => string | undefined
 
 export type DigestedError = Error & { digest: string }
 
 export function createFlightReactServerErrorHandler(
   dev: boolean,
   onReactServerRenderError: (err: any) => void
-): ErrorHandler {
-  return (err: any, errorInfo: any) => {
+): RSCErrorHandler {
+  return (err: any) => {
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
     if (!err.digest) {
       // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-      err.digest = stringHash(
-        err.message + (errorInfo?.stack || err.stack || '')
-      ).toString()
+      err.digest = stringHash(err.message + err.stack || '').toString()
     }
 
     // If the response was closed, we don't need to log the error.
@@ -70,15 +74,13 @@ export function createHTMLReactServerErrorHandler(
   reactServerErrors: Map<string, DigestedError>,
   silenceLogger: boolean,
   onReactServerRenderError: undefined | ((err: any) => void)
-): ErrorHandler {
-  return (err: any, errorInfo: any) => {
+): RSCErrorHandler {
+  return (err: any) => {
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
     if (!err.digest) {
       // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-      err.digest = stringHash(
-        err.message + (errorInfo?.stack || err.stack || '')
-      ).toString()
+      err.digest = stringHash(err.message + (err.stack || '')).toString()
     }
 
     // If the response was closed, we don't need to log the error.
@@ -139,30 +141,32 @@ export function createHTMLErrorHandler(
   dev: boolean,
   isNextExport: boolean,
   reactServerErrors: Map<string, DigestedError>,
-  allCapturedError: Array<unknown>,
+  allCapturedErrors: Array<unknown>,
   silenceLogger: boolean,
-  onHTMLRenderError: (err: any) => void
-): ErrorHandler {
-  return (err: any, errorInfo: any) => {
+  onHTMLRenderSSRError: (err: any, errorInfo?: ErrorInfo) => void
+): SSRErrorHandler {
+  return (err: any, errorInfo?: ErrorInfo) => {
+    let isSSRError = true
+
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
-
     if (err.digest) {
       if (reactServerErrors.has(err.digest)) {
         // This error is likely an obfuscated error from react-server.
         // We recover the original error here.
         err = reactServerErrors.get(err.digest)
+        isSSRError = false
       } else {
         // The error is not from react-server but has a digest
         // from other means so we don't need to produce a new one
       }
     } else {
       err.digest = stringHash(
-        err.message + (errorInfo?.stack || err.stack || '')
+        err.message + (errorInfo?.componentStack || err.stack || '')
       ).toString()
     }
 
-    allCapturedError.push(err)
+    allCapturedErrors.push(err)
 
     // If the response was closed, we don't need to log the error.
     if (isAbortError(err)) return
@@ -203,11 +207,21 @@ export function createHTMLErrorHandler(
         })
       }
 
-      if (!silenceLogger) {
-        onHTMLRenderError(err)
+      if (
+        !silenceLogger &&
+        // HTML errors contain RSC errors as well, filter them out before reporting
+        isSSRError
+      ) {
+        onHTMLRenderSSRError(err, errorInfo)
       }
     }
 
     return err.digest
   }
+}
+
+export function isUserLandError(err: any): boolean {
+  return (
+    !isAbortError(err) && !isBailoutToCSRError(err) && !isNextRouterError(err)
+  )
 }

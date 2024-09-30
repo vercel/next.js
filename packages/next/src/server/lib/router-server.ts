@@ -46,6 +46,7 @@ import {
   type AppIsrManifestAction,
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
+import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -109,6 +110,8 @@ export async function initialize(opts: {
 
   let devBundlerService: DevBundlerService | undefined
 
+  let originalFetch = globalThis.fetch
+
   if (opts.dev) {
     const { Telemetry } =
       require('../../telemetry/storage') as typeof import('../../telemetry/storage')
@@ -120,6 +123,11 @@ export async function initialize(opts: {
 
     const { setupDevBundler } =
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
+
+    const resetFetch = () => {
+      globalThis.fetch = originalFetch
+      ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
+    }
 
     const setupDevBundlerSpan = opts.startServerSpan
       ? opts.startServerSpan.traceChild('setup-dev-bundler')
@@ -138,6 +146,7 @@ export async function initialize(opts: {
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
         onCleanup: opts.onCleanup,
+        resetFetch,
       })
     )
 
@@ -531,7 +540,7 @@ export async function initialize(opts: {
       // 404 case
       res.setHeader(
         'Cache-Control',
-        'no-cache, no-store, max-age=0, must-revalidate'
+        'private, no-cache, no-store, max-age=0, must-revalidate'
       )
 
       // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
@@ -591,12 +600,12 @@ export async function initialize(opts: {
   let requestHandler: WorkerRequestHandler = requestHandlerImpl
   if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
-    const {
-      wrapRequestHandlerWorker,
-      interceptTestApis,
-    } = require('next/dist/experimental/testmode/server')
+    const { wrapRequestHandlerWorker, interceptTestApis } =
+      require('next/dist/experimental/testmode/server') as typeof import('next/src/experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
+    // We treat the intercepted fetch as "original" fetch that should be reset to during HMR.
+    originalFetch = globalThis.fetch
   }
   requestHandlers[opts.dir] = requestHandler
 

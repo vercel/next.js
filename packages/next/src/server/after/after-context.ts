@@ -7,6 +7,9 @@ import { ResponseCookies } from '../web/spec-extension/cookies'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { isThenable } from '../../shared/lib/is-thenable'
+import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { withExecuteRevalidates } from './revalidation-utils'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
@@ -36,7 +39,7 @@ export class AfterContext {
   }
 
   public after(task: AfterTask): void {
-    if (isPromise(task)) {
+    if (isThenable(task)) {
       task.catch(() => {}) // avoid unhandled rejection crashes
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
@@ -104,10 +107,14 @@ export class AfterContext {
     const readonlyRequestStore: RequestStore =
       wrapRequestStoreForAfterCallbacks(requestStore)
 
-    return requestAsyncStorage.run(readonlyRequestStore, () => {
-      this.callbackQueue.start()
-      return this.callbackQueue.onIdle()
-    })
+    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+
+    return withExecuteRevalidates(staticGenerationStore, () =>
+      requestAsyncStorage.run(readonlyRequestStore, async () => {
+        this.callbackQueue.start()
+        await this.callbackQueue.onIdle()
+      })
+    )
   }
 }
 
@@ -140,13 +147,4 @@ function wrapRequestStoreForAfterCallbacks(
     isHmrRefresh: requestStore.isHmrRefresh,
     serverComponentsHmrCache: requestStore.serverComponentsHmrCache,
   }
-}
-
-function isPromise(p: unknown): p is Promise<unknown> {
-  return (
-    p !== null &&
-    typeof p === 'object' &&
-    'then' in p &&
-    typeof p.then === 'function'
-  )
 }

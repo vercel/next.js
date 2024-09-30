@@ -6,7 +6,9 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use turbo_tasks::{RcStr, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc};
+use turbo_tasks::{
+    RcStr, ReadConsistency, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
+};
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
@@ -19,7 +21,7 @@ use turbopack_core::{
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     issue::{handle_issues, IssueReporter, IssueSeverity},
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
@@ -148,7 +150,9 @@ impl TurbopackBuildBuilder {
             Ok(Default::default())
         });
 
-        self.turbo_tasks.wait_task_completion(task, true).await?;
+        self.turbo_tasks
+            .wait_task_completion(task, ReadConsistency::Strong)
+            .await?;
 
         Ok(())
     }
@@ -279,6 +283,7 @@ async fn build_internal(
                                     .with_extension("entry.js".into()),
                                 Vc::upcast(ecmascript),
                                 EvaluatableAssets::one(Vc::upcast(ecmascript)),
+                                OutputAssets::empty(),
                                 Value::new(AvailabilityInfo::Root),
                             )
                             .await?

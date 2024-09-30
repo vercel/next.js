@@ -10,12 +10,13 @@ import type { MetadataImageModule } from '../../build/webpack/loaders/metadata/t
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { Twitter } from './types/twitter-types'
 import type { OpenGraph } from './types/opengraph-types'
-import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import type { AppDirModules } from '../../build/webpack/loaders/next-app-loader'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type {
   AbsoluteTemplateString,
   IconDescriptor,
+  ResolvedIcons,
 } from './types/metadata-types'
 import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
@@ -48,6 +49,13 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type {
+  Params,
+  CreateServerParamsForMetadata,
+} from '../../server/request/params'
+
+type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
 type MetadataResolver = (
   parent: ResolvingMetadata
@@ -99,27 +107,18 @@ function mergeStaticMetadata(
   staticFilesMetadata: StaticMetadata,
   metadataContext: MetadataContext,
   titleTemplates: TitleTemplates,
-  isLastSegment: boolean
+  leafSegmentStaticIcons: StaticIcons
 ) {
   if (!staticFilesMetadata) return
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
 
-  // Only pick up the static metadata if the current level is the last segment
-  if (isLastSegment) {
-    // file based metadata is specified and current level metadata icons is not specified
-    if (target.icons) {
-      if (icon) {
-        target.icons.icon.unshift(...icon)
-      }
-      if (apple) {
-        target.icons.apple.unshift(...apple)
-      }
-    } else if (icon || apple) {
-      target.icons = {
-        icon: icon || [],
-        apple: apple || [],
-      }
-    }
+  // Keep updating the static icons in the most leaf node
+
+  if (icon) {
+    leafSegmentStaticIcons.icon = icon
+  }
+  if (apple) {
+    leafSegmentStaticIcons.apple = apple
   }
 
   // file based metadata is specified and current level metadata twitter.images is not specified
@@ -158,7 +157,7 @@ function mergeMetadata({
   titleTemplates,
   metadataContext,
   buildState,
-  isLastSegment,
+  leafSegmentStaticIcons,
 }: {
   source: Metadata | null
   target: ResolvedMetadata
@@ -166,7 +165,7 @@ function mergeMetadata({
   titleTemplates: TitleTemplates
   metadataContext: MetadataContext
   buildState: BuildState
-  isLastSegment: boolean
+  leafSegmentStaticIcons: StaticIcons
 }): void {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
@@ -290,7 +289,7 @@ function mergeMetadata({
     staticFilesMetadata,
     metadataContext,
     titleTemplates,
-    isLastSegment
+    leafSegmentStaticIcons
   )
 }
 
@@ -376,9 +375,9 @@ async function getDefinedMetadata(
 }
 
 async function collectStaticImagesFiles(
-  metadata: ComponentsType['metadata'],
+  metadata: AppDirModules['metadata'],
   props: any,
-  type: keyof NonNullable<ComponentsType['metadata']>
+  type: keyof NonNullable<AppDirModules['metadata']>
 ) {
   if (!metadata?.[type]) return undefined
 
@@ -393,10 +392,10 @@ async function collectStaticImagesFiles(
 }
 
 async function resolveStaticMetadata(
-  components: ComponentsType,
+  modules: AppDirModules,
   props: any
 ): Promise<StaticMetadata> {
-  const { metadata } = components
+  const { metadata } = modules
   if (!metadata) return null
 
   const [icon, apple, openGraph, twitter] = await Promise.all([
@@ -484,9 +483,11 @@ export async function resolveMetadataItems({
   getDynamicParamFromSegment,
   searchParams,
   errorConvention,
+  createServerParamsForMetadata,
+  staticGenerationStore,
 }: {
   tree: LoaderTree
-  parentParams: { [key: string]: any }
+  parentParams: Params
   metadataItems: MetadataItems
   errorMetadataItem: MetadataItems[number]
   /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
@@ -494,6 +495,8 @@ export async function resolveMetadataItems({
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   searchParams: ParsedUrlQuery
   errorConvention: 'not-found' | undefined
+  createServerParamsForMetadata: CreateServerParamsForMetadata
+  staticGenerationStore: StaticGenerationStore
 }): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix = [...treePrefix, segment]
@@ -504,25 +507,28 @@ export async function resolveMetadataItems({
   /**
    * Create object holding the parent params and current params
    */
-  const currentParams =
-    // Handle null case where dynamic param is optional
-    segmentParam && segmentParam.value !== null
-      ? {
-          ...parentParams,
-          [segmentParam.param]: segmentParam.value,
-        }
-      : // Pass through parent params to children
-        parentParams
+  let currentParams = parentParams
+  if (segmentParam && segmentParam.value !== null) {
+    currentParams = {
+      ...parentParams,
+      [segmentParam.param]: segmentParam.value,
+    }
+  }
+
+  const params = createServerParamsForMetadata(
+    currentParams,
+    staticGenerationStore
+  )
 
   let layerProps: LayoutProps | PageProps
   if (isPage) {
     layerProps = {
-      params: currentParams,
+      params,
       searchParams,
     }
   } else {
     layerProps = {
-      params: currentParams,
+      params,
     }
   }
 
@@ -549,6 +555,8 @@ export async function resolveMetadataItems({
       searchParams,
       getDynamicParamFromSegment,
       errorConvention,
+      createServerParamsForMetadata,
+      staticGenerationStore,
     })
   }
 
@@ -774,6 +782,13 @@ export async function accumulateMetadata(
   }
 
   let favicon
+
+  // Collect the static icons in the most leaf node,
+  // since we don't collect all the static metadata icons in the parent segments.
+  const leafSegmentStaticIcons = {
+    icon: [],
+    apple: [],
+  }
   for (let i = 0; i < metadataItems.length; i++) {
     const staticFilesMetadata = metadataItems[i][1]
 
@@ -800,7 +815,7 @@ export async function accumulateMetadata(
       staticFilesMetadata,
       titleTemplates,
       buildState,
-      isLastSegment: i === metadataItems.length - 1,
+      leafSegmentStaticIcons,
     })
 
     // If the layout is the same layer with page, skip the leaf layout and leaf page
@@ -810,6 +825,24 @@ export async function accumulateMetadata(
         title: resolvedMetadata.title?.template || null,
         openGraph: resolvedMetadata.openGraph?.title.template || null,
         twitter: resolvedMetadata.twitter?.title.template || null,
+      }
+    }
+  }
+
+  if (
+    leafSegmentStaticIcons.icon.length > 0 ||
+    leafSegmentStaticIcons.apple.length > 0
+  ) {
+    if (!resolvedMetadata.icons) {
+      resolvedMetadata.icons = {
+        icon: [],
+        apple: [],
+      }
+      if (leafSegmentStaticIcons.icon.length > 0) {
+        resolvedMetadata.icons.icon.unshift(...leafSegmentStaticIcons.icon)
+      }
+      if (leafSegmentStaticIcons.apple.length > 0) {
+        resolvedMetadata.icons.apple.unshift(...leafSegmentStaticIcons.apple)
       }
     }
   }
@@ -866,9 +899,11 @@ export async function resolveMetadata({
   searchParams,
   errorConvention,
   metadataContext,
+  createServerParamsForMetadata,
+  staticGenerationStore,
 }: {
   tree: LoaderTree
-  parentParams: { [key: string]: any }
+  parentParams: Params
   metadataItems: MetadataItems
   errorMetadataItem: MetadataItems[number]
   /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
@@ -877,6 +912,8 @@ export async function resolveMetadata({
   searchParams: { [key: string]: any }
   errorConvention: 'not-found' | undefined
   metadataContext: MetadataContext
+  createServerParamsForMetadata: CreateServerParamsForMetadata
+  staticGenerationStore: StaticGenerationStore
 }): Promise<[any, ResolvedMetadata, ResolvedViewport]> {
   const resolvedMetadataItems = await resolveMetadataItems({
     tree,
@@ -886,6 +923,8 @@ export async function resolveMetadata({
     getDynamicParamFromSegment,
     searchParams,
     errorConvention,
+    createServerParamsForMetadata,
+    staticGenerationStore,
   })
   let error
   let metadata: ResolvedMetadata = createDefaultMetadata()

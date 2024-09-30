@@ -4,6 +4,7 @@ import type {
   GetDynamicParamFromSegment,
 } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
+import type { CreateServerParamsForMetadata } from '../../server/request/params'
 
 import React from 'react'
 import {
@@ -30,6 +31,8 @@ import type {
 } from './types/metadata-interface'
 import { isNotFoundError } from '../../client/components/not-found'
 import type { MetadataContext } from './types/resolvers'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 
 export function createMetadataContext(
   pathname: string,
@@ -42,6 +45,37 @@ export function createMetadataContext(
   }
 }
 
+export function createTrackedMetadataContext(
+  pathname: string,
+  renderOpts: AppRenderContext['renderOpts'],
+  staticGenerationStore: StaticGenerationStore | null
+): MetadataContext {
+  return {
+    // Use the regular metadata context, but we trap the pathname access.
+    ...createMetadataContext(pathname, renderOpts),
+
+    // Setup the trap around the pathname access so we can track when the
+    // pathname is accessed while resolving metadata which would indicate it's
+    // being used to resolve a relative URL. If that's the case, we don't want
+    // to provide it, and instead we should error.
+    get pathname() {
+      if (
+        staticGenerationStore &&
+        staticGenerationStore.isStaticGeneration &&
+        staticGenerationStore.fallbackRouteParams &&
+        staticGenerationStore.fallbackRouteParams.size > 0
+      ) {
+        trackFallbackParamAccessed(
+          staticGenerationStore,
+          'metadata relative url resolving'
+        )
+      }
+
+      return pathname
+    },
+  }
+}
+
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
 // `MetadataTree` is the one that will be rendered at first in the content sequence for metadata tags.
@@ -50,22 +84,22 @@ export function createMetadataContext(
 // and the error will be caught by the error boundary and trigger fallbacks.
 export function createMetadataComponents({
   tree,
-  query,
+  searchParams,
   metadataContext,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
   errorType,
-  createDynamicallyTrackedSearchParams,
+  createServerParamsForMetadata,
+  staticGenerationStore,
 }: {
   tree: LoaderTree
-  query: ParsedUrlQuery
+  searchParams: Promise<ParsedUrlQuery>
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
-  createDynamicallyTrackedSearchParams: (
-    searchParams: ParsedUrlQuery
-  ) => ParsedUrlQuery
+  createServerParamsForMetadata: CreateServerParamsForMetadata
+  staticGenerationStore: StaticGenerationStore
 }): [React.ComponentType, () => Promise<void>] {
   let currentMetadataReady:
     | null
@@ -77,15 +111,17 @@ export function createMetadataComponents({
   async function MetadataTree() {
     const pendingMetadata = getResolvedMetadata(
       tree,
-      query,
+      searchParams,
       getDynamicParamFromSegment,
       metadataContext,
-      createDynamicallyTrackedSearchParams,
+      createServerParamsForMetadata,
+      staticGenerationStore,
       errorType
     )
 
-    // We construct this instrumented promise to allow React.use to synchronously unwrap
-    // it if it has already settled.
+    // We instrument the promise compatible with React. This isn't necessary but we can
+    // perform a similar trick in synchronously unwrapping in the outlet component to avoid
+    // ticking a new microtask unecessarily
     const metadataReady: Promise<void> & { status: string; value: unknown } =
       pendingMetadata.then(
         ([error]) => {
@@ -139,17 +175,15 @@ export function createMetadataComponents({
 
 async function getResolvedMetadata(
   tree: LoaderTree,
-  query: ParsedUrlQuery,
+  searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   metadataContext: MetadataContext,
-  createDynamicallyTrackedSearchParams: (
-    searchParams: ParsedUrlQuery
-  ) => ParsedUrlQuery,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  staticGenerationStore: StaticGenerationStore,
   errorType?: 'not-found' | 'redirect'
 ): Promise<[any, Array<React.ReactNode>]> {
   const errorMetadataItem: [null, null, null] = [null, null, null]
   const errorConvention = errorType === 'redirect' ? undefined : errorType
-  const searchParams = createDynamicallyTrackedSearchParams(query)
 
   const [error, metadata, viewport] = await resolveMetadata({
     tree,
@@ -160,6 +194,8 @@ async function getResolvedMetadata(
     getDynamicParamFromSegment,
     errorConvention,
     metadataContext,
+    createServerParamsForMetadata,
+    staticGenerationStore,
   })
   if (!error) {
     return [null, createMetadataElements(metadata, viewport)]
@@ -179,6 +215,8 @@ async function getResolvedMetadata(
           getDynamicParamFromSegment,
           errorConvention: 'not-found',
           metadataContext,
+          createServerParamsForMetadata,
+          staticGenerationStore,
         })
       return [
         notFoundMetadataError || error,

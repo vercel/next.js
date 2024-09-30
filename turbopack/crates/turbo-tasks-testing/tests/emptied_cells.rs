@@ -8,35 +8,38 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test]
 async fn recompute() {
-    run(&REGISTRATION, async {
+    run(&REGISTRATION, || async {
         let input = ChangingInput {
             state: State::new(1),
         }
         .cell();
         let output = compute(input);
-        assert_eq!(*output.await.unwrap(), 1);
+        assert_eq!(*output.await?, 1);
 
         println!("changing input");
-        input.await.unwrap().state.set(10);
-        assert_eq!(*output.strongly_consistent().await.unwrap(), 10);
+        input.await?.state.set(10);
+        assert_eq!(*output.strongly_consistent().await?, 10);
 
         println!("changing input");
-        input.await.unwrap().state.set(5);
-        assert_eq!(*output.strongly_consistent().await.unwrap(), 5);
+        input.await?.state.set(5);
+        assert_eq!(*output.strongly_consistent().await?, 5);
 
         println!("changing input");
-        input.await.unwrap().state.set(20);
-        assert_eq!(*output.strongly_consistent().await.unwrap(), 20);
+        input.await?.state.set(20);
+        assert_eq!(*output.strongly_consistent().await?, 20);
 
         println!("changing input");
-        input.await.unwrap().state.set(15);
-        assert_eq!(*output.strongly_consistent().await.unwrap(), 15);
+        input.await?.state.set(15);
+        assert_eq!(*output.strongly_consistent().await?, 15);
 
         println!("changing input");
-        input.await.unwrap().state.set(1);
-        assert_eq!(*output.strongly_consistent().await.unwrap(), 1);
+        input.await?.state.set(1);
+        assert_eq!(*output.strongly_consistent().await?, 1);
+
+        anyhow::Ok(())
     })
     .await
+    .unwrap();
 }
 
 #[turbo_tasks::value]

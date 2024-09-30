@@ -10,8 +10,8 @@ const ASSET_PREFIX = "/";
 const REEXPORTED_OBJECTS = Symbol("reexported objects");
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
-function defineProp(obj, name1, options) {
-    if (!hasOwnProperty.call(obj, name1)) Object.defineProperty(obj, name1, options);
+function defineProp(obj, name, options) {
+    if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
 }
 /**
  * Adds the getters to the exports object.
@@ -139,7 +139,8 @@ function esmImport(sourceModule, id) {
 }
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
-const runtimeRequire = typeof require === "function" ? require : function require1() {
+const runtimeRequire = // @ts-ignore
+typeof require === "function" ? require : function require1() {
     throw new Error("Unexpected use of runtime require");
 };
 function commonJsRequire(sourceModule, id) {
@@ -154,7 +155,7 @@ function commonJsRequire(sourceModule, id) {
         if (hasOwnProperty.call(map, id)) {
             return map[id].module();
         }
-        const e = new Error(`Cannot find module '${name}'`);
+        const e = new Error(`Cannot find module '${id}'`);
         e.code = "MODULE_NOT_FOUND";
         throw e;
     }
@@ -165,7 +166,7 @@ function commonJsRequire(sourceModule, id) {
         if (hasOwnProperty.call(map, id)) {
             return map[id].id();
         }
-        const e = new Error(`Cannot find module '${name}'`);
+        const e = new Error(`Cannot find module '${id}'`);
         e.code = "MODULE_NOT_FOUND";
         throw e;
     };
@@ -203,7 +204,7 @@ function createPromise() {
 const turbopackQueues = Symbol("turbopack queues");
 const turbopackExports = Symbol("turbopack exports");
 const turbopackError = Symbol("turbopack error");
-let QueueStatus;
+var QueueStatus;
 function resolveQueue(queue) {
     if (queue && queue.status !== 1) {
         queue.status = 1;
@@ -330,6 +331,11 @@ relativeURL.prototype = URL.prototype;
  */ function invariant(never, computeMessage) {
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
+/**
+ * A stub function to make `require` available but non-functional in ESM.
+ */ function requireStub(_moduleId) {
+    throw new Error("dynamic usage of require is not supported");
+}
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
@@ -414,7 +420,7 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
 /// <reference path="../shared-node/base-externals-utils.ts" />
 /// <reference path="../shared-node/node-externals-utils.ts" />
 /// <reference path="../shared-node/node-wasm-utils.ts" />
-let SourceType;
+var SourceType;
 (function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
@@ -522,6 +528,9 @@ function loadWebAssemblyModule(chunkPath) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return compileWebAssemblyFromPath(resolved);
 }
+function getWorkerBlobURL(_chunks) {
+    throw new Error("Worker blobs are not implemented yet for Node.js");
+}
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
     if (typeof moduleFactory !== "function") {
@@ -595,7 +604,9 @@ function instantiateModule(id, source) {
             P: resolveAbsolutePath,
             U: relativeURL,
             R: createResolvePathFromModule(r),
-            __dirname: module1.id.replace(/(^|\/)\/+$/, "")
+            b: getWorkerBlobURL,
+            z: requireStub,
+            __dirname: typeof module1.id === "string" ? module1.id.replace(/(^|\/)\/+$/, "") : module1.id
         });
     } catch (error) {
         module1.error = error;
@@ -610,7 +621,8 @@ function instantiateModule(id, source) {
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
- */ function getOrInstantiateModuleFromParent(id, sourceModule) {
+ */ // @ts-ignore
+function getOrInstantiateModuleFromParent(id, sourceModule) {
     const module1 = moduleCache[id];
     if (sourceModule.children.indexOf(id) === -1) {
         sourceModule.children.push(id);
@@ -636,7 +648,8 @@ function instantiateModule(id, source) {
 }
 /**
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
- */ function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
+ */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
+function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
     const module1 = moduleCache[moduleId];
     if (module1) {
         if (module1.error) {

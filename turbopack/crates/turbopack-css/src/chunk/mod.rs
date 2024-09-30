@@ -232,12 +232,10 @@ fn chunk_item_key() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
-    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        let this = self.await?;
-
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut assets = Vec::new();
 
-        let CssChunkContent { chunk_items, .. } = &*this.content.await?;
+        let CssChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
             let path = chunk_item.asset_ident().path().resolve().await?;
             Some((path, path.await?))
@@ -283,7 +281,7 @@ impl OutputAsset for CssChunk {
             layer: None,
         };
 
-        Ok(AssetIdent::from_path(this.chunking_context.chunk_path(
+        Ok(AssetIdent::from_path(self.chunking_context.chunk_path(
             AssetIdent::new(Value::new(ident)),
             ".css".into(),
         )))
@@ -447,6 +445,11 @@ impl ValueToString for CssChunkType {
 
 #[turbo_tasks::value_impl]
 impl ChunkType for CssChunkType {
+    #[turbo_tasks::function]
+    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
+    }
+
     #[turbo_tasks::function]
     async fn chunk(
         &self,

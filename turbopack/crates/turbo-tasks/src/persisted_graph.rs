@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{ser::SerializeSeq, Deserialize, Serialize};
 
 use crate::{
-    backend::{CellContent, PersistentTaskType},
+    backend::{CachedTaskType, CellContent},
     task::shared_reference::TypedSharedReference,
     CellId, RawVc, TaskId,
 };
@@ -160,14 +160,14 @@ pub trait PersistedGraph: Sync + Send {
     /// returns false if that were too many
     fn lookup(
         &self,
-        partial_task_type: &PersistentTaskType,
+        partial_task_type: &CachedTaskType,
         api: &dyn PersistedGraphApi,
     ) -> Result<bool>;
 
     /// lookup one cache entry
     fn lookup_one(
         &self,
-        task_type: &PersistentTaskType,
+        task_type: &CachedTaskType,
         api: &dyn PersistedGraphApi,
     ) -> Result<Option<TaskId>>;
 
@@ -252,9 +252,9 @@ pub trait PersistedGraph: Sync + Send {
 }
 
 pub trait PersistedGraphApi {
-    fn get_or_create_task_type(&self, ty: PersistentTaskType) -> TaskId;
+    fn get_or_create_task_type(&self, ty: CachedTaskType) -> TaskId;
 
-    fn lookup_task_type(&self, id: TaskId) -> &PersistentTaskType;
+    fn lookup_task_type(&self, id: TaskId) -> &CachedTaskType;
 }
 
 /*
@@ -262,8 +262,8 @@ pub trait PersistedGraphApi {
 read:
 
   data: (TaskId) => (TaskData)
-  cache: (PersistentTaskType) => (TaskId)
-  type: (TaskId) => (PersistentTaskType)
+  cache: (CachedTaskType) => (TaskId)
+  type: (TaskId) => (CachedTaskType)
 
 read_dependents:
 
@@ -293,7 +293,7 @@ impl PersistedGraph for () {
 
     fn lookup(
         &self,
-        _partial_task_type: &PersistentTaskType,
+        _partial_task_type: &CachedTaskType,
         _api: &dyn PersistedGraphApi,
     ) -> Result<bool> {
         Ok(false)
@@ -301,7 +301,7 @@ impl PersistedGraph for () {
 
     fn lookup_one(
         &self,
-        _task_type: &PersistentTaskType,
+        _task_type: &CachedTaskType,
         _api: &dyn PersistedGraphApi,
     ) -> Result<Option<TaskId>> {
         Ok(None)

@@ -279,7 +279,7 @@ impl EcmascriptInputTransform {
             } => {
                 use swc_core::ecma::transforms::typescript::typescript;
                 let config = Default::default();
-                program.visit_mut_with(&mut typescript(config, unresolved_mark));
+                program.visit_mut_with(&mut typescript(config, unresolved_mark, top_level_mark));
             }
             EcmascriptInputTransform::Decorators {
                 is_legacy,

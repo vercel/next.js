@@ -14,7 +14,7 @@ use swc_core::{
             text_writer::{self, JsWriter, WriteJs},
             Emitter, Node,
         },
-        minifier::option::{ExtraOptions, MinifyOptions},
+        minifier::option::{ExtraOptions, MangleOptions, MinifyOptions},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
         transforms::base::fixer::paren_remover,
         visit::FoldWith,
@@ -38,7 +38,7 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let compiler = Arc::new(Compiler::new(cm.clone()));
     let fm = compiler.cm.new_source_file(
-        FileName::Custom(path.path.to_string()),
+        FileName::Custom(path.path.to_string()).into(),
         code.source_code().to_str()?.to_string(),
     );
 
@@ -49,15 +49,15 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
         None,
     );
     let mut parser = Parser::new_from(lexer);
-    // TODO should use our own handler that emits issues instead.
+
     let program = try_with_handler(cm.clone(), Default::default(), |handler| {
         GLOBALS.set(&Default::default(), || {
             let program = match parser.parse_program() {
                 Ok(program) => program,
                 Err(err) => {
-                    // TODO should emit an issue
+                    err.into_diagnostic(handler).emit();
                     bail!(
-                        "failed to parse source code\n{err:?}\n{}",
+                        "failed to parse source code\n{}",
                         code.source_code().to_str()?
                     )
                 }
@@ -83,12 +83,16 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
                     None,
                     &MinifyOptions {
                         compress: Some(Default::default()),
-                        mangle: Some(Default::default()),
+                        mangle: Some(MangleOptions {
+                            reserved: vec!["AbortSignal".into()],
+                            ..Default::default()
+                        }),
                         ..Default::default()
                     },
                     &ExtraOptions {
                         top_level_mark,
                         unresolved_mark,
+                        mangle_name_cache: Default::default(),
                     },
                 );
 

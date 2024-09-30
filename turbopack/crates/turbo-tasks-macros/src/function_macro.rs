@@ -1,7 +1,6 @@
 use proc_macro::TokenStream;
-use proc_macro2::Ident;
 use quote::quote;
-use syn::{parse_macro_input, parse_quote, ExprPath, ItemFn};
+use syn::{parse_macro_input, parse_quote, ItemFn};
 use turbo_tasks_macros_shared::{get_native_function_id_ident, get_native_function_ident};
 
 use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
@@ -26,7 +25,6 @@ use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
 /// }
 /// ```
 pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
-    let item = parse_macro_input!(input as ItemFn);
     let mut errors = Vec::new();
 
     let ItemFn {
@@ -34,14 +32,14 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         vis,
         sig,
         block,
-    } = &item;
+    } = parse_macro_input!(input as ItemFn);
 
-    let args = syn::parse::<FunctionArguments>(args);
-    if let Err(err) = &args {
-        errors.push(err.to_compile_error());
-    }
-    let Some(turbo_fn) = TurboFn::new(sig, DefinitionContext::NakedFn, args.unwrap_or_default())
-    else {
+    let args = syn::parse::<FunctionArguments>(args)
+        .inspect_err(|err| errors.push(err.to_compile_error()))
+        .unwrap_or_default();
+    let local_cells = args.local_cells.is_some();
+
+    let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
         return quote! {
             // An error occurred while parsing the function signature.
         }
@@ -50,15 +48,14 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let ident = &sig.ident;
 
-    let inline_function_ident = Ident::new(&format!("{ident}_inline_function"), ident.span());
-    let inline_function_path: ExprPath = parse_quote! { #inline_function_ident };
-    let mut inline_signature = sig.clone();
-    inline_signature.ident = inline_function_ident;
+    let inline_function_ident = turbo_fn.inline_ident();
+    let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(&block);
 
     let native_fn = NativeFn::new(
         &ident.to_string(),
-        &inline_function_path,
+        &parse_quote! { #inline_function_ident },
         turbo_fn.is_method(),
+        local_cells,
     );
     let native_function_ident = get_native_function_ident(ident);
     let native_function_ty = native_fn.ty();
@@ -77,7 +74,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
 
         #(#attrs)*
         #[doc(hidden)]
-        #inline_signature #block
+        #inline_signature #inline_block
 
         #[doc(hidden)]
         pub(crate) static #native_function_ident: #native_function_ty = #native_function_def;

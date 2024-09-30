@@ -4,6 +4,8 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::{quote, quote_spanned};
 use syn::{parse_macro_input, spanned::Spanned, Data, DeriveInput, Generics};
 
+use crate::derive::trace_raw_vcs_macro::filter_field;
+
 pub fn derive_resolved_value(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
     let ident = &derive_input.ident;
@@ -31,15 +33,18 @@ fn assert_fields_impl_resolved_value(generics: &Generics, data: &Data) -> TokenS
     // this technique is based on the trick used by
     // `static_assertions::assert_impl_all`, but extended to support generics.
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let field_types: Vec<_> = iter_data_fields(data).map(|field| &field.ty).collect();
-    let assertion_calls = field_types.iter().map(|ty| {
-        quote_spanned! {
-            // attribute type assertion errors to the line where the field is defined
-            ty.span() =>
-            // this call is only valid if ty is a ResolvedValue
-            Self::assert_impl_resolved_value::<#ty>();
-        }
-    });
+    let field_types = iter_data_fields(data).map(|field| &field.ty);
+    let assertion_calls = iter_data_fields(data)
+        .filter(|field| filter_field(field))
+        .map(|field| {
+            let ty = &field.ty;
+            quote_spanned! {
+                // attribute type assertion errors to the line where the field is defined
+                ty.span() =>
+                // this call is only valid if ty is a ResolvedValue
+                Self::assert_impl_resolved_value::<#ty>();
+            }
+        });
     quote! {
         const _: fn() = || {
             // create this struct just to hold onto our generics...

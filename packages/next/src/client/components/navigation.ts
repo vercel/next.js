@@ -1,5 +1,7 @@
-import { useContext, useMemo } from 'react'
 import type { FlightRouterState } from '../../server/app-render/types'
+import type { Params } from '../../server/request/params'
+
+import { useContext, useMemo } from 'react'
 import {
   AppRouterContext,
   LayoutRouterContext,
@@ -13,7 +15,7 @@ import {
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import { ReadonlyURLSearchParams } from './navigation.react-server'
-import type { Params } from './params'
+import { useDynamicRouteParams } from '../../server/app-render/dynamic-rendering'
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
@@ -82,6 +84,8 @@ export function useSearchParams(): ReadonlyURLSearchParams {
  */
 // Client components API
 export function usePathname(): string {
+  useDynamicRouteParams('usePathname()')
+
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
   return useContext(PathnameContext) as string
@@ -140,12 +144,14 @@ export function useRouter(): AppRouterInstance {
  */
 // Client components API
 export function useParams<T extends Params = Params>(): T {
+  useDynamicRouteParams('useParams()')
+
   return useContext(PathParamsContext) as T
 }
 
 /** Get the canonical parameters from the current level to the leaf node. */
 // Client components API
-export function getSelectedLayoutSegmentPath(
+function getSelectedLayoutSegmentPath(
   tree: FlightRouterState,
   parallelRouteKey: string,
   first = true,
@@ -164,7 +170,8 @@ export function getSelectedLayoutSegmentPath(
   if (!node) return segmentPath
   const segment = node[0]
 
-  const segmentValue = getSegmentValue(segment)
+  let segmentValue = getSegmentValue(segment)
+
   if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) {
     return segmentPath
   }
@@ -208,6 +215,8 @@ export function getSelectedLayoutSegmentPath(
 export function useSelectedLayoutSegments(
   parallelRouteKey: string = 'children'
 ): string[] {
+  useDynamicRouteParams('useSelectedLayoutSegments()')
+
   const context = useContext(LayoutRouterContext)
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
@@ -237,6 +246,8 @@ export function useSelectedLayoutSegments(
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string | null {
+  useDynamicRouteParams('useSelectedLayoutSegment()')
+
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
 
   if (!selectedLayoutSegments || selectedLayoutSegments.length === 0) {
