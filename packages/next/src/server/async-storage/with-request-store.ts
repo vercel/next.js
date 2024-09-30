@@ -23,7 +23,6 @@ import { splitCookiesString } from '../web/utils'
 import { AfterContext } from '../after/after-context'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { ServerComponentsHmrCache } from '../response-cache'
-import { getRequestMeta, type NextIncomingMessage } from '../request-meta'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -89,20 +88,17 @@ type RequestResponsePair =
  * it's able to read the newly set cookies.
  */
 function mergeMiddlewareCookies(
-  req: RequestContext['req'] | NextIncomingMessage,
+  req: RequestContext['req'],
   existingCookies: RequestCookies | ResponseCookies
 ) {
-  const middlewareCookies = getRequestMeta(
-    req as NextIncomingMessage,
-    'middlewareCookie'
-  )
-  if (middlewareCookies && middlewareCookies.length > 0) {
-    const cookies = middlewareCookies.flatMap((maybeCompoundCookie) =>
-      splitCookiesString(maybeCompoundCookie)
-    )
+  if (
+    'x-middleware-set-cookie' in req.headers &&
+    typeof req.headers['x-middleware-set-cookie'] === 'string'
+  ) {
+    const setCookieValue = req.headers['x-middleware-set-cookie']
     const responseHeaders = new Headers()
 
-    for (const cookie of cookies) {
+    for (const cookie of splitCookiesString(setCookieValue)) {
       responseHeaders.append('set-cookie', cookie)
     }
 
