@@ -130,7 +130,7 @@ function applyUseAndRenameAccessedProp(
 }
 
 const MATCHED_FILE_PATTERNS = [
-  /([\\/]|^)(page|layout|route)\.(t|j)sx?$/,
+  /([\\/]|^)(page|layout)\.(t|j)sx?$/,
   /([\\/]|^)(opengraph-image\d?|twitter-image\d?|sitemap|manifest|robots)\.t|jsx?$/,
 ]
 

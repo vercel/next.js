@@ -16,14 +16,6 @@ export type FunctionScope =
   | ArrowFunctionExpression
 
 export const TARGET_NAMED_EXPORTS = new Set([
-  // For custom route
-  'GET',
-  'HEAD',
-  'POST',
-  'PUT',
-  'DELETE',
-  'PATCH',
-  'OPTIONS',
   // For page and layout
   'generateMetadata',
 ])
