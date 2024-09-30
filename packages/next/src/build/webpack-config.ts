@@ -1286,7 +1286,7 @@ export default async function getBaseWebpackConfig(
           // On server side bundling, only apply to app router, do not apply to pages router;
           // On client side or edge runtime bundling, always error.
           ...(isNodeServer && {
-            issuerLayer: isWebpackBundledLayer,
+            issuerLayer: isWebpackAppLayer,
           }),
         },
         ...(hasAppDir
