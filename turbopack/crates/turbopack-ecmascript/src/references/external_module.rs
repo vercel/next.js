@@ -122,17 +122,17 @@ impl Asset for CachedExternalModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for CachedExternalModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn ChunkItem>> {
+        Vc::upcast(
             CachedExternalModuleChunkItem {
                 module: self,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -227,21 +227,21 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content_with_async_module_info(
+    fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+    ) -> Vc<EcmascriptChunkItemContent> {
         let async_module_options = self
             .module
             .get_async_module()
             .module_options(async_module_info);
 
-        Ok(EcmascriptChunkItemContent::new(
+        EcmascriptChunkItemContent::new(
             self.module.content(),
             self.chunking_context,
             EcmascriptOptions::default().cell(),
             async_module_options,
-        ))
+        )
     }
 }
 

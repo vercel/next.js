@@ -76,8 +76,8 @@ describe('Image Component Unicode Image URL', () => {
         app = await launchApp(appDir, appPort)
         browser = await webdriver(appPort, '/')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
         if (browser) {
           browser.close()
         }
@@ -94,8 +94,8 @@ describe('Image Component Unicode Image URL', () => {
         app = await nextStart(appDir, appPort)
         browser = await webdriver(appPort, '/')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
         if (browser) {
           browser.close()
         }

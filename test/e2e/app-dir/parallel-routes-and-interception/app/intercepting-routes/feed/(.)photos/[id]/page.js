@@ -1,5 +1,4 @@
-export default function Page({ params }) {
-  return (
-    <p id={`photo-intercepted-${params.id}`}>Photo INTERCEPTED {params.id}</p>
-  )
+export default async function Page({ params }) {
+  const { id } = await params
+  return <p id={`photo-intercepted-${id}`}>Photo INTERCEPTED {id}</p>
 }

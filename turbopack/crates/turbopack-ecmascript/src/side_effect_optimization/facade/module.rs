@@ -40,9 +40,9 @@ impl EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    pub async fn async_module(self: Vc<Self>) -> Result<Vc<AsyncModule>> {
+    pub async fn async_module(&self) -> Result<Vc<AsyncModule>> {
         let (import_externals, has_top_level_await) =
-            if let Some(async_module) = *self.await?.module.get_async_module().await? {
+            if let Some(async_module) = *self.module.get_async_module().await? {
                 (
                     async_module.await?.import_externals,
                     async_module.await?.has_top_level_await,
@@ -61,10 +61,10 @@ impl EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+    fn ident(&self) -> Vc<AssetIdent> {
         let inner = self.module.ident();
 
-        Ok(inner.with_part(self.ty))
+        inner.with_part(self.ty)
     }
 
     #[turbo_tasks::function]
@@ -135,10 +135,10 @@ impl Module for EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl Asset for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<AssetContent>> {
+    fn content(&self) -> Vc<AssetContent> {
         let f = File::from("");
 
-        Ok(AssetContent::file(FileContent::Content(f).cell()))
+        AssetContent::file(FileContent::Content(f).cell())
     }
 }
 
@@ -283,17 +283,17 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             EcmascriptModuleFacadeChunkItem {
                 module: self,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }
 

@@ -182,6 +182,24 @@ describe('app-dir action handling', () => {
     }, 'setCookieAndRedirect')
   })
 
+  it('should replace current route when redirecting with type set to replace', async () => {
+    const browser = await next.browser('/header')
+
+    let historyLen = await browser.eval('window.history.length')
+    // chromium's about:blank page is the first item in history
+    expect(historyLen).toBe(2)
+
+    await browser.elementByCss('#setCookieAndRedirectReplace').click()
+    await check(async () => {
+      return (await browser.elementByCss('#redirected').text()) || ''
+    }, 'redirected')
+
+    // Ensure we cannot navigate back
+    historyLen = await browser.eval('window.history.length')
+    // chromium's about:blank page is the first item in history
+    expect(historyLen).toBe(2)
+  })
+
   it('should support headers in client imported actions', async () => {
     const logs: string[] = []
     next.on('stdout', (log) => {
@@ -318,7 +336,7 @@ describe('app-dir action handling', () => {
 
     // Fake a file to upload
     await browser.eval(`
-      const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
+      const file = new File(['hello'], 'hello你好テスト.txt', { type: 'text/plain' });
       const list = new DataTransfer();
       list.items.add(file);
       document.getElementById('file').files = list.files;
@@ -329,7 +347,9 @@ describe('app-dir action handling', () => {
     // we don't have access to runtime logs on deploy
     if (!isNextDeploy) {
       await check(() => {
-        return logs.some((log) => log.includes('File name: hello.txt size: 5'))
+        return logs.some((log) =>
+          log.includes('File name: hello你好テスト.txt size: 5')
+        )
           ? 'yes'
           : ''
       }, 'yes')

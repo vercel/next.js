@@ -39,11 +39,7 @@ import {
   PathnameContext,
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import {
-  useReducerWithReduxDevtools,
-  useUnwrapState,
-  type ReduxDevtoolsSyncFn,
-} from './use-reducer-with-devtools'
+import { useReducer, useUnwrapState } from './use-reducer'
 import { ErrorBoundary, type ErrorComponent } from './error-boundary'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
@@ -75,10 +71,8 @@ function isExternalURL(url: URL) {
 
 function HistoryUpdater({
   appRouterState,
-  sync,
 }: {
   appRouterState: AppRouterState
-  sync: ReduxDevtoolsSyncFn
 }) {
   useInsertionEffect(() => {
     if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
@@ -108,9 +102,7 @@ function HistoryUpdater({
     } else {
       window.history.replaceState(historyState, '', canonicalUrl)
     }
-
-    sync(appRouterState)
-  }, [appRouterState, sync])
+  }, [appRouterState])
   return null
 }
 
@@ -162,6 +154,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         locationSearch: location.search,
         shouldScroll: shouldScroll ?? true,
         navigateType,
+        allowAliasing: true,
       })
     },
     [dispatch]
@@ -219,7 +212,7 @@ function Router({
   actionQueue: AppRouterActionQueue
   assetPrefix: string
 }) {
-  const [state, dispatch, sync] = useReducerWithReduxDevtools(actionQueue)
+  const [state, dispatch] = useReducer(actionQueue)
   const { canonicalUrl } = useUnwrapState(state)
   // Add memoized pathname/query for useSearchParams and usePathname.
   const { searchParams, pathname } = useMemo(() => {
@@ -606,7 +599,7 @@ function Router({
 
   return (
     <>
-      <HistoryUpdater appRouterState={useUnwrapState(state)} sync={sync} />
+      <HistoryUpdater appRouterState={useUnwrapState(state)} />
       <RuntimeStyles />
       <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
