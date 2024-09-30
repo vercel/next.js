@@ -725,6 +725,7 @@ export async function handleAction({
         if (isMultipartAction) {
           if (isFetchAction) {
             const busboy = (require('busboy') as typeof import('busboy'))({
+              defParamCharset: 'utf8',
               headers: req.headers,
               limits: { fieldSize: bodySizeLimitBytes },
             })
