@@ -31,49 +31,100 @@ describe('app-dir - client-actions-tree-shaking', () => {
 
   it('should not bundle unused server reference id in client bundles', async () => {
     const appDir = next.testDir
-    const route1Files = await fs.readdir(
-      join(appDir, '.next/static/chunks/app/route-1')
-    )
-    const route2Files = await fs.readdir(
-      join(appDir, '.next/static/chunks/app/route-2')
-    )
-    const route3Files = await fs.readdir(
-      join(appDir, '.next/static/chunks/app/route-3')
-    )
 
-    const route1Bundle = await fs.readFile(
-      join(
-        appDir,
-        '.next/static/chunks/app/route-1',
-        route1Files.find((file) => file.endsWith('.js'))
+    if (!process.env.TURBOPACK) {
+      const route1Files = await fs.readdir(
+        join(appDir, '.next/static/chunks/app/route-1')
       )
-    )
-    const route2Bundle = await fs.readFile(
-      join(
-        appDir,
-        '.next/static/chunks/app/route-2',
-        route2Files.find((file) => file.endsWith('.js'))
+      const route2Files = await fs.readdir(
+        join(appDir, '.next/static/chunks/app/route-2')
       )
-    )
-    const route3Bundle = await fs.readFile(
-      join(
-        appDir,
-        '.next/static/chunks/app/route-3',
-        route3Files.find((file) => file.endsWith('.js'))
+      const route3Files = await fs.readdir(
+        join(appDir, '.next/static/chunks/app/route-3')
       )
-    )
 
-    const bundle1Ids = getServerReferenceIdsFromBundle(route1Bundle.toString())
-    const bundle2Ids = getServerReferenceIdsFromBundle(route2Bundle.toString())
-    const bundle3Ids = getServerReferenceIdsFromBundle(route3Bundle.toString())
+      const route1Bundle = await fs.readFile(
+        join(
+          appDir,
+          '.next/static/chunks/app/route-1',
+          route1Files.find((file) => file.endsWith('.js'))
+        )
+      )
+      const route2Bundle = await fs.readFile(
+        join(
+          appDir,
+          '.next/static/chunks/app/route-2',
+          route2Files.find((file) => file.endsWith('.js'))
+        )
+      )
+      const route3Bundle = await fs.readFile(
+        join(
+          appDir,
+          '.next/static/chunks/app/route-3',
+          route3Files.find((file) => file.endsWith('.js'))
+        )
+      )
 
-    // Bundle 1 and 2 should only have one ID.
-    expect(bundle1Ids).toHaveLength(1)
-    expect(bundle2Ids).toHaveLength(1)
-    expect(bundle1Ids[0]).not.toEqual(bundle2Ids[0])
+      const bundle1Ids = getServerReferenceIdsFromBundle(
+        route1Bundle.toString()
+      )
+      const bundle2Ids = getServerReferenceIdsFromBundle(
+        route2Bundle.toString()
+      )
+      const bundle3Ids = getServerReferenceIdsFromBundle(
+        route3Bundle.toString()
+      )
 
-    // Bundle 3 should have no IDs.
-    expect(bundle3Ids).toHaveLength(0)
+      // Bundle 1 and 2 should only have one ID.
+      expect(bundle1Ids).toHaveLength(1)
+      expect(bundle2Ids).toHaveLength(1)
+      expect(bundle1Ids[0]).not.toEqual(bundle2Ids[0])
+
+      // Bundle 3 should have no IDs.
+      expect(bundle3Ids).toHaveLength(0)
+    } else {
+      const appBuildManifest = require(
+        join(appDir, '.next/app-build-manifest.json')
+      )
+
+      const bundle1Files = appBuildManifest.pages['/route-1/page']
+      const bundle2Files = appBuildManifest.pages['/route-2/page']
+      const bundle3Files = appBuildManifest.pages['/route-3/page']
+
+      const bundle1Contents = await Promise.all(
+        bundle1Files.map((file: string) =>
+          fs.readFile(join(appDir, '.next', file), 'utf8')
+        )
+      )
+      const bundle2Contents = await Promise.all(
+        bundle2Files.map((file: string) =>
+          fs.readFile(join(appDir, '.next', file), 'utf8')
+        )
+      )
+      const bundle3Contents = await Promise.all(
+        bundle3Files.map((file: string) =>
+          fs.readFile(join(appDir, '.next', file), 'utf8')
+        )
+      )
+
+      const bundle1Ids = bundle1Contents.flatMap((file: string) =>
+        getServerReferenceIdsFromBundle(file)
+      )
+      const bundle2Ids = bundle2Contents.flatMap((file: string) =>
+        getServerReferenceIdsFromBundle(file)
+      )
+      const bundle3Ids = bundle3Contents.flatMap((file: string) =>
+        getServerReferenceIdsFromBundle(file)
+      )
+
+      // Bundle 1 and 2 should only have one ID.
+      expect(bundle1Ids).toHaveLength(1)
+      expect(bundle2Ids).toHaveLength(1)
+      expect(bundle1Ids[0]).not.toEqual(bundle2Ids[0])
+
+      // Bundle 3 should have no IDs.
+      expect(bundle3Ids).toHaveLength(0)
+    }
   })
 
   // Test the application
