@@ -228,13 +228,18 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
         return args.into_iter().next().unwrap();
     }
 
-    // path.resolve stops at the string starting with `/`
+    // path.resolve stops at the first (last) absolute string (starting with `/` or `\\`)
     for (idx, arg) in args.iter().enumerate().rev() {
-        if idx != 0 {
-            if let Some(str) = arg.as_str() {
-                if str.starts_with('/') {
-                    return path_resolve(cwd, args.drain(idx..).collect());
-                }
+        if let Some(str) = arg.as_str() {
+            if idx != 0 && str.starts_with('/') {
+                return path_resolve(cwd, args.drain(idx..).collect());
+            }
+            if let Some(str) = str.strip_prefix("\\\\") {
+                let str = format!("/{}", str);
+                let args = std::iter::once(str.into())
+                    .chain(args.drain((idx + 1)..))
+                    .collect();
+                return path_resolve(cwd, args);
             }
         }
     }
