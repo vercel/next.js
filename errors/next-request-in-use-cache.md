@@ -4,7 +4,7 @@ title: Cannot access cookies() or headers() in "use cache"
 
 #### Why This Error Occurred
 
-An function is trying to read from the current incoming request inside the scope of a function annotated with `"use cache"`. This is not supported because it would make the cache invalidated by every request which is probably not what you intended.
+A function is trying to read from the current incoming request inside the scope of a function annotated with `"use cache"`. This is not supported because it would make the cache invalidated by every request which is probably not what you intended.
 
 #### Possible Ways to Fix It
 
