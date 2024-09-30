@@ -7,7 +7,7 @@ use turbopack::{
 use turbopack_core::{
     context::ProcessResult,
     file_source::FileSource,
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     source::Source,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
@@ -47,45 +47,44 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        _reference_type: Value<ReferenceType>,
+        reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
+        let part = match &*reference_type {
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
+                part,
+            )) => Some(*part),
+            _ => None,
+        };
+
         let module_asset_context = self.process_context(module_asset_context);
 
         let this = self.await?;
 
-        let ident = source.ident().await?;
-        let ident_path = ident.path.await?;
+        let ident = match part {
+            Some(part) => source.ident().with_part(part),
+            None => source.ident(),
+        };
+        let ident_ref = ident.await?;
+        let ident_path = ident_ref.path.await?;
         let client_source = if ident_path.path.contains("next/dist/esm/") {
-            let path = ident.path.root().join(
+            let path = ident_ref.path.root().join(
                 ident_path
                     .path
                     .replace("next/dist/esm/", "next/dist/")
                     .into(),
             );
-            Vc::upcast(FileSource::new_with_query(path, ident.query))
+            Vc::upcast(FileSource::new_with_query(path, ident_ref.query))
         } else {
             source
         };
         let client_module = this
             .client_transition
-            .process(
-                client_source,
-                module_asset_context,
-                Value::new(ReferenceType::Entry(
-                    EntryReferenceSubType::AppClientComponent,
-                )),
-            )
+            .process(client_source, module_asset_context, reference_type.clone())
             .module();
 
         let ssr_module = this
             .ssr_transition
-            .process(
-                source,
-                module_asset_context,
-                Value::new(ReferenceType::Entry(
-                    EntryReferenceSubType::AppClientComponent,
-                )),
-            )
+            .process(source, module_asset_context, reference_type)
             .module();
 
         let Some(client_module) =
@@ -113,7 +112,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
 
         Ok(
             ProcessResult::Module(Vc::upcast(EcmascriptClientReferenceProxyModule::new(
-                source.ident(),
+                ident,
                 Vc::upcast(server_context),
                 client_module,
                 ssr_module,
