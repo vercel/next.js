@@ -177,7 +177,7 @@ impl Module for EcmascriptModulePartAsset {
                         // This is an internal part that is not for evaluation, so we don't need to
                         // force-add it.
                         PartId::Internal(.., false) => return None,
-                        PartId::Internal(part_id, true) => ModulePart::internal(*part_id, false),
+                        PartId::Internal(part_id, true) => ModulePart::internal(*part_id),
                         PartId::Export(name) => ModulePart::export(name.clone()),
                         _ => unreachable!(
                             "PartId other than Internal and Export should not be used here"

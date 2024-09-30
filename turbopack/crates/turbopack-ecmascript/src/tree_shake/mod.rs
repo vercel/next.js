@@ -335,7 +335,7 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
         ModulePart::Evaluation => Key::ModuleEvaluation,
         ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
         ModulePart::Exports => Key::Exports,
-        ModulePart::Internal(part_id, _) => return Ok(*part_id),
+        ModulePart::Internal(part_id) => return Ok(*part_id),
         ModulePart::Locals
         | ModulePart::Facade
         | ModulePart::RenamedExport { .. }
