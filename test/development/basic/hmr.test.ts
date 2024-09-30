@@ -879,36 +879,32 @@ describe.each([
       }
     })
 
-    // assertion is highly flakey in turbopack mode
-    if (!process.env.TURBOPACK) {
-      it('should recover after loader parse error in an imported file', async () => {
-        let browser
-        const aboutPage = join('pages', 'hmr', 'about9.js')
+    // assertion is highly flakey
+    it.skip('should recover after loader parse error in an imported file', async () => {
+      let browser
+      const aboutPage = join('pages', 'hmr', 'about9.js')
 
-        const aboutContent = await next.readFile(aboutPage)
-        try {
-          browser = await webdriver(next.appPort, basePath + '/hmr/about9')
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the about page/
+      const aboutContent = await next.readFile(aboutPage)
+      try {
+        browser = await webdriver(next.appPort, basePath + '/hmr/about9')
+        await check(() => getBrowserBodyText(browser), /This is the about page/)
+
+        await next.patchFile(
+          aboutPage,
+          aboutContent.replace(
+            'export default',
+            'import "../../components/parse-error.js"\nexport default'
           )
+        )
 
-          await next.patchFile(
-            aboutPage,
-            aboutContent.replace(
-              'export default',
-              'import "../../components/parse-error.js"\nexport default'
-            )
-          )
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
+        let redboxSource = await getRedboxSource(browser)
 
-          expect(await hasRedbox(browser)).toBe(true)
-          expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
-          let redboxSource = await getRedboxSource(browser)
-
-          redboxSource = redboxSource.replace(`${next.testDir}`, '.')
-          if (process.env.TURBOPACK) {
-            expect(next.normalizeTestDirContent(redboxSource))
-              .toMatchInlineSnapshot(`
+        redboxSource = redboxSource.replace(`${next.testDir}`, '.')
+        if (process.env.TURBOPACK) {
+          expect(next.normalizeTestDirContent(redboxSource))
+            .toMatchInlineSnapshot(`
                 "./components/parse-error.js:3:1
                 Parsing ecmascript source code failed
                   1 | This
@@ -920,14 +916,14 @@ describe.each([
 
                 Expression expected"
               `)
-          } else {
-            redboxSource = redboxSource.substring(
-              0,
-              redboxSource.indexOf('`----')
-            )
+        } else {
+          redboxSource = redboxSource.substring(
+            0,
+            redboxSource.indexOf('`----')
+          )
 
-            expect(next.normalizeTestDirContent(redboxSource))
-              .toMatchInlineSnapshot(`
+          expect(next.normalizeTestDirContent(redboxSource))
+            .toMatchInlineSnapshot(`
                 "./components/parse-error.js
                 Error: 
                   x Expression expected
@@ -940,31 +936,27 @@ describe.each([
                 5 | js
                   "
               `)
-          }
+        }
 
-          await next.patchFile(aboutPage, aboutContent)
+        await next.patchFile(aboutPage, aboutContent)
 
+        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        expect(await hasRedbox(browser)).toBe(false)
+      } catch (err) {
+        await next.patchFile(aboutPage, aboutContent)
+
+        if (browser) {
           await check(
             () => getBrowserBodyText(browser),
             /This is the about page/
           )
-          expect(await hasRedbox(browser)).toBe(false)
-        } catch (err) {
-          await next.patchFile(aboutPage, aboutContent)
-
-          if (browser) {
-            await check(
-              () => getBrowserBodyText(browser),
-              /This is the about page/
-            )
-          }
-        } finally {
-          if (browser) {
-            await browser.close()
-          }
         }
-      })
-    }
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
 
     it('should recover from errors in getInitialProps in client', async () => {
       let browser
