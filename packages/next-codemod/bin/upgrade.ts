@@ -16,6 +16,25 @@ interface Response {
   version: StandardVersionSpecifier
 }
 
+/**
+ * @param query
+ * @example loadHighestNPMVersionMatching("react@^18.3.0 || ^19.0.0") === Promise<"19.0.0">
+ */
+async function loadHighestNPMVersionMatching(query: string) {
+  const versionsJSON = execSync(
+    `npm --silent view "${query}" --json --field version`,
+    { encoding: 'utf-8' }
+  )
+  const versions = JSON.parse(versionsJSON)
+  if (versions.length < 1) {
+    throw new Error(
+      `Found no React versions matching "${query}". This is a bug in the upgrade tool.`
+    )
+  }
+
+  return versions[versions.length - 1]
+}
+
 export async function runUpgrade(): Promise<void> {
   const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
@@ -115,6 +134,27 @@ export async function runUpgrade(): Promise<void> {
 
   const targetNextVersion = targetNextPackageJson.version
 
+  // We're resolving a specific version here to avoid including "ugly" version queries
+  // in the manifest.
+  // E.g. in peerDependencies we could have `^18.2.0 || ^19.0.0 || 20.0.0-canary`
+  // If we'd just `npm add` that, the manifest would read the same version query.
+  // This is basically a `npm --save-exact react@$versionQuery` that works for every package manager.
+  const [
+    targetReactVersion,
+    targetReactTypesVersion,
+    targetReactDOMTypesVersion,
+  ] = await Promise.all([
+    loadHighestNPMVersionMatching(
+      `react@${targetNextPackageJson.peerDependencies['react']}`
+    ),
+    loadHighestNPMVersionMatching(
+      `@types/react@${targetNextPackageJson.peerDependencies['react']}`
+    ),
+    loadHighestNPMVersionMatching(
+      `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
+    ),
+  ])
+
   if (
     targetNextVersion &&
     compareVersions(targetNextVersion, '15.0.0-canary') >= 0
@@ -127,11 +167,20 @@ export async function runUpgrade(): Promise<void> {
   const packageManager: PackageManager = getPkgManager(process.cwd())
   const nextDependency = `next@${targetNextVersion}`
   const reactDependencies = [
-    `react@${targetNextPackageJson.peerDependencies['react']}`,
-    `@types/react@${targetNextPackageJson.devDependencies['@types/react']}`,
-    `react-dom@${targetNextPackageJson.peerDependencies['react-dom']}`,
-    `@types/react-dom@${targetNextPackageJson.devDependencies['@types/react-dom']}`,
+    `react@${targetReactVersion}`,
+    `react-dom@${targetReactVersion}`,
   ]
+  if (
+    targetReactVersion.startsWith('19.0.0-canary') ||
+    targetReactVersion.startsWith('19.0.0-beta') ||
+    targetReactVersion.startsWith('19.0.0-rc')
+  ) {
+    reactDependencies.push(`@types/react@npm:types-react@rc`)
+    reactDependencies.push(`@types/react-dom@npm:types-react-dom@rc`)
+  } else {
+    reactDependencies.push(`@types/react@${targetReactTypesVersion}`)
+    reactDependencies.push(`@types/react-dom@${targetReactDOMTypesVersion}`)
+  }
 
   installPackages([nextDependency, ...reactDependencies], packageManager)
 
