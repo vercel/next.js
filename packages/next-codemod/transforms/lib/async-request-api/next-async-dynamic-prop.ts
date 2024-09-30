@@ -156,8 +156,6 @@ export function transformDynamicProps(
   // e.g. destruct `params` { slug } = params
   // e.g. destruct `searchParams `{ search } = searchParams
   let insertedDestructPropNames = new Set<string>()
-  // Rename props to `prop` argument for the function
-  let insertedRenamedPropFunctionNames = new Set<string>()
 
   function processAsyncPropOfEntryFile(isClientComponent: boolean) {
     // find `params` and `searchParams` in file, and transform the access to them
@@ -371,6 +369,7 @@ export function transformDynamicProps(
         })
       }
 
+      console.log('modifiedPropArgument', modifiedPropArgument)
       if (modifiedPropArgument) {
         resolveAsyncProp(
           path,
@@ -390,6 +389,8 @@ export function transformDynamicProps(
       allProperties: ObjectPattern['properties'],
       isDefaultExport: boolean
     ) {
+      // Rename props to `prop` argument for the function
+      const insertedRenamedPropFunctionNames = new Set<string>()
       const node = path.value
 
       // If it's sync default export, and it's also server component, make the function async
@@ -399,6 +400,31 @@ export function transformDynamicProps(
             node.async = true
             turnFunctionReturnTypeToAsync(node, j)
           }
+        }
+      }
+
+      // If it's arrow function and function body is not block statement, check if the properties are used there
+      if (
+        j.ArrowFunctionExpression.check(path.node) &&
+        !j.BlockStatement.check(path.node.body)
+      ) {
+        const objectExpression = path.node.body
+        let hasUsedProps = false
+        j(objectExpression)
+          .find(j.Identifier)
+          .forEach((identifierPath) => {
+            const idName = identifierPath.value.name
+            if (propertiesMap.has(idName)) {
+              hasUsedProps = true
+              return
+            }
+          })
+
+        // Turn the function body to block statement, return the object expression
+        if (hasUsedProps) {
+          path.node.body = j.blockStatement([
+            j.returnStatement(objectExpression),
+          ])
         }
       }
 
@@ -559,7 +585,6 @@ export function transformDynamicProps(
             ) {
               node.async = true
               turnFunctionReturnTypeToAsync(node, j)
-
               // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
               const paramAssignment = j.variableDeclaration('const', [
                 j.variableDeclarator(
@@ -567,6 +592,7 @@ export function transformDynamicProps(
                   j.awaitExpression(accessedPropId)
                 ),
               ])
+
               if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
                 functionBody.unshift(paramAssignment)
                 insertedRenamedPropFunctionNames.add(uid)

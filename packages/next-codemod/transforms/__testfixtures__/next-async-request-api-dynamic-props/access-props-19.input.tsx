@@ -1,9 +1,6 @@
-function TableWrapper<D extends object = object>(
-  props: TableProps<D> & { innerProps?: TableInstance<D> },
-): JSX.Element {
-  if (props.innerProps) {
-    return <Table {...props} innerProps={props.innerProps} />;
-  }
+const Page = ({ params }) => (<div>{params.slug}</div>)
 
-  return <UncontrolledTable {...props} />;
-}
+const generateMetadata = ({ params }) => ({ title: params.slug })
+
+export default Page
+export { generateMetadata }
