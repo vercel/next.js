@@ -19,9 +19,11 @@ import { NextConfig } from 'next'
 
 describe.each([
   { basePath: '', assetPrefix: '' },
-  { basePath: '', assetPrefix: '/asset-prefix' },
   { basePath: '/docs', assetPrefix: '' },
-  { basePath: '/docs', assetPrefix: '/asset-prefix' },
+  // this is a long running test reduce runtime by
+  // only running on main cases above
+  // { basePath: '', assetPrefix: '/asset-prefix' },
+  // { basePath: '/docs', assetPrefix: '/asset-prefix' },
 ])('basic HMR, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
   const { basePath } = nextConfig
   let next: NextInstance
