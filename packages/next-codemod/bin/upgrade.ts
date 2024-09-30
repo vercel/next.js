@@ -6,6 +6,7 @@ import { compareVersions } from 'compare-versions'
 import chalk from 'chalk'
 import { availableCodemods } from '../lib/codemods'
 import { getPkgManager, installPackages } from '../lib/handle-package'
+import { runTransform } from './transform'
 
 type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
 type CustomVersionSpecifier = string
@@ -358,11 +359,6 @@ async function suggestCodemods(
   )
 
   for (const codemod of codemods) {
-    execSync(
-      `npx --yes @next/codemod@latest ${codemod} ${process.cwd()} --force`,
-      {
-        stdio: 'inherit',
-      }
-    )
+    await runTransform(codemod, process.cwd(), { force: true })
   }
 }
