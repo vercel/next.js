@@ -4732,10 +4732,10 @@
       "runtimeError": false
     },
     "test/e2e/favicon-short-circuit/favicon-short-circuit.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "favicon-short-circuit should not short circuit the favicon in production"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
