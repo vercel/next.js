@@ -129,11 +129,18 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
+const MATCHED_FILE_PATTERN =
+  /([\\/]|^)((page|layout|route)|(opengraph-image\d?|twitter-image\d?|sitemap|manifest|robots))\.(t|jxs?)$/
+
 export function transformDynamicProps(
   source: string,
   api: API,
-  _filePath: string
+  filePath: string
 ) {
+  if (!MATCHED_FILE_PATTERN.test(filePath)) {
+    return null
+  }
+
   let modified = false
   let modifiedPropArgument = false
   const j = api.jscodeshift.withParser('tsx')
