@@ -63,17 +63,17 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let ident = match part {
             Some(part) => source.ident().with_part(part),
             None => source.ident(),
-        }
-        .await?;
-        let ident_path = ident.path.await?;
+        };
+        let ident_ref = ident.await?;
+        let ident_path = ident_ref.path.await?;
         let client_source = if ident_path.path.contains("next/dist/esm/") {
-            let path = ident.path.root().join(
+            let path = ident_ref.path.root().join(
                 ident_path
                     .path
                     .replace("next/dist/esm/", "next/dist/")
                     .into(),
             );
-            Vc::upcast(FileSource::new_with_query(path, ident.query))
+            Vc::upcast(FileSource::new_with_query(path, ident_ref.query))
         } else {
             source
         };
@@ -112,7 +112,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
 
         Ok(
             ProcessResult::Module(Vc::upcast(EcmascriptClientReferenceProxyModule::new(
-                source.ident(),
+                ident,
                 Vc::upcast(server_context),
                 client_module,
                 ssr_module,
