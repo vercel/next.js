@@ -301,6 +301,70 @@ describe('app dir - prefetching', () => {
     await browser.waitForElementByCss('#prefetch-auto-page-data')
   })
 
+  describe('prefetch cache seeding', () => {
+    it('should not re-fetch the initial static page if the same page is prefetched with prefetch={true}', async () => {
+      const rscRequests = []
+      const browser = await next.browser('/static-page', {
+        beforePageLoad(page: Page) {
+          page.on('request', async (req: Request) => {
+            const url = new URL(req.url())
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              rscRequests.push(url.pathname)
+            }
+          })
+        },
+      })
+
+      expect(
+        await browser.hasElementByCssSelector('[href="/static-page"]')
+      ).toBe(true)
+
+      // sanity check: we should see a prefetch request to the root page
+      await retry(async () => {
+        expect(rscRequests.filter((req) => req === '/').length).toBe(1)
+      })
+
+      // We shouldn't see any requests to the static page since the prefetch cache was seeded as part of the SSR render
+      await retry(async () => {
+        expect(rscRequests.filter((req) => req === '/static-page').length).toBe(
+          0
+        )
+      })
+    })
+
+    it('should re-fetch the initial dynamic page if the same page is prefetched with prefetch={true}', async () => {
+      const rscRequests = []
+      const browser = await next.browser('/dynamic-page', {
+        beforePageLoad(page: Page) {
+          page.on('request', async (req: Request) => {
+            const url = new URL(req.url())
+            const headers = await req.allHeaders()
+            if (headers['rsc']) {
+              rscRequests.push(url.pathname)
+            }
+          })
+        },
+      })
+
+      expect(
+        await browser.hasElementByCssSelector('[href="/dynamic-page"]')
+      ).toBe(true)
+
+      // sanity check: we should see a prefetch request to the root page
+      await retry(async () => {
+        expect(rscRequests.filter((req) => req === '/').length).toBe(1)
+      })
+
+      // We should see a prefetch request to the dynamic page since the dynamic staletime is 0 by default
+      await retry(async () => {
+        expect(
+          rscRequests.filter((req) => req === '/dynamic-page').length
+        ).toBe(1)
+      })
+    })
+  })
+
   // These tests are skipped when deployed as they rely on runtime logs
   if (!isNextDeploy) {
     describe('dynamic rendering', () => {

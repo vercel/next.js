@@ -43,6 +43,7 @@ describe('createInitialRouterState', () => {
       location: new URL('/linking', 'https://localhost') as any,
       couldBeIntercepted: false,
       postponed: false,
+      isPrerender: false,
     })
 
     const state2 = createInitialRouterState({
@@ -55,6 +56,7 @@ describe('createInitialRouterState', () => {
       location: new URL('/linking', 'https://localhost') as any,
       couldBeIntercepted: false,
       postponed: false,
+      isPrerender: false,
     })
 
     const expectedCache: CacheNode = {

@@ -771,6 +771,7 @@ function App<T>({
     location: null,
     couldBeIntercepted: response.i,
     postponed: response.s,
+    isPrerender: response.S,
   })
 
   const actionQueue = createMutableActionQueue(initialState)
@@ -829,6 +830,7 @@ function AppWithoutContext<T>({
     location: null,
     couldBeIntercepted: response.i,
     postponed: response.s,
+    isPrerender: response.S,
   })
 
   const actionQueue = createMutableActionQueue(initialState)

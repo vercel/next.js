@@ -1,16 +1,18 @@
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 export default async function Page() {
   return (
     <>
-      <p id="static-page">Static Page</p>
+      <p id="dynamic-page">Dynamic Page</p>
       <p>
         <Link href="/" id="to-home">
           To home
         </Link>
       </p>
       <p>
-        <Link href="/static-page" prefetch>
+        <Link href="/dynamic-page" prefetch>
           To Same Page
         </Link>
       </p>
