@@ -1,5 +1,5 @@
 ---
-title: Cannot access cookies() or headers() in "use cache"
+title: Cannot access `cookies()` or `headers()` in `"use cache"`
 ---
 
 #### Why This Error Occurred
