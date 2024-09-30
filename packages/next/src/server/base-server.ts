@@ -106,7 +106,6 @@ import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
-  NEXT_IS_PRERENDER_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -3142,25 +3141,21 @@ export default abstract class Server<
       // data. If this is a Dynamic RSC request or wasn't a Prefetch RSC
       // request, then we should set the cache header.
       !isDynamicRSCRequest &&
+      !this.minimalMode &&
       (!didPostpone || isPrefetchRSCRequest)
     ) {
-      if (!this.minimalMode) {
-        // set x-nextjs-cache header to match the header
-        // we set for the image-optimizer
-        res.setHeader(
-          'x-nextjs-cache',
-          isOnDemandRevalidate
-            ? 'REVALIDATED'
-            : cacheEntry.isMiss
-              ? 'MISS'
-              : cacheEntry.isStale
-                ? 'STALE'
-                : 'HIT'
-        )
-      }
-      // Set a header used by the client router to signal the response is static
-      // and should respect the `static` cache staleTime value.
-      res.setHeader(NEXT_IS_PRERENDER_HEADER, '1')
+      // set x-nextjs-cache header to match the header
+      // we set for the image-optimizer
+      res.setHeader(
+        'x-nextjs-cache',
+        isOnDemandRevalidate
+          ? 'REVALIDATED'
+          : cacheEntry.isMiss
+            ? 'MISS'
+            : cacheEntry.isStale
+              ? 'STALE'
+              : 'HIT'
+      )
     }
 
     const { value: cachedData } = cacheEntry

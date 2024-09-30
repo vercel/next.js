@@ -453,6 +453,7 @@ async function generateDynamicRSCPayload(
       a: options.actionResult,
       f: flightData,
       b: ctx.renderOpts.buildId,
+      S: staticGenerationStore.isStaticGeneration,
     }
   }
 
@@ -460,6 +461,7 @@ async function generateDynamicRSCPayload(
   return {
     b: ctx.renderOpts.buildId,
     f: flightData,
+    S: staticGenerationStore.isStaticGeneration,
   }
 }
 
@@ -642,6 +644,7 @@ async function getRSCPayload(
     m: missingSlots,
     G: GlobalError,
     s: typeof ctx.renderOpts.postponed === 'string',
+    S: staticGenerationStore.isStaticGeneration,
   }
 }
 
@@ -731,6 +734,7 @@ async function getErrorRSCPayload(
     f: [[initialTree, initialSeedData, initialHead]],
     G: GlobalError,
     s: typeof ctx.renderOpts.postponed === 'string',
+    S: staticGenerationStore.isStaticGeneration,
   } satisfies InitialRSCPayload
 }
 

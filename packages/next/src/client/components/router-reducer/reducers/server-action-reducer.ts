@@ -5,7 +5,6 @@ import type {
 import { callServer } from '../../../app-call-server'
 import {
   ACTION_HEADER,
-  NEXT_IS_PRERENDER_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
@@ -106,7 +105,6 @@ async function fetchServerAction(
       redirectType = undefined
   }
 
-  const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
   let revalidatedParts: FetchServerActionResult['revalidatedParts']
   try {
     const revalidatedHeader = JSON.parse(
@@ -150,7 +148,7 @@ async function fetchServerAction(
         redirectLocation,
         redirectType,
         revalidatedParts,
-        isPrerender,
+        isPrerender: response.S,
       }
     }
 
@@ -160,7 +158,7 @@ async function fetchServerAction(
       redirectLocation,
       redirectType,
       revalidatedParts,
-      isPrerender,
+      isPrerender: response.S,
     }
   }
 
@@ -180,7 +178,7 @@ async function fetchServerAction(
     redirectLocation,
     redirectType,
     revalidatedParts,
-    isPrerender,
+    isPrerender: false,
   }
 }
 
