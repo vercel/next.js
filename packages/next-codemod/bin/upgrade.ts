@@ -337,20 +337,18 @@ async function suggestCodemods(
     return
   }
 
-  let codemodsString = `\nThe following ${chalk.blue('codemods')} are available for your upgrade:`
-  relevantCodemods.forEach((codemod) => {
-    codemodsString += `\n- ${codemod.title} ${chalk.gray(`(${codemod.value})`)}`
-  })
-  codemodsString += '\n'
-
-  console.log(codemodsString)
-
-  const responseCodemods = await prompts(
+  const { codemods } = await prompts(
     {
-      type: 'confirm',
-      name: 'apply',
-      message: `Do you want to apply these codemods?`,
-      initial: true,
+      type: 'multiselect',
+      name: 'codemods',
+      message: `\nThe following ${chalk.blue('codemods')} are recommended for your upgrade. Would you like to apply them?`,
+      choices: relevantCodemods.map((codemod) => {
+        return {
+          title: `${codemod.title} ${chalk.grey(`(${codemod.value})`)}`,
+          value: codemod.value,
+          selected: true,
+        }
+      }),
     },
     {
       onCancel: () => {
@@ -359,13 +357,9 @@ async function suggestCodemods(
     }
   )
 
-  if (!responseCodemods.apply) {
-    return
-  }
-
-  for (const codemod of relevantCodemods) {
+  for (const codemod of codemods) {
     execSync(
-      `npx @next/codemod@latest ${codemod.value} ${process.cwd()} --force`,
+      `npx --yes @next/codemod@latest ${codemod} ${process.cwd()} --force`,
       {
         stdio: 'inherit',
       }
