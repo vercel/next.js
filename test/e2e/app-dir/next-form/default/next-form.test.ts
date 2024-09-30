@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { BrowserInterface } from '../../../../lib/next-webdriver'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 describe.each(['app', 'pages'])('%s dir - form', (type) => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -55,7 +57,8 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
     expect(await navigationTracker.didMpaNavigate()).toBe(false)
   })
 
-  describe('functions passed to action', () => {
+  // `<form action={someFunction}>` is only supported in React 19.x
+  ;(isReact18 ? describe.skip : describe)('functions passed to action', () => {
     it.each([
       {
         name: 'client action',
@@ -92,57 +95,61 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
     })
   })
 
-  describe('functions passed to formAction', () => {
-    it.each([
-      {
-        // TODO(lubieowoce): figure out why the client navigation is failing in pages dir
-        // (see "pages-dir/forms/with-function/button-formaction-client/index.tsx" for more)
-        name: 'client action',
-        path: '/forms/with-function/button-formaction-client',
-      },
-      ...(isAppDir
-        ? [
-            {
-              name: 'server action',
-              path: '/forms/with-function/button-formaction-server',
-            },
-            {
-              name: 'server action (closure)',
-              path: '/forms/with-function/button-formaction-server-closure',
-            },
-          ]
-        : []),
-    ])(
-      "runs $name from submitter and doesn't warn about unsupported attributes",
-      async ({ path }) => {
-        const session = await next.browser(pathPrefix + path)
-        const navigationTracker = await trackMpaNavs(session) // actions should not MPA-navigate either.
+  // `<button formAction={someFunction}>` is only supported in React 19.x
+  ;(isReact18 ? describe.skip : describe)(
+    'functions passed to formAction',
+    () => {
+      it.each([
+        {
+          // TODO(lubieowoce): figure out why the client navigation is failing in pages dir
+          // (see "pages-dir/forms/with-function/button-formaction-client/index.tsx" for more)
+          name: 'client action',
+          path: '/forms/with-function/button-formaction-client',
+        },
+        ...(isAppDir
+          ? [
+              {
+                name: 'server action',
+                path: '/forms/with-function/button-formaction-server',
+              },
+              {
+                name: 'server action (closure)',
+                path: '/forms/with-function/button-formaction-server-closure',
+              },
+            ]
+          : []),
+      ])(
+        "runs $name from submitter and doesn't warn about unsupported attributes",
+        async ({ path }) => {
+          const session = await next.browser(pathPrefix + path)
+          const navigationTracker = await trackMpaNavs(session) // actions should not MPA-navigate either.
 
-        const searchInput = await session.elementByCss('input[name="query"]')
-        await searchInput.fill('will not be a search')
+          const searchInput = await session.elementByCss('input[name="query"]')
+          await searchInput.fill('will not be a search')
 
-        const submitButton = await session.elementByCss('[type="submit"]')
-        await submitButton.click()
+          const submitButton = await session.elementByCss('[type="submit"]')
+          await submitButton.click()
 
-        const result = await session
-          .waitForElementByCss('#redirected-results')
-          .text()
-        expect(result).toMatch(/query: "will not be a search"/)
+          const result = await session
+            .waitForElementByCss('#redirected-results')
+            .text()
+          expect(result).toMatch(/query: "will not be a search"/)
 
-        expect(await navigationTracker.didMpaNavigate()).toBe(false)
+          expect(await navigationTracker.didMpaNavigate()).toBe(false)
 
-        if (isNextDev) {
-          const logs = (await session.log()).map((item) => item.message)
+          if (isNextDev) {
+            const logs = (await session.log()).map((item) => item.message)
 
-          expect(logs).not.toContainEqual(
-            expect.stringMatching(
-              /<Form>'s `.+?` was set to an unsupported value/
+            expect(logs).not.toContainEqual(
+              expect.stringMatching(
+                /<Form>'s `.+?` was set to an unsupported value/
+              )
             )
-          )
+          }
         }
-      }
-    )
-  })
+      )
+    }
+  )
 
   describe('unsupported attributes on submitter', () => {
     it.each([
