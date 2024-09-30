@@ -7,6 +7,7 @@ export default async function Page() {
     {
       next: {
         tags: ['data'],
+        revalidate: false,
       },
     }
   ).then((res) => res.text())
