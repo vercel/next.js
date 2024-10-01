@@ -121,12 +121,12 @@ function makeUntrackedExoticSearchParams(
 
 function warnForSyncAccess(expression: string) {
   console.error(
-    `A searchParam property was accessed directly with ${expression}. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
+    `A searchParam property was accessed directly with ${expression}. \`searchParams\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to unwrap \`searchParams\` with \`React.use()\`.`
   )
 }
 
 function warnForSyncSpread() {
   console.error(
-    `the keys of \`searchParams\` were accessed through something like \`Object.keys(searchParams)\` or \`{...searchParams}\`. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
+    `the keys of \`searchParams\` were accessed through something like \`Object.keys(searchParams)\` or \`{...searchParams}\`. \`searchParams\` is now a Promise and should be unwrapped with \`React.use()\` in Client Components before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to unwrap \`searchParams\` with \`React.use()\`.`
   )
 }
