@@ -1045,6 +1045,8 @@ function parseModelString(response, parentObject, key, value) {
           (value = value.slice(2)),
           getOutlinedModel(response, value, parentObject, key, createFormData)
         );
+      case "Z":
+        return resolveErrorProd();
       case "i":
         return (
           (value = value.slice(2)),
@@ -1323,6 +1325,13 @@ function startAsyncIterable(response, id, iterator) {
     }
   );
 }
+function resolveErrorProd() {
+  var error = Error(
+    "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
+  );
+  error.stack = "Error: " + error.message;
+  return error;
+}
 function mergeBuffer(buffer, lastChunk) {
   for (var l = buffer.length, byteLength = lastChunk.length, i = 0; i < l; i++)
     byteLength += buffer[i].byteLength;
@@ -1459,12 +1468,9 @@ function processFullStringRow(response, id, tag, row) {
       }
       break;
     case 69:
-      tag = JSON.parse(row).digest;
-      row = Error(
-        "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
-      );
-      row.stack = "Error: " + row.message;
-      row.digest = tag;
+      tag = JSON.parse(row);
+      row = resolveErrorProd();
+      row.digest = tag.digest;
       tag = response._chunks;
       var chunk = tag.get(id);
       chunk
