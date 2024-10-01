@@ -24,12 +24,7 @@ z5_joined = `foo/baz${("/" | "")}${???*0*}${("/" | "")}../foo`
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-z5_resolved = `pre${("/" | "")}${???*0*}${("/" | "")}foo/bar`
-- *0* (???*1* ? "/" : "\\\\")
-  ⚠️  nested operation
-- *1* FreeVar(global)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
+z5_resolved = "/foo/bar"
 
 z5_tern = (???*0* ? "/" : "\\\\")
 - *0* FreeVar(global)
@@ -38,4 +33,4 @@ z5_tern = (???*0* ? "/" : "\\\\")
 
 z6_alt = ("/" | "\\\\")
 
-z6_resolved = `pre${("/" | "")}${("/" | "\\\\")}${("/" | "")}foo/bar`
+z6_resolved = "/foo/bar"
