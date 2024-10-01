@@ -1,3 +1,8 @@
+"use client";
+
+const backgroundColor = "#eee";
+const hoverColor = "#ccc";
+
 export default function Home() {
   return (
     <div className="hello">
@@ -8,7 +13,7 @@ export default function Home() {
             15px Helvetica,
             Arial,
             sans-serif;
-          background: #eee;
+          background: ${backgroundColor};
           padding: 100px;
           text-align: center;
           transition: 100ms ease-in background;
@@ -18,7 +23,7 @@ export default function Home() {
           }
         }
         .hello:hover {
-          background: #ccc;
+          background: ${hoverColor};
         }
       `}</style>
     </div>
