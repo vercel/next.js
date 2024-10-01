@@ -7,7 +7,7 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const destination = '/pages-dir/redirected-from-action'
   const router = useRouter()
-  const [, dispatch] = useActionState(() => {
+  const [, dispatch, isPending] = useActionState(() => {
     const to = destination + '?' + new URLSearchParams({ query })
     router.push(to)
   }, undefined)
@@ -21,7 +21,9 @@ export default function Page() {
         onChange={(e) => setQuery(e.target.value)}
       />
 
-      <button type="submit">Submit (client action)</button>
+      <button type="submit" disabled={isPending}>
+        Submit (client action)
+      </button>
     </Form>
   )
 }

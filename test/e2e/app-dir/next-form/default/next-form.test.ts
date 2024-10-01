@@ -150,6 +150,11 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
     }
   )
 
+  // /forms/pending-indicator
+  it.todo(
+    "shows a pending indicator if the target doesn't have a loading state"
+  )
+
   describe('unsupported attributes on submitter', () => {
     it.each([
       { name: 'formEncType', baseName: 'encType' },
