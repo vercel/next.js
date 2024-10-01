@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -87,4 +87,4 @@ jobs:
         uses: CodSpeedHQ/action@v3
         with:
           run: cargo codspeed run --workspace --exclude turbopack-bench --exclude turbopack-cli --exclude next-swc-napi --exclude wasm
-#          token: ${{ secrets.CODSPEED_TOKEN }}
+          token: ${{ secrets.CODSPEED_TOKEN }}
