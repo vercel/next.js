@@ -18,6 +18,21 @@ export type ImageLoaderPropsWithConfig = ImageLoaderProps & {
   config: Readonly<ImageConfig>
 }
 
+export type LocalPattern = {
+  /**
+   * Can be literal or wildcard.
+   * Single `*` matches a single path segment.
+   * Double `**` matches any number of path segments.
+   */
+  pathname?: string
+
+  /**
+   * Can be literal query string such as `?v=1` or
+   * empty string meaning no query string.
+   */
+  search?: string
+}
+
 export type RemotePattern = {
   /**
    * Must be `http` or `https`.
@@ -100,6 +115,9 @@ export type ImageConfigComplete = {
   /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remotepatterns) */
   remotePatterns: RemotePattern[]
 
+  /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#localPatterns) */
+  localPatterns: LocalPattern[] | undefined
+
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
   unoptimized: boolean
 }
@@ -119,6 +137,7 @@ export const imageConfigDefault: ImageConfigComplete = {
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
   contentDispositionType: 'attachment',
-  remotePatterns: [],
+  localPatterns: undefined, // default: allow all local images
+  remotePatterns: [], // default: allow no remote images
   unoptimized: false,
 }

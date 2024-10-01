@@ -191,16 +191,30 @@ export function getOrCreatePrefetchCacheEntry({
       kind === PrefetchKind.FULL
 
     if (switchedToFullPrefetch) {
-      return createLazyPrefetchEntry({
-        tree,
-        url,
-        buildId,
-        nextUrl,
-        prefetchCache,
-        // If we didn't get an explicit prefetch kind, we want to set a temporary kind
-        // rather than assuming the same intent as the previous entry, to be consistent with how we
-        // lazily create prefetch entries when intent is left unspecified.
-        kind: kind ?? PrefetchKind.TEMPORARY,
+      // If we switched to a full prefetch, validate that the existing cache entry contained partial data.
+      // It's possible that the cache entry was seeded with full data but has a cache type of "auto" (ie when cache entries
+      // are seeded but without a prefetch intent)
+      existingCacheEntry.data.then((prefetchResponse) => {
+        const isFullPrefetch =
+          Array.isArray(prefetchResponse.flightData) &&
+          prefetchResponse.flightData.some((flightData) => {
+            // If we started rendering from the root and we returned RSC data (seedData), we already had a full prefetch.
+            return flightData.isRootRender && flightData.seedData !== null
+          })
+
+        if (!isFullPrefetch) {
+          return createLazyPrefetchEntry({
+            tree,
+            url,
+            buildId,
+            nextUrl,
+            prefetchCache,
+            // If we didn't get an explicit prefetch kind, we want to set a temporary kind
+            // rather than assuming the same intent as the previous entry, to be consistent with how we
+            // lazily create prefetch entries when intent is left unspecified.
+            kind: kind ?? PrefetchKind.TEMPORARY,
+          })
+        }
       })
     }
 
@@ -339,7 +353,7 @@ function createLazyPrefetchEntry({
       // If the prefetch was a cache hit, we want to update the existing cache entry to reflect that it was a full prefetch.
       // This is because we know that a static response will contain the full RSC payload, and can be updated to respect the `static`
       // staleTime.
-      if (prefetchResponse.isPrerender) {
+      if (prefetchResponse.prerendered) {
         const existingCacheEntry = prefetchCache.get(
           // if we prefixed the cache key due to route interception, we want to use the new key. Otherwise we use the original key
           newCacheKey ?? prefetchCacheKey

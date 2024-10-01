@@ -7,7 +7,6 @@ import type {
   ExportNamedDeclaration,
   FunctionDeclaration,
   FunctionExpression,
-  JSCodeshift,
 } from 'jscodeshift'
 
 export type FunctionScope =
@@ -15,17 +14,20 @@ export type FunctionScope =
   | FunctionExpression
   | ArrowFunctionExpression
 
-export const TARGET_NAMED_EXPORTS = new Set([
-  // For custom route
+export const TARGET_ROUTE_EXPORTS = new Set([
   'GET',
-  'HEAD',
   'POST',
   'PUT',
-  'DELETE',
   'PATCH',
+  'DELETE',
   'OPTIONS',
+  'HEAD',
+])
+
+export const TARGET_NAMED_EXPORTS = new Set([
   // For page and layout
   'generateMetadata',
+  ...TARGET_ROUTE_EXPORTS,
 ])
 
 export const TARGET_PROP_NAMES = new Set(['params', 'searchParams'])
@@ -111,46 +113,17 @@ export function isMatchedFunctionExported(
   return isNamedExport
 }
 
-export function determineClientDirective(
-  root: Collection<any>,
-  j: JSCodeshift,
-  source: string
-) {
-  const hasStringDirective =
-    root
-      .find(j.Literal)
-      .filter((path) => {
-        const expr = path.node
+// directive is not parsed into AST, so we need to manually find it
+// by going through the tokens. Use the 1st string token as the directive
+export function determineClientDirective(root: Collection<any>, j: API['j']) {
+  const { program } = root.get().node
 
-        return (
-          expr.value === 'use client' && path.parentPath.node.type === 'Program'
-        )
-      })
-      .size() > 0
+  const directive = program.directives[0]
+  if (j.Directive.check(directive)) {
+    return directive.value.value === 'use client'
+  }
 
-  // 'use client';
-  const hasStringDirectiveWithSemicolon =
-    root
-      .find(j.StringLiteral)
-      .filter((path) => {
-        const expr = path.node
-        return (
-          expr.type === 'StringLiteral' &&
-          expr.value === 'use client' &&
-          path.parentPath.node.type === 'Program'
-        )
-      })
-      .size() > 0
-
-  if (hasStringDirective || hasStringDirectiveWithSemicolon) return true
-
-  // Since the client detection is not reliable with AST in jscodeshift,
-  // determine if 'use client' or "use client" is leading in the source code.
-  const trimmedSource = source.trim()
-  const containsClientDirective =
-    /^'use client'/.test(trimmedSource) || /^"use client"/g.test(trimmedSource)
-
-  return containsClientDirective
+  return false
 }
 
 export function isPromiseType(typeAnnotation) {
@@ -453,17 +426,31 @@ export function wrapParentheseIfNeeded(
 }
 
 export function insertCommentOnce(
-  path: ASTPath<any>,
+  node: ASTPath<any>['node'],
   j: API['j'],
   comment: string
 ) {
-  if (path.node.comments) {
-    const hasComment = path.node.comments.some(
+  if (node.comments) {
+    const hasComment = node.comments.some(
       (commentNode) => commentNode.value === comment
     )
     if (hasComment) {
       return
     }
   }
-  path.node.comments = [j.commentBlock(comment), ...(path.node.comments || [])]
+  node.comments = [j.commentBlock(comment), ...(node.comments || [])]
+}
+
+export function getVariableDeclaratorId(
+  path: ASTPath<any>,
+  j: API['j']
+): ASTPath<any>['node']['id'] | undefined {
+  const parent = path.parentPath
+  if (j.VariableDeclarator.check(parent.node)) {
+    const id = parent.node.id
+    if (j.Identifier.check(id)) {
+      return id
+    }
+  }
+  return undefined
 }
