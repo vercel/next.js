@@ -651,7 +651,7 @@ export function transformDynamicProps(
     })
   }
 
-  const isClientComponent = determineClientDirective(root)
+  const isClientComponent = determineClientDirective(root, j)
 
   // Apply to `params` and `searchParams`
   processAsyncPropOfEntryFile(isClientComponent)

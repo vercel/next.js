@@ -104,12 +104,15 @@ export function isMatchedFunctionExported(
 
 // directive is not parsed into AST, so we need to manually find it
 // by going through the tokens. Use the 1st string token as the directive
-export function determineClientDirective(root: Collection<any>) {
+export function determineClientDirective(root: Collection<any>, j: API['j']) {
   const { program } = root.get().node
 
-  const directive = program.directives[0]?.value
+  const directive = program.directives[0]
+  if (j.Directive.check(directive)) {
+    return directive.value.value === 'use client'
+  }
 
-  return directive === 'use client'
+  return false
 }
 
 export function isPromiseType(typeAnnotation) {

@@ -208,7 +208,7 @@ export function transformDynamicAPI(
       })
   }
 
-  const isClientComponent = determineClientDirective(root)
+  const isClientComponent = determineClientDirective(root, j)
 
   // Only transform the valid calls in server or shared components
   if (isClientComponent) return null
