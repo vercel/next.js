@@ -12,6 +12,11 @@ describe('dynamic-io', () => {
     return
   }
 
+  it('should not have route specific errors', async () => {
+    expect(next.cliOutput).not.toMatch('Error: Route /')
+    expect(next.cliOutput).not.toMatch('Error occurred prerendering page')
+  })
+
   it('should prerender fully static pages', async () => {
     let $ = await next.render$('/cases/static', {})
     if (isNextDev) {
