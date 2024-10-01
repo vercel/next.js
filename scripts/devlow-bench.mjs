@@ -164,7 +164,7 @@ const nextBuildWorkflow =
           '.next',
           'cache',
           'webpack',
-          'client-development'
+          'client-production'
         )
         await Promise.race([
           waitForFile(join(cacheLocation, 'index.pack')),

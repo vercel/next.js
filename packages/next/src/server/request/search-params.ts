@@ -193,6 +193,29 @@ function makeAbortingExoticSearchParams(
           annotateDynamicAccess(expression, prerenderStore)
           return ReflectAdapter.get(target, prop, receiver)
         }
+        // Object prototype
+        case 'hasOwnProperty':
+        case 'isPrototypeOf':
+        case 'propertyIsEnumerable':
+        case 'toString':
+        case 'valueOf':
+        case 'toLocaleString':
+
+        // Promise prototype
+        // fallthrough
+        case 'catch':
+        case 'finally':
+
+        // Common tested properties
+        // fallthrough
+        case 'toJSON':
+        case '$$typeof':
+        case '__esModule': {
+          // These properties cannot be shadowed because they need to be the
+          // true underlying value for Promises to work correctly at runtime
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+
         default: {
           if (typeof prop === 'string') {
             const expression = describeStringPropertyAccess(
@@ -267,6 +290,28 @@ function makeErroringExoticSearchParams(
       }
 
       switch (prop) {
+        // Object prototype
+        case 'hasOwnProperty':
+        case 'isPrototypeOf':
+        case 'propertyIsEnumerable':
+        case 'toString':
+        case 'valueOf':
+        case 'toLocaleString':
+
+        // Promise prototype
+        // fallthrough
+        case 'catch':
+        case 'finally':
+
+        // Common tested properties
+        // fallthrough
+        case 'toJSON':
+        case '$$typeof':
+        case '__esModule': {
+          // These properties cannot be shadowed because they need to be the
+          // true underlying value for Promises to work correctly at runtime
+          return ReflectAdapter.get(target, prop, receiver)
+        }
         case 'then': {
           const expression =
             '`await searchParams`, `searchParams.then`, or similar'
@@ -402,11 +447,31 @@ function makeUntrackedExoticSearchParams(
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
     switch (prop) {
+      // Object prototype
+      case 'hasOwnProperty':
+      case 'isPrototypeOf':
+      case 'propertyIsEnumerable':
+      case 'toString':
+      case 'valueOf':
+      case 'toLocaleString':
+
+      // Promise prototype
+      // fallthrough
       case 'then':
-      case 'value':
-      case 'status': {
-        // These properties cannot be shadowed with a search param because they
-        // are necessary for ReactPromise's to work correctly with `use`
+      case 'catch':
+      case 'finally':
+
+      // React Promise extension
+      // fallthrough
+      case 'status':
+
+      // Common tested properties
+      // fallthrough
+      case 'toJSON':
+      case '$$typeof':
+      case '__esModule': {
+        // These properties cannot be shadowed because they need to be the
+        // true underlying value for Promises to work correctly at runtime
         break
       }
       default: {
@@ -503,11 +568,31 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
     switch (prop) {
+      // Object prototype
+      case 'hasOwnProperty':
+      case 'isPrototypeOf':
+      case 'propertyIsEnumerable':
+      case 'toString':
+      case 'valueOf':
+      case 'toLocaleString':
+
+      // Promise prototype
+      // fallthrough
       case 'then':
-      case 'value':
-      case 'status': {
-        // These properties cannot be shadowed with a search param because they
-        // are necessary for ReactPromise's to work correctly with `use`
+      case 'catch':
+      case 'finally':
+
+      // React Promise extension
+      // fallthrough
+      case 'status':
+
+      // Common tested properties
+      // fallthrough
+      case 'toJSON':
+      case '$$typeof':
+      case '__esModule': {
+        // These properties cannot be shadowed because they need to be the
+        // true underlying value for Promises to work correctly at runtime
         unproxiedProperties.push(prop)
         break
       }
@@ -545,6 +630,12 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return Reflect.set(target, prop, value, receiver)
     },
     has(target, prop) {
       if (typeof prop === 'string') {

@@ -4,14 +4,6 @@ import { getSentinelValue } from '../../../../getSentinelValue'
 
 export const runtime = 'edge'
 
-export async function generateStaticParams() {
-  return [
-    {
-      dyn: '1',
-    },
-  ]
-}
-
 export async function GET(
   request: NextRequest,
   props: { params: Promise<{ dyn: string }> }

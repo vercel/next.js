@@ -1,6 +1,6 @@
 import type { NextConfig } from '../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
-import type { AppConfig } from '../../../build/utils'
+import type { AppSegmentConfig } from '../../../build/app-segments/app-segment-config'
 import type { NextRequest } from '../../web/spec-extension/request'
 import type { PrerenderManifest } from '../../../build'
 import type { NextURL } from '../../web/next-url'
@@ -69,6 +69,7 @@ import type { RenderOptsPartial } from '../../app-render/types'
 import { CacheSignal } from '../../app-render/cache-signal'
 import { scheduleImmediate } from '../../../lib/scheduler'
 import { createServerParamsForRoute } from '../../request/params'
+import type { AppSegment } from '../../../build/app-segments/collect-app-segments'
 
 /**
  * The AppRouteModule is the type of the module exported by the bundled App
@@ -123,10 +124,11 @@ export type AppRouteHandlers = {
  * routes. This contains all the user generated code.
  */
 export type AppRouteUserlandModule = AppRouteHandlers &
-  Pick<AppConfig, 'dynamic' | 'revalidate' | 'dynamicParams' | 'fetchCache'> & {
-    // TODO: (wyattjoh) create a type for this
-    generateStaticParams?: any
-  }
+  Pick<
+    AppSegmentConfig,
+    'dynamic' | 'revalidate' | 'dynamicParams' | 'fetchCache'
+  > &
+  Pick<AppSegment, 'generateStaticParams'>
 
 /**
  * AppRouteRouteModuleOptions is the options that are passed to the app route

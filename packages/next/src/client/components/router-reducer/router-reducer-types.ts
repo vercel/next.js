@@ -112,6 +112,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
+  allowAliasing: boolean
 }
 
 /**
