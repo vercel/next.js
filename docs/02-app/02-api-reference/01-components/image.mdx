@@ -461,13 +461,24 @@ For example, when upgrading an existing website from `<img>` to `<Image>`, you m
 />
 ```
 
+### decoding
+
+A hint to the browser indicating if it should wait for the image to be decoded before presenting other content updates or not. Defaults to `async`.
+
+Possible values are the following:
+
+- `async` - Asynchronously decode the image and allow other content to be rendered before it completes.
+- `sync` - Synchronously decode the image for atomic presentation with other content.
+- `auto` - No preference for the decoding mode; the browser decides what's best.
+
+Learn more about the [`decoding` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#loading).
+
 ### Other Props
 
 Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
 - `srcSet`. Use [Device Sizes](#devicesizes) instead.
-- `decoding`. It is always `"async"`.
 
 ## Configuration Options
 
@@ -1020,6 +1031,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v14.2.15` | `decoding` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `v14.2.0`  | `overrideSrc` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v14.1.0`  | `getImageProps()` is stable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `v14.0.0`  | `onLoadingComplete` prop and `domains` config deprecated.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
