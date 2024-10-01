@@ -49,7 +49,12 @@ program
 
   .argument(
     '[revision]',
-    'NPM dist tag or exact version to upgrade to (e.g. "latest" or "15.0.0-canary.167"). Prompts to choose a dist tag if omitted.'
+    'NPM dist tag or exact version to upgrade to (e.g. "latest" or "15.0.0-canary.167"). Valid dist-tags are "latest", "canary" or "rc".',
+    packageJson.version.includes('-canary.')
+      ? 'canary'
+      : packageJson.version.includes('-rc.')
+        ? 'rc'
+        : 'latest'
   )
   .option('--verbose', 'Verbose output', false)
   .action(runUpgrade)
