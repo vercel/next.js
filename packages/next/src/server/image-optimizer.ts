@@ -411,7 +411,7 @@ export class ImageOptimizerCache {
       revalidate?: number | false
     }
   ) {
-    if (this.nextConfig.images.disableWriteToCacheDir) {
+    if (!this.nextConfig.experimental.isrFlushToDisk) {
       return
     }
 
