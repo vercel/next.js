@@ -164,6 +164,11 @@ export async function runUpgrade(
     await suggestTurbopack(appPackageJson)
   }
 
+  const codemods = await suggestCodemods(
+    installedNextVersion,
+    targetNextVersion
+  )
+
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
   const packageManager: PackageManager = getPkgManager(process.cwd())
@@ -193,7 +198,9 @@ export async function runUpgrade(
     silent: !verbose,
   })
 
-  await suggestCodemods(installedNextVersion, targetNextVersion)
+  for (const codemod of codemods) {
+    await runTransform(codemod, process.cwd(), { force: true })
+  }
 
   console.log(
     `\n${chalk.green('✔')} Your Next.js project has been upgraded successfully. ${chalk.bold('Time to ship! 🚢')}`
@@ -313,13 +320,13 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
 async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string
-): Promise<void> {
+): Promise<string[]> {
   const initialVersionIndex = availableCodemods.findIndex(
     (versionCodemods) =>
       compareVersions(versionCodemods.version, initialNextVersion) > 0
   )
   if (initialVersionIndex === -1) {
-    return
+    return []
   }
 
   let targetVersionIndex = availableCodemods.findIndex(
@@ -335,7 +342,7 @@ async function suggestCodemods(
     .flatMap((versionCodemods) => versionCodemods.codemods)
 
   if (relevantCodemods.length === 0) {
-    return
+    return []
   }
 
   const { codemods } = await prompts(
@@ -358,7 +365,5 @@ async function suggestCodemods(
     }
   )
 
-  for (const codemod of codemods) {
-    await runTransform(codemod, process.cwd(), { force: true })
-  }
+  return codemods
 }
