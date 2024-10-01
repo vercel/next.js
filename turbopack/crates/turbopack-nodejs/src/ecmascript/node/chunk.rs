@@ -41,8 +41,8 @@ impl EcmascriptBuildNodeChunk {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell("Ecmascript Build Node Chunk".into()))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("Ecmascript Build Node Chunk".into())
     }
 }
 

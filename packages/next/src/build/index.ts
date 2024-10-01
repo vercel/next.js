@@ -86,7 +86,7 @@ import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
-import * as ciEnvironment from '../telemetry/ci-info'
+import * as ciEnvironment from '../server/ci-info'
 import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
@@ -130,7 +130,8 @@ import {
   collectMeta,
   // getSupportedBrowsers,
 } from './utils'
-import type { PageInfo, PageInfos, AppConfig, PrerenderedRoute } from './utils'
+import type { PageInfo, PageInfos, PrerenderedRoute } from './utils'
+import type { AppSegmentConfig } from './app-segments/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -193,7 +194,7 @@ import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
-import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
 import {
@@ -816,7 +817,10 @@ export default async function build(
 
       // Generate a random encryption key for this build.
       // This key is used to encrypt cross boundary values and can be used to generate hashes.
-      const encryptionKey = await generateEncryptionKeyBase64()
+      const encryptionKey = await generateEncryptionKeyBase64({
+        isBuild: true,
+        distDir,
+      })
       NextBuildContext.encryptionKey = encryptionKey
 
       const isSrcDir = path
@@ -1815,7 +1819,7 @@ export default async function build(
       const staticPaths = new Map<string, PrerenderedRoute[]>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
-      const appDefaultConfigs = new Map<string, AppConfig>()
+      const appDefaultConfigs = new Map<string, AppSegmentConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
       let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
@@ -1897,12 +1901,14 @@ export default async function build(
               distDir,
               configFileName,
               runtimeEnvConfig,
+              dynamicIO: Boolean(config.experimental.dynamicIO),
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
               isAppPPRFallbacksEnabled: config.experimental.pprFallbacks,
+              buildId,
             })
         )
 
@@ -2112,6 +2118,7 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
+                            dynamicIO: Boolean(config.experimental.dynamicIO),
                             cacheHandler: config.cacheHandler,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
@@ -2121,6 +2128,7 @@ export default async function build(
                             pprConfig: config.experimental.ppr,
                             isAppPPRFallbacksEnabled:
                               config.experimental.pprFallbacks,
+                            buildId,
                           })
                         }
                       )

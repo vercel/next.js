@@ -1,4 +1,3 @@
-use anyhow::Result;
 use turbo_tasks::{RcStr, Vc};
 use turbopack_core::compile_time_info::CompileTimeInfo;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -22,14 +21,14 @@ impl ContextTransition {
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
         layer: Vc<RcStr>,
-    ) -> Result<Vc<ContextTransition>> {
-        Ok(ContextTransition {
+    ) -> Vc<ContextTransition> {
+        ContextTransition {
             module_options_context,
             resolve_options_context,
             compile_time_info,
             layer,
         }
-        .cell())
+        .cell()
     }
 }
 

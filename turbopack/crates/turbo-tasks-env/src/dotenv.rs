@@ -24,10 +24,10 @@ impl DotenvProcessEnv {
     }
 
     #[turbo_tasks::function]
-    pub fn read_prior(&self) -> Result<Vc<EnvMap>> {
+    pub fn read_prior(&self) -> Vc<EnvMap> {
         match self.prior {
-            None => Ok(EnvMap::empty()),
-            Some(p) => Ok(p.read_all()),
+            None => EnvMap::empty(),
+            Some(p) => p.read_all(),
         }
     }
 
@@ -76,9 +76,9 @@ impl DotenvProcessEnv {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for DotenvProcessEnv {
     #[turbo_tasks::function]
-    fn read_all(self: Vc<Self>) -> Result<Vc<EnvMap>> {
+    fn read_all(self: Vc<Self>) -> Vc<EnvMap> {
         let prior = self.read_prior();
-        Ok(self.read_all_with_prior(prior))
+        self.read_all_with_prior(prior)
     }
 }
 

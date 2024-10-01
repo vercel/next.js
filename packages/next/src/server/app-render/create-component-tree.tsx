@@ -159,7 +159,7 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const [layoutOrPageMod] = await getTracer().trace(
+  const { mod: layoutOrPageMod } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),

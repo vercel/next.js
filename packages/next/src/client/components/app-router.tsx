@@ -154,6 +154,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         locationSearch: location.search,
         shouldScroll: shouldScroll ?? true,
         navigateType,
+        allowAliasing: true,
       })
     },
     [dispatch]

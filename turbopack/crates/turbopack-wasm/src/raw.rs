@@ -77,15 +77,15 @@ impl ChunkableModule for RawWebAssemblyModuleAsset {
     fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             RawModuleChunkItem {
                 module: self,
                 chunking_context,
                 wasm_asset: self.wasm_asset(Vc::upcast(chunking_context)),
             }
             .cell(),
-        ))
+        )
     }
 }
 

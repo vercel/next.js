@@ -249,12 +249,12 @@ impl Introspectable for ChunkGroupFilesAsset {
     }
 
     #[turbo_tasks::function]
-    fn children(&self) -> Result<Vc<IntrospectableChildren>> {
+    fn children(&self) -> Vc<IntrospectableChildren> {
         let mut children = IndexSet::new();
         children.insert((
             Vc::cell("inner asset".into()),
             IntrospectableModule::new(Vc::upcast(self.module)),
         ));
-        Ok(Vc::cell(children))
+        Vc::cell(children)
     }
 }

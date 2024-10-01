@@ -287,10 +287,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar'
           ),
           expect.stringContaining(
-            '`Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar'
           ),
         ])
       } else {
@@ -314,10 +314,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar'
           ),
           expect.stringContaining(
-            '`Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar'
           ),
         ])
       } else {
@@ -341,10 +341,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar'
           ),
           expect.stringContaining(
-            '`Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar'
           ),
         ])
       } else {
@@ -366,10 +366,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar'
           ),
           expect.stringContaining(
-            '`Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar'
           ),
         ])
       } else {
@@ -388,9 +388,10 @@ describe('dynamic-io', () => {
       let searchWarnings = getLines('In route /search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
-        expect($('[data-value]').length).toBe(2)
+        expect($('[data-value]').length).toBe(3)
         expect($('#value-sentinel').text()).toBe('hello')
         expect($('#value-foo').text()).toBe('foo')
+        expect($('#value-value').text()).toBe('baz')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
@@ -400,6 +401,9 @@ describe('dynamic-io', () => {
             'accessed directly with `searchParams.sentinel`'
           ),
           expect.stringContaining('accessed directly with `searchParams.foo`'),
+          expect.stringContaining(
+            'accessed directly with `searchParams.value`'
+          ),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
@@ -408,9 +412,10 @@ describe('dynamic-io', () => {
         // This test case aborts synchronously and the later component render
         // triggers the outer boundary
         expect($('main').text()).toContain('outer loading...')
-        expect($('[data-value]').length).toBe(2)
+        expect($('[data-value]').length).toBe(3)
         expect($('#value-sentinel').text()).toBe('hello')
         expect($('#value-foo').text()).toBe('foo')
+        expect($('#value-value').text()).toBe('baz')
         expect($('#page').text()).toBe('at runtime')
       }
 
@@ -450,9 +455,10 @@ describe('dynamic-io', () => {
       let searchWarnings = getLines('In route /search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
-        expect($('[data-value]').length).toBe(2)
+        expect($('[data-value]').length).toBe(3)
         expect($('#value-sentinel').text()).toBe('hello')
         expect($('#value-foo').text()).toBe('foo')
+        expect($('#value-value').text()).toBe('baz')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
@@ -462,15 +468,19 @@ describe('dynamic-io', () => {
             'accessed directly with `searchParams.sentinel`'
           ),
           expect.stringContaining('accessed directly with `searchParams.foo`'),
+          expect.stringContaining(
+            'accessed directly with `searchParams.value`'
+          ),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
         expect($('#layout').text()).toBe('at buildtime')
         expect($('main').text()).toContain('inner loading...')
         expect($('main').text()).not.toContain('outer loading...')
-        expect($('[data-value]').length).toBe(2)
+        expect($('[data-value]').length).toBe(3)
         expect($('#value-sentinel').text()).toBe('hello')
         expect($('#value-foo').text()).toBe('foo')
+        expect($('#value-value').text()).toBe('baz')
         expect($('#page').text()).toBe('at runtime')
       }
 
@@ -595,10 +605,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar.'
           ),
           expect.stringContaining(
-            'Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar.'
+            'Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar.'
           ),
         ])
       } else {
@@ -618,10 +628,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar.'
           ),
           expect.stringContaining(
-            'Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar.'
+            'Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar.'
           ),
         ])
       } else {
@@ -645,10 +655,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar.'
           ),
           expect.stringContaining(
-            'Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar.'
+            'Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar.'
           ),
         ])
       } else {
@@ -668,10 +678,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar.'
           ),
           expect.stringContaining(
-            'Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar.'
+            'Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar.'
           ),
         ])
       } else {
@@ -690,9 +700,10 @@ describe('dynamic-io', () => {
       let searchWarnings = getLines('In route /search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
-        expect($('[data-value]').length).toBe(2)
+        expect($('[data-value]').length).toBe(3)
         expect($('#value-sentinel').text()).toBe('hello')
         expect($('#value-foo').text()).toBe('foo')
+        expect($('#value-value').text()).toBe('baz')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
@@ -702,13 +713,17 @@ describe('dynamic-io', () => {
             'accessed directly with `searchParams.sentinel`'
           ),
           expect.stringContaining('accessed directly with `searchParams.foo`'),
+          expect.stringContaining(
+            'accessed directly with `searchParams.value`'
+          ),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
         expect($('#layout').text()).toBe('at runtime')
-        expect($('[data-value]').length).toBe(2)
+        expect($('[data-value]').length).toBe(3)
         expect($('#value-sentinel').text()).toBe('hello')
         expect($('#value-foo').text()).toBe('foo')
+        expect($('#value-value').text()).toBe('baz')
         expect($('#page').text()).toBe('at runtime')
       }
 
@@ -748,9 +763,10 @@ describe('dynamic-io', () => {
       let searchWarnings = getLines('In route /search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
-        expect($('[data-value]').length).toBe(2)
+        expect($('[data-value]').length).toBe(3)
         expect($('#value-sentinel').text()).toBe('hello')
         expect($('#value-foo').text()).toBe('foo')
+        expect($('#value-value').text()).toBe('baz')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
@@ -760,13 +776,17 @@ describe('dynamic-io', () => {
             'accessed directly with `searchParams.sentinel`'
           ),
           expect.stringContaining('accessed directly with `searchParams.foo`'),
+          expect.stringContaining(
+            'accessed directly with `searchParams.value`'
+          ),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
         expect($('#layout').text()).toBe('at runtime')
-        expect($('[data-value]').length).toBe(2)
+        expect($('[data-value]').length).toBe(3)
         expect($('#value-sentinel').text()).toBe('hello')
         expect($('#value-foo').text()).toBe('foo')
+        expect($('#value-value').text()).toBe('baz')
         expect($('#page').text()).toBe('at runtime')
       }
 

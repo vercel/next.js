@@ -489,6 +489,7 @@ export default async function getBaseWebpackConfig(
         transpilePackages: finalTranspilePackages,
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
+        serverReferenceHashSalt: encryptionKey,
         ...extraOptions,
       } satisfies SWCLoaderOptions,
     }
@@ -2114,6 +2115,7 @@ export default async function getBaseWebpackConfig(
     clientTraceMetadata: config.experimental.clientTraceMetadata,
     serverSourceMaps: config.experimental.serverSourceMaps,
     flyingShuttle: config.experimental.flyingShuttle,
+    serverReferenceHashSalt: encryptionKey,
   })
 
   const cache: any = {

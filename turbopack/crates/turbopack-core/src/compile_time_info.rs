@@ -1,4 +1,3 @@
-use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -263,8 +262,8 @@ impl CompileTimeInfo {
     }
 
     #[turbo_tasks::function]
-    pub fn environment(&self) -> Result<Vc<Environment>> {
-        Ok(self.environment)
+    pub fn environment(&self) -> Vc<Environment> {
+        self.environment
     }
 }
 
