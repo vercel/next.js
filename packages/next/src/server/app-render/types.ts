@@ -223,7 +223,7 @@ export type InitialRSCPayload = {
   G: React.ComponentType<any>
   /** postponed */
   s: boolean
-  /** isPrerender */
+  /** prerendered */
   S: boolean
 }
 
@@ -233,7 +233,7 @@ export type NavigationFlightResponse = {
   b: string
   /** flightData */
   f: FlightData
-  /** isPrerender */
+  /** prerendered */
   S: boolean
 }
 
