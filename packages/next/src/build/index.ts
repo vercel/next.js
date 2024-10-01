@@ -130,7 +130,8 @@ import {
   collectMeta,
   // getSupportedBrowsers,
 } from './utils'
-import type { PageInfo, PageInfos, AppConfig, PrerenderedRoute } from './utils'
+import type { PageInfo, PageInfos, PrerenderedRoute } from './utils'
+import type { AppSegmentConfig } from './app-segments/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -1818,7 +1819,7 @@ export default async function build(
       const staticPaths = new Map<string, PrerenderedRoute[]>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
-      const appDefaultConfigs = new Map<string, AppConfig>()
+      const appDefaultConfigs = new Map<string, AppSegmentConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
       let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)

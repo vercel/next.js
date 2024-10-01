@@ -300,7 +300,7 @@ export function abortAndThrowOnSynchronousDynamicDataAccess(
   prerenderStore: PrerenderStore
 ): never {
   abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
-  throw new Error(
+  throw createPrerenderInterruptedError(
     `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
   )
 }
@@ -405,7 +405,13 @@ function createPrerenderInterruptedError(message: string): Error {
   return error
 }
 
-export function isPrerenderInterruptedError(error: unknown) {
+type DigestError = Error & {
+  digest: string
+}
+
+export function isPrerenderInterruptedError(
+  error: unknown
+): error is DigestError {
   return (
     typeof error === 'object' &&
     error !== null &&

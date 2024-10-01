@@ -2,7 +2,7 @@ import execa from 'execa'
 import globby from 'globby'
 import prompts from 'prompts'
 import { join } from 'node:path'
-import { installPackage, uninstallPackage } from '../lib/handle-package'
+import { installPackages, uninstallPackage } from '../lib/handle-package'
 import { checkGitStatus, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {
@@ -128,6 +128,6 @@ export async function runTransform(
 
   if (!dry && transformer === 'next-request-geo-ip') {
     console.log('Installing `@vercel/functions`...')
-    installPackage('@vercel/functions')
+    installPackages(['@vercel/functions'])
   }
 }

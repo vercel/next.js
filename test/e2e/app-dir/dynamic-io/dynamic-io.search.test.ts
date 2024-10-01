@@ -287,10 +287,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar'
           ),
           expect.stringContaining(
-            '`Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar'
           ),
         ])
       } else {
@@ -314,10 +314,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar'
           ),
           expect.stringContaining(
-            '`Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar'
           ),
         ])
       } else {
@@ -341,10 +341,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar'
           ),
           expect.stringContaining(
-            '`Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar'
           ),
         ])
       } else {
@@ -366,10 +366,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar'
           ),
           expect.stringContaining(
-            '`Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar'
+            '`Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar'
           ),
         ])
       } else {
@@ -605,10 +605,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar.'
           ),
           expect.stringContaining(
-            'Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar.'
+            'Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar.'
           ),
         ])
       } else {
@@ -628,10 +628,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar.'
           ),
           expect.stringContaining(
-            'Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar.'
+            'Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar.'
           ),
         ])
       } else {
@@ -655,10 +655,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar.'
           ),
           expect.stringContaining(
-            'Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar.'
+            'Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar.'
           ),
         ])
       } else {
@@ -678,10 +678,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel"`, `"sentinel" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar.'
           ),
           expect.stringContaining(
-            'Reflect.has(searchParams, "foo"`, `"foo" in searchParams`, or similar.'
+            'Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar.'
           ),
         ])
       } else {
