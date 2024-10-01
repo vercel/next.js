@@ -5,7 +5,8 @@ import path from 'path'
 import { compareVersions } from 'compare-versions'
 import chalk from 'chalk'
 import { availableCodemods } from '../lib/codemods'
-import { getPkgManager, installPackage } from '../lib/handle-package'
+import { getPkgManager, installPackages } from '../lib/handle-package'
+import { runTransform } from './transform'
 
 type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
 type CustomVersionSpecifier = string
@@ -16,26 +17,49 @@ interface Response {
   version: StandardVersionSpecifier
 }
 
-export async function runUpgrade(): Promise<void> {
+/**
+ * @param query
+ * @example loadHighestNPMVersionMatching("react@^18.3.0 || ^19.0.0") === Promise<"19.0.0">
+ */
+async function loadHighestNPMVersionMatching(query: string) {
+  const versionsJSON = execSync(
+    `npm --silent view "${query}" --json --field version`,
+    { encoding: 'utf-8' }
+  )
+  const versions = JSON.parse(versionsJSON)
+  if (versions.length < 1) {
+    throw new Error(
+      `Found no React versions matching "${query}". This is a bug in the upgrade tool.`
+    )
+  }
+
+  return versions[versions.length - 1]
+}
+
+export async function runUpgrade(
+  revision: string | undefined,
+  options: { verbose: boolean }
+): Promise<void> {
+  const { verbose } = options
   const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
   await detectWorkspace(appPackageJson)
 
-  let targetNextPackageJson
+  let targetNextPackageJson: {
+    version: string
+    peerDependencies: Record<string, string>
+  }
   let targetVersionSpecifier: VersionSpecifier = ''
 
-  const shortcutVersion = process.argv[2]?.replace('@', '')
-  if (shortcutVersion) {
-    const res = await fetch(
-      `https://registry.npmjs.org/next/${shortcutVersion}`
-    )
+  if (revision !== undefined) {
+    const res = await fetch(`https://registry.npmjs.org/next/${revision}`)
     if (res.status === 200) {
       targetNextPackageJson = await res.json()
       targetVersionSpecifier = targetNextPackageJson.version
     } else {
       console.error(
-        `${chalk.yellow('Next.js ' + shortcutVersion)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}, or choose one from below\n`
+        `${chalk.yellow(`next@${revision}`)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}, or choose one from below\n`
       )
     }
   }
@@ -115,10 +139,28 @@ export async function runUpgrade(): Promise<void> {
 
   const targetNextVersion = targetNextPackageJson.version
 
-  if (
-    targetNextVersion &&
-    compareVersions(targetNextVersion, '15.0.0-canary') >= 0
-  ) {
+  // We're resolving a specific version here to avoid including "ugly" version queries
+  // in the manifest.
+  // E.g. in peerDependencies we could have `^18.2.0 || ^19.0.0 || 20.0.0-canary`
+  // If we'd just `npm add` that, the manifest would read the same version query.
+  // This is basically a `npm --save-exact react@$versionQuery` that works for every package manager.
+  const [
+    targetReactVersion,
+    targetReactTypesVersion,
+    targetReactDOMTypesVersion,
+  ] = await Promise.all([
+    loadHighestNPMVersionMatching(
+      `react@${targetNextPackageJson.peerDependencies['react']}`
+    ),
+    loadHighestNPMVersionMatching(
+      `@types/react@${targetNextPackageJson.peerDependencies['react']}`
+    ),
+    loadHighestNPMVersionMatching(
+      `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
+    ),
+  ])
+
+  if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
     await suggestTurbopack(appPackageJson)
   }
 
@@ -127,17 +169,29 @@ export async function runUpgrade(): Promise<void> {
   const packageManager: PackageManager = getPkgManager(process.cwd())
   const nextDependency = `next@${targetNextVersion}`
   const reactDependencies = [
-    `react@${targetNextPackageJson.peerDependencies['react']}`,
-    `@types/react@${targetNextPackageJson.devDependencies['@types/react']}`,
-    `react-dom@${targetNextPackageJson.peerDependencies['react-dom']}`,
-    `@types/react-dom@${targetNextPackageJson.devDependencies['@types/react-dom']}`,
+    `react@${targetReactVersion}`,
+    `react-dom@${targetReactVersion}`,
   ]
-
-  installPackage([nextDependency, ...reactDependencies], packageManager)
+  if (
+    targetReactVersion.startsWith('19.0.0-canary') ||
+    targetReactVersion.startsWith('19.0.0-beta') ||
+    targetReactVersion.startsWith('19.0.0-rc')
+  ) {
+    reactDependencies.push(`@types/react@npm:types-react@rc`)
+    reactDependencies.push(`@types/react-dom@npm:types-react-dom@rc`)
+  } else {
+    reactDependencies.push(`@types/react@${targetReactTypesVersion}`)
+    reactDependencies.push(`@types/react-dom@${targetReactDOMTypesVersion}`)
+  }
 
   console.log(
     `Upgrading your project to ${chalk.blue('Next.js ' + targetVersionSpecifier)}...\n`
   )
+
+  installPackages([nextDependency, ...reactDependencies], {
+    packageManager,
+    silent: !verbose,
+  })
 
   await suggestCodemods(installedNextVersion, targetNextVersion)
 
@@ -284,20 +338,18 @@ async function suggestCodemods(
     return
   }
 
-  let codemodsString = `\nThe following ${chalk.blue('codemods')} are available for your upgrade:`
-  relevantCodemods.forEach((codemod) => {
-    codemodsString += `\n- ${codemod.title} ${chalk.gray(`(${codemod.value})`)}`
-  })
-  codemodsString += '\n'
-
-  console.log(codemodsString)
-
-  const responseCodemods = await prompts(
+  const { codemods } = await prompts(
     {
-      type: 'confirm',
-      name: 'apply',
-      message: `Do you want to apply these codemods?`,
-      initial: true,
+      type: 'multiselect',
+      name: 'codemods',
+      message: `\nThe following ${chalk.blue('codemods')} are recommended for your upgrade. Would you like to apply them?`,
+      choices: relevantCodemods.map((codemod) => {
+        return {
+          title: `${codemod.title} ${chalk.grey(`(${codemod.value})`)}`,
+          value: codemod.value,
+          selected: true,
+        }
+      }),
     },
     {
       onCancel: () => {
@@ -306,16 +358,7 @@ async function suggestCodemods(
     }
   )
 
-  if (!responseCodemods.apply) {
-    return
-  }
-
-  for (const codemod of relevantCodemods) {
-    execSync(
-      `npx @next/codemod@latest ${codemod.value} ${process.cwd()} --force`,
-      {
-        stdio: 'inherit',
-      }
-    )
+  for (const codemod of codemods) {
+    await runTransform(codemod, process.cwd(), { force: true })
   }
 }
