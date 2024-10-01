@@ -1772,9 +1772,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -1801,9 +1799,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -1830,9 +1826,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -1862,9 +1856,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -1897,9 +1889,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -1926,9 +1916,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -1955,9 +1943,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -1987,9 +1973,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -2022,9 +2006,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -2051,9 +2033,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -2083,9 +2063,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -2112,9 +2090,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -2147,9 +2123,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -2177,9 +2151,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -2210,9 +2182,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -2240,9 +2210,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
-            expect.stringContaining(
-              'enumerated with `{...params}`, `Object.keys(params)`, or similar.'
-            ),
+            expect.stringContaining('params are being enumerated.'),
             expect.stringContaining('accessed directly with `params.lowcard`'),
             expect.stringContaining('accessed directly with `params.highcard`'),
           ])
@@ -2367,7 +2335,7 @@ describe('dynamic-io', () => {
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([
           expect.stringContaining(
-            'The following properties were not copied: `then` and `status`.'
+            'missing these properties: `then` and `status`.'
           ),
           expect.stringContaining('accessed directly with `params.dyn`'),
           expect.stringContaining('accessed directly with `params.value`'),
@@ -2400,7 +2368,7 @@ describe('dynamic-io', () => {
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([
           expect.stringContaining(
-            'The following properties were not copied: `then` and `status`.'
+            'missing these properties: `then` and `status`.'
           ),
           expect.stringContaining('accessed directly with `params.dyn`'),
           expect.stringContaining('accessed directly with `params.value`'),
@@ -2436,7 +2404,7 @@ describe('dynamic-io', () => {
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([
           expect.stringContaining(
-            'The following properties were not copied: `then` and `status`.'
+            'missing these properties: `then` and `status`.'
           ),
           expect.stringContaining('accessed directly with `params.dyn`'),
           expect.stringContaining('accessed directly with `params.value`'),
@@ -2469,7 +2437,7 @@ describe('dynamic-io', () => {
         expect($('#param-status').text()).toBe('undefined')
         expect(getLines('In route /params')).toEqual([
           expect.stringContaining(
-            'The following properties were not copied: `then` and `status`.'
+            'missing these properties: `then` and `status`.'
           ),
           expect.stringContaining('accessed directly with `params.dyn`'),
           expect.stringContaining('accessed directly with `params.value`'),

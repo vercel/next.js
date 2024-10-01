@@ -513,14 +513,18 @@ function describeNameArg(arg: unknown) {
 function warnForSyncIteration(route?: string) {
   const prefix = route ? ` In route ${route} ` : ''
   console.error(
-    `${prefix}cookies were iterated implicitly with something like \`for...of cookies())\` or \`[...cookies()]\`, or explicitly with \`cookies()[Symbol.iterator]()\`. \`cookies()\` now returns a Promise and the return value should be awaited before attempting to iterate over cookies. In this version of Next.js iterating cookies without awaiting first is still supported to facilitate migration but in a future version you will be required to await the result. If this \`cookies()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
+    `${prefix}cookies were iterated over. ` +
+      `\`cookies()\` should be awaited before using its value. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
 
 function warnForSyncAccess(route: undefined | string, expression: string) {
   const prefix = route ? ` In route ${route} a ` : 'A '
   console.error(
-    `${prefix}cookie property was accessed directly with \`${expression}\`. \`cookies()\` now returns a Promise and the return value should be awaited before accessing properties of the underlying cookies instance. In this version of Next.js direct access to \`${expression}\` is still supported to facilitate migration but in a future version you will be required to await the result. If this \`cookies()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
+    `${prefix}cookie property was accessed directly with \`${expression}\`. ` +
+      `\`cookies()\` should be awaited before using its value. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
 
