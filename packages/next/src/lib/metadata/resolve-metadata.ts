@@ -441,7 +441,10 @@ export async function collectMetadata({
     mod = await getComponentTypeModule(tree, 'layout')
     modType = errorConvention
   } else {
-    ;[mod, modType] = await getLayoutOrPageModule(tree)
+    const { mod: layoutOrPageMod, modType: layoutOrPageModType } =
+      await getLayoutOrPageModule(tree)
+    mod = layoutOrPageMod
+    modType = layoutOrPageModType
   }
 
   if (modType) {
