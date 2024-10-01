@@ -1,11 +1,11 @@
-import { AsyncLocalStorage } from 'async_hooks'
+import { createAsyncLocalStorage } from '../../client/components/async-local-storage'
 
 export interface CacheScopeStore {
   cache?: Map<string, any>
 }
 
 export const cacheScopeAsyncLocalStorage =
-  new AsyncLocalStorage<CacheScopeStore>()
+  createAsyncLocalStorage<CacheScopeStore>()
 
 /**
  * For dynamic IO handling we want to have a scoped memory
