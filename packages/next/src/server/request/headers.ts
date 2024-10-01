@@ -18,6 +18,7 @@ import {
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeResolvedReactPromise } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
 /**
  * In this version of Next.js `headers()` returns a Promise however you can still reference the properties of the underlying Headers instance
@@ -430,25 +431,30 @@ const noop = () => {}
 const warnForSyncIteration = process.env
   .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : function warnForSyncIteration(route?: string) {
-      const prefix = route ? ` In route ${route} ` : ''
-      console.error(
-        `${prefix}headers were iterated over. ` +
+  : createDedupedByCallsiteServerErrorLoggerDev(
+      function getSyncIterationMessage(route?: string) {
+        const prefix = route ? ` In route ${route} ` : ''
+        return (
+          `${prefix}headers were iterated over. ` +
           `\`headers()\` should be awaited before using its value. ` +
           `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-      )
-    }
+        )
+      }
+    )
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : function warnForSyncAccess(route: undefined | string, expression: string) {
+  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
+      route: undefined | string,
+      expression: string
+    ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      console.error(
+      return (
         `${prefix}header property was accessed directly with \`${expression}\`. ` +
-          `\`headers()\` should be awaited before using its value. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        `\`headers()\` should be awaited before using its value. ` +
+        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
       )
-    }
+    })
 
 type HeadersExtensions = {
   [K in keyof ReadonlyHeaders]: unknown

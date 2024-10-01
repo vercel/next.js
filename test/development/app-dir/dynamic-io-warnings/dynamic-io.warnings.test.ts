@@ -30,16 +30,7 @@ describe('dynamic-requests warnings', () => {
           "In route /pages/cookies a cookie property was accessed directly with `cookies().has('component')`."
         ),
         expect.stringContaining(
-          'In route /pages/cookies cookies were iterated implicitly'
-        ),
-        expect.stringContaining(
-          "In route /pages/cookies a cookie property was accessed directly with `cookies().get('component')`."
-        ),
-        expect.stringContaining(
-          "In route /pages/cookies a cookie property was accessed directly with `cookies().has('component')`."
-        ),
-        expect.stringContaining(
-          'In route /pages/cookies cookies were iterated implicitly'
+          'In route /pages/cookies cookies were iterated over'
         ),
       ],
       terminalCookieErrors: [
@@ -53,16 +44,7 @@ describe('dynamic-requests warnings', () => {
           "In route /pages/cookies a cookie property was accessed directly with `cookies().has('component')`."
         ),
         expect.stringContaining(
-          'In route /pages/cookies cookies were iterated implicitly'
-        ),
-        expect.stringContaining(
-          "In route /pages/cookies a cookie property was accessed directly with `cookies().get('component')`."
-        ),
-        expect.stringContaining(
-          "In route /pages/cookies a cookie property was accessed directly with `cookies().has('component')`."
-        ),
-        expect.stringContaining(
-          'In route /pages/cookies cookies were iterated implicitly'
+          'In route /pages/cookies cookies were iterated over'
         ),
       ],
     })
@@ -95,26 +77,8 @@ describe('dynamic-requests warnings', () => {
         expect.stringContaining(
           'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
         ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().enable()`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
-        ),
       ],
       terminalCookieErrors: [
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().enable()`.'
-        ),
         expect.stringContaining(
           'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
         ),
@@ -156,16 +120,7 @@ describe('dynamic-requests warnings', () => {
           "In route /pages/headers a header property was accessed directly with `headers().has('component')`."
         ),
         expect.stringContaining(
-          'In route /pages/headers headers were iterated implicitly'
-        ),
-        expect.stringContaining(
-          "In route /pages/headers a header property was accessed directly with `headers().get('component')`"
-        ),
-        expect.stringContaining(
-          "In route /pages/headers a header property was accessed directly with `headers().has('component')`."
-        ),
-        expect.stringContaining(
-          'In route /pages/headers headers were iterated implicitly'
+          'In route /pages/headers headers were iterated over'
         ),
       ],
       terminalCookieErrors: [
@@ -179,16 +134,7 @@ describe('dynamic-requests warnings', () => {
           "In route /pages/headers a header property was accessed directly with `headers().has('component')`."
         ),
         expect.stringContaining(
-          'In route /pages/headers headers were iterated implicitly'
-        ),
-        expect.stringContaining(
-          "In route /pages/headers a header property was accessed directly with `headers().get('component')`"
-        ),
-        expect.stringContaining(
-          "In route /pages/headers a header property was accessed directly with `headers().has('component')`."
-        ),
-        expect.stringContaining(
-          'In route /pages/headers headers were iterated implicitly'
+          'In route /pages/headers headers were iterated over'
         ),
       ],
     })
@@ -221,21 +167,6 @@ describe('dynamic-requests warnings', () => {
         expect.stringContaining(
           'In route /pages/params/[slug] params are being enumerated'
         ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] params are being enumerated'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
       ],
       terminalCookieErrors: [
         expect.stringContaining(
@@ -249,21 +180,6 @@ describe('dynamic-requests warnings', () => {
         ),
         expect.stringContaining(
           'In route /pages/params/[slug] params are being enumerated'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] params are being enumerated'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
         ),
       ],
     })
@@ -296,28 +212,10 @@ describe('dynamic-requests warnings', () => {
         expect.stringContaining(
           'In route /pages/searchParams searchParams are being enumerated'
         ),
-        expect.stringContaining(
-          'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams searchParams are being enumerated'
-        ),
       ],
       terminalCookieErrors: [
         expect.stringContaining(
           'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams searchParams are being enumerated'
         ),
         expect.stringContaining(
           'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
