@@ -34,7 +34,7 @@ Then, import the [`draftMode`](/docs/app/api-reference/functions/draft-mode) fun
 import { draftMode } from 'next/headers'
 
 export async function GET(request: Request) {
-  await draftMode().enable()
+  (await draftMode()).enable()
   return new Response('Draft mode is enabled')
 }
 ```
@@ -43,7 +43,7 @@ export async function GET(request: Request) {
 import { draftMode } from 'next/headers'
 
 export async function GET(request) {
-  await draftMode().enable()
+  (await draftMode()).enable()
   return new Response('Draft mode is enabled')
 }
 ```
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
   }
 
   // Enable Draft Mode by setting the cookie
-  await draftMode().enable()
+  (await draftMode()).enable()
 
   // Redirect to the path from the fetched post
   // We don't redirect to searchParams.slug as that might lead to open redirect vulnerabilities
@@ -133,7 +133,7 @@ export async function GET(request) {
   }
 
   // Enable Draft Mode by setting the cookie
-  await draftMode().enable()
+  (await draftMode()).enable()
 
   // Redirect to the path from the fetched post
   // We don't redirect to searchParams.slug as that might lead to open redirect vulnerabilities

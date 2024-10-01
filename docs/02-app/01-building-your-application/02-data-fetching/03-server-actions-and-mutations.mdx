@@ -839,13 +839,13 @@ import { cookies } from 'next/headers'
 
 export async function exampleAction() {
   // Get cookie
-  await cookies().get('name')?.value
+  (await cookies()).get('name')?.value
 
   // Set cookie
-  await cookies().set('name', 'Delba')
+  (await cookies()).set('name', 'Delba')
 
   // Delete cookie
-  await cookies().delete('name')
+  (await cookies()).delete('name')
 }
 ```
 
@@ -856,13 +856,13 @@ import { cookies } from 'next/headers'
 
 export async function exampleAction() {
   // Get cookie
-  await cookies().get('name')?.value
+  (await cookies()).get('name')?.value
 
   // Set cookie
-  await cookies().set('name', 'Delba')
+  (await cookies()).set('name', 'Delba')
 
   // Delete cookie
-  await cookies().delete('name')
+  (await cookies()).delete('name')
 }
 ```
 
