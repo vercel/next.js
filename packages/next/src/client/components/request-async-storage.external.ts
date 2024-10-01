@@ -10,6 +10,8 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AfterContext } from '../../server/after/after-context'
 import type { ServerComponentsHmrCache } from '../../server/response-cache'
 
+import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
+
 export interface RequestStore {
   /**
    * The URL of the request. This only specifies the pathname and the search
@@ -48,6 +50,11 @@ export { requestAsyncStorage }
 export function getExpectedRequestStore(callingExpression: string) {
   const store = requestAsyncStorage.getStore()
   if (store) return store
+  if (cacheAsyncStorage.getStore()) {
+    throw new Error(
+      `\`${callingExpression}\` cannot be called inside "use cache". Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/messages/next-request-in-use-cache`
+    )
+  }
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )

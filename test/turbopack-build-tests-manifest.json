@@ -4732,10 +4732,10 @@
       "runtimeError": false
     },
     "test/e2e/favicon-short-circuit/favicon-short-circuit.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "favicon-short-circuit should not short circuit the favicon in production"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -14958,10 +14958,10 @@
     },
     "test/integration/styled-jsx-plugin/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "styled-jsx using in node_modules production mode should serve a page correctly"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
