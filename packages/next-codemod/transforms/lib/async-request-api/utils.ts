@@ -105,20 +105,10 @@ export function isMatchedFunctionExported(
 // directive is not parsed into AST, so we need to manually find it
 // by going through the tokens. Use the 1st string token as the directive
 export function determineClientDirective(root: Collection<any>) {
-  const { tokens } = root.get().node
+  const { program } = root.get().node
   let directive = undefined
-  for (const token of tokens) {
-    if (token.type === 'CommentBlock') {
-      continue
-    } else if (token.type?.label === 'string') {
-      // Skip 'use strict' directive
-      if (token.value === 'use strict') continue
-      directive = token.value
-      break
-    } else {
-      break
-    }
-  }
+
+  directive = program.directives[0].value
 
   return directive === 'use client'
 }
