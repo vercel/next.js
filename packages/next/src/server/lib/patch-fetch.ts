@@ -738,11 +738,15 @@ function createPatchedFetcher(
             return res.clone()
           }
           return (staticGenerationStore.pendingRevalidates[cacheKey] =
-            doOriginalFetch(true, cacheReasonOverride).finally(async () => {
-              staticGenerationStore.pendingRevalidates ??= {}
-              delete staticGenerationStore.pendingRevalidates[cacheKey || '']
-              await handleUnlock()
-            }))
+            doOriginalFetch(true, cacheReasonOverride)
+              .then((res) => {
+                return res.clone()
+              })
+              .finally(async () => {
+                staticGenerationStore.pendingRevalidates ??= {}
+                delete staticGenerationStore.pendingRevalidates[cacheKey || '']
+                await handleUnlock()
+              }))
         } else {
           return doOriginalFetch(false, cacheReasonOverride).finally(
             handleUnlock
@@ -757,7 +761,7 @@ function createPatchedFetcher(
   patched.__nextGetStaticStore = () => staticGenerationAsyncStorage
   patched._nextOriginalFetch = originFetch
 
-  return patched
+  return patched as PatchedFetcher
 }
 
 // we patch fetch to collect cache information used for
