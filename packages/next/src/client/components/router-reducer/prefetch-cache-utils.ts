@@ -191,16 +191,30 @@ export function getOrCreatePrefetchCacheEntry({
       kind === PrefetchKind.FULL
 
     if (switchedToFullPrefetch) {
-      return createLazyPrefetchEntry({
-        tree,
-        url,
-        buildId,
-        nextUrl,
-        prefetchCache,
-        // If we didn't get an explicit prefetch kind, we want to set a temporary kind
-        // rather than assuming the same intent as the previous entry, to be consistent with how we
-        // lazily create prefetch entries when intent is left unspecified.
-        kind: kind ?? PrefetchKind.TEMPORARY,
+      // If we switched to a full prefetch, validate that the existing cache entry contained partial data.
+      // It's possible that the cache entry was seeded with full data but has a cache type of "auto" (ie when cache entries
+      // are seeded but without a prefetch intent)
+      existingCacheEntry.data.then((prefetchResponse) => {
+        const isFullPrefetch =
+          Array.isArray(prefetchResponse.flightData) &&
+          prefetchResponse.flightData.some((flightData) => {
+            // If we started rendering from the root and we returned RSC data (seedData), we already had a full prefetch.
+            return flightData.isRootRender && flightData.seedData !== null
+          })
+
+        if (!isFullPrefetch) {
+          return createLazyPrefetchEntry({
+            tree,
+            url,
+            buildId,
+            nextUrl,
+            prefetchCache,
+            // If we didn't get an explicit prefetch kind, we want to set a temporary kind
+            // rather than assuming the same intent as the previous entry, to be consistent with how we
+            // lazily create prefetch entries when intent is left unspecified.
+            kind: kind ?? PrefetchKind.TEMPORARY,
+          })
+        }
       })
     }
 
