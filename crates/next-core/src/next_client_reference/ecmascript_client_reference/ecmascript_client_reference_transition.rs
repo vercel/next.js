@@ -10,7 +10,10 @@ use turbopack_core::{
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     source::Source,
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
+use turbopack_ecmascript::{
+    chunk::EcmascriptChunkPlaceable, tree_shake::asset::EcmascriptModulePartAsset,
+    EcmascriptModuleAsset,
+};
 
 use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule;
 
@@ -77,7 +80,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         } else {
             source
         };
-        let client_module = this
+        let mut client_module = this
             .client_transition
             .process(client_source, module_asset_context, reference_type.clone())
             .module();
@@ -86,6 +89,13 @@ impl Transition for NextEcmascriptClientReferenceTransition {
             .ssr_transition
             .process(source, module_asset_context, reference_type)
             .module();
+
+        if let (Some(full), Some(part)) = (
+            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(client_module).await?,
+            part,
+        ) {
+            client_module = EcmascriptModulePartAsset::select_part(full, part);
+        }
 
         let Some(client_module) =
             Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
