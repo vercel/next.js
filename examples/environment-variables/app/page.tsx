@@ -10,17 +10,16 @@ const Code = ({ children }: CodeProps) => (
 );
 
 const IndexPage = () => {
-
-  // The following console.log statements will only be executed on Node.js. 
+  // The following console.log statements will only be executed on Node.js.
   // Check the terminal to see the environment variables
-  // Using the variables below in the browser will return `undefined`. 
+  // Using the variables below in the browser will return `undefined`.
   // Next.js doesn't expose environment variables unless they start with `NEXT_PUBLIC_`
   console.log("[Node.js only] ENV_VARIABLE:", process.env.ENV_VARIABLE);
   console.log(
     "[Node.js only] ENV_LOCAL_VARIABLE:",
     process.env.ENV_LOCAL_VARIABLE,
   );
-  
+
   return (
     <div className={styles.container}>
       <div className={styles.card}>
@@ -34,8 +33,8 @@ const IndexPage = () => {
           with Next.js.
         </p>
         <p>
-          In general only <Code>.env.local</Code> or <Code>.env</Code> are needed
-          for this, but the table also features the usage of{" "}
+          In general only <Code>.env.local</Code> or <Code>.env</Code> are
+          needed for this, but the table also features the usage of{" "}
           <Code>.env.development</Code> and <Code>.env.production</Code>.
         </p>
         <table className={styles.table}>
@@ -80,22 +79,22 @@ const IndexPage = () => {
           </tbody>
         </table>
         <p>
-          <Code>.env.local</Code> is not added by the example, because it must be
-          ignored by git, but you can add it manually:
+          <Code>.env.local</Code> is not added by the example, because it must
+          be ignored by git, but you can add it manually:
         </p>
         <pre>
           <code>cp .env.local.example .env.local</code>
         </pre>
         <p>
-          Variables in <Code>.env.production</Code> won't be available if the app
-          is running in development:
+          Variables in <Code>.env.production</Code> won't be available if the
+          app is running in development:
         </p>
         <pre>
           <code>npm run dev</code>
         </pre>
         <p>
-          Similarly, variables in <Code>.env.development</Code> won't be available
-          if the app is running on production:
+          Similarly, variables in <Code>.env.development</Code> won't be
+          available if the app is running on production:
         </p>
         <pre>
           <code>npm run build && npm run start</code>
@@ -118,8 +117,7 @@ const IndexPage = () => {
         </p>
       </div>
     </div>
-  )
+  );
 };
-
 
 export default IndexPage;
