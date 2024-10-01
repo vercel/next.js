@@ -1,12 +1,6 @@
 'use client'
 
-import {
-  useEffect,
-  type HTMLProps,
-  type FormEvent,
-  useContext,
-  startTransition,
-} from 'react'
+import { useEffect, type HTMLProps, type FormEvent, useContext } from 'react'
 import { addBasePath } from './add-base-path'
 import { useIntersection } from './use-intersection'
 import { useMergedRef } from './use-merged-ref'
@@ -312,9 +306,15 @@ function onFormSubmit(
   if (isAppRouter(router)) {
     router[method](targetHref, { scroll })
   } else {
-    startTransition(() => {
-      router[method](targetHref, undefined, { scroll })
-    })
+    // TODO(form): Make this use a transition so that pending states work
+    //
+    // Unlike the app router, pages router doesn't use startTransition,
+    // and can't easily be wrapped in one because of implementation details
+    // (e.g. it doesn't use any react state)
+    // But it's important to have this wrapped in a transition because
+    // pending states from e.g. `useFormStatus` rely on that.
+    // So this needs some follow up work.
+    router[method](targetHref, undefined, { scroll })
   }
 }
 

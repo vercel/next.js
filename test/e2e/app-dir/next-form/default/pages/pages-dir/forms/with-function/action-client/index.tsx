@@ -9,13 +9,7 @@ export default function Page() {
   const router = useRouter()
   const [, dispatch] = useActionState(() => {
     const to = destination + '?' + new URLSearchParams({ query })
-
-    // TODO(form): this doesn't work unless wrapped in a startTransition...
-    // why is this necessary here?
-    // without it, the URL updates, but we stay on the old page...
-    return React.startTransition(() => {
-      router.push(to)
-    })
+    router.push(to)
   }, undefined)
 
   const [query, setQuery] = useState('')
