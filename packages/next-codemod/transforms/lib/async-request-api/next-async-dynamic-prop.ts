@@ -17,6 +17,7 @@ import {
   wrapParentheseIfNeeded,
   type FunctionScope,
   insertCommentOnce,
+  TARGET_ROUTE_EXPORTS,
 } from './utils'
 
 const PAGE_PROPS = 'props'
@@ -274,17 +275,23 @@ export function transformDynamicProps(
       // target properties mapping, only contains `params` and `searchParams`
       const propertiesMap = new Map<string, any>()
       let allProperties: ObjectPattern['properties'] = []
-
+      const isRoute = !isDefaultExport && TARGET_ROUTE_EXPORTS.has(functionName)
       // generateMetadata API has 2 params
       if (functionName === 'generateMetadata') {
         if (params.length > 2 || params.length === 0) return
+      } else if (isRoute) {
+        if (params.length !== 2) return
       } else {
         // Page/Layout/Route handlers have 1 param
         if (params.length !== 1) return
       }
       const propsIdentifier = generateUniqueIdentifier(PAGE_PROPS, path, j)
 
-      const currentParam = params[0]
+      const propsArgumentIndex = isRoute ? 1 : 0
+      console.log('propsArgumentIndex', propsArgumentIndex)
+
+      const currentParam = params[propsArgumentIndex]
+      if (!currentParam) return
 
       // Argument destructuring case
       if (currentParam.type === 'ObjectPattern') {
@@ -319,7 +326,7 @@ export function transformDynamicProps(
         modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
 
         // Override the first param to `props`
-        params[0] = propsIdentifier
+        params[propsArgumentIndex] = propsIdentifier
 
         modified = true
         modifiedPropArgument = true

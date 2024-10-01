@@ -14,9 +14,20 @@ export type FunctionScope =
   | FunctionExpression
   | ArrowFunctionExpression
 
+export const TARGET_ROUTE_EXPORTS = new Set([
+  'GET',
+  'POST',
+  'PUT',
+  'PATCH',
+  'DELETE',
+  'OPTIONS',
+  'HEAD',
+])
+
 export const TARGET_NAMED_EXPORTS = new Set([
   // For page and layout
   'generateMetadata',
+  ...TARGET_ROUTE_EXPORTS,
 ])
 
 export const TARGET_PROP_NAMES = new Set(['params', 'searchParams'])
