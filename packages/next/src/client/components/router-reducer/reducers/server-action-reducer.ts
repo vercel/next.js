@@ -265,7 +265,7 @@ export function serverActionReducer(
             flightData,
             canonicalUrl: undefined,
             couldBeIntercepted: false,
-            isPrerender: false,
+            prerendered: false,
             postponed: false,
           },
           tree: state.tree,

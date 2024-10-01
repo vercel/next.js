@@ -160,6 +160,7 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
               location: window.location,
               couldBeIntercepted: initialRSCPayload.i,
               postponed: initialRSCPayload.s,
+              prerendered: initialRSCPayload.S,
             })
           )
         )
