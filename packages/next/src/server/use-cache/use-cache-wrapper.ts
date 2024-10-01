@@ -1,5 +1,4 @@
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
-import { createSnapshot } from '../../client/components/async-local-storage'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
   renderToReadableStream,
@@ -15,6 +14,9 @@ import {
 
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import type { CacheStore } from '../app-render/cache-async-storage.external'
+import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
+import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -73,10 +75,80 @@ cacheHandlerMap.set('default', {
   },
 })
 
-// TODO: Consider moving this another module that is guaranteed to be required in a safe scope.
-const runInCleanSnapshot = createSnapshot()
+function generateCacheEntry(
+  staticGenerationStore: StaticGenerationStore,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  cacheHandler: CacheHandler,
+  serializedCacheKey: string | ArrayBuffer,
+  encodedArguments: FormData | string,
+  fn: any
+): Promise<any> {
+  // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
+  // generation cannot read anything from the context we're currently executing which
+  // might include request specific things like cookies() inside a React.cache().
+  // Note: It is important that we await at least once before this because it lets us
+  // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
+  return runInCleanSnapshot(
+    generateCacheEntryWithRestoredStaticGenerationStore,
+    staticGenerationStore,
+    clientReferenceManifest,
+    cacheHandler,
+    serializedCacheKey,
+    encodedArguments,
+    fn
+  )
+}
 
-async function generateCacheEntry(
+function generateCacheEntryWithRestoredStaticGenerationStore(
+  staticGenerationStore: StaticGenerationStore,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  cacheHandler: CacheHandler,
+  serializedCacheKey: string | ArrayBuffer,
+  encodedArguments: FormData | string,
+  fn: any
+) {
+  // Since we cleared the AsyncLocalStorage we need to restore the staticGenerationStore.
+  // Note: We explicitly don't restore the RequestStore nor the PrerenderStore.
+  // We don't want any request specific information leaking an we don't want to create a
+  // bloated fake request mock for every cache call. So any feature that currently lives
+  // in RequestStore but should be available to Caches need to move to StaticGenerationStore.
+  // PrerenderStore is not needed inside the cache scope because the outer most one will
+  // be the one to report its result to the outer Prerender.
+  return staticGenerationAsyncStorage.run(
+    staticGenerationStore,
+    generateCacheEntryWithCacheContext,
+    staticGenerationStore,
+    clientReferenceManifest,
+    cacheHandler,
+    serializedCacheKey,
+    encodedArguments,
+    fn
+  )
+}
+
+function generateCacheEntryWithCacheContext(
+  staticGenerationStore: StaticGenerationStore,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  cacheHandler: CacheHandler,
+  serializedCacheKey: string | ArrayBuffer,
+  encodedArguments: FormData | string,
+  fn: any
+) {
+  // Initialize the Store for this Cache entry.
+  const cacheStore: CacheStore = {}
+  return cacheAsyncStorage.run(
+    cacheStore,
+    generateCacheEntryImpl,
+    staticGenerationStore,
+    clientReferenceManifest,
+    cacheHandler,
+    serializedCacheKey,
+    encodedArguments,
+    fn
+  )
+}
+
+async function generateCacheEntryImpl(
   staticGenerationStore: StaticGenerationStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
@@ -230,8 +302,7 @@ export function cache(kind: string, id: string, fn: any) {
         const clientReferenceManifestSingleton =
           getClientReferenceManifestSingleton()
 
-        stream = await runInCleanSnapshot(
-          generateCacheEntry,
+        stream = await generateCacheEntry(
           staticGenerationStore,
           clientReferenceManifestSingleton,
           cacheHandler,
@@ -246,8 +317,7 @@ export function cache(kind: string, id: string, fn: any) {
           // then we should warm up the cache with a fresh revalidated entry.
           const clientReferenceManifestSingleton =
             getClientReferenceManifestSingleton()
-          const ignoredStream = await runInCleanSnapshot(
-            generateCacheEntry,
+          const ignoredStream = await generateCacheEntry(
             staticGenerationStore,
             clientReferenceManifestSingleton,
             cacheHandler,

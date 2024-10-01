@@ -1,8 +1,10 @@
 import { headers, cookies } from 'next/headers'
+import { connection } from 'next/server'
 
 import { PageSentinel } from '../getSentinelValue'
 
 export default async function Page({ searchParams }) {
+  await connection()
   return (
     <div>
       <PageSentinel />
