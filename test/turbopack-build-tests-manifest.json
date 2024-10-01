@@ -15075,6 +15075,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/metadata-revalidate/metadata-revalidate.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - metadata-revalidate should contain the routes in prerender manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/middleware-typescript/test/index.test.ts": {
       "passed": [],
       "failed": ["middleware-typescript should have built and started"],
