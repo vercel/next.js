@@ -893,7 +893,7 @@ export async function hasErrorToast(
 }
 
 export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
-  return browser.waitForElementByCss('[data-nextjs-toast]').click()
+  return browser.waitForElementByCss('[data-nextjs-toast]', 5000).click()
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {

@@ -2100,6 +2100,8 @@
         "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
         "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
         "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
+        "app dir - metadata dynamic routes sitemap should support images in sitemap",
+        "app dir - metadata dynamic routes sitemap should support videos in sitemap",
         "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
         "app dir - metadata dynamic routes sitemap should support images in sitemap",
         "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
@@ -4730,10 +4732,10 @@
       "runtimeError": false
     },
     "test/e2e/favicon-short-circuit/favicon-short-circuit.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "favicon-short-circuit should not short circuit the favicon in production"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -14956,10 +14958,10 @@
     },
     "test/integration/styled-jsx-plugin/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "styled-jsx using in node_modules production mode should serve a page correctly"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15854,6 +15856,26 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/server-action-period-hash/server-action-period-hash.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - server-action-period-hash should have same manifest between continuous two builds",
+        "app-dir - server-action-period-hash should have different manifest between two builds with period hash"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/server-action-period-hash/server-action-period-hash-custom-key.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - server-action-period-hash-custom-key should have different manifest if the encryption key from process env is changed",
+        "app-dir - server-action-period-hash-custom-key should have different manifest if the encryption key from process env is same"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/ssg-single-pass/ssg-single-pass.test.ts": {
       "passed": [
         "ssg-single-pass should only render the page once during an ISR revalidation",
@@ -16296,6 +16318,15 @@
     "test/production/jest/transpile-packages.test.ts": {
       "passed": ["next/jest should work"],
       "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/metadata-revalidate/metadata-revalidate.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - metadata-revalidate should contain the routes in prerender manifest"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false

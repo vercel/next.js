@@ -3,9 +3,7 @@ use std::{any::Any, fmt::Debug, future::Future, hash::Hash};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    MagicAny, RcStr, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
-};
+use crate::{MagicAny, RcStr, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc};
 
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
@@ -106,19 +104,6 @@ where
 
     async fn resolve(&self) -> Result<Self> {
         Vc::resolve(*self).await
-    }
-}
-
-impl<T> TaskInput for ResolvedVc<T>
-where
-    T: Send,
-{
-    fn is_resolved(&self) -> bool {
-        true
-    }
-
-    fn is_transient(&self) -> bool {
-        self.node.node.get_task_id().is_transient()
     }
 }
 

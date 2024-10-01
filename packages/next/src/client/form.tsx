@@ -22,6 +22,18 @@ type InternalFormProps = {
    */
   action: NonNullable<HTMLFormProps['action']>
   /**
+   * Controls how the route specified by `action` is prefetched.
+   * Any `<Form />` that is in the viewport (initially or through scroll) will be prefetched.
+   * Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
+   *
+   * Options:
+   * - `null` (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
+   * - `false`: This will not prefetch any data.
+   *
+   * @defaultValue `null`
+   */
+  prefetch?: false | null
+  /**
    * Whether submitting the form should replace the current `history` state instead of adding a new url into the stack.
    * Only valid if `action` is a string.
    *
@@ -45,11 +57,20 @@ export type FormProps<RouteInferType = any> = InternalFormProps
 export default function Form({
   replace,
   scroll,
+  prefetch: prefetchProp = null,
   ref: externalRef,
   ...props
 }: FormProps) {
   const actionProp = props.action
   const isNavigatingForm = typeof actionProp === 'string'
+
+  if (process.env.NODE_ENV === 'development') {
+    if (!(prefetchProp === false || prefetchProp === null)) {
+      console.error('The `prefetch` prop of <Form> must be `false` or `null`')
+    }
+  }
+  const prefetch =
+    prefetchProp === false || prefetchProp === null ? prefetchProp : null
 
   for (const key of DISALLOWED_FORM_PROPS) {
     if (key in props) {
@@ -83,18 +104,19 @@ export default function Form({
       return
     }
 
-    if (!isVisible) {
+    const isPrefetchEnabled = prefetch === null
+
+    if (!isVisible || !isPrefetchEnabled) {
       return
     }
 
     try {
-      // TODO: do we need to take the current field values here?
-      // or are we assuming that queryparams can't affect this (but what about rewrites)?
-      router.prefetch(actionProp, { kind: PrefetchKind.AUTO })
+      const prefetchKind = PrefetchKind.AUTO
+      router.prefetch(actionProp, { kind: prefetchKind })
     } catch (err) {
       console.error(err)
     }
-  }, [isNavigatingForm, isVisible, actionProp, router])
+  }, [isNavigatingForm, isVisible, actionProp, prefetch, router])
 
   if (!isNavigatingForm) {
     if (process.env.NODE_ENV === 'development') {
@@ -104,6 +126,11 @@ export default function Form({
             'See the relevant docs to learn how to control this behavior for navigations triggered from actions:\n' +
             '  `redirect()`       - https://nextjs.org/docs/app/api-reference/functions/redirect#parameters\n' +
             '  `router.replace()` - https://nextjs.org/docs/app/api-reference/functions/use-router#userouter\n'
+        )
+      }
+      if (prefetchProp !== undefined) {
+        console.error(
+          'Passing `prefetch` to a <Form> whose `action` is a function has no effect.'
         )
       }
     }

@@ -6,6 +6,7 @@ import type { RenderOptsPartial } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import type { AppSegmentConfig } from '../../build/app-segments/app-segment-config'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
@@ -21,10 +22,11 @@ export type StaticGenerationContext = {
   fallbackRouteParams: FallbackRouteParams | null
 
   requestEndedState?: { ended?: boolean }
+  isPrefetchRequest?: boolean
   renderOpts: {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
-    fetchCache?: StaticGenerationStore['fetchCache']
+    fetchCache?: AppSegmentConfig['fetchCache']
     isServerAction?: boolean
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
@@ -55,6 +57,7 @@ export type StaticGenerationContext = {
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
+    | 'buildId'
   > &
     Partial<RequestLifecycleOpts>
 }
@@ -69,6 +72,7 @@ export const withStaticGenerationStore: WithStore<
     fallbackRouteParams,
     renderOpts,
     requestEndedState,
+    isPrefetchRequest,
   }: StaticGenerationContext,
   callback: (store: StaticGenerationStore) => Result
 ): Result => {
@@ -111,6 +115,8 @@ export const withStaticGenerationStore: WithStore<
     isDraftMode: renderOpts.isDraftMode,
 
     requestEndedState,
+    isPrefetchRequest,
+    buildId: renderOpts.buildId,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

@@ -262,7 +262,7 @@ fn client_reference_description() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl ChunkItem for ProxyModuleChunkItem {
     #[turbo_tasks::function]
-    async fn asset_ident(&self) -> Vc<AssetIdent> {
+    fn asset_ident(&self) -> Vc<AssetIdent> {
         self.client_proxy_asset.ident()
     }
 
@@ -272,7 +272,7 @@ impl ChunkItem for ProxyModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 

@@ -20,25 +20,29 @@ function runTests() {
   })
 }
 
-describe('styled-jsx using in node_modules', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        const output = await nextBuild(appDir, undefined, {
-          stdout: true,
-          stderr: true,
-          cwd: appDir,
+// This test is skipped in Turbopack because it uses a custom babelrc.
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'styled-jsx using in node_modules',
+  () => {
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          const output = await nextBuild(appDir, undefined, {
+            stdout: true,
+            stderr: true,
+            cwd: appDir,
+          })
+
+          console.log(output.stdout, output.stderr)
+
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
         })
+        afterAll(() => killApp(app))
 
-        console.log(output.stdout, output.stderr)
-
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(() => killApp(app))
-
-      runTests()
-    }
-  )
-})
+        runTests()
+      }
+    )
+  }
+)

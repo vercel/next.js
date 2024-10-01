@@ -47,7 +47,10 @@ export function createComponentTree(props: {
   )
 }
 
-function errorMissingDefaultExport(pagePath: string, convention: string) {
+function errorMissingDefaultExport(
+  pagePath: string,
+  convention: string
+): never {
   throw new Error(
     `The default export is not a React Component in "${pagePath}/${convention}"`
   )
@@ -91,9 +94,10 @@ async function createComponentTreeInternal({
       RenderFromTemplateContext,
       ClientPageRoot,
       ClientSegmentRoot,
-      createUntrackedSearchParams,
-      createDynamicallyTrackedSearchParams,
-      createDynamicallyTrackedParams,
+      createServerSearchParamsForServerPage,
+      createPrerenderSearchParamsForClientPage,
+      createServerParamsForServerSegment,
+      createPrerenderParamsForClientSegment,
       serverHooks: { DynamicServerError },
       Postpone,
     },
@@ -155,7 +159,7 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const [layoutOrPageMod] = await getTracer().trace(
+  const { mod: layoutOrPageMod } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),
@@ -308,15 +312,13 @@ async function createComponentTreeInternal({
   const segmentParam = getDynamicParamFromSegment(segment)
 
   // Create object holding the parent params and current params
-  const currentParams =
-    // Handle null case where dynamic param is optional
-    segmentParam && segmentParam.value !== null
-      ? {
-          ...parentParams,
-          [segmentParam.param]: segmentParam.value,
-        }
-      : // Pass through parent params to children
-        parentParams
+  let currentParams: Params = parentParams
+  if (segmentParam && segmentParam.value !== null) {
+    currentParams = {
+      ...parentParams,
+      [segmentParam.param]: segmentParam.value,
+    }
+  }
 
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
@@ -514,10 +516,6 @@ async function createComponentTreeInternal({
 
   const isClientComponent = isClientReference(layoutOrPageMod)
 
-  // We avoid cloning this object because it gets consumed here exclusively.
-  const props: { [prop: string]: any } = parallelRouteProps
-
-  // Assign params to props
   if (
     process.env.NODE_ENV === 'development' &&
     'params' in parallelRouteProps
@@ -529,23 +527,49 @@ async function createComponentTreeInternal({
   }
 
   if (isPage) {
+    const PageComponent = Component
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
     if (isClientComponent) {
-      // When we are passing searchParams to a client component Page we don't want to track the dynamic access
-      // here in the RSC layer because the serialization will trigger a dynamic API usage.
-      // Instead we pass the searchParams untracked but we wrap the Page in a root client component
-      // which can among other things adds the dynamic tracking before rendering the page.
-      // @TODO make the root wrapper part of next-app-loader so we don't need the extra client component
-      props.params = currentParams
-      props.searchParams = createUntrackedSearchParams(query)
-      pageElement = <ClientPageRoot props={props} Component={Component} />
+      if (isStaticGeneration) {
+        const promiseOfParams = createPrerenderParamsForClientSegment(
+          currentParams,
+          staticGenerationStore
+        )
+        const promiseOfSearchParams = createPrerenderSearchParamsForClientPage(
+          staticGenerationStore
+        )
+        pageElement = (
+          <ClientPageRoot
+            Component={PageComponent}
+            searchParams={query}
+            params={currentParams}
+            promises={[promiseOfSearchParams, promiseOfParams]}
+          />
+        )
+      } else {
+        pageElement = (
+          <ClientPageRoot
+            Component={PageComponent}
+            searchParams={query}
+            params={currentParams}
+          />
+        )
+      }
     } else {
       // If we are passing searchParams to a server component Page we need to track their usage in case
       // the current render mode tracks dynamic API usage.
-      props.params = createDynamicallyTrackedParams(currentParams)
-      props.searchParams = createDynamicallyTrackedSearchParams(query)
-      pageElement = <Component {...props} />
+      const params = createServerParamsForServerSegment(
+        currentParams,
+        staticGenerationStore
+      )
+      const searchParams = createServerSearchParamsForServerPage(
+        query,
+        staticGenerationStore
+      )
+      pageElement = (
+        <PageComponent params={params} searchParams={searchParams} />
+      )
     }
     return [
       actualSegment,
@@ -564,65 +588,165 @@ async function createComponentTreeInternal({
       loadingData,
     ]
   } else {
+    const SegmentComponent = Component
+
     const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
       rootLayoutAtThisLevel &&
       'children' in parallelRoutes &&
       Object.keys(parallelRoutes).length > 1
 
-    let serverSegment: React.ReactNode
-    if (isClientComponent) {
-      props.params = currentParams
-      serverSegment = <ClientSegmentRoot Component={Component} props={props} />
-    } else {
-      props.params = createDynamicallyTrackedParams(currentParams)
-      serverSegment = <Component {...props} />
-    }
-
     let segmentNode: React.ReactNode
-    if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
-      // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-      // This ensures that a `NotFoundBoundary` is available for when that happens,
-      // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
-      // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
-      // rely on the `NotFound` behavior.
-      segmentNode = (
-        <Segment
-          isDynamicIO={experimental.dynamicIO}
-          isStaticGeneration={isStaticGeneration}
-          ready={getMetadataReady}
-        >
-          <NotFoundBoundary
-            notFound={
-              NotFound ? (
-                <>
-                  {layerAssets}
-                  <Component params={props.params}>
-                    {notFoundStyles}
-                    <NotFound />
-                  </Component>
-                </>
-              ) : undefined
-            }
+
+    if (isClientComponent) {
+      let clientSegment: React.ReactNode
+
+      if (isStaticGeneration) {
+        const promiseOfParams = createPrerenderParamsForClientSegment(
+          currentParams,
+          staticGenerationStore
+        )
+
+        clientSegment = (
+          <ClientSegmentRoot
+            Component={SegmentComponent}
+            slots={parallelRouteProps}
+            params={currentParams}
+            promise={promiseOfParams}
+          />
+        )
+      } else {
+        clientSegment = (
+          <ClientSegmentRoot
+            Component={SegmentComponent}
+            slots={parallelRouteProps}
+            params={currentParams}
+          />
+        )
+      }
+
+      if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
+        // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
+        // This ensures that a `NotFoundBoundary` is available for when that happens,
+        // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
+        // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
+        // rely on the `NotFound` behavior.
+        if (NotFound) {
+          const notFoundParallelRouteProps = {
+            children: (
+              <>
+                {notFoundStyles}
+                <NotFound />
+              </>
+            ),
+          }
+          const notfoundClientSegment = (
+            <ClientSegmentRoot
+              Component={SegmentComponent}
+              slots={notFoundParallelRouteProps}
+              params={currentParams}
+            />
+          )
+
+          segmentNode = (
+            <Segment
+              isDynamicIO={experimental.dynamicIO}
+              isStaticGeneration={isStaticGeneration}
+              ready={getMetadataReady}
+            >
+              <NotFoundBoundary
+                notFound={
+                  <>
+                    {layerAssets}
+                    {notfoundClientSegment}
+                  </>
+                }
+              >
+                {layerAssets}
+                {clientSegment}
+              </NotFoundBoundary>
+            </Segment>
+          )
+        } else {
+          segmentNode = (
+            <Segment
+              isDynamicIO={experimental.dynamicIO}
+              isStaticGeneration={isStaticGeneration}
+              ready={getMetadataReady}
+            >
+              <NotFoundBoundary>
+                {layerAssets}
+                {clientSegment}
+              </NotFoundBoundary>
+            </Segment>
+          )
+        }
+      } else {
+        segmentNode = (
+          <Segment
+            key={cacheNodeKey}
+            isDynamicIO={experimental.dynamicIO}
+            isStaticGeneration={isStaticGeneration}
+            ready={getMetadataReady}
+          >
+            {layerAssets}
+            {clientSegment}
+          </Segment>
+        )
+      }
+    } else {
+      const params = createServerParamsForServerSegment(
+        currentParams,
+        staticGenerationStore
+      )
+
+      let serverSegment = (
+        <SegmentComponent {...parallelRouteProps} params={params} />
+      )
+
+      if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
+        // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
+        // This ensures that a `NotFoundBoundary` is available for when that happens,
+        // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
+        // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
+        // rely on the `NotFound` behavior.
+        segmentNode = (
+          <Segment
+            isDynamicIO={experimental.dynamicIO}
+            isStaticGeneration={isStaticGeneration}
+            ready={getMetadataReady}
+          >
+            <NotFoundBoundary
+              notFound={
+                NotFound ? (
+                  <>
+                    {layerAssets}
+                    <SegmentComponent params={params}>
+                      {notFoundStyles}
+                      <NotFound />
+                    </SegmentComponent>
+                  </>
+                ) : undefined
+              }
+            >
+              {layerAssets}
+              {serverSegment}
+            </NotFoundBoundary>
+          </Segment>
+        )
+      } else {
+        segmentNode = (
+          <Segment
+            key={cacheNodeKey}
+            isDynamicIO={experimental.dynamicIO}
+            isStaticGeneration={isStaticGeneration}
+            ready={getMetadataReady}
           >
             {layerAssets}
             {serverSegment}
-          </NotFoundBoundary>
-        </Segment>
-      )
-    } else {
-      segmentNode = (
-        <Segment
-          key={cacheNodeKey}
-          isDynamicIO={experimental.dynamicIO}
-          isStaticGeneration={isStaticGeneration}
-          ready={getMetadataReady}
-        >
-          {layerAssets}
-          {serverSegment}
-        </Segment>
-      )
+          </Segment>
+        )
+      }
     }
-
     // For layouts we just render the component
     return [
       actualSegment,

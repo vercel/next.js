@@ -15,7 +15,7 @@ export default function transformer(file: FileInfo, api: API) {
     const dynamicImportName = importDecl.specifiers?.[0]?.local?.name
 
     if (!dynamicImportName) {
-      return root.toSource()
+      return file.source
     }
     // Find call expressions where the callee is the imported 'dynamic'
     root

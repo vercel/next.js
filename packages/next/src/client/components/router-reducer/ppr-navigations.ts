@@ -9,10 +9,7 @@ import type {
   ChildSegmentMap,
   ReadyCacheNode,
 } from '../../../shared/lib/app-router-context.shared-runtime'
-import {
-  DEFAULT_SEGMENT_KEY,
-  PAGE_SEGMENT_KEY,
-} from '../../../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 import { createRouterCacheKey } from './create-router-cache-key'
 import type { FetchServerResponseResult } from './fetch-server-response'
@@ -67,8 +64,7 @@ export function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   prefetchData: CacheNodeSeedData,
-  prefetchHead: React.ReactNode,
-  onlyHashChange: boolean
+  prefetchHead: React.ReactNode
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
   const oldRouterStateChildren = oldRouterState[1]
@@ -125,32 +121,13 @@ export function updateCacheNodeOnNavigation(
     const oldSegmentChild =
       oldRouterStateChild !== undefined ? oldRouterStateChild[0] : undefined
 
-    // A dynamic segment will be an array, and doesn't correspond with a page segment.
-    const isPageSegment = Array.isArray(newSegmentChild)
-      ? false
-      : // A page segment might contain search parameters, so we verify that it starts with the page segment key.
-        newSegmentChild.startsWith(PAGE_SEGMENT_KEY)
-
     const oldCacheNodeChild =
       oldSegmentMapChild !== undefined
         ? oldSegmentMapChild.get(newSegmentKeyChild)
         : undefined
 
     let taskChild: Task | null
-    if (onlyHashChange && oldRouterStateChild !== undefined) {
-      // If only the hash fragment changed, we can re-use the existing cache.
-      // We spawn a "task" just to keep track of the updated router state; unlike most, it's
-      // already fulfilled and won't be affected by the dynamic response.
-      taskChild = spawnReusedTask(oldRouterStateChild)
-    } else if (isPageSegment) {
-      // This is a leaf segment — a page, not a shared layout. We always apply
-      // its data.
-      taskChild = spawnPendingTask(
-        newRouterStateChild,
-        prefetchDataChild !== undefined ? prefetchDataChild : null,
-        prefetchHead
-      )
-    } else if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
+    if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
       // This is another kind of leaf segment — a default route.
       //
       // Default routes have special behavior. When there's no matching segment
@@ -187,8 +164,7 @@ export function updateCacheNodeOnNavigation(
             oldRouterStateChild,
             newRouterStateChild,
             prefetchDataChild,
-            prefetchHead,
-            onlyHashChange
+            prefetchHead
           )
         } else {
           // The server didn't send any prefetch data for this segment. This
