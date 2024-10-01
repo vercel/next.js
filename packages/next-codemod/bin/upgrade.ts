@@ -8,14 +8,7 @@ import { availableCodemods } from '../lib/codemods'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { runTransform } from './transform'
 
-type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
-type CustomVersionSpecifier = string
-type VersionSpecifier = StandardVersionSpecifier | CustomVersionSpecifier
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
-
-interface Response {
-  version: StandardVersionSpecifier
-}
 
 /**
  * @param query
@@ -50,92 +43,17 @@ export async function runUpgrade(
     version: string
     peerDependencies: Record<string, string>
   }
-  let targetVersionSpecifier: VersionSpecifier = ''
 
-  if (revision !== undefined) {
-    const res = await fetch(`https://registry.npmjs.org/next/${revision}`)
-    if (res.status === 200) {
-      targetNextPackageJson = await res.json()
-      targetVersionSpecifier = targetNextPackageJson.version
-    } else {
-      console.error(
-        `${chalk.yellow(`next@${revision}`)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}, or choose one from below\n`
-      )
-    }
+  const res = await fetch(`https://registry.npmjs.org/next/${revision}`)
+  if (res.status === 200) {
+    targetNextPackageJson = await res.json()
+  } else {
+    throw new Error(
+      `${chalk.yellow(`next@${revision}`)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
+    )
   }
 
   const installedNextVersion = await getInstalledNextVersion()
-
-  if (!targetNextPackageJson) {
-    let nextPackageJson: { [key: string]: any } = {}
-    try {
-      const resCanary = await fetch(`https://registry.npmjs.org/next/canary`)
-      nextPackageJson['canary'] = await resCanary.json()
-
-      const resRc = await fetch(`https://registry.npmjs.org/next/rc`)
-      nextPackageJson['rc'] = await resRc.json()
-
-      const resLatest = await fetch(`https://registry.npmjs.org/next/latest`)
-      nextPackageJson['latest'] = await resLatest.json()
-    } catch (error) {
-      console.error('Failed to fetch versions from npm registry.')
-      return
-    }
-
-    let showRc = true
-    if (nextPackageJson['latest'].version && nextPackageJson['rc'].version) {
-      showRc =
-        compareVersions(
-          nextPackageJson['rc'].version,
-          nextPackageJson['latest'].version
-        ) === 1
-    }
-
-    const choices = [
-      {
-        title: 'Canary',
-        value: 'canary',
-        description: `Experimental version with latest features (${nextPackageJson['canary'].version})`,
-      },
-    ]
-    if (showRc) {
-      choices.push({
-        title: 'Release Candidate',
-        value: 'rc',
-        description: `Pre-release version for final testing (${nextPackageJson['rc'].version})`,
-      })
-    }
-    choices.push({
-      title: 'Stable',
-      value: 'latest',
-      description: `Production-ready release (${nextPackageJson['latest'].version})`,
-    })
-
-    if (installedNextVersion) {
-      console.log(
-        `You are currently using ${chalk.blue('Next.js ' + installedNextVersion)}`
-      )
-    }
-
-    const initialVersionSpecifierIdx = await getVersionSpecifierIdx(
-      installedNextVersion,
-      showRc
-    )
-
-    const response: Response = await prompts(
-      {
-        type: 'select',
-        name: 'version',
-        message: 'What Next.js version do you want to upgrade to?',
-        choices: choices,
-        initial: initialVersionSpecifierIdx,
-      },
-      { onCancel: () => process.exit(0) }
-    )
-
-    targetNextPackageJson = nextPackageJson[response.version]
-    targetVersionSpecifier = response.version
-  }
 
   const targetNextVersion = targetNextPackageJson.version
 
@@ -190,7 +108,7 @@ export async function runUpgrade(
   }
 
   console.log(
-    `Upgrading your project to ${chalk.blue('Next.js ' + targetVersionSpecifier)}...\n`
+    `Upgrading your project to ${chalk.blue('Next.js ' + targetNextVersion)}...\n`
   )
 
   installPackages([nextDependency, ...reactDependencies], {
@@ -242,27 +160,6 @@ async function getInstalledNextVersion(): Promise<string> {
   )
 
   return installedNextPackageJson.version
-}
-
-/*
- * Returns the index of the current version's specifier in the
- * array ['canary', 'rc', 'latest'] or ['canary', 'latest']
- */
-async function getVersionSpecifierIdx(
-  installedNextVersion: string,
-  showRc: boolean
-): Promise<number> {
-  if (installedNextVersion == null) {
-    return 0
-  }
-
-  if (installedNextVersion.includes('canary')) {
-    return 0
-  }
-  if (installedNextVersion.includes('rc')) {
-    return 1
-  }
-  return showRc ? 2 : 1
 }
 
 /*
