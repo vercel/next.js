@@ -52,8 +52,8 @@ You can use `generateMetadata` function to `fetch` metadata that requires dynami
 import type { Metadata, ResolvingMetadata } from 'next'
 
 type Props = {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export async function generateMetadata(
