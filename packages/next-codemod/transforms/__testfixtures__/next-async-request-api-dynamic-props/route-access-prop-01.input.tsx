@@ -1,7 +1,7 @@
-// TODO: handle variable declaration
-// export const GET = function ({ params }: any) {
-//   call(params.foo)
-// }
+// Fake route handlers should not be transformed
+export const GET = function ({ params }: any) {
+  call(params.foo)
+}
 
 export function POST({ params }: any) {
   call(params.foo)
