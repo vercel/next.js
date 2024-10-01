@@ -2029,6 +2029,64 @@ impl JsValue {
         }
     }
 
+    /// Normalizes nested alternatives into an alternative of JsValues (containing no alternatives).
+    /// The current implementation is only useful for Concat's of Alternatives.
+    pub fn expand_alternatives(&self) -> Cow<JsValue> {
+        match self {
+            JsValue::Alternatives { .. } => {
+                return Cow::Borrowed(self);
+            }
+            JsValue::Concat(_, values) => {
+                let mut result = vec![Vec::new()];
+                for v in values.iter() {
+                    match v {
+                        JsValue::Alternatives { values, .. } => {
+                            let mut new_result = Vec::with_capacity(result.len() * values.len());
+                            for prefix in result {
+                                for alt in values {
+                                    new_result.push(
+                                        prefix
+                                            .iter()
+                                            .chain(std::iter::once(alt))
+                                            .cloned()
+                                            .collect(),
+                                    );
+                                }
+                            }
+                            result = new_result;
+                        }
+                        JsValue::Tenary(_, _, cons, alt) => {
+                            let mut new_result = Vec::with_capacity(result.len() * 2);
+                            for prefix in result {
+                                for alt in [cons, alt] {
+                                    new_result.push(
+                                        prefix
+                                            .iter()
+                                            .chain(std::iter::once(alt.as_ref()))
+                                            .cloned()
+                                            .collect(),
+                                    );
+                                }
+                            }
+                            result = new_result;
+                        }
+                        v => {
+                            for r in result.iter_mut() {
+                                r.push(v.clone());
+                            }
+                        }
+                    }
+                }
+                return Cow::Owned(JsValue::alternatives(
+                    result.into_iter().map(JsValue::concat).collect(),
+                ));
+            }
+            v => {
+                return Cow::Borrowed(v);
+            }
+        }
+    }
+
     /// Returns the constant bool if the value represents a constant boolean.
     pub fn as_bool(&self) -> Option<bool> {
         match self {

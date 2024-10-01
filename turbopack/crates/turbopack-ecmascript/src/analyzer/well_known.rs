@@ -218,7 +218,7 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     JsValue::concat(results)
 }
 
-pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
+pub fn path_resolve(cwd: JsValue, args: Vec<JsValue>) -> JsValue {
     // If no path segments are passed, `path.resolve()` will return the absolute
     // path of the current working directory.
     if args.is_empty() {
@@ -228,72 +228,100 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
         return args.into_iter().next().unwrap();
     }
 
-    // path.resolve stops at the first (last) absolute string (starting with `/` or `\\`)
-    for (idx, arg) in args.iter().enumerate().rev() {
-        if let Some(str) = arg.as_str() {
-            if idx != 0 && str.starts_with('/') {
-                return path_resolve(cwd, args.drain(idx..).collect());
-            }
-            if let Some(str) = str.strip_prefix("\\\\") {
-                let str = format!("/{}", str);
-                let args = std::iter::once(str.into())
-                    .chain(args.drain((idx + 1)..))
-                    .collect();
-                return path_resolve(cwd, args);
-            }
-        }
-    }
+    let args_concat = JsValue::concat(args);
+    let binding = args_concat.expand_alternatives();
+    let args_alt = match binding.as_ref() {
+        JsValue::Concat(_, args) => vec![args],
+        JsValue::Alternatives { values, .. } => values
+            .iter()
+            .map(|v| {
+                if let JsValue::Concat(_, args) = v {
+                    args
+                } else {
+                    unreachable!()
+                }
+            })
+            .collect(),
+        _ => unreachable!(),
+    };
 
-    let mut results_final = Vec::new();
-    let mut results: Vec<JsValue> = Vec::new();
-    for item in args {
-        if let Some(str) = item.as_str() {
-            for str in str.split('/') {
-                match str {
-                    "" | "." => {
-                        if results_final.is_empty() && results.is_empty() {
-                            results_final.push(str.into());
-                        }
+    let mut args_alt: Vec<_> = args_alt
+        .into_iter()
+        .map(|args| {
+            // path.resolve stops at the first (last) absolute string (starting with `/` or `\\`)
+            for (idx, arg) in args.iter().enumerate().rev() {
+                if let Some(str) = arg.as_str() {
+                    if idx != 0 && str.starts_with('/') {
+                        return path_resolve(cwd.clone(), args.clone().drain(idx..).collect());
                     }
-                    ".." => {
-                        if results.pop().is_none() {
-                            results_final.push("..".into());
-                        }
+                    if let Some(str) = str.strip_prefix("\\\\") {
+                        let str = format!("/{}", str);
+                        let args = std::iter::once(str.into())
+                            .chain(args.clone().drain((idx + 1)..))
+                            .collect();
+                        return path_resolve(cwd.clone(), args);
                     }
-                    _ => results.push(str.into()),
                 }
             }
-        } else {
+
+            let mut results_final = Vec::new();
+            let mut results: Vec<JsValue> = Vec::new();
+            for item in args {
+                if let Some(str) = item.as_str() {
+                    for str in str.split('/') {
+                        match str {
+                            "" | "." => {
+                                if results_final.is_empty() && results.is_empty() {
+                                    results_final.push(str.into());
+                                }
+                            }
+                            ".." => {
+                                if results.pop().is_none() {
+                                    results_final.push("..".into());
+                                }
+                            }
+                            _ => results.push(str.into()),
+                        }
+                    }
+                } else {
+                    results_final.append(&mut results);
+                    results_final.push(item.clone());
+                }
+            }
             results_final.append(&mut results);
-            results_final.push(item);
-        }
+            let mut iter = results_final.into_iter();
+            let first = iter.next().unwrap();
+
+            let is_already_absolute =
+                first.is_empty_string() == Some(true) || first.starts_with("/") == Some(true);
+
+            let mut last_was_str = first.as_str().is_some();
+
+            if !is_already_absolute {
+                results.push(cwd.clone());
+            }
+
+            results.push(first);
+            for part in iter {
+                let is_str = part.as_str().is_some();
+                if last_was_str && is_str {
+                    results.push("/".into());
+                } else {
+                    results.push(JsValue::alternatives(vec!["/".into(), "".into()]));
+                }
+                results.push(part);
+                last_was_str = is_str;
+            }
+
+            JsValue::concat(results)
+        })
+        .collect();
+
+    if args_alt.len() == 1 {
+        args_alt.pop().unwrap()
+    } else {
+        JsValue::alternatives(args_alt)
     }
-    results_final.append(&mut results);
-    let mut iter = results_final.into_iter();
-    let first = iter.next().unwrap();
-
-    let is_already_absolute =
-        first.is_empty_string() == Some(true) || first.starts_with("/") == Some(true);
-
-    let mut last_was_str = first.as_str().is_some();
-
-    if !is_already_absolute {
-        results.push(cwd);
-    }
-
-    results.push(first);
-    for part in iter {
-        let is_str = part.as_str().is_some();
-        if last_was_str && is_str {
-            results.push("/".into());
-        } else {
-            results.push(JsValue::alternatives(vec!["/".into(), "".into()]));
-        }
-        results.push(part);
-        last_was_str = is_str;
-    }
-
-    JsValue::concat(results)
 }
 
 pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
