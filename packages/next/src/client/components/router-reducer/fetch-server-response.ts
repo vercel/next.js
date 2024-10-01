@@ -45,7 +45,7 @@ export type FetchServerResponseResult = {
   flightData: NormalizedFlightData[] | string
   canonicalUrl: URL | undefined
   couldBeIntercepted: boolean
-  isPrerender: boolean
+  prerendered: boolean
   postponed: boolean
 }
 
@@ -71,7 +71,7 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
     flightData: urlToUrlWithoutFlightMarker(url).toString(),
     canonicalUrl: undefined,
     couldBeIntercepted: false,
-    isPrerender: false,
+    prerendered: false,
     postponed: false,
   }
 }
@@ -221,7 +221,7 @@ export async function fetchServerResponse(
       flightData: normalizeFlightData(response.f),
       canonicalUrl: canonicalUrl,
       couldBeIntercepted: interception,
-      isPrerender: response.S,
+      prerendered: response.S,
       postponed,
     }
   } catch (err) {
@@ -236,7 +236,7 @@ export async function fetchServerResponse(
       flightData: url.toString(),
       canonicalUrl: undefined,
       couldBeIntercepted: false,
-      isPrerender: false,
+      prerendered: false,
       postponed: false,
     }
   }

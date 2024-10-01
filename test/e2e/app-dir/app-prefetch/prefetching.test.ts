@@ -332,8 +332,17 @@ describe('app dir - prefetching', () => {
         )
       })
 
+      // navigate to index
+      await browser.elementByCss('[href="/"]').click()
+
+      // we should be on the index page
+      await browser.waitForElementByCss('#to-dashboard')
+
       // navigate to the static page
       await browser.elementByCss('[href="/static-page"]').click()
+
+      // we should be on the static page
+      await browser.waitForElementByCss('#static-page')
 
       // We still shouldn't see any requests
       await retry(async () => {

@@ -353,7 +353,7 @@ function createLazyPrefetchEntry({
       // If the prefetch was a cache hit, we want to update the existing cache entry to reflect that it was a full prefetch.
       // This is because we know that a static response will contain the full RSC payload, and can be updated to respect the `static`
       // staleTime.
-      if (prefetchResponse.isPrerender) {
+      if (prefetchResponse.prerendered) {
         const existingCacheEntry = prefetchCache.get(
           // if we prefixed the cache key due to route interception, we want to use the new key. Otherwise we use the original key
           newCacheKey ?? prefetchCacheKey
