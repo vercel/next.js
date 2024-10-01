@@ -1,6 +1,14 @@
 'use client'
 
-import { useEffect, type HTMLProps, type FormEvent, useContext } from 'react'
+import {
+  useEffect,
+  type HTMLProps,
+  type FormEvent,
+  useContext,
+  startTransition,
+  useState,
+  useRef,
+} from 'react'
 import { addBasePath } from './add-base-path'
 import { useIntersection } from './use-intersection'
 import { useMergedRef } from './use-merged-ref'
@@ -11,6 +19,7 @@ import {
 import { PrefetchKind } from './components/router-reducer/router-reducer-types'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import type { NextRouter } from './router'
+import { polyfill_use } from './use-polyfill'
 
 const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 
@@ -135,6 +144,8 @@ export default function Form({
     }
   }
 
+  const navigateWithTransition = usePagesRouterPendingNavigation(router)
+
   const isPrefetchEnabled =
     // there is no notion of instant loading states in pages dir, so prefetching is pointless
     isAppRouter(router) &&
@@ -183,6 +194,7 @@ export default function Form({
           replace,
           scroll,
           onSubmit: props.onSubmit,
+          navigateWithTransition,
         })
       }
     />
@@ -197,12 +209,14 @@ function onFormSubmit(
     replace,
     scroll,
     router,
+    navigateWithTransition,
   }: {
     actionHref: string
     onSubmit: FormProps['onSubmit']
     replace: FormProps['replace']
     scroll: FormProps['scroll']
     router: SomeRouter
+    navigateWithTransition: NavigateWithTransitionFn
   }
 ) {
   if (typeof onSubmit === 'function') {
@@ -306,15 +320,9 @@ function onFormSubmit(
   if (isAppRouter(router)) {
     router[method](targetHref, { scroll })
   } else {
-    // TODO(form): Make this use a transition so that pending states work
-    //
-    // Unlike the app router, pages router doesn't use startTransition,
-    // and can't easily be wrapped in one because of implementation details
-    // (e.g. it doesn't use any react state)
-    // But it's important to have this wrapped in a transition because
-    // pending states from e.g. `useFormStatus` rely on that.
-    // So this needs some follow up work.
-    router[method](targetHref, undefined, { scroll })
+    navigateWithTransition(() =>
+      router[method](targetHref, undefined, { scroll })
+    )
   }
 }
 
@@ -415,4 +423,94 @@ function hasReactClientActionAttributes(submitter: HTMLElement) {
   // SSR: https://github.com/facebook/react/blob/942eb80381b96f8410eab1bef1c539bed1ab0eb1/packages/react-dom-bindings/src/client/ReactDOMComponent.js#L2401
   const action = submitter.getAttribute('formAction')
   return action && /\s*javascript:/i.test(action)
+}
+
+type NavigateWithTransitionFn = (navigate: () => Promise<boolean>) => void
+
+function usePagesRouterPendingNavigation(
+  router: SomeRouter
+): NavigateWithTransitionFn {
+  const isInPagesRouter = !isAppRouter(router)
+
+  const [pendingNavigation, setPendingNavigation] =
+    useState<Promise<void> | null>(null)
+
+  const mountedRef = useRef(false)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  const navigateWithTransition: NavigateWithTransitionFn = (navigate) => {
+    startTransition(() => {
+      // never resolve, the router will change what we're displaying
+      // but if the navigation throws, we want to break out and throw as well
+      // TODO: does this work when navigating to the same url (with different params)?
+      const { promise, reject } = promiseWithResolvers<void>()
+      setPendingNavigation(promise)
+      navigate().then(
+        (_result) => {
+          // TODO: can we use the result boolean for something? what does it represent?
+          if (mountedRef.current) {
+            setPendingNavigation(null)
+          }
+        },
+        (err) => {
+          reject(err)
+        }
+      )
+    })
+  }
+
+  // if we're performing a navigation, suspend.
+  // this will likely be an infinite promise, but the router state change will switch us
+  // to displaying a different view, so it doesn't matter
+  if (pendingNavigation) {
+    polyfill_use(pendingNavigation)
+  }
+
+  // clear pendingNavigation if restoring from bfCache
+  useEffect(() => {
+    if (!isInPagesRouter) {
+      return
+    }
+
+    // If the app is restored from bfcache, it's possible that
+    // pendingNavigation is set to a promise, which would mean that any re-render of this component
+    // would stay suspended.
+    // This will restore the router to the initial state in the event that the app is restored from bfcache.
+    function handlePageShow(event: PageTransitionEvent) {
+      if (
+        !event.persisted ||
+        !window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
+      ) {
+        return
+      }
+
+      // Clear the pendingNavigation value so that a subsequent MPA navigation to the same URL can be triggered.
+      // This is necessary because if the browser restored from bfcache, the pendingNavigation would still be set to the value
+      // of the last navigation.
+      setPendingNavigation(null)
+    }
+
+    window.addEventListener('pageshow', handlePageShow)
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow)
+    }
+  }, [isInPagesRouter])
+
+  return navigateWithTransition
+}
+
+function promiseWithResolvers<T>() {
+  let resolve: (value: T) => void = undefined!
+  let reject: (error: unknown) => void = undefined!
+  const promise = new Promise<T>((_resolve, _reject) => {
+    resolve = _resolve
+    reject = _reject
+  })
+  return { promise, resolve, reject }
 }

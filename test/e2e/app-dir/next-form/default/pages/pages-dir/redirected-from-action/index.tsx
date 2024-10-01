@@ -1,6 +1,8 @@
 import * as React from 'react'
+import { setTimeout } from 'timers/promises'
 
 export async function getServerSideProps({ req }) {
+  await setTimeout(1000)
   return {
     props: {
       searchParams: Object.fromEntries(
