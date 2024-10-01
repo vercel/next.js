@@ -48,10 +48,9 @@ import {
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import {
-  createMetadataComponents,
   createTrackedMetadataContext,
   createMetadataContext,
-} from '../../lib/metadata/metadata'
+} from '../../lib/metadata/metadata-context'
 import { withRequestStore } from '../async-storage/with-request-store'
 import { withStaticGenerationStore } from '../async-storage/with-static-generation-store'
 import { isNotFoundError } from '../../client/components/not-found'
@@ -389,6 +388,7 @@ async function generateDynamicRSCPayload(
       tree: loaderTree,
       createServerSearchParamsForMetadata,
       createServerParamsForMetadata,
+      createMetadataComponents,
     },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
@@ -571,6 +571,7 @@ async function getRSCPayload(
       GlobalError,
       createServerSearchParamsForMetadata,
       createServerParamsForMetadata,
+      createMetadataComponents,
     },
     requestStore: { url },
     staticGenerationStore,
@@ -672,6 +673,7 @@ async function getErrorRSCPayload(
       GlobalError,
       createServerSearchParamsForMetadata,
       createServerParamsForMetadata,
+      createMetadataComponents,
     },
     requestStore: { url },
     requestId,
