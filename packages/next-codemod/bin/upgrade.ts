@@ -6,6 +6,7 @@ import { compareVersions } from 'compare-versions'
 import chalk from 'chalk'
 import { availableCodemods } from '../lib/codemods'
 import { getPkgManager, installPackages } from '../lib/handle-package'
+import { runTransform } from './transform'
 
 type StandardVersionSpecifier = 'canary' | 'rc' | 'latest'
 type CustomVersionSpecifier = string
@@ -35,7 +36,11 @@ async function loadHighestNPMVersionMatching(query: string) {
   return versions[versions.length - 1]
 }
 
-export async function runUpgrade(): Promise<void> {
+export async function runUpgrade(
+  revision: string | undefined,
+  options: { verbose: boolean }
+): Promise<void> {
+  const { verbose } = options
   const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
@@ -47,17 +52,14 @@ export async function runUpgrade(): Promise<void> {
   }
   let targetVersionSpecifier: VersionSpecifier = ''
 
-  const shortcutVersion = process.argv[2]?.replace('@', '')
-  if (shortcutVersion) {
-    const res = await fetch(
-      `https://registry.npmjs.org/next/${shortcutVersion}`
-    )
+  if (revision !== undefined) {
+    const res = await fetch(`https://registry.npmjs.org/next/${revision}`)
     if (res.status === 200) {
       targetNextPackageJson = await res.json()
       targetVersionSpecifier = targetNextPackageJson.version
     } else {
       console.error(
-        `${chalk.yellow('Next.js ' + shortcutVersion)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}, or choose one from below\n`
+        `${chalk.yellow(`next@${revision}`)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}, or choose one from below\n`
       )
     }
   }
@@ -182,11 +184,14 @@ export async function runUpgrade(): Promise<void> {
     reactDependencies.push(`@types/react-dom@${targetReactDOMTypesVersion}`)
   }
 
-  installPackages([nextDependency, ...reactDependencies], packageManager)
-
   console.log(
     `Upgrading your project to ${chalk.blue('Next.js ' + targetVersionSpecifier)}...\n`
   )
+
+  installPackages([nextDependency, ...reactDependencies], {
+    packageManager,
+    silent: !verbose,
+  })
 
   await suggestCodemods(installedNextVersion, targetNextVersion)
 
@@ -333,20 +338,18 @@ async function suggestCodemods(
     return
   }
 
-  let codemodsString = `\nThe following ${chalk.blue('codemods')} are available for your upgrade:`
-  relevantCodemods.forEach((codemod) => {
-    codemodsString += `\n- ${codemod.title} ${chalk.gray(`(${codemod.value})`)}`
-  })
-  codemodsString += '\n'
-
-  console.log(codemodsString)
-
-  const responseCodemods = await prompts(
+  const { codemods } = await prompts(
     {
-      type: 'confirm',
-      name: 'apply',
-      message: `Do you want to apply these codemods?`,
-      initial: true,
+      type: 'multiselect',
+      name: 'codemods',
+      message: `\nThe following ${chalk.blue('codemods')} are recommended for your upgrade. Would you like to apply them?`,
+      choices: relevantCodemods.map((codemod) => {
+        return {
+          title: `${codemod.title} ${chalk.grey(`(${codemod.value})`)}`,
+          value: codemod.value,
+          selected: true,
+        }
+      }),
     },
     {
       onCancel: () => {
@@ -355,16 +358,7 @@ async function suggestCodemods(
     }
   )
 
-  if (!responseCodemods.apply) {
-    return
-  }
-
-  for (const codemod of relevantCodemods) {
-    execSync(
-      `npx @next/codemod@latest ${codemod.value} ${process.cwd()} --force`,
-      {
-        stdio: 'inherit',
-      }
-    )
+  for (const codemod of codemods) {
+    await runTransform(codemod, process.cwd(), { force: true })
   }
 }
