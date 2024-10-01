@@ -346,7 +346,10 @@ export interface ProjectOptions {
   /**
    * Whether to watch the filesystem for file changes.
    */
-  watch: boolean
+  watch: {
+    enable: boolean
+    pollIntervalMs?: number
+  }
 
   /**
    * The mode in which Next.js is running.

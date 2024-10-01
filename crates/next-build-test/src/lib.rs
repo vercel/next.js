@@ -31,10 +31,10 @@ pub async fn main_inner(
 
     if matches!(strat, Strategy::Development { .. }) {
         options.dev = true;
-        options.watch = true;
+        options.watch.enable = true;
     } else {
         options.dev = false;
-        options.watch = false;
+        options.watch.enable = false;
     }
 
     let project = tt
