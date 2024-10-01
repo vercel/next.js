@@ -535,7 +535,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         loaderFile: z.string().optional(),
         minimumCacheTTL: z.number().int().gte(0).optional(),
         path: z.string().optional(),
-        disableWriteToCacheDir: z.boolean().optional(),
       })
       .optional(),
     logging: z
