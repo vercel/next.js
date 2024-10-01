@@ -735,21 +735,18 @@ function createPatchedFetcher(
 
           if (pendingRevalidate) {
             const res: Response = await pendingRevalidate
-            const clonedResponse = res.clone()
-
-            return {
-              body: await clonedResponse.arrayBuffer(),
-              headers: clonedResponse.headers,
-              status: clonedResponse.status,
-              statusText: clonedResponse.statusText,
-            }
+            return res.clone()
           }
           return (staticGenerationStore.pendingRevalidates[cacheKey] =
-            doOriginalFetch(true, cacheReasonOverride).finally(async () => {
-              staticGenerationStore.pendingRevalidates ??= {}
-              delete staticGenerationStore.pendingRevalidates[cacheKey || '']
-              await handleUnlock()
-            }))
+            doOriginalFetch(true, cacheReasonOverride)
+              .then((res) => {
+                return res.clone()
+              })
+              .finally(async () => {
+                staticGenerationStore.pendingRevalidates ??= {}
+                delete staticGenerationStore.pendingRevalidates[cacheKey || '']
+                await handleUnlock()
+              }))
         } else {
           return doOriginalFetch(false, cacheReasonOverride).finally(
             handleUnlock
