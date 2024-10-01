@@ -106,9 +106,8 @@ export function isMatchedFunctionExported(
 // by going through the tokens. Use the 1st string token as the directive
 export function determineClientDirective(root: Collection<any>) {
   const { program } = root.get().node
-  let directive = undefined
 
-  directive = program.directives[0].value
+  const directive = program.directives[0]?.value
 
   return directive === 'use client'
 }
