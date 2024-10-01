@@ -1,20 +1,25 @@
 /* global jest */
 jest.autoMockOff()
 const fs = require('fs')
-const { defineTest, runInlineTest } = require('jscodeshift/dist/testUtils')
+const path = require('path')
+const { defineTest, defineInlineTest, runInlineTest } = require('jscodeshift/dist/testUtils')
 const { readdirSync } = require('fs')
 const { join } = require('path')
 
+const possibleExtensions = ['ts', 'tsx', 'js', 'jsx']
+
 function getSourceByInputPath(inputPath) {
-  const possibleExtensions = ['ts', 'tsx', 'js', 'jsx']
   let source = ''
+  let filePath
   for (const ext of possibleExtensions) {
-    if (fs.existsSync(`${inputPath}.${ext}`)) {
+    const currentPath = `${inputPath}.${ext}`
+    if (fs.existsSync(currentPath)) {
+      filePath = currentPath
       source = fs.readFileSync(`${inputPath}.${ext}`, 'utf8')
       break
     }
   }
-  return source   
+  return [filePath, source]
 }
 
 const testFileRegex = /\.input\.(j|t)sx?$/
@@ -29,27 +34,25 @@ describe('next-async-request-api - dynamic-apis', () => {
   for (const file of fixtures) {
     const isTsx = file.endsWith('.tsx')
     const fixture = file.replace(testFileRegex, '')
-  
     const prefix = `${fixtureDir}/${fixture}`;
-  
-    const inputPath = `../__testfixtures__/${prefix}.input`
-    const inputSource = getSourceByInputPath(inputPath)
-    const outputPath = `../__testfixtures__/${prefix}.output`
-    const expectedOutput = getSourceByInputPath(outputPath)
-    const transformPath = `../${transformName}`
-    
+    const [inputPath, input] = getSourceByInputPath(path.join(`${__dirname}`, `../__testfixtures__/${prefix}.input`))
+    const [outputPath, expectedOutput] = getSourceByInputPath(path.join(`${__dirname}`, `../__testfixtures__/${prefix}.output`))
+
+    const transformPath = `${__dirname}/../${transformName}`
+    const transform = require(transformPath).default
+
     it(`transforms correctly ${prefix}`, () => {
       runInlineTest(
-        require(transformPath), 
-        null, 
+        transform,
+        null,
         {
-          path: 'page.js',
-          source: inputSource,
-        }, 
+          path: inputPath,
+          source: input,
+        },
         expectedOutput, 
         {
           parser: isTsx ? 'tsx' : 'babel',
-        }
+        },
       )
     })
   }

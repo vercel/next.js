@@ -18,6 +18,7 @@ import {
   type FunctionScope,
   insertCommentOnce,
   TARGET_ROUTE_EXPORTS,
+  getVariableDeclaratorId,
 } from './utils'
 
 const PAGE_PROPS = 'props'
@@ -130,10 +131,7 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
-const MATCHED_FILE_PATTERNS = [
-  /([\\/]|^)(page|layout)\.(t|j)sx?$/,
-  /([\\/]|^)(opengraph-image\d?|twitter-image\d?|sitemap|manifest|robots)\.t|jsx?$/,
-]
+const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout)\.(t|j)sx?$/
 
 function modifyTypes(
   paramTypeAnnotation: any,
@@ -245,9 +243,7 @@ export function transformDynamicProps(
   api: API,
   filePath: string
 ) {
-  const isMatched = MATCHED_FILE_PATTERNS.some((pattern) =>
-    pattern.test(filePath)
-  )
+  const isMatched = MATCHED_FILE_PATTERNS.test(filePath)
   if (!isMatched) {
     return null
   }
@@ -271,7 +267,11 @@ export function transformDynamicProps(
     ) {
       const decl = path.value
       const params = decl.params
-      const functionName = decl.id?.name || 'default'
+      let functionName = decl.id?.name
+      // If it's const <id> = function () {}, locate the <id> to get function name
+      if (!decl.id) {
+        functionName = getVariableDeclaratorId(path, j)?.name
+      }
       // target properties mapping, only contains `params` and `searchParams`
       const propertiesMap = new Map<string, any>()
       let allProperties: ObjectPattern['properties'] = []
@@ -282,13 +282,12 @@ export function transformDynamicProps(
       } else if (isRoute) {
         if (params.length !== 2) return
       } else {
-        // Page/Layout/Route handlers have 1 param
+        // Page/Layout default export have 1 param
         if (params.length !== 1) return
       }
       const propsIdentifier = generateUniqueIdentifier(PAGE_PROPS, path, j)
 
       const propsArgumentIndex = isRoute ? 1 : 0
-      console.log('propsArgumentIndex', propsArgumentIndex)
 
       const currentParam = params[propsArgumentIndex]
       if (!currentParam) return

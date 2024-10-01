@@ -440,3 +440,17 @@ export function insertCommentOnce(
   }
   node.comments = [j.commentBlock(comment), ...(node.comments || [])]
 }
+
+export function getVariableDeclaratorId(
+  path: ASTPath<any>,
+  j: API['j']
+): ASTPath<any>['node']['id'] | undefined {
+  const parent = path.parentPath
+  if (j.VariableDeclarator.check(parent.node)) {
+    const id = parent.node.id
+    if (j.Identifier.check(id)) {
+      return id
+    }
+  }
+  return undefined
+}

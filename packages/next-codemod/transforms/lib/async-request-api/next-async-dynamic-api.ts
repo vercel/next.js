@@ -76,7 +76,6 @@ export function transformDynamicAPI(
           return
         }
         let parentFunctionPath = findClosetParentFunctionScope(path, j)
-
         // We found the parent scope is not a function
         let parentFunctionNode
         if (parentFunctionPath) {
