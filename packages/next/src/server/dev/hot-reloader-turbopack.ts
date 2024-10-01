@@ -152,7 +152,10 @@ export async function createHotReloaderTurbopack(
         dir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(dir, nextConfig),
-      watch: dev,
+      watch: {
+        enable: dev,
+        pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
+      },
       dev,
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({

@@ -153,7 +153,7 @@ fn main() {
                 },
                 project_path: canonical_path.to_string_lossy().into(),
                 root_path: "/".into(),
-                watch: false,
+                watch: Default::default(),
                 browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 \
                                      Safari versions, last 1 Edge versions"
                     .into(),

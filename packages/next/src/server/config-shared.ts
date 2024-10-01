@@ -944,6 +944,10 @@ export interface NextConfig extends Record<string, any> {
    * were not detected on a per-page basis.
    */
   outputFileTracingIncludes?: Record<string, string[]>
+
+  watchOptions?: {
+    pollIntervalMs?: number
+  }
 }
 
 export const defaultConfig: NextConfig = {
