@@ -348,7 +348,23 @@ async function generateFlight(
     }
   )
 
-  return new FlightRenderResult(flightReadableStream)
+  const resultOptions: RenderResultOptions = {
+    metadata: {},
+  }
+
+  if (
+    ctx.staticGenerationStore.pendingRevalidates ||
+    ctx.staticGenerationStore.revalidatedTags
+  ) {
+    resultOptions.waitUntil = Promise.all([
+      ctx.staticGenerationStore.incrementalCache?.revalidateTag(
+        ctx.staticGenerationStore.revalidatedTags || []
+      ),
+      ...Object.values(ctx.staticGenerationStore.pendingRevalidates || {}),
+    ])
+  }
+
+  return new FlightRenderResult(flightReadableStream, resultOptions)
 }
 
 type RenderToStreamResult = {
@@ -1349,7 +1365,10 @@ async function renderToHTMLOrFlightImpl(
   })
 
   // If we have pending revalidates, wait until they are all resolved.
-  if (staticGenerationStore.pendingRevalidates) {
+  if (
+    staticGenerationStore.pendingRevalidates ||
+    staticGenerationStore.revalidatedTags
+  ) {
     options.waitUntil = Promise.all([
       staticGenerationStore.incrementalCache?.revalidateTag(
         staticGenerationStore.revalidatedTags || []
