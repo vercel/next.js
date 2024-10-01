@@ -509,6 +509,11 @@ async function writeImagesManifest(
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
     search: p.search,
   }))
+  images.localPatterns = (config?.images?.localPatterns || []).map((p) => ({
+    // Modifying the manifest should also modify matchLocalPattern()
+    pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+    search: p.search,
+  }))
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
     version: 1,
