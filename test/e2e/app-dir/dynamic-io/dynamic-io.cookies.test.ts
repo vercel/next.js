@@ -201,7 +201,7 @@ describe('dynamic-io', () => {
     )
     expect($('#for-of-x-sentinel-rand').text()).toContain('x-sentinel-rand')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain('for...of cookies()')
+      expect(cookieWarnings[i++]).toContain('cookies were iterated over')
     }
 
     // ...spread iteration
@@ -211,7 +211,7 @@ describe('dynamic-io', () => {
     )
     expect($('#spread-x-sentinel-rand').text()).toContain('x-sentinel-rand')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain('[...cookies()]')
+      expect(cookieWarnings[i++]).toContain('cookies were iterated over')
     }
 
     // cookies().size

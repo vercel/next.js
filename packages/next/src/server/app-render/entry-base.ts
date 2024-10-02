@@ -29,6 +29,7 @@ import {
 } from '../request/params'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { NotFoundBoundary } from '../../client/components/not-found-boundary'
+import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
 // not being used but needs to be included in the client manifest for /_not-found
 import '../../client/components/error-boundary'
@@ -69,4 +70,5 @@ export {
   ClientSegmentRoot,
   NotFoundBoundary,
   patchFetch,
+  createMetadataComponents,
 }

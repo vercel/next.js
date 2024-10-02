@@ -314,7 +314,7 @@ describe('dynamic-io', () => {
     )
     expect($('#for-of-x-sentinel-rand').length).toBe(1)
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('for...of headers()')
+      expect(headerWarnings[i++]).toContain('headers were iterated over.')
     }
 
     // ...headers()
@@ -324,7 +324,7 @@ describe('dynamic-io', () => {
     )
     expect($('#spread-x-sentinel-rand').length).toBe(1)
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('...headers()')
+      expect(headerWarnings[i++]).toContain('headers were iterated over.')
     }
 
     if (isNextDev) {

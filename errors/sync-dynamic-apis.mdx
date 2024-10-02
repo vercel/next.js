@@ -1,0 +1,72 @@
+---
+title: dynamic APIs are async
+description: This is a migration guide for dynamic APIs that have become async when access was previously possible directly.
+---
+
+## Why This Warning Occurred
+
+Somewhere in your code you used a dynamic API and accessed one of its properties directly.
+Dynamic APIs are:
+
+- `params` and `searchParams`
+- `cookies()`, `draftMode()`, and `headers()` from `next/headers`
+
+For example:
+
+```js filename="app/[id]/page.js"
+function Page({ params }) {
+  // direct access of `params.id`.
+  return <p>ID: {params.id}</p>
+}
+```
+
+This also includes enumerating (e.g. `{...params}`, or `Object.keys(params)`) or iterating over the return
+value of these APIs (e.g. `[...headers()]` or `for (const cookie of cookies())`, or explicitly with `cookies()[Symbol.iterator]()`).
+
+In the version of Next.js that issued this warning, access to these properties is still possible directly but will warn.
+In future versions, these APIs will be async and direct access will not work as expected.
+
+## Possible Ways to Fix It
+
+The `next-async-request-api` codemod can fix many of these cases automatically:
+
+```bash
+$ npx @next/codemod@canary next-async-request-api .
+```
+
+The codemod cannot cover all cases, so you may need to manually adjust some code.
+
+The dynamic APIs are now async and return a Promise.
+
+If the warning occured on the Server (e.g. a route handler, or a Server Component),
+you must `await` the dynamic API to access its properties:
+
+```js filename="app/[id]/page.js"
+
+
+function Page({ params }) {
+  // asynchronous access of `params.id`.
+  const { id } = await params
+  return <p>ID: {id}</p>
+}
+```
+
+If the warning occured on the Client (e.g. a Client component),
+you must use `React.use()` to unwrap the Promise first:
+
+```js filename="app/[id]/page.js"
+'use client'
+import * as React from 'react'
+
+function Page({ params }) {
+  // asynchronous access of `params.id`.
+  const { id } = React.use(params)
+  return <p>ID: {id}</p>
+}
+```
+
+Keep in mind that you can delay the unwrapping (either via `await` or `React.use`)
+until further down in your component tree when you actually need the value.
+You don't have to unwrap the Promise immediately at the segment level (Page, Layout, etc).
+
+Unwraping the Promise later will allow Next.js to statically render more of your page before the Page is actually requested.

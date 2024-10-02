@@ -395,7 +395,7 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            'enumerated incompletely with `{...searchParams}`, `Object.keys(searchParams)`, or similar.'
+            'searchParams are being enumerated incompletely'
           ),
           expect.stringContaining(
             'accessed directly with `searchParams.sentinel`'
@@ -430,9 +430,7 @@ describe('dynamic-io', () => {
         expect($('#value-foo').text()).toBe('foo')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
-          expect.stringContaining(
-            'enumerated with `{...searchParams}`, `Object.keys(searchParams)`, or similar.'
-          ),
+          expect.stringContaining('searchParams are being enumerated.'),
           expect.stringContaining(
             'accessed directly with `searchParams.sentinel`'
           ),
@@ -462,7 +460,7 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            'enumerated incompletely with `{...searchParams}`, `Object.keys(searchParams)`, or similar.'
+            'searchParams are being enumerated incompletely'
           ),
           expect.stringContaining(
             'accessed directly with `searchParams.sentinel`'
@@ -495,9 +493,7 @@ describe('dynamic-io', () => {
         expect($('#value-foo').text()).toBe('foo')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
-          expect.stringContaining(
-            'enumerated with `{...searchParams}`, `Object.keys(searchParams)`, or similar.'
-          ),
+          expect.stringContaining('searchParams are being enumerated.'),
           expect.stringContaining(
             'accessed directly with `searchParams.sentinel`'
           ),
@@ -707,7 +703,7 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            'enumerated incompletely with `{...searchParams}`, `Object.keys(searchParams)`, or similar.'
+            'searchParams are being enumerated incompletely'
           ),
           expect.stringContaining(
             'accessed directly with `searchParams.sentinel`'
@@ -738,9 +734,7 @@ describe('dynamic-io', () => {
         expect($('#value-foo').text()).toBe('foo')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
-          expect.stringContaining(
-            'enumerated with `{...searchParams}`, `Object.keys(searchParams)`, or similar.'
-          ),
+          expect.stringContaining('searchParams are being enumerated.'),
           expect.stringContaining(
             'accessed directly with `searchParams.sentinel`'
           ),
@@ -770,7 +764,7 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            'enumerated incompletely with `{...searchParams}`, `Object.keys(searchParams)`, or similar.'
+            'searchParams are being enumerated incompletely'
           ),
           expect.stringContaining(
             'accessed directly with `searchParams.sentinel`'
@@ -801,9 +795,7 @@ describe('dynamic-io', () => {
         expect($('#value-foo').text()).toBe('foo')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
-          expect.stringContaining(
-            'enumerated with `{...searchParams}`, `Object.keys(searchParams)`, or similar.'
-          ),
+          expect.stringContaining('searchParams are being enumerated.'),
           expect.stringContaining(
             'accessed directly with `searchParams.sentinel`'
           ),
