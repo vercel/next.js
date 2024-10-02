@@ -28,11 +28,9 @@ describe('scroll-behaviour-on-not-found-client-navigation', () => {
 
     // scroll to bottom of the / page
     await browser.eval('window.scrollTo({top: document.body.scrollHeight})')
-    // await new Promise((r) => setTimeout(r, 20000))
     const isAtBottom = await browser.eval(
       'window.innerHeight + window.scrollY >= document.documentElement.scrollHeight'
     )
-    // await new Promise((r) => setTimeout(r, 10000))
     expect(isAtBottom).toBe(true)
 
     await browser.elementByCss('.trigger-not-found').click()
