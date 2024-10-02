@@ -11,7 +11,7 @@ import type {
   FlightData,
   InitialRSCPayload,
 } from './types'
-import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
@@ -52,7 +52,7 @@ import {
   createMetadataContext,
 } from '../../lib/metadata/metadata-context'
 import { withRequestStore } from '../async-storage/with-request-store'
-import { withStaticGenerationStore } from '../async-storage/with-work-store'
+import { withWorkStore } from '../async-storage/with-work-store'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,
@@ -169,7 +169,7 @@ export type GetDynamicParamFromSegment = (
 export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
 export type AppRenderContext = {
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
   requestStore: RequestStore
   componentMod: AppPageModule
   renderOpts: RenderOpts
@@ -859,7 +859,7 @@ async function renderToHTMLOrFlightImpl(
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   requestStore: RequestStore,
-  staticGenerationStore: StaticGenerationStore,
+  staticGenerationStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
   requestEndedState: { ended?: boolean },
   postponedState: PostponedState | null
@@ -1304,7 +1304,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
       serverComponentsHmrCache,
     },
     (requestStore) =>
-      withStaticGenerationStore(
+      withWorkStore(
         renderOpts.ComponentMod.staticGenerationAsyncStorage,
         {
           page: renderOpts.routeModule.definition.page,
@@ -1720,7 +1720,7 @@ type PrerenderToStreamResult = {
  * Determines whether we should generate static flight data.
  */
 function shouldGenerateStaticFlightData(
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ): boolean {
   const { fallbackRouteParams, isStaticGeneration } = staticGenerationStore
   if (!isStaticGeneration) return false
@@ -1737,7 +1737,7 @@ async function prerenderToStream(
   res: BaseNextResponse,
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
-  staticGenerationStore: StaticGenerationStore,
+  staticGenerationStore: WorkStore,
   tree: LoaderTree
 ): Promise<PrerenderToStreamResult> {
   // When prerendering formState is always null. We still include it

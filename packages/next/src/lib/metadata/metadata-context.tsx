@@ -1,6 +1,6 @@
 import type { AppRenderContext } from '../../server/app-render/app-render'
 import type { MetadataContext } from './types/resolvers'
-import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 
 export function createMetadataContext(
@@ -17,7 +17,7 @@ export function createMetadataContext(
 export function createTrackedMetadataContext(
   pathname: string,
   renderOpts: AppRenderContext['renderOpts'],
-  staticGenerationStore: StaticGenerationStore | null
+  staticGenerationStore: WorkStore | null
 ): MetadataContext {
   return {
     // Use the regular metadata context, but we trap the pathname access.

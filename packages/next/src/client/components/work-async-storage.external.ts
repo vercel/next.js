@@ -9,7 +9,7 @@ import type { FallbackRouteParams } from '../../server/request/fallback-params'
 import { staticGenerationAsyncStorage } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { AppSegmentConfig } from '../../build/app-segments/app-segment-config'
 
-export interface StaticGenerationStore {
+export interface WorkStore {
   readonly isStaticGeneration: boolean
 
   /**
@@ -65,7 +65,6 @@ export interface StaticGenerationStore {
   buildId: string
 }
 
-export type StaticGenerationAsyncStorage =
-  AsyncLocalStorage<StaticGenerationStore>
+export type StaticGenerationAsyncStorage = AsyncLocalStorage<WorkStore>
 
 export { staticGenerationAsyncStorage }

@@ -16,7 +16,7 @@ import {
   type RequestContext,
 } from '../../async-storage/with-request-store'
 import {
-  withStaticGenerationStore,
+  withWorkStore,
   type StaticGenerationContext,
 } from '../../async-storage/with-work-store'
 import {
@@ -45,7 +45,7 @@ import { DynamicServerError } from '../../../client/components/hooks-server-cont
 import { requestAsyncStorage } from '../../../client/components/request-async-storage.external'
 import {
   staticGenerationAsyncStorage,
-  type StaticGenerationStore,
+  type WorkStore,
 } from '../../../client/components/work-async-storage.external'
 import {
   prerenderAsyncStorage,
@@ -315,7 +315,7 @@ export class AppRouteRouteModule extends RouteModule<
           this.requestAsyncStorage,
           requestContext,
           (requestStore) =>
-            withStaticGenerationStore(
+            withWorkStore(
               this.staticGenerationAsyncStorage,
               staticGenerationContext,
               (staticGenerationStore) => {
@@ -846,7 +846,7 @@ const forceStaticNextUrlHandlers = {
 
 function proxyNextRequest(
   request: NextRequest,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ) {
   const nextUrlHandlers = {
     get(

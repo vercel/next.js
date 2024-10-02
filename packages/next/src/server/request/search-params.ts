@@ -1,4 +1,4 @@
-import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
@@ -53,14 +53,14 @@ export type UnsafeUnwrappedSearchParams<P> =
   P extends Promise<infer U> ? Omit<U, 'then' | 'status' | 'value'> : never
 
 export function createPrerenderSearchParamsFromClient(
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ) {
   return createPrerenderSearchParams(staticGenerationStore)
 }
 
 export function createRenderSearchParamsFromClient(
   underlyingSearchParams: SearchParams,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ) {
   return createRenderSearchParams(underlyingSearchParams, staticGenerationStore)
 }
@@ -71,7 +71,7 @@ export const createServerSearchParamsForMetadata =
 
 export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ): Promise<SearchParams> {
   if (staticGenerationStore.isStaticGeneration) {
     return createPrerenderSearchParams(staticGenerationStore)
@@ -84,7 +84,7 @@ export function createServerSearchParamsForServerPage(
 }
 
 export function createPrerenderSearchParamsForClientPage(
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ): Promise<SearchParams> {
   if (staticGenerationStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
@@ -107,7 +107,7 @@ export function createPrerenderSearchParamsForClientPage(
 }
 
 function createPrerenderSearchParams(
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ): Promise<SearchParams> {
   if (staticGenerationStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
@@ -133,7 +133,7 @@ function createPrerenderSearchParams(
 
 function createRenderSearchParams(
   underlyingSearchParams: SearchParams,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ): Promise<SearchParams> {
   if (staticGenerationStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
@@ -266,7 +266,7 @@ function makeAbortingExoticSearchParams(
 }
 
 function makeErroringExoticSearchParams(
-  staticGenerationStore: StaticGenerationStore,
+  staticGenerationStore: WorkStore,
   prerenderStore: undefined | PrerenderStore
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(staticGenerationStore)
@@ -432,7 +432,7 @@ function makeErroringExoticSearchParams(
 
 function makeUntrackedExoticSearchParams(
   underlyingSearchParams: SearchParams,
-  store: StaticGenerationStore
+  store: WorkStore
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
   if (cachedSearchParams) {
@@ -499,7 +499,7 @@ function makeUntrackedExoticSearchParams(
 
 function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
   underlyingSearchParams: SearchParams,
-  store: StaticGenerationStore
+  store: WorkStore
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
   if (cachedSearchParams) {

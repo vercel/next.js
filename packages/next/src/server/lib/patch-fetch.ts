@@ -1,6 +1,6 @@
 import type {
   StaticGenerationAsyncStorage,
-  StaticGenerationStore,
+  WorkStore,
 } from '../../client/components/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
@@ -138,7 +138,7 @@ const getDerivedTags = (pathname: string): string[] => {
 }
 
 export function addImplicitTags(
-  staticGenerationStore: StaticGenerationStore,
+  staticGenerationStore: WorkStore,
   requestStore: RequestStore | undefined
 ) {
   const newTags: string[] = []
@@ -173,7 +173,7 @@ export function addImplicitTags(
 }
 
 function trackFetchMetric(
-  staticGenerationStore: StaticGenerationStore,
+  staticGenerationStore: WorkStore,
   ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
   // If the static generation store is not available, we can't track the fetch

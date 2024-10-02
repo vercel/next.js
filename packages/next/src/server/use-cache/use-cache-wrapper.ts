@@ -12,7 +12,7 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client.edge'
 
-import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
 import type { CacheStore } from '../app-render/cache-async-storage.external'
 import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
@@ -76,7 +76,7 @@ cacheHandlerMap.set('default', {
 })
 
 function generateCacheEntry(
-  staticGenerationStore: StaticGenerationStore,
+  staticGenerationStore: WorkStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -89,7 +89,7 @@ function generateCacheEntry(
   // Note: It is important that we await at least once before this because it lets us
   // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
   return runInCleanSnapshot(
-    generateCacheEntryWithRestoredStaticGenerationStore,
+    generateCacheEntryWithRestoredWorkStore,
     staticGenerationStore,
     clientReferenceManifest,
     cacheHandler,
@@ -99,8 +99,8 @@ function generateCacheEntry(
   )
 }
 
-function generateCacheEntryWithRestoredStaticGenerationStore(
-  staticGenerationStore: StaticGenerationStore,
+function generateCacheEntryWithRestoredWorkStore(
+  staticGenerationStore: WorkStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -111,7 +111,7 @@ function generateCacheEntryWithRestoredStaticGenerationStore(
   // Note: We explicitly don't restore the RequestStore nor the PrerenderStore.
   // We don't want any request specific information leaking an we don't want to create a
   // bloated fake request mock for every cache call. So any feature that currently lives
-  // in RequestStore but should be available to Caches need to move to StaticGenerationStore.
+  // in RequestStore but should be available to Caches need to move to WorkStore.
   // PrerenderStore is not needed inside the cache scope because the outer most one will
   // be the one to report its result to the outer Prerender.
   return staticGenerationAsyncStorage.run(
@@ -127,7 +127,7 @@ function generateCacheEntryWithRestoredStaticGenerationStore(
 }
 
 function generateCacheEntryWithCacheContext(
-  staticGenerationStore: StaticGenerationStore,
+  staticGenerationStore: WorkStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -149,7 +149,7 @@ function generateCacheEntryWithCacheContext(
 }
 
 async function generateCacheEntryImpl(
-  staticGenerationStore: StaticGenerationStore,
+  staticGenerationStore: WorkStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -249,7 +249,7 @@ export function cache(kind: string, id: string, fn: any) {
       const staticGenerationStore = staticGenerationAsyncStorage.getStore()
       if (staticGenerationStore === undefined) {
         throw new Error(
-          '"use cache" cannot be used outside of App Router. Expected a StaticGenerationStore.'
+          '"use cache" cannot be used outside of App Router. Expected a WorkStore.'
         )
       }
 

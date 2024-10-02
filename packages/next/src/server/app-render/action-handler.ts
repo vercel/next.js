@@ -20,7 +20,7 @@ import {
   type RedirectType,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
   filterReqHeaders,
@@ -113,7 +113,7 @@ async function addRevalidationHeader(
     staticGenerationStore,
     requestStore,
   }: {
-    staticGenerationStore: StaticGenerationStore
+    staticGenerationStore: WorkStore
     requestStore: RequestStore
   }
 ) {
@@ -160,7 +160,7 @@ async function createForwardedActionResponse(
   host: Host,
   workerPathname: string,
   basePath: string,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ) {
   if (!host) {
     throw new Error(
@@ -281,7 +281,7 @@ async function createRedirectRenderResult(
   redirectUrl: string,
   redirectType: RedirectType,
   basePath: string,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ) {
   res.setHeader('x-action-redirect', `${redirectUrl};${redirectType}`)
 
@@ -426,7 +426,7 @@ export async function handleAction({
   ComponentMod: AppPageModule
   serverModuleMap: ServerModuleMap
   generateFlight: GenerateFlight
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
   requestStore: RequestStore
   serverActions?: ServerActionsConfig
   ctx: AppRenderContext

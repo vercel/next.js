@@ -1,4 +1,4 @@
-import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { FallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -49,14 +49,14 @@ export type UnsafeUnwrappedParams<P> =
 
 export function createPrerenderParamsFromClient(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ) {
   return createPrerenderParams(underlyingParams, staticGenerationStore)
 }
 
 export function createRenderParamsFromClient(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ) {
   return createRenderParams(underlyingParams, staticGenerationStore)
 }
@@ -68,7 +68,7 @@ export const createServerParamsForMetadata = createServerParamsForServerSegment
 // routes always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerParamsForRoute(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ) {
   if (staticGenerationStore.isStaticGeneration) {
     return createPrerenderParams(underlyingParams, staticGenerationStore)
@@ -79,7 +79,7 @@ export function createServerParamsForRoute(
 
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ): Promise<Params> {
   if (staticGenerationStore.isStaticGeneration) {
     return createPrerenderParams(underlyingParams, staticGenerationStore)
@@ -90,7 +90,7 @@ export function createServerParamsForServerSegment(
 
 export function createPrerenderParamsForClientSegment(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ): Promise<Params> {
   const prerenderStore = prerenderAsyncStorage.getStore()
   if (prerenderStore) {
@@ -116,7 +116,7 @@ export function createPrerenderParamsForClientSegment(
 
 function createPrerenderParams(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ): Promise<Params> {
   const fallbackParams = staticGenerationStore.fallbackRouteParams
   if (fallbackParams) {
@@ -159,7 +159,7 @@ function createPrerenderParams(
 
 function createRenderParams(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  staticGenerationStore: WorkStore
 ): Promise<Params> {
   if (
     process.env.NODE_ENV === 'development' &&
@@ -249,7 +249,7 @@ function makeAbortingExoticParams(
 function makeErroringExoticParams(
   underlyingParams: Params,
   fallbackParams: FallbackRouteParams,
-  staticGenerationStore: StaticGenerationStore,
+  staticGenerationStore: WorkStore,
   prerenderStore: undefined | PrerenderStore
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
@@ -414,7 +414,7 @@ function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
 
 function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   underlyingParams: Params,
-  store: StaticGenerationStore
+  store: WorkStore
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {

@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
-import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { createPatchedFetcher } from './patch-fetch'
 import type { PrerenderStore } from '../app-render/prerender-async-storage.external'
@@ -22,8 +22,7 @@ describe('createPatchedFetcher', () => {
 
     mockFetch.mockResolvedValue(new Response(readableStream))
 
-    const staticGenerationAsyncStorage =
-      new AsyncLocalStorage<StaticGenerationStore>()
+    const staticGenerationAsyncStorage = new AsyncLocalStorage<WorkStore>()
 
     const prerenderAsyncStorage = new AsyncLocalStorage<PrerenderStore>()
 
@@ -47,15 +46,15 @@ describe('createPatchedFetcher', () => {
       lock: jest.fn(() => resolveIncrementalCacheSet),
     } as unknown as IncrementalCache
 
-    // We only need to provide a few of the StaticGenerationStore properties.
-    const staticGenerationStore: Partial<StaticGenerationStore> = {
+    // We only need to provide a few of the WorkStore properties.
+    const staticGenerationStore: Partial<WorkStore> = {
       page: '/',
       route: '/',
       incrementalCache,
     }
 
     await staticGenerationAsyncStorage.run(
-      staticGenerationStore as StaticGenerationStore,
+      staticGenerationStore as WorkStore,
       async () => {
         const response = await patchedFetch('https://example.com', {
           cache: 'force-cache',

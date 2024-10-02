@@ -1,5 +1,5 @@
 import type { WithStore } from './with-store'
-import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOptsPartial } from '../app-render/types'
@@ -47,7 +47,7 @@ export type StaticGenerationContext = {
      * @deprecated should only be used as a temporary workaround
      */
     // TODO: remove this when we resolve accessing the store outside the execution context
-    store?: StaticGenerationStore
+    store?: WorkStore
   } & Pick<
     // Pull some properties from RenderOptsPartial so that the docs are also
     // mirrored.
@@ -62,11 +62,10 @@ export type StaticGenerationContext = {
     Partial<RequestLifecycleOpts>
 }
 
-export const withStaticGenerationStore: WithStore<
-  StaticGenerationStore,
-  StaticGenerationContext
-> = <Result>(
-  storage: AsyncLocalStorage<StaticGenerationStore>,
+export const withWorkStore: WithStore<WorkStore, StaticGenerationContext> = <
+  Result,
+>(
+  storage: AsyncLocalStorage<WorkStore>,
   {
     page,
     fallbackRouteParams,
@@ -74,7 +73,7 @@ export const withStaticGenerationStore: WithStore<
     requestEndedState,
     isPrefetchRequest,
   }: StaticGenerationContext,
-  callback: (store: StaticGenerationStore) => Result
+  callback: (store: WorkStore) => Result
 ): Result => {
   /**
    * Rules of Static & Dynamic HTML:
@@ -98,7 +97,7 @@ export const withStaticGenerationStore: WithStore<
     !renderOpts.isDraftMode &&
     !renderOpts.isServerAction
 
-  const store: StaticGenerationStore = {
+  const store: WorkStore = {
     isStaticGeneration,
     page,
     fallbackRouteParams,
