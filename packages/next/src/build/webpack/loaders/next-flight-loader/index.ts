@@ -123,7 +123,6 @@ export default function transformSource(
         // mangled, in production builds, so that exports of client reference
         // modules can be resolved by React using the metadata from the client
         // manifest.
-        console.log('XXX', resourceKey)
         this._compilation!.moduleGraph.getExportsInfo(
           module
         ).setUsedInUnknownWay(
