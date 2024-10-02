@@ -1,8 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Result};
 use futures::Future;
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
     ast::{CallExpr, Callee, Expr, Ident, Lit},
@@ -103,11 +103,18 @@ pub(crate) async fn collect_evaluated_chunk_group(
     .await
 }
 
-pub struct VisitedDynamicImportModules(VisitedNodes<NextDynamicVisitEntry>);
+#[turbo_tasks::value]
+pub struct NextDynamicImportsResult(
+    IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
+    VisitedDynamicImportModules,
+);
+
+#[turbo_tasks::value]
+pub struct VisitedDynamicImportModules(HashSet<NextDynamicVisitEntry>);
 
 impl Default for VisitedDynamicImportModules {
     fn default() -> Self {
-        Self(VisitedNodes(Default::default()))
+        Self(Default::default())
     }
 }
 
@@ -133,15 +140,12 @@ impl Default for VisitedDynamicImportModules {
 ///    - Loadable runtime [injects preload fn](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/shared/lib/loadable.shared-runtime.tsx#L281)
 ///      to wait until all the dynamic components are being loaded, this ensures hydration mismatch
 ///      won't occur
-#[tracing::instrument(level = Level::INFO, name = "collecting next/dynamic imports", skip_all)]
+#[turbo_tasks::function]
 pub(crate) async fn collect_next_dynamic_imports(
-    server_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    server_entries: Vec<Vc<Box<dyn Module>>>,
     client_asset_context: Vc<Box<dyn AssetContext>>,
-    visited_modules: VisitedDynamicImportModules,
-) -> Result<(
-    IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
-    VisitedDynamicImportModules,
-)> {
+    visited_modules: Vc<VisitedDynamicImportModules>,
+) -> Result<Vc<NextDynamicImportsResult>> {
     let server_entries = server_entries.into_iter().collect::<Vec<_>>();
     println!(
         "collect_next_dynamic_imports {:?}",
@@ -159,7 +163,7 @@ pub(crate) async fn collect_next_dynamic_imports(
     // and Module<B> is the actual resolved Module)
     let (result, visited_modules) = NonDeterministic::new()
         // TODO: use param
-        .skip_duplicates_with_visited_nodes(visited_modules.0)
+        .skip_duplicates_with_visited_nodes(VisitedNodes(visited_modules.await?.0.clone()))
         .visit(
             server_entries
                 .into_iter()
@@ -200,10 +204,11 @@ pub(crate) async fn collect_next_dynamic_imports(
             .append(&mut dynamic_imports.clone())
     }
 
-    Ok((
+    Ok(NextDynamicImportsResult(
         import_mappings,
-        VisitedDynamicImportModules(visited_modules),
-    ))
+        VisitedDynamicImportModules(visited_modules.0),
+    )
+    .cell())
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, TraceRawVcs, Serialize, Deserialize)]

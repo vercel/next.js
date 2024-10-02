@@ -2,6 +2,7 @@ use std::{collections::HashSet, future::Future, pin::Pin};
 
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Stream};
+use turbo_tasks_macros::TaskInput;
 
 use super::{
     graph_store::{GraphNode, GraphStore},
@@ -10,7 +11,7 @@ use super::{
 };
 
 /// A list of modules that were already visited and should be skipped (including their subgraphs).
-#[derive(Default)]
+#[derive(Clone, Default, Debug)]
 pub struct VisitedNodes<T>(pub HashSet<T>);
 
 /// [`GraphTraversal`] is a utility type that can be used to traverse a graph of

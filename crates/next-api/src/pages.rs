@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use next_core::{
