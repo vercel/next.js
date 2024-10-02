@@ -69,7 +69,7 @@ export type ImageProps = Omit<
   lazyRoot?: string
 }
 
-export type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
+export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
   loading: LoadingValue
   width: number | undefined
   height: number | undefined
