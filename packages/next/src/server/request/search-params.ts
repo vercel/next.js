@@ -657,30 +657,42 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
   return proxiedPromise
 }
 
-function warnForSyncAccess(route: undefined | string, expression: string) {
-  const prefix = route ? ` In route ${route} a ` : 'A '
-  console.error(
-    `${prefix}searchParam property was accessed directly with ${expression}. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
-  )
-}
+const noop = () => {}
 
-function warnForEnumeration(
-  route: undefined | string,
-  missingProperties: Array<string>
-) {
-  const prefix = route ? ` In route ${route} ` : ''
-  if (missingProperties.length) {
-    const describedMissingProperties =
-      describeListOfPropertyNames(missingProperties)
-    console.error(
-      `${prefix}searchParams are being enumerated incompletely with \`{...searchParams}\`, \`Object.keys(searchParams)\`, or similar. The following properties were not copied: ${describedMissingProperties}. \`searchParams\` is now a Promise, however in the current version of Next.js direct access to the underlying searchParams object is still supported to facilitate migration to the new type. search parameter names that conflict with Promise properties cannot be accessed directly and must be accessed by first awaiting the \`searchParams\` promise.`
-    )
-  } else {
-    console.error(
-      `${prefix}searchParams are being enumerated with \`{...searchParams}\`, \`Object.keys(searchParams)\`, or similar. \`searchParams\` is now a Promise, however in the current version of Next.js direct access to the underlying searchParams object is still supported to facilitate migration to the new type. You should update your code to await \`searchParams\` before accessing its properties.`
-    )
-  }
-}
+const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : function warnForSyncAccess(route: undefined | string, expression: string) {
+      const prefix = route ? ` In route ${route} a ` : 'A '
+      console.error(
+        `${prefix}searchParam property was accessed directly with ${expression}. ` +
+          `\`searchParams\` should be awaited before accessing properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+      )
+    }
+
+const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : function warnForEnumeration(
+      route: undefined | string,
+      missingProperties: Array<string>
+    ) {
+      const prefix = route ? ` In route ${route} ` : ''
+      if (missingProperties.length) {
+        const describedMissingProperties =
+          describeListOfPropertyNames(missingProperties)
+        console.error(
+          `${prefix}searchParams are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
+            `\`searchParams\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      } else {
+        console.error(
+          `${prefix}searchParams are being enumerated. ` +
+            `\`searchParams\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      }
+    }
 
 function describeListOfPropertyNames(properties: Array<string>) {
   switch (properties.length) {

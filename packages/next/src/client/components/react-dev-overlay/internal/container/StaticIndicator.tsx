@@ -13,6 +13,7 @@ export function StaticIndicator({ dispatcher }: { dispatcher?: Dispatcher }) {
           dispatcher?.onStaticIndicator(false)
         }}
         className="nextjs-toast-hide-button"
+        aria-label="Hide static indicator"
         style={{ marginLeft: 'var(--size-gap)' }}
       >
         <CloseIcon />

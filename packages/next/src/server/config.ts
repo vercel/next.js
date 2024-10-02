@@ -327,6 +327,19 @@ function assignDefaults(
       )
     }
 
+    if (images.localPatterns) {
+      if (!Array.isArray(images.localPatterns)) {
+        throw new Error(
+          `Specified images.localPatterns should be an Array received ${typeof images.localPatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+      // static import images are automatically allowed
+      images.localPatterns.push({
+        pathname: '/_next/static/media/**',
+        search: '',
+      })
+    }
+
     if (images.remotePatterns) {
       if (!Array.isArray(images.remotePatterns)) {
         throw new Error(

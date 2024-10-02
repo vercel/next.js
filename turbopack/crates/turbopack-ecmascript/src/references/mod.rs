@@ -492,49 +492,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         return analysis.build(false).await;
     };
 
-    let compile_time_info = {
-        let compile_time_info = raw_module.compile_time_info.await?;
-        let mut free_var_references = compile_time_info.free_var_references.await?.clone_value();
-
-        let (typeof_exports, typeof_module) = if eval_context.is_esm(specified_type) {
-            ("undefined", "undefined")
-        } else {
-            ("object", "object")
-        };
-
-        free_var_references
-            .entry(vec![
-                DefineableNameSegment::Name("import".into()),
-                DefineableNameSegment::Name("meta".into()),
-                DefineableNameSegment::TypeOf,
-            ])
-            .or_insert("object".into());
-        free_var_references
-            .entry(vec![
-                DefineableNameSegment::Name("exports".into()),
-                DefineableNameSegment::TypeOf,
-            ])
-            .or_insert(typeof_exports.into());
-        free_var_references
-            .entry(vec![
-                DefineableNameSegment::Name("module".into()),
-                DefineableNameSegment::TypeOf,
-            ])
-            .or_insert(typeof_module.into());
-        free_var_references
-            .entry(vec![
-                DefineableNameSegment::Name("require".into()),
-                DefineableNameSegment::TypeOf,
-            ])
-            .or_insert("function".into());
-
-        CompileTimeInfo {
-            environment: compile_time_info.environment,
-            defines: compile_time_info.defines,
-            free_var_references: FreeVarReferences(free_var_references).cell(),
-        }
-        .cell()
-    };
+    let compile_time_info = compile_time_info_for_module_type(
+        raw_module.compile_time_info,
+        eval_context.is_esm(specified_type),
+    );
 
     let mut import_references = Vec::new();
 
@@ -1258,6 +1219,54 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             Some(TreeShakingMode::ReexportsOnly)
         ))
         .await
+}
+
+#[turbo_tasks::function]
+async fn compile_time_info_for_module_type(
+    compile_time_info: Vc<CompileTimeInfo>,
+    is_esm: bool,
+) -> Result<Vc<CompileTimeInfo>> {
+    let compile_time_info = compile_time_info.await?;
+    let free_var_references = compile_time_info.free_var_references;
+
+    let mut free_var_references = free_var_references.await?.clone_value();
+    let (typeof_exports, typeof_module) = if is_esm {
+        ("undefined", "undefined")
+    } else {
+        ("object", "object")
+    };
+    free_var_references
+        .entry(vec![
+            DefineableNameSegment::Name("import".into()),
+            DefineableNameSegment::Name("meta".into()),
+            DefineableNameSegment::TypeOf,
+        ])
+        .or_insert("object".into());
+    free_var_references
+        .entry(vec![
+            DefineableNameSegment::Name("exports".into()),
+            DefineableNameSegment::TypeOf,
+        ])
+        .or_insert(typeof_exports.into());
+    free_var_references
+        .entry(vec![
+            DefineableNameSegment::Name("module".into()),
+            DefineableNameSegment::TypeOf,
+        ])
+        .or_insert(typeof_module.into());
+    free_var_references
+        .entry(vec![
+            DefineableNameSegment::Name("require".into()),
+            DefineableNameSegment::TypeOf,
+        ])
+        .or_insert("function".into());
+
+    Ok(CompileTimeInfo {
+        environment: compile_time_info.environment,
+        defines: compile_time_info.defines,
+        free_var_references: FreeVarReferences(free_var_references).cell(),
+    }
+    .cell())
 }
 
 async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
@@ -2063,7 +2072,7 @@ async fn handle_member(
         let prop = DefineableNameSegment::Name(prop.into());
         if let Some(def_name_len) = obj.get_defineable_name_len() {
             let compile_time_info = state.compile_time_info.await?;
-            let free_var_references = compile_time_info.free_var_references.await?;
+            let free_var_references = compile_time_info.free_var_references.individual().await?;
             for (name, value) in free_var_references.iter() {
                 if name.len() != def_name_len + 1 {
                     continue;
@@ -2073,7 +2082,8 @@ async fn handle_member(
                     continue;
                 }
                 if it.eq(obj.iter_defineable_name_rev())
-                    && handle_free_var_reference(ast_path, value, span, state, analysis).await?
+                    && handle_free_var_reference(ast_path, &*value.await?, span, state, analysis)
+                        .await?
                 {
                     return Ok(());
                 }
@@ -2107,10 +2117,15 @@ async fn handle_typeof(
 ) -> Result<()> {
     if let Some(value) = arg.match_free_var_reference(
         Some(state.var_graph),
-        &*state.compile_time_info.await?.free_var_references.await?,
+        &*state
+            .compile_time_info
+            .await?
+            .free_var_references
+            .individual()
+            .await?,
         &Some(DefineableNameSegment::TypeOf),
     ) {
-        handle_free_var_reference(ast_path, value, span, state, analysis).await?;
+        handle_free_var_reference(ast_path, &*value.await?, span, state, analysis).await?;
     }
 
     Ok(())
@@ -2125,7 +2140,7 @@ async fn handle_free_var(
 ) -> Result<()> {
     if let Some(def_name_len) = var.get_defineable_name_len() {
         let compile_time_info = state.compile_time_info.await?;
-        let free_var_references = compile_time_info.free_var_references.await?;
+        let free_var_references = compile_time_info.free_var_references.individual().await?;
         for (name, value) in free_var_references.iter() {
             if name.len() != def_name_len {
                 continue;
@@ -2135,7 +2150,7 @@ async fn handle_free_var(
                 .iter_defineable_name_rev()
                 .eq(name.iter().map(Cow::Borrowed).rev())
             {
-                handle_free_var_reference(ast_path, value, span, state, analysis).await?;
+                handle_free_var_reference(ast_path, &*value.await?, span, state, analysis).await?;
                 return Ok(());
             }
         }
@@ -2448,15 +2463,15 @@ async fn value_visitor_inner(
         if let JsValue::TypeOf(..) = v {
             if let Some(value) = v.match_free_var_reference(
                 Some(var_graph),
-                &*compile_time_info.free_var_references.await?,
+                &*compile_time_info.free_var_references.individual().await?,
                 &None,
             ) {
-                return Ok((value.into(), true));
+                return Ok(((&*value.await?).into(), true));
             }
         }
 
-        if let Some(value) = v.match_define(&*compile_time_info.defines.await?) {
-            return Ok((value.into(), true));
+        if let Some(value) = v.match_define(&*compile_time_info.defines.individual().await?) {
+            return Ok(((&*value.await?).into(), true));
         }
     }
     let value = match v {

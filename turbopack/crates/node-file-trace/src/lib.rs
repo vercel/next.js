@@ -190,7 +190,7 @@ impl Args {
 async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
     let fs = DiskFileSystem::new(name.into(), root.into(), vec![]);
     if watch {
-        fs.await?.start_watching()?;
+        fs.await?.start_watching(None)?;
     } else {
         fs.await?.invalidate_with_reason();
     }

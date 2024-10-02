@@ -223,6 +223,8 @@ export type InitialRSCPayload = {
   G: React.ComponentType<any>
   /** postponed */
   s: boolean
+  /** prerendered */
+  S: boolean
 }
 
 // Response from `createFromFetch` for normal rendering
@@ -231,6 +233,8 @@ export type NavigationFlightResponse = {
   b: string
   /** flightData */
   f: FlightData
+  /** prerendered */
+  S: boolean
 }
 
 // Response from `createFromFetch` for server actions. Action's flight data can be null

@@ -200,7 +200,9 @@ describe('next.rs api', () => {
       rootPath: process.env.NEXT_SKIP_ISOLATE
         ? path.resolve(__dirname, '../../..')
         : next.testDir,
-      watch: true,
+      watch: {
+        enable: true,
+      },
       dev: true,
       defineEnv: createDefineEnv({
         isTurbopack: true,

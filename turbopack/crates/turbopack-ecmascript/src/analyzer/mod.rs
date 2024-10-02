@@ -1903,12 +1903,12 @@ impl JsValue {
     ///
     /// Optionally also prefixes `self` with `prefix`, e.g. to be able to match `typeof foo` if
     /// `self` is just `foo`.
-    pub fn match_free_var_reference<'a>(
+    pub fn match_free_var_reference<'a, T>(
         &self,
         var_graph: Option<&VarGraph>,
-        free_var_references: &'a IndexMap<Vec<DefineableNameSegment>, FreeVarReference>,
+        free_var_references: &'a IndexMap<Vec<DefineableNameSegment>, T>,
         prefix_self: &Option<DefineableNameSegment>,
-    ) -> Option<&'a FreeVarReference> {
+    ) -> Option<&'a T> {
         if let Some(def_name_len) = self.get_defineable_name_len() {
             for (name, value) in free_var_references.iter() {
                 if name.len() != def_name_len + (prefix_self.is_some() as usize) {
@@ -1946,10 +1946,10 @@ impl JsValue {
 
     /// Returns any matching defined replacement that matches this value. Optionally also prefixes
     /// `self` with `prefix`, e.g. to be able to match `typeof foo` if `self` is just `foo`.
-    pub fn match_define<'a>(
+    pub fn match_define<'a, T>(
         &self,
-        defines: &'a IndexMap<Vec<DefineableNameSegment>, CompileTimeDefineValue>,
-    ) -> Option<&'a CompileTimeDefineValue> {
+        defines: &'a IndexMap<Vec<DefineableNameSegment>, T>,
+    ) -> Option<&'a T> {
         if let Some(def_name_len) = self.get_defineable_name_len() {
             for (name, value) in defines.iter() {
                 if name.len() != def_name_len {
