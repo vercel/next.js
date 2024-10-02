@@ -13,14 +13,12 @@ where
 {
     Base(dashmap::mapref::one::RefMut<'a, K, V, S>),
     Simple {
-        #[allow(dead_code)]
-        guard: RwLockWriteGuard<'a, HashMap<K, SharedValue<V>, S>>,
+        _guard: RwLockWriteGuard<'a, HashMap<K, SharedValue<V>, S>>,
         key: *const K,
         value: *mut V,
     },
     Shared {
-        #[allow(dead_code)]
-        guard: Arc<RwLockWriteGuard<'a, HashMap<K, SharedValue<V>, S>>>,
+        _guard: Arc<RwLockWriteGuard<'a, HashMap<K, SharedValue<V>, S>>>,
         key: *const K,
         value: *mut V,
     },
@@ -125,12 +123,12 @@ where
         let guard = Arc::new(guard);
         (
             RefMut::Shared {
-                guard: guard.clone(),
+                _guard: guard.clone(),
                 key: key1_ptr,
                 value: value1_ptr,
             },
             RefMut::Shared {
-                guard,
+                _guard: guard,
                 key: key2_ptr,
                 value: value2_ptr,
             },
@@ -164,12 +162,12 @@ where
         let value2 = e2.1.get_mut() as *mut V;
         (
             RefMut::Simple {
-                guard: guard1,
+                _guard: guard1,
                 key: key1,
                 value: value1,
             },
             RefMut::Simple {
-                guard: guard2,
+                _guard: guard2,
                 key: key2,
                 value: value2,
             },

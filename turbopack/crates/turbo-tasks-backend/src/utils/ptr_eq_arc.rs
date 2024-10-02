@@ -19,7 +19,7 @@ impl<T> From<Arc<T>> for PtrEqArc<T> {
 }
 
 impl<T> Deref for PtrEqArc<T> {
-    type Target = T;
+    type Target = Arc<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
