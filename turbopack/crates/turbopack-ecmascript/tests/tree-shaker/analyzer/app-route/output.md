@@ -411,15 +411,15 @@ graph TD
         "patchFetch",
     ): 17,
     Export(
-        "workAsyncStorage",
-    ): 15,
-    Export(
         "requestAsyncStorage",
     ): 18,
     Export(
         "routeModule",
     ): 12,
     Exports: 19,
+    Export(
+        "workAsyncStorage",
+    ): 15,
     Export(
         "originalPathname",
     ): 1,
@@ -752,15 +752,15 @@ import "__TURBOPACK_PART__" assert {
         "serverHooks",
     ): 15,
     Export(
-        "workAsyncStorage",
-    ): 16,
-    Export(
         "requestAsyncStorage",
     ): 17,
     Export(
         "routeModule",
     ): 11,
     Exports: 19,
+    Export(
+        "workAsyncStorage",
+    ): 16,
     Export(
         "originalPathname",
     ): 1,
