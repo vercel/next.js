@@ -1301,6 +1301,9 @@ export async function buildAppStaticPaths({
       // We're discovering the parameters here, so we don't have any unknown
       // ones.
       fallbackRouteParams: null,
+      // this relates to render so we shouldn't
+      // allow revalidate to be called here
+      isRender: true,
       renderOpts: {
         incrementalCache,
         supportsDynamicResponse: true,

@@ -1164,17 +1164,36 @@ async function renderToHTMLOrFlightImpl(
     let formState: null | any = null
     if (isActionRequest) {
       // For action requests, we handle them differently with a special render result.
-      const actionRequestResult = await handleAction({
-        req,
-        res,
-        ComponentMod,
-        serverModuleMap,
-        generateFlight: generateDynamicFlightRenderResult,
-        staticGenerationStore,
-        requestStore,
-        serverActions,
-        ctx,
-      })
+      const actionRequestResult =
+        await await ComponentMod.staticGenerationAsyncStorage.run(
+          {
+            ...staticGenerationStore,
+            // override isRender when handling actions
+            // if the action renders this should create
+            // a new static context where it sets back to true
+            isRender: false,
+          },
+          () => {
+            const currentStaticGenerationStore =
+              ComponentMod.staticGenerationAsyncStorage.getStore()
+
+            if (!currentStaticGenerationStore) {
+              throw new Error('Invariant missing static generation store')
+            }
+
+            return handleAction({
+              req,
+              res,
+              ComponentMod,
+              serverModuleMap,
+              generateFlight: generateDynamicFlightRenderResult,
+              staticGenerationStore: currentStaticGenerationStore,
+              requestStore,
+              serverActions,
+              ctx,
+            })
+          }
+        )
 
       if (actionRequestResult) {
         if (actionRequestResult.type === 'not-found') {
@@ -1309,6 +1328,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
           fallbackRouteParams,
           renderOpts,
           requestEndedState,
+          isRender: true,
           isPrefetchRequest: Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER]),
         },
         (staticGenerationStore) =>

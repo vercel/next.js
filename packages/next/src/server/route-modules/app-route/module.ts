@@ -297,6 +297,7 @@ export class AppRouteRouteModule extends RouteModule<
       fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
+      isRender: false,
     }
 
     // Add the fetchCache option to the renderOpts.

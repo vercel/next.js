@@ -63,6 +63,8 @@ export interface StaticGenerationStore {
   requestEndedState?: { ended?: boolean }
 
   buildId: string
+
+  isRender?: boolean
 }
 
 export type StaticGenerationAsyncStorage =

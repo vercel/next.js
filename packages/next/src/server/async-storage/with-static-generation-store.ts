@@ -23,6 +23,11 @@ export type StaticGenerationContext = {
 
   requestEndedState?: { ended?: boolean }
   isPrefetchRequest?: boolean
+  /**
+   * whether this is wrapping a react render
+   * false for server actions and route handlers
+   */
+  isRender?: boolean
   renderOpts: {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
@@ -73,6 +78,7 @@ export const withStaticGenerationStore: WithStore<
     renderOpts,
     requestEndedState,
     isPrefetchRequest,
+    isRender,
   }: StaticGenerationContext,
   callback: (store: StaticGenerationStore) => Result
 ): Result => {
@@ -117,6 +123,7 @@ export const withStaticGenerationStore: WithStore<
     requestEndedState,
     isPrefetchRequest,
     buildId: renderOpts.buildId,
+    isRender,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context
