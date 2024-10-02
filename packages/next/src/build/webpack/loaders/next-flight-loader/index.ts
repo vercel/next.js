@@ -14,6 +14,7 @@ import type {
   javascript,
   LoaderContext,
 } from 'next/dist/compiled/webpack/webpack'
+import picomatch from 'next/dist/compiled/picomatch'
 
 export interface NextFlightLoaderOptions {
   isEdgeServer: boolean
@@ -25,6 +26,7 @@ const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 // For edge runtime it will be aliased to esm version by webpack
 const MODULE_PROXY_PATH =
   'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
+const isSharedRuntime = picomatch('**/next/dist/**/*.shared-runtime.js')
 
 export function getAssumedSourceType(
   mod: webpack.Module,
@@ -113,16 +115,17 @@ export default function transformSource(
         return
       }
 
-      const runtime = isEdgeServer
-        ? EDGE_RUNTIME_WEBPACK
-        : DEFAULT_RUNTIME_WEBPACK
-
-      // Prevent module concatenation, and prevent export names from being mangled,
-      // in production builds, so that exports of client reference modules can be
-      // resolved by React using the metadata from the client manifest.
-      this._compilation!.moduleGraph.getExportsInfo(module).setUsedInUnknownWay(
-        runtime
-      )
+      if (!isSharedRuntime(resourceKey)) {
+        // Prevent module concatenation, and prevent export names from being
+        // mangled, in production builds, so that exports of client reference
+        // modules can be resolved by React using the metadata from the client
+        // manifest.
+        this._compilation!.moduleGraph.getExportsInfo(
+          module
+        ).setUsedInUnknownWay(
+          isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
+        )
+      }
 
       // `proxy` is the module proxy that we treat the module as a client boundary.
       // For ESM, we access the property of the module proxy directly for each export.
