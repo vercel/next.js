@@ -1,16 +1,16 @@
 import type { WithStore } from './with-store'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOptsPartial } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
-import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import type { FallbackRouteParams } from '../request/fallback-params'
 import type { AppSegmentConfig } from '../../build/app-segments/app-segment-config'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
-export type StaticGenerationContext = {
+export type WorkStoreContext = {
   /**
    * The page that is being rendered. This relates to the path to the page file.
    */
@@ -47,7 +47,7 @@ export type StaticGenerationContext = {
      * @deprecated should only be used as a temporary workaround
      */
     // TODO: remove this when we resolve accessing the store outside the execution context
-    store?: StaticGenerationStore
+    store?: WorkStore
   } & Pick<
     // Pull some properties from RenderOptsPartial so that the docs are also
     // mirrored.
@@ -62,19 +62,16 @@ export type StaticGenerationContext = {
     Partial<RequestLifecycleOpts>
 }
 
-export const withStaticGenerationStore: WithStore<
-  StaticGenerationStore,
-  StaticGenerationContext
-> = <Result>(
-  storage: AsyncLocalStorage<StaticGenerationStore>,
+export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
+  storage: AsyncLocalStorage<WorkStore>,
   {
     page,
     fallbackRouteParams,
     renderOpts,
     requestEndedState,
     isPrefetchRequest,
-  }: StaticGenerationContext,
-  callback: (store: StaticGenerationStore) => Result
+  }: WorkStoreContext,
+  callback: (store: WorkStore) => Result
 ): Result => {
   /**
    * Rules of Static & Dynamic HTML:
@@ -98,7 +95,7 @@ export const withStaticGenerationStore: WithStore<
     !renderOpts.isDraftMode &&
     !renderOpts.isServerAction
 
-  const store: StaticGenerationStore = {
+  const store: WorkStore = {
     isStaticGeneration,
     page,
     fallbackRouteParams,

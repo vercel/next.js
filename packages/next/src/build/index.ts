@@ -501,6 +501,8 @@ async function writeImagesManifest(
   const images = { ...config.images }
   const { deviceSizes, imageSizes } = images
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+
+  // By default, remotePatterns will allow no remote images ([])
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
     // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol,
@@ -509,11 +511,15 @@ async function writeImagesManifest(
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
     search: p.search,
   }))
-  images.localPatterns = (config?.images?.localPatterns || []).map((p) => ({
-    // Modifying the manifest should also modify matchLocalPattern()
-    pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
-    search: p.search,
-  }))
+
+  // By default, localPatterns will allow all local images (undefined)
+  if (config?.images?.localPatterns) {
+    images.localPatterns = config.images.localPatterns.map((p) => ({
+      // Modifying the manifest should also modify matchLocalPattern()
+      pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+      search: p.search,
+    }))
+  }
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
     version: 1,

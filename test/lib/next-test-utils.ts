@@ -1003,6 +1003,10 @@ export function getBuildManifest(dir: string) {
   return readJson(path.join(dir, '.next/build-manifest.json'))
 }
 
+export function getImagesManifest(dir: string) {
+  return readJson(path.join(dir, '.next/images-manifest.json'))
+}
+
 export function getPageFilesFromBuildManifest(dir: string, page: string) {
   const buildManifest = getBuildManifest(dir)
   const pageFiles = buildManifest.pages[page]

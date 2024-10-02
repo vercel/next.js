@@ -20,7 +20,7 @@
  * read that data outside the cache and pass it in as an argument to the cached function.
  */
 
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
@@ -32,7 +32,7 @@ import {
   prerenderAsyncStorage,
   type PrerenderStore,
 } from './prerender-async-storage.external'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
@@ -87,7 +87,7 @@ export function getFirstDynamicReason(
  * it during a normal prerender will cause the entire prerender to abort
  */
 export function markCurrentScopeAsDynamic(
-  store: StaticGenerationStore,
+  store: WorkStore,
   expression: string
 ): void {
   // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
@@ -152,7 +152,7 @@ export function markCurrentScopeAsDynamic(
  * @param expression The expression that was accessed dynamically
  */
 export function trackFallbackParamAccessed(
-  store: StaticGenerationStore,
+  store: WorkStore,
   expression: string
 ): void {
   const prerenderStore = prerenderAsyncStorage.getStore()
@@ -171,7 +171,7 @@ export function trackFallbackParamAccessed(
  * Also during a PPR Prerender we postpone
  */
 export function trackDynamicDataAccessed(
-  store: StaticGenerationStore,
+  store: WorkStore,
   expression: string
 ): void {
   if (store.isUnstableCacheCallback) {
@@ -229,7 +229,7 @@ export function trackDynamicDataAccessed(
  */
 export function throwToInterruptStaticGeneration(
   expression: string,
-  store: StaticGenerationStore
+  store: WorkStore
 ): never {
   store.revalidate = 0
 
@@ -250,7 +250,7 @@ export function throwToInterruptStaticGeneration(
  *
  * @internal
  */
-export function trackDynamicDataInDynamicRender(store: StaticGenerationStore) {
+export function trackDynamicDataInDynamicRender(store: WorkStore) {
   store.revalidate = 0
 }
 
@@ -523,13 +523,13 @@ export function annotateDynamicAccess(
 
 export function useDynamicRouteParams(expression: string) {
   if (typeof window === 'undefined') {
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+    const workStore = workAsyncStorage.getStore()
 
     if (
-      staticGenerationStore &&
-      staticGenerationStore.isStaticGeneration &&
-      staticGenerationStore.fallbackRouteParams &&
-      staticGenerationStore.fallbackRouteParams.size > 0
+      workStore &&
+      workStore.isStaticGeneration &&
+      workStore.fallbackRouteParams &&
+      workStore.fallbackRouteParams.size > 0
     ) {
       // There are fallback route params, we should track these as dynamic
       // accesses.
@@ -544,14 +544,14 @@ export function useDynamicRouteParams(expression: string) {
         } else {
           // We're prerendering with PPR
           postponeWithTracking(
-            staticGenerationStore.route,
+            workStore.route,
             expression,
             prerenderStore.dynamicTracking
           )
         }
       } else {
         // We're prerendering in legacy mode
-        throwToInterruptStaticGeneration(expression, staticGenerationStore)
+        throwToInterruptStaticGeneration(expression, workStore)
       }
     }
   }

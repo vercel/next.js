@@ -4,7 +4,7 @@ import {
   RequestCookiesAdapter,
 } from '../../server/web/spec-extension/adapters/request-cookies'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,
@@ -51,24 +51,24 @@ export type UnsafeUnwrappedCookies = ReadonlyRequestCookies
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
   const requestStore = getExpectedRequestStore(callingExpression)
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
   const prerenderStore = prerenderAsyncStorage.getStore()
 
-  if (staticGenerationStore) {
-    if (staticGenerationStore.forceStatic) {
+  if (workStore) {
+    if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
       // cookies object without tracking
       const underlyingCookies = createEmptyCookies()
       return makeUntrackedExoticCookies(underlyingCookies)
     }
 
-    if (staticGenerationStore.isUnstableCacheCallback) {
+    if (workStore.isUnstableCacheCallback) {
       throw new Error(
-        `Route ${staticGenerationStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
-    } else if (staticGenerationStore.dynamicShouldError) {
+    } else if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
-        `Route ${staticGenerationStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
 
@@ -83,7 +83,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
         // We don't track dynamic access here because access will be tracked when you access
         // one of the properties of the cookies object.
         return makeDynamicallyTrackedExoticCookies(
-          staticGenerationStore.route,
+          workStore.route,
           prerenderStore
         )
       } else {
@@ -91,20 +91,20 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
         // to keep continuity with how cookies has worked in PPR without dynamicIO.
         // TODO consider switching the semantic to throw on property access instead
         postponeWithTracking(
-          staticGenerationStore.route,
+          workStore.route,
           callingExpression,
           prerenderStore.dynamicTracking
         )
       }
-    } else if (staticGenerationStore.isStaticGeneration) {
+    } else if (workStore.isStaticGeneration) {
       // We are in a legacy static generation mode while prerendering
       // We track dynamic access here so we don't need to wrap the cookies in
       // individual property access tracking.
-      throwToInterruptStaticGeneration(callingExpression, staticGenerationStore)
+      throwToInterruptStaticGeneration(callingExpression, workStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using cookies inside a cache context
-    trackDynamicDataInDynamicRender(staticGenerationStore)
+    trackDynamicDataInDynamicRender(workStore)
   }
 
   // cookies is being called in a dynamic context
@@ -126,13 +126,10 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     underlyingCookies = requestStore.cookies
   }
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    !staticGenerationStore?.isPrefetchRequest
-  ) {
+  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     return makeUntrackedExoticCookiesWithDevWarnings(
       underlyingCookies,
-      staticGenerationStore?.route
+      workStore?.route
     )
   } else {
     return makeUntrackedExoticCookies(underlyingCookies)
