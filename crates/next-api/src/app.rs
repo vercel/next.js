@@ -38,8 +38,7 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebug, trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, Value, ValueToString,
-    Vc,
+    trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -909,22 +908,17 @@ impl AppEndpoint {
 
                 let client_dynamic_imports = {
                     let mut client_dynamic_imports = IndexMap::new();
-                    let mut visited_modules = VisitedDynamicImportModules::default();
+                    let mut visited_modules = VisitedDynamicImportModules::empty();
 
                     for refs in client_references_by_server_comp.into_values() {
-                        let (current_client_dynamic_imports, current_visited_modules) =
-                            collect_next_dynamic_imports(
-                                refs,
-                                Vc::upcast(this.app_project.client_module_context()),
-                                visited_modules,
-                            )
-                            .instrument(tracing::span!(
-                                tracing::Level::DEBUG,
-                                "collect_next_dynamic_imports A"
-                            ))
-                            .await?;
-                        client_dynamic_imports.extend(current_client_dynamic_imports);
-                        visited_modules = current_visited_modules;
+                        let result = collect_next_dynamic_imports(
+                            refs,
+                            Vc::upcast(this.app_project.client_module_context()),
+                            visited_modules,
+                        )
+                        .await?;
+                        client_dynamic_imports.extend(result.client_dynamic_imports.clone());
+                        visited_modules = result.visited_modules;
                     }
 
                     client_dynamic_imports
@@ -1232,17 +1226,14 @@ impl AppEndpoint {
                 server_assets.push(app_paths_manifest_output);
 
                 // create react-loadable-manifest for next/dynamic
-                let (mut dynamic_import_modules, mut visited_modules) =
-                    collect_next_dynamic_imports(
-                        [Vc::upcast(app_entry.rsc_entry)],
-                        Vc::upcast(this.app_project.client_module_context()),
-                        VisitedDynamicImportModules::default(),
-                    )
-                    .instrument(tracing::span!(
-                        tracing::Level::DEBUG,
-                        "collect_next_dynamic_imports B"
-                    ))
-                    .await?;
+                let mut dynamic_import_modules = collect_next_dynamic_imports(
+                    vec![Vc::upcast(app_entry.rsc_entry)],
+                    Vc::upcast(this.app_project.client_module_context()),
+                    VisitedDynamicImportModules::empty(),
+                )
+                .await?
+                .client_dynamic_imports
+                .clone();
                 dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     Vc::upcast(client_chunking_context),
@@ -1390,17 +1381,14 @@ impl AppEndpoint {
 
                 // create react-loadable-manifest for next/dynamic
                 let availability_info = Value::new(AvailabilityInfo::Root);
-                let (mut dynamic_import_modules, mut visited_modules) =
-                    collect_next_dynamic_imports(
-                        [Vc::upcast(app_entry.rsc_entry)],
-                        Vc::upcast(this.app_project.client_module_context()),
-                        VisitedDynamicImportModules::default(),
-                    )
-                    .instrument(tracing::span!(
-                        tracing::Level::DEBUG,
-                        "collect_next_dynamic_imports C"
-                    ))
-                    .await?;
+                let mut dynamic_import_modules = collect_next_dynamic_imports(
+                    vec![Vc::upcast(app_entry.rsc_entry)],
+                    Vc::upcast(this.app_project.client_module_context()),
+                    VisitedDynamicImportModules::empty(),
+                )
+                .await?
+                .client_dynamic_imports
+                .clone();
                 dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                 let dynamic_import_entries = collect_chunk_group(
                     Vc::upcast(client_chunking_context),

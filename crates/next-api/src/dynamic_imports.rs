@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::{bail, Result};
 use futures::Future;
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
     ast::{CallExpr, Callee, Expr, Ident, Lit},
@@ -103,18 +103,20 @@ pub(crate) async fn collect_evaluated_chunk_group(
     .await
 }
 
-#[turbo_tasks::value]
-pub struct NextDynamicImportsResult(
-    IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
-    VisitedDynamicImportModules,
-);
+#[turbo_tasks::value(shared)]
+pub struct NextDynamicImportsResult {
+    pub client_dynamic_imports: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
+    pub visited_modules: Vc<VisitedDynamicImportModules>,
+}
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub struct VisitedDynamicImportModules(HashSet<NextDynamicVisitEntry>);
 
-impl Default for VisitedDynamicImportModules {
-    fn default() -> Self {
-        Self(Default::default())
+#[turbo_tasks::value_impl]
+impl VisitedDynamicImportModules {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        VisitedDynamicImportModules(Default::default()).cell()
     }
 }
 
@@ -204,10 +206,10 @@ pub(crate) async fn collect_next_dynamic_imports(
             .append(&mut dynamic_imports.clone())
     }
 
-    Ok(NextDynamicImportsResult(
-        import_mappings,
-        VisitedDynamicImportModules(visited_modules.0),
-    )
+    Ok(NextDynamicImportsResult {
+        client_dynamic_imports: import_mappings,
+        visited_modules: VisitedDynamicImportModules(visited_modules.0).cell(),
+    }
     .cell())
 }
 

@@ -2,7 +2,6 @@ use std::{collections::HashSet, future::Future, pin::Pin};
 
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Stream};
-use turbo_tasks_macros::TaskInput;
 
 use super::{
     graph_store::{GraphNode, GraphStore},

@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use next_core::{
@@ -827,12 +825,14 @@ impl PageEndpoint {
                     Value::new(AvailabilityInfo::Root),
                 );
 
-                let (dynamic_import_modules, visited_modules) = collect_next_dynamic_imports(
-                    [Vc::upcast(ssr_module)],
+                let dynamic_import_modules = collect_next_dynamic_imports(
+                    vec![Vc::upcast(ssr_module)],
                     this.pages_project.client_module_context(),
-                    VisitedDynamicImportModules::default(),
+                    VisitedDynamicImportModules::empty(),
                 )
-                .await?;
+                .await?
+                .client_dynamic_imports
+                .clone();
                 let client_chunking_context =
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_evaluated_chunk_group(
@@ -867,17 +867,19 @@ impl PageEndpoint {
                     .await?;
 
                 let availability_info = Value::new(AvailabilityInfo::Root);
-                let (dynamic_import_modules, visited_modules) = collect_next_dynamic_imports(
-                    [Vc::upcast(ssr_module)],
+                let dynamic_import_modules = collect_next_dynamic_imports(
+                    vec![Vc::upcast(ssr_module)],
                     this.pages_project.client_module_context(),
-                    VisitedDynamicImportModules::default(),
+                    VisitedDynamicImportModules::empty(),
                 )
-                .await?;
+                .await?
+                .client_dynamic_imports
+                .clone();
                 let client_chunking_context =
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_chunk_group(
                     Vc::upcast(client_chunking_context),
-                    dynamic_import_modules,
+                    dynamic_import_modules.clone(),
                     availability_info,
                 )
                 .await?;
