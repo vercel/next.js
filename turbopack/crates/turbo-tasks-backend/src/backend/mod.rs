@@ -50,7 +50,7 @@ use crate::{
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
 };
 
-const SNAPSHOT_REQUESTED_BIT: usize = 1 << 63;
+const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 
 struct SnapshotRequest {
     snapshot_requested: bool,
