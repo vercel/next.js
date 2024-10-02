@@ -7,8 +7,8 @@ use super::{
     ExecuteContext, Operation,
 };
 use crate::{
+    backend::storage::get,
     data::{CachedDataItem, CachedDataItemKey},
-    get,
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]

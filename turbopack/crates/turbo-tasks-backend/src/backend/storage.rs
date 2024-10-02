@@ -16,16 +16,17 @@ use crate::utils::dash_map_multi::{get_multiple_mut, RefMut};
 
 const INDEX_THRESHOLD: usize = 1024;
 
+type IndexedMap<T> = AutoMap<
+    <<T as KeyValuePair>::Key as Indexed>::Index,
+    AutoMap<<T as KeyValuePair>::Key, <T as KeyValuePair>::Value>,
+>;
+
 pub enum InnerStorage<T: KeyValuePair>
 where
     T::Key: Indexed,
 {
-    Plain {
-        map: AutoMap<T::Key, T::Value>,
-    },
-    Indexed {
-        map: AutoMap<<T::Key as Indexed>::Index, AutoMap<T::Key, T::Value>>,
-    },
+    Plain { map: AutoMap<T::Key, T::Value> },
+    Indexed { map: IndexedMap<T> },
 }
 
 impl<T: KeyValuePair> InnerStorage<T>
@@ -43,8 +44,7 @@ where
             return;
         };
         if plain_map.len() >= INDEX_THRESHOLD {
-            let mut map: AutoMap<<T::Key as Indexed>::Index, AutoMap<T::Key, T::Value>> =
-                AutoMap::new();
+            let mut map: IndexedMap<T> = AutoMap::new();
             for (key, value) in take(plain_map).into_iter() {
                 let index = key.index();
                 map.entry(index).or_default().insert(key, value);
@@ -53,7 +53,7 @@ where
         }
     }
 
-    fn map_mut(&mut self, key: &T::Key) -> &mut AutoMap<T::Key, T::Value> {
+    fn get_map_mut(&mut self, key: &T::Key) -> &mut AutoMap<T::Key, T::Value> {
         self.check_threshold();
         match self {
             InnerStorage::Plain { map, .. } => map,
@@ -61,7 +61,7 @@ where
         }
     }
 
-    fn map(&self, key: &T::Key) -> Option<&AutoMap<T::Key, T::Value>> {
+    fn get_map(&self, key: &T::Key) -> Option<&AutoMap<T::Key, T::Value>> {
         match self {
             InnerStorage::Plain { map, .. } => Some(map),
             InnerStorage::Indexed { map, .. } => map.get(&key.index()),
@@ -77,7 +77,7 @@ where
 
     pub fn add(&mut self, item: T) -> bool {
         let (key, value) = item.into_key_and_value();
-        match self.map_mut(&key).entry(key) {
+        match self.get_map_mut(&key).entry(key) {
             Entry::Occupied(_) => false,
             Entry::Vacant(e) => {
                 e.insert(value);
@@ -88,19 +88,19 @@ where
 
     pub fn insert(&mut self, item: T) -> Option<T::Value> {
         let (key, value) = item.into_key_and_value();
-        self.map_mut(&key).insert(key, value)
+        self.get_map_mut(&key).insert(key, value)
     }
 
     pub fn remove(&mut self, key: &T::Key) -> Option<T::Value> {
-        self.map_mut(key).remove(key)
+        self.get_map_mut(key).remove(key)
     }
 
     pub fn get(&self, key: &T::Key) -> Option<&T::Value> {
-        self.map(key).and_then(|m| m.get(key))
+        self.get_map(key).and_then(|m| m.get(key))
     }
 
     pub fn has_key(&self, key: &T::Key) -> bool {
-        self.map(key)
+        self.get_map(key)
             .map(|m| m.contains_key(key))
             .unwrap_or_default()
     }
@@ -140,7 +140,7 @@ where
         key: &T::Key,
         update: impl FnOnce(Option<T::Value>) -> Option<T::Value>,
     ) {
-        let map = self.map_mut(key);
+        let map = self.get_map_mut(key);
         if let Some(value) = map.get_mut(key) {
             let v = take(value);
             if let Some(v) = update(Some(v)) {
@@ -251,7 +251,6 @@ where
     }
 }
 
-#[macro_export]
 macro_rules! get {
     ($task:ident, $key:ident $input:tt) => {
         if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
@@ -269,7 +268,6 @@ macro_rules! get {
     };
 }
 
-#[macro_export]
 macro_rules! iter_many {
     ($task:ident, $key:ident $input:tt => $value:ident) => {
         $task
@@ -297,20 +295,18 @@ macro_rules! iter_many {
     };
 }
 
-#[macro_export]
 macro_rules! get_many {
     ($task:ident, $key:ident $input:tt => $value:ident) => {
-        $crate::iter_many!($task, $key $input => $value).collect()
+        $crate::backend::storage::iter_many!($task, $key $input => $value).collect()
     };
     ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
-        $crate::iter_many!($task, $key $input $value_ident => $value).collect()
+        $crate::backend::storage::iter_many!($task, $key $input $value_ident => $value).collect()
     };
     ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
-        $crate::iter_many!($task, $key $input $value_ident if $cond => $value).collect()
+        $crate::backend::storage::iter_many!($task, $key $input $value_ident if $cond => $value).collect()
     };
 }
 
-#[macro_export]
 macro_rules! update {
     ($task:ident, $key:ident $input:tt, $update:expr) => {
         #[allow(unused_mut)]
@@ -344,13 +340,12 @@ macro_rules! update {
     };
 }
 
-#[macro_export]
 macro_rules! update_count {
     ($task:ident, $key:ident $input:tt, $update:expr) => {
         match $update {
             update => {
                 let mut state_change = false;
-                $crate::update!($task, $key $input, |old: Option<i32>| {
+                $crate::backend::storage::update!($task, $key $input, |old: Option<i32>| {
                     if let Some(old) = old {
                         let new = old + update;
                         state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
@@ -365,11 +360,10 @@ macro_rules! update_count {
         }
     };
     ($task:ident, $key:ident, $update:expr) => {
-        $crate::update_count!($task, $key {}, $update)
+        $crate::backend::storage::update_count!($task, $key {}, $update)
     };
 }
 
-#[macro_export]
 macro_rules! remove {
     ($task:ident, $key:ident $input:tt) => {
         if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(&$crate::data::CachedDataItemKey::$key $input) {
@@ -386,3 +380,10 @@ macro_rules! remove {
         }
     };
 }
+
+pub(crate) use get;
+pub(crate) use get_many;
+pub(crate) use iter_many;
+pub(crate) use remove;
+pub(crate) use update;
+pub(crate) use update_count;

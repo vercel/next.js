@@ -10,9 +10,8 @@ use super::{
     ExecuteContext, Operation,
 };
 use crate::{
-    backend::operation::is_root_node,
+    backend::{operation::is_root_node, storage::get},
     data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey},
-    get,
 };
 
 const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 2;

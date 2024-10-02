@@ -2,8 +2,8 @@ use turbo_tasks::{backend::CellContent, CellId, TaskId};
 
 use super::{ExecuteContext, InvalidateOperation};
 use crate::{
+    backend::storage::{get_many, remove},
     data::{CachedDataItem, CachedDataItemKey},
-    get_many, remove,
 };
 
 pub struct UpdateCellOperation;

@@ -5,8 +5,8 @@ use turbo_tasks::TaskId;
 
 use super::{ExecuteContext, Operation, TaskGuard};
 use crate::{
+    backend::storage::{get, get_many, iter_many, remove, update, update_count},
     data::{ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, RootState},
-    get, get_many, iter_many, remove, update, update_count,
 };
 
 const LEAF_NUMBER: u32 = 16;

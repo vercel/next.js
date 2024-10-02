@@ -5,8 +5,8 @@ use turbo_tasks::{util::SharedError, RawVc, TaskId};
 
 use super::{ExecuteContext, InvalidateOperation};
 use crate::{
+    backend::storage::get_many,
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, OutputValue},
-    get_many,
 };
 
 pub struct UpdateOutputOperation;

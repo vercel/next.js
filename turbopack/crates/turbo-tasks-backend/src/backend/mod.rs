@@ -41,12 +41,12 @@ use turbo_tasks::{
 
 use self::{operation::ExecuteContext, storage::Storage};
 use crate::{
+    backend::storage::{get, get_many, remove},
     data::{
         ActiveType, AggregationNumber, CachedDataItem, CachedDataItemIndex, CachedDataItemKey,
         CachedDataItemValue, CachedDataUpdate, CellRef, InProgressCellState, InProgressState,
         OutputValue, RootState,
     },
-    get, get_many, remove,
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc},
 };
 
