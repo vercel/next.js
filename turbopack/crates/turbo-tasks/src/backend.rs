@@ -34,15 +34,18 @@ pub enum TransientTaskType {
     /// A root task that will track dependencies and re-execute when
     /// dependencies change. Task will eventually settle to the correct
     /// execution.
+    ///
     /// Always active. Automatically scheduled.
     Root(TransientTaskRoot),
 
     // TODO implement these strongly consistency
     /// A single root task execution. It won't track dependencies.
+    ///
     /// Task will definitely include all invalidations that happened before the
     /// start of the task. It may or may not include invalidations that
     /// happened after that. It may see these invalidations partially
     /// applied.
+    ///
     /// Active until done. Automatically scheduled.
     Once(Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>),
 }
