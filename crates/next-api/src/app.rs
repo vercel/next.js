@@ -891,17 +891,17 @@ impl AppEndpoint {
                 }
 
                 // let mut x = vec![];
-                // for y in &client_references.await?.client_references {
-                //     let t = match y.ty() {
-                //         ClientReferenceType::EcmascriptClientReference(t) => {
-                //             t.ident().to_string().await?
-                //         }
-                //         ClientReferenceType::CssClientReference(t) =>
-                // t.ident().to_string().await?,     };
-                //     if let Some(server) = y.server_component() {
-                //         x.push((server.ident().to_string().await?.to_string(), t));
+                // for (comp, r) in &client_references_by_server_comp {
+                //     if let Some(server) = comp {
+                //         x.push((
+                //             server.ident().to_string().await?.to_string(),
+                //             r.iter().map(|v| v.ident().to_string()).try_join().await?,
+                //         ));
                 //     } else {
-                //         x.push(("None".to_string(), t));
+                //         x.push((
+                //             "None".to_string(),
+                //             r.iter().map(|v| v.ident().to_string()).try_join().await?,
+                //         ));
                 //     }
                 // }
                 // println!("{:#?}", x);
