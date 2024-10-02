@@ -21,6 +21,10 @@ import type {
 import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
 
+// eslint-disable-next-line import/no-extraneous-dependencies
+import 'server-only'
+
+import { cache } from 'react'
 import {
   createDefaultMetadata,
   createDefaultViewport,
@@ -417,7 +421,7 @@ async function resolveStaticMetadata(
 }
 
 // [layout.metadata, static files metadata] -> ... -> [page.metadata, static files metadata]
-export async function collectMetadata({
+async function collectMetadata({
   tree,
   metadataItems,
   errorMetadataItem,
@@ -477,32 +481,50 @@ export async function collectMetadata({
   }
 }
 
-export async function resolveMetadataItems({
-  tree,
-  parentParams,
-  metadataItems,
-  errorMetadataItem,
-  treePrefix = [],
-  getDynamicParamFromSegment,
-  searchParams,
-  errorConvention,
-  createServerParamsForMetadata,
-  staticGenerationStore,
-}: {
-  tree: LoaderTree
-  parentParams: Params
-  metadataItems: MetadataItems
-  errorMetadataItem: MetadataItems[number]
-  /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
-  treePrefix?: string[]
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
-  searchParams: ParsedUrlQuery
-  errorConvention: 'not-found' | undefined
-  createServerParamsForMetadata: CreateServerParamsForMetadata
+const cachedResolveMetadataItems = cache(resolveMetadataItems)
+export { cachedResolveMetadataItems as resolveMetadataItems }
+async function resolveMetadataItems(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  errorConvention: 'not-found' | undefined,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
   staticGenerationStore: StaticGenerationStore
-}): Promise<MetadataItems> {
+) {
+  const parentParams = {}
+  const metadataItems: MetadataItems = []
+  const errorMetadataItem: MetadataItems[number] = [null, null, null]
+  const treePrefix = undefined
+  return resolveMetadataItemsImpl(
+    metadataItems,
+    tree,
+    treePrefix,
+    parentParams,
+    searchParams,
+    errorConvention,
+    errorMetadataItem,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    staticGenerationStore
+  )
+}
+
+async function resolveMetadataItemsImpl(
+  metadataItems: MetadataItems,
+  tree: LoaderTree,
+  /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
+  treePrefix: undefined | string[],
+  parentParams: Params,
+  searchParams: Promise<ParsedUrlQuery>,
+  errorConvention: 'not-found' | undefined,
+  errorMetadataItem: MetadataItems[number],
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  staticGenerationStore: StaticGenerationStore
+): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
-  const currentTreePrefix = [...treePrefix, segment]
+  const currentTreePrefix =
+    treePrefix && treePrefix.length ? [...treePrefix, segment] : [segment]
   const isPage = typeof page !== 'undefined'
 
   // Handle dynamic segment params.
@@ -549,18 +571,18 @@ export async function resolveMetadataItems({
 
   for (const key in parallelRoutes) {
     const childTree = parallelRoutes[key]
-    await resolveMetadataItems({
-      tree: childTree,
+    await resolveMetadataItemsImpl(
       metadataItems,
-      errorMetadataItem,
-      parentParams: currentParams,
-      treePrefix: currentTreePrefix,
+      childTree,
+      currentTreePrefix,
+      currentParams,
       searchParams,
-      getDynamicParamFromSegment,
       errorConvention,
+      errorMetadataItem,
+      getDynamicParamFromSegment,
       createServerParamsForMetadata,
-      staticGenerationStore,
-    })
+      staticGenerationStore
+    )
   }
 
   if (Object.keys(parallelRoutes).length === 0 && errorConvention) {
@@ -891,52 +913,4 @@ export async function accumulateViewport(
     })
   }
   return resolvedViewport
-}
-
-export async function resolveMetadata({
-  tree,
-  parentParams,
-  metadataItems,
-  errorMetadataItem,
-  getDynamicParamFromSegment,
-  searchParams,
-  errorConvention,
-  metadataContext,
-  createServerParamsForMetadata,
-  staticGenerationStore,
-}: {
-  tree: LoaderTree
-  parentParams: Params
-  metadataItems: MetadataItems
-  errorMetadataItem: MetadataItems[number]
-  /** Provided tree can be nested subtree, this argument says what is the path of such subtree */
-  treePrefix?: string[]
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
-  searchParams: { [key: string]: any }
-  errorConvention: 'not-found' | undefined
-  metadataContext: MetadataContext
-  createServerParamsForMetadata: CreateServerParamsForMetadata
-  staticGenerationStore: StaticGenerationStore
-}): Promise<[any, ResolvedMetadata, ResolvedViewport]> {
-  const resolvedMetadataItems = await resolveMetadataItems({
-    tree,
-    parentParams,
-    metadataItems,
-    errorMetadataItem,
-    getDynamicParamFromSegment,
-    searchParams,
-    errorConvention,
-    createServerParamsForMetadata,
-    staticGenerationStore,
-  })
-  let error
-  let metadata: ResolvedMetadata = createDefaultMetadata()
-  let viewport: ResolvedViewport = createDefaultViewport()
-  try {
-    viewport = await accumulateViewport(resolvedMetadataItems)
-    metadata = await accumulateMetadata(resolvedMetadataItems, metadataContext)
-  } catch (err: any) {
-    error = err
-  }
-  return [error, metadata, viewport]
 }
