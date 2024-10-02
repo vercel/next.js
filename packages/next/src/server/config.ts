@@ -374,11 +374,18 @@ function assignDefaults(
           `Specified images.localPatterns should be an Array received ${typeof images.localPatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
         )
       }
-      // static import images are automatically allowed
-      images.localPatterns.push({
-        pathname: '/_next/static/media/**',
-        search: '',
-      })
+      // avoid double-pushing the same pattern if it already exists
+      const hasMatch = images.localPatterns.some(
+        (pattern) =>
+          pattern.pathname === '/_next/static/media/**' && pattern.search === ''
+      )
+      if (!hasMatch) {
+        // static import images are automatically allowed
+        images.localPatterns.push({
+          pathname: '/_next/static/media/**',
+          search: '',
+        })
+      }
     }
 
     if (images.remotePatterns) {
@@ -398,9 +405,9 @@ function assignDefaults(
             matchRemotePattern(pattern, url)
           )
 
-          // avoid double-pushing the same remote if it already can be matched
+          // avoid double-pushing the same pattern if it already can be matched
           if (!hasMatchForAssetPrefix) {
-            images.remotePatterns?.push({
+            images.remotePatterns.push({
               hostname: url.hostname,
               protocol: url.protocol.replace(/:$/, '') as 'http' | 'https',
               port: url.port,
