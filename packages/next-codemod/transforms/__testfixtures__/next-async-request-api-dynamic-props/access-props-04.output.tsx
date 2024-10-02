@@ -1,7 +1,6 @@
-'use client';
-import { use } from "react";
+'use client'
 
-import { useState } from 'react'
+import { useState, use } from 'react';
 
 export default function Page(props: { params: Promise<{ slug: string }> }) {
   const params = use(props.params);
