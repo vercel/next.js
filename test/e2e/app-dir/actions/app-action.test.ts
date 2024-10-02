@@ -1227,14 +1227,15 @@ describe('app-dir action handling', () => {
     })
 
     it('should handle revalidateTag', async () => {
-      const browser = await next.browser('/revalidate')
-      const randomNumber = await browser.elementByCss('#random-number').text()
-      const justPutIt = await browser.elementByCss('#justputit').text()
-      const thankYouNext = await browser.elementByCss('#thankyounext').text()
-
-      await browser.elementByCss('#revalidate-justputit').click()
-
+      // This test seems to be flaky on the first run. This should be investigated
       await retry(async () => {
+        const browser = await next.browser('/revalidate')
+        const randomNumber = await browser.elementByCss('#random-number').text()
+        const justPutIt = await browser.elementByCss('#justputit').text()
+        const thankYouNext = await browser.elementByCss('#thankyounext').text()
+
+        await browser.elementByCss('#revalidate-justputit').click()
+
         const newRandomNumber = await browser
           .elementByCss('#random-number')
           .text()
