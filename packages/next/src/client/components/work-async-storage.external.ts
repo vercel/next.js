@@ -65,6 +65,6 @@ export interface WorkStore {
   buildId: string
 }
 
-export type StaticGenerationAsyncStorage = AsyncLocalStorage<WorkStore>
+export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>
 
 export { workAsyncStorage }

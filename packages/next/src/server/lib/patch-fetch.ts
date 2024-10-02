@@ -1,5 +1,5 @@
 import type {
-  StaticGenerationAsyncStorage,
+  WorkAsyncStorage,
   WorkStore,
 } from '../../client/components/work-async-storage.external'
 
@@ -32,7 +32,7 @@ type Fetcher = typeof fetch
 
 type PatchedFetcher = Fetcher & {
   readonly __nextPatched: true
-  readonly __nextGetStaticStore: () => StaticGenerationAsyncStorage
+  readonly __nextGetStaticStore: () => WorkAsyncStorage
   readonly _nextOriginalFetch: Fetcher
 }
 
@@ -205,7 +205,7 @@ function trackFetchMetric(
 }
 
 interface PatchableModule {
-  workAsyncStorage: StaticGenerationAsyncStorage
+  workAsyncStorage: WorkAsyncStorage
   requestAsyncStorage: RequestAsyncStorage
   prerenderAsyncStorage: PrerenderAsyncStorage
 }
