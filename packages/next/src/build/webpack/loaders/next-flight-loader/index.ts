@@ -26,7 +26,10 @@ const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 // For edge runtime it will be aliased to esm version by webpack
 const MODULE_PROXY_PATH =
   'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
-const isSharedRuntime = picomatch('**/next/dist/**/*.shared-runtime.js')
+
+const isSharedRuntime = picomatch('**/next/dist/**/*.shared-runtime.js', {
+  dot: true, // required for .pnpm paths
+})
 
 export function getAssumedSourceType(
   mod: webpack.Module,
@@ -120,6 +123,7 @@ export default function transformSource(
         // mangled, in production builds, so that exports of client reference
         // modules can be resolved by React using the metadata from the client
         // manifest.
+        console.log('XXX', resourceKey)
         this._compilation!.moduleGraph.getExportsInfo(
           module
         ).setUsedInUnknownWay(
