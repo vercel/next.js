@@ -21,11 +21,9 @@ where
     T::Key: Indexed,
 {
     Plain {
-        // TODO use FxHasher
         map: AutoMap<T::Key, T::Value>,
     },
     Indexed {
-        // TODO use FxHasher
         map: AutoMap<<T::Key as Indexed>::Index, AutoMap<T::Key, T::Value>>,
     },
 }
