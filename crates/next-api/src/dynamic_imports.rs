@@ -165,7 +165,6 @@ pub(crate) async fn collect_next_dynamic_imports(
         // (Module<A>, Vec<(B, Module<B>)>) (where B is the raw import source string,
         // and Module<B> is the actual resolved Module)
         let (result, visited_modules) = NonDeterministic::new()
-            // TODO: use param
             .skip_duplicates_with_visited_nodes(VisitedNodes(visited_modules.await?.0.clone()))
             .visit(
                 server_entries

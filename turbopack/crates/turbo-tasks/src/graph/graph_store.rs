@@ -5,7 +5,7 @@ use super::VisitedNodes;
 /// A graph store is a data structure that will be built up during a graph
 /// traversal. It is used to store the results of the traversal.
 pub trait GraphStore {
-    type Node: Clone + Hash + Eq;
+    type Node;
     type Handle: Clone;
 
     // TODO(alexkirsz) An `entry(from_handle) -> Entry` API would be more

@@ -1,5 +1,3 @@
-use std::hash::Hash;
-
 use super::graph_store::{GraphNode, GraphStore};
 
 /// A graph traversal that does not guarantee any particular order, and may not
@@ -20,7 +18,7 @@ impl<T> NonDeterministic<T> {
     }
 }
 
-impl<T: Clone + Hash + Eq> GraphStore for NonDeterministic<T> {
+impl<T> GraphStore for NonDeterministic<T> {
     type Node = T;
     type Handle = ();
 

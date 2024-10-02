@@ -890,22 +890,6 @@ impl AppEndpoint {
                     }
                 }
 
-                // let mut x = vec![];
-                // for (comp, r) in &client_references_by_server_comp {
-                //     if let Some(server) = comp {
-                //         x.push((
-                //             server.ident().to_string().await?.to_string(),
-                //             r.iter().map(|v| v.ident().to_string()).try_join().await?,
-                //         ));
-                //     } else {
-                //         x.push((
-                //             "None".to_string(),
-                //             r.iter().map(|v| v.ident().to_string()).try_join().await?,
-                //         ));
-                //     }
-                // }
-                // println!("{:#?}", x);
-
                 let client_dynamic_imports = {
                     let mut client_dynamic_imports = IndexMap::new();
                     let mut visited_modules = VisitedDynamicImportModules::empty();
