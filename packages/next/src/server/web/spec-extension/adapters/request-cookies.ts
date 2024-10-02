@@ -108,10 +108,10 @@ export class MutableRequestCookiesAdapter {
     let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
-      // TODO-APP: change method of getting staticGenerationAsyncStore
-      const staticGenerationAsyncStore = workAsyncStorage.getStore()
-      if (staticGenerationAsyncStore) {
-        staticGenerationAsyncStore.pathWasRevalidated = true
+      // TODO-APP: change method of getting workStore
+      const workStore = workAsyncStorage.getStore()
+      if (workStore) {
+        workStore.pathWasRevalidated = true
       }
 
       const allCookies = responseCookies.getAll()
