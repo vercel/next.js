@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
@@ -38,7 +38,8 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
+    debug::ValueDebug, trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, Value, ValueToString,
+    Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -69,6 +70,7 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 use crate::{
     dynamic_imports::{
         collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
+        VisitedDynamicImportModules,
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
@@ -864,7 +866,6 @@ impl AppEndpoint {
                 let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
                 let client_references = client_reference_graph(Vc::cell(vec![rsc_entry_asset]));
-                let client_reference_types = client_references.types();
 
                 let ssr_chunking_context = if process_ssr {
                     Some(match runtime {
@@ -880,21 +881,54 @@ impl AppEndpoint {
                     None
                 };
 
-                let client_dynamic_imports = collect_next_dynamic_imports(
-                    client_references
-                        .await?
-                        .client_references
-                        .iter()
-                        .filter_map(|r| match r.ty() {
-                            ClientReferenceType::EcmascriptClientReference(entry) => Some(entry),
-                            ClientReferenceType::CssClientReference(_) => None,
-                        })
-                        .map(|entry| async move { Ok(Vc::upcast(entry.await?.ssr_module)) })
-                        .try_join()
-                        .await?,
-                    Vc::upcast(this.app_project.client_module_context()),
-                )
-                .await?;
+                let mut client_references_by_server_comp = IndexMap::new();
+                for r in &client_references.await?.client_references {
+                    if let ClientReferenceType::EcmascriptClientReference(entry) = r.ty() {
+                        client_references_by_server_comp
+                            .entry(r.server_component())
+                            .or_insert_with(Vec::new)
+                            .push(Vc::upcast::<Box<dyn Module>>(entry.await?.ssr_module));
+                    }
+                }
+
+                // let mut x = vec![];
+                // for y in &client_references.await?.client_references {
+                //     let t = match y.ty() {
+                //         ClientReferenceType::EcmascriptClientReference(t) => {
+                //             t.ident().to_string().await?
+                //         }
+                //         ClientReferenceType::CssClientReference(t) =>
+                // t.ident().to_string().await?,     };
+                //     if let Some(server) = y.server_component() {
+                //         x.push((server.ident().to_string().await?.to_string(), t));
+                //     } else {
+                //         x.push(("None".to_string(), t));
+                //     }
+                // }
+                // println!("{:#?}", x);
+
+                let client_dynamic_imports = {
+                    let mut client_dynamic_imports = IndexMap::new();
+                    let mut visited_modules = VisitedDynamicImportModules::default();
+
+                    for refs in client_references_by_server_comp.into_values() {
+                        let (current_client_dynamic_imports, current_visited_modules) =
+                            collect_next_dynamic_imports(
+                                refs,
+                                Vc::upcast(this.app_project.client_module_context()),
+                                visited_modules,
+                            )
+                            .instrument(tracing::span!(
+                                tracing::Level::DEBUG,
+                                "collect_next_dynamic_imports A"
+                            ))
+                            .await?;
+                        client_dynamic_imports.extend(current_client_dynamic_imports);
+                        visited_modules = current_visited_modules;
+                    }
+
+                    client_dynamic_imports
+                };
 
                 let client_references_chunks = get_app_client_references_chunks(
                     client_references,
@@ -1025,7 +1059,7 @@ impl AppEndpoint {
                 }
 
                 (
-                    Some(get_app_server_reference_modules(client_reference_types)),
+                    Some(get_app_server_reference_modules(client_references.types())),
                     Some(client_dynamic_imports),
                     Some(client_references),
                 )
@@ -1198,11 +1232,17 @@ impl AppEndpoint {
                 server_assets.push(app_paths_manifest_output);
 
                 // create react-loadable-manifest for next/dynamic
-                let mut dynamic_import_modules = collect_next_dynamic_imports(
-                    [Vc::upcast(app_entry.rsc_entry)],
-                    Vc::upcast(this.app_project.client_module_context()),
-                )
-                .await?;
+                let (mut dynamic_import_modules, mut visited_modules) =
+                    collect_next_dynamic_imports(
+                        [Vc::upcast(app_entry.rsc_entry)],
+                        Vc::upcast(this.app_project.client_module_context()),
+                        VisitedDynamicImportModules::default(),
+                    )
+                    .instrument(tracing::span!(
+                        tracing::Level::DEBUG,
+                        "collect_next_dynamic_imports B"
+                    ))
+                    .await?;
                 dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     Vc::upcast(client_chunking_context),
@@ -1350,11 +1390,17 @@ impl AppEndpoint {
 
                 // create react-loadable-manifest for next/dynamic
                 let availability_info = Value::new(AvailabilityInfo::Root);
-                let mut dynamic_import_modules = collect_next_dynamic_imports(
-                    [Vc::upcast(app_entry.rsc_entry)],
-                    Vc::upcast(this.app_project.client_module_context()),
-                )
-                .await?;
+                let (mut dynamic_import_modules, mut visited_modules) =
+                    collect_next_dynamic_imports(
+                        [Vc::upcast(app_entry.rsc_entry)],
+                        Vc::upcast(this.app_project.client_module_context()),
+                        VisitedDynamicImportModules::default(),
+                    )
+                    .instrument(tracing::span!(
+                        tracing::Level::DEBUG,
+                        "collect_next_dynamic_imports C"
+                    ))
+                    .await?;
                 dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                 let dynamic_import_entries = collect_chunk_group(
                     Vc::upcast(client_chunking_context),

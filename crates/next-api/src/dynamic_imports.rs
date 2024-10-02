@@ -10,7 +10,7 @@ use swc_core::ecma::{
 };
 use tracing::Level;
 use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic, VisitControlFlow},
+    graph::{GraphTraversal, NonDeterministic, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
     RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
 };
@@ -103,6 +103,14 @@ pub(crate) async fn collect_evaluated_chunk_group(
     .await
 }
 
+pub struct VisitedDynamicImportModules(VisitedNodes<NextDynamicVisitEntry>);
+
+impl Default for VisitedDynamicImportModules {
+    fn default() -> Self {
+        Self(VisitedNodes(Default::default()))
+    }
+}
+
 /// Returns a mapping of the dynamic imports for each module, if the import is
 /// wrapped in `next/dynamic`'s `dynamic()`. Refer [documentation](https://nextjs.org/docs/pages/building-your-application/optimizing/lazy-loading#with-named-exports) for the usecases.
 ///
@@ -129,15 +137,29 @@ pub(crate) async fn collect_evaluated_chunk_group(
 pub(crate) async fn collect_next_dynamic_imports(
     server_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
     client_asset_context: Vc<Box<dyn AssetContext>>,
-) -> Result<IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>> {
+    visited_modules: VisitedDynamicImportModules,
+) -> Result<(
+    IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>,
+    VisitedDynamicImportModules,
+)> {
+    let server_entries = server_entries.into_iter().collect::<Vec<_>>();
+    println!(
+        "collect_next_dynamic_imports {:?}",
+        server_entries
+            .iter()
+            .map(|module| module.ident().to_string())
+            .try_join()
+            .await?
+    );
     // Traverse referenced modules graph, collect all of the dynamic imports:
     // - Read the Program AST of the Module, this is the origin (A)
     //  - If there's `dynamic(import(B))`, then B is the module that is being imported
     // Returned import mappings are in the form of
     // (Module<A>, Vec<(B, Module<B>)>) (where B is the raw import source string,
     // and Module<B> is the actual resolved Module)
-    let imported_modules_mapping = NonDeterministic::new()
-        .skip_duplicates()
+    let (result, visited_modules) = NonDeterministic::new()
+        // TODO: use param
+        .skip_duplicates_with_visited_nodes(visited_modules.0)
         .visit(
             server_entries
                 .into_iter()
@@ -156,15 +178,15 @@ pub(crate) async fn collect_next_dynamic_imports(
         )
         .await
         .completed()?
-        .into_inner()
-        .into_iter()
-        .filter_map(|entry| {
-            if let NextDynamicVisitEntry::DynamicImportsMap(dynamic_imports_map) = entry {
-                Some(dynamic_imports_map)
-            } else {
-                None
-            }
-        });
+        .into_inner_with_visited();
+
+    let imported_modules_mapping = result.into_iter().filter_map(|entry| {
+        if let NextDynamicVisitEntry::DynamicImportsMap(dynamic_imports_map) = entry {
+            Some(dynamic_imports_map)
+        } else {
+            None
+        }
+    });
 
     // Consolifate import mappings into a single indexmap
     let mut import_mappings: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules> =
@@ -178,7 +200,10 @@ pub(crate) async fn collect_next_dynamic_imports(
             .append(&mut dynamic_imports.clone())
     }
 
-    Ok(import_mappings)
+    Ok((
+        import_mappings,
+        VisitedDynamicImportModules(visited_modules),
+    ))
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, TraceRawVcs, Serialize, Deserialize)]

@@ -61,7 +61,7 @@ use turbopack_nodejs::NodeJsChunkingContext;
 use crate::{
     dynamic_imports::{
         collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
-        DynamicImportedChunks,
+        DynamicImportedChunks, VisitedDynamicImportModules,
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
@@ -825,9 +825,10 @@ impl PageEndpoint {
                     Value::new(AvailabilityInfo::Root),
                 );
 
-                let dynamic_import_modules = collect_next_dynamic_imports(
+                let (dynamic_import_modules, visited_modules) = collect_next_dynamic_imports(
                     [Vc::upcast(ssr_module)],
                     this.pages_project.client_module_context(),
+                    VisitedDynamicImportModules::default(),
                 )
                 .await?;
                 let client_chunking_context =
@@ -864,9 +865,10 @@ impl PageEndpoint {
                     .await?;
 
                 let availability_info = Value::new(AvailabilityInfo::Root);
-                let dynamic_import_modules = collect_next_dynamic_imports(
+                let (dynamic_import_modules, visited_modules) = collect_next_dynamic_imports(
                     [Vc::upcast(ssr_module)],
                     this.pages_project.client_module_context(),
+                    VisitedDynamicImportModules::default(),
                 )
                 .await?;
                 let client_chunking_context =
