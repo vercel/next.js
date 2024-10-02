@@ -121,12 +121,16 @@ function makeUntrackedExoticSearchParams(
 
 function warnForSyncAccess(expression: string) {
   console.error(
-    `A searchParam property was accessed directly with ${expression}. \`searchParams\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to unwrap \`searchParams\` with \`React.use()\`.`
+    `A searchParam property was accessed directly with ${expression}. ` +
+      `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
 
 function warnForSyncSpread() {
   console.error(
-    `the keys of \`searchParams\` were accessed through something like \`Object.keys(searchParams)\` or \`{...searchParams}\`. \`searchParams\` is now a Promise and should be unwrapped with \`React.use()\` in Client Components before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to unwrap \`searchParams\` with \`React.use()\`.`
+    `The keys of \`searchParams\` were accessed directly. ` +
+      `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
