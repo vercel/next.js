@@ -1,3 +1,4 @@
 export function isClientReference(mod: any): boolean {
-  return mod?.$$typeof === Symbol.for('react.client.reference')
+  const defaultExport = mod?.default || mod
+  return defaultExport?.$$typeof === Symbol.for('react.client.reference')
 }
