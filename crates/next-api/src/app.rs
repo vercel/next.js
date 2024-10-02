@@ -18,9 +18,7 @@ use next_core::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
-    next_client_reference::{
-        client_reference_graph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
-    },
+    next_client_reference::{client_reference_graph, NextEcmascriptClientReferenceTransition},
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -880,23 +878,17 @@ impl AppEndpoint {
                     None
                 };
 
-                let mut client_references_by_server_comp = IndexMap::new();
-                for r in &client_references.await?.client_references {
-                    if let ClientReferenceType::EcmascriptClientReference(entry) = r.ty() {
-                        client_references_by_server_comp
-                            .entry(r.server_component())
-                            .or_insert_with(Vec::new)
-                            .push(Vc::upcast::<Box<dyn Module>>(entry.await?.ssr_module));
-                    }
-                }
-
                 let client_dynamic_imports = {
                     let mut client_dynamic_imports = IndexMap::new();
                     let mut visited_modules = VisitedDynamicImportModules::empty();
 
-                    for refs in client_references_by_server_comp.into_values() {
+                    for refs in client_references
+                        .await?
+                        .client_references_ecma_by_server_component
+                        .values()
+                    {
                         let result = collect_next_dynamic_imports(
-                            refs,
+                            *refs,
                             Vc::upcast(this.app_project.client_module_context()),
                             visited_modules,
                         )
@@ -1211,7 +1203,7 @@ impl AppEndpoint {
 
                 // create react-loadable-manifest for next/dynamic
                 let mut dynamic_import_modules = collect_next_dynamic_imports(
-                    vec![Vc::upcast(app_entry.rsc_entry)],
+                    Vc::cell(vec![Vc::upcast(app_entry.rsc_entry)]),
                     Vc::upcast(this.app_project.client_module_context()),
                     VisitedDynamicImportModules::empty(),
                 )
@@ -1366,7 +1358,7 @@ impl AppEndpoint {
                 // create react-loadable-manifest for next/dynamic
                 let availability_info = Value::new(AvailabilityInfo::Root);
                 let mut dynamic_import_modules = collect_next_dynamic_imports(
-                    vec![Vc::upcast(app_entry.rsc_entry)],
+                    Vc::cell(vec![Vc::upcast(app_entry.rsc_entry)]),
                     Vc::upcast(this.app_project.client_module_context()),
                     VisitedDynamicImportModules::empty(),
                 )

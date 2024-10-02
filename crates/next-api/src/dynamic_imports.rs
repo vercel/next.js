@@ -144,7 +144,7 @@ impl VisitedDynamicImportModules {
 ///      won't occur
 #[turbo_tasks::function]
 pub(crate) async fn collect_next_dynamic_imports(
-    server_entries: Vec<Vc<Box<dyn Module>>>,
+    server_entries: Vc<Vec<Vc<Box<dyn Module>>>>,
     client_asset_context: Vc<Box<dyn AssetContext>>,
     visited_modules: Vc<VisitedDynamicImportModules>,
 ) -> Result<Vc<NextDynamicImportsResult>> {
@@ -159,7 +159,8 @@ pub(crate) async fn collect_next_dynamic_imports(
             .skip_duplicates_with_visited_nodes(VisitedNodes(visited_modules.await?.0.clone()))
             .visit(
                 server_entries
-                    .into_iter()
+                    .await?
+                    .iter()
                     .map(|module| async move {
                         Ok(NextDynamicVisitEntry::Module(
                             module.resolve().await?,
