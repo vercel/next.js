@@ -35,6 +35,8 @@
     "script.d.ts",
     "server.js",
     "server.d.ts",
+    "server/testing.js",
+    "server/testing.d.ts",
     "head.js",
     "head.d.ts",
     "image.js",
