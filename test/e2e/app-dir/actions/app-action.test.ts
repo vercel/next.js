@@ -26,20 +26,15 @@ describe('app-dir action handling', () => {
 
   it('should handle action correctly with middleware rewrite', async () => {
     const browser = await next.browser('/rewrite-to-static-first')
-    const requests: Array<{
-      url: string
-      method: string
-      status: number
-      headers: Record<string, string>
-    }> = []
+    let actionRequestStatus: number | undefined
 
-    browser.on('request', async (req: import('playwright').Request) => {
-      requests.push({
-        url: req.url(),
-        status: await req.response().then((res) => res.status()),
-        method: req.method(),
-        headers: req.headers(),
-      })
+    browser.on('response', async (res: Response) => {
+      if (
+        res.url().includes('rewrite-to-static-first') &&
+        res.request().method() === 'POST'
+      ) {
+        actionRequestStatus = res.status()
+      }
     })
     await browser.elementByCss('#inc').click()
 
@@ -47,12 +42,7 @@ describe('app-dir action handling', () => {
       expect(Number(await browser.elementByCss('#count').text())).toBe(1)
     })
 
-    const actionRequest = requests.find((req) => {
-      return (
-        req.url.includes('rewrite-to-static-first') && req.method === 'POST'
-      )
-    })
-    expect(actionRequest.status).toBe(200)
+    expect(actionRequestStatus).toBe(200)
   })
 
   it('should handle basic actions correctly', async () => {
