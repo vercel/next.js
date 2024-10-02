@@ -88,6 +88,7 @@ import {
   getBabelLoader,
   getReactCompilerLoader,
 } from './get-babel-loader-config'
+import type { NextFlightLoaderOptions } from './webpack/loaders/next-flight-loader'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -525,7 +526,7 @@ export default async function getBaseWebpackConfig(
     loader: 'next-flight-loader',
     options: {
       isEdgeServer,
-    },
+    } satisfies NextFlightLoaderOptions,
   }
 
   const appServerLayerLoaders = hasAppDir
