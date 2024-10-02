@@ -248,26 +248,25 @@ pub fn path_resolve(cwd: JsValue, args: Vec<JsValue>) -> JsValue {
     let mut args_alt: Vec<_> = args_alt
         .into_iter()
         .map(|args| {
-            // path.resolve stops at the first (last) absolute string (starting with `/` or `\\`)
-            for (idx, arg) in args.iter().enumerate().rev() {
-                if let Some(str) = arg.as_str() {
-                    if idx != 0 && str.starts_with('/') {
-                        return path_resolve(cwd.clone(), args.clone().drain(idx..).collect());
-                    }
-                    if let Some(str) = str.strip_prefix("\\\\") {
-                        let str = format!("/{}", str);
-                        let args = std::iter::once(str.into())
-                            .chain(args.clone().drain((idx + 1)..))
-                            .collect();
-                        return path_resolve(cwd.clone(), args);
-                    }
-                }
-            }
-
+            let mut is_already_absolute = false;
             let mut results_final = Vec::new();
             let mut results: Vec<JsValue> = Vec::new();
             for item in args {
                 if let Some(str) = item.as_str() {
+                    // path.resolve ignores everything before the first absolute string
+                    // (starting with `/` or `\\`)
+                    let str = if let Some(str) =
+                        str.strip_prefix("/").or_else(|| str.strip_prefix("\\\\"))
+                    {
+                        is_already_absolute = true;
+                        results_final.clear();
+                        results_final.push("".into());
+                        results.clear();
+                        str
+                    } else {
+                        str
+                    };
+
                     for str in str.split('/') {
                         match str {
                             "" | "." => {
@@ -292,15 +291,11 @@ pub fn path_resolve(cwd: JsValue, args: Vec<JsValue>) -> JsValue {
             let mut iter = results_final.into_iter();
             let first = iter.next().unwrap();
 
-            let is_already_absolute =
-                first.is_empty_string() == Some(true) || first.starts_with("/") == Some(true);
-
-            let mut last_was_str = first.as_str().is_some();
-
             if !is_already_absolute {
                 results.push(cwd.clone());
             }
 
+            let mut last_was_str = first.as_str().is_some();
             results.push(first);
             for part in iter {
                 let is_str = part.as_str().is_some();
@@ -651,7 +646,7 @@ pub fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
         (.., Some("join")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         (.., Some("dirname")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
         (.., Some("resolve")) => {
-            // cwd is added while resolving in refernces.rs
+            // cwd is added while resolving in references.rs
             JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(Box::new(JsValue::from(
                 "",
             ))))
