@@ -14,7 +14,7 @@ import {
 
 import type { WorkStore } from '../../client/components/work-async-storage.external'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import type { CacheStore } from '../app-render/cache-async-storage.external'
+import type { UseCacheStore } from '../app-render/cache-async-storage.external'
 import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
@@ -135,7 +135,7 @@ function generateCacheEntryWithCacheContext(
   fn: any
 ) {
   // Initialize the Store for this Cache entry.
-  const cacheStore: CacheStore = {}
+  const cacheStore: UseCacheStore = { type: 'cache' }
   return cacheAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,

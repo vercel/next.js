@@ -50,10 +50,17 @@ export { requestAsyncStorage }
 export function getExpectedRequestStore(callingExpression: string) {
   const store = requestAsyncStorage.getStore()
   if (store) return store
-  if (cacheAsyncStorage.getStore()) {
-    throw new Error(
-      `\`${callingExpression}\` cannot be called inside "use cache". Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/messages/next-request-in-use-cache`
-    )
+  const cacheStore = cacheAsyncStorage.getStore()
+  if (cacheStore) {
+    if (cacheStore.type === 'cache') {
+      throw new Error(
+        `\`${callingExpression}\` cannot be called inside "use cache". Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/messages/next-request-in-use-cache`
+      )
+    } else if (cacheStore.type === 'unstable-cache') {
+      throw new Error(
+        `\`${callingExpression}\` cannot be called inside unstable_cache. Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+      )
+    }
   }
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`

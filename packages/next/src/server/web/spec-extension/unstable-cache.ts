@@ -14,6 +14,8 @@ import {
   type CachedFetchData,
 } from '../../response-cache'
 import { prerenderAsyncStorage } from '../../app-render/prerender-async-storage.external'
+import type { UnstableCacheStore } from '../../app-render/cache-async-storage.external'
+import { cacheAsyncStorage } from '../../app-render/cache-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -225,6 +227,9 @@ export function unstable_cache<T extends Callback>(
                 if (!workStore.pendingRevalidates) {
                   workStore.pendingRevalidates = {}
                 }
+                const cacheStore: UnstableCacheStore = {
+                  type: 'unstable-cache',
+                }
                 // We run the cache function asynchronously and save the result when it completes
                 workStore.pendingRevalidates[invocationKey] = workAsyncStorage
                   .run(
@@ -235,8 +240,7 @@ export function unstable_cache<T extends Callback>(
                       fetchCache: 'force-no-store',
                       isUnstableCacheCallback: true,
                     },
-                    cb,
-                    ...args
+                    () => cacheAsyncStorage.run(cacheStore, cb, ...args)
                   )
                   .then((result) => {
                     return cacheNewResult(
@@ -263,6 +267,9 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
+        const cacheStore: UnstableCacheStore = {
+          type: 'unstable-cache',
+        }
         // If we got this far then we had an invalid cache entry and need to generate a new one
         const result = await workAsyncStorage.run(
           {
@@ -272,8 +279,7 @@ export function unstable_cache<T extends Callback>(
             fetchCache: 'force-no-store',
             isUnstableCacheCallback: true,
           },
-          cb,
-          ...args
+          () => cacheAsyncStorage.run(cacheStore, cb, ...args)
         )
 
         if (!workStore.isDraftMode) {
@@ -333,6 +339,9 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
+        const cacheStore: UnstableCacheStore = {
+          type: 'unstable-cache',
+        }
         // If we got this far then we had an invalid cache entry and need to generate a new one
         // @TODO this storage wrapper is included here because it existed prior to the latest refactor
         // however it is incorrect logic because it causes any internal cache calls to follow the App Router
@@ -355,8 +364,7 @@ export function unstable_cache<T extends Callback>(
             fallbackRouteParams: null,
             buildId: '', // Since this is a fake one it can't "use cache" anyway.
           },
-          cb,
-          ...args
+          () => cacheAsyncStorage.run(cacheStore, cb, ...args)
         )
         cacheNewResult(
           result,
