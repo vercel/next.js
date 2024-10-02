@@ -6,7 +6,7 @@ import {
   validateRevalidate,
   validateTags,
 } from '../../lib/patch-fetch'
-import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../../client/components/work-async-storage.external'
 import { requestAsyncStorage } from '../../../client/components/request-async-storage.external'
 import {
   CachedRouteKind,

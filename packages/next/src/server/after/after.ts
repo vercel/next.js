@@ -1,5 +1,5 @@
 import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 
 import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'

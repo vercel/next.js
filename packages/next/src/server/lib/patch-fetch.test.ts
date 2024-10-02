@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { createPatchedFetcher } from './patch-fetch'
 import type { PrerenderStore } from '../app-render/prerender-async-storage.external'

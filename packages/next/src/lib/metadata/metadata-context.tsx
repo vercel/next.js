@@ -1,6 +1,6 @@
 import type { AppRenderContext } from '../../server/app-render/app-render'
 import type { MetadataContext } from './types/resolvers'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
 import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 
 export function createMetadataContext(

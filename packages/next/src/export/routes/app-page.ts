@@ -21,7 +21,7 @@ import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-cs
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
 
 export const enum ExportedAppPageFiles {

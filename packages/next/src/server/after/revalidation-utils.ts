@@ -1,4 +1,4 @@
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
 
 /** Run a callback, and execute any *new* revalidations added during its runtime. */
 export async function withExecuteRevalidates<T>(

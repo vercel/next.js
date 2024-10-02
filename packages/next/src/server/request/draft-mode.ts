@@ -2,7 +2,7 @@ import { getExpectedRequestStore } from '../../client/components/request-async-s
 
 import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
 
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
 
 /**

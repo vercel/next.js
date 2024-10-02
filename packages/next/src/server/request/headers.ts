@@ -2,7 +2,7 @@ import {
   HeadersAdapter,
   type ReadonlyHeaders,
 } from '../../server/web/spec-extension/adapters/headers'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
 import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
 import {
   isDynamicIOPrerender,

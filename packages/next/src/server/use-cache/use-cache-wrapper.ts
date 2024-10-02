@@ -12,8 +12,8 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client.edge'
 
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
 import type { CacheStore } from '../app-render/cache-async-storage.external'
 import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'

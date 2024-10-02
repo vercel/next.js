@@ -18,7 +18,7 @@ import {
 import {
   withStaticGenerationStore,
   type StaticGenerationContext,
-} from '../../async-storage/with-static-generation-store'
+} from '../../async-storage/with-work-store'
 import {
   handleBadRequestResponse,
   handleInternalServerErrorResponse,
@@ -46,7 +46,7 @@ import { requestAsyncStorage } from '../../../client/components/request-async-st
 import {
   staticGenerationAsyncStorage,
   type StaticGenerationStore,
-} from '../../../client/components/static-generation-async-storage.external'
+} from '../../../client/components/work-async-storage.external'
 import {
   prerenderAsyncStorage,
   type PrerenderStore,

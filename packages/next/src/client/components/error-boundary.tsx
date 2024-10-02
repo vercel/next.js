@@ -4,7 +4,7 @@ import React, { type JSX } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
-import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from './work-async-storage.external'
 
 const styles = {
   error: {

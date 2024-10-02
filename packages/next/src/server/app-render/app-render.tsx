@@ -11,7 +11,7 @@ import type {
   FlightData,
   InitialRSCPayload,
 } from './types'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
@@ -52,7 +52,7 @@ import {
   createMetadataContext,
 } from '../../lib/metadata/metadata-context'
 import { withRequestStore } from '../async-storage/with-request-store'
-import { withStaticGenerationStore } from '../async-storage/with-static-generation-store'
+import { withStaticGenerationStore } from '../async-storage/with-work-store'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
   getURLFromRedirectError,

@@ -26,7 +26,7 @@ export function ClientSegmentRoot({
 }) {
   if (typeof window === 'undefined') {
     const { staticGenerationAsyncStorage } =
-      require('./static-generation-async-storage.external') as typeof import('./static-generation-async-storage.external')
+      require('./work-async-storage.external') as typeof import('./work-async-storage.external')
 
     let clientParams: Promise<Params>
     // We are going to instrument the searchParams prop with tracking for the

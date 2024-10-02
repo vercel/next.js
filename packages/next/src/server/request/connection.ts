@@ -1,4 +1,4 @@
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
 import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,

@@ -27,7 +27,7 @@ export function ClientPageRoot({
 }) {
   if (typeof window === 'undefined') {
     const { staticGenerationAsyncStorage } =
-      require('./static-generation-async-storage.external') as typeof import('./static-generation-async-storage.external')
+      require('./work-async-storage.external') as typeof import('./work-async-storage.external')
 
     let clientSearchParams: Promise<ParsedUrlQuery>
     let clientParams: Promise<Params>

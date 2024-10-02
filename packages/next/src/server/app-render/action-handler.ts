@@ -20,7 +20,7 @@ import {
   type RedirectType,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
   filterReqHeaders,

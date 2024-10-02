@@ -2,7 +2,7 @@ import type { RequestCookies } from '../cookies'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
-import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../../../client/components/work-async-storage.external'
 
 /**
  * @internal

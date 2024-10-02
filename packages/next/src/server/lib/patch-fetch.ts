@@ -1,7 +1,7 @@
 import type {
   StaticGenerationAsyncStorage,
   StaticGenerationStore,
-} from '../../client/components/static-generation-async-storage.external'
+} from '../../client/components/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'

@@ -20,7 +20,7 @@
  * read that data outside the cache and pass it in as an argument to the cached function.
  */
 
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationStore } from '../../client/components/work-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
@@ -32,7 +32,7 @@ import {
   prerenderAsyncStorage,
   type PrerenderStore,
 } from './prerender-async-storage.external'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'

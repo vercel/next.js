@@ -4,7 +4,7 @@ import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
   NEXT_CACHE_SOFT_TAG_MAX_LENGTH,
 } from '../../../lib/constants'
-import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../../client/components/work-async-storage.external'
 
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
