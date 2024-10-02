@@ -49,16 +49,16 @@ export type UnsafeUnwrappedParams<P> =
 
 export function createPrerenderParamsFromClient(
   underlyingParams: Params,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ) {
-  return createPrerenderParams(underlyingParams, staticGenerationStore)
+  return createPrerenderParams(underlyingParams, workStore)
 }
 
 export function createRenderParamsFromClient(
   underlyingParams: Params,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ) {
-  return createRenderParams(underlyingParams, staticGenerationStore)
+  return createRenderParams(underlyingParams, workStore)
 }
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
@@ -68,34 +68,34 @@ export const createServerParamsForMetadata = createServerParamsForServerSegment
 // routes always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerParamsForRoute(
   underlyingParams: Params,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ) {
-  if (staticGenerationStore.isStaticGeneration) {
-    return createPrerenderParams(underlyingParams, staticGenerationStore)
+  if (workStore.isStaticGeneration) {
+    return createPrerenderParams(underlyingParams, workStore)
   } else {
-    return createRenderParams(underlyingParams, staticGenerationStore)
+    return createRenderParams(underlyingParams, workStore)
   }
 }
 
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ): Promise<Params> {
-  if (staticGenerationStore.isStaticGeneration) {
-    return createPrerenderParams(underlyingParams, staticGenerationStore)
+  if (workStore.isStaticGeneration) {
+    return createPrerenderParams(underlyingParams, workStore)
   } else {
-    return createRenderParams(underlyingParams, staticGenerationStore)
+    return createRenderParams(underlyingParams, workStore)
   }
 }
 
 export function createPrerenderParamsForClientSegment(
   underlyingParams: Params,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ): Promise<Params> {
   const prerenderStore = prerenderAsyncStorage.getStore()
   if (prerenderStore) {
     if (isDynamicIOPrerender(prerenderStore)) {
-      const fallbackParams = staticGenerationStore.fallbackRouteParams
+      const fallbackParams = workStore.fallbackRouteParams
       if (fallbackParams) {
         for (let key in underlyingParams) {
           if (fallbackParams.has(key)) {
@@ -116,9 +116,9 @@ export function createPrerenderParamsForClientSegment(
 
 function createPrerenderParams(
   underlyingParams: Params,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ): Promise<Params> {
-  const fallbackParams = staticGenerationStore.fallbackRouteParams
+  const fallbackParams = workStore.fallbackRouteParams
   if (fallbackParams) {
     let hasSomeFallbackParams = false
     for (const key in underlyingParams) {
@@ -136,7 +136,7 @@ function createPrerenderParams(
           // We are in a dynamicIO (PPR or otherwise) prerender
           return makeAbortingExoticParams(
             underlyingParams,
-            staticGenerationStore.route,
+            workStore.route,
             prerenderStore
           )
         }
@@ -147,7 +147,7 @@ function createPrerenderParams(
       return makeErroringExoticParams(
         underlyingParams,
         fallbackParams,
-        staticGenerationStore,
+        workStore,
         prerenderStore
       )
     }
@@ -159,15 +159,12 @@ function createPrerenderParams(
 
 function createRenderParams(
   underlyingParams: Params,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ): Promise<Params> {
-  if (
-    process.env.NODE_ENV === 'development' &&
-    !staticGenerationStore.isPrefetchRequest
-  ) {
+  if (process.env.NODE_ENV === 'development' && !workStore.isPrefetchRequest) {
     return makeDynamicallyTrackedExoticParamsWithDevWarnings(
       underlyingParams,
-      staticGenerationStore
+      workStore
     )
   } else {
     return makeUntrackedExoticParams(underlyingParams)
@@ -249,7 +246,7 @@ function makeAbortingExoticParams(
 function makeErroringExoticParams(
   underlyingParams: Params,
   fallbackParams: FallbackRouteParams,
-  staticGenerationStore: WorkStore,
+  workStore: WorkStore,
   prerenderStore: undefined | PrerenderStore
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
@@ -307,15 +304,12 @@ function makeErroringExoticParams(
               // will be no `dynamic = "error"`
               if (prerenderStore) {
                 postponeWithTracking(
-                  staticGenerationStore.route,
+                  workStore.route,
                   expression,
                   prerenderStore.dynamicTracking
                 )
               } else {
-                throwToInterruptStaticGeneration(
-                  expression,
-                  staticGenerationStore
-                )
+                throwToInterruptStaticGeneration(expression, workStore)
               }
             },
             enumerable: true,
@@ -331,15 +325,12 @@ function makeErroringExoticParams(
               // will be no `dynamic = "error"`
               if (prerenderStore) {
                 postponeWithTracking(
-                  staticGenerationStore.route,
+                  workStore.route,
                   expression,
                   prerenderStore.dynamicTracking
                 )
               } else {
-                throwToInterruptStaticGeneration(
-                  expression,
-                  staticGenerationStore
-                )
+                throwToInterruptStaticGeneration(expression, workStore)
               }
             },
             set(newValue) {

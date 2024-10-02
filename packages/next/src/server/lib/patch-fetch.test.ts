@@ -47,55 +47,52 @@ describe('createPatchedFetcher', () => {
     } as unknown as IncrementalCache
 
     // We only need to provide a few of the WorkStore properties.
-    const staticGenerationStore: Partial<WorkStore> = {
+    const workStore: Partial<WorkStore> = {
       page: '/',
       route: '/',
       incrementalCache,
     }
 
-    await staticGenerationAsyncStorage.run(
-      staticGenerationStore as WorkStore,
-      async () => {
-        const response = await patchedFetch('https://example.com', {
-          cache: 'force-cache',
-        })
+    await staticGenerationAsyncStorage.run(workStore as WorkStore, async () => {
+      const response = await patchedFetch('https://example.com', {
+        cache: 'force-cache',
+      })
 
-        if (!response.body) {
-          throw new Error(`Response body is ${JSON.stringify(response.body)}.`)
-        }
-
-        const reader = response.body.getReader()
-        let result = await reader.read()
-        const textDecoder = new TextDecoder()
-        expect(textDecoder.decode(result.value)).toBe('stream start')
-        streamChunk()
-        result = await reader.read()
-        expect(textDecoder.decode(result.value)).toBe('stream end')
-
-        await incrementalCacheSetPromise
-
-        expect(incrementalCache.set).toHaveBeenCalledWith(
-          'test-cache-key',
-          {
-            data: {
-              body: btoa('stream startstream end'),
-              headers: {},
-              status: 200,
-              url: '', // the mocked response does not have a URL
-            },
-            kind: 'FETCH',
-            revalidate: 31536000, // default of one year
-          },
-          {
-            fetchCache: true,
-            fetchIdx: 1,
-            fetchUrl: 'https://example.com/',
-            revalidate: false,
-            tags: [],
-          }
-        )
+      if (!response.body) {
+        throw new Error(`Response body is ${JSON.stringify(response.body)}.`)
       }
-    )
+
+      const reader = response.body.getReader()
+      let result = await reader.read()
+      const textDecoder = new TextDecoder()
+      expect(textDecoder.decode(result.value)).toBe('stream start')
+      streamChunk()
+      result = await reader.read()
+      expect(textDecoder.decode(result.value)).toBe('stream end')
+
+      await incrementalCacheSetPromise
+
+      expect(incrementalCache.set).toHaveBeenCalledWith(
+        'test-cache-key',
+        {
+          data: {
+            body: btoa('stream startstream end'),
+            headers: {},
+            status: 200,
+            url: '', // the mocked response does not have a URL
+          },
+          kind: 'FETCH',
+          revalidate: 31536000, // default of one year
+        },
+        {
+          fetchCache: true,
+          fetchIdx: 1,
+          fetchUrl: 'https://example.com/',
+          revalidate: false,
+          tags: [],
+        }
+      )
+    })
     // Setting a lower timeout than default, because the test will fail with a
     // timeout when we regress and buffer the response.
   }, 1000)

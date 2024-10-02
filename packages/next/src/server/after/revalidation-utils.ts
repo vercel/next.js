@@ -60,7 +60,7 @@ function diffRevalidationState(
 }
 
 async function executeRevalidates(
-  staticGenerationStore: WorkStore,
+  workStore: WorkStore,
   {
     revalidatedTags,
     pendingRevalidates,
@@ -68,7 +68,7 @@ async function executeRevalidates(
   }: RevalidationState
 ) {
   return Promise.all([
-    staticGenerationStore.incrementalCache?.revalidateTag(revalidatedTags),
+    workStore.incrementalCache?.revalidateTag(revalidatedTags),
     ...Object.values(pendingRevalidates),
     ...pendingRevalidateWrites,
   ])

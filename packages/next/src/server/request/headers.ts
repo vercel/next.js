@@ -56,24 +56,24 @@ export type UnsafeUnwrappedHeaders = ReadonlyHeaders
  */
 export function headers(): Promise<ReadonlyHeaders> {
   const requestStore = getExpectedRequestStore('headers')
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  const workStore = staticGenerationAsyncStorage.getStore()
   const prerenderStore = prerenderAsyncStorage.getStore()
 
-  if (staticGenerationStore) {
-    if (staticGenerationStore.forceStatic) {
+  if (workStore) {
+    if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
       // headers object without tracking
       const underlyingHeaders = HeadersAdapter.seal(new Headers({}))
       return makeUntrackedExoticHeaders(underlyingHeaders)
     }
 
-    if (staticGenerationStore.isUnstableCacheCallback) {
+    if (workStore.isUnstableCacheCallback) {
       throw new Error(
-        `Route ${staticGenerationStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
-    } else if (staticGenerationStore.dynamicShouldError) {
+    } else if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
-        `Route ${staticGenerationStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
 
@@ -88,7 +88,7 @@ export function headers(): Promise<ReadonlyHeaders> {
         // We don't track dynamic access here because access will be tracked when you access
         // one of the properties of the headers object.
         return makeDynamicallyTrackedExoticHeaders(
-          staticGenerationStore.route,
+          workStore.route,
           prerenderStore
         )
       } else {
@@ -96,29 +96,26 @@ export function headers(): Promise<ReadonlyHeaders> {
         // to keep continuity with how headers has worked in PPR without dynamicIO.
         // TODO consider switching the semantic to throw on property access instead
         postponeWithTracking(
-          staticGenerationStore.route,
+          workStore.route,
           'headers',
           prerenderStore.dynamicTracking
         )
       }
-    } else if (staticGenerationStore.isStaticGeneration) {
+    } else if (workStore.isStaticGeneration) {
       // We are in a legacy static generation mode while prerendering
       // We track dynamic access here so we don't need to wrap the headers in
       // individual property access tracking.
-      throwToInterruptStaticGeneration('headers', staticGenerationStore)
+      throwToInterruptStaticGeneration('headers', workStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using headers inside a cache context
-    trackDynamicDataInDynamicRender(staticGenerationStore)
+    trackDynamicDataInDynamicRender(workStore)
   }
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    !staticGenerationStore?.isPrefetchRequest
-  ) {
+  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     return makeUntrackedExoticHeadersWithDevWarnings(
       requestStore.headers,
-      staticGenerationStore?.route
+      workStore?.route
     )
   } else {
     return makeUntrackedExoticHeaders(requestStore.headers)

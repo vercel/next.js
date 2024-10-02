@@ -489,7 +489,7 @@ async function resolveMetadataItems(
   errorConvention: 'not-found' | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ) {
   const parentParams = {}
   const metadataItems: MetadataItems = []
@@ -505,7 +505,7 @@ async function resolveMetadataItems(
     errorMetadataItem,
     getDynamicParamFromSegment,
     createServerParamsForMetadata,
-    staticGenerationStore
+    workStore
   )
 }
 
@@ -520,7 +520,7 @@ async function resolveMetadataItemsImpl(
   errorMetadataItem: MetadataItems[number],
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix =
@@ -540,10 +540,7 @@ async function resolveMetadataItemsImpl(
     }
   }
 
-  const params = createServerParamsForMetadata(
-    currentParams,
-    staticGenerationStore
-  )
+  const params = createServerParamsForMetadata(currentParams, workStore)
 
   let layerProps: LayoutProps | PageProps
   if (isPage) {
@@ -581,7 +578,7 @@ async function resolveMetadataItemsImpl(
       errorMetadataItem,
       getDynamicParamFromSegment,
       createServerParamsForMetadata,
-      staticGenerationStore
+      workStore
     )
   }
 

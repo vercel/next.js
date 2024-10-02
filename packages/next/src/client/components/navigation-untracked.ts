@@ -13,10 +13,10 @@ function hasFallbackRouteParams() {
     const { staticGenerationAsyncStorage } =
       require('./work-async-storage.external') as typeof import('./work-async-storage.external')
 
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-    if (!staticGenerationStore) return false
+    const workStore = staticGenerationAsyncStorage.getStore()
+    if (!workStore) return false
 
-    const { fallbackRouteParams } = staticGenerationStore
+    const { fallbackRouteParams } = workStore
     if (!fallbackRouteParams || fallbackRouteParams.size === 0) return false
 
     return true

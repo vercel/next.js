@@ -523,13 +523,13 @@ export function annotateDynamicAccess(
 
 export function useDynamicRouteParams(expression: string) {
   if (typeof window === 'undefined') {
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+    const workStore = staticGenerationAsyncStorage.getStore()
 
     if (
-      staticGenerationStore &&
-      staticGenerationStore.isStaticGeneration &&
-      staticGenerationStore.fallbackRouteParams &&
-      staticGenerationStore.fallbackRouteParams.size > 0
+      workStore &&
+      workStore.isStaticGeneration &&
+      workStore.fallbackRouteParams &&
+      workStore.fallbackRouteParams.size > 0
     ) {
       // There are fallback route params, we should track these as dynamic
       // accesses.
@@ -544,14 +544,14 @@ export function useDynamicRouteParams(expression: string) {
         } else {
           // We're prerendering with PPR
           postponeWithTracking(
-            staticGenerationStore.route,
+            workStore.route,
             expression,
             prerenderStore.dynamicTracking
           )
         }
       } else {
         // We're prerendering in legacy mode
-        throwToInterruptStaticGeneration(expression, staticGenerationStore)
+        throwToInterruptStaticGeneration(expression, workStore)
       }
     }
   }

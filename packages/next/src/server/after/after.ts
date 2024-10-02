@@ -22,15 +22,15 @@ export function unstable_after<T>(task: AfterTask<T>) {
     )
   }
 
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  const workStore = staticGenerationAsyncStorage.getStore()
 
-  if (staticGenerationStore) {
-    if (staticGenerationStore.forceStatic) {
+  if (workStore) {
+    if (workStore.forceStatic) {
       throw new StaticGenBailoutError(
-        `Route ${staticGenerationStore.route} with \`dynamic = "force-static"\` couldn't be rendered statically because it used \`${callingExpression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "force-static"\` couldn't be rendered statically because it used \`${callingExpression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     } else {
-      markCurrentScopeAsDynamic(staticGenerationStore, callingExpression)
+      markCurrentScopeAsDynamic(workStore, callingExpression)
     }
   }
 

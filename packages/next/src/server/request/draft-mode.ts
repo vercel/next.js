@@ -34,13 +34,10 @@ export type UnsafeUnwrappedDraftMode = DraftMode
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
   const requestStore = getExpectedRequestStore(callingExpression)
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  const workStore = staticGenerationAsyncStorage.getStore()
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    !staticGenerationStore?.isPrefetchRequest
-  ) {
-    const route = staticGenerationStore?.route
+  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
+    const route = workStore?.route
     return createExoticDraftModeWithDevWarnings(requestStore.draftMode, route)
   } else {
     return createExoticDraftMode(requestStore.draftMode)

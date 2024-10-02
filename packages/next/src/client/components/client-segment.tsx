@@ -34,7 +34,7 @@ export function ClientSegmentRoot({
     const store = staticGenerationAsyncStorage.getStore()
     if (!store) {
       throw new InvariantError(
-        'Expected staticGenerationStore to exist when handling params in a client segment such as a Layout or Template.'
+        'Expected workStore to exist when handling params in a client segment such as a Layout or Template.'
       )
     }
 

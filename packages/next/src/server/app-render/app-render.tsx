@@ -169,7 +169,7 @@ export type GetDynamicParamFromSegment = (
 export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
 export type AppRenderContext = {
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
   requestStore: RequestStore
   componentMod: AppPageModule
   renderOpts: RenderOpts
@@ -396,28 +396,25 @@ async function generateDynamicRSCPayload(
     query,
     requestId,
     flightRouterState,
-    staticGenerationStore,
+    workStore,
   } = ctx
 
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
-    const searchParams = createServerSearchParamsForMetadata(
-      query,
-      staticGenerationStore
-    )
+    const searchParams = createServerSearchParamsForMetadata(query, workStore)
     const [MetadataTree, getMetadataReady] = createMetadataComponents({
       tree: loaderTree,
       searchParams,
       metadataContext: createTrackedMetadataContext(
         url.pathname,
         ctx.renderOpts,
-        staticGenerationStore
+        workStore
       ),
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
       createServerParamsForMetadata,
-      staticGenerationStore,
+      workStore,
     })
     flightData = (
       await walkTreeWithFlightRouterState({
@@ -460,7 +457,7 @@ async function generateDynamicRSCPayload(
   return {
     b: ctx.renderOpts.buildId,
     f: flightData,
-    S: staticGenerationStore.isStaticGeneration,
+    S: workStore.isStaticGeneration,
   }
 }
 
@@ -473,7 +470,7 @@ function createErrorContext(
     routePath: ctx.pagePath,
     routeType: ctx.isAction ? 'action' : 'render',
     renderSource,
-    revalidateReason: getRevalidateReason(ctx.staticGenerationStore),
+    revalidateReason: getRevalidateReason(ctx.workStore),
   }
 }
 /**
@@ -518,22 +515,22 @@ async function generateDynamicFlightRenderResult(
   await waitAtLeastOneReactRenderTask()
 
   if (
-    ctx.staticGenerationStore.pendingRevalidates ||
-    ctx.staticGenerationStore.revalidatedTags ||
-    ctx.staticGenerationStore.pendingRevalidateWrites
+    ctx.workStore.pendingRevalidates ||
+    ctx.workStore.revalidatedTags ||
+    ctx.workStore.pendingRevalidateWrites
   ) {
     const promises = Promise.all([
-      ctx.staticGenerationStore.incrementalCache?.revalidateTag(
-        ctx.staticGenerationStore.revalidatedTags || []
+      ctx.workStore.incrementalCache?.revalidateTag(
+        ctx.workStore.revalidatedTags || []
       ),
-      ...Object.values(ctx.staticGenerationStore.pendingRevalidates || {}),
-      ...(ctx.staticGenerationStore.pendingRevalidateWrites || []),
+      ...Object.values(ctx.workStore.pendingRevalidates || {}),
+      ...(ctx.workStore.pendingRevalidateWrites || []),
     ])
     ctx.renderOpts.waitUntil = (p) => promises.then(() => p)
   }
 
   return new FlightRenderResult(flightReadableStream, {
-    fetchMetrics: ctx.staticGenerationStore.fetchMetrics,
+    fetchMetrics: ctx.workStore.fetchMetrics,
   })
 }
 
@@ -574,7 +571,7 @@ async function getRSCPayload(
       createMetadataComponents,
     },
     requestStore: { url },
-    staticGenerationStore,
+    workStore,
   } = ctx
   const initialTree = createFlightRouterStateFromLoaderTree(
     tree,
@@ -582,10 +579,7 @@ async function getRSCPayload(
     query
   )
 
-  const searchParams = createServerSearchParamsForMetadata(
-    query,
-    staticGenerationStore
-  )
+  const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const [MetadataTree, getMetadataReady] = createMetadataComponents({
     tree,
     errorType: is404 ? 'not-found' : undefined,
@@ -593,12 +587,12 @@ async function getRSCPayload(
     metadataContext: createTrackedMetadataContext(
       url.pathname,
       ctx.renderOpts,
-      staticGenerationStore
+      workStore
     ),
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     createServerParamsForMetadata,
-    staticGenerationStore,
+    workStore,
   })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -644,7 +638,7 @@ async function getRSCPayload(
     m: missingSlots,
     G: GlobalError,
     s: typeof ctx.renderOpts.postponed === 'string',
-    S: staticGenerationStore.isStaticGeneration,
+    S: workStore.isStaticGeneration,
   }
 }
 
@@ -677,13 +671,10 @@ async function getErrorRSCPayload(
     },
     requestStore: { url },
     requestId,
-    staticGenerationStore,
+    workStore,
   } = ctx
 
-  const searchParams = createServerSearchParamsForMetadata(
-    query,
-    staticGenerationStore
-  )
+  const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const [MetadataTree] = createMetadataComponents({
     tree,
     searchParams,
@@ -694,7 +685,7 @@ async function getErrorRSCPayload(
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     createServerParamsForMetadata,
-    staticGenerationStore,
+    workStore,
   })
 
   const initialHead = (
@@ -735,7 +726,7 @@ async function getErrorRSCPayload(
     f: [[initialTree, initialSeedData, initialHead]],
     G: GlobalError,
     s: typeof ctx.renderOpts.postponed === 'string',
-    S: staticGenerationStore.isStaticGeneration,
+    S: workStore.isStaticGeneration,
   } satisfies InitialRSCPayload
 }
 
@@ -859,7 +850,7 @@ async function renderToHTMLOrFlightImpl(
   query: NextParsedUrlQuery,
   renderOpts: RenderOpts,
   requestStore: RequestStore,
-  staticGenerationStore: WorkStore,
+  workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
   requestEndedState: { ended?: boolean },
   postponedState: PostponedState | null
@@ -990,8 +981,8 @@ async function renderToHTMLOrFlightImpl(
     )
   }
 
-  staticGenerationStore.fetchMetrics = []
-  metadata.fetchMetrics = staticGenerationStore.fetchMetrics
+  workStore.fetchMetrics = []
+  metadata.fetchMetrics = workStore.fetchMetrics
 
   // don't modify original query object
   query = { ...query }
@@ -1017,7 +1008,7 @@ async function renderToHTMLOrFlightImpl(
    */
   const params = renderOpts.params ?? {}
 
-  const { isStaticGeneration, fallbackRouteParams } = staticGenerationStore
+  const { isStaticGeneration, fallbackRouteParams } = workStore
 
   const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
     params,
@@ -1031,7 +1022,7 @@ async function renderToHTMLOrFlightImpl(
     componentMod: ComponentMod,
     renderOpts,
     requestStore,
-    staticGenerationStore,
+    workStore,
     parsedRequestHeaders,
     getDynamicParamFromSegment,
     query,
@@ -1071,7 +1062,7 @@ async function renderToHTMLOrFlightImpl(
       res,
       ctx,
       metadata,
-      staticGenerationStore,
+      workStore,
       loaderTree
     )
 
@@ -1108,40 +1099,39 @@ async function renderToHTMLOrFlightImpl(
     }
     // If we have pending revalidates, wait until they are all resolved.
     if (
-      staticGenerationStore.pendingRevalidates ||
-      staticGenerationStore.pendingRevalidateWrites ||
-      staticGenerationStore.revalidatedTags
+      workStore.pendingRevalidates ||
+      workStore.pendingRevalidateWrites ||
+      workStore.revalidatedTags
     ) {
       options.waitUntil = Promise.all([
-        staticGenerationStore.incrementalCache?.revalidateTag(
-          staticGenerationStore.revalidatedTags || []
+        workStore.incrementalCache?.revalidateTag(
+          workStore.revalidatedTags || []
         ),
-        ...Object.values(staticGenerationStore.pendingRevalidates || {}),
-        ...(staticGenerationStore.pendingRevalidateWrites || []),
+        ...Object.values(workStore.pendingRevalidates || {}),
+        ...(workStore.pendingRevalidateWrites || []),
       ])
     }
 
-    addImplicitTags(staticGenerationStore, requestStore)
+    addImplicitTags(workStore, requestStore)
 
-    if (staticGenerationStore.tags) {
-      metadata.fetchTags = staticGenerationStore.tags.join(',')
+    if (workStore.tags) {
+      metadata.fetchTags = workStore.tags.join(',')
     }
 
     // If force static is specifically set to false, we should not revalidate
     // the page.
-    if (staticGenerationStore.forceStatic === false) {
-      staticGenerationStore.revalidate = 0
+    if (workStore.forceStatic === false) {
+      workStore.revalidate = 0
     }
 
     // Copy the revalidation value onto the render result metadata.
-    metadata.revalidate =
-      staticGenerationStore.revalidate ?? ctx.defaultRevalidate
+    metadata.revalidate = workStore.revalidate ?? ctx.defaultRevalidate
 
     // provide bailout info for debugging
     if (metadata.revalidate === 0) {
       metadata.staticBailoutInfo = {
-        description: staticGenerationStore.dynamicUsageDescription,
-        stack: staticGenerationStore.dynamicUsageStack,
+        description: workStore.dynamicUsageDescription,
+        stack: workStore.dynamicUsageStack,
       }
     }
 
@@ -1172,7 +1162,7 @@ async function renderToHTMLOrFlightImpl(
         ComponentMod,
         serverModuleMap,
         generateFlight: generateDynamicFlightRenderResult,
-        staticGenerationStore,
+        workStore,
         requestStore,
         serverActions,
         ctx,
@@ -1218,23 +1208,23 @@ async function renderToHTMLOrFlightImpl(
 
     // If we have pending revalidates, wait until they are all resolved.
     if (
-      staticGenerationStore.pendingRevalidates ||
-      staticGenerationStore.pendingRevalidateWrites ||
-      staticGenerationStore.revalidatedTags
+      workStore.pendingRevalidates ||
+      workStore.pendingRevalidateWrites ||
+      workStore.revalidatedTags
     ) {
       options.waitUntil = Promise.all([
-        staticGenerationStore.incrementalCache?.revalidateTag(
-          staticGenerationStore.revalidatedTags || []
+        workStore.incrementalCache?.revalidateTag(
+          workStore.revalidatedTags || []
         ),
-        ...Object.values(staticGenerationStore.pendingRevalidates || {}),
-        ...(staticGenerationStore.pendingRevalidateWrites || []),
+        ...Object.values(workStore.pendingRevalidates || {}),
+        ...(workStore.pendingRevalidateWrites || []),
       ])
     }
 
-    addImplicitTags(staticGenerationStore, requestStore)
+    addImplicitTags(workStore, requestStore)
 
-    if (staticGenerationStore.tags) {
-      metadata.fetchTags = staticGenerationStore.tags.join(',')
+    if (workStore.tags) {
+      metadata.fetchTags = workStore.tags.join(',')
     }
 
     // Create the new render result for the response.
@@ -1313,7 +1303,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
           requestEndedState,
           isPrefetchRequest: Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER]),
         },
-        (staticGenerationStore) =>
+        (workStore) =>
           renderToHTMLOrFlightImpl(
             req,
             res,
@@ -1321,7 +1311,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
             query,
             renderOpts,
             requestStore,
-            staticGenerationStore,
+            workStore,
             parsedRequestHeaders,
             requestEndedState,
             postponedState
@@ -1719,10 +1709,8 @@ type PrerenderToStreamResult = {
 /**
  * Determines whether we should generate static flight data.
  */
-function shouldGenerateStaticFlightData(
-  staticGenerationStore: WorkStore
-): boolean {
-  const { fallbackRouteParams, isStaticGeneration } = staticGenerationStore
+function shouldGenerateStaticFlightData(workStore: WorkStore): boolean {
+  const { fallbackRouteParams, isStaticGeneration } = workStore
   if (!isStaticGeneration) return false
 
   if (fallbackRouteParams && fallbackRouteParams.size > 0) {
@@ -1737,7 +1725,7 @@ async function prerenderToStream(
   res: BaseNextResponse,
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
-  staticGenerationStore: WorkStore,
+  workStore: WorkStore,
   tree: LoaderTree
 ): Promise<PrerenderToStreamResult> {
   // When prerendering formState is always null. We still include it
@@ -1749,7 +1737,7 @@ async function prerenderToStream(
   const ComponentMod = renderOpts.ComponentMod
   // TODO: fix this typescript
   const clientReferenceManifest = renderOpts.clientReferenceManifest!
-  const fallbackRouteParams = staticGenerationStore.fallbackRouteParams
+  const fallbackRouteParams = workStore.fallbackRouteParams
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
@@ -2096,7 +2084,7 @@ async function prerenderToStream(
           }
         } else {
           // Static case
-          if (staticGenerationStore.forceDynamic) {
+          if (workStore.forceDynamic) {
             throw new StaticGenBailoutError(
               'Invariant: a Page with `dynamic = "force-dynamic"` did not trigger the dynamic pathway. This is a bug in Next.js'
             )
@@ -2166,7 +2154,7 @@ async function prerenderToStream(
          * synchronously fill caches during this special rendering mode. For now this heuristic should work
          */
 
-        const cache = staticGenerationStore.incrementalCache
+        const cache = workStore.incrementalCache
         if (!cache) {
           throw new Error(
             'Expected incremental cache to exist. This is a bug in Next.js'
@@ -2372,32 +2360,32 @@ async function prerenderToStream(
           const dynamicReason = getFirstDynamicReason(dynamicTracking)
           if (dynamicReason) {
             throw new DynamicServerError(
-              `Route ${staticGenerationStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+              `Route ${workStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
             )
           } else {
             throw new DynamicServerError(
-              `Route ${staticGenerationStore.route} couldn't be rendered statically because it used IO that was not cached in a Client Component. See more info here: https://nextjs.org/docs/messages/dynamic-io`
+              `Route ${workStore.route} couldn't be rendered statically because it used IO that was not cached in a Client Component. See more info here: https://nextjs.org/docs/messages/dynamic-io`
             )
           }
         } else if (reactServerIsSynchronouslyDynamic) {
           const dynamicReason = getFirstDynamicReason(dynamicTracking)
           if (dynamicReason) {
             throw new DynamicServerError(
-              `Route ${staticGenerationStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+              `Route ${workStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
             )
           } else {
             console.error(
               'Expected Next.js to keep track of reason for opting out of static rendering but one was not found. This is a bug in Next.js'
             )
             throw new DynamicServerError(
-              `Route ${staticGenerationStore.route} couldn't be rendered statically because it used a dynamic API. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+              `Route ${workStore.route} couldn't be rendered statically because it used a dynamic API. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
             )
           }
         } else if (reactServerIsDynamic) {
           // There was unfinished work after we aborted after the first render Task. This means there is some IO
           // that is not covered by a cache and we need to bail out of static generation.
           const err = new DynamicServerError(
-            `Route ${staticGenerationStore.route} couldn't be rendered statically because it used IO that was not cached in a Server Component. See more info here: https://nextjs.org/docs/messages/dynamic-io`
+            `Route ${workStore.route} couldn't be rendered statically because it used IO that was not cached in a Server Component. See more info here: https://nextjs.org/docs/messages/dynamic-io`
           )
           serverComponentsErrorHandler(err)
           throw err
@@ -2510,7 +2498,7 @@ async function prerenderToStream(
       // parts of the React Server render that might not be used in the SSR render.
       const flightData = await streamToBuffer(reactServerResult.asStream())
 
-      if (shouldGenerateStaticFlightData(staticGenerationStore)) {
+      if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
       }
 
@@ -2568,7 +2556,7 @@ async function prerenderToStream(
       } else {
         // Static case
         // We still have not used any dynamic APIs. At this point we can produce an entirely static prerender response
-        if (staticGenerationStore.forceDynamic) {
+        if (workStore.forceDynamic) {
           throw new StaticGenBailoutError(
             'Invariant: a Page with `dynamic = "force-dynamic"` did not trigger the dynamic pathway. This is a bug in Next.js'
           )
@@ -2656,7 +2644,7 @@ async function prerenderToStream(
         }
       )
 
-      if (shouldGenerateStaticFlightData(staticGenerationStore)) {
+      if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = await streamToBuffer(reactServerResult.asStream())
       }
 
@@ -2794,7 +2782,7 @@ async function prerenderToStream(
         },
       })
 
-      if (shouldGenerateStaticFlightData(staticGenerationStore)) {
+      if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = await streamToBuffer(
           reactServerPrerenderResult.asStream()
         )

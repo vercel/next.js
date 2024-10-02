@@ -52,17 +52,15 @@ export type SearchParams = { [key: string]: string | string[] | undefined }
 export type UnsafeUnwrappedSearchParams<P> =
   P extends Promise<infer U> ? Omit<U, 'then' | 'status' | 'value'> : never
 
-export function createPrerenderSearchParamsFromClient(
-  staticGenerationStore: WorkStore
-) {
-  return createPrerenderSearchParams(staticGenerationStore)
+export function createPrerenderSearchParamsFromClient(workStore: WorkStore) {
+  return createPrerenderSearchParams(workStore)
 }
 
 export function createRenderSearchParamsFromClient(
   underlyingSearchParams: SearchParams,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ) {
-  return createRenderSearchParams(underlyingSearchParams, staticGenerationStore)
+  return createRenderSearchParams(underlyingSearchParams, workStore)
 }
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
@@ -71,22 +69,19 @@ export const createServerSearchParamsForMetadata =
 
 export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ): Promise<SearchParams> {
-  if (staticGenerationStore.isStaticGeneration) {
-    return createPrerenderSearchParams(staticGenerationStore)
+  if (workStore.isStaticGeneration) {
+    return createPrerenderSearchParams(workStore)
   } else {
-    return createRenderSearchParams(
-      underlyingSearchParams,
-      staticGenerationStore
-    )
+    return createRenderSearchParams(underlyingSearchParams, workStore)
   }
 }
 
 export function createPrerenderSearchParamsForClientPage(
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ): Promise<SearchParams> {
-  if (staticGenerationStore.forceStatic) {
+  if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
     return Promise.resolve({})
@@ -107,9 +102,9 @@ export function createPrerenderSearchParamsForClientPage(
 }
 
 function createPrerenderSearchParams(
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ): Promise<SearchParams> {
-  if (staticGenerationStore.forceStatic) {
+  if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
     return Promise.resolve({})
@@ -119,40 +114,34 @@ function createPrerenderSearchParams(
   if (prerenderStore) {
     if (prerenderStore.controller || prerenderStore.cacheSignal) {
       // We are in a dynamicIO (PPR or otherwise) prerender
-      return makeAbortingExoticSearchParams(
-        staticGenerationStore.route,
-        prerenderStore
-      )
+      return makeAbortingExoticSearchParams(workStore.route, prerenderStore)
     }
   }
 
   // We are in a legacy static generation and need to interrupt the prerender
   // when search params are accessed.
-  return makeErroringExoticSearchParams(staticGenerationStore, prerenderStore)
+  return makeErroringExoticSearchParams(workStore, prerenderStore)
 }
 
 function createRenderSearchParams(
   underlyingSearchParams: SearchParams,
-  staticGenerationStore: WorkStore
+  workStore: WorkStore
 ): Promise<SearchParams> {
-  if (staticGenerationStore.forceStatic) {
+  if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
     return Promise.resolve({})
   } else {
     if (
       process.env.NODE_ENV === 'development' &&
-      !staticGenerationStore.isPrefetchRequest
+      !workStore.isPrefetchRequest
     ) {
       return makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
         underlyingSearchParams,
-        staticGenerationStore
+        workStore
       )
     } else {
-      return makeUntrackedExoticSearchParams(
-        underlyingSearchParams,
-        staticGenerationStore
-      )
+      return makeUntrackedExoticSearchParams(underlyingSearchParams, workStore)
     }
   }
 }
@@ -266,10 +255,10 @@ function makeAbortingExoticSearchParams(
 }
 
 function makeErroringExoticSearchParams(
-  staticGenerationStore: WorkStore,
+  workStore: WorkStore,
   prerenderStore: undefined | PrerenderStore
 ): Promise<SearchParams> {
-  const cachedSearchParams = CachedSearchParams.get(staticGenerationStore)
+  const cachedSearchParams = CachedSearchParams.get(workStore)
   if (cachedSearchParams) {
     return cachedSearchParams
   }
@@ -315,38 +304,38 @@ function makeErroringExoticSearchParams(
         case 'then': {
           const expression =
             '`await searchParams`, `searchParams.then`, or similar'
-          if (staticGenerationStore.dynamicShouldError) {
+          if (workStore.dynamicShouldError) {
             throwWithStaticGenerationBailoutErrorWithDynamicError(
-              staticGenerationStore.route,
+              workStore.route,
               expression
             )
           } else if (prerenderStore) {
             postponeWithTracking(
-              staticGenerationStore.route,
+              workStore.route,
               expression,
               prerenderStore.dynamicTracking
             )
           } else {
-            throwToInterruptStaticGeneration(expression, staticGenerationStore)
+            throwToInterruptStaticGeneration(expression, workStore)
           }
           return
         }
         case 'status': {
           const expression =
             '`use(searchParams)`, `searchParams.status`, or similar'
-          if (staticGenerationStore.dynamicShouldError) {
+          if (workStore.dynamicShouldError) {
             throwWithStaticGenerationBailoutErrorWithDynamicError(
-              staticGenerationStore.route,
+              workStore.route,
               expression
             )
           } else if (prerenderStore) {
             postponeWithTracking(
-              staticGenerationStore.route,
+              workStore.route,
               expression,
               prerenderStore.dynamicTracking
             )
           } else {
-            throwToInterruptStaticGeneration(expression, staticGenerationStore)
+            throwToInterruptStaticGeneration(expression, workStore)
           }
           return
         }
@@ -356,22 +345,19 @@ function makeErroringExoticSearchParams(
               'searchParams',
               prop
             )
-            if (staticGenerationStore.dynamicShouldError) {
+            if (workStore.dynamicShouldError) {
               throwWithStaticGenerationBailoutErrorWithDynamicError(
-                staticGenerationStore.route,
+                workStore.route,
                 expression
               )
             } else if (prerenderStore) {
               postponeWithTracking(
-                staticGenerationStore.route,
+                workStore.route,
                 expression,
                 prerenderStore.dynamicTracking
               )
             } else {
-              throwToInterruptStaticGeneration(
-                expression,
-                staticGenerationStore
-              )
+              throwToInterruptStaticGeneration(expression, workStore)
             }
           }
           return ReflectAdapter.get(target, prop, receiver)
@@ -388,19 +374,19 @@ function makeErroringExoticSearchParams(
           'searchParams',
           prop
         )
-        if (staticGenerationStore.dynamicShouldError) {
+        if (workStore.dynamicShouldError) {
           throwWithStaticGenerationBailoutErrorWithDynamicError(
-            staticGenerationStore.route,
+            workStore.route,
             expression
           )
         } else if (prerenderStore) {
           postponeWithTracking(
-            staticGenerationStore.route,
+            workStore.route,
             expression,
             prerenderStore.dynamicTracking
           )
         } else {
-          throwToInterruptStaticGeneration(expression, staticGenerationStore)
+          throwToInterruptStaticGeneration(expression, workStore)
         }
         return false
       }
@@ -409,24 +395,24 @@ function makeErroringExoticSearchParams(
     ownKeys() {
       const expression =
         '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
-      if (staticGenerationStore.dynamicShouldError) {
+      if (workStore.dynamicShouldError) {
         throwWithStaticGenerationBailoutErrorWithDynamicError(
-          staticGenerationStore.route,
+          workStore.route,
           expression
         )
       } else if (prerenderStore) {
         postponeWithTracking(
-          staticGenerationStore.route,
+          workStore.route,
           expression,
           prerenderStore.dynamicTracking
         )
       } else {
-        throwToInterruptStaticGeneration(expression, staticGenerationStore)
+        throwToInterruptStaticGeneration(expression, workStore)
       }
     },
   })
 
-  CachedSearchParams.set(staticGenerationStore, proxiedPromise)
+  CachedSearchParams.set(workStore, proxiedPromise)
   return proxiedPromise
 }
 

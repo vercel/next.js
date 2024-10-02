@@ -36,7 +36,7 @@ export function ClientPageRoot({
     const store = staticGenerationAsyncStorage.getStore()
     if (!store) {
       throw new InvariantError(
-        'Expected staticGenerationStore to exist when handling searchParams in a client Page.'
+        'Expected workStore to exist when handling searchParams in a client Page.'
       )
     }
 

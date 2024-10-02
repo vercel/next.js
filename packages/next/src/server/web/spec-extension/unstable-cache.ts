@@ -97,15 +97,14 @@ export function unstable_cache<T extends Callback>(
   }`
 
   const cachedCb = async (...args: any[]) => {
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+    const workStore = staticGenerationAsyncStorage.getStore()
     const requestStore = requestAsyncStorage.getStore()
 
     // We must be able to find the incremental cache otherwise we throw
     const maybeIncrementalCache:
       | import('../../lib/incremental-cache').IncrementalCache
       | undefined =
-      staticGenerationStore?.incrementalCache ||
-      (globalThis as any).__incrementalCache
+      workStore?.incrementalCache || (globalThis as any).__incrementalCache
 
     if (!maybeIncrementalCache) {
       throw new Error(
@@ -124,8 +123,7 @@ export function unstable_cache<T extends Callback>(
       // router)  and if there's no static generation store, we aren't in app
       // router. Default to an empty pathname and search params when there's no
       // request store or static generation store available.
-      const pathname =
-        requestStore?.url.pathname ?? staticGenerationStore?.route ?? ''
+      const pathname = requestStore?.url.pathname ?? workStore?.route ?? ''
       const searchParams = new URLSearchParams(requestStore?.url.search ?? '')
 
       const sortedSearchKeys = [...searchParams.keys()].sort((a, b) => {
@@ -143,12 +141,10 @@ export function unstable_cache<T extends Callback>(
       // $urlWithPath,$sortedQueryStringKeys,$hashOfEveryThingElse
       const fetchUrl = `unstable_cache ${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch} ${cb.name ? ` ${cb.name}` : cacheKey}`
       const fetchIdx =
-        (staticGenerationStore
-          ? staticGenerationStore.nextFetchId
-          : noStoreFetchIdx) ?? 1
+        (workStore ? workStore.nextFetchId : noStoreFetchIdx) ?? 1
 
-      if (staticGenerationStore) {
-        staticGenerationStore.nextFetchId = fetchIdx + 1
+      if (workStore) {
+        workStore.nextFetchId = fetchIdx + 1
 
         // We are in an App Router context. We try to return the cached entry if it exists and is valid
         // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
@@ -157,46 +153,43 @@ export function unstable_cache<T extends Callback>(
         // We update the store's revalidate property if the option.revalidate is a higher precedence
         if (typeof options.revalidate === 'number') {
           if (
-            typeof staticGenerationStore.revalidate === 'number' &&
-            staticGenerationStore.revalidate < options.revalidate
+            typeof workStore.revalidate === 'number' &&
+            workStore.revalidate < options.revalidate
           ) {
             // The store is already revalidating on a shorter time interval, leave it alone
           } else {
-            staticGenerationStore.revalidate = options.revalidate
+            workStore.revalidate = options.revalidate
           }
         } else if (
           options.revalidate === false &&
-          typeof staticGenerationStore.revalidate === 'undefined'
+          typeof workStore.revalidate === 'undefined'
         ) {
           // The store has not defined revalidate type so we can use the false option
-          staticGenerationStore.revalidate = options.revalidate
+          workStore.revalidate = options.revalidate
         }
 
         // We need to accumulate the tags for this invocation within the store
-        if (!staticGenerationStore.tags) {
-          staticGenerationStore.tags = tags.slice()
+        if (!workStore.tags) {
+          workStore.tags = tags.slice()
         } else {
           for (const tag of tags) {
             // @TODO refactor tags to be a set to avoid this O(n) lookup
-            if (!staticGenerationStore.tags.includes(tag)) {
-              staticGenerationStore.tags.push(tag)
+            if (!workStore.tags.includes(tag)) {
+              workStore.tags.push(tag)
             }
           }
         }
         // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
         // of this function is potentially a little confusing
-        const implicitTags = addImplicitTags(
-          staticGenerationStore,
-          requestStore
-        )
+        const implicitTags = addImplicitTags(workStore, requestStore)
 
         if (
           // when we are nested inside of other unstable_cache's
           // we should bypass cache similar to fetches
-          staticGenerationStore.fetchCache !== 'force-no-store' &&
-          !staticGenerationStore.isOnDemandRevalidate &&
+          workStore.fetchCache !== 'force-no-store' &&
+          !workStore.isOnDemandRevalidate &&
           !incrementalCache.isOnDemandRevalidate &&
-          !staticGenerationStore.isDraftMode
+          !workStore.isDraftMode
         ) {
           // We attempt to get the current cache entry from the incremental cache.
           const cacheEntry = await incrementalCache.get(cacheKey, {
@@ -229,15 +222,15 @@ export function unstable_cache<T extends Callback>(
                   : undefined
               if (cacheEntry.isStale) {
                 // In App Router we return the stale result and revalidate in the background
-                if (!staticGenerationStore.pendingRevalidates) {
-                  staticGenerationStore.pendingRevalidates = {}
+                if (!workStore.pendingRevalidates) {
+                  workStore.pendingRevalidates = {}
                 }
                 // We run the cache function asynchronously and save the result when it completes
-                staticGenerationStore.pendingRevalidates[invocationKey] =
+                workStore.pendingRevalidates[invocationKey] =
                   staticGenerationAsyncStorage
                     .run(
                       {
-                        ...staticGenerationStore,
+                        ...workStore,
                         // force any nested fetches to bypass cache so they revalidate
                         // when the unstable_cache call is revalidated
                         fetchCache: 'force-no-store',
@@ -274,7 +267,7 @@ export function unstable_cache<T extends Callback>(
         // If we got this far then we had an invalid cache entry and need to generate a new one
         const result = await staticGenerationAsyncStorage.run(
           {
-            ...staticGenerationStore,
+            ...workStore,
             // force any nested fetches to bypass cache so they revalidate
             // when the unstable_cache call is revalidated
             fetchCache: 'force-no-store',
@@ -284,7 +277,7 @@ export function unstable_cache<T extends Callback>(
           ...args
         )
 
-        if (!staticGenerationStore.isDraftMode) {
+        if (!workStore.isDraftMode) {
           cacheNewResult(
             result,
             incrementalCache,
@@ -310,8 +303,7 @@ export function unstable_cache<T extends Callback>(
           // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
           // of this function is potentially a little confusing
           const implicitTags =
-            staticGenerationStore &&
-            addImplicitTags(staticGenerationStore, requestStore)
+            workStore && addImplicitTags(workStore, requestStore)
 
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,

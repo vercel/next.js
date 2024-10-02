@@ -107,9 +107,9 @@ export class AfterContext {
     const readonlyRequestStore: RequestStore =
       wrapRequestStoreForAfterCallbacks(requestStore)
 
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+    const workStore = staticGenerationAsyncStorage.getStore()
 
-    return withExecuteRevalidates(staticGenerationStore, () =>
+    return withExecuteRevalidates(workStore, () =>
       requestAsyncStorage.run(readonlyRequestStore, async () => {
         this.callbackQueue.start()
         await this.callbackQueue.onIdle()
