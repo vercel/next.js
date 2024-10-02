@@ -44,7 +44,7 @@ import { DynamicServerError } from '../../../client/components/hooks-server-cont
 
 import { requestAsyncStorage } from '../../../client/components/request-async-storage.external'
 import {
-  staticGenerationAsyncStorage,
+  workAsyncStorage,
   type WorkStore,
 } from '../../../client/components/work-async-storage.external'
 import {
@@ -155,7 +155,7 @@ export class AppRouteRouteModule extends RouteModule<
   /**
    * A reference to the static generation async storage.
    */
-  public readonly staticGenerationAsyncStorage = staticGenerationAsyncStorage
+  public readonly workAsyncStorage = workAsyncStorage
 
   /**
    * prerenderAsyncStorage is used to scope a prerender context for renders ocurring
@@ -316,7 +316,7 @@ export class AppRouteRouteModule extends RouteModule<
           requestContext,
           (requestStore) =>
             withWorkStore(
-              this.staticGenerationAsyncStorage,
+              this.workAsyncStorage,
               staticGenerationContext,
               (workStore) => {
                 // Check to see if we should bail out of static generation based on
@@ -394,8 +394,7 @@ export class AppRouteRouteModule extends RouteModule<
                   async () => {
                     // Patch the global fetch.
                     patchFetch({
-                      staticGenerationAsyncStorage:
-                        this.staticGenerationAsyncStorage,
+                      workAsyncStorage: this.workAsyncStorage,
                       requestAsyncStorage: this.requestAsyncStorage,
                       prerenderAsyncStorage: this.prerenderAsyncStorage,
                     })

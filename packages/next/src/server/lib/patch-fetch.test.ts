@@ -22,14 +22,14 @@ describe('createPatchedFetcher', () => {
 
     mockFetch.mockResolvedValue(new Response(readableStream))
 
-    const staticGenerationAsyncStorage = new AsyncLocalStorage<WorkStore>()
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
 
     const prerenderAsyncStorage = new AsyncLocalStorage<PrerenderStore>()
 
     const patchedFetch = createPatchedFetcher(mockFetch, {
       // requestAsyncStorage does not need to provide a store for this test.
       requestAsyncStorage: new AsyncLocalStorage<RequestStore>(),
-      staticGenerationAsyncStorage,
+      workAsyncStorage,
       prerenderAsyncStorage,
     })
 
@@ -53,7 +53,7 @@ describe('createPatchedFetcher', () => {
       incrementalCache,
     }
 
-    await staticGenerationAsyncStorage.run(workStore as WorkStore, async () => {
+    await workAsyncStorage.run(workStore as WorkStore, async () => {
       const response = await patchedFetch('https://example.com', {
         cache: 'force-cache',
       })

@@ -2,7 +2,7 @@ import {
   HeadersAdapter,
   type ReadonlyHeaders,
 } from '../../server/web/spec-extension/adapters/headers'
-import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
 import {
   isDynamicIOPrerender,
@@ -56,7 +56,7 @@ export type UnsafeUnwrappedHeaders = ReadonlyHeaders
  */
 export function headers(): Promise<ReadonlyHeaders> {
   const requestStore = getExpectedRequestStore('headers')
-  const workStore = staticGenerationAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
   const prerenderStore = prerenderAsyncStorage.getStore()
 
   if (workStore) {

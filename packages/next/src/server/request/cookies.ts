@@ -4,7 +4,7 @@ import {
   RequestCookiesAdapter,
 } from '../../server/web/spec-extension/adapters/request-cookies'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
-import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,
@@ -51,7 +51,7 @@ export type UnsafeUnwrappedCookies = ReadonlyRequestCookies
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
   const requestStore = getExpectedRequestStore(callingExpression)
-  const workStore = staticGenerationAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
   const prerenderStore = prerenderAsyncStorage.getStore()
 
   if (workStore) {

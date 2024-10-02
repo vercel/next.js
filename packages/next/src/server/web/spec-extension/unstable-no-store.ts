@@ -1,4 +1,4 @@
-import { staticGenerationAsyncStorage } from '../../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../../client/components/work-async-storage.external'
 import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
 
 /**
@@ -18,7 +18,7 @@ import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
  */
 export function unstable_noStore() {
   const callingExpression = 'unstable_noStore()'
-  const store = staticGenerationAsyncStorage.getStore()
+  const store = workAsyncStorage.getStore()
   if (!store) {
     // This generally implies we are being called in Pages router. We should probably not support
     // unstable_noStore in contexts outside of `react-server` condition but since we historically

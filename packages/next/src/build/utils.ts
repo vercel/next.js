@@ -1295,7 +1295,7 @@ export async function buildAppStaticPaths({
   }
 
   const routeParams = await withWorkStore(
-    ComponentMod.staticGenerationAsyncStorage,
+    ComponentMod.workAsyncStorage,
     {
       page,
       // We're discovering the parameters here, so we don't have any unknown

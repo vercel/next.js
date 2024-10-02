@@ -34,14 +34,14 @@ const routeModule = new AppRouteRouteModule({
 // are used to hook into the route.
 const {
   requestAsyncStorage,
-  staticGenerationAsyncStorage,
+  workAsyncStorage,
   prerenderAsyncStorage,
   serverHooks,
 } = routeModule
 
 function patchFetch() {
   return _patchFetch({
-    staticGenerationAsyncStorage,
+    workAsyncStorage,
     requestAsyncStorage,
     prerenderAsyncStorage,
   })
@@ -50,7 +50,7 @@ function patchFetch() {
 export {
   routeModule,
   requestAsyncStorage,
-  staticGenerationAsyncStorage,
+  workAsyncStorage,
   serverHooks,
   patchFetch,
 }

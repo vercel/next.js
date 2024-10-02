@@ -11,7 +11,7 @@ export { prerender } from 'react-server-dom-webpack/static.edge'
 
 import LayoutRouter from '../../client/components/layout-router'
 import RenderFromTemplateContext from '../../client/components/render-from-template-context'
-import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { prerenderAsyncStorage } from './prerender-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
@@ -42,7 +42,7 @@ import { taintObjectReference } from './rsc/taint'
 // in the experimental channel of React, so export it from here so that it comes from the bundled runtime
 function patchFetch() {
   return _patchFetch({
-    staticGenerationAsyncStorage,
+    workAsyncStorage,
     requestAsyncStorage,
     prerenderAsyncStorage,
   })
@@ -51,7 +51,7 @@ function patchFetch() {
 export {
   LayoutRouter,
   RenderFromTemplateContext,
-  staticGenerationAsyncStorage,
+  workAsyncStorage,
   requestAsyncStorage,
   actionAsyncStorage,
   createServerSearchParamsForServerPage,

@@ -906,8 +906,7 @@ async function renderToHTMLOrFlightImpl(
     isNodeNextRequest(req)
   ) {
     req.originalRequest.on('end', () => {
-      const staticGenStore =
-        ComponentMod.staticGenerationAsyncStorage.getStore()
+      const staticGenStore = ComponentMod.workAsyncStorage.getStore()
       const prerenderStore = prerenderAsyncStorage.getStore()
       const isPPR = !!prerenderStore?.dynamicTracking?.dynamicAccesses?.length
 
@@ -1295,7 +1294,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     },
     (requestStore) =>
       withWorkStore(
-        renderOpts.ComponentMod.staticGenerationAsyncStorage,
+        renderOpts.ComponentMod.workAsyncStorage,
         {
           page: renderOpts.routeModule.definition.page,
           fallbackRouteParams,

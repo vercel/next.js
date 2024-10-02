@@ -1,5 +1,5 @@
 import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
-import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 
 import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
@@ -22,7 +22,7 @@ export function unstable_after<T>(task: AfterTask<T>) {
     )
   }
 
-  const workStore = staticGenerationAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
 
   if (workStore) {
     if (workStore.forceStatic) {

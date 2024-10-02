@@ -1,4 +1,4 @@
-import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,
@@ -17,7 +17,7 @@ import { makeHangingPromise } from '../dynamic-rendering-utils'
  * During prerendering it will never resolve and during rendering it resolves immediately.
  */
 export function connection(): Promise<void> {
-  const workStore = staticGenerationAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
   const prerenderStore = prerenderAsyncStorage.getStore()
 
   if (workStore) {

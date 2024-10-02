@@ -25,13 +25,13 @@ export function ClientSegmentRoot({
   promise?: Promise<any>
 }) {
   if (typeof window === 'undefined') {
-    const { staticGenerationAsyncStorage } =
+    const { workAsyncStorage } =
       require('./work-async-storage.external') as typeof import('./work-async-storage.external')
 
     let clientParams: Promise<Params>
     // We are going to instrument the searchParams prop with tracking for the
     // appropriate context. We wrap differently in prerendering vs rendering
-    const store = staticGenerationAsyncStorage.getStore()
+    const store = workAsyncStorage.getStore()
     if (!store) {
       throw new InvariantError(
         'Expected workStore to exist when handling params in a client segment such as a Layout or Template.'

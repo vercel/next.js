@@ -205,7 +205,7 @@ function trackFetchMetric(
 }
 
 interface PatchableModule {
-  staticGenerationAsyncStorage: StaticGenerationAsyncStorage
+  workAsyncStorage: StaticGenerationAsyncStorage
   requestAsyncStorage: RequestAsyncStorage
   prerenderAsyncStorage: PrerenderAsyncStorage
 }
@@ -213,7 +213,7 @@ interface PatchableModule {
 export function createPatchedFetcher(
   originFetch: Fetcher,
   {
-    staticGenerationAsyncStorage,
+    workAsyncStorage,
     requestAsyncStorage,
     prerenderAsyncStorage,
   }: PatchableModule
@@ -242,7 +242,7 @@ export function createPatchedFetcher(
     const isInternal = (init?.next as any)?.internal === true
     const hideSpan = process.env.NEXT_OTEL_FETCH_DISABLED === '1'
 
-    const workStore = staticGenerationAsyncStorage.getStore()
+    const workStore = workAsyncStorage.getStore()
 
     const result = getTracer().trace(
       isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
@@ -919,7 +919,7 @@ export function createPatchedFetcher(
   // but for external consumers to determine if the fetch function has been
   // patched.
   patched.__nextPatched = true as const
-  patched.__nextGetStaticStore = () => staticGenerationAsyncStorage
+  patched.__nextGetStaticStore = () => workAsyncStorage
   patched._nextOriginalFetch = originFetch
   ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = true
 

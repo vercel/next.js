@@ -32,7 +32,7 @@ import {
   prerenderAsyncStorage,
   type PrerenderStore,
 } from './prerender-async-storage.external'
-import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
@@ -523,7 +523,7 @@ export function annotateDynamicAccess(
 
 export function useDynamicRouteParams(expression: string) {
   if (typeof window === 'undefined') {
-    const workStore = staticGenerationAsyncStorage.getStore()
+    const workStore = workAsyncStorage.getStore()
 
     if (
       workStore &&

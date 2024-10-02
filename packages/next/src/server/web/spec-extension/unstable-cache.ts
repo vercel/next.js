@@ -6,7 +6,7 @@ import {
   validateRevalidate,
   validateTags,
 } from '../../lib/patch-fetch'
-import { staticGenerationAsyncStorage } from '../../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../../client/components/work-async-storage.external'
 import { requestAsyncStorage } from '../../../client/components/request-async-storage.external'
 import {
   CachedRouteKind,
@@ -97,7 +97,7 @@ export function unstable_cache<T extends Callback>(
   }`
 
   const cachedCb = async (...args: any[]) => {
-    const workStore = staticGenerationAsyncStorage.getStore()
+    const workStore = workAsyncStorage.getStore()
     const requestStore = requestAsyncStorage.getStore()
 
     // We must be able to find the incremental cache otherwise we throw
@@ -226,37 +226,36 @@ export function unstable_cache<T extends Callback>(
                   workStore.pendingRevalidates = {}
                 }
                 // We run the cache function asynchronously and save the result when it completes
-                workStore.pendingRevalidates[invocationKey] =
-                  staticGenerationAsyncStorage
-                    .run(
-                      {
-                        ...workStore,
-                        // force any nested fetches to bypass cache so they revalidate
-                        // when the unstable_cache call is revalidated
-                        fetchCache: 'force-no-store',
-                        isUnstableCacheCallback: true,
-                      },
-                      cb,
-                      ...args
+                workStore.pendingRevalidates[invocationKey] = workAsyncStorage
+                  .run(
+                    {
+                      ...workStore,
+                      // force any nested fetches to bypass cache so they revalidate
+                      // when the unstable_cache call is revalidated
+                      fetchCache: 'force-no-store',
+                      isUnstableCacheCallback: true,
+                    },
+                    cb,
+                    ...args
+                  )
+                  .then((result) => {
+                    return cacheNewResult(
+                      result,
+                      incrementalCache,
+                      cacheKey,
+                      tags,
+                      options.revalidate,
+                      fetchIdx,
+                      fetchUrl
                     )
-                    .then((result) => {
-                      return cacheNewResult(
-                        result,
-                        incrementalCache,
-                        cacheKey,
-                        tags,
-                        options.revalidate,
-                        fetchIdx,
-                        fetchUrl
-                      )
-                    })
-                    // @TODO This error handling seems wrong. We swallow the error?
-                    .catch((err) =>
-                      console.error(
-                        `revalidating cache with key: ${invocationKey}`,
-                        err
-                      )
+                  })
+                  // @TODO This error handling seems wrong. We swallow the error?
+                  .catch((err) =>
+                    console.error(
+                      `revalidating cache with key: ${invocationKey}`,
+                      err
                     )
+                  )
               }
               // We had a valid cache entry so we return it here
               return cachedResponse
@@ -265,7 +264,7 @@ export function unstable_cache<T extends Callback>(
         }
 
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        const result = await staticGenerationAsyncStorage.run(
+        const result = await workAsyncStorage.run(
           {
             ...workStore,
             // force any nested fetches to bypass cache so they revalidate
@@ -341,7 +340,7 @@ export function unstable_cache<T extends Callback>(
         // issues are known at this time. The whole static generation storage pathways should be reworked
         // to allow tracking which "mode" we are in without the presence of a store or not. For now I have
         // maintained the existing behavior to limit the impact of the current refactor
-        const result = await staticGenerationAsyncStorage.run(
+        const result = await workAsyncStorage.run(
           // We are making a fake store that is useful for scoping fetchCache: 'force-no-store' and isUnstableCacheCallback: true
           // The fact that we need to construct this kind of fake store indicates the code is not factored correctly
           // @TODO refactor to not require this fake store object

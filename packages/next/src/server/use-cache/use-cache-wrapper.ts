@@ -13,7 +13,7 @@ import {
 } from 'react-server-dom-webpack/client.edge'
 
 import type { WorkStore } from '../../client/components/work-async-storage.external'
-import { staticGenerationAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import type { CacheStore } from '../app-render/cache-async-storage.external'
 import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
@@ -114,7 +114,7 @@ function generateCacheEntryWithRestoredWorkStore(
   // in RequestStore but should be available to Caches need to move to WorkStore.
   // PrerenderStore is not needed inside the cache scope because the outer most one will
   // be the one to report its result to the outer Prerender.
-  return staticGenerationAsyncStorage.run(
+  return workAsyncStorage.run(
     workStore,
     generateCacheEntryWithCacheContext,
     workStore,
@@ -246,7 +246,7 @@ export function cache(kind: string, id: string, fn: any) {
   const name = fn.name
   const cachedFn = {
     [name]: async function (...args: any[]) {
-      const workStore = staticGenerationAsyncStorage.getStore()
+      const workStore = workAsyncStorage.getStore()
       if (workStore === undefined) {
         throw new Error(
           '"use cache" cannot be used outside of App Router. Expected a WorkStore.'
