@@ -61,6 +61,9 @@ import type {
 const hasMetadataExport = (mod: any) =>
   'metadata' in mod || 'generateMetadata' in mod
 
+const hasViewportExport = (mod: any) =>
+  'viewport' in mod || 'generateViewport' in mod
+
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
 type MetadataResolver = (
@@ -333,7 +336,7 @@ async function getDefinedViewport(
   props: any,
   tracingProps: { route: string }
 ): Promise<Viewport | ViewportResolver | null> {
-  if (!hasMetadataExport(mod)) {
+  if (!hasViewportExport(mod)) {
     return null
   }
   if (typeof mod.generateViewport === 'function') {
