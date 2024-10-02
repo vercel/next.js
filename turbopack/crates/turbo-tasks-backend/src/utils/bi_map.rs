@@ -2,6 +2,10 @@ use std::{borrow::Borrow, hash::Hash};
 
 use dashmap::{mapref::entry::Entry, DashMap};
 
+/// A bidirectional [`DashMap`] that allows lookup by key or value.
+///
+/// As keys and values are stored twice, they should be small types, such as
+/// [`Arc`][`std::sync::Arc`].
 pub struct BiMap<K, V> {
     forward: DashMap<K, V>,
     reverse: DashMap<V, K>,
