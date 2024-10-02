@@ -272,9 +272,7 @@ impl AggregationUpdateQueue {
                 AggregationUpdateJob::InnerOfUppersHasNewFollowers {
                     mut upper_ids,
                     mut new_follower_ids,
-                } =>
-                {
-                    #[allow(clippy::collapsible_if, reason = "readablility")]
+                } => {
                     if upper_ids.len() > new_follower_ids.len() {
                         if let Some(new_follower_id) = new_follower_ids.pop() {
                             if new_follower_ids.is_empty() {
@@ -300,6 +298,7 @@ impl AggregationUpdateQueue {
                             }
                         }
                     } else {
+                        #[allow(clippy::collapsible_if, reason = "readablility")]
                         if let Some(upper_id) = upper_ids.pop() {
                             if upper_ids.is_empty() {
                                 self.jobs.push_front(
