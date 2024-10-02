@@ -149,15 +149,6 @@ pub(crate) async fn collect_next_dynamic_imports(
     visited_modules: Vc<VisitedDynamicImportModules>,
 ) -> Result<Vc<NextDynamicImportsResult>> {
     async move {
-        let server_entries = server_entries.into_iter().collect::<Vec<_>>();
-        println!(
-            "collect_next_dynamic_imports {:?}",
-            server_entries
-                .iter()
-                .map(|module| module.ident().to_string())
-                .try_join()
-                .await?
-        );
         // Traverse referenced modules graph, collect all of the dynamic imports:
         // - Read the Program AST of the Module, this is the origin (A)
         //  - If there's `dynamic(import(B))`, then B is the module that is being imported
