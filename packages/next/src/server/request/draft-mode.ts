@@ -2,7 +2,7 @@ import { getExpectedRequestStore } from '../../client/components/request-async-s
 
 import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
 
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
 
 /**
@@ -34,13 +34,10 @@ export type UnsafeUnwrappedDraftMode = DraftMode
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
   const requestStore = getExpectedRequestStore(callingExpression)
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    !staticGenerationStore?.isPrefetchRequest
-  ) {
-    const route = staticGenerationStore?.route
+  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
+    const route = workStore?.route
     return createExoticDraftModeWithDevWarnings(requestStore.draftMode, route)
   } else {
     return createExoticDraftMode(requestStore.draftMode)
@@ -144,7 +141,7 @@ class DraftMode {
     return this._provider.isEnabled
   }
   public enable() {
-    const store = staticGenerationAsyncStorage.getStore()
+    const store = workAsyncStorage.getStore()
     if (store) {
       // We we have a store we want to track dynamic data access to ensure we
       // don't statically generate routes that manipulate draft mode.
@@ -153,7 +150,7 @@ class DraftMode {
     return this._provider.enable()
   }
   public disable() {
-    const store = staticGenerationAsyncStorage.getStore()
+    const store = workAsyncStorage.getStore()
     if (store) {
       // We we have a store we want to track dynamic data access to ensure we
       // don't statically generate routes that manipulate draft mode.
