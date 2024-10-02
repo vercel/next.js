@@ -66,13 +66,14 @@ impl SnapshotRequest {
     }
 }
 
-type TransientOnceTask =
+type TransientTaskOnce =
     Mutex<Option<Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>>>;
 
 pub enum TransientTask {
     /// A root task that will track dependencies and re-execute when
     /// dependencies change. Task will eventually settle to the correct
     /// execution.
+    ///
     /// Always active. Automatically scheduled.
     Root(TransientTaskRoot),
 
@@ -82,8 +83,9 @@ pub enum TransientTask {
     /// start of the task. It may or may not include invalidations that
     /// happened after that. It may see these invalidations partially
     /// applied.
+    ///
     /// Active until done. Automatically scheduled.
-    Once(TransientOnceTask),
+    Once(TransientTaskOnce),
 }
 
 pub struct TurboTasksBackend {
@@ -152,7 +154,7 @@ impl TurboTasksBackend {
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
-        if (self.in_progress_operations.load(Ordering::Relaxed) & SNAPSHOT_REQUESTED_BIT) != 0 {
+        if self.suspending_requested() {
             let operation = Arc::new(suspend());
             let mut snapshot_request = self.snapshot_request.lock();
             if snapshot_request.snapshot_requested {
