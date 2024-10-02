@@ -11,7 +11,7 @@ pub async fn get_swc_ecma_transform_plugin_rule(
     next_config: Vc<NextConfig>,
     project_path: Vc<FileSystemPath>,
 ) -> Result<Option<ModuleRule>> {
-    match next_config.await?.experimental.swc_plugins.as_ref() {
+    match next_config.experimental().await?.swc_plugins.as_ref() {
         Some(plugin_configs) if !plugin_configs.is_empty() => {
             #[cfg(feature = "plugin")]
             {
