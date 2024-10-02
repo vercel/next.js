@@ -681,7 +681,7 @@ export async function startCleanStaticServer(dir: string) {
 
 /**
  * Check for content in 1 second intervals timing out after 30 seconds.
- *
+ * @deprecated use retry + expect instead
  * @param {() => Promise<unknown> | unknown} contentFn
  * @param {RegExp | string | number} regex
  * @param {boolean} hardError
