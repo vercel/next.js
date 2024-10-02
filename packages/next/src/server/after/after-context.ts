@@ -109,11 +109,19 @@ export class AfterContext {
 
     const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
-    return withExecuteRevalidates(staticGenerationStore, () =>
-      requestAsyncStorage.run(readonlyRequestStore, async () => {
-        this.callbackQueue.start()
-        await this.callbackQueue.onIdle()
-      })
+    return staticGenerationAsyncStorage.run(
+      {
+        ...staticGenerationStore!,
+        isRender: false,
+      },
+      async () => {
+        withExecuteRevalidates(staticGenerationAsyncStorage.getStore(), () =>
+          requestAsyncStorage.run(readonlyRequestStore, async () => {
+            this.callbackQueue.start()
+            await this.callbackQueue.onIdle()
+          })
+        )
+      }
     )
   }
 }

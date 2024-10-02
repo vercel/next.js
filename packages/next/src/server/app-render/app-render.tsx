@@ -1178,7 +1178,9 @@ async function renderToHTMLOrFlightImpl(
               ComponentMod.staticGenerationAsyncStorage.getStore()
 
             if (!currentStaticGenerationStore) {
-              throw new Error('Invariant missing static generation store')
+              throw new Error(
+                'Invariant missing static generation store in handleAction'
+              )
             }
 
             return handleAction({
