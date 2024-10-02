@@ -93,7 +93,7 @@ impl AggregationUpdateJob {
         task: &mut TaskGuard<'_>,
         update: AggregatedDataUpdate,
     ) -> Option<AggregationUpdateJob> {
-        let upper_ids: Vec<_> = get_uppers(&task);
+        let upper_ids: Vec<_> = get_uppers(task);
         if !upper_ids.is_empty() {
             Some(AggregationUpdateJob::AggregatedDataUpdate {
                 upper_ids,
@@ -272,7 +272,9 @@ impl AggregationUpdateQueue {
                 AggregationUpdateJob::InnerOfUppersHasNewFollowers {
                     mut upper_ids,
                     mut new_follower_ids,
-                } => {
+                } =>
+                {
+                    #[allow(clippy::collapsible_if, reason = "readablility")]
                     if upper_ids.len() > new_follower_ids.len() {
                         if let Some(new_follower_id) = new_follower_ids.pop() {
                             if new_follower_ids.is_empty() {

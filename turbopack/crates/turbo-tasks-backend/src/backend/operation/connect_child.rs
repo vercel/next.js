@@ -61,7 +61,7 @@ impl ConnectChildOperation {
                         )
                     })
                     .count();
-                let target_distance = children_count.ilog2() as u32 * 2;
+                let target_distance = children_count.ilog2() * 2;
                 let parent_aggregation = current_parent_aggregation
                     .base
                     .saturating_add(target_distance);
