@@ -21,6 +21,7 @@ import { actionAsyncStorage } from '../../client/components/action-async-storage
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeResolvedReactPromise } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
 /**
  * In this version of Next.js `cookies()` returns a Promise however you can still reference the properties of the underlying cookies object
@@ -512,25 +513,30 @@ const noop = () => {}
 const warnForSyncIteration = process.env
   .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : function warnForSyncIteration(route?: string) {
-      const prefix = route ? ` In route ${route} ` : ''
-      console.error(
-        `${prefix}cookies were iterated over. ` +
+  : createDedupedByCallsiteServerErrorLoggerDev(
+      function getSyncIterationMessage(route?: string) {
+        const prefix = route ? ` In route ${route} ` : ''
+        return (
+          `${prefix}cookies were iterated over. ` +
           `\`cookies()\` should be awaited before using its value. ` +
           `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-      )
-    }
+        )
+      }
+    )
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : function warnForSyncAccess(route: undefined | string, expression: string) {
+  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
+      route: undefined | string,
+      expression: string
+    ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      console.error(
+      return (
         `${prefix}cookie property was accessed directly with \`${expression}\`. ` +
-          `\`cookies()\` should be awaited before using its value. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        `\`cookies()\` should be awaited before using its value. ` +
+        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
       )
-    }
+    })
 
 function polyfilledResponseCookiesIterator(
   this: ResponseCookies
