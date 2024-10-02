@@ -425,23 +425,30 @@ function describeNameArg(arg: unknown) {
   return typeof arg === 'string' ? `'${arg}'` : '...'
 }
 
-function warnForSyncIteration(route?: string) {
-  const prefix = route ? ` In route ${route} ` : ''
-  console.error(
-    `${prefix}headers were iterated over. ` +
-      `\`headers()\` should be awaited before using its value. ` +
-      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-  )
-}
+const noop = () => {}
 
-function warnForSyncAccess(route: undefined | string, expression: string) {
-  const prefix = route ? ` In route ${route} a ` : 'A '
-  console.error(
-    `${prefix}header property was accessed directly with \`${expression}\`. ` +
-      `\`headers()\` should be awaited before using its value. ` +
-      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-  )
-}
+const warnForSyncIteration = process.env
+  .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : function warnForSyncIteration(route?: string) {
+      const prefix = route ? ` In route ${route} ` : ''
+      console.error(
+        `${prefix}headers were iterated over. ` +
+          `\`headers()\` should be awaited before using its value. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+      )
+    }
+
+const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : function warnForSyncAccess(route: undefined | string, expression: string) {
+      const prefix = route ? ` In route ${route} a ` : 'A '
+      console.error(
+        `${prefix}header property was accessed directly with \`${expression}\`. ` +
+          `\`headers()\` should be awaited before using its value. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+      )
+    }
 
 type HeadersExtensions = {
   [K in keyof ReadonlyHeaders]: unknown

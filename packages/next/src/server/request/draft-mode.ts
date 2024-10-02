@@ -163,11 +163,15 @@ class DraftMode {
   }
 }
 
-function warnForSyncAccess(route: undefined | string, expression: string) {
-  const prefix = route ? ` In route ${route} a ` : 'A '
-  console.error(
-    `${prefix}\`draftMode()\` property was accessed directly with \`${expression}\`. ` +
-      `\`draftMode()\` should be awaited before using its value. ` +
-      `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
-  )
-}
+const noop = () => {}
+
+const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : function warnForSyncAccess(route: undefined | string, expression: string) {
+      const prefix = route ? ` In route ${route} a ` : 'A '
+      console.error(
+        `${prefix}\`draftMode()\` property was accessed directly with \`${expression}\`. ` +
+          `\`draftMode()\` should be awaited before using its value. ` +
+          `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
+      )
+    }
