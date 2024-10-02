@@ -8,7 +8,7 @@ use swc_core::ecma::{
     ast::{CallExpr, Callee, Expr, Ident, Lit},
     visit::{Visit, VisitWith},
 };
-use tracing::Level;
+use tracing::{Instrument, Level};
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
@@ -148,69 +148,73 @@ pub(crate) async fn collect_next_dynamic_imports(
     client_asset_context: Vc<Box<dyn AssetContext>>,
     visited_modules: Vc<VisitedDynamicImportModules>,
 ) -> Result<Vc<NextDynamicImportsResult>> {
-    let server_entries = server_entries.into_iter().collect::<Vec<_>>();
-    println!(
-        "collect_next_dynamic_imports {:?}",
-        server_entries
-            .iter()
-            .map(|module| module.ident().to_string())
-            .try_join()
-            .await?
-    );
-    // Traverse referenced modules graph, collect all of the dynamic imports:
-    // - Read the Program AST of the Module, this is the origin (A)
-    //  - If there's `dynamic(import(B))`, then B is the module that is being imported
-    // Returned import mappings are in the form of
-    // (Module<A>, Vec<(B, Module<B>)>) (where B is the raw import source string,
-    // and Module<B> is the actual resolved Module)
-    let (result, visited_modules) = NonDeterministic::new()
-        // TODO: use param
-        .skip_duplicates_with_visited_nodes(VisitedNodes(visited_modules.await?.0.clone()))
-        .visit(
+    async move {
+        let server_entries = server_entries.into_iter().collect::<Vec<_>>();
+        println!(
+            "collect_next_dynamic_imports {:?}",
             server_entries
-                .into_iter()
-                .map(|module| async move {
-                    Ok(NextDynamicVisitEntry::Module(
-                        module.resolve().await?,
-                        module.ident().to_string().await?,
-                    ))
-                })
+                .iter()
+                .map(|module| module.ident().to_string())
                 .try_join()
                 .await?
-                .into_iter(),
-            NextDynamicVisit {
-                client_asset_context: client_asset_context.resolve().await?,
-            },
-        )
-        .await
-        .completed()?
-        .into_inner_with_visited();
+        );
+        // Traverse referenced modules graph, collect all of the dynamic imports:
+        // - Read the Program AST of the Module, this is the origin (A)
+        //  - If there's `dynamic(import(B))`, then B is the module that is being imported
+        // Returned import mappings are in the form of
+        // (Module<A>, Vec<(B, Module<B>)>) (where B is the raw import source string,
+        // and Module<B> is the actual resolved Module)
+        let (result, visited_modules) = NonDeterministic::new()
+            // TODO: use param
+            .skip_duplicates_with_visited_nodes(VisitedNodes(visited_modules.await?.0.clone()))
+            .visit(
+                server_entries
+                    .into_iter()
+                    .map(|module| async move {
+                        Ok(NextDynamicVisitEntry::Module(
+                            module.resolve().await?,
+                            module.ident().to_string().await?,
+                        ))
+                    })
+                    .try_join()
+                    .await?
+                    .into_iter(),
+                NextDynamicVisit {
+                    client_asset_context: client_asset_context.resolve().await?,
+                },
+            )
+            .await
+            .completed()?
+            .into_inner_with_visited();
 
-    let imported_modules_mapping = result.into_iter().filter_map(|entry| {
-        if let NextDynamicVisitEntry::DynamicImportsMap(dynamic_imports_map) = entry {
-            Some(dynamic_imports_map)
-        } else {
-            None
+        let imported_modules_mapping = result.into_iter().filter_map(|entry| {
+            if let NextDynamicVisitEntry::DynamicImportsMap(dynamic_imports_map) = entry {
+                Some(dynamic_imports_map)
+            } else {
+                None
+            }
+        });
+
+        // Consolifate import mappings into a single indexmap
+        let mut import_mappings: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules> =
+            IndexMap::new();
+
+        for module_mapping in imported_modules_mapping {
+            let (origin_module, dynamic_imports) = &*module_mapping.await?;
+            import_mappings
+                .entry(*origin_module)
+                .or_insert_with(Vec::new)
+                .append(&mut dynamic_imports.clone())
         }
-    });
 
-    // Consolifate import mappings into a single indexmap
-    let mut import_mappings: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules> =
-        IndexMap::new();
-
-    for module_mapping in imported_modules_mapping {
-        let (origin_module, dynamic_imports) = &*module_mapping.await?;
-        import_mappings
-            .entry(*origin_module)
-            .or_insert_with(Vec::new)
-            .append(&mut dynamic_imports.clone())
+        Ok(NextDynamicImportsResult {
+            client_dynamic_imports: import_mappings,
+            visited_modules: VisitedDynamicImportModules(visited_modules.0).cell(),
+        }
+        .cell())
     }
-
-    Ok(NextDynamicImportsResult {
-        client_dynamic_imports: import_mappings,
-        visited_modules: VisitedDynamicImportModules(visited_modules.0).cell(),
-    }
-    .cell())
+    .instrument(tracing::info_span!("collecting next/dynamic imports"))
+    .await
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, TraceRawVcs, Serialize, Deserialize)]
