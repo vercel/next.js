@@ -6,7 +6,6 @@ use modularize_imports;
 use preset_env_base::query::targets_to_versions;
 use serde::Deserialize;
 use swc_core::{
-    atoms::Atom,
     common::{
         chain,
         comments::{Comments, NoopComments},
@@ -173,20 +172,6 @@ where
     };
 
     chain!(
-        as_folder(swc_sdk::swc_sdk(
-            swc_sdk::Env { unresolved_mark },
-            swc_sdk::config::Config {
-                flag: swc_sdk::config::FlagConfig {
-                    strict: false,
-                    import_sources: vec![swc_sdk::config::ImportItem {
-                        module: Atom::new("@vercel/flags/next"),
-                        name: Atom::new("unstable_flag"),
-                    }],
-                },
-                remove_imports_from: vec![],
-            },
-            comments.clone()
-        )),
         crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(
             opts.is_page_file
         ),
