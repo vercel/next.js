@@ -17,7 +17,7 @@ import {
 } from '../../async-storage/with-request-store'
 import {
   withWorkStore,
-  type StaticGenerationContext,
+  type WorkStoreContext,
 } from '../../async-storage/with-work-store'
 import {
   handleBadRequestResponse,
@@ -82,7 +82,7 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
-  renderOpts: StaticGenerationContext['renderOpts'] &
+  renderOpts: WorkStoreContext['renderOpts'] &
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'>
   prerenderManifest: DeepReadonly<PrerenderManifest>
 }
@@ -292,7 +292,7 @@ export class AppRouteRouteModule extends RouteModule<
     const dynamicIOEnabled = !!context.renderOpts.experimental?.dynamicIO
 
     // Get the context for the static generation.
-    const staticGenerationContext: StaticGenerationContext = {
+    const staticGenerationContext: WorkStoreContext = {
       // App Routes don't support unknown route params.
       fallbackRouteParams: null,
       page: this.definition.page,

@@ -10,7 +10,7 @@ import type { AppSegmentConfig } from '../../build/app-segments/app-segment-conf
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
-export type StaticGenerationContext = {
+export type WorkStoreContext = {
   /**
    * The page that is being rendered. This relates to the path to the page file.
    */
@@ -62,9 +62,7 @@ export type StaticGenerationContext = {
     Partial<RequestLifecycleOpts>
 }
 
-export const withWorkStore: WithStore<WorkStore, StaticGenerationContext> = <
-  Result,
->(
+export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
   storage: AsyncLocalStorage<WorkStore>,
   {
     page,
@@ -72,7 +70,7 @@ export const withWorkStore: WithStore<WorkStore, StaticGenerationContext> = <
     renderOpts,
     requestEndedState,
     isPrefetchRequest,
-  }: StaticGenerationContext,
+  }: WorkStoreContext,
   callback: (store: WorkStore) => Result
 ): Result => {
   /**
