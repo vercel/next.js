@@ -260,11 +260,7 @@ macro_rules! get {
         }
     };
     ($task:ident, $key:ident) => {
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.get(&$crate::data::CachedDataItemKey::$key {}).as_ref() {
-            Some(value)
-        } else {
-            None
-        }
+        $crate::backend::storage::get!($task, $key {})
     };
 }
 
@@ -324,19 +320,7 @@ macro_rules! update {
         }
     };
     ($task:ident, $key:ident, $update:expr) => {
-        #[allow(unused_mut)]
-        match $update {
-            mut update => $task.update(&$crate::data::CachedDataItemKey::$key {}, |old| {
-                update(old.and_then(|old| {
-                    if let $crate::data::CachedDataItemValue::$key { value } = old {
-                        Some(value)
-                    } else {
-                        None
-                    }
-                }))
-                .map(|new| $crate::data::CachedDataItemValue::$key { value: new })
-            })
-        }
+        $crate::backend::storage::update!($task, $key {}, $update)
     };
 }
 
@@ -373,11 +357,7 @@ macro_rules! remove {
         }
     };
     ($task:ident, $key:ident) => {
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(&$crate::data::CachedDataItemKey::$key {}) {
-            Some(value)
-        } else {
-            None
-        }
+        $crate::backend::storage::remove!($task, $key {})
     };
 }
 
