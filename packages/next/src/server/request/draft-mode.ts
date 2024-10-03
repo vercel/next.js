@@ -4,7 +4,6 @@ import type { DraftModeProvider } from '../../server/async-storage/draft-mode-pr
 
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
-import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
 /**
  * In this version of Next.js `draftMode()` returns a Promise however you can still reference the properties of the underlying draftMode object
@@ -165,14 +164,11 @@ const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessWarning(
-      route: undefined | string,
-      expression: string
-    ) {
+  : function warnForSyncAccess(route: undefined | string, expression: string) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      return (
+      console.error(
         `${prefix}\`draftMode()\` property was accessed directly with \`${expression}\`. ` +
-        `\`draftMode()\` should be awaited before using its value. ` +
-        `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
+          `\`draftMode()\` should be awaited before using its value. ` +
+          `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
       )
-    })
+    }

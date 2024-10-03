@@ -1773,6 +1773,8 @@ describe('dynamic-io', () => {
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
             expect.stringContaining('params are being enumerated.'),
+            expect.stringContaining('accessed directly with `params.lowcard`'),
+            expect.stringContaining('accessed directly with `params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1798,6 +1800,8 @@ describe('dynamic-io', () => {
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
             expect.stringContaining('params are being enumerated.'),
+            expect.stringContaining('accessed directly with `params.lowcard`'),
+            expect.stringContaining('accessed directly with `params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1823,6 +1827,8 @@ describe('dynamic-io', () => {
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
             expect.stringContaining('params are being enumerated.'),
+            expect.stringContaining('accessed directly with `params.lowcard`'),
+            expect.stringContaining('accessed directly with `params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1851,6 +1857,8 @@ describe('dynamic-io', () => {
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
             expect.stringContaining('params are being enumerated.'),
+            expect.stringContaining('accessed directly with `params.lowcard`'),
+            expect.stringContaining('accessed directly with `params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1999,6 +2007,8 @@ describe('dynamic-io', () => {
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
             expect.stringContaining('params are being enumerated.'),
+            expect.stringContaining('accessed directly with `params.lowcard`'),
+            expect.stringContaining('accessed directly with `params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -2024,6 +2034,8 @@ describe('dynamic-io', () => {
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
             expect.stringContaining('params are being enumerated.'),
+            expect.stringContaining('accessed directly with `params.lowcard`'),
+            expect.stringContaining('accessed directly with `params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -2112,6 +2124,8 @@ describe('dynamic-io', () => {
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
             expect.stringContaining('params are being enumerated.'),
+            expect.stringContaining('accessed directly with `params.lowcard`'),
+            expect.stringContaining('accessed directly with `params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at runtime')
@@ -2138,6 +2152,8 @@ describe('dynamic-io', () => {
           expect($('#param-key-count').text()).toBe('2')
           expect(getLines('In route /params')).toEqual([
             expect.stringContaining('params are being enumerated.'),
+            expect.stringContaining('accessed directly with `params.lowcard`'),
+            expect.stringContaining('accessed directly with `params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at runtime')
@@ -2323,6 +2339,8 @@ describe('dynamic-io', () => {
           ),
           expect.stringContaining('accessed directly with `params.dyn`'),
           expect.stringContaining('accessed directly with `params.value`'),
+          expect.stringContaining('accessed directly with `params.dyn`'),
+          expect.stringContaining('accessed directly with `params.value`'),
         ])
       } else {
         expect($('#layout').text()).toBe('at runtime')
@@ -2352,6 +2370,8 @@ describe('dynamic-io', () => {
           expect.stringContaining(
             'missing these properties: `then` and `status`.'
           ),
+          expect.stringContaining('accessed directly with `params.dyn`'),
+          expect.stringContaining('accessed directly with `params.value`'),
           expect.stringContaining('accessed directly with `params.dyn`'),
           expect.stringContaining('accessed directly with `params.value`'),
         ])
