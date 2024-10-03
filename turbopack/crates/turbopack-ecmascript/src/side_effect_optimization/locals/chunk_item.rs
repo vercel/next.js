@@ -13,7 +13,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType,
     },
-    EcmascriptAnalyzable, EcmascriptModuleContent,
+    EcmascriptModuleContent,
 };
 
 /// The chunk item for [EcmascriptModuleLocalsModule].
@@ -83,8 +83,8 @@ impl ChunkItem for EcmascriptModuleLocalsChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn asset_ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self.module.ident())
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
     }
 
     #[turbo_tasks::function]

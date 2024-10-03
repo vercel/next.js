@@ -31,6 +31,7 @@ pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
 pub mod webpack;
+pub mod worker_chunk;
 
 use std::fmt::{Display, Formatter};
 
@@ -72,7 +73,7 @@ use turbopack_core::{
     reference_type::InnerAssets,
     resolve::{
         find_context_file, origin::ResolveOrigin, package_json, parse::Request,
-        FindContextFileResult, ModulePart,
+        FindContextFileResult,
     },
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -83,7 +84,6 @@ pub use turbopack_resolve::ecmascript as resolve;
 use self::{
     chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports},
     code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables, VisitorFactory},
-    tree_shake::asset::EcmascriptModulePartAsset,
 };
 use crate::{
     chunk::EcmascriptChunkPlaceable,
@@ -143,6 +143,14 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+    /// The list of export names that should make tree shaking bail off. This is
+    /// required because tree shaking can split imports like `export const
+    /// runtime = 'edge'` as a separate module.
+    ///
+    /// Currently the analysis of these exports are statically verified by `NextPageStaticInfo`,
+    /// which is a `CustomTransformer` implementation and we don't have a way to apply it after
+    /// tree shaking.
+    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -229,12 +237,6 @@ impl EcmascriptModuleAssetBuilder {
             )
         }
     }
-
-    pub async fn build_part(self, part: Vc<ModulePart>) -> Result<Vc<EcmascriptModulePartAsset>> {
-        let import_externals = self.options.await?.import_externals;
-        let base = self.build();
-        Ok(EcmascriptModulePartAsset::new(base, part, import_externals))
-    }
 }
 
 #[turbo_tasks::value]
@@ -247,8 +249,7 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: Vc<CompileTimeInfo>,
     pub inner_assets: Option<Vc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
-    #[serde(skip)]
-    last_successful_parse: turbo_tasks::State<Option<ReadRef<ParseResult>>>,
+    last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
 }
 
 #[turbo_tasks::value_trait]
@@ -341,8 +342,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         let real_result_value = real_result.await?;
         let this = self.await?;
         let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-            this.last_successful_parse
-                .set(Some(real_result_value.clone()));
+            this.last_successful_parse.set(real_result_value.clone());
             real_result_value
         } else {
             let state_ref = this.last_successful_parse.get();
@@ -352,13 +352,13 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn parse_original(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        Ok(self.failsafe_parse())
+    fn parse_original(self: Vc<Self>) -> Vc<ParseResult> {
+        self.failsafe_parse()
     }
 
     #[turbo_tasks::function]
-    async fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>> {
-        Ok(self.await?.ty.cell())
+    fn ty(&self) -> Vc<EcmascriptModuleAssetType> {
+        self.ty.cell()
     }
 }
 
@@ -419,6 +419,7 @@ impl EcmascriptModuleAsset {
     pub fn new(
         source: Vc<Box<dyn Source>>,
         asset_context: Vc<Box<dyn AssetContext>>,
+
         ty: Value<EcmascriptModuleAssetType>,
         transforms: Vc<EcmascriptInputTransforms>,
         options: Vc<EcmascriptOptions>,
@@ -430,6 +431,7 @@ impl EcmascriptModuleAsset {
             ty: ty.into_value(),
             transforms,
             options,
+
             compile_time_info,
             inner_assets: None,
             last_successful_parse: Default::default(),
@@ -459,13 +461,18 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub async fn source(self: Vc<Self>) -> Result<Vc<Box<dyn Source>>> {
-        Ok(self.await?.source)
+    pub fn source(&self) -> Vc<Box<dyn Source>> {
+        self.source
     }
 
     #[turbo_tasks::function]
-    pub async fn options(self: Vc<Self>) -> Result<Vc<EcmascriptOptions>> {
-        Ok(self.await?.options)
+    pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
+        analyse_ecmascript_module(self, None)
+    }
+
+    #[turbo_tasks::function]
+    pub fn options(&self) -> Vc<EcmascriptOptions> {
+        self.options
     }
 
     #[turbo_tasks::function]
@@ -562,14 +569,14 @@ impl Asset for EcmascriptModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        Ok(Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
+    ) -> Vc<Box<dyn ChunkItem>> {
+        Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
             module: self,
             chunking_context,
-        })))
+        }))
     }
 }
 
@@ -634,7 +641,7 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 
@@ -878,8 +885,7 @@ async fn gen_content_with_visitors(
             Ok(EcmascriptModuleContent {
                 inner_code: bytes.into(),
                 source_map: Some(Vc::upcast(srcmap)),
-                is_esm: eval_context.is_esm()
-                    || specified_module_type == SpecifiedModuleType::EcmaScript,
+                is_esm: eval_context.is_esm(specified_module_type),
             }
             .cell())
         }

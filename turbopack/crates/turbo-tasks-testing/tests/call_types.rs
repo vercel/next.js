@@ -99,8 +99,8 @@ impl Value {
     }
 
     #[turbo_tasks::function]
-    async fn async_vc_method(self: Vc<Self>) -> Result<Vc<u32>> {
-        Ok(Vc::cell(self.await?.0))
+    async fn async_vc_method(&self) -> Result<Vc<u32>> {
+        Ok(Vc::cell(self.0))
     }
 }
 

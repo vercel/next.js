@@ -2,7 +2,8 @@ use anyhow::{bail, Result};
 use turbo_tasks::{RcStr, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
+        ChunkType, ChunkingContext,
     },
     output::OutputAssets,
 };
@@ -23,6 +24,11 @@ impl ValueToString for EcmascriptChunkType {
 
 #[turbo_tasks::value_impl]
 impl ChunkType for EcmascriptChunkType {
+    #[turbo_tasks::function]
+    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     #[turbo_tasks::function]
     async fn chunk(
         &self,
@@ -74,7 +80,7 @@ impl ChunkType for EcmascriptChunkType {
             chunk_item
                 .content_with_async_module_info(async_module_info)
                 .await
-                .map_or(0, |content| content.inner_code.len()),
+                .map_or(0, |content| round_chunk_item_size(content.inner_code.len())),
         ))
     }
 }

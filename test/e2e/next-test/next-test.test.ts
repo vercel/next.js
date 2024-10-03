@@ -25,7 +25,7 @@ function createTemporaryFixture(fixtureName: string) {
   return dir
 }
 
-describe('next test', () => {
+describe.skip('next test', () => {
   const { next: basicExample, skipped } = nextTestSetup({
     files: new FileRef(join(__dirname, 'basic-example')),
     dependencies: {

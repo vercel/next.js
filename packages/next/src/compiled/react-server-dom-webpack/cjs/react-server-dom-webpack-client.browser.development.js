@@ -22,6 +22,38 @@
         : (obj[key] = value);
       return obj;
     }
+    function bindToConsole(methodName, args, badgeName) {
+      var offset = 0;
+      switch (methodName) {
+        case "dir":
+        case "dirxml":
+        case "groupEnd":
+        case "table":
+          return bind.apply(console[methodName], [console].concat(args));
+        case "assert":
+          offset = 1;
+      }
+      args = args.slice(0);
+      "string" === typeof args[offset]
+        ? args.splice(
+            offset,
+            1,
+            "%c%s%c " + args[offset],
+            "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+            " " + badgeName + " ",
+            ""
+          )
+        : args.splice(
+            offset,
+            0,
+            "%c%s%c ",
+            "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+            " " + badgeName + " ",
+            ""
+          );
+      args.unshift(console);
+      return bind.apply(console[methodName], args);
+    }
     function resolveClientReference(bundlerConfig, metadata) {
       if (bundlerConfig) {
         var moduleExports = bundlerConfig[metadata[0]];
@@ -1081,17 +1113,22 @@
             }
           value = value[path[i]];
         }
-        parentObject[key] = map(response, value);
-        "" === key &&
-          null === handler.value &&
-          (handler.value = parentObject[key]);
-        parentObject[0] === REACT_ELEMENT_TYPE &&
-          "3" === key &&
+        i = map(response, value);
+        parentObject[key] = i;
+        "" === key && null === handler.value && (handler.value = i);
+        if (
+          parentObject[0] === REACT_ELEMENT_TYPE &&
           "object" === typeof handler.value &&
           null !== handler.value &&
-          handler.value.$$typeof === REACT_ELEMENT_TYPE &&
-          null === handler.value.props &&
-          (handler.value.props = parentObject[key]);
+          handler.value.$$typeof === REACT_ELEMENT_TYPE
+        )
+          switch (((value = handler.value), key)) {
+            case "3":
+              value.props = i;
+              break;
+            case "4":
+              value._owner = i;
+          }
         handler.deps--;
         0 === handler.deps &&
           ((i = handler.chunk),
@@ -1156,11 +1193,8 @@
       }
       switch (id.status) {
         case "fulfilled":
-          for (var value = id.value, i = 1; i < reference.length; i++)
-            if (
-              ((value = value[reference[i]]),
-              value.$$typeof === REACT_LAZY_TYPE)
-            )
+          for (var value = id.value, i = 1; i < reference.length; i++) {
+            for (; value.$$typeof === REACT_LAZY_TYPE; )
               if (((value = value._payload), "fulfilled" === value.status))
                 value = value.value;
               else
@@ -1170,8 +1204,10 @@
                   key,
                   response,
                   map,
-                  reference.slice(i)
+                  reference.slice(i - 1)
                 );
+            value = value[reference[i]];
+          }
           response = map(response, value);
           id._debugInfo &&
             ("object" !== typeof response ||
@@ -1386,6 +1422,13 @@
       this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
       this._buffer = [];
       this._tempRefs = temporaryReferences;
+      this._debugRootOwner = bundlerConfig =
+        void 0 === ReactSharedInteralsServer ||
+        null === ReactSharedInteralsServer.A
+          ? null
+          : ReactSharedInteralsServer.A.getOwner();
+      this._debugRootStack =
+        null !== bundlerConfig ? Error("react-stack-top-frame") : null;
       this._debugFindSourceMapURL = findSourceMapURL;
       this._replayConsole = replayConsole;
       this._rootEnvironmentName =
@@ -1672,6 +1715,34 @@
       }
       return fn;
     }
+    function buildFakeCallStack(response, stack, environmentName, innerCall) {
+      for (var i = 0; i < stack.length; i++) {
+        var frame = stack[i],
+          frameKey = frame.join("-") + "-" + environmentName,
+          fn = fakeFunctionCache.get(frameKey);
+        if (void 0 === fn) {
+          fn = frame[0];
+          var filename = frame[1],
+            line = frame[2];
+          frame = frame[3];
+          var findSourceMapURL = response._debugFindSourceMapURL;
+          findSourceMapURL = findSourceMapURL
+            ? findSourceMapURL(filename, environmentName)
+            : null;
+          fn = createFakeFunction(
+            fn,
+            filename,
+            findSourceMapURL,
+            line,
+            frame,
+            environmentName
+          );
+          fakeFunctionCache.set(frameKey, fn);
+        }
+        innerCall = fn.bind(null, innerCall);
+      }
+      return innerCall;
+    }
     function fakeJSXCallSite() {
       return Error("react-stack-top-frame");
     }
@@ -1783,39 +1854,39 @@
           break;
         case 72:
           id = buffer[0];
-          var model = buffer.slice(1);
-          response = JSON.parse(model, response._fromJSON);
-          model = ReactDOMSharedInternals.d;
+          buffer = buffer.slice(1);
+          response = JSON.parse(buffer, response._fromJSON);
+          buffer = ReactDOMSharedInternals.d;
           switch (id) {
             case "D":
-              model.D(response);
+              buffer.D(response);
               break;
             case "C":
               "string" === typeof response
-                ? model.C(response)
-                : model.C(response[0], response[1]);
+                ? buffer.C(response)
+                : buffer.C(response[0], response[1]);
               break;
             case "L":
               id = response[0];
-              var as = response[1];
+              tag = response[1];
               3 === response.length
-                ? model.L(id, as, response[2])
-                : model.L(id, as);
+                ? buffer.L(id, tag, response[2])
+                : buffer.L(id, tag);
               break;
             case "m":
               "string" === typeof response
-                ? model.m(response)
-                : model.m(response[0], response[1]);
+                ? buffer.m(response)
+                : buffer.m(response[0], response[1]);
               break;
             case "X":
               "string" === typeof response
-                ? model.X(response)
-                : model.X(response[0], response[1]);
+                ? buffer.X(response)
+                : buffer.X(response[0], response[1]);
               break;
             case "S":
               "string" === typeof response
-                ? model.S(response)
-                : model.S(
+                ? buffer.S(response)
+                : buffer.S(
                     response[0],
                     0 === response[1] ? void 0 : response[1],
                     3 === response.length ? response[2] : void 0
@@ -1823,117 +1894,73 @@
               break;
             case "M":
               "string" === typeof response
-                ? model.M(response)
-                : model.M(response[0], response[1]);
+                ? buffer.M(response)
+                : buffer.M(response[0], response[1]);
           }
           break;
         case 69:
-          tag = JSON.parse(buffer);
-          as = tag.digest;
-          buffer = tag.env;
-          model = Error(
-            tag.message ||
+          stringDecoder = JSON.parse(buffer);
+          tag = stringDecoder.digest;
+          chunk = stringDecoder.env;
+          buffer = Error(
+            stringDecoder.message ||
               "An error occurred in the Server Components render but no message was provided"
           );
-          tag = tag.stack;
-          chunk = model.name + ": " + model.message;
-          if (tag)
-            for (
-              stringDecoder = 0;
-              stringDecoder < tag.length;
-              stringDecoder++
-            ) {
-              var frame = tag[stringDecoder];
-              row = frame[0];
-              i = frame[1];
-              var line = frame[2];
+          stringDecoder = stringDecoder.stack;
+          row = buffer.name + ": " + buffer.message;
+          if (stringDecoder)
+            for (i = 0; i < stringDecoder.length; i++) {
+              var frame = stringDecoder[i],
+                name = frame[0],
+                filename = frame[1],
+                line = frame[2];
               frame = frame[3];
-              chunk = row
-                ? chunk +
+              row = name
+                ? row +
                   ("\n    at " +
-                    row +
+                    name +
                     " (" +
-                    i +
+                    filename +
                     ":" +
                     line +
                     ":" +
                     frame +
                     ")")
-                : chunk + ("\n    at " + i + ":" + line + ":" + frame);
+                : row + ("\n    at " + filename + ":" + line + ":" + frame);
             }
-          model.stack = chunk;
-          model.digest = as;
-          model.environmentName = buffer;
-          as = response._chunks;
-          (buffer = as.get(id))
-            ? triggerErrorOnChunk(buffer, model)
-            : as.set(id, new ReactPromise("rejected", null, model, response));
+          buffer.stack = row;
+          buffer.digest = tag;
+          buffer.environmentName = chunk;
+          tag = response._chunks;
+          (chunk = tag.get(id))
+            ? triggerErrorOnChunk(chunk, buffer)
+            : tag.set(id, new ReactPromise("rejected", null, buffer, response));
           break;
         case 84:
-          model = response._chunks;
-          (as = model.get(id)) && "pending" !== as.status
-            ? as.reason.enqueueValue(buffer)
-            : model.set(
+          tag = response._chunks;
+          (chunk = tag.get(id)) && "pending" !== chunk.status
+            ? chunk.reason.enqueueValue(buffer)
+            : tag.set(
                 id,
                 new ReactPromise("fulfilled", buffer, null, response)
               );
           break;
         case 68:
-          model = JSON.parse(buffer, response._fromJSON);
-          initializeFakeStack(response, model);
+          buffer = JSON.parse(buffer, response._fromJSON);
+          null === buffer.owner && null != response._debugRootOwner
+            ? ((buffer.owner = response._debugRootOwner),
+              (buffer.debugStack = response._debugRootStack))
+            : initializeFakeStack(response, buffer);
           response = getChunk(response, id);
-          (response._debugInfo || (response._debugInfo = [])).push(model);
+          (response._debugInfo || (response._debugInfo = [])).push(buffer);
           break;
         case 87:
-          if (response._replayConsole) {
-            buffer = JSON.parse(buffer, response._fromJSON);
-            response = buffer[0];
-            id = buffer[3];
-            buffer = buffer.slice(4);
-            tag = ReactSharedInternals.getCurrentStack;
-            ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
-            try {
-              a: {
-                chunk = 0;
-                switch (response) {
-                  case "dir":
-                  case "dirxml":
-                  case "groupEnd":
-                  case "table":
-                    model = bind.apply(
-                      console[response],
-                      [console].concat(buffer)
-                    );
-                    break a;
-                  case "assert":
-                    chunk = 1;
-                }
-                as = buffer.slice(0);
-                "string" === typeof as[chunk]
-                  ? as.splice(
-                      chunk,
-                      1,
-                      "%c%s%c " + as[chunk],
-                      "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                      " " + id + " ",
-                      ""
-                    )
-                  : as.splice(
-                      chunk,
-                      0,
-                      "%c%s%c ",
-                      "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-                      " " + id + " ",
-                      ""
-                    );
-                as.unshift(console);
-                model = bind.apply(console[response], as);
-              }
-              model();
-            } finally {
-              ReactSharedInternals.getCurrentStack = tag;
-            }
-          }
+          response._replayConsole &&
+            ((buffer = JSON.parse(buffer, response._fromJSON)),
+            (response = buffer[0]),
+            (id = buffer[3]),
+            (buffer = buffer.slice(4)),
+            bindToConsole(response, buffer, id)());
           break;
         case 82:
           startReadableStream(response, id, void 0);
@@ -1953,10 +1980,10 @@
             response.reason.close("" === buffer ? '"$undefined"' : buffer);
           break;
         default:
-          (model = response._chunks),
-            (as = model.get(id))
-              ? resolveModelChunk(as, buffer)
-              : model.set(
+          (tag = response._chunks),
+            (chunk = tag.get(id))
+              ? resolveModelChunk(chunk, buffer)
+              : tag.set(
                   id,
                   new ReactPromise("resolved_model", buffer, null, response)
                 );
@@ -1969,25 +1996,26 @@
         if ("object" === typeof value && null !== value) {
           if (value[0] === REACT_ELEMENT_TYPE)
             if (
-              ((key = {
+              ((key = value[4]),
+              (value = {
                 $$typeof: REACT_ELEMENT_TYPE,
                 type: value[1],
                 key: value[2],
                 props: value[3],
-                _owner: value[4]
+                _owner: null === key ? response._debugRootOwner : key
               }),
-              Object.defineProperty(key, "ref", {
+              Object.defineProperty(value, "ref", {
                 enumerable: !1,
                 get: nullRefGetter
               }),
-              (key._store = {}),
-              Object.defineProperty(key._store, "validated", {
+              (value._store = {}),
+              Object.defineProperty(value._store, "validated", {
                 configurable: !1,
                 enumerable: !1,
                 writable: !0,
                 value: 1
               }),
-              Object.defineProperty(key, "_debugInfo", {
+              Object.defineProperty(value, "_debugInfo", {
                 configurable: !1,
                 enumerable: !1,
                 writable: !0,
@@ -1998,28 +2026,27 @@
               var handler = initializingHandler;
               initializingHandler = handler.parent;
               handler.errored
-                ? ((value = new ReactPromise(
+                ? ((key = new ReactPromise(
                     "rejected",
                     null,
                     handler.value,
                     response
                   )),
-                  (key = {
-                    name: getComponentNameFromType(key.type) || "",
-                    owner: key._owner
+                  (value = {
+                    name: getComponentNameFromType(value.type) || "",
+                    owner: value._owner
                   }),
-                  (value._debugInfo = [key]),
-                  (key = createLazyChunkWrapper(value)))
+                  (key._debugInfo = [value]),
+                  (value = createLazyChunkWrapper(key)))
                 : 0 < handler.deps &&
-                  ((value = new ReactPromise("blocked", null, null, response)),
-                  (handler.value = key),
-                  (handler.chunk = value),
-                  (key = Object.freeze.bind(Object, key.props)),
-                  value.then(key, key),
-                  (key = createLazyChunkWrapper(value)));
-            } else Object.freeze(key.props);
-          else key = value;
-          return key;
+                  ((key = new ReactPromise("blocked", null, null, response)),
+                  (handler.value = value),
+                  (handler.chunk = key),
+                  (value = Object.freeze.bind(Object, value.props)),
+                  key.then(value, value),
+                  (value = createLazyChunkWrapper(key)));
+            } else Object.freeze(value.props);
+          return value;
         }
         return value;
       };
@@ -2136,8 +2163,8 @@
       var reader = stream.getReader();
       reader.read().then(progress).catch(error);
     }
-    var ReactDOM = require("react-dom"),
-      React = require("react"),
+    var React = require("react"),
+      ReactDOM = require("react-dom"),
       decoderOptions = { stream: !0 },
       bind = Function.prototype.bind,
       chunkCache = new Map(),
@@ -2179,9 +2206,11 @@
       jscSpiderMonkeyFrameRegExp = /(?:(.*)@)?(.*):(\d+):(\d+)/,
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
     new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var ReactSharedInternals =
-      React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
-      React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
+    var ReactSharedInteralsServer =
+        React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
+      ReactSharedInternals =
+        React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE ||
+        ReactSharedInteralsServer;
     ReactPromise.prototype = Object.create(Promise.prototype);
     ReactPromise.prototype.then = function (resolve, reject) {
       switch (this.status) {
@@ -2217,37 +2246,80 @@
           stack,
           environmentName
         ) {
-          for (var callStack = fakeJSXCallSite, i = 0; i < stack.length; i++) {
-            var frame = stack[i],
-              frameKey = frame.join("-") + "-" + environmentName,
-              fn = fakeFunctionCache.get(frameKey);
-            if (void 0 === fn) {
-              fn = frame[0];
-              var filename = frame[1],
-                line = frame[2];
-              frame = frame[3];
-              var findSourceMapURL = response._debugFindSourceMapURL;
-              findSourceMapURL = findSourceMapURL
-                ? findSourceMapURL(filename, environmentName)
-                : null;
-              fn = createFakeFunction(
-                fn,
-                filename,
-                findSourceMapURL,
-                line,
-                frame,
-                environmentName
-              );
-              fakeFunctionCache.set(frameKey, fn);
-            }
-            callStack = fn.bind(null, callStack);
-          }
-          return callStack();
+          return buildFakeCallStack(
+            response,
+            stack,
+            environmentName,
+            fakeJSXCallSite
+          )();
         }
       },
       createFakeJSXCallStackInDEV = createFakeJSXCallStack[
         "react-stack-bottom-frame"
-      ].bind(createFakeJSXCallStack);
+      ].bind(createFakeJSXCallStack),
+      currentOwnerInDEV = null,
+      replayConsoleWithCallStack = {
+        "react-stack-bottom-frame": function (
+          response,
+          methodName,
+          stackTrace,
+          owner,
+          env,
+          args
+        ) {
+          var prevStack = ReactSharedInternals.getCurrentStack;
+          ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
+          currentOwnerInDEV = null === owner ? response._debugRootOwner : owner;
+          try {
+            var callStack = buildFakeCallStack(
+              response,
+              stackTrace,
+              env,
+              bindToConsole(methodName, args, env)
+            );
+            null != owner && initializeFakeStack(response, owner);
+            var rootTask = response._debugRootTask;
+            if (rootTask)
+              if (response._rootEnvironmentName !== env) {
+                var createTaskFn = console.createTask.bind(
+                  console,
+                  '"use ' + env.toLowerCase() + '"'
+                );
+                var rootTask$jscomp$0 = rootTask.run(createTaskFn);
+              } else rootTask$jscomp$0 = rootTask;
+            else rootTask$jscomp$0 = null;
+            null != rootTask$jscomp$0
+              ? rootTask$jscomp$0.run(callStack)
+              : callStack();
+          } finally {
+            (currentOwnerInDEV = null),
+              (ReactSharedInternals.getCurrentStack = prevStack);
+          }
+        }
+      };
+    replayConsoleWithCallStack["react-stack-bottom-frame"].bind(
+      replayConsoleWithCallStack
+    );
+    (function (internals) {
+      if ("undefined" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) return !1;
+      var hook = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+      if (hook.isDisabled || !hook.supportsFlight) return !0;
+      try {
+        hook.inject(internals);
+      } catch (err) {
+        console.error("React instrumentation encountered an error: %s.", err);
+      }
+      return hook.checkDCE ? !0 : !1;
+    })({
+      bundleType: 1,
+      version: "19.0.0-rc-2d16326d-20240930",
+      rendererPackageName: "react-server-dom-webpack",
+      currentDispatcherRef: ReactSharedInternals,
+      reconcilerVersion: "19.0.0-rc-2d16326d-20240930",
+      getCurrentComponentInfo: function () {
+        return currentOwnerInDEV;
+      }
+    });
     exports.createFromFetch = function (promiseForResponse, options) {
       var response = createResponseFromOptions(options);
       promiseForResponse.then(

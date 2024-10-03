@@ -69,12 +69,12 @@ pub struct RuntimeEntries(Vec<Vc<RuntimeEntry>>);
 impl RuntimeEntries {
     #[turbo_tasks::function]
     pub async fn resolve_entries(
-        self: Vc<Self>,
+        &self,
         asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<EvaluatableAssets>> {
         let mut runtime_entries = Vec::new();
 
-        for reference in &self.await? {
+        for reference in &self.0 {
             let resolved_entries = reference.resolve_entry(asset_context).await?;
             runtime_entries.extend(&resolved_entries);
         }

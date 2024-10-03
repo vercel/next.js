@@ -1,7 +1,6 @@
 #![feature(trivial_bounds)]
 
 use std::{
-    collections::HashMap,
     env::current_dir,
     time::{Duration, Instant},
 };
@@ -34,7 +33,7 @@ async fn main() -> Result<()> {
         Box::pin(async {
             let root: RcStr = current_dir().unwrap().to_str().unwrap().into();
             let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), root, vec![]);
-            disk_fs.await?.start_watching()?;
+            disk_fs.await?.start_watching(None)?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
@@ -44,7 +43,7 @@ async fn main() -> Result<()> {
 
             let source = FileSource::new(entry);
             let module_asset_context = turbopack::ModuleAssetContext::new(
-                Vc::cell(HashMap::new()),
+                Default::default(),
                 CompileTimeInfo::new(Environment::new(Value::new(
                     ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
                 ))),

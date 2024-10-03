@@ -1,4 +1,5 @@
 /* global location */
+// imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
 
 import type Router from '../shared/lib/router/router'
@@ -495,8 +496,8 @@ function markHydrateComplete(): void {
     if (
       process.env.NODE_ENV === 'development' &&
       // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
-      beforeHydrationMeasure !== undefined &&
-      hydrationMeasure !== undefined
+      beforeHydrationMeasure &&
+      hydrationMeasure
     ) {
       tracer
         .startSpan('navigation-to-hydration', {

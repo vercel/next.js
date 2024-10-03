@@ -1,11 +1,12 @@
 use std::{
     borrow::Borrow,
-    collections::{hash_map::RandomState, HashMap},
+    collections::HashMap,
     fmt::{Debug, Formatter},
-    hash::{BuildHasher, Hash},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     marker::PhantomData,
 };
 
+use rustc_hash::FxHasher;
 use serde::{
     de::{MapAccess, Visitor},
     ser::SerializeMap,
@@ -16,7 +17,7 @@ use smallvec::SmallVec;
 use crate::{MAX_LIST_SIZE, MIN_HASH_SIZE};
 
 #[derive(Clone)]
-pub enum AutoMap<K, V, H = RandomState, const I: usize = 0> {
+pub enum AutoMap<K, V, H = BuildHasherDefault<FxHasher>, const I: usize = 0> {
     List(SmallVec<[(K, V); I]>),
     Map(Box<HashMap<K, V, H>>),
 }
@@ -33,7 +34,7 @@ impl<K: Debug, V: Debug, H, const I: usize> Debug for AutoMap<K, V, H, I> {
     }
 }
 
-impl<K, V> AutoMap<K, V, RandomState, 0> {
+impl<K, V> AutoMap<K, V, BuildHasherDefault<FxHasher>, 0> {
     /// see [HashMap::new](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.new)
     pub const fn new() -> Self {
         AutoMap::List(SmallVec::new_const())

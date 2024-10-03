@@ -81,8 +81,11 @@ export function getRSCModuleInformation(
   isReactServerLayer: boolean
 ): RSCMeta {
   const actionsJson = source.match(ACTION_MODULE_LABEL)
-  const actions = actionsJson
-    ? (Object.values(JSON.parse(actionsJson[1])) as string[])
+  const parsedActionsMeta = actionsJson
+    ? (JSON.parse(actionsJson[1]) as Record<string, string>)
+    : undefined
+  const actions = parsedActionsMeta
+    ? (Object.values(parsedActionsMeta) as string[])
     : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
@@ -91,6 +94,7 @@ export function getRSCModuleInformation(
     return {
       type: RSC_MODULE_TYPES.client,
       actions,
+      actionIds: parsedActionsMeta,
       isClientRef,
     }
   }
@@ -433,9 +437,11 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
   ) {
     return
   }
+
   if (apiRouteWarnings.has(apiRoute)) {
     return
   }
+
   Log.warn(
     apiRoute
       ? `${apiRoute} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`

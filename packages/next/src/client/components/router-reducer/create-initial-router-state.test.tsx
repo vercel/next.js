@@ -38,11 +38,12 @@ describe('createInitialRouterState', () => {
       initialFlightData: [
         [initialTree, ['', children, {}, null], <title>Test</title>],
       ],
-      initialCanonicalUrl,
+      initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
       couldBeIntercepted: false,
       postponed: false,
+      prerendered: false,
     })
 
     const state2 = createInitialRouterState({
@@ -50,11 +51,12 @@ describe('createInitialRouterState', () => {
       initialFlightData: [
         [initialTree, ['', children, {}, null], <title>Test</title>],
       ],
-      initialCanonicalUrl,
+      initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
       couldBeIntercepted: false,
       postponed: false,
+      prerendered: false,
     })
 
     const expectedCache: CacheNode = {
@@ -118,7 +120,7 @@ describe('createInitialRouterState', () => {
             lastUsedTime: expect.any(Number),
             treeAtTimeOfPrefetch: initialTree,
             status: PrefetchCacheEntryStatus.fresh,
-            pathname: '/linking',
+            url: new URL('/linking', 'https://localhost'),
           },
         ],
       ]),

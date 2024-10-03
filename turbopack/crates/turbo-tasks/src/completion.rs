@@ -59,15 +59,27 @@ impl Completions {
 
     /// Merges the list of completions into one.
     #[turbo_tasks::function]
-    pub async fn completed(self: Vc<Self>) -> anyhow::Result<Vc<Completion>> {
-        self.await?
-            .iter()
-            .map(|&c| async move {
-                c.await?;
-                Ok(())
-            })
-            .try_join()
-            .await?;
-        Ok(Completion::new())
+    pub async fn completed(&self) -> anyhow::Result<Vc<Completion>> {
+        if self.0.len() > 100 {
+            let mid = self.0.len() / 2;
+            let (left, right) = self.0.split_at(mid);
+            let left = Vc::<Completions>::cell(left.to_vec());
+            let right = Vc::<Completions>::cell(right.to_vec());
+            let left = left.completed();
+            let right = right.completed();
+            left.await?;
+            right.await?;
+            Ok(Completion::new())
+        } else {
+            self.0
+                .iter()
+                .map(|&c| async move {
+                    c.await?;
+                    Ok(())
+                })
+                .try_join()
+                .await?;
+            Ok(Completion::new())
+        }
     }
 }

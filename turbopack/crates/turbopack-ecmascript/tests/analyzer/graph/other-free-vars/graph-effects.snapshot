@@ -182,6 +182,7 @@
         ],
         span: 30..44,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -331,5 +332,6 @@
         ],
         span: 56..70,
         in_try: false,
+        new: false,
     },
 ]

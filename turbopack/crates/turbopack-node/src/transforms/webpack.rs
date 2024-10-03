@@ -232,7 +232,9 @@ impl WebpackLoadersProcessedAsset {
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
                 Vc::cell(content.into()),
+                // We need to pass the query string to the loader
                 Vc::cell(resource_path.to_string().into()),
+                Vc::cell(this.source.ident().query().await?.to_string().into()),
                 Vc::cell(json!(*loaders)),
             ],
             additional_invalidation: Completion::immutable(),
@@ -716,7 +718,7 @@ async fn dir_dependency_shallow(glob: Vc<ReadGlobResult>) -> Result<Vc<Completio
         // Reading all files to add itself as dependency
         match *item {
             DirectoryEntry::File(file) => {
-                file.track().await?;
+                file.read().await?;
             }
             DirectoryEntry::Directory(dir) => {
                 dir_dependency(dir.read_glob(Glob::new("**".into()), false)).await?;
@@ -818,7 +820,7 @@ impl Issue for EvaluateErrorLoggingIssue {
     }
 
     #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    fn description(&self) -> Vc<OptionStyledString> {
         fn fmt_args(prefix: String, args: &[JsonValue]) -> String {
             let mut iter = args.iter();
             let Some(first) = iter.next() else {
@@ -852,6 +854,6 @@ impl Issue for EvaluateErrorLoggingIssue {
                 }
             })
             .collect::<Vec<_>>();
-        Ok(Vc::cell(Some(StyledString::Stack(lines).cell())))
+        Vc::cell(Some(StyledString::Stack(lines).cell()))
     }
 }

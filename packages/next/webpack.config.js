@@ -13,11 +13,13 @@ const pagesExternals = [
   'react-dom/package.json',
   'react-dom/client',
   'react-dom/server',
+  'react-dom/server.browser',
   'react-dom/server.edge',
   'react-server-dom-webpack/client',
   'react-server-dom-webpack/client.edge',
   'react-server-dom-webpack/server.edge',
   'react-server-dom-webpack/server.node',
+  'react-server-dom-webpack/static.edge',
 ]
 
 const appExternals = [
@@ -49,10 +51,12 @@ function makeAppAliases(reactChannel = '') {
     'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
     'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
     'react-server-dom-turbopack/server.node$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
+    'react-server-dom-turbopack/static.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/static.edge`,
     'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client`,
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.node`,
+    'react-server-dom-webpack/static.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/static.edge`,
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts':
       'next/dist/client/dev/noop-turbopack-hmr',
   }

@@ -1,4 +1,4 @@
-export default function IdPage({ children, params, searchParams }) {
+export default async function IdPage({ children, params, searchParams }) {
   return (
     <>
       <p>
@@ -6,8 +6,7 @@ export default function IdPage({ children, params, searchParams }) {
         <span id="id-page-params">{JSON.stringify(params)}</span>
       </p>
       {children}
-
-      <p id="search-params">{JSON.stringify(searchParams)}</p>
+      <p id="search-params">{JSON.stringify(await searchParams)}</p>
     </>
   )
 }

@@ -27,7 +27,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { hasNextSupport } from '../telemetry/ci-info'
+import { hasNextSupport } from '../server/ci-info'
 import { exportAppRoute } from './routes/app-route'
 import { exportAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
@@ -40,8 +40,13 @@ import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
-import type { Params } from '../client/components/params'
+import type { Params } from '../server/request/params'
+import {
+  getFallbackRouteParams,
+  type FallbackRouteParams,
+} from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
+import { runWithCacheScope } from '../server/async-storage/cache-scope'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -84,6 +89,9 @@ async function exportPageImpl(
   const {
     page,
 
+    // The parameters that are currently unknown.
+    _fallbackRouteParams = [],
+
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
 
@@ -99,6 +107,9 @@ async function exportPageImpl(
   } = pathMap
 
   try {
+    const fallbackRouteParams: FallbackRouteParams | null =
+      getFallbackRouteParams(_fallbackRouteParams)
+
     let query = { ...originalQuery }
     const pathname = normalizeAppPath(page)
     const isDynamic = isDynamicRoute(page)
@@ -235,7 +246,8 @@ async function exportPageImpl(
         distDir,
         htmlFilepath,
         fileWriter,
-        input.renderOpts.experimental
+        input.renderOpts.experimental,
+        input.renderOpts.buildId
       )
     }
 
@@ -275,6 +287,7 @@ async function exportPageImpl(
         path,
         pathname,
         query,
+        fallbackRouteParams,
         renderOpts,
         htmlFilepath,
         debugOutput,
@@ -341,6 +354,7 @@ export async function exportPages(
     fetchCacheKeyPrefix,
     distDir,
     dir,
+    dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
@@ -448,21 +462,26 @@ export async function exportPages(
 
     return { result, path, pageKey }
   }
+  // for each build worker we share one dynamic IO cache scope
+  // this is only leveraged if the flag is enabled
+  const dynamicIOCacheScope = new Map()
 
-  for (let i = 0; i < paths.length; i += maxConcurrency) {
-    const subset = paths.slice(i, i + maxConcurrency)
+  await runWithCacheScope({ cache: dynamicIOCacheScope }, async () => {
+    for (let i = 0; i < paths.length; i += maxConcurrency) {
+      const subset = paths.slice(i, i + maxConcurrency)
 
-    const subsetResults = await Promise.all(
-      subset.map((path) =>
-        exportPageWithRetry(
-          path,
-          nextConfig.experimental.staticGenerationRetryCount ?? 1
+      const subsetResults = await Promise.all(
+        subset.map((path) =>
+          exportPageWithRetry(
+            path,
+            nextConfig.experimental.staticGenerationRetryCount ?? 1
+          )
         )
       )
-    )
 
-    results.push(...subsetResults)
-  }
+      results.push(...subsetResults)
+    }
+  })
 
   return results
 }
@@ -547,4 +566,18 @@ process.on('rejectionHandled', () => {
   // It is ok to await a Promise late in Next.js as it allows for better
   // prefetching patterns to avoid waterfalls. We ignore logging these.
   // We should've already errored in anyway unhandledRejection.
+})
+
+const FATAL_UNHANDLED_NEXT_API_EXIT_CODE = 78
+
+process.on('uncaughtException', (err) => {
+  if (isDynamicUsageError(err)) {
+    console.error(
+      'A Next.js API that uses exceptions to signal framework behavior was uncaught. This suggests improper usage of a Next.js API. The original error is printed below and the build will now exit.'
+    )
+    console.error(err)
+    process.exit(FATAL_UNHANDLED_NEXT_API_EXIT_CODE)
+  } else {
+    console.error(err)
+  }
 })

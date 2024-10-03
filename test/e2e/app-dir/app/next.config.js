@@ -2,6 +2,9 @@
  * @type import('next').NextConfig
  */
 module.exports = {
+  env: {
+    LEGACY_ENV_KEY: '1',
+  },
   experimental: {
     clientRouterFilterRedirects: true,
     parallelServerCompiles: true,

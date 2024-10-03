@@ -15,7 +15,11 @@ export const scheduleOnNextTick = <T = void>(cb: ScheduledFn<T>): void => {
   // This was inspired by the implementation of the DataLoader interface: https://github.com/graphql/dataloader/blob/d336bd15282664e0be4b4a657cb796f09bafbc6b/src/index.js#L213-L255
   //
   Promise.resolve().then(() => {
-    process.nextTick(cb)
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      setTimeout(cb, 0)
+    } else {
+      process.nextTick(cb)
+    }
   })
 }
 
@@ -40,4 +44,21 @@ export const scheduleImmediate = <T = void>(cb: ScheduledFn<T>): void => {
  */
 export function atLeastOneTask() {
   return new Promise<void>((resolve) => scheduleImmediate(resolve))
+}
+
+/**
+ * This utility function is extracted to make it easier to find places where we are doing
+ * specific timing tricks to try to schedule work after React has rendered. This is especially
+ * important at the moment because Next.js uses the edge builds of React which use setTimeout to
+ * schedule work when you might expect that something like setImmediate would do the trick.
+ *
+ * Long term we should switch to the node versions of React rendering when possible and then
+ * update this to use setImmediate rather than setTimeout
+ */
+export function waitAtLeastOneReactRenderTask(): Promise<void> {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return new Promise((r) => setTimeout(r, 0))
+  } else {
+    return new Promise((r) => setImmediate(r))
+  }
 }

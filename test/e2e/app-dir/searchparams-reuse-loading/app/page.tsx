@@ -1,8 +1,9 @@
 import Link from 'next/link'
 
-export default function Page() {
+export default function Page({ searchParams }) {
   return (
     <>
+      <div id="root-params">{JSON.stringify(searchParams)}</div>
       <Link href="/search">Go to search</Link>
       <hr />
 
@@ -21,6 +22,16 @@ export default function Page() {
         <li>
           <Link href="/search-params" prefetch>
             /search-params (prefetch: true)
+          </Link>
+        </li>
+        <li>
+          <Link href="/params-first" prefetch={false}>
+            /params-first
+          </Link>
+        </li>
+        <li>
+          <Link href="/root-page-first" prefetch={false}>
+            /root-page-first
           </Link>
         </li>
       </ul>

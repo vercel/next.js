@@ -4,7 +4,7 @@
 mod nft_json;
 
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::BTreeSet,
     env::current_dir,
     future::Future,
     path::{Path, PathBuf},
@@ -190,9 +190,9 @@ impl Args {
 async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
     let fs = DiskFileSystem::new(name.into(), root.into(), vec![]);
     if watch {
-        fs.await?.start_watching()?;
+        fs.await?.start_watching(None)?;
     } else {
-        fs.await?.invalidate();
+        fs.await?.invalidate_with_reason();
     }
     Ok(Vc::upcast(fs))
 }
@@ -632,7 +632,7 @@ async fn create_module_asset(
     process_cwd: Option<RcStr>,
     module_options: TransientInstance<ModuleOptionsContext>,
     resolve_options: TransientInstance<ResolveOptionsContext>,
-) -> Result<Vc<ModuleAssetContext>> {
+) -> Vc<ModuleAssetContext> {
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment {
             cwd: Vc::cell(process_cwd),
@@ -666,13 +666,13 @@ async fn create_module_asset(
         );
     }
 
-    Ok(ModuleAssetContext::new(
-        Vc::cell(HashMap::new()),
+    ModuleAssetContext::new(
+        Default::default(),
         compile_time_info,
         ModuleOptionsContext::clone(&*module_options).cell(),
         resolve_options.cell(),
         Vc::cell("node_file_trace".into()),
-    ))
+    )
 }
 
 fn register() {

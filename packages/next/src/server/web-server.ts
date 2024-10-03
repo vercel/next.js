@@ -1,7 +1,7 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../client/components/params'
+import type { Params } from './request/params'
 import type { LoadComponentsReturnType } from './load-components'
 import type {
   LoadedRenderOpts,
@@ -80,6 +80,7 @@ export default class NextWebServer extends BaseServer<
     return new IncrementalCache({
       dev,
       requestHeaders,
+      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       requestProtocol: 'https',
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
@@ -248,6 +249,9 @@ export default class NextWebServer extends BaseServer<
       res as any,
       pathname,
       query,
+      // Edge runtime does not support ISR/PPR, so we don't need to pass in
+      // the unknown params.
+      null,
       Object.assign(renderOpts, {
         disableOptimizedLoading: true,
         runtime: 'experimental-edge',

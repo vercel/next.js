@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
@@ -26,21 +26,21 @@ pub struct PagesStructureItem {
 #[turbo_tasks::value_impl]
 impl PagesStructureItem {
     #[turbo_tasks::function]
-    async fn new(
+    fn new(
         base_path: Vc<FileSystemPath>,
         extensions: Vc<Vec<RcStr>>,
         fallback_path: Option<Vc<FileSystemPath>>,
         next_router_path: Vc<FileSystemPath>,
         original_path: Vc<FileSystemPath>,
-    ) -> Result<Vc<Self>> {
-        Ok(PagesStructureItem {
+    ) -> Vc<Self> {
+        PagesStructureItem {
             base_path,
             extensions,
             fallback_path,
             next_router_path,
             original_path,
         }
-        .cell())
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -58,15 +58,6 @@ impl PagesStructureItem {
             Ok(self.base_path)
         }
     }
-
-    /// Returns a completion that changes when any route in the whole tree
-    /// changes.
-    #[turbo_tasks::function]
-    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        let this = self.await?;
-        this.next_router_path.await?;
-        Ok(Completion::new())
-    }
 }
 
 /// A (sub)directory in the pages directory with all analyzed routes and
@@ -82,29 +73,6 @@ pub struct PagesStructure {
 
 #[turbo_tasks::value_impl]
 impl PagesStructure {
-    /// Returns a completion that changes when any route in the whole tree
-    /// changes.
-    #[turbo_tasks::function]
-    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        let PagesStructure {
-            ref app,
-            ref document,
-            ref error,
-            ref api,
-            ref pages,
-        } = &*self.await?;
-        app.routes_changed().await?;
-        document.routes_changed().await?;
-        error.routes_changed().await?;
-        if let Some(api) = api {
-            api.routes_changed().await?;
-        }
-        if let Some(pages) = pages {
-            pages.routes_changed().await?;
-        }
-        Ok(Completion::new())
-    }
-
     #[turbo_tasks::function]
     pub fn app(&self) -> Vc<PagesStructureItem> {
         self.app
@@ -131,30 +99,11 @@ pub struct PagesDirectoryStructure {
 
 #[turbo_tasks::value_impl]
 impl PagesDirectoryStructure {
-    /// Returns the router path of this directory.
-    #[turbo_tasks::function]
-    pub async fn next_router_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.next_router_path)
-    }
-
     /// Returns the path to the directory of this structure in the project file
     /// system.
     #[turbo_tasks::function]
-    pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.project_path)
-    }
-
-    /// Returns a completion that changes when any route in the whole tree
-    /// changes.
-    #[turbo_tasks::function]
-    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        for item in self.await?.items.iter() {
-            item.routes_changed().await?;
-        }
-        for child in self.await?.children.iter() {
-            child.routes_changed().await?;
-        }
-        Ok(Completion::new())
+    pub fn project_path(&self) -> Vc<FileSystemPath> {
+        self.project_path
     }
 }
 

@@ -75,6 +75,7 @@ struct EcmascriptMergedChunkPartial {
 
 #[derive(Serialize)]
 struct EcmascriptModuleEntry {
+    #[serde(with = "turbo_tasks_fs::rope::ser_as_string")]
     code: Rope,
     url: String,
     map: Option<String>,

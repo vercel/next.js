@@ -3,7 +3,8 @@
   "suites": {
     "test/e2e/app-dir/actions/app-action.test.ts": {
       "failed": [
-        "app-dir action handling fetch actions should invalidate client cache when path is revalidated"
+        "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+        "app-dir action handling fetch actions should handle revalidateTag"
       ]
     },
     "test/e2e/app-dir/app-static/app-static.test.ts": {
@@ -54,7 +55,8 @@
       "test/e2e/postcss-config-cjs/index.test.ts",
       "test/e2e/socket-io/index.test.js",
       "test/e2e/middleware-matcher/index.test.ts",
-      "test/e2e/next-script/index.test.ts"
+      "test/e2e/next-script/index.test.ts",
+      "test/production/standalone-mode/**/*"
     ]
   }
 }

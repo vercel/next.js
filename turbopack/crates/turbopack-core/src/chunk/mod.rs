@@ -52,7 +52,7 @@ use crate::{
 #[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash)]
 #[serde(untagged)]
 pub enum ModuleId {
-    Number(u32),
+    Number(u64),
     String(RcStr),
 }
 
@@ -75,7 +75,7 @@ impl ValueToString for ModuleId {
 
 impl ModuleId {
     pub fn parse(id: &str) -> Result<ModuleId> {
-        Ok(match id.parse::<u32>() {
+        Ok(match id.parse::<u64>() {
             Ok(i) => ModuleId::Number(i),
             Err(_) => ModuleId::String(id.into()),
         })
@@ -694,6 +694,9 @@ pub trait ChunkItem {
 
 #[turbo_tasks::value_trait]
 pub trait ChunkType: ValueToString {
+    /// Whether the source (reference) order of items needs to be retained during chunking.
+    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool>;
+
     /// Create a new chunk for the given chunk items
     fn chunk(
         &self,
@@ -708,6 +711,11 @@ pub trait ChunkType: ValueToString {
         chunk_item: Vc<Box<dyn ChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<usize>;
+}
+
+pub fn round_chunk_item_size(size: usize) -> usize {
+    let a = size.next_power_of_two();
+    size & (a | (a >> 1) | (a >> 2))
 }
 
 #[turbo_tasks::value(transparent)]
@@ -747,5 +755,45 @@ where
     fn id(self: Vc<Self>) -> Vc<ModuleId> {
         let chunk_item = Vc::upcast(self);
         chunk_item.chunking_context().chunk_item_id(chunk_item)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_round_chunk_item_size() {
+        assert_eq!(round_chunk_item_size(0), 0);
+        assert_eq!(round_chunk_item_size(1), 1);
+        assert_eq!(round_chunk_item_size(2), 2);
+        assert_eq!(round_chunk_item_size(3), 3);
+        assert_eq!(round_chunk_item_size(4), 4);
+        assert_eq!(round_chunk_item_size(5), 4);
+        assert_eq!(round_chunk_item_size(6), 6);
+        assert_eq!(round_chunk_item_size(7), 6);
+        assert_eq!(round_chunk_item_size(8), 8);
+
+        assert_eq!(changes_in_range(0..1000), 19);
+        assert_eq!(changes_in_range(1000..2000), 2);
+        assert_eq!(changes_in_range(2000..3000), 1);
+
+        assert_eq!(changes_in_range(3000..10000), 4);
+
+        fn changes_in_range(range: std::ops::Range<usize>) -> usize {
+            let len = range.len();
+            let mut count = 0;
+            for i in range {
+                let a = round_chunk_item_size(i);
+                assert!(a >= i * 2 / 3);
+                assert!(a <= i);
+                let b = round_chunk_item_size(i + 1);
+
+                if a == b {
+                    count += 1;
+                }
+            }
+            len - count
+        }
     }
 }

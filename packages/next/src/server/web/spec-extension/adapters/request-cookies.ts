@@ -2,7 +2,7 @@ import type { RequestCookies } from '../cookies'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
-import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
+import { workAsyncStorage } from '../../../../client/components/work-async-storage.external'
 
 /**
  * @internal
@@ -18,6 +18,9 @@ export class ReadonlyRequestCookiesError extends Error {
     throw new ReadonlyRequestCookiesError()
   }
 }
+
+// We use this to type some APIs but we don't construct instances directly
+export type { ResponseCookies }
 
 // The `cookies()` API is a mix of request and response cookies. For `.get()` methods,
 // we want to return the request cookie if it exists. For mutative methods like `.set()`,
@@ -105,10 +108,10 @@ export class MutableRequestCookiesAdapter {
     let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
-      // TODO-APP: change method of getting staticGenerationAsyncStore
-      const staticGenerationAsyncStore = staticGenerationAsyncStorage.getStore()
-      if (staticGenerationAsyncStore) {
-        staticGenerationAsyncStore.pathWasRevalidated = true
+      // TODO-APP: change method of getting workStore
+      const workStore = workAsyncStorage.getStore()
+      if (workStore) {
+        workStore.pathWasRevalidated = true
       }
 
       const allCookies = responseCookies.getAll()

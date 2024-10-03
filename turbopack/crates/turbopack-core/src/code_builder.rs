@@ -191,9 +191,9 @@ impl GenerateSourceMap for Code {
 impl Code {
     /// Returns the hash of the source code of this Code.
     #[turbo_tasks::function]
-    pub async fn source_code_hash(self: Vc<Self>) -> Result<Vc<u64>> {
-        let code = self.await?;
+    pub fn source_code_hash(&self) -> Vc<u64> {
+        let code = self;
         let hash = hash_xxh3_hash64(code.source_code());
-        Ok(Vc::cell(hash))
+        Vc::cell(hash)
     }
 }

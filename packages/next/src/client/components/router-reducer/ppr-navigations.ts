@@ -3,19 +3,16 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   Segment,
-  FetchServerResponseResult,
 } from '../../../server/app-render/types'
 import type {
   CacheNode,
   ChildSegmentMap,
   ReadyCacheNode,
 } from '../../../shared/lib/app-router-context.shared-runtime'
-import {
-  DEFAULT_SEGMENT_KEY,
-  PAGE_SEGMENT_KEY,
-} from '../../../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 import { createRouterCacheKey } from './create-router-cache-key'
+import type { FetchServerResponseResult } from './fetch-server-response'
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -67,8 +64,7 @@ export function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   prefetchData: CacheNodeSeedData,
-  prefetchHead: React.ReactNode,
-  onlyHashChange: boolean
+  prefetchHead: React.ReactNode
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
   const oldRouterStateChildren = oldRouterState[1]
@@ -131,20 +127,7 @@ export function updateCacheNodeOnNavigation(
         : undefined
 
     let taskChild: Task | null
-    if (onlyHashChange && oldRouterStateChild !== undefined) {
-      // If only the hash fragment changed, we can re-use the existing cache.
-      // We spawn a "task" just to keep track of the updated router state; unlike most, it's
-      // already fulfilled and won't be affected by the dynamic response.
-      taskChild = spawnReusedTask(oldRouterStateChild)
-    } else if (newSegmentChild === PAGE_SEGMENT_KEY) {
-      // This is a leaf segment — a page, not a shared layout. We always apply
-      // its data.
-      taskChild = spawnPendingTask(
-        newRouterStateChild,
-        prefetchDataChild !== undefined ? prefetchDataChild : null,
-        prefetchHead
-      )
-    } else if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
+    if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
       // This is another kind of leaf segment — a default route.
       //
       // Default routes have special behavior. When there's no matching segment
@@ -181,8 +164,7 @@ export function updateCacheNodeOnNavigation(
             oldRouterStateChild,
             newRouterStateChild,
             prefetchDataChild,
-            prefetchHead,
-            onlyHashChange
+            prefetchHead
           )
         } else {
           // The server didn't send any prefetch data for this segment. This
@@ -354,16 +336,25 @@ export function listenForDynamicRequest(
 ) {
   responsePromise.then(
     ({ flightData }: FetchServerResponseResult) => {
-      for (const flightDataPath of flightData) {
-        const segmentPath = flightDataPath.slice(0, -3)
-        const serverRouterState = flightDataPath[flightDataPath.length - 3]
-        const dynamicData = flightDataPath[flightDataPath.length - 2]
-        const dynamicHead = flightDataPath[flightDataPath.length - 1]
-
-        if (typeof segmentPath === 'string') {
+      for (const normalizedFlightData of flightData) {
+        if (typeof normalizedFlightData === 'string') {
           // Happens when navigating to page in `pages` from `app`. We shouldn't
           // get here because should have already handled this during
           // the prefetch.
+          continue
+        }
+
+        const {
+          segmentPath,
+          tree: serverRouterState,
+          seedData: dynamicData,
+          head: dynamicHead,
+        } = normalizedFlightData
+
+        if (!dynamicData) {
+          // This shouldn't happen. PPR should always send back a response.
+          // However, `FlightDataPath` is a shared type and the pre-PPR handling of
+          // this might return null.
           continue
         }
 
