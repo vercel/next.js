@@ -1356,8 +1356,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
                 return Ok(());
             }
-            JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor { ignore }) => {
                 let args = linked_args(args).await?;
+                if ignore {
+                    return Ok(());
+                }
                 if let [url @ JsValue::Url(_, JsValueUrlKind::Relative)] = &args[..] {
                     let pat = js_value_to_pattern(url);
                     if !pat.has_constant_parts() {
@@ -2530,7 +2533,9 @@ async fn value_visitor_inner(
             "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore }),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-            "Worker" => JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
+            "Worker" => {
+                JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor { ignore })
+            }
             "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),

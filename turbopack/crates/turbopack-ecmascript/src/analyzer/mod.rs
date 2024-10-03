@@ -1770,7 +1770,7 @@ impl JsValue {
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
-                    WellKnownFunctionKind::WorkerConstructor => (
+                    WellKnownFunctionKind::WorkerConstructor { .. } => (
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
                     ),
@@ -3772,6 +3772,9 @@ pub enum WellKnownFunctionKind {
     Require {
         ignore: bool,
     },
+    WorkerConstructor {
+        ignore: bool,
+    },
     RequireResolve,
     RequireContext,
     RequireContextRequire(Vc<RequireContextValue>),
@@ -3795,7 +3798,6 @@ pub enum WellKnownFunctionKind {
     NodeStrongGlobalizeSetRootDir,
     NodeResolveFrom,
     NodeProtobufLoad,
-    WorkerConstructor,
     URLConstructor,
 }
 
@@ -3918,7 +3920,9 @@ pub mod test_utils {
                 }
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                "Worker" => JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
+                "Worker" => JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor {
+                    ignore: false,
+                }),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
                 "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
                 "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
