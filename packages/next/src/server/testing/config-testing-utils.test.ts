@@ -1,9 +1,9 @@
-import { runResponseThroughNextConfig } from './config-testing-utils'
+import { getResponseFromNextConfig } from './config-testing-utils'
 import { getRewrittenUrl, isRewrite } from './utils'
 
 describe('config-testing-utils', () => {
   it('returns 200 for paths that do not match', async () => {
-    const response = await runResponseThroughNextConfig({
+    const response = await getResponseFromNextConfig({
       url: '/test',
       nextConfig: {},
     })
@@ -12,7 +12,7 @@ describe('config-testing-utils', () => {
 
   describe('redirects', () => {
     it('handles redirect', async () => {
-      const response = await runResponseThroughNextConfig({
+      const response = await getResponseFromNextConfig({
         url: 'https://nextjs.org/test',
         nextConfig: {
           async redirects() {
@@ -29,7 +29,7 @@ describe('config-testing-utils', () => {
     })
 
     it('handles redirect with params', async () => {
-      const response = await runResponseThroughNextConfig({
+      const response = await getResponseFromNextConfig({
         url: 'https://nextjs.org/test/foo',
         nextConfig: {
           async redirects() {
@@ -50,7 +50,7 @@ describe('config-testing-utils', () => {
     })
 
     it('redirects take precedence over rewrites', async () => {
-      const response = await runResponseThroughNextConfig({
+      const response = await getResponseFromNextConfig({
         url: 'https://nextjs.org/test/foo',
         nextConfig: {
           async redirects() {
@@ -81,7 +81,7 @@ describe('config-testing-utils', () => {
 
   describe('rewrites', () => {
     it('handles rewrite', async () => {
-      const response = await runResponseThroughNextConfig({
+      const response = await getResponseFromNextConfig({
         url: 'https://nextjs.org/test/subpath',
         nextConfig: {
           async headers() {
@@ -113,7 +113,7 @@ describe('config-testing-utils', () => {
     })
 
     it('beforeFiles rewrites take precedence over afterFiles and fallback', async () => {
-      const response = await runResponseThroughNextConfig({
+      const response = await getResponseFromNextConfig({
         url: 'https://nextjs.org/test/subpath',
         nextConfig: {
           async rewrites() {
@@ -147,7 +147,7 @@ describe('config-testing-utils', () => {
 
   describe('headers', () => {
     it('simple match', async () => {
-      const response = await runResponseThroughNextConfig({
+      const response = await getResponseFromNextConfig({
         url: 'https://nextjs.org/test/subpath',
         nextConfig: {
           async headers() {
@@ -170,7 +170,7 @@ describe('config-testing-utils', () => {
   })
 
   it('basePath', async () => {
-    const response = await runResponseThroughNextConfig({
+    const response = await getResponseFromNextConfig({
       url: 'https://nextjs.org/test',
       nextConfig: {
         basePath: '/base-path',

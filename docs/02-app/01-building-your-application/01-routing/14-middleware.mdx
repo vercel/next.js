@@ -571,6 +571,36 @@ export default async function middleware(req) {
 }
 ```
 
+## Unit Testing
+
+Starting in Next.js 15, the `next/server/testing` package contains utilities to help unit test Middleware files. Unit testing Middleware can help ensure that Middleware only runs on desired paths and the custom routing logic in Middleware works as intended before code reaches production.
+
+The `doesMiddlewareMatch` function can be used to assert whether Middleware will run for the provided URL, headers, and cookies.
+
+```js
+import { doesMiddlewareMatch } from 'next/server/testing'
+
+expect(
+  doesMiddlewareMatch({
+    config,
+    nextConfig,
+    url: '/test',
+  })
+).toEqual(false)
+```
+
+The entire Middleware function can also be tested.
+
+```js
+import { isRewrite, getRewrittenUrl } from 'next/server/testing'
+
+const request = new NextRequest('https://nextjs.org/docs')
+const response = await middleware(request)
+expect(isRewrite(response)).toEqual(true)
+expect(getRewrittenUrl(response)).toEqual('https://other-domain.com/docs')
+// getRedirectUrl could also be used if the response were a redirect
+```
+
 ## Runtime
 
 Middleware currently only supports APIs compatible with the [Edge runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes). APIs exclusive to Node.js are [unsupported](/docs/app/api-reference/edge#unsupported-apis).

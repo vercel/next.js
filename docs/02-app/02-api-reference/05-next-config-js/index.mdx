@@ -120,3 +120,26 @@ However, none of the configs are required, and it's not necessary to understand 
 > Avoid using new JavaScript features not available in your target Node.js version. `next.config.js` will not be parsed by Webpack or Babel.
 
 This page documents all the available configuration options:
+
+## Unit Testing
+
+Starting in Next.js 15, the `next/server/testing` package contains utilities to help unit test `next.config.js` files.
+
+The `getResponseFromNextConfig` function runs the [`headers`], [`redirects`], and [`rewrites`] functions from `next.config.js` with the provided request information and returns `NextResponse` with the results of the routing.
+
+> The response from `getResponseFromNextConfig` only considers `next.config.js` fields and does not consider middleware or filesystem routes, so the result in production may be different than the unit test.
+
+```js
+import { getRedirectUrl, getResponseFromNextConfig } from 'next/server/testing'
+
+const response = await getResponseFromNextConfig({
+  url: 'https://nextjs.org/test',
+  nextConfig: {
+    async redirects() {
+      return [{ source: '/test', destination: '/test2', permanent: false }]
+    },
+  },
+})
+expect(response.status).toEqual(307)
+expect(getRedirectUrl(response)).toEqual('https://nextjs.org/test2')
+```

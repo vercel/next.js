@@ -58,8 +58,8 @@ function matchRoute(
  *
  * @example Test whether a given URL results in a redirect.
  * ```
- * import { runResponseThroughNextConfig, getRedirectUrl } from 'next/server/testing'
- * const response = await runResponseThroughNextConfig({
+ * import { getResponseFromNextConfig, getRedirectUrl } from 'next/server/testing'
+ * const response = await getResponseFromNextConfig({
  *   url: 'https://nextjs.org/test',
  *   nextConfig: {
  *    async redirects() {
@@ -73,7 +73,7 @@ function matchRoute(
  * expect(getRedirectUrl(response)).toEqual('https://nextjs.org/test2');
  * ```
  */
-export async function runResponseThroughNextConfig({
+export async function getResponseFromNextConfig({
   url,
   nextConfig,
   headers = {},
