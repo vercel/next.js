@@ -117,7 +117,10 @@ export function unstable_cache<T extends Callback>(
     const incrementalCache = maybeIncrementalCache
 
     const prerenderStore = prerenderAsyncStorage.getStore()
-    const cacheSignal = prerenderStore?.cacheSignal
+    const cacheSignal =
+      prerenderStore && prerenderStore.type === 'prerender'
+        ? prerenderStore.cacheSignal
+        : null
     if (cacheSignal) {
       cacheSignal.beginRead()
     }

@@ -434,6 +434,7 @@ export class AppRouteRouteModule extends RouteModule<
                       let dynamicTracking =
                         createDynamicTrackingState(undefined)
                       const prospectiveRoutePrerenderStore: PrerenderStore = {
+                        type: 'prerender',
                         cacheSignal,
                         // During prospective render we don't use a controller
                         // because we need to let all caches fill.
@@ -501,6 +502,7 @@ export class AppRouteRouteModule extends RouteModule<
                       dynamicTracking = createDynamicTrackingState(undefined)
 
                       const finalRoutePrerenderStore: PrerenderStore = {
+                        type: 'prerender',
                         cacheSignal: null,
                         controller,
                         dynamicTracking,
@@ -561,6 +563,15 @@ export class AppRouteRouteModule extends RouteModule<
                           }
                         })
                       })
+                    } else if (isStaticGeneration) {
+                      res = await prerenderAsyncStorage.run(
+                        {
+                          type: 'prerender-legacy',
+                        },
+                        handler,
+                        request,
+                        handlerContext
+                      )
                     } else {
                       res = await handler(request, handlerContext)
                     }

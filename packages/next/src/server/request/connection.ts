@@ -46,7 +46,7 @@ export function connection(): Promise<void> {
       )
     }
 
-    if (prerenderStore) {
+    if (prerenderStore && prerenderStore.type === 'prerender') {
       // We are in PPR and/or dynamicIO mode and prerendering
 
       if (isDynamicIOPrerender(prerenderStore)) {

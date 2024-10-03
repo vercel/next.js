@@ -31,7 +31,7 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,
-  type PrerenderStore,
+  type PrerenderStoreModern,
 } from './prerender-async-storage.external'
 import { cacheAsyncStorage } from './cache-async-storage.external'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
@@ -114,7 +114,7 @@ export function markCurrentScopeAsDynamic(
   }
 
   const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
+  if (prerenderStore && prerenderStore.type === 'prerender') {
     if (prerenderStore.controller) {
       // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
       // current render because something dynamic is being used.
@@ -163,7 +163,7 @@ export function trackFallbackParamAccessed(
   expression: string
 ): void {
   const prerenderStore = prerenderAsyncStorage.getStore()
-  if (!prerenderStore) return
+  if (!prerenderStore || prerenderStore.type !== 'prerender') return
 
   postponeWithTracking(store.route, expression, prerenderStore.dynamicTracking)
 }
@@ -200,7 +200,7 @@ export function trackDynamicDataAccessed(
   }
 
   const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
+  if (prerenderStore && prerenderStore.type === 'prerender') {
     if (prerenderStore.controller) {
       // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
       // current render because something dynamic is being used.
@@ -297,7 +297,7 @@ export function trackDynamicDataInDynamicRender(
 function abortOnSynchronousDynamicDataAccess(
   route: string,
   expression: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): void {
   const reason = `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
 
@@ -334,7 +334,7 @@ function abortOnSynchronousDynamicDataAccess(
 export function abortAndThrowOnSynchronousDynamicDataAccess(
   route: string,
   expression: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): never {
   abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
   throw createPrerenderInterruptedError(
@@ -351,7 +351,10 @@ type PostponeProps = {
 }
 export function Postpone({ reason, route }: PostponeProps): never {
   const prerenderStore = prerenderAsyncStorage.getStore()
-  const dynamicTracking = prerenderStore?.dynamicTracking || null
+  const dynamicTracking =
+    prerenderStore && prerenderStore.type === 'prerender'
+      ? prerenderStore.dynamicTracking
+      : null
   postponeWithTracking(route, reason, dynamicTracking)
 }
 
@@ -545,7 +548,7 @@ export function createPostponedAbortSignal(reason: string): AbortSignal {
 
 export function annotateDynamicAccess(
   expression: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ) {
   const dynamicTracking = prerenderStore.dynamicTracking
   if (dynamicTracking) {
@@ -571,7 +574,7 @@ export function useDynamicRouteParams(expression: string) {
       // There are fallback route params, we should track these as dynamic
       // accesses.
       const prerenderStore = prerenderAsyncStorage.getStore()
-      if (prerenderStore) {
+      if (prerenderStore && prerenderStore.type === 'prerender') {
         // We're prerendering with dynamicIO or PPR or both
         if (isDynamicIOPrerender(prerenderStore)) {
           // We are in a prerender with dynamicIO semantics
