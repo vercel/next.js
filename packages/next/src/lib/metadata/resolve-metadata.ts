@@ -58,12 +58,6 @@ import type {
   CreateServerParamsForMetadata,
 } from '../../server/request/params'
 
-const hasMetadataExport = (mod: any) =>
-  'metadata' in mod || 'generateMetadata' in mod
-
-const hasViewportExport = (mod: any) =>
-  'viewport' in mod || 'generateViewport' in mod
-
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
 type MetadataResolver = (
@@ -336,9 +330,6 @@ async function getDefinedViewport(
   props: any,
   tracingProps: { route: string }
 ): Promise<Viewport | ViewportResolver | null> {
-  if (!hasViewportExport(mod)) {
-    return null
-  }
   if (typeof mod.generateViewport === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingViewport) =>
@@ -361,11 +352,6 @@ async function getDefinedMetadata(
   props: any,
   tracingProps: { route: string }
 ): Promise<Metadata | MetadataResolver | null> {
-  // Layer is a client component, we just skip it. It can't have metadata exported.
-  // Return early to avoid accessing properties error for client references.
-  if (!hasMetadataExport(mod)) {
-    return null
-  }
   if (typeof mod.generateMetadata === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingMetadata) =>
