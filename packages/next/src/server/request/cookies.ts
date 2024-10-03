@@ -10,6 +10,7 @@ import {
   prerenderAsyncStorage,
   type PrerenderStore,
 } from '../app-render/prerender-async-storage.external'
+import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
 import {
   postponeWithTracking,
   abortAndThrowOnSynchronousDynamicDataAccess,
@@ -53,6 +54,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
   const requestStore = getExpectedRequestStore(callingExpression)
   const workStore = workAsyncStorage.getStore()
   const prerenderStore = prerenderAsyncStorage.getStore()
+  const cacheStore = cacheAsyncStorage.getStore()
 
   if (workStore) {
     if (workStore.forceStatic) {
@@ -62,11 +64,18 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       return makeUntrackedExoticCookies(underlyingCookies)
     }
 
-    if (workStore.isUnstableCacheCallback) {
-      throw new Error(
-        `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-      )
-    } else if (workStore.dynamicShouldError) {
+    if (cacheStore) {
+      if (cacheStore.type === 'cache') {
+        throw new Error(
+          `Route ${workStore.route} used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        )
+      } else if (cacheStore.type === 'unstable-cache') {
+        throw new Error(
+          `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      }
+    }
+    if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
         `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
@@ -100,11 +109,11 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       // We are in a legacy static generation mode while prerendering
       // We track dynamic access here so we don't need to wrap the cookies in
       // individual property access tracking.
-      throwToInterruptStaticGeneration(callingExpression, workStore)
+      throwToInterruptStaticGeneration(callingExpression, workStore, cacheStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using cookies inside a cache context
-    trackDynamicDataInDynamicRender(workStore)
+    trackDynamicDataInDynamicRender(workStore, cacheStore)
   }
 
   // cookies is being called in a dynamic context

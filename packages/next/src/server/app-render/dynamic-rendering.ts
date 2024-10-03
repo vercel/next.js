@@ -21,6 +21,7 @@
  */
 
 import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { CacheStore } from '../../server/app-render/cache-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
@@ -32,6 +33,7 @@ import {
   prerenderAsyncStorage,
   type PrerenderStore,
 } from './prerender-async-storage.external'
+import { cacheAsyncStorage } from './cache-async-storage.external'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 
@@ -88,12 +90,17 @@ export function getFirstDynamicReason(
  */
 export function markCurrentScopeAsDynamic(
   store: WorkStore,
+  cacheStore: void | CacheStore,
   expression: string
 ): void {
-  // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
-  // creates a cache boundary. This is subtly different from reading a dynamic data source which is
-  // forbidden inside a cache scope.
-  if (store.isUnstableCacheCallback) return
+  if (cacheStore) {
+    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
+      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+      // forbidden inside a cache scope.
+      return
+    }
+  }
 
   // If we're forcing dynamic rendering or we're forcing static rendering, we
   // don't need to do anything here because the entire page is already dynamic
@@ -172,13 +179,21 @@ export function trackFallbackParamAccessed(
  */
 export function trackDynamicDataAccessed(
   store: WorkStore,
+  cacheStore: void | CacheStore,
   expression: string
 ): void {
-  if (store.isUnstableCacheCallback) {
-    throw new Error(
-      `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-    )
-  } else if (store.dynamicShouldError) {
+  if (cacheStore) {
+    if (cacheStore.type === 'cache') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+      )
+    } else if (cacheStore.type === 'unstable-cache') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+      )
+    }
+  }
+  if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
       `Route ${store.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
@@ -229,14 +244,25 @@ export function trackDynamicDataAccessed(
  */
 export function throwToInterruptStaticGeneration(
   expression: string,
-  store: WorkStore
+  store: WorkStore,
+  cacheStore: void | CacheStore
 ): never {
-  store.revalidate = 0
-
   // We aren't prerendering but we are generating a static page. We need to bail out of static generation
   const err = new DynamicServerError(
     `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
   )
+
+  if (cacheStore) {
+    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
+      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+      // forbidden inside a cache scope.
+      throw err
+    }
+  }
+
+  store.revalidate = 0
+
   store.dynamicUsageDescription = expression
   store.dynamicUsageStack = err.stack
 
@@ -250,7 +276,18 @@ export function throwToInterruptStaticGeneration(
  *
  * @internal
  */
-export function trackDynamicDataInDynamicRender(store: WorkStore) {
+export function trackDynamicDataInDynamicRender(
+  store: WorkStore,
+  cacheStore: void | CacheStore
+) {
+  if (cacheStore) {
+    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
+      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+      // forbidden inside a cache scope.
+      return
+    }
+  }
   store.revalidate = 0
 }
 
@@ -551,7 +588,8 @@ export function useDynamicRouteParams(expression: string) {
         }
       } else {
         // We're prerendering in legacy mode
-        throwToInterruptStaticGeneration(expression, workStore)
+        const cacheStore = cacheAsyncStorage.getStore()
+        throwToInterruptStaticGeneration(expression, workStore, cacheStore)
       }
     }
   }
