@@ -3,6 +3,7 @@ import { getExpectedRequestStore } from '../../client/components/request-async-s
 import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
 
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
 
 /**
@@ -142,19 +143,21 @@ class DraftMode {
   }
   public enable() {
     const store = workAsyncStorage.getStore()
+    const cacheStore = cacheAsyncStorage.getStore()
     if (store) {
       // We we have a store we want to track dynamic data access to ensure we
       // don't statically generate routes that manipulate draft mode.
-      trackDynamicDataAccessed(store, 'draftMode().enable()')
+      trackDynamicDataAccessed(store, cacheStore, 'draftMode().enable()')
     }
     return this._provider.enable()
   }
   public disable() {
     const store = workAsyncStorage.getStore()
+    const cacheStore = cacheAsyncStorage.getStore()
     if (store) {
       // We we have a store we want to track dynamic data access to ensure we
       // don't statically generate routes that manipulate draft mode.
-      trackDynamicDataAccessed(store, 'draftMode().disable()')
+      trackDynamicDataAccessed(store, cacheStore, 'draftMode().disable()')
     }
     return this._provider.disable()
   }

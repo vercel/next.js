@@ -238,7 +238,6 @@ export function unstable_cache<T extends Callback>(
                       // force any nested fetches to bypass cache so they revalidate
                       // when the unstable_cache call is revalidated
                       fetchCache: 'force-no-store',
-                      isUnstableCacheCallback: true,
                     },
                     () => cacheAsyncStorage.run(cacheStore, cb, ...args)
                   )
@@ -277,7 +276,6 @@ export function unstable_cache<T extends Callback>(
             // force any nested fetches to bypass cache so they revalidate
             // when the unstable_cache call is revalidated
             fetchCache: 'force-no-store',
-            isUnstableCacheCallback: true,
           },
           () => cacheAsyncStorage.run(cacheStore, cb, ...args)
         )
@@ -350,14 +348,13 @@ export function unstable_cache<T extends Callback>(
         // to allow tracking which "mode" we are in without the presence of a store or not. For now I have
         // maintained the existing behavior to limit the impact of the current refactor
         const result = await workAsyncStorage.run(
-          // We are making a fake store that is useful for scoping fetchCache: 'force-no-store' and isUnstableCacheCallback: true
+          // We are making a fake store that is useful for scoping fetchCache: 'force-no-store'
           // The fact that we need to construct this kind of fake store indicates the code is not factored correctly
           // @TODO refactor to not require this fake store object
           {
             // force any nested fetches to bypass cache so they revalidate
             // when the unstable_cache call is revalidated
             fetchCache: 'force-no-store',
-            isUnstableCacheCallback: true,
             route: '/',
             page: '/',
             isStaticGeneration: false,

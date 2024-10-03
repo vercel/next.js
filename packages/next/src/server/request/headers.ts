@@ -9,6 +9,7 @@ import {
   prerenderAsyncStorage,
   type PrerenderStore,
 } from '../app-render/prerender-async-storage.external'
+import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
 import {
   postponeWithTracking,
   abortAndThrowOnSynchronousDynamicDataAccess,
@@ -58,6 +59,7 @@ export function headers(): Promise<ReadonlyHeaders> {
   const requestStore = getExpectedRequestStore('headers')
   const workStore = workAsyncStorage.getStore()
   const prerenderStore = prerenderAsyncStorage.getStore()
+  const cacheStore = cacheAsyncStorage.getStore()
 
   if (workStore) {
     if (workStore.forceStatic) {
@@ -67,11 +69,18 @@ export function headers(): Promise<ReadonlyHeaders> {
       return makeUntrackedExoticHeaders(underlyingHeaders)
     }
 
-    if (workStore.isUnstableCacheCallback) {
-      throw new Error(
-        `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-      )
-    } else if (workStore.dynamicShouldError) {
+    if (cacheStore) {
+      if (cacheStore.type === 'cache') {
+        throw new Error(
+          `Route ${workStore.route} used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        )
+      } else if (cacheStore.type === 'unstable-cache') {
+        throw new Error(
+          `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      }
+    }
+    if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
         `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )

@@ -18,6 +18,7 @@ import type {
   RequestAsyncStorage,
   RequestStore,
 } from '../../client/components/request-async-storage.external'
+import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -264,6 +265,7 @@ export function createPatchedFetcher(
         }
 
         const requestStore = requestAsyncStorage.getStore()
+        const cacheStore = cacheAsyncStorage.getStore()
 
         // If the workStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
@@ -493,6 +495,7 @@ export function createPatchedFetcher(
           if (finalRevalidate === 0) {
             markCurrentScopeAsDynamic(
               workStore,
+              cacheStore,
               `revalidate: 0 fetch ${input} ${workStore.route}`
             )
           }
@@ -801,6 +804,7 @@ export function createPatchedFetcher(
             // If enabled, we should bail out of static generation.
             markCurrentScopeAsDynamic(
               workStore,
+              cacheStore,
               `no-store fetch ${input} ${workStore.route}`
             )
           }
@@ -817,6 +821,7 @@ export function createPatchedFetcher(
               // If enabled, we should bail out of static generation.
               markCurrentScopeAsDynamic(
                 workStore,
+                cacheStore,
                 `revalidate: 0 fetch ${input} ${workStore.route}`
               )
             }

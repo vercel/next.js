@@ -1,5 +1,6 @@
 import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 
 import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
@@ -23,6 +24,7 @@ export function unstable_after<T>(task: AfterTask<T>) {
   }
 
   const workStore = workAsyncStorage.getStore()
+  const cacheStore = cacheAsyncStorage.getStore()
 
   if (workStore) {
     if (workStore.forceStatic) {
@@ -30,7 +32,7 @@ export function unstable_after<T>(task: AfterTask<T>) {
         `Route ${workStore.route} with \`dynamic = "force-static"\` couldn't be rendered statically because it used \`${callingExpression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     } else {
-      markCurrentScopeAsDynamic(workStore, callingExpression)
+      markCurrentScopeAsDynamic(workStore, cacheStore, callingExpression)
     }
   }
 
