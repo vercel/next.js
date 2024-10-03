@@ -8,6 +8,7 @@ use next_core::{
 use tracing::Instrument;
 use turbo_tasks::{Completion, RcStr, Value, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbopack::nft_json::NftJsonAsset;
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
@@ -86,6 +87,15 @@ impl InstrumentationEndpoint {
             edge_entry_module,
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn entry_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
+        if self.await?.is_edge {
+            Ok(self.core_modules().await?.edge_entry_module)
+        } else {
+            Ok(self.core_modules().await?.userland_module)
+        }
     }
 
     #[turbo_tasks::function]
@@ -204,7 +214,16 @@ impl InstrumentationEndpoint {
 
             Ok(Vc::cell(output_assets))
         } else {
-            Ok(Vc::cell(vec![self.node_chunk()]))
+            let chunk = self.node_chunk();
+            let mut output_assets = vec![chunk];
+            output_assets.push(Vc::upcast(NftJsonAsset::new(
+                self.entry_module(),
+                Some(chunk),
+                true,
+                this.project.output_fs(),
+                this.project.project_fs(),
+            )));
+            Ok(Vc::cell(output_assets))
         }
     }
 }
