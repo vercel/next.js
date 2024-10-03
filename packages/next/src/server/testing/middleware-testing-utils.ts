@@ -3,8 +3,7 @@ import { getMiddlewareMatchers } from '../../build/analysis/get-page-static-info
 import type { Middleware } from '../../lib/load-custom-routes'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import type { NextConfig } from '../config-shared'
-import { MockedRequest } from '../lib/mock-request'
-import { NodeNextRequest } from '../base-http/node'
+import { constructRequest } from './utils'
 
 export interface MiddlewareSourceConfig {
   matcher?: string | string[] | Middleware[]
@@ -35,19 +34,6 @@ export function doesMiddlewareMatch({
   const matchers = getMiddlewareMatchers(config.matcher, nextConfig ?? {})
   const routeMatchFn = getMiddlewareRouteMatcher(matchers)
   const { pathname, searchParams } = new URL(url, 'http://localhost')
-  if (!headers) {
-    headers = {}
-  }
-  if (cookies) {
-    headers = {
-      ...headers,
-      cookie: Object.entries(cookies)
-        .map(([name, value]) => `${name}=${value}`)
-        .join(';'),
-    }
-  }
-  const request = new NodeNextRequest(
-    new MockedRequest({ url, headers, method: 'GET' })
-  )
+  const request = constructRequest({ url, headers, cookies })
   return routeMatchFn(pathname, request, Object.fromEntries(searchParams))
 }
