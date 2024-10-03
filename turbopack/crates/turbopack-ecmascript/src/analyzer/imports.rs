@@ -145,11 +145,11 @@ pub(crate) struct ImportMap {
 
     /// Locations of [webpack-style "magic comments"][magic] that override import behaviors.
     ///
-    /// Most commonly, these are `/* webpackIgnore: true */` comments. See [ImportOverrides] for
+    /// Most commonly, these are `/* webpackIgnore: true */` comments. See [ImportAttributes] for
     /// full details.
     ///
     /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
-    overrides: HashMap<BytePos, ImportOverrides>,
+    attributes: HashMap<BytePos, ImportAttributes>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
@@ -157,7 +157,7 @@ pub(crate) struct ImportMap {
 ///
 /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
 #[derive(Debug)]
-pub(crate) struct ImportOverrides {
+pub(crate) struct ImportAttributes {
     /// Should we ignore this import expression when bundling? If so, the import expression will be
     /// left as-is in Turbopack's output.
     ///
@@ -171,27 +171,27 @@ pub(crate) struct ImportOverrides {
     pub ignore: bool,
 }
 
-impl ImportOverrides {
+impl ImportAttributes {
     pub const fn empty() -> Self {
-        ImportOverrides { ignore: false }
+        ImportAttributes { ignore: false }
     }
 
     pub fn empty_ref() -> &'static Self {
         // use `Self::empty` here as `Default::default` isn't const
-        static DEFAULT_VALUE: ImportOverrides = ImportOverrides::empty();
+        static DEFAULT_VALUE: ImportAttributes = ImportAttributes::empty();
         &DEFAULT_VALUE
     }
 }
 
-impl Default for ImportOverrides {
+impl Default for ImportAttributes {
     fn default() -> Self {
-        ImportOverrides::empty()
+        ImportAttributes::empty()
     }
 }
 
-impl Default for &ImportOverrides {
+impl Default for &ImportAttributes {
     fn default() -> Self {
-        ImportOverrides::empty_ref()
+        ImportAttributes::empty_ref()
     }
 }
 
@@ -243,8 +243,8 @@ impl ImportMap {
         None
     }
 
-    pub fn get_overrides(&self, span: Span) -> &ImportOverrides {
-        self.overrides.get(&span.lo).unwrap_or_default()
+    pub fn get_attributes(&self, span: Span) -> &ImportAttributes {
+        self.attributes.get(&span.lo).unwrap_or_default()
     }
 
     // TODO this could return &str instead of String to avoid cloning
@@ -522,9 +522,9 @@ impl Visit for Analyzer<'_> {
             let ignore_directive = parse_ignore_directive(comments, n.args.first());
 
             if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
-                self.data.overrides.insert(
+                self.data.attributes.insert(
                     callee_span.lo,
-                    ImportOverrides {
+                    ImportAttributes {
                         ignore: ignore_directive,
                     },
                 );
@@ -545,9 +545,9 @@ impl Visit for Analyzer<'_> {
             let ignore_directive = parse_ignore_directive(comments, n.args.iter().flatten().next());
 
             if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
-                self.data.overrides.insert(
+                self.data.attributes.insert(
                     callee_span.lo,
-                    ImportOverrides {
+                    ImportAttributes {
                         ignore: ignore_directive,
                     },
                 );

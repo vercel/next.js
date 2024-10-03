@@ -1358,7 +1358,7 @@ impl VisitAstPath for Analyzer<'_> {
                             ignore: self
                                 .eval_context
                                 .imports
-                                .get_overrides(n.callee.span())
+                                .get_attributes(n.callee.span())
                                 .ignore,
                         }),
                     );
