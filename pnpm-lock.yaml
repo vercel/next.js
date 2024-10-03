@@ -606,6 +606,15 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
 
+  bench/basic-app:
+    dependencies:
+      keyv:
+        specifier: 3.1.0
+        version: 3.1.0
+      next:
+        specifier: workspace:*
+        version: link:../../packages/next
+
   bench/fuzzponent:
     dependencies:
       '@babel/generator':

@@ -121,7 +121,7 @@ pub async fn run_node_file_trace(
             .await?
             .iter()
             {
-                let nft_asset = crate::nft_json::NftJsonAsset::new(*module);
+                let nft_asset = crate::nft_json::NftJsonAsset::new(*module, None, true, fs, fs);
                 let path = nft_asset.ident().path().await?.path.clone();
                 output_nft_assets.push(path);
                 emits.push(emit_asset(Vc::upcast(nft_asset)));
@@ -163,14 +163,14 @@ pub async fn run_node_file_trace(
     Ok(Vc::cell(Vec::new()))
 }
 
-async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
+async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<DiskFileSystem>> {
     let fs = DiskFileSystem::new(name.into(), root.into(), vec![]);
     if watch {
         fs.await?.start_watching(None).await?;
     } else {
         fs.await?.invalidate_with_reason();
     }
-    Ok(Vc::upcast(fs))
+    Ok(fs)
 }
 
 fn process_context(dir: &Path, context_directory: Option<&String>) -> Result<String> {
@@ -225,7 +225,7 @@ fn make_relative_path(dir: &Path, context_directory: &str, input: &str) -> Resul
 
 #[turbo_tasks::function]
 async fn input_to_modules(
-    fs: Vc<Box<dyn FileSystem>>,
+    fs: Vc<DiskFileSystem>,
     input: Vec<RcStr>,
     exact: bool,
     process_cwd: Option<RcStr>,

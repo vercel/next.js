@@ -65,7 +65,12 @@ use crate::{error::PrettyPrintError, issue::IssueSeverity};
 pub enum ModuleResolveResultItem {
     Module(Vc<Box<dyn Module>>),
     OutputAsset(Vc<Box<dyn OutputAsset>>),
-    External(RcStr, ExternalType),
+    External {
+        /// uri, path, reference, etc.
+        name: RcStr,
+        typ: ExternalType,
+        module: Option<Box<ModuleResolveResultItem>>,
+    },
     Ignore,
     Error(Vc<RcStr>),
     Empty,
@@ -392,7 +397,12 @@ impl Display for ExternalType {
 #[derive(Clone, Debug)]
 pub enum ResolveResultItem {
     Source(Vc<Box<dyn Source>>),
-    External(RcStr, ExternalType),
+    External {
+        /// uri, path, reference, etc.
+        name: RcStr,
+        typ: ExternalType,
+        source: Option<Vc<Box<dyn Source>>>,
+    },
     Ignore,
     Error(Vc<RcStr>),
     Empty,
@@ -472,10 +482,23 @@ impl ValueToString for ResolveResult {
                 ResolveResultItem::Source(a) => {
                     result.push_str(&a.ident().to_string().await?);
                 }
-                ResolveResultItem::External(s, ty) => {
+                ResolveResultItem::External {
+                    name: s,
+                    typ: ty,
+                    source: opt_source,
+                } => {
                     result.push_str("external ");
                     result.push_str(s);
-                    write!(result, " ({})", ty)?;
+                    write!(
+                        result,
+                        " ({}) {}",
+                        ty,
+                        if opt_source.is_some() {
+                            "with source"
+                        } else {
+                            ""
+                        }
+                    )?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");
@@ -670,8 +693,15 @@ impl ResolveResult {
                             request,
                             match item {
                                 ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::External(s, ty) => {
-                                    ModuleResolveResultItem::External(s, ty)
+                                ResolveResultItem::External { name, typ, source } => {
+                                    ModuleResolveResultItem::External {
+                                        name,
+                                        typ,
+                                        module: match source {
+                                            Some(source) => Some(Box::new(asset_fn(source).await?)),
+                                            None => None,
+                                        },
+                                    }
                                 }
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
@@ -1825,7 +1855,11 @@ async fn resolve_internal_inline(
                 let uri: RcStr = format!("{}{}", protocol, remainder).into();
                 ResolveResult::primary_with_key(
                     RequestKey::new(uri.clone()),
-                    ResolveResultItem::External(uri, ExternalType::Url),
+                    ResolveResultItem::External {
+                        name: uri,
+                        typ: ExternalType::Url,
+                        source: None,
+                    },
                 )
                 .into()
             }
