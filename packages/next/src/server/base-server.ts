@@ -835,6 +835,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         this.hasAppDir
       )
 
+      // Validate that if i18n isn't configured or the passed parameters are not
+      // valid it should be removed from the query.
+      if (!this.i18nProvider?.validateQuery(parsedUrl.query)) {
+        delete parsedUrl.query.__nextLocale
+        delete parsedUrl.query.__nextDefaultLocale
+        delete parsedUrl.query.__nextInferredLocaleFromDefault
+      }
+
       this.attachRequestMeta(req, parsedUrl)
 
       const domainLocale = this.i18nProvider?.detectDomainLocale(
