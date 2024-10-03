@@ -4069,6 +4069,7 @@ dependencies = [
  "futures",
  "indexmap 1.9.3",
  "next-core",
+ "regex",
  "serde",
  "serde_json",
  "shadow-rs",
