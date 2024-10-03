@@ -33,6 +33,7 @@ import {
   prerenderAsyncStorage,
   type PrerenderStore,
 } from './prerender-async-storage.external'
+import { cacheAsyncStorage } from './cache-async-storage.external'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 
@@ -243,14 +244,25 @@ export function trackDynamicDataAccessed(
  */
 export function throwToInterruptStaticGeneration(
   expression: string,
-  store: WorkStore
+  store: WorkStore,
+  cacheStore: void | CacheStore
 ): never {
-  store.revalidate = 0
-
   // We aren't prerendering but we are generating a static page. We need to bail out of static generation
   const err = new DynamicServerError(
     `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
   )
+
+  if (cacheStore) {
+    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
+      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+      // forbidden inside a cache scope.
+      throw err
+    }
+  }
+
+  store.revalidate = 0
+
   store.dynamicUsageDescription = expression
   store.dynamicUsageStack = err.stack
 
@@ -264,7 +276,18 @@ export function throwToInterruptStaticGeneration(
  *
  * @internal
  */
-export function trackDynamicDataInDynamicRender(store: WorkStore) {
+export function trackDynamicDataInDynamicRender(
+  store: WorkStore,
+  cacheStore: void | CacheStore
+) {
+  if (cacheStore) {
+    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
+      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+      // forbidden inside a cache scope.
+      return
+    }
+  }
   store.revalidate = 0
 }
 
@@ -565,7 +588,8 @@ export function useDynamicRouteParams(expression: string) {
         }
       } else {
         // We're prerendering in legacy mode
-        throwToInterruptStaticGeneration(expression, workStore)
+        const cacheStore = cacheAsyncStorage.getStore()
+        throwToInterruptStaticGeneration(expression, workStore, cacheStore)
       }
     }
   }

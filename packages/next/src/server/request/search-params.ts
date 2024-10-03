@@ -14,6 +14,7 @@ import {
   prerenderAsyncStorage,
   type PrerenderStore,
 } from '../app-render/prerender-async-storage.external'
+import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
@@ -316,7 +317,8 @@ function makeErroringExoticSearchParams(
               prerenderStore.dynamicTracking
             )
           } else {
-            throwToInterruptStaticGeneration(expression, workStore)
+            const cacheStore = cacheAsyncStorage.getStore()
+            throwToInterruptStaticGeneration(expression, workStore, cacheStore)
           }
           return
         }
@@ -335,7 +337,8 @@ function makeErroringExoticSearchParams(
               prerenderStore.dynamicTracking
             )
           } else {
-            throwToInterruptStaticGeneration(expression, workStore)
+            const cacheStore = cacheAsyncStorage.getStore()
+            throwToInterruptStaticGeneration(expression, workStore, cacheStore)
           }
           return
         }
@@ -357,7 +360,12 @@ function makeErroringExoticSearchParams(
                 prerenderStore.dynamicTracking
               )
             } else {
-              throwToInterruptStaticGeneration(expression, workStore)
+              const cacheStore = cacheAsyncStorage.getStore()
+              throwToInterruptStaticGeneration(
+                expression,
+                workStore,
+                cacheStore
+              )
             }
           }
           return ReflectAdapter.get(target, prop, receiver)
@@ -386,7 +394,8 @@ function makeErroringExoticSearchParams(
             prerenderStore.dynamicTracking
           )
         } else {
-          throwToInterruptStaticGeneration(expression, workStore)
+          const cacheStore = cacheAsyncStorage.getStore()
+          throwToInterruptStaticGeneration(expression, workStore, cacheStore)
         }
         return false
       }
@@ -407,7 +416,8 @@ function makeErroringExoticSearchParams(
           prerenderStore.dynamicTracking
         )
       } else {
-        throwToInterruptStaticGeneration(expression, workStore)
+        const cacheStore = cacheAsyncStorage.getStore()
+        throwToInterruptStaticGeneration(expression, workStore, cacheStore)
       }
     },
   })
@@ -463,7 +473,8 @@ function makeUntrackedExoticSearchParams(
       default: {
         Object.defineProperty(promise, prop, {
           get() {
-            trackDynamicDataInDynamicRender(store)
+            const cacheStore = cacheAsyncStorage.getStore()
+            trackDynamicDataInDynamicRender(store, cacheStore)
             return underlyingSearchParams[prop]
           },
           set(value) {
@@ -512,7 +523,8 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
             expression
           )
         }
-        trackDynamicDataInDynamicRender(store)
+        const cacheStore = cacheAsyncStorage.getStore()
+        trackDynamicDataInDynamicRender(store, cacheStore)
       }
       return ReflectAdapter.get(target, prop, receiver)
     },

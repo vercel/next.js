@@ -149,46 +149,53 @@ export function unstable_cache<T extends Callback>(
       if (workStore) {
         workStore.nextFetchId = fetchIdx + 1
 
+        const isNestedCache =
+          cacheStore &&
+          (cacheStore.type === 'unstable-cache' || cacheStore.type === 'cache')
+
         // We are in an App Router context. We try to return the cached entry if it exists and is valid
         // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
         // the background. If the entry is missing or invalid we generate a new entry and return it.
 
         // We update the store's revalidate property if the option.revalidate is a higher precedence
-        if (typeof options.revalidate === 'number') {
-          if (
-            typeof workStore.revalidate === 'number' &&
-            workStore.revalidate < options.revalidate
+        if (!isNestedCache) {
+          if (typeof options.revalidate === 'number') {
+            if (
+              typeof workStore.revalidate === 'number' &&
+              workStore.revalidate < options.revalidate
+            ) {
+              // The store is already revalidating on a shorter time interval, leave it alone
+            } else {
+              workStore.revalidate = options.revalidate
+            }
+          } else if (
+            options.revalidate === false &&
+            typeof workStore.revalidate === 'undefined'
           ) {
-            // The store is already revalidating on a shorter time interval, leave it alone
-          } else {
+            // The store has not defined revalidate type so we can use the false option
             workStore.revalidate = options.revalidate
           }
-        } else if (
-          options.revalidate === false &&
-          typeof workStore.revalidate === 'undefined'
-        ) {
-          // The store has not defined revalidate type so we can use the false option
-          workStore.revalidate = options.revalidate
-        }
 
-        // We need to accumulate the tags for this invocation within the store
-        if (!workStore.tags) {
-          workStore.tags = tags.slice()
-        } else {
-          for (const tag of tags) {
-            // @TODO refactor tags to be a set to avoid this O(n) lookup
-            if (!workStore.tags.includes(tag)) {
-              workStore.tags.push(tag)
+          // We need to accumulate the tags for this invocation within the store
+          if (!workStore.tags) {
+            workStore.tags = tags.slice()
+          } else {
+            for (const tag of tags) {
+              // @TODO refactor tags to be a set to avoid this O(n) lookup
+              if (!workStore.tags.includes(tag)) {
+                workStore.tags.push(tag)
+              }
             }
           }
         }
         // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
         // of this function is potentially a little confusing
-        const implicitTags = addImplicitTags(workStore, requestStore)
+        const implicitTags = addImplicitTags(
+          workStore,
+          requestStore,
+          cacheStore
+        )
 
-        const isNestedCache =
-          cacheStore &&
-          (cacheStore.type === 'unstable-cache' || cacheStore.type === 'cache')
         if (
           // when we are nested inside of other unstable_cache's
           // we should bypass cache similar to fetches
@@ -295,7 +302,7 @@ export function unstable_cache<T extends Callback>(
           // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
           // of this function is potentially a little confusing
           const implicitTags =
-            workStore && addImplicitTags(workStore, requestStore)
+            workStore && addImplicitTags(workStore, requestStore, cacheStore)
 
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,

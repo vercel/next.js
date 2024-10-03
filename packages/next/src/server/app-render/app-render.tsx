@@ -1111,7 +1111,7 @@ async function renderToHTMLOrFlightImpl(
       ])
     }
 
-    addImplicitTags(workStore, requestStore)
+    addImplicitTags(workStore, requestStore, undefined)
 
     if (workStore.tags) {
       metadata.fetchTags = workStore.tags.join(',')
@@ -1220,7 +1220,7 @@ async function renderToHTMLOrFlightImpl(
       ])
     }
 
-    addImplicitTags(workStore, requestStore)
+    addImplicitTags(workStore, requestStore, undefined)
 
     if (workStore.tags) {
       metadata.fetchTags = workStore.tags.join(',')

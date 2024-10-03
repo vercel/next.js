@@ -578,7 +578,7 @@ export class AppRouteRouteModule extends RouteModule<
                       ...Object.values(workStore.pendingRevalidates || {}),
                     ])
 
-                    addImplicitTags(workStore, requestStore)
+                    addImplicitTags(workStore, requestStore, undefined)
                     ;(context.renderOpts as any).fetchTags =
                       workStore.tags?.join(',')
 

@@ -18,7 +18,10 @@ import type {
   RequestAsyncStorage,
   RequestStore,
 } from '../../client/components/request-async-storage.external'
-import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
+import {
+  cacheAsyncStorage,
+  type CacheStore,
+} from '../../server/app-render/cache-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -140,7 +143,8 @@ const getDerivedTags = (pathname: string): string[] => {
 
 export function addImplicitTags(
   workStore: WorkStore,
-  requestStore: RequestStore | undefined
+  requestStore: RequestStore | undefined,
+  cacheStore: CacheStore | undefined
 ) {
   const newTags: string[] = []
   const { page, fallbackRouteParams } = workStore
@@ -148,14 +152,24 @@ export function addImplicitTags(
     fallbackRouteParams && fallbackRouteParams.size > 0
 
   // Ini the tags array if it doesn't exist.
-  workStore.tags ??= []
+  if (
+    !cacheStore ||
+    (cacheStore.type !== 'cache' && cacheStore.type !== 'unstable-cache')
+  ) {
+    workStore.tags ??= []
+  }
 
   // Add the derived tags from the page.
   const derivedTags = getDerivedTags(page)
   for (let tag of derivedTags) {
     tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
-    if (!workStore.tags?.includes(tag)) {
-      workStore.tags.push(tag)
+    if (
+      !cacheStore ||
+      (cacheStore.type !== 'cache' && cacheStore.type !== 'unstable-cache')
+    ) {
+      if (!workStore.tags?.includes(tag)) {
+        workStore.tags?.push(tag)
+      }
     }
     newTags.push(tag)
   }
@@ -164,8 +178,13 @@ export function addImplicitTags(
   // want to add the pathname as a tag, as it will be invalid.
   if (requestStore?.url.pathname && !hasFallbackRouteParams) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${requestStore.url.pathname}`
-    if (!workStore.tags?.includes(tag)) {
-      workStore.tags.push(tag)
+    if (
+      !cacheStore ||
+      (cacheStore.type !== 'cache' && cacheStore.type !== 'unstable-cache')
+    ) {
+      if (!workStore.tags?.includes(tag)) {
+        workStore.tags?.push(tag)
+      }
     }
     newTags.push(tag)
   }
@@ -307,17 +326,27 @@ export function createPatchedFetcher(
           `fetch ${input.toString()}`
         )
 
-        if (Array.isArray(tags)) {
-          if (!workStore.tags) {
-            workStore.tags = []
-          }
-          for (const tag of tags) {
-            if (!workStore.tags.includes(tag)) {
-              workStore.tags.push(tag)
+        if (
+          !cacheStore ||
+          (cacheStore.type !== 'cache' && cacheStore.type !== 'unstable-cache')
+        ) {
+          if (Array.isArray(tags)) {
+            if (!workStore.tags) {
+              workStore.tags = []
+            }
+            for (const tag of tags) {
+              if (!workStore.tags.includes(tag)) {
+                workStore.tags.push(tag)
+              }
             }
           }
         }
-        const implicitTags = addImplicitTags(workStore, requestStore)
+
+        const implicitTags = addImplicitTags(
+          workStore,
+          requestStore,
+          cacheStore
+        )
 
         // Inside unstable-cache we treat it the same as force-no-store on the page.
         const pageFetchCacheMode =
@@ -494,17 +523,23 @@ export function createPatchedFetcher(
                 (typeof workStore.revalidate === 'number' &&
                   finalRevalidate < workStore.revalidate))))
         ) {
-          // If we were setting the revalidate value to 0, we should try to
-          // postpone instead first.
-          if (finalRevalidate === 0) {
-            markCurrentScopeAsDynamic(
-              workStore,
-              cacheStore,
-              `revalidate: 0 fetch ${input} ${workStore.route}`
-            )
-          }
+          if (
+            !cacheStore ||
+            (cacheStore.type !== 'cache' &&
+              cacheStore.type !== 'unstable-cache')
+          ) {
+            // If we were setting the revalidate value to 0, we should try to
+            // postpone instead first.
+            if (finalRevalidate === 0) {
+              markCurrentScopeAsDynamic(
+                workStore,
+                cacheStore,
+                `revalidate: 0 fetch ${input} ${workStore.route}`
+              )
+            }
 
-          workStore.revalidate = finalRevalidate
+            workStore.revalidate = finalRevalidate
+          }
         }
 
         const isCacheableRevalidate =
@@ -831,7 +866,13 @@ export function createPatchedFetcher(
             }
 
             if (!workStore.forceStatic || next.revalidate !== 0) {
-              workStore.revalidate = next.revalidate
+              if (
+                !cacheStore ||
+                (cacheStore.type !== 'cache' &&
+                  cacheStore.type !== 'unstable-cache')
+              ) {
+                workStore.revalidate = next.revalidate
+              }
             }
           }
           if (hasNextConfig) delete init.next

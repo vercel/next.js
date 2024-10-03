@@ -70,11 +70,11 @@ export function connection(): Promise<void> {
     } else if (workStore.isStaticGeneration) {
       // We are in a legacy static generation mode while prerendering
       // We treat this function call as a bailout of static generation
-      throwToInterruptStaticGeneration('connection', workStore)
+      throwToInterruptStaticGeneration('connection', workStore, cacheStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using headers inside a cache context
-    trackDynamicDataInDynamicRender(workStore)
+    trackDynamicDataInDynamicRender(workStore, cacheStore)
   }
 
   return Promise.resolve(undefined)

@@ -109,11 +109,11 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       // We are in a legacy static generation mode while prerendering
       // We track dynamic access here so we don't need to wrap the cookies in
       // individual property access tracking.
-      throwToInterruptStaticGeneration(callingExpression, workStore)
+      throwToInterruptStaticGeneration(callingExpression, workStore, cacheStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using cookies inside a cache context
-    trackDynamicDataInDynamicRender(workStore)
+    trackDynamicDataInDynamicRender(workStore, cacheStore)
   }
 
   // cookies is being called in a dynamic context
