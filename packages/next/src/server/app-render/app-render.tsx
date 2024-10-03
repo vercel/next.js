@@ -908,7 +908,10 @@ async function renderToHTMLOrFlightImpl(
     req.originalRequest.on('end', () => {
       const staticGenStore = ComponentMod.workAsyncStorage.getStore()
       const prerenderStore = prerenderAsyncStorage.getStore()
-      const isPPR = !!prerenderStore?.dynamicTracking?.dynamicAccesses?.length
+      const isPPR =
+        prerenderStore && prerenderStore.type === 'prerender'
+          ? !!prerenderStore.dynamicTracking?.dynamicAccesses?.length
+          : false
 
       if (
         process.env.NODE_ENV === 'development' &&
@@ -1843,6 +1846,7 @@ async function prerenderToStream(
 
         const cacheSignal = new CacheSignal()
         const prospectiveRenderPrerenderStore: PrerenderStore = {
+          type: 'prerender',
           cacheSignal,
           // During the prospective render we don't want to synchronously abort on dynamic access
           // because it could prevent us from discovering all caches in siblings. So we omit the controller
@@ -1933,6 +1937,7 @@ async function prerenderToStream(
         )
 
         const finalRenderPrerenderStore: PrerenderStore = {
+          type: 'prerender',
           // During the final prerender we don't need to track cache access so we omit the signal
           cacheSignal: null,
           // During the final render we do want to abort synchronously on dynamic access so we
@@ -1987,6 +1992,7 @@ async function prerenderToStream(
 
         const SSRController = new AbortController()
         const ssrPrerenderStore: PrerenderStore = {
+          type: 'prerender',
           // For HTML Generation we don't need to track cache reads (RSC only)
           cacheSignal: null,
           // We expect the SSR render to complete in a single Task and need to be able to synchronously abort
@@ -2174,6 +2180,7 @@ async function prerenderToStream(
 
         const cacheSignal = new CacheSignal()
         const prospectiveRenderPrerenderStore: PrerenderStore = {
+          type: 'prerender',
           cacheSignal,
           // When PPR is off we can synchronously abort the prospective render because we will
           // always hit this path on the final render and thus we can skip the final render and just
@@ -2251,6 +2258,7 @@ async function prerenderToStream(
         let SSRIsDynamic = false
 
         const finalRenderPrerenderStore: PrerenderStore = {
+          type: 'prerender',
           // During the final prerender we don't need to track cache access so we omit the signal
           cacheSignal: null,
           controller: flightController,
@@ -2259,6 +2267,7 @@ async function prerenderToStream(
 
         const SSRController = new AbortController()
         const ssrPrerenderStore: PrerenderStore = {
+          type: 'prerender',
           // For HTML Generation we don't need to track cache reads (RSC only)
           cacheSignal: null,
           // We expect the SSR render to complete in a single Task and need to be able to synchronously abort
@@ -2425,7 +2434,8 @@ async function prerenderToStream(
       dynamicTracking = createDynamicTrackingState(
         renderOpts.isDebugDynamicAccesses
       )
-      const reactServerPrerenderStore = {
+      const reactServerPrerenderStore: PrerenderStore = {
+        type: 'prerender',
         cacheSignal: null,
         controller: null,
         dynamicTracking,
@@ -2452,6 +2462,7 @@ async function prerenderToStream(
         ))
 
       const ssrPrerenderStore: PrerenderStore = {
+        type: 'prerender',
         cacheSignal: null,
         controller: null,
         dynamicTracking,
@@ -2607,12 +2618,23 @@ async function prerenderToStream(
         }
       }
     } else {
+      const prerenderLegacyStore: PrerenderStore = {
+        type: 'prerender-legacy',
+      }
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation
-      const RSCPayload = await getRSCPayload(tree, ctx, res.statusCode === 404)
+      const RSCPayload = await prerenderAsyncStorage.run(
+        prerenderLegacyStore,
+        getRSCPayload,
+        tree,
+        ctx,
+        res.statusCode === 404
+      )
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResultFromRender(
-          ComponentMod.renderToReadableStream(
+          prerenderAsyncStorage.run(
+            prerenderLegacyStore,
+            ComponentMod.renderToReadableStream,
             RSCPayload,
             clientReferenceManifest.clientModules,
             {

@@ -13,6 +13,7 @@ import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,
   type PrerenderStore,
+  type PrerenderStoreModern,
 } from '../app-render/prerender-async-storage.external'
 import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -112,7 +113,7 @@ function createPrerenderSearchParams(
   }
 
   const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
+  if (prerenderStore && prerenderStore.type === 'prerender') {
     if (prerenderStore.controller || prerenderStore.cacheSignal) {
       // We are in a dynamicIO (PPR or otherwise) prerender
       return makeAbortingExoticSearchParams(workStore.route, prerenderStore)
@@ -152,7 +153,7 @@ const CachedSearchParams = new WeakMap<CacheLifetime, Promise<SearchParams>>()
 
 function makeAbortingExoticSearchParams(
   route: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(prerenderStore)
   if (cachedSearchParams) {
@@ -310,7 +311,7 @@ function makeErroringExoticSearchParams(
               workStore.route,
               expression
             )
-          } else if (prerenderStore) {
+          } else if (prerenderStore && prerenderStore.type === 'prerender') {
             postponeWithTracking(
               workStore.route,
               expression,
@@ -330,7 +331,7 @@ function makeErroringExoticSearchParams(
               workStore.route,
               expression
             )
-          } else if (prerenderStore) {
+          } else if (prerenderStore && prerenderStore.type === 'prerender') {
             postponeWithTracking(
               workStore.route,
               expression,
@@ -353,7 +354,7 @@ function makeErroringExoticSearchParams(
                 workStore.route,
                 expression
               )
-            } else if (prerenderStore) {
+            } else if (prerenderStore && prerenderStore.type === 'prerender') {
               postponeWithTracking(
                 workStore.route,
                 expression,
@@ -387,7 +388,7 @@ function makeErroringExoticSearchParams(
             workStore.route,
             expression
           )
-        } else if (prerenderStore) {
+        } else if (prerenderStore && prerenderStore.type === 'prerender') {
           postponeWithTracking(
             workStore.route,
             expression,
@@ -409,7 +410,7 @@ function makeErroringExoticSearchParams(
           workStore.route,
           expression
         )
-      } else if (prerenderStore) {
+      } else if (prerenderStore && prerenderStore.type === 'prerender') {
         postponeWithTracking(
           workStore.route,
           expression,

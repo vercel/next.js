@@ -950,7 +950,11 @@ export function createPatchedFetcher(
     )
 
     const prerenderStore = prerenderAsyncStorage.getStore()
-    if (prerenderStore && prerenderStore.cacheSignal) {
+    if (
+      prerenderStore &&
+      prerenderStore.type === 'prerender' &&
+      prerenderStore.cacheSignal
+    ) {
       // During static generation we track cache reads so we can reason about when they fill
       const cacheSignal = prerenderStore.cacheSignal
       cacheSignal.beginRead()

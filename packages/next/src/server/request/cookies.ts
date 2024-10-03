@@ -8,7 +8,7 @@ import { workAsyncStorage } from '../../client/components/work-async-storage.ext
 import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,
-  type PrerenderStore,
+  type PrerenderStoreModern,
 } from '../app-render/prerender-async-storage.external'
 import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
 import {
@@ -81,7 +81,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       )
     }
 
-    if (prerenderStore) {
+    if (prerenderStore && prerenderStore.type === 'prerender') {
       // We are in PPR and/or dynamicIO mode and prerendering
 
       if (isDynamicIOPrerender(prerenderStore)) {
@@ -157,7 +157,7 @@ const CachedCookies = new WeakMap<
 
 function makeDynamicallyTrackedExoticCookies(
   route: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyRequestCookies> {
   const cachedPromise = CachedCookies.get(prerenderStore)
   if (cachedPromise) {
