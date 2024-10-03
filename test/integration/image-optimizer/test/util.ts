@@ -22,6 +22,9 @@ type SetupTestsCtx = {
   imagesDir: string
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   isDev?: boolean
+  isrFlushToDisk?: Partial<
+    import('next').NextConfig['experimental']['isrFlushToDisk']
+  >
 }
 
 type RunTestsCtx = SetupTestsCtx & {
@@ -903,14 +906,21 @@ export function runTests(ctx: RunTestsCtx) {
       const etagOne = one.res.headers.get('etag')
 
       let json1
-      await check(async () => {
+
+      if (!ctx.isrFlushToDisk) {
         json1 = await fsToJson(ctx.imagesDir)
-        return Object.keys(json1).some((dir) => {
-          return Object.keys(json1[dir]).some((file) => file.includes(etagOne))
-        })
-          ? 'success'
-          : 'fail'
-      }, 'success')
+      } else {
+        await check(async () => {
+          json1 = await fsToJson(ctx.imagesDir)
+          return Object.keys(json1).some((dir) => {
+            return Object.keys(json1[dir]).some((file) =>
+              file.includes(etagOne)
+            )
+          })
+            ? 'success'
+            : 'fail'
+        }, 'success')
+      }
 
       const two = await fetchWithDuration(
         ctx.appPort,
@@ -925,7 +935,12 @@ export function runTests(ctx: RunTestsCtx) {
         `${contentDispositionType}; filename="slow.webp"`
       )
       const json2 = await fsToJson(ctx.imagesDir)
-      expect(json2).toStrictEqual(json1)
+
+      if (!ctx.isrFlushToDisk) {
+        expect(json2).toStrictEqual({})
+      } else {
+        expect(json2).toStrictEqual(json1)
+      }
 
       if (ctx.nextConfigImages?.minimumCacheTTL) {
         // Wait until expired so we can confirm image is regenerated
@@ -951,15 +966,22 @@ export function runTests(ctx: RunTestsCtx) {
         expect(four.res.headers.get('Content-Disposition')).toBe(
           `${contentDispositionType}; filename="slow.webp"`
         )
-        await check(async () => {
+
+        if (!ctx.isrFlushToDisk) {
           const json4 = await fsToJson(ctx.imagesDir)
-          try {
-            assert.deepStrictEqual(json4, json1)
-            return 'fail'
-          } catch (err) {
-            return 'success'
-          }
-        }, 'success')
+
+          expect(json4).toStrictEqual({})
+        } else {
+          await check(async () => {
+            const json4 = await fsToJson(ctx.imagesDir)
+            try {
+              assert.deepStrictEqual(json4, json1)
+              return 'fail'
+            } catch (err) {
+              return 'success'
+            }
+          }, 'success')
+        }
 
         const five = await fetchWithDuration(
           ctx.appPort,
@@ -974,15 +996,21 @@ export function runTests(ctx: RunTestsCtx) {
         expect(five.res.headers.get('Content-Disposition')).toBe(
           `${contentDispositionType}; filename="slow.webp"`
         )
-        await check(async () => {
+        if (!ctx.isrFlushToDisk) {
           const json5 = await fsToJson(ctx.imagesDir)
-          try {
-            assert.deepStrictEqual(json5, json1)
-            return 'fail'
-          } catch (err) {
-            return 'success'
-          }
-        }, 'success')
+
+          expect(json5).toStrictEqual({})
+        } else {
+          await check(async () => {
+            const json5 = await fsToJson(ctx.imagesDir)
+            try {
+              assert.deepStrictEqual(json5, json1)
+              return 'fail'
+            } catch (err) {
+              return 'success'
+            }
+          }, 'success')
+        }
       }
     })
   }
@@ -1494,6 +1522,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       const json = JSON.stringify({
         experimental: {
           outputFileTracingRoot: join(__dirname, '../../../..'),
+          isrFlushToDisk: ctx.isrFlushToDisk,
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
@@ -1540,6 +1569,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         images: curCtx.nextConfigImages,
         experimental: {
           outputFileTracingRoot: join(__dirname, '../../../..'),
+          isrFlushToDisk: ctx.isrFlushToDisk,
         },
       })
       curCtx.nextOutput = ''
@@ -1577,6 +1607,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       const json = JSON.stringify({
         experimental: {
           outputFileTracingRoot: join(__dirname, '../../../..'),
+          isrFlushToDisk: ctx.isrFlushToDisk,
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
@@ -1624,6 +1655,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         images: curCtx.nextConfigImages,
         experimental: {
           outputFileTracingRoot: join(__dirname, '../../../..'),
+          isrFlushToDisk: ctx.isrFlushToDisk,
         },
       })
       curCtx.nextOutput = ''
