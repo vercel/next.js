@@ -45,3 +45,6 @@ turbopack-resolve = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
+
+[dev-dependencies]
+insta = "1.40.0"

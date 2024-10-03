@@ -18,9 +18,7 @@ async fn main() -> Result<()> {
     console_subscriber::init();
     let args = Arc::new(Args::parse());
     let should_print = matches!(&*args, Args::Print { .. });
-    let turbo_tasks = TurboTasks::new(MemoryBackend::new(
-        args.common().memory_limit.unwrap_or(usize::MAX),
-    ));
+    let turbo_tasks = TurboTasks::new(MemoryBackend::new(args.common().memory_limit()));
     let result = start(args, turbo_tasks, None, None).await?;
     if should_print {
         for file in result.iter() {

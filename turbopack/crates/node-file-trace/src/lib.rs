@@ -2,52 +2,29 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-mod nft_json;
-
 use std::{
-    collections::BTreeSet,
     env::current_dir,
     future::Future,
-    path::{Path, PathBuf},
-    pin::Pin,
     sync::Arc,
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 #[cfg(feature = "cli")]
 use clap::Parser;
 #[cfg(feature = "node-api")]
 use serde::Deserialize;
 #[cfg(feature = "node-api")]
 use serde::Serialize;
-use tokio::sync::mpsc::channel;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use turbo_tasks::{
     backend::Backend, util::FormatDuration, RcStr, ReadConsistency, TaskId, TransientInstance,
-    TransientValue, TurboTasks, UpdateInfo, Value, Vc,
+    TransientValue, TurboTasks, UpdateInfo, Vc,
 };
-use turbo_tasks_fs::{
-    glob::Glob, DirectoryEntry, DiskFileSystem, FileSystem, FileSystemPath, ReadGlobResult,
-};
-use turbopack::{
-    emit_asset, emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset,
-    ModuleAssetContext,
-};
+use turbopack::module_options::ModuleOptionsContext;
 use turbopack_cli_utils::issue::{ConsoleUi, IssueSeverityCliOption, LogOptions};
-use turbopack_core::{
-    compile_time_info::CompileTimeInfo,
-    context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
-    file_source::FileSource,
-    issue::{IssueDescriptionExt, IssueReporter, IssueSeverity},
-    module::{Module, Modules},
-    output::OutputAsset,
-    reference::all_modules_and_affecting_sources,
-    resolve::options::{ImportMapping, ResolvedMap},
-};
+use turbopack_core::issue::{IssueDescriptionExt, IssueReporter, IssueSeverity};
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
-
-use crate::nft_json::NftJsonAsset;
 
 #[cfg(feature = "persistent_cache")]
 #[cfg_attr(feature = "cli", derive(clap::Args))]
@@ -81,10 +58,13 @@ pub struct CacheArgs {}
     derive(Serialize, Deserialize),
     serde(rename_all = "camelCase")
 )]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct CommonArgs {
+    /// A list of input files to perform a trace on
     input: Vec<String>,
 
+    /// The folder to consider as the root when performing the trace. All traced files must reside
+    /// in this directory
     #[cfg_attr(feature = "cli", clap(short, long))]
     #[cfg_attr(feature = "node-api", serde(default))]
     context_directory: Option<String>,
@@ -126,7 +106,13 @@ pub struct CommonArgs {
     /// MB.
     #[cfg_attr(feature = "cli", clap(long))]
     #[cfg_attr(feature = "serializable", serde(default))]
-    pub memory_limit: Option<usize>,
+    memory_limit: Option<usize>,
+}
+
+impl CommonArgs {
+    pub fn memory_limit(&self) -> usize {
+        self.memory_limit.unwrap_or(usize::MAX)
+    }
 }
 
 #[cfg_attr(feature = "cli", derive(Parser))]
@@ -138,21 +124,21 @@ pub struct CommonArgs {
 )]
 #[derive(Debug)]
 pub enum Args {
-    // Print all files that the input files reference
+    /// Print all files that the input files reference
     Print {
         #[cfg_attr(feature = "cli", clap(flatten))]
         #[cfg_attr(feature = "node-api", serde(flatten))]
         common: CommonArgs,
     },
 
-    // Adds a *.nft.json file next to each input file which lists the referenced files
+    /// Adds a *.nft.json file next to each input file which lists the referenced files
     Annotate {
         #[cfg_attr(feature = "cli", clap(flatten))]
         #[cfg_attr(feature = "node-api", serde(flatten))]
         common: CommonArgs,
     },
 
-    // Copy input files and all referenced files to the output directory
+    /// Copy input files and all referenced files to the output directory
     Build {
         #[cfg_attr(feature = "cli", clap(flatten))]
         #[cfg_attr(feature = "node-api", serde(flatten))]
@@ -162,13 +148,6 @@ pub enum Args {
         #[cfg_attr(feature = "node-api", serde(default = "default_output_directory"))]
         output_directory: String,
     },
-
-    // Print total size of input and referenced files
-    Size {
-        #[cfg_attr(feature = "cli", clap(flatten))]
-        #[cfg_attr(feature = "node-api", serde(flatten))]
-        common: CommonArgs,
-    },
 }
 
 #[cfg(feature = "node-api")]
@@ -176,138 +155,23 @@ fn default_output_directory() -> String {
     "dist".to_string()
 }
 
+type OutputPair<T> = Option<(Sender<T>, Receiver<T>)>;
+
 impl Args {
     pub fn common(&self) -> &CommonArgs {
         match self {
             Args::Print { common, .. }
             | Args::Annotate { common, .. }
-            | Args::Build { common, .. }
-            | Args::Size { common, .. } => common,
+            | Args::Build { common, .. } => common,
         }
     }
-}
 
-async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
-    let fs = DiskFileSystem::new(name.into(), root.into(), vec![]);
-    if watch {
-        fs.await?.start_watching(None).await?;
-    } else {
-        fs.await?.invalidate_with_reason();
-    }
-    Ok(Vc::upcast(fs))
-}
-
-async fn add_glob_results(
-    asset_context: Vc<Box<dyn AssetContext>>,
-    result: Vc<ReadGlobResult>,
-    list: &mut Vec<Vc<Box<dyn Module>>>,
-) -> Result<()> {
-    let result = result.await?;
-    for entry in result.results.values() {
-        if let DirectoryEntry::File(path) = entry {
-            let source = Vc::upcast(FileSource::new(**path));
-            let module = asset_context
-                .process(
-                    source,
-                    Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
-                )
-                .module();
-            list.push(module);
+    fn output_pair(&self) -> OutputPair<Vec<RcStr>> {
+        match self {
+            Args::Print { .. } | Args::Annotate { .. } => Some(channel(1)),
+            _ => None,
         }
     }
-    for result in result.inner.values() {
-        fn recurse<'a>(
-            asset_context: Vc<Box<dyn AssetContext>>,
-            result: Vc<ReadGlobResult>,
-            list: &'a mut Vec<Vc<Box<dyn Module>>>,
-        ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
-            Box::pin(add_glob_results(asset_context, result, list))
-        }
-        // Boxing for async recursion
-        recurse(asset_context, **result, list).await?;
-    }
-    Ok(())
-}
-
-#[turbo_tasks::function]
-async fn input_to_modules(
-    fs: Vc<Box<dyn FileSystem>>,
-    input: Vec<RcStr>,
-    exact: bool,
-    process_cwd: Option<RcStr>,
-    context_directory: RcStr,
-    module_options: TransientInstance<ModuleOptionsContext>,
-    resolve_options: TransientInstance<ResolveOptionsContext>,
-) -> Result<Vc<Modules>> {
-    let root = fs.root();
-    let process_cwd = process_cwd
-        .clone()
-        .map(|p| format!("/ROOT{}", p.trim_start_matches(&*context_directory)).into());
-
-    let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(create_module_asset(
-        root,
-        process_cwd,
-        module_options,
-        resolve_options,
-    ));
-
-    let mut list = Vec::new();
-    for input in input {
-        if exact {
-            let source = Vc::upcast(FileSource::new(root.join(input)));
-            let module = asset_context
-                .process(
-                    source,
-                    Value::new(turbopack_core::reference_type::ReferenceType::Undefined),
-                )
-                .module();
-            list.push(module);
-        } else {
-            let glob = Glob::new(input);
-            add_glob_results(asset_context, root.read_glob(glob, false), &mut list).await?;
-        };
-    }
-    Ok(Vc::cell(list))
-}
-
-fn process_context(dir: &Path, context_directory: Option<&String>) -> Result<String> {
-    let mut context_directory = PathBuf::from(context_directory.map_or(".", |s| s));
-    if !context_directory.is_absolute() {
-        context_directory = dir.join(context_directory);
-    }
-    // context = context.canonicalize().unwrap();
-    Ok(context_directory
-        .to_str()
-        .ok_or_else(|| anyhow!("context directory contains invalid characters"))
-        .unwrap()
-        .to_string())
-}
-
-fn make_relative_path(dir: &Path, context_directory: &str, input: &str) -> Result<RcStr> {
-    let mut input = PathBuf::from(input);
-    if !input.is_absolute() {
-        input = dir.join(input);
-    }
-    // input = input.canonicalize()?;
-    let input = input.strip_prefix(context_directory).with_context(|| {
-        anyhow!(
-            "{} is not part of the context directory {}",
-            input.display(),
-            context_directory
-        )
-    })?;
-    Ok(input
-        .to_str()
-        .ok_or_else(|| anyhow!("input contains invalid characters"))?
-        .replace('\\', "/")
-        .into())
-}
-
-fn process_input(dir: &Path, context_directory: &str, input: &[String]) -> Result<Vec<RcStr>> {
-    input
-        .iter()
-        .map(|input| make_relative_path(dir, context_directory, input))
-        .collect()
 }
 
 pub async fn start<B: Backend>(
@@ -393,9 +257,7 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
             result
         }
     };
-    let has_return_value =
-        matches!(&*args, Args::Annotate { .. }) || matches!(&*args, Args::Print { .. });
-    let (sender, mut receiver) = channel(1);
+
     let dir = current_dir().unwrap();
     let module_options = TransientInstance::new(module_options.unwrap_or_default());
     let resolve_options = TransientInstance::new(resolve_options.unwrap_or_default());
@@ -406,6 +268,9 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         log_detail,
         log_level: log_level.map_or_else(|| IssueSeverity::Error, |l| l.0),
     });
+
+    let (sender, receiver) = args.output_pair().unzip();
+
     let task = tt.spawn_root_task(move || {
         let dir = dir.clone();
         let args = args.clone();
@@ -414,9 +279,23 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         let resolve_options = resolve_options.clone();
         let log_options = log_options.clone();
         Box::pin(async move {
-            let output = main_operation(
+            let common = args.common();
+            let output = turbopack::trace::run_node_file_trace(
                 TransientValue::new(dir.clone()),
-                TransientInstance::new(args.clone()),
+                TransientValue::new(match args.as_ref() {
+                    Args::Print { .. } => turbopack::trace::Operation::Print,
+                    Args::Annotate { .. } => turbopack::trace::Operation::Annotate,
+                    Args::Build {
+                        output_directory, ..
+                    } => turbopack::trace::Operation::Build(output_directory.clone()),
+                }),
+                TransientInstance::new(Arc::new(turbopack::trace::Args {
+                    context_directory: common.context_directory.clone(),
+                    input: common.input.clone(),
+                    exact: common.exact,
+                    process_cwd: common.process_cwd.clone(),
+                    watch: common.watch,
+                })),
                 module_options,
                 resolve_options,
             );
@@ -434,182 +313,21 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 )
                 .await?;
 
-            if has_return_value {
+            if let Some(sender) = sender {
                 let output_read_ref = output.await?;
                 let output_iter = output_read_ref.iter().cloned();
                 sender.send(output_iter.collect::<Vec<RcStr>>()).await?;
                 drop(sender);
             }
+
             Ok::<Vc<()>, _>(Default::default())
         })
     });
+
     finish(tt, task).await?;
-    let output = if has_return_value {
-        receiver.try_recv()?
-    } else {
-        Vec::new()
-    };
-    Ok(output)
-}
-
-#[turbo_tasks::function]
-async fn main_operation(
-    current_dir: TransientValue<PathBuf>,
-    args: TransientInstance<Arc<Args>>,
-    module_options: TransientInstance<ModuleOptionsContext>,
-    resolve_options: TransientInstance<ResolveOptionsContext>,
-) -> Result<Vc<Vec<RcStr>>> {
-    let dir = current_dir.into_value();
-    let args = &*args;
-    let &CommonArgs {
-        ref input,
-        watch,
-        exact,
-        ref context_directory,
-        ref process_cwd,
-        ..
-    } = args.common();
-    let context_directory: RcStr = process_context(&dir, context_directory.as_ref())
-        .unwrap()
-        .into();
-    let fs = create_fs("context directory", &context_directory, watch).await?;
-    let process_cwd = process_cwd.clone().map(RcStr::from);
-
-    match **args {
-        Args::Print { common: _ } => {
-            let input = process_input(&dir, &context_directory, input).unwrap();
-            let mut result = BTreeSet::new();
-            let modules = input_to_modules(
-                fs,
-                input,
-                exact,
-                process_cwd.clone(),
-                context_directory,
-                module_options,
-                resolve_options,
-            )
-            .await?;
-            for module in modules.iter() {
-                let set = all_modules_and_affecting_sources(*module)
-                    .issue_file_path(module.ident().path(), "gathering list of assets")
-                    .await?;
-                for asset in set.await?.iter() {
-                    let path = asset.ident().path().await?;
-                    result.insert(RcStr::from(&*path.path));
-                }
-            }
-
-            return Ok(Vc::cell(result.into_iter().collect::<Vec<_>>()));
-        }
-        Args::Annotate { common: _ } => {
-            let input = process_input(&dir, &context_directory, input).unwrap();
-            let mut output_nft_assets = Vec::new();
-            let mut emits = Vec::new();
-            for module in input_to_modules(
-                fs,
-                input,
-                exact,
-                process_cwd.clone(),
-                context_directory,
-                module_options,
-                resolve_options,
-            )
-            .await?
-            .iter()
-            {
-                let nft_asset = NftJsonAsset::new(*module);
-                let path = nft_asset.ident().path().await?.path.clone();
-                output_nft_assets.push(path);
-                emits.push(emit_asset(Vc::upcast(nft_asset)));
-            }
-            // Wait for all files to be emitted
-            for emit in emits {
-                emit.await?;
-            }
-            return Ok(Vc::cell(output_nft_assets));
-        }
-        Args::Build {
-            ref output_directory,
-            common: _,
-        } => {
-            let output = process_context(&dir, Some(output_directory)).unwrap();
-            let input = process_input(&dir, &context_directory, input).unwrap();
-            let out_fs = create_fs("output directory", &output, watch).await?;
-            let input_dir = fs.root();
-            let output_dir = out_fs.root();
-            let mut emits = Vec::new();
-            for module in input_to_modules(
-                fs,
-                input,
-                exact,
-                process_cwd.clone(),
-                context_directory,
-                module_options,
-                resolve_options,
-            )
-            .await?
-            .iter()
-            {
-                let rebased = Vc::upcast(RebasedAsset::new(*module, input_dir, output_dir));
-                emits.push(emit_with_completion(rebased, output_dir));
-            }
-            // Wait for all files to be emitted
-            for emit in emits {
-                emit.await?;
-            }
-        }
-        Args::Size { common: _ } => todo!(),
-    }
-    Ok(Vc::cell(Vec::new()))
-}
-
-#[turbo_tasks::function]
-async fn create_module_asset(
-    root: Vc<FileSystemPath>,
-    process_cwd: Option<RcStr>,
-    module_options: TransientInstance<ModuleOptionsContext>,
-    resolve_options: TransientInstance<ResolveOptionsContext>,
-) -> Vc<ModuleAssetContext> {
-    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment {
-            cwd: Vc::cell(process_cwd),
-            ..Default::default()
-        }
-        .into(),
-    )));
-    let compile_time_info = CompileTimeInfo::builder(env).cell();
-    let glob_mappings = vec![
-        (
-            root,
-            Glob::new("**/*/next/dist/server/next.js".into()),
-            ImportMapping::Ignore.into(),
-        ),
-        (
-            root,
-            Glob::new("**/*/next/dist/bin/next".into()),
-            ImportMapping::Ignore.into(),
-        ),
-    ];
-    let mut resolve_options = ResolveOptionsContext::clone(&*resolve_options);
-    if resolve_options.emulate_environment.is_none() {
-        resolve_options.emulate_environment = Some(env);
-    }
-    if resolve_options.resolved_map.is_none() {
-        resolve_options.resolved_map = Some(
-            ResolvedMap {
-                by_glob: glob_mappings,
-            }
-            .cell(),
-        );
-    }
-
-    ModuleAssetContext::new(
-        Default::default(),
-        compile_time_info,
-        ModuleOptionsContext::clone(&*module_options).cell(),
-        resolve_options.cell(),
-        Vc::cell("node_file_trace".into()),
-    )
+    receiver
+        .map(|mut r| Ok(r.try_recv()?))
+        .unwrap_or(Ok(Vec::new()))
 }
 
 fn register() {
