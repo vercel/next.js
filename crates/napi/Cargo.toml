@@ -62,7 +62,7 @@ napi = { version = "2", default-features = false, features = [
     # Lightningcss uses this features
     "napi4",
     "napi5",
-    "compat-mode"
+    "compat-mode",
 ] }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
@@ -111,11 +111,10 @@ next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
 
-node-file-trace = { workspace = true, features = ["node-api"] }
 mdxjs = { workspace = true, features = ["serializable"] }
 
 turbo-tasks-malloc = { workspace = true, default-features = false, features = [
-    "custom_allocator"
+    "custom_allocator",
 ] }
 
 turbopack = { workspace = true }

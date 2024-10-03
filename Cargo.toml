@@ -2,16 +2,16 @@
 resolver = "2"
 
 members = [
-  "scripts/send-trace-to-jaeger",
-  "crates/napi",
-  "crates/wasm",
-  "crates/next-api",
-  "crates/next-build-test",
-  "crates/next-build",
-  "crates/next-core",
-  "crates/next-custom-transforms",
-  "turbopack/crates/*",
-  "turbopack/xtask",
+    "scripts/send-trace-to-jaeger",
+    "crates/napi",
+    "crates/wasm",
+    "crates/next-api",
+    "crates/next-build-test",
+    "crates/next-build",
+    "crates/next-core",
+    "crates/next-custom-transforms",
+    "turbopack/crates/*",
+    "turbopack/xtask",
 ]
 
 [workspace.lints.clippy]
@@ -40,7 +40,6 @@ next-custom-transforms = { path = "crates/next-custom-transforms" }
 
 # Turbopack
 auto-hash-map = { path = "turbopack/crates/turbo-tasks-auto-hash-map" }
-node-file-trace = { path = "turbopack/crates/node-file-trace", default-features = false }
 swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
@@ -87,8 +86,8 @@ turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
 swc_core = { version = "0.106.3", features = [
-  "ecma_loader_lru",
-  "ecma_loader_parking_lot",
+    "ecma_loader_lru",
+    "ecma_loader_parking_lot",
 ] }
 testing = { version = "0.42.0" }
 
@@ -111,7 +110,7 @@ swc_relay = { version = "0.44.26" }
 reqwest = { version = "=0.11.17", default-features = false }
 
 chromiumoxide = { version = "0.5.4", features = [
-  "tokio-runtime",
+    "tokio-runtime",
 ], default-features = false }
 # For matching on errors from chromiumoxide. Keep in
 # sync with chromiumoxide's tungstenite requirement.
@@ -119,13 +118,13 @@ tungstenite = "0.20.1"
 
 # flate2_zlib requires zlib, use flate2_rust
 allsorts = { version = "0.14.0", default-features = false, features = [
-  "flate2_rust",
+    "flate2_rust",
 ] }
 anyhow = "1.0.69"
 assert_cmd = "2.0.8"
 async-compression = { version = "0.3.13", default-features = false, features = [
-  "gzip",
-  "tokio",
+    "gzip",
+    "tokio",
 ] }
 async-trait = "0.1.64"
 atty = "0.2.14"
@@ -154,13 +153,13 @@ itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
 lightningcss = { version = "1.0.0-alpha.59", features = [
-  "serde",
-  "visitor",
-  "into_owned",
+    "serde",
+    "visitor",
+    "into_owned",
 ] }
 lightningcss-napi = { version = "0.3.0", default-features = false, features = [
-  "visitor"
-]}
+    "visitor",
+] }
 markdown = "1.0.0-alpha.18"
 mime = "0.3.16"
 nohash-hasher = "0.2.0"
@@ -192,13 +191,13 @@ serde_qs = "0.11.0"
 serde_with = "2.3.2"
 serde_yaml = "0.9.17"
 shadow-rs = { version = "0.35.0", default-features = false, features = [
-  "tzdb",
+    "tzdb",
 ] }
 smallvec = { version = "1.13.1", features = [
-  "serde",
-  "const_generics",
-  "union",
-  "const_new",
+    "serde",
+    "const_generics",
+    "union",
+    "const_new",
 ] }
 sourcemap = "9.0.0"
 strsim = "0.11.1"
