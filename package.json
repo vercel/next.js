@@ -1,12 +1,12 @@
 {
   "name": "@healthline/next",
-  "version": "25.0.1",
+  "version": "26.0.0",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./node/server/next.js",
   "license": "MIT",
-  "repository": "zeit/next.js",
-  "bugs": "https://github.com/zeit/next.js/issues",
-  "homepage": "https://github.com/zeit/next.js",
+  "repository": "healthline/next.js",
+  "bugs": "https://github.com/healthline/next.js",
+  "homepage": "https://github.com/healthline/next.js",
   "files": [
     "bin",
     "node",
@@ -24,7 +24,7 @@
   },
   "scripts": {
     "build": "yarn build:package",
-    "build:package": "node -e 'require(`@healthline/six-million/build-package`)'",
+    "build:package": "NODE_OPTIONS=--openssl-legacy-provider node -e 'require(`@healthline/six-million/build-package`)'",
     "release": "yarn build",
     "pretest": "npm run lint",
     "lint": "standard 'bin/*' 'client/**/*.js' 'examples/**/*.js' 'lib/**/*.js' 'server/**/*.js' 'test/**/*.js'",
@@ -52,7 +52,7 @@
     "strip-ansi": "^6.0.0"
   },
   "devDependencies": {
-    "@healthline/six-million": "6.0.1",
+    "@healthline/six-million": "^8.0.3",
     "babel-eslint": "10.0.3",
     "lint-staged": "8.2.1",
     "node-notifier": "6.0.0",
