@@ -319,7 +319,11 @@ export function createPatchedFetcher(
         }
         const implicitTags = addImplicitTags(workStore, requestStore)
 
-        const pageFetchCacheMode = workStore.fetchCache
+        // Inside unstable-cache we treat it the same as force-no-store on the page.
+        const pageFetchCacheMode =
+          cacheStore && cacheStore.type === 'unstable-cache'
+            ? 'force-no-store'
+            : workStore.fetchCache
         const isUsingNoStore = !!workStore.isUnstableNoStore
 
         let currentFetchCacheConfig = getRequestMeta('cache')

@@ -101,6 +101,7 @@ export function unstable_cache<T extends Callback>(
   const cachedCb = async (...args: any[]) => {
     const workStore = workAsyncStorage.getStore()
     const requestStore = requestAsyncStorage.getStore()
+    const cacheStore = cacheAsyncStorage.getStore()
 
     // We must be able to find the incremental cache otherwise we throw
     const maybeIncrementalCache:
@@ -185,9 +186,13 @@ export function unstable_cache<T extends Callback>(
         // of this function is potentially a little confusing
         const implicitTags = addImplicitTags(workStore, requestStore)
 
+        const isNestedCache =
+          cacheStore &&
+          (cacheStore.type === 'unstable-cache' || cacheStore.type === 'cache')
         if (
           // when we are nested inside of other unstable_cache's
           // we should bypass cache similar to fetches
+          !isNestedCache &&
           workStore.fetchCache !== 'force-no-store' &&
           !workStore.isOnDemandRevalidate &&
           !incrementalCache.isOnDemandRevalidate &&
@@ -227,20 +232,12 @@ export function unstable_cache<T extends Callback>(
                 if (!workStore.pendingRevalidates) {
                   workStore.pendingRevalidates = {}
                 }
-                const cacheStore: UnstableCacheStore = {
+                const innerCacheStore: UnstableCacheStore = {
                   type: 'unstable-cache',
                 }
                 // We run the cache function asynchronously and save the result when it completes
-                workStore.pendingRevalidates[invocationKey] = workAsyncStorage
-                  .run(
-                    {
-                      ...workStore,
-                      // force any nested fetches to bypass cache so they revalidate
-                      // when the unstable_cache call is revalidated
-                      fetchCache: 'force-no-store',
-                    },
-                    () => cacheAsyncStorage.run(cacheStore, cb, ...args)
-                  )
+                workStore.pendingRevalidates[invocationKey] = cacheAsyncStorage
+                  .run(innerCacheStore, cb, ...args)
                   .then((result) => {
                     return cacheNewResult(
                       result,
@@ -266,19 +263,11 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        const cacheStore: UnstableCacheStore = {
+        const innerCacheStore: UnstableCacheStore = {
           type: 'unstable-cache',
         }
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        const result = await workAsyncStorage.run(
-          {
-            ...workStore,
-            // force any nested fetches to bypass cache so they revalidate
-            // when the unstable_cache call is revalidated
-            fetchCache: 'force-no-store',
-          },
-          () => cacheAsyncStorage.run(cacheStore, cb, ...args)
-        )
+        const result = await cacheAsyncStorage.run(innerCacheStore, cb, ...args)
 
         if (!workStore.isDraftMode) {
           cacheNewResult(
@@ -337,7 +326,7 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        const cacheStore: UnstableCacheStore = {
+        const innerCacheStore: UnstableCacheStore = {
           type: 'unstable-cache',
         }
         // If we got this far then we had an invalid cache entry and need to generate a new one
@@ -352,16 +341,13 @@ export function unstable_cache<T extends Callback>(
           // The fact that we need to construct this kind of fake store indicates the code is not factored correctly
           // @TODO refactor to not require this fake store object
           {
-            // force any nested fetches to bypass cache so they revalidate
-            // when the unstable_cache call is revalidated
-            fetchCache: 'force-no-store',
             route: '/',
             page: '/',
             isStaticGeneration: false,
             fallbackRouteParams: null,
             buildId: '', // Since this is a fake one it can't "use cache" anyway.
           },
-          () => cacheAsyncStorage.run(cacheStore, cb, ...args)
+          () => cacheAsyncStorage.run(innerCacheStore, cb, ...args)
         )
         cacheNewResult(
           result,
