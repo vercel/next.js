@@ -10,7 +10,9 @@
 pub mod evaluate_context;
 mod graph;
 pub mod module_options;
+mod nft_json;
 pub mod rebase;
+pub mod trace;
 pub mod transition;
 pub(crate) mod unsupported_sass;
 
