@@ -3,13 +3,9 @@ const Page404 = async () => {
     <div
       className="not-found"
       style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1500px',
-        minHeight: '100%',
+        height: '100000px',
       }}
     >
-      <p>Not found page</p>
       <p>Not found page</p>
     </div>
   )

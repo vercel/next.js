@@ -35,7 +35,6 @@ describe('scroll-behaviour-on-not-found-client-navigation', () => {
 
     await browser.elementByCss('.trigger-not-found').click()
     await browser.waitForElementByCss('.not-found')
-    // await new Promise((r) => setTimeout(r, 20000))
     const isAtTop = await browser.eval('window.scrollY === 0')
     expect(isAtTop).toBe(true)
   })
