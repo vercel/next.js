@@ -622,7 +622,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
             },
             import_externals,
-            false,
         );
 
         import_references.push(r);
@@ -2215,7 +2214,6 @@ async fn handle_free_var_reference(
                     None => None,
                 },
                 state.import_externals,
-                false,
             )
             .resolve()
             .await?;
