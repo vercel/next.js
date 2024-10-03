@@ -999,6 +999,23 @@ impl JsValue {
             has_side_effects: side_effects,
         }
     }
+
+    pub fn unknown_if(
+        is_unknown: bool,
+        value: JsValue,
+        side_effects: bool,
+        reason: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        if is_unknown {
+            Self::Unknown {
+                original_value: Some(value.into()),
+                reason: reason.into(),
+                has_side_effects: side_effects,
+            }
+        } else {
+            value
+        }
+    }
 }
 
 // Methods regarding node count
@@ -1770,7 +1787,7 @@ impl JsValue {
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
-                    WellKnownFunctionKind::WorkerConstructor => (
+                    WellKnownFunctionKind::WorkerConstructor { .. } => (
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
                     ),
@@ -3764,14 +3781,8 @@ pub enum WellKnownFunctionKind {
     PathDirname,
     /// `0` is the current working directory.
     PathResolve(Box<JsValue>),
-    /// Import and Require can be ignored at compile time using the `turbopackIgnore` directive.
-    /// This is functionality that was introduced in webpack, so we also support `webpackIgnore`.
-    Import {
-        ignore: bool,
-    },
-    Require {
-        ignore: bool,
-    },
+    Import,
+    Require,
     RequireResolve,
     RequireContext,
     RequireContextRequire(Vc<RequireContextValue>),
@@ -3910,12 +3921,8 @@ pub mod test_utils {
                 "__dirname" => "__dirname".into(),
                 "__filename" => "__filename".into(),
 
-                "require" => {
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore: false })
-                }
-                "import" => {
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore: false })
-                }
+                "require" => JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
                 "Worker" => JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
