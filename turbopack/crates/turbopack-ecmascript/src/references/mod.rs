@@ -1350,11 +1350,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
                 return Ok(());
             }
-            JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor { ignore }) => {
+            JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor) => {
                 let args = linked_args(args).await?;
-                if ignore {
-                    return Ok(());
-                }
                 if let [url @ JsValue::Url(_, JsValueUrlKind::Relative)] = &args[..] {
                     let pat = js_value_to_pattern(url);
                     if !pat.has_constant_parts() {
@@ -1426,11 +1423,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 .await?;
             }
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore }) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::Import) => {
             let args = linked_args(args).await?;
-            if ignore {
-                return Ok(());
-            }
             if args.len() == 1 {
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
@@ -1468,11 +1462,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore }) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::Require) => {
             let args = linked_args(args).await?;
-            if ignore {
-                return Ok(());
-            }
             if args.len() == 1 {
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
@@ -2522,13 +2513,26 @@ async fn value_visitor_inner(
             "__dirname" => as_abs_path(origin.origin_path().parent()).await?,
             "__filename" => as_abs_path(origin.origin_path()).await?,
 
-            "require" => JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore }),
-            "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore }),
+            "require" => JsValue::unknown_if(
+                ignore,
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                true,
+                "ignored require",
+            ),
+            "import" => JsValue::unknown_if(
+                ignore,
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
+                true,
+                "ignored import",
+            ),
+            "Worker" => JsValue::unknown_if(
+                ignore,
+                JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
+                true,
+                "ignored Worker constructor",
+            ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-            "Worker" => {
-                JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor { ignore })
-            }
             "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
