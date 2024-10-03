@@ -119,7 +119,7 @@ pub use vc::{
 pub use crate::rcstr::RcStr;
 
 /// Implements [`VcValueType`] for the given `struct` or `enum`. These value types can be used
-/// inside of a "value cell" as [`Vc<...>`].
+/// inside of a "value cell" as [`Vc<...>`][Vc].
 ///
 /// A [`Vc`] represents a (potentially lazy) memoized computation. Each [`Vc`]'s value is placed
 /// into a cell associated with the current [`TaskId`]. That [`Vc`] object can be `await`ed to get
