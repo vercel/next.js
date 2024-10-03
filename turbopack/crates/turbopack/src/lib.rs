@@ -10,7 +10,7 @@
 pub mod evaluate_context;
 mod graph;
 pub mod module_options;
-mod nft_json;
+pub mod nft_json;
 pub mod rebase;
 pub mod transition;
 pub(crate) mod unsupported_sass;
@@ -918,11 +918,16 @@ pub async fn replace_externals(
     import_externals: bool,
 ) -> Result<ModuleResolveResult> {
     for item in result.primary.values_mut() {
-        let ModuleResolveResultItem::External(request, ty) = item else {
+        let ModuleResolveResultItem::External {
+            name: request,
+            typ,
+            module,
+        } = item
+        else {
             continue;
         };
 
-        let external_type = match ty {
+        let external_type = match typ {
             ExternalType::CommonJs => CachedExternalType::CommonJs,
             ExternalType::EcmaScriptModule => {
                 if import_externals {
@@ -937,9 +942,25 @@ pub async fn replace_externals(
             }
         };
 
-        let module = CachedExternalModule::new(request.clone(), external_type)
-            .resolve()
-            .await?;
+        println!(
+            "CachedExternalModule::new {:?} {:?} {:?}",
+            request,
+            typ,
+            module.is_some()
+        );
+        let module = CachedExternalModule::new(
+            request.clone(),
+            external_type,
+            Vc::cell(match module {
+                Some(module) => match &**module {
+                    ModuleResolveResultItem::Module(module) => Some(*module),
+                    _ => None,
+                },
+                None => None,
+            }),
+        )
+        .resolve()
+        .await?;
 
         *item = ModuleResolveResultItem::Module(Vc::upcast(module));
     }

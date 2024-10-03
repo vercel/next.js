@@ -1,0 +1,14 @@
+{
+  "name": "basic-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build-turbopack": "TURBOPACK=1 TURBOPACK_BUILD=1 next build",
+    "build-webpack": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "workspace:*",
+    "keyv": "3.1.0"
+  }
+}

@@ -1519,7 +1519,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
         JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
             let args = linked_args(args).await?;
-            if args.len() == 1 {
+            if args.len() == 1 || args.len() == 2 {
+                // TODO error TP1003 require.resolve(???*0*, {"paths": [???*1*]}) is not statically
+                // analyse-able with ignore_dynamic_requests = true
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
                     let (args, hints) = explain_args(&args);
