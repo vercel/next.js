@@ -16,7 +16,6 @@ import {
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeResolvedReactPromise, describeStringPropertyAccess } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
-import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
 export type Params = Record<string, string | Array<string> | undefined>
 
@@ -491,41 +490,46 @@ const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
-      route: undefined | string,
-      expression: string
-    ) {
+  : function warnForSyncAccess(route: undefined | string, expression: string) {
+      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
+        return
+      }
+
       const prefix = route ? ` In route ${route} a ` : 'A '
-      return (
+      console.error(
         `${prefix}param property was accessed directly with ${expression}. ` +
-        `\`params\` should be awaited before accessing its properties. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+          `\`params\` should be awaited before accessing its properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
       )
-    })
+    }
 
 const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(function getEnumerationMessage(
+  : function warnForEnumeration(
       route: undefined | string,
       missingProperties: Array<string>
     ) {
+      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
+        return
+      }
+
       const prefix = route ? ` In route ${route} ` : ''
       if (missingProperties.length) {
         const describedMissingProperties =
           describeListOfPropertyNames(missingProperties)
-        return (
+        console.error(
           `${prefix}params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
-          `\`params\` should be awaited before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+            `\`params\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       } else {
-        return (
+        console.error(
           `${prefix}params are being enumerated. ` +
-          `\`params\` should be awaited before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+            `\`params\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       }
-    })
+    }
 
 function describeListOfPropertyNames(properties: Array<string>) {
   switch (properties.length) {
