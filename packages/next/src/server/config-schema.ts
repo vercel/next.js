@@ -19,6 +19,7 @@ import type {
   Redirect,
 } from '../lib/load-custom-routes'
 import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test'
+import { formatZodError } from '../shared/lib/zod'
 
 // A custom zod schema for the SizeLimit type
 const zSizeLimit = z.custom<SizeLimit>((val) => {
@@ -126,7 +127,7 @@ const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurboRuleConfigItemOrShortcut>
   z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
-  z.strictObject({
+  z.object({
     amp: z
       .object({
         canonicalBase: z.string().optional(),
@@ -139,7 +140,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z
-      .strictObject({
+      .object({
         emotion: z
           .union([
             z.boolean(),
@@ -218,6 +219,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           }),
         ]),
       })
+      .strict()
       .optional(),
     compress: z.boolean().optional(),
     configOrigin: z.string().optional(),
@@ -242,14 +244,15 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     distDir: z.string().min(1).optional(),
     env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
     eslint: z
-      .strictObject({
+      .object({
         dirs: z.array(z.string().min(1)).optional(),
         ignoreDuringBuilds: z.boolean().optional(),
       })
+      .strict()
       .optional(),
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
-      .strictObject({
+      .object({
         after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
         appIsrStatus: z.boolean().optional(),
@@ -294,11 +297,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
         flyingShuttle: z
-          .strictObject({
+          .object({
             mode: z
               .union([z.literal('full'), z.literal('store-only')])
               .optional(),
           })
+          .strict()
           .optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
@@ -446,6 +450,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
       })
+      .strict()
       .optional(),
     exportPathMap: z
       .function()
@@ -479,46 +484,54 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .returns(z.promise(z.array(zHeader)))
       .optional(),
     httpAgentOptions: z
-      .strictObject({ keepAlive: z.boolean().optional() })
+      .object({ keepAlive: z.boolean().optional() })
+      .strict()
       .optional(),
     i18n: z
-      .strictObject({
+      .object({
         defaultLocale: z.string().min(1),
         domains: z
           .array(
-            z.strictObject({
-              defaultLocale: z.string().min(1),
-              domain: z.string().min(1),
-              http: z.literal(true).optional(),
-              locales: z.array(z.string().min(1)).optional(),
-            })
+            z
+              .object({
+                defaultLocale: z.string().min(1),
+                domain: z.string().min(1),
+                http: z.literal(true).optional(),
+                locales: z.array(z.string().min(1)).optional(),
+              })
+              .strict()
           )
           .optional(),
         localeDetection: z.literal(false).optional(),
         locales: z.array(z.string().min(1)),
       })
+      .strict()
       .nullable()
       .optional(),
     images: z
-      .strictObject({
+      .object({
         localPatterns: z
           .array(
-            z.strictObject({
-              pathname: z.string().optional(),
-              search: z.string().optional(),
-            })
+            z
+              .object({
+                pathname: z.string().optional(),
+                search: z.string().optional(),
+              })
+              .strict()
           )
           .max(25)
           .optional(),
         remotePatterns: z
           .array(
-            z.strictObject({
-              hostname: z.string(),
-              pathname: z.string().optional(),
-              port: z.string().max(5).optional(),
-              protocol: z.enum(['http', 'https']).optional(),
-              search: z.string().optional(),
-            })
+            z
+              .object({
+                hostname: z.string(),
+                pathname: z.string().optional(),
+                port: z.string().max(5).optional(),
+                protocol: z.enum(['http', 'https']).optional(),
+                search: z.string().optional(),
+              })
+              .strict()
           )
           .max(50)
           .optional(),
@@ -546,6 +559,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         minimumCacheTTL: z.number().int().gte(0).optional(),
         path: z.string().optional(),
       })
+      .strict()
       .optional(),
     logging: z
       .union([
@@ -571,10 +585,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       )
       .optional(),
     onDemandEntries: z
-      .strictObject({
+      .object({
         maxInactiveAge: z.number().optional(),
         pagesBufferLength: z.number().optional(),
       })
+      .strict()
       .optional(),
     output: z.enum(['standalone', 'export']).optional(),
     outputFileTracingRoot: z.string().optional(),
@@ -629,18 +644,39 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     trailingSlash: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),
     typescript: z
-      .strictObject({
+      .object({
         ignoreBuildErrors: z.boolean().optional(),
         tsconfigPath: z.string().min(1).optional(),
       })
+      .strict()
       .optional(),
     useFileSystemPublicRoutes: z.boolean().optional(),
     // The webpack config type is unknown, use z.any() here
     webpack: z.any().nullable().optional(),
     watchOptions: z
-      .strictObject({
+      .object({
         pollIntervalMs: z.number().positive().finite().optional(),
       })
+      .strict()
       .optional(),
   })
 )
+
+/**
+ * Parses the config data against the schema and throws an error if the data is invalid.
+ *
+ * @param data - The config data to parse.
+ * @returns The parsed config.
+ * @throws An error if the config data is invalid.
+ * @internal Excluded to ensure that zod types aren't bundled
+ */
+export function parseConfig(data: unknown): NextConfig {
+  // TODO: we should perform validation and warning for deprecated fields here
+
+  const state = configSchema.safeParse(data)
+  if (!state.success) {
+    throw formatZodError('Invalid next.config.js options detected', state.error)
+  }
+
+  return state.data
+}

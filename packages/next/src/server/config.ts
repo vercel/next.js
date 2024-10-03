@@ -22,32 +22,13 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 
-import type { ZodError } from 'next/dist/compiled/zod'
 import { hasNextSupport } from '../server/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
-import { normalizeZodErrors } from '../shared/lib/zod'
+import { interopDefault } from '../lib/interop-default'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
-
-function normalizeNextConfigZodErrors(
-  error: ZodError<NextConfig>
-): [errorMessages: string[], shouldExit: boolean] {
-  let shouldExit = false
-  const issues = normalizeZodErrors(error)
-  return [
-    issues.flatMap(({ issue, message }) => {
-      if (issue.path[0] === 'images') {
-        // We exit the build when encountering an error in the images config
-        shouldExit = true
-      }
-
-      return message
-    }),
-    shouldExit,
-  ]
-}
 
 export function warnOptionHasBeenDeprecated(
   config: NextConfig,
@@ -988,7 +969,7 @@ export default async function loadConfig(
   if (path?.length) {
     configFileName = basename(path)
 
-    let userConfigModule: any
+    let userConfigModule: unknown
     try {
       const envBefore = Object.assign({}, process.env)
 
@@ -1021,7 +1002,7 @@ export default async function loadConfig(
       updateInitialEnv(newEnv)
 
       if (rawConfig) {
-        return userConfigModule
+        return userConfigModule as NextConfigComplete
       }
     } catch (err) {
       // TODO: Modify docs to add cases of failing next.config.ts transformation
@@ -1031,48 +1012,29 @@ export default async function loadConfig(
       throw err
     }
 
-    const userConfig = await normalizeConfig(
+    // NOTE: Treating this like a NextConfig is unsafe, we're relying on the
+    // schema validation next to throw if there's any type or structural errors.
+    const userConfig: NextConfig = await normalizeConfig(
       phase,
-      userConfigModule.default || userConfigModule
+      interopDefault(userConfigModule)
     )
 
+    // We only validate the config against schema in non minimal mode
     if (!process.env.NEXT_MINIMAL) {
-      // We only validate the config against schema in non minimal mode
-      const { configSchema } =
+      const { parseConfig } =
         require('./config-schema') as typeof import('./config-schema')
-      const state = configSchema.safeParse(userConfig)
 
-      if (state.success === false) {
-        // error message header
-        const messages = [`Invalid ${configFileName} options detected: `]
-
-        const [errorMessages, shouldExit] = normalizeNextConfigZodErrors(
-          state.error
-        )
-        // ident list item
-        for (const error of errorMessages) {
-          messages.push(`    ${error}`)
+      try {
+        parseConfig(userConfig)
+      } catch (err) {
+        if (err instanceof Error) {
+          Log.error(err.message)
         }
-
-        // error message footer
-        messages.push(
-          'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
-        )
-
-        if (shouldExit) {
-          for (const message of messages) {
-            console.error(message)
-          }
-          await flushAndExit(1)
-        } else {
-          for (const message of messages) {
-            curLog.warn(message)
-          }
-        }
+        await flushAndExit(1)
       }
     }
 
-    if (userConfig.target && userConfig.target !== 'server') {
+    if ('target' in userConfig && userConfig.target !== 'server') {
       throw new Error(
         `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
@@ -1080,8 +1042,7 @@ export default async function loadConfig(
     }
 
     if (userConfig.amp?.canonicalBase) {
-      const { canonicalBase } = userConfig.amp || ({} as any)
-      userConfig.amp = userConfig.amp || {}
+      const { canonicalBase } = userConfig.amp
       userConfig.amp.canonicalBase =
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
