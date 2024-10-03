@@ -561,6 +561,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
     ModuleFilenameHelpers,
   } from 'webpack'
   export type {
+    javascript,
     LoaderDefinitionFunction,
     LoaderContext,
     ModuleGraph,
