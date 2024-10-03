@@ -37,11 +37,11 @@ new Worker(__turbopack_require__("[project]/turbopack/crates/turbopack-tests/tes
 // turbopack shouldn't attempt to bundle these, and they should be preserved in the output
 import(/* webpackIgnore: true */ "./ignore.mjs");
 import(/* turbopackIgnore: true */ "./ignore.mjs");
-new Worker(/* turbopackIgnore: true */ "./ignore.mjs");
 // this should work for cjs requires too
-__turbopack_require__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)")(__turbopack_import__).then(console.log);
 require(/* webpackIgnore: true */ "./ignore.cjs");
 require(/* turbopackIgnore: true */ "./ignore.cjs");
+// and for workers
+new Worker(/* webpackIgnore: true */ "./ignore.mjs");
 new Worker(/* turbopackIgnore: true */ "./ignore.cjs");
 }}),
 }]);
