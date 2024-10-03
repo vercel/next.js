@@ -87,7 +87,7 @@ async function createComponentTreeInternal({
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
-    staticGenerationStore,
+    workStore,
     componentMod: {
       NotFoundBoundary,
       LayoutRouter,
@@ -209,69 +209,66 @@ async function createComponentTreeInternal({
     // if it's configured above any parent that configured
     // otherwise
     if (dynamic === 'error') {
-      staticGenerationStore.dynamicShouldError = true
+      workStore.dynamicShouldError = true
     } else if (dynamic === 'force-dynamic') {
-      staticGenerationStore.forceDynamic = true
+      workStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (
-        staticGenerationStore.isStaticGeneration &&
-        !experimental.isRoutePPREnabled
-      ) {
+      if (workStore.isStaticGeneration && !experimental.isRoutePPREnabled) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
         const err = new DynamicServerError(
           `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
         )
-        staticGenerationStore.dynamicUsageDescription = err.message
-        staticGenerationStore.dynamicUsageStack = err.stack
+        workStore.dynamicUsageDescription = err.message
+        workStore.dynamicUsageStack = err.stack
         throw err
       }
     } else {
-      staticGenerationStore.dynamicShouldError = false
-      staticGenerationStore.forceStatic = dynamic === 'force-static'
+      workStore.dynamicShouldError = false
+      workStore.forceStatic = dynamic === 'force-static'
     }
   }
 
   if (typeof layoutOrPageMod?.fetchCache === 'string') {
-    staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
+    workStore.fetchCache = layoutOrPageMod?.fetchCache
   }
 
   if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
-    validateRevalidate(layoutOrPageMod?.revalidate, staticGenerationStore.route)
+    validateRevalidate(layoutOrPageMod?.revalidate, workStore.route)
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
     ctx.defaultRevalidate = layoutOrPageMod.revalidate as number
 
     if (
-      typeof staticGenerationStore.revalidate === 'undefined' ||
-      (typeof staticGenerationStore.revalidate === 'number' &&
-        staticGenerationStore.revalidate > ctx.defaultRevalidate)
+      typeof workStore.revalidate === 'undefined' ||
+      (typeof workStore.revalidate === 'number' &&
+        workStore.revalidate > ctx.defaultRevalidate)
     ) {
-      staticGenerationStore.revalidate = ctx.defaultRevalidate
+      workStore.revalidate = ctx.defaultRevalidate
     }
 
     if (
-      !staticGenerationStore.forceStatic &&
-      staticGenerationStore.isStaticGeneration &&
+      !workStore.forceStatic &&
+      workStore.isStaticGeneration &&
       ctx.defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
       !experimental.isRoutePPREnabled
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
-      staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
+      workStore.dynamicUsageDescription = dynamicUsageDescription
 
       throw new DynamicServerError(dynamicUsageDescription)
     }
   }
 
-  const isStaticGeneration = staticGenerationStore.isStaticGeneration
+  const isStaticGeneration = workStore.isStaticGeneration
 
   // If there's a dynamic usage error attached to the store, throw it.
-  if (staticGenerationStore.dynamicUsageErr) {
-    throw staticGenerationStore.dynamicUsageErr
+  if (workStore.dynamicUsageErr) {
+    throw workStore.dynamicUsageErr
   }
 
   const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
@@ -491,8 +488,8 @@ async function createComponentTreeInternal({
   // render force-dynamic. We should refactor this function so that we can correctly track which segments
   // need to be dynamic
   if (
-    staticGenerationStore.isStaticGeneration &&
-    staticGenerationStore.forceDynamic &&
+    workStore.isStaticGeneration &&
+    workStore.forceDynamic &&
     experimental.isRoutePPREnabled
   ) {
     return [
@@ -505,7 +502,7 @@ async function createComponentTreeInternal({
       >
         <Postpone
           reason='dynamic = "force-dynamic" was used'
-          route={staticGenerationStore.route}
+          route={workStore.route}
         />
         {layerAssets}
       </Segment>,
@@ -534,11 +531,10 @@ async function createComponentTreeInternal({
       if (isStaticGeneration) {
         const promiseOfParams = createPrerenderParamsForClientSegment(
           currentParams,
-          staticGenerationStore
+          workStore
         )
-        const promiseOfSearchParams = createPrerenderSearchParamsForClientPage(
-          staticGenerationStore
-        )
+        const promiseOfSearchParams =
+          createPrerenderSearchParamsForClientPage(workStore)
         pageElement = (
           <ClientPageRoot
             Component={PageComponent}
@@ -561,11 +557,11 @@ async function createComponentTreeInternal({
       // the current render mode tracks dynamic API usage.
       const params = createServerParamsForServerSegment(
         currentParams,
-        staticGenerationStore
+        workStore
       )
       const searchParams = createServerSearchParamsForServerPage(
         query,
-        staticGenerationStore
+        workStore
       )
       pageElement = (
         <PageComponent params={params} searchParams={searchParams} />
@@ -603,7 +599,7 @@ async function createComponentTreeInternal({
       if (isStaticGeneration) {
         const promiseOfParams = createPrerenderParamsForClientSegment(
           currentParams,
-          staticGenerationStore
+          workStore
         )
 
         clientSegment = (
@@ -696,7 +692,7 @@ async function createComponentTreeInternal({
     } else {
       const params = createServerParamsForServerSegment(
         currentParams,
-        staticGenerationStore
+        workStore
       )
 
       let serverSegment = (

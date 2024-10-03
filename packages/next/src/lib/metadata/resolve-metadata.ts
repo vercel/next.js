@@ -53,7 +53,7 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type {
   Params,
   CreateServerParamsForMetadata,
@@ -489,7 +489,7 @@ async function resolveMetadataItems(
   errorConvention: 'not-found' | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ) {
   const parentParams = {}
   const metadataItems: MetadataItems = []
@@ -505,7 +505,7 @@ async function resolveMetadataItems(
     errorMetadataItem,
     getDynamicParamFromSegment,
     createServerParamsForMetadata,
-    staticGenerationStore
+    workStore
   )
 }
 
@@ -520,7 +520,7 @@ async function resolveMetadataItemsImpl(
   errorMetadataItem: MetadataItems[number],
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ): Promise<MetadataItems> {
   const [segment, parallelRoutes, { page }] = tree
   const currentTreePrefix =
@@ -540,10 +540,7 @@ async function resolveMetadataItemsImpl(
     }
   }
 
-  const params = createServerParamsForMetadata(
-    currentParams,
-    staticGenerationStore
-  )
+  const params = createServerParamsForMetadata(currentParams, workStore)
 
   let layerProps: LayoutProps | PageProps
   if (isPage) {
@@ -581,7 +578,7 @@ async function resolveMetadataItemsImpl(
       errorMetadataItem,
       getDynamicParamFromSegment,
       createServerParamsForMetadata,
-      staticGenerationStore
+      workStore
     )
   }
 

@@ -681,7 +681,7 @@ export async function startCleanStaticServer(dir: string) {
 
 /**
  * Check for content in 1 second intervals timing out after 30 seconds.
- *
+ * @deprecated use retry + expect instead
  * @param {() => Promise<unknown> | unknown} contentFn
  * @param {RegExp | string | number} regex
  * @param {boolean} hardError
@@ -1001,6 +1001,10 @@ function readJson(path: string) {
 
 export function getBuildManifest(dir: string) {
   return readJson(path.join(dir, '.next/build-manifest.json'))
+}
+
+export function getImagesManifest(dir: string) {
+  return readJson(path.join(dir, '.next/images-manifest.json'))
 }
 
 export function getPageFilesFromBuildManifest(dir: string, page: string) {
