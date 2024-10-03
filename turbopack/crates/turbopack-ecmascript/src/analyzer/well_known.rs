@@ -543,7 +543,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
         }
         (WellKnownFunctionKind::Import { .. }, Some("meta")) => {
-            JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
+            JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
         }
         #[allow(unreachable_patterns)]
         (kind, _) => {
