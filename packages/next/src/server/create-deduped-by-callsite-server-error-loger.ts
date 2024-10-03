@@ -1,9 +1,16 @@
 import * as React from 'react'
 
 const errorRef: { current: null | string } = { current: null }
+
+// React.cache is currently only available in canary/experimental React channels.
+const cache =
+  typeof React.cache === 'function'
+    ? React.cache
+    : (fn: (key: unknown) => void) => fn
+
 // We don't want to dedupe across requests.
 // The developer might've just attempted to fix the warning so we should warn again if it still happens.
-const flushCurrentErrorIfNew = React.cache(
+const flushCurrentErrorIfNew = cache(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- cache key
   (key: unknown) => {
     try {
