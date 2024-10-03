@@ -12,6 +12,7 @@ import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,
   type PrerenderStore,
+  type PrerenderStoreModern,
 } from '../app-render/prerender-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeResolvedReactPromise, describeStringPropertyAccess } from './utils'
@@ -94,7 +95,7 @@ export function createPrerenderParamsForClientSegment(
   workStore: WorkStore
 ): Promise<Params> {
   const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
+  if (prerenderStore && prerenderStore.type === 'prerender') {
     if (isDynamicIOPrerender(prerenderStore)) {
       const fallbackParams = workStore.fallbackRouteParams
       if (fallbackParams) {
@@ -132,7 +133,7 @@ function createPrerenderParams(
     if (hasSomeFallbackParams) {
       // params need to be treated as dynamic because we have at least one fallback param
       const prerenderStore = prerenderAsyncStorage.getStore()
-      if (prerenderStore) {
+      if (prerenderStore && prerenderStore.type === 'prerender') {
         if (isDynamicIOPrerender(prerenderStore)) {
           // We are in a dynamicIO (PPR or otherwise) prerender
           return makeAbortingExoticParams(
@@ -178,7 +179,7 @@ const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 function makeAbortingExoticParams(
   underlyingParams: Params,
   route: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -303,7 +304,7 @@ function makeErroringExoticParams(
               // fallback shells
               // TODO remove this comment when dynamicIO is the default since there
               // will be no `dynamic = "error"`
-              if (prerenderStore) {
+              if (prerenderStore && prerenderStore.type === 'prerender') {
                 postponeWithTracking(
                   workStore.route,
                   expression,
@@ -324,7 +325,7 @@ function makeErroringExoticParams(
               // fallback shells
               // TODO remove this comment when dynamicIO is the default since there
               // will be no `dynamic = "error"`
-              if (prerenderStore) {
+              if (prerenderStore && prerenderStore.type === 'prerender') {
                 postponeWithTracking(
                   workStore.route,
                   expression,

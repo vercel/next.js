@@ -7,7 +7,7 @@ import { getExpectedRequestStore } from '../../client/components/request-async-s
 import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,
-  type PrerenderStore,
+  type PrerenderStoreModern,
 } from '../app-render/prerender-async-storage.external'
 import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
 import {
@@ -87,7 +87,7 @@ export function headers(): Promise<ReadonlyHeaders> {
       )
     }
 
-    if (prerenderStore) {
+    if (prerenderStore && prerenderStore.type === 'prerender') {
       // We are in PPR and/or dynamicIO mode and prerendering
 
       if (isDynamicIOPrerender(prerenderStore)) {
@@ -137,7 +137,7 @@ const CachedHeaders = new WeakMap<CacheLifetime, Promise<ReadonlyHeaders>>()
 
 function makeDynamicallyTrackedExoticHeaders(
   route: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyHeaders> {
   const cachedHeaders = CachedHeaders.get(prerenderStore)
   if (cachedHeaders) {

@@ -1,8 +1,7 @@
 use std::{
     borrow::Borrow,
-    collections::hash_map::RandomState,
     fmt::{Debug, Formatter},
-    hash::{BuildHasher, Hash},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     iter::FilterMap,
 };
 
@@ -10,9 +9,10 @@ use auto_hash_map::{
     map::{Entry, Iter, RawEntry},
     AutoMap,
 };
+use rustc_hash::FxHasher;
 
 #[derive(Clone)]
-pub struct CountHashSet<T, H = RandomState> {
+pub struct CountHashSet<T, H = BuildHasherDefault<FxHasher>> {
     inner: AutoMap<T, isize, H>,
     negative_entries: usize,
 }
