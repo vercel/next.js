@@ -138,7 +138,7 @@ pub use crate::rcstr::RcStr;
 /// Controls when a cell is invalidated upon recomputation of a task. Internally, this is performed
 /// by setting the [`VcValueType::CellMode`] associated type.
 ///
-/// - **`"new"`:** Always overrides the value in the cell. Invalidating all dependent tasks.
+/// - **`"new"`:** Always overrides the value in the cell, invalidating all dependent tasks.
 /// - **`"shared"` *(default)*:** Compares with the existing value in the cell, before overriding it.
 ///   Requires the value to implement [`Eq`].
 ///
