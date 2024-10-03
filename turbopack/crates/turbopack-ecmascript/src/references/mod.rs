@@ -397,12 +397,7 @@ where
     HANDLER.set(handler, || GLOBALS.set(globals, f))
 }
 
-/// Analyse a provided [EcmascriptModuleAsset] and return a
-/// [AnalyzeEcmascriptModuleResult].
-///
-/// # Arguments
-/// * ignored_spans - A set of spans to ignore when analysing the module. This is useful for example
-///   to respect turbopackIgnore directives on ignores.
+/// Analyse a provided [EcmascriptModuleAsset] and return a [AnalyzeEcmascriptModuleResult].
 #[turbo_tasks::function]
 pub(crate) async fn analyse_ecmascript_module(
     module: Vc<EcmascriptModuleAsset>,
