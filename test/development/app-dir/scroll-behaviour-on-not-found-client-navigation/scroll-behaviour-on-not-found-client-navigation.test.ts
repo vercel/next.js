@@ -22,9 +22,7 @@ describe('scroll-behaviour-on-not-found-client-navigation', () => {
   })
 
   it('should scroll to top when visiting route that triggers notFound()', async () => {
-    const browser = await next.browser('/', {
-      headless: false,
-    })
+    const browser = await next.browser('/')
 
     // scroll to bottom of the / page
     await browser.eval('window.scrollTo({top: document.body.scrollHeight})')
