@@ -52,6 +52,7 @@ import {
   type PrerenderStore,
 } from '../../app-render/prerender-async-storage.external'
 import { actionAsyncStorage } from '../../../client/components/action-async-storage.external'
+import { cacheAsyncStorage } from '../../../server/app-render/cache-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
@@ -433,6 +434,7 @@ export class AppRouteRouteModule extends RouteModule<
                       let dynamicTracking =
                         createDynamicTrackingState(undefined)
                       const prospectiveRoutePrerenderStore: PrerenderStore = {
+                        type: 'prerender',
                         cacheSignal,
                         // During prospective render we don't use a controller
                         // because we need to let all caches fill.
@@ -500,6 +502,7 @@ export class AppRouteRouteModule extends RouteModule<
                       dynamicTracking = createDynamicTrackingState(undefined)
 
                       const finalRoutePrerenderStore: PrerenderStore = {
+                        type: 'prerender',
                         cacheSignal: null,
                         controller,
                         dynamicTracking,
@@ -560,6 +563,15 @@ export class AppRouteRouteModule extends RouteModule<
                           }
                         })
                       })
+                    } else if (isStaticGeneration) {
+                      res = await prerenderAsyncStorage.run(
+                        {
+                          type: 'prerender-legacy',
+                        },
+                        handler,
+                        request,
+                        handlerContext
+                      )
                     } else {
                       res = await handler(request, handlerContext)
                     }
@@ -577,7 +589,7 @@ export class AppRouteRouteModule extends RouteModule<
                       ...Object.values(workStore.pendingRevalidates || {}),
                     ])
 
-                    addImplicitTags(workStore, requestStore)
+                    addImplicitTags(workStore, requestStore, undefined)
                     ;(context.renderOpts as any).fetchTags =
                       workStore.tags?.join(',')
 
@@ -844,7 +856,8 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
         case 'toJSON':
         case 'toString':
         case 'origin': {
-          trackDynamicDataAccessed(workStore, `nextUrl.${prop}`)
+          const cacheStore = cacheAsyncStorage.getStore()
+          trackDynamicDataAccessed(workStore, cacheStore, `nextUrl.${prop}`)
           return ReflectAdapter.get(target, prop, receiver)
         }
         case 'clone':
@@ -879,7 +892,8 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
         case 'text':
         case 'arrayBuffer':
         case 'formData': {
-          trackDynamicDataAccessed(workStore, `request.${prop}`)
+          const cacheStore = cacheAsyncStorage.getStore()
+          trackDynamicDataAccessed(workStore, cacheStore, `request.${prop}`)
           // The receiver arg is intentionally the same as the target to fix an issue with
           // edge runtime, where attempting to access internal slots with the wrong `this` context
           // results in an error.

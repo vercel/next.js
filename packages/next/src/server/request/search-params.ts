@@ -13,7 +13,9 @@ import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,
   type PrerenderStore,
+  type PrerenderStoreModern,
 } from '../app-render/prerender-async-storage.external'
+import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
@@ -111,7 +113,7 @@ function createPrerenderSearchParams(
   }
 
   const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
+  if (prerenderStore && prerenderStore.type === 'prerender') {
     if (prerenderStore.controller || prerenderStore.cacheSignal) {
       // We are in a dynamicIO (PPR or otherwise) prerender
       return makeAbortingExoticSearchParams(workStore.route, prerenderStore)
@@ -151,7 +153,7 @@ const CachedSearchParams = new WeakMap<CacheLifetime, Promise<SearchParams>>()
 
 function makeAbortingExoticSearchParams(
   route: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(prerenderStore)
   if (cachedSearchParams) {
@@ -309,14 +311,15 @@ function makeErroringExoticSearchParams(
               workStore.route,
               expression
             )
-          } else if (prerenderStore) {
+          } else if (prerenderStore && prerenderStore.type === 'prerender') {
             postponeWithTracking(
               workStore.route,
               expression,
               prerenderStore.dynamicTracking
             )
           } else {
-            throwToInterruptStaticGeneration(expression, workStore)
+            const cacheStore = cacheAsyncStorage.getStore()
+            throwToInterruptStaticGeneration(expression, workStore, cacheStore)
           }
           return
         }
@@ -328,14 +331,15 @@ function makeErroringExoticSearchParams(
               workStore.route,
               expression
             )
-          } else if (prerenderStore) {
+          } else if (prerenderStore && prerenderStore.type === 'prerender') {
             postponeWithTracking(
               workStore.route,
               expression,
               prerenderStore.dynamicTracking
             )
           } else {
-            throwToInterruptStaticGeneration(expression, workStore)
+            const cacheStore = cacheAsyncStorage.getStore()
+            throwToInterruptStaticGeneration(expression, workStore, cacheStore)
           }
           return
         }
@@ -350,14 +354,19 @@ function makeErroringExoticSearchParams(
                 workStore.route,
                 expression
               )
-            } else if (prerenderStore) {
+            } else if (prerenderStore && prerenderStore.type === 'prerender') {
               postponeWithTracking(
                 workStore.route,
                 expression,
                 prerenderStore.dynamicTracking
               )
             } else {
-              throwToInterruptStaticGeneration(expression, workStore)
+              const cacheStore = cacheAsyncStorage.getStore()
+              throwToInterruptStaticGeneration(
+                expression,
+                workStore,
+                cacheStore
+              )
             }
           }
           return ReflectAdapter.get(target, prop, receiver)
@@ -379,14 +388,15 @@ function makeErroringExoticSearchParams(
             workStore.route,
             expression
           )
-        } else if (prerenderStore) {
+        } else if (prerenderStore && prerenderStore.type === 'prerender') {
           postponeWithTracking(
             workStore.route,
             expression,
             prerenderStore.dynamicTracking
           )
         } else {
-          throwToInterruptStaticGeneration(expression, workStore)
+          const cacheStore = cacheAsyncStorage.getStore()
+          throwToInterruptStaticGeneration(expression, workStore, cacheStore)
         }
         return false
       }
@@ -400,14 +410,15 @@ function makeErroringExoticSearchParams(
           workStore.route,
           expression
         )
-      } else if (prerenderStore) {
+      } else if (prerenderStore && prerenderStore.type === 'prerender') {
         postponeWithTracking(
           workStore.route,
           expression,
           prerenderStore.dynamicTracking
         )
       } else {
-        throwToInterruptStaticGeneration(expression, workStore)
+        const cacheStore = cacheAsyncStorage.getStore()
+        throwToInterruptStaticGeneration(expression, workStore, cacheStore)
       }
     },
   })
@@ -463,7 +474,8 @@ function makeUntrackedExoticSearchParams(
       default: {
         Object.defineProperty(promise, prop, {
           get() {
-            trackDynamicDataInDynamicRender(store)
+            const cacheStore = cacheAsyncStorage.getStore()
+            trackDynamicDataInDynamicRender(store, cacheStore)
             return underlyingSearchParams[prop]
           },
           set(value) {
@@ -512,7 +524,8 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
             expression
           )
         }
-        trackDynamicDataInDynamicRender(store)
+        const cacheStore = cacheAsyncStorage.getStore()
+        trackDynamicDataInDynamicRender(store, cacheStore)
       }
       return ReflectAdapter.get(target, prop, receiver)
     },

@@ -183,284 +183,286 @@ impl<C: Comments> ServerActions<C> {
         (is_action_fn, cache_type)
     }
 
-    fn maybe_hoist_and_create_proxy(
+    fn maybe_hoist_and_create_proxy_for_server_action_arrow_expr(
         &mut self,
         ids_from_closure: Vec<Name>,
-        function: Option<&mut Box<Function>>,
-        arrow: Option<&mut ArrowExpr>,
-    ) -> Option<Box<Expr>> {
+        arrow: &mut ArrowExpr,
+    ) -> Box<Expr> {
         let action_name: JsWord = gen_action_ident(&mut self.reference_index);
-        let action_ident = Ident::new(action_name.clone(), DUMMY_SP, self.private_ctxt);
-        let export_name: JsWord = action_name;
 
         self.has_action = true;
-        self.export_actions.push(export_name.to_string());
+        self.export_actions.push(action_name.to_string());
 
-        if let Some(a) = arrow {
-            let register_action_expr = annotate_ident_as_server_reference(
-                action_ident.clone(),
-                ids_from_closure
-                    .iter()
-                    .cloned()
-                    .map(|id| Some(id.as_arg()))
-                    .collect(),
-                generate_action_id(
-                    &self.config.hash_salt,
-                    &self.file_name,
-                    export_name.to_string().as_str(),
-                ),
-            );
+        let action_ident = Ident::new(action_name.clone(), DUMMY_SP, self.private_ctxt);
 
-            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
-                block.visit_mut_with(&mut ClosureReplacer {
-                    used_ids: &ids_from_closure,
-                    private_ctxt: self.private_ctxt,
-                });
-            }
+        let register_action_expr = annotate_ident_as_server_reference(
+            action_ident.clone(),
+            ids_from_closure
+                .iter()
+                .cloned()
+                .map(|id| Some(id.as_arg()))
+                .collect(),
+            generate_action_id(
+                &self.config.hash_salt,
+                &self.file_name,
+                action_name.to_string().as_str(),
+            ),
+        );
 
-            // export const $ACTION_myAction = async () => {}
-            let mut new_params: Vec<Param> = vec![];
-            let mut new_body: BlockStmtOrExpr = *a.body.clone();
-
-            if !ids_from_closure.is_empty() {
-                // First argument is the encrypted closure variables
-                new_params.push(Param {
-                    span: DUMMY_SP,
-                    decorators: vec![],
-                    pat: Pat::Ident(
-                        IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
-                    ),
-                });
-
-                // Also prepend the decryption decl into the body.
-                // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
-                // $$ACTION_CLOSURE_BOUND)
-                let mut pats = vec![];
-                for i in 0..ids_from_closure.len() {
-                    pats.push(Some(Pat::Ident(
-                        Ident::new(
-                            format!("$$ACTION_ARG_{i}").into(),
-                            DUMMY_SP,
-                            self.private_ctxt,
-                        )
-                        .into(),
-                    )));
-                }
-                let decryption_decl = VarDecl {
-                    span: DUMMY_SP,
-                    kind: VarDeclKind::Var,
-                    declare: false,
-                    decls: vec![VarDeclarator {
-                        span: DUMMY_SP,
-                        name: Pat::Array(ArrayPat {
-                            span: DUMMY_SP,
-                            elems: pats,
-                            optional: false,
-                            type_ann: None,
-                        }),
-                        init: Some(Box::new(Expr::Await(AwaitExpr {
-                            span: DUMMY_SP,
-                            arg: Box::new(Expr::Call(CallExpr {
-                                span: DUMMY_SP,
-                                callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                                args: vec![
-                                    generate_action_id(
-                                        &self.config.hash_salt,
-                                        &self.file_name,
-                                        &export_name,
-                                    )
-                                    .as_arg(),
-                                    quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                                ],
-                                ..Default::default()
-                            })),
-                        }))),
-                        definite: Default::default(),
-                    }],
-                    ..Default::default()
-                };
-
-                match &mut new_body {
-                    BlockStmtOrExpr::BlockStmt(body) => {
-                        body.stmts.insert(0, decryption_decl.into());
-                    }
-                    BlockStmtOrExpr::Expr(body_expr) => {
-                        new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
-                            span: DUMMY_SP,
-                            stmts: vec![
-                                decryption_decl.into(),
-                                Stmt::Return(ReturnStmt {
-                                    span: DUMMY_SP,
-                                    arg: Some(body_expr.take()),
-                                }),
-                            ],
-                            ..Default::default()
-                        });
-                    }
-                }
-            }
-
-            for p in a.params.iter() {
-                new_params.push(Param {
-                    span: DUMMY_SP,
-                    decorators: vec![],
-                    pat: p.clone(),
-                });
-            }
-
-            // Create the action export decl from the arrow function
-            self.extra_items
-                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                    span: DUMMY_SP,
-                    decl: FnDecl {
-                        ident: action_ident.clone(),
-                        function: Box::new(Function {
-                            params: new_params,
-                            body: match new_body {
-                                BlockStmtOrExpr::BlockStmt(body) => Some(body),
-                                BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
-                                    span: DUMMY_SP,
-                                    stmts: vec![Stmt::Return(ReturnStmt {
-                                        span: DUMMY_SP,
-                                        arg: Some(expr),
-                                    })],
-                                    ..Default::default()
-                                }),
-                            },
-                            decorators: vec![],
-                            span: DUMMY_SP,
-                            is_generator: false,
-                            is_async: true,
-                            ..Default::default()
-                        }),
-                        declare: Default::default(),
-                    }
-                    .into(),
-                })));
-
-            return Some(Box::new(register_action_expr.clone()));
-        } else if let Some(f) = function {
-            let register_action_expr = annotate_ident_as_server_reference(
-                action_ident.clone(),
-                ids_from_closure
-                    .iter()
-                    .cloned()
-                    .map(|id| Some(id.as_arg()))
-                    .collect(),
-                generate_action_id(&self.config.hash_salt, &self.file_name, &export_name),
-            );
-
-            f.body.visit_mut_with(&mut ClosureReplacer {
+        if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
+            block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
                 private_ctxt: self.private_ctxt,
             });
+        }
 
-            // export async function $ACTION_myAction () {}
-            let mut new_params: Vec<Param> = vec![];
-            let mut new_body: Option<BlockStmt> = f.body.clone();
+        // export const $ACTION_myAction = async () => {}
+        let mut new_params: Vec<Param> = vec![];
+        let mut new_body: BlockStmtOrExpr = *arrow.body.clone();
 
-            // add params from closure collected ids
-            if !ids_from_closure.is_empty() {
-                // First argument is the encrypted closure variables
-                new_params.push(Param {
+        if !ids_from_closure.is_empty() {
+            // First argument is the encrypted closure variables
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+            });
+
+            // Also prepend the decryption decl into the body.
+            // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
+            // $$ACTION_CLOSURE_BOUND)
+            let mut pats = vec![];
+            for i in 0..ids_from_closure.len() {
+                pats.push(Some(Pat::Ident(
+                    Ident::new(
+                        format!("$$ACTION_ARG_{i}").into(),
+                        DUMMY_SP,
+                        self.private_ctxt,
+                    )
+                    .into(),
+                )));
+            }
+            let decryption_decl = VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Var,
+                declare: false,
+                decls: vec![VarDeclarator {
                     span: DUMMY_SP,
-                    decorators: vec![],
-                    pat: Pat::Ident(
-                        IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
-                    ),
-                });
-
-                // Also prepend the decryption decl into the body.
-                // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
-                // $$ACTION_CLOSURE_BOUND)
-                let mut pats = vec![];
-                for i in 0..ids_from_closure.len() {
-                    pats.push(Some(Pat::Ident(
-                        Ident::new(
-                            format!("$$ACTION_ARG_{i}").into(),
-                            DUMMY_SP,
-                            self.private_ctxt,
-                        )
-                        .into(),
-                    )));
-                }
-                let decryption_decl = VarDecl {
-                    span: DUMMY_SP,
-                    kind: VarDeclKind::Var,
-                    decls: vec![VarDeclarator {
+                    name: Pat::Array(ArrayPat {
                         span: DUMMY_SP,
-                        name: Pat::Array(ArrayPat {
+                        elems: pats,
+                        optional: false,
+                        type_ann: None,
+                    }),
+                    init: Some(Box::new(Expr::Await(AwaitExpr {
+                        span: DUMMY_SP,
+                        arg: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
-                            elems: pats,
-                            optional: false,
-                            type_ann: None,
-                        }),
-                        init: Some(Box::new(Expr::Await(AwaitExpr {
-                            span: DUMMY_SP,
-                            arg: Box::new(Expr::Call(CallExpr {
-                                span: DUMMY_SP,
-                                callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                                args: vec![
-                                    generate_action_id(
-                                        &self.config.hash_salt,
-                                        &self.file_name,
-                                        &export_name,
-                                    )
-                                    .as_arg(),
-                                    quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                                ],
-                                ..Default::default()
-                            })),
-                        }))),
-                        definite: Default::default(),
-                    }],
-                    ..Default::default()
-                };
+                            callee: quote_ident!("decryptActionBoundArgs").as_callee(),
+                            args: vec![
+                                generate_action_id(
+                                    &self.config.hash_salt,
+                                    &self.file_name,
+                                    &action_name,
+                                )
+                                .as_arg(),
+                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
+                            ],
+                            ..Default::default()
+                        })),
+                    }))),
+                    definite: Default::default(),
+                }],
+                ..Default::default()
+            };
 
-                if let Some(body) = &mut new_body {
+            match &mut new_body {
+                BlockStmtOrExpr::BlockStmt(body) => {
                     body.stmts.insert(0, decryption_decl.into());
-                } else {
-                    new_body = Some(BlockStmt {
+                }
+                BlockStmtOrExpr::Expr(body_expr) => {
+                    new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
                         span: DUMMY_SP,
-                        stmts: vec![decryption_decl.into()],
+                        stmts: vec![
+                            decryption_decl.into(),
+                            Stmt::Return(ReturnStmt {
+                                span: DUMMY_SP,
+                                arg: Some(body_expr.take()),
+                            }),
+                        ],
                         ..Default::default()
                     });
                 }
             }
-
-            for p in f.params.iter() {
-                new_params.push(p.clone());
-            }
-
-            self.extra_items
-                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                    span: DUMMY_SP,
-                    decl: FnDecl {
-                        ident: action_ident.clone(),
-                        function: Box::new(Function {
-                            params: new_params,
-                            body: new_body,
-                            ..*f.take()
-                        }),
-                        declare: Default::default(),
-                    }
-                    .into(),
-                })));
-
-            return Some(Box::new(register_action_expr));
         }
 
-        None
+        for p in arrow.params.iter() {
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: p.clone(),
+            });
+        }
+
+        // Create the action export decl from the arrow function
+        self.extra_items
+            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                span: DUMMY_SP,
+                decl: FnDecl {
+                    ident: action_ident.clone(),
+                    function: Box::new(Function {
+                        params: new_params,
+                        body: match new_body {
+                            BlockStmtOrExpr::BlockStmt(body) => Some(body),
+                            BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                                span: DUMMY_SP,
+                                stmts: vec![Stmt::Return(ReturnStmt {
+                                    span: DUMMY_SP,
+                                    arg: Some(expr),
+                                })],
+                                ..Default::default()
+                            }),
+                        },
+                        decorators: vec![],
+                        span: DUMMY_SP,
+                        is_generator: false,
+                        is_async: true,
+                        ..Default::default()
+                    }),
+                    declare: Default::default(),
+                }
+                .into(),
+            })));
+
+        Box::new(register_action_expr.clone())
     }
 
-    fn maybe_hoist_and_create_proxy_to_cache(
+    fn maybe_hoist_and_create_proxy_for_server_action_function(
         &mut self,
         ids_from_closure: Vec<Name>,
-        fn_name: Option<Ident>,
+        function: &mut Box<Function>,
+    ) -> Box<Expr> {
+        let action_name: JsWord = gen_action_ident(&mut self.reference_index);
+
+        self.has_action = true;
+        self.export_actions.push(action_name.to_string());
+
+        let action_ident = Ident::new(action_name.clone(), DUMMY_SP, self.private_ctxt);
+
+        let register_action_expr = annotate_ident_as_server_reference(
+            action_ident.clone(),
+            ids_from_closure
+                .iter()
+                .cloned()
+                .map(|id| Some(id.as_arg()))
+                .collect(),
+            generate_action_id(&self.config.hash_salt, &self.file_name, &action_name),
+        );
+
+        function.body.visit_mut_with(&mut ClosureReplacer {
+            used_ids: &ids_from_closure,
+            private_ctxt: self.private_ctxt,
+        });
+
+        // export async function $ACTION_myAction () {}
+        let mut new_params: Vec<Param> = vec![];
+        let mut new_body: Option<BlockStmt> = function.body.clone();
+
+        // add params from closure collected ids
+        if !ids_from_closure.is_empty() {
+            // First argument is the encrypted closure variables
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+            });
+
+            // Also prepend the decryption decl into the body.
+            // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
+            // $$ACTION_CLOSURE_BOUND)
+            let mut pats = vec![];
+            for i in 0..ids_from_closure.len() {
+                pats.push(Some(Pat::Ident(
+                    Ident::new(
+                        format!("$$ACTION_ARG_{i}").into(),
+                        DUMMY_SP,
+                        self.private_ctxt,
+                    )
+                    .into(),
+                )));
+            }
+            let decryption_decl = VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Var,
+                decls: vec![VarDeclarator {
+                    span: DUMMY_SP,
+                    name: Pat::Array(ArrayPat {
+                        span: DUMMY_SP,
+                        elems: pats,
+                        optional: false,
+                        type_ann: None,
+                    }),
+                    init: Some(Box::new(Expr::Await(AwaitExpr {
+                        span: DUMMY_SP,
+                        arg: Box::new(Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: quote_ident!("decryptActionBoundArgs").as_callee(),
+                            args: vec![
+                                generate_action_id(
+                                    &self.config.hash_salt,
+                                    &self.file_name,
+                                    &action_name,
+                                )
+                                .as_arg(),
+                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
+                            ],
+                            ..Default::default()
+                        })),
+                    }))),
+                    definite: Default::default(),
+                }],
+                ..Default::default()
+            };
+
+            if let Some(body) = &mut new_body {
+                body.stmts.insert(0, decryption_decl.into());
+            } else {
+                new_body = Some(BlockStmt {
+                    span: DUMMY_SP,
+                    stmts: vec![decryption_decl.into()],
+                    ..Default::default()
+                });
+            }
+        }
+
+        for p in function.params.iter() {
+            new_params.push(p.clone());
+        }
+
+        self.extra_items
+            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                span: DUMMY_SP,
+                decl: FnDecl {
+                    ident: action_ident.clone(),
+                    function: Box::new(Function {
+                        params: new_params,
+                        body: new_body,
+                        ..*function.take()
+                    }),
+                    declare: Default::default(),
+                }
+                .into(),
+            })));
+
+        Box::new(register_action_expr)
+    }
+
+    fn maybe_hoist_and_create_proxy_for_cache_arrow_expr(
+        &mut self,
+        ids_from_closure: Vec<Name>,
         cache_type: &str,
-        function: Option<&mut Box<Function>>,
-        arrow: Option<&mut ArrowExpr>,
-    ) -> Option<Box<Expr>> {
+        arrow: &mut ArrowExpr,
+    ) -> Box<Expr> {
         let cache_name: JsWord = gen_cache_ident(&mut self.reference_index);
         let cache_ident = private_ident!(cache_name.clone());
         let export_name: JsWord = cache_name;
@@ -472,275 +474,284 @@ impl<C: Comments> ServerActions<C> {
         let reference_id =
             generate_action_id(&self.config.hash_salt, &self.file_name, &export_name);
 
-        if let Some(a) = arrow {
-            let register_action_expr = annotate_ident_as_server_reference(
-                cache_ident.clone(),
-                ids_from_closure
-                    .iter()
-                    .cloned()
-                    .map(|id| Some(id.as_arg()))
-                    .collect(),
-                reference_id.clone(),
-            );
+        let register_action_expr = annotate_ident_as_server_reference(
+            cache_ident.clone(),
+            ids_from_closure
+                .iter()
+                .cloned()
+                .map(|id| Some(id.as_arg()))
+                .collect(),
+            reference_id.clone(),
+        );
 
-            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
-                block.visit_mut_with(&mut ClosureReplacer {
-                    used_ids: &ids_from_closure,
-                    private_ctxt: self.private_ctxt,
-                });
-            }
-
-            // export const $ACTION_myAction = async () => {}
-            let mut new_params: Vec<Param> = vec![];
-            let mut new_body: BlockStmtOrExpr = *a.body.take();
-
-            if !ids_from_closure.is_empty() {
-                // First argument is the encrypted closure variables
-                new_params.push(Param {
-                    span: DUMMY_SP,
-                    decorators: vec![],
-                    pat: Pat::Ident(
-                        IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
-                    ),
-                });
-
-                // Also prepend the decryption decl into the body.
-                // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
-                // $$ACTION_CLOSURE_BOUND)
-                let mut pats = vec![];
-                for i in 0..ids_from_closure.len() {
-                    pats.push(Some(Pat::Ident(
-                        IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
-                    )));
-                }
-                let decryption_decl = VarDecl {
-                    span: DUMMY_SP,
-                    kind: VarDeclKind::Var,
-                    declare: false,
-                    decls: vec![VarDeclarator {
-                        span: DUMMY_SP,
-                        name: Pat::Array(ArrayPat {
-                            span: DUMMY_SP,
-                            elems: pats,
-                            optional: false,
-                            type_ann: None,
-                        }),
-                        init: Some(Box::new(Expr::Await(AwaitExpr {
-                            span: DUMMY_SP,
-                            arg: Box::new(Expr::Call(CallExpr {
-                                span: DUMMY_SP,
-                                callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                                args: vec![
-                                    generate_action_id(
-                                        &self.config.hash_salt,
-                                        &self.file_name,
-                                        &export_name,
-                                    )
-                                    .as_arg(),
-                                    quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                                ],
-                                ..Default::default()
-                            })),
-                        }))),
-                        definite: Default::default(),
-                    }],
-                    ..Default::default()
-                };
-
-                match &mut new_body {
-                    BlockStmtOrExpr::BlockStmt(body) => {
-                        body.stmts.insert(0, decryption_decl.into());
-                    }
-                    BlockStmtOrExpr::Expr(body_expr) => {
-                        new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
-                            span: DUMMY_SP,
-                            stmts: vec![
-                                decryption_decl.into(),
-                                Stmt::Return(ReturnStmt {
-                                    span: DUMMY_SP,
-                                    arg: Some(body_expr.take()),
-                                }),
-                            ],
-                            ..Default::default()
-                        });
-                    }
-                }
-            }
-
-            for p in a.params.iter() {
-                new_params.push(Param {
-                    span: DUMMY_SP,
-                    decorators: vec![],
-                    pat: p.clone(),
-                });
-            }
-
-            // Create the action export decl from the arrow function
-            // export var cache_ident = async function() {}
-            self.hoisted_extra_items
-                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                    span: DUMMY_SP,
-                    decl: VarDecl {
-                        span: DUMMY_SP,
-                        kind: VarDeclKind::Var,
-                        decls: vec![VarDeclarator {
-                            span: DUMMY_SP,
-                            name: Pat::Ident(cache_ident.clone().into()),
-                            init: Some(wrap_cache_expr(
-                                Box::new(Expr::Fn(FnExpr {
-                                    ident: fn_name,
-                                    function: Box::new(Function {
-                                        params: new_params,
-                                        body: match new_body {
-                                            BlockStmtOrExpr::BlockStmt(body) => Some(body),
-                                            BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
-                                                span: DUMMY_SP,
-                                                stmts: vec![Stmt::Return(ReturnStmt {
-                                                    span: DUMMY_SP,
-                                                    arg: Some(expr),
-                                                })],
-                                                ..Default::default()
-                                            }),
-                                        },
-                                        decorators: vec![],
-                                        span: DUMMY_SP,
-                                        is_generator: false,
-                                        is_async: true,
-                                        ..Default::default()
-                                    }),
-                                })),
-                                cache_type,
-                                &reference_id,
-                            )),
-                            definite: false,
-                        }],
-                        ..Default::default()
-                    }
-                    .into(),
-                })));
-
-            return Some(Box::new(register_action_expr.clone()));
-        } else if let Some(f) = function {
-            let register_action_expr = annotate_ident_as_server_reference(
-                cache_ident.clone(),
-                ids_from_closure
-                    .iter()
-                    .cloned()
-                    .map(|id| Some(id.as_arg()))
-                    .collect(),
-                reference_id.clone(),
-            );
-
-            f.body.visit_mut_with(&mut ClosureReplacer {
+        if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
+            block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
                 private_ctxt: self.private_ctxt,
             });
+        }
 
-            // export async function $ACTION_myAction () {}
-            let mut new_params: Vec<Param> = vec![];
-            let mut new_body: Option<BlockStmt> = f.body.clone();
+        // export const $ACTION_myAction = async () => {}
+        let mut new_params: Vec<Param> = vec![];
+        let mut new_body: BlockStmtOrExpr = *arrow.body.take();
 
-            // add params from closure collected ids
-            if !ids_from_closure.is_empty() {
-                // First argument is the encrypted closure variables
-                new_params.push(Param {
+        if !ids_from_closure.is_empty() {
+            // First argument is the encrypted closure variables
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+            });
+
+            // Also prepend the decryption decl into the body.
+            // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
+            // $$ACTION_CLOSURE_BOUND)
+            let mut pats = vec![];
+            for i in 0..ids_from_closure.len() {
+                pats.push(Some(Pat::Ident(
+                    IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                )));
+            }
+            let decryption_decl = VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Var,
+                declare: false,
+                decls: vec![VarDeclarator {
                     span: DUMMY_SP,
-                    decorators: vec![],
-                    pat: Pat::Ident(
-                        IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into(),
-                    ),
-                });
-
-                // Also prepend the decryption decl into the body.
-                // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
-                // $$ACTION_CLOSURE_BOUND)
-                let mut pats = vec![];
-                for i in 0..ids_from_closure.len() {
-                    pats.push(Some(Pat::Ident(
-                        IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
-                    )));
-                }
-                let decryption_decl = VarDecl {
-                    span: DUMMY_SP,
-                    kind: VarDeclKind::Var,
-                    decls: vec![VarDeclarator {
+                    name: Pat::Array(ArrayPat {
                         span: DUMMY_SP,
-                        name: Pat::Array(ArrayPat {
+                        elems: pats,
+                        optional: false,
+                        type_ann: None,
+                    }),
+                    init: Some(Box::new(Expr::Await(AwaitExpr {
+                        span: DUMMY_SP,
+                        arg: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
-                            elems: pats,
-                            optional: false,
-                            type_ann: None,
-                        }),
-                        init: Some(Box::new(Expr::Await(AwaitExpr {
-                            span: DUMMY_SP,
-                            arg: Box::new(Expr::Call(CallExpr {
-                                span: DUMMY_SP,
-                                callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                                args: vec![
-                                    generate_action_id(
-                                        &self.config.hash_salt,
-                                        &self.file_name,
-                                        &export_name,
-                                    )
-                                    .as_arg(),
-                                    quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
-                                ],
-                                ..Default::default()
-                            })),
-                        }))),
-                        definite: Default::default(),
-                    }],
-                    ..Default::default()
-                };
+                            callee: quote_ident!("decryptActionBoundArgs").as_callee(),
+                            args: vec![
+                                generate_action_id(
+                                    &self.config.hash_salt,
+                                    &self.file_name,
+                                    &export_name,
+                                )
+                                .as_arg(),
+                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
+                            ],
+                            ..Default::default()
+                        })),
+                    }))),
+                    definite: Default::default(),
+                }],
+                ..Default::default()
+            };
 
-                if let Some(body) = &mut new_body {
+            match &mut new_body {
+                BlockStmtOrExpr::BlockStmt(body) => {
                     body.stmts.insert(0, decryption_decl.into());
-                } else {
-                    new_body = Some(BlockStmt {
+                }
+                BlockStmtOrExpr::Expr(body_expr) => {
+                    new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
                         span: DUMMY_SP,
-                        stmts: vec![decryption_decl.into()],
+                        stmts: vec![
+                            decryption_decl.into(),
+                            Stmt::Return(ReturnStmt {
+                                span: DUMMY_SP,
+                                arg: Some(body_expr.take()),
+                            }),
+                        ],
                         ..Default::default()
                     });
                 }
             }
-
-            for p in f.params.iter() {
-                new_params.push(p.clone());
-            }
-
-            // export var cache_ident = async function() {}
-            self.hoisted_extra_items
-                .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
-                    span: DUMMY_SP,
-                    decl: VarDecl {
-                        span: DUMMY_SP,
-                        kind: VarDeclKind::Var,
-                        decls: vec![VarDeclarator {
-                            span: DUMMY_SP,
-                            name: Pat::Ident(cache_ident.clone().into()),
-                            init: Some(wrap_cache_expr(
-                                Box::new(Expr::Fn(FnExpr {
-                                    ident: fn_name,
-                                    function: Box::new(Function {
-                                        params: new_params,
-                                        body: new_body,
-                                        ..*f.take()
-                                    }),
-                                })),
-                                cache_type,
-                                &reference_id,
-                            )),
-                            definite: false,
-                        }],
-                        ..Default::default()
-                    }
-                    .into(),
-                })));
-
-            return Some(Box::new(register_action_expr));
         }
 
-        None
+        for p in arrow.params.iter() {
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: p.clone(),
+            });
+        }
+
+        // Create the action export decl from the arrow function
+        // export var cache_ident = async function() {}
+        self.hoisted_extra_items
+            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                span: DUMMY_SP,
+                decl: VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Ident(cache_ident.clone().into()),
+                        init: Some(wrap_cache_expr(
+                            Box::new(Expr::Fn(FnExpr {
+                                ident: None,
+                                function: Box::new(Function {
+                                    params: new_params,
+                                    body: match new_body {
+                                        BlockStmtOrExpr::BlockStmt(body) => Some(body),
+                                        BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                                            span: DUMMY_SP,
+                                            stmts: vec![Stmt::Return(ReturnStmt {
+                                                span: DUMMY_SP,
+                                                arg: Some(expr),
+                                            })],
+                                            ..Default::default()
+                                        }),
+                                    },
+                                    decorators: vec![],
+                                    span: DUMMY_SP,
+                                    is_generator: false,
+                                    is_async: true,
+                                    ..Default::default()
+                                }),
+                            })),
+                            cache_type,
+                            &reference_id,
+                        )),
+                        definite: false,
+                    }],
+                    ..Default::default()
+                }
+                .into(),
+            })));
+
+        Box::new(register_action_expr.clone())
+    }
+
+    fn maybe_hoist_and_create_proxy_for_cache_function(
+        &mut self,
+        ids_from_closure: Vec<Name>,
+        fn_name: Option<Ident>,
+        cache_type: &str,
+        function: &mut Box<Function>,
+    ) -> Box<Expr> {
+        let cache_name: JsWord = gen_cache_ident(&mut self.reference_index);
+        let cache_ident = private_ident!(cache_name.clone());
+
+        self.has_cache = true;
+        self.has_action = true;
+        self.export_actions.push(cache_name.to_string());
+
+        let reference_id = generate_action_id(&self.config.hash_salt, &self.file_name, &cache_name);
+
+        let register_action_expr = annotate_ident_as_server_reference(
+            cache_ident.clone(),
+            ids_from_closure
+                .iter()
+                .cloned()
+                .map(|id| Some(id.as_arg()))
+                .collect(),
+            reference_id.clone(),
+        );
+
+        function.body.visit_mut_with(&mut ClosureReplacer {
+            used_ids: &ids_from_closure,
+            private_ctxt: self.private_ctxt,
+        });
+
+        // export async function $ACTION_myAction () {}
+        let mut new_params: Vec<Param> = vec![];
+        let mut new_body: Option<BlockStmt> = function.body.clone();
+
+        // add params from closure collected ids
+        if !ids_from_closure.is_empty() {
+            // First argument is the encrypted closure variables
+            new_params.push(Param {
+                span: DUMMY_SP,
+                decorators: vec![],
+                pat: Pat::Ident(IdentName::new("$$ACTION_CLOSURE_BOUND".into(), DUMMY_SP).into()),
+            });
+
+            // Also prepend the decryption decl into the body.
+            // var [arg1, arg2, arg3] = await decryptActionBoundArgs(actionId,
+            // $$ACTION_CLOSURE_BOUND)
+            let mut pats = vec![];
+            for i in 0..ids_from_closure.len() {
+                pats.push(Some(Pat::Ident(
+                    IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                )));
+            }
+            let decryption_decl = VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Var,
+                decls: vec![VarDeclarator {
+                    span: DUMMY_SP,
+                    name: Pat::Array(ArrayPat {
+                        span: DUMMY_SP,
+                        elems: pats,
+                        optional: false,
+                        type_ann: None,
+                    }),
+                    init: Some(Box::new(Expr::Await(AwaitExpr {
+                        span: DUMMY_SP,
+                        arg: Box::new(Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: quote_ident!("decryptActionBoundArgs").as_callee(),
+                            args: vec![
+                                generate_action_id(
+                                    &self.config.hash_salt,
+                                    &self.file_name,
+                                    &cache_name,
+                                )
+                                .as_arg(),
+                                quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
+                            ],
+                            ..Default::default()
+                        })),
+                    }))),
+                    definite: Default::default(),
+                }],
+                ..Default::default()
+            };
+
+            if let Some(body) = &mut new_body {
+                body.stmts.insert(0, decryption_decl.into());
+            } else {
+                new_body = Some(BlockStmt {
+                    span: DUMMY_SP,
+                    stmts: vec![decryption_decl.into()],
+                    ..Default::default()
+                });
+            }
+        }
+
+        for p in function.params.iter() {
+            new_params.push(p.clone());
+        }
+
+        // export var cache_ident = async function() {}
+        self.hoisted_extra_items
+            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                span: DUMMY_SP,
+                decl: VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Ident(cache_ident.clone().into()),
+                        init: Some(wrap_cache_expr(
+                            Box::new(Expr::Fn(FnExpr {
+                                ident: fn_name,
+                                function: Box::new(Function {
+                                    params: new_params,
+                                    body: new_body,
+                                    ..*function.take()
+                                }),
+                            })),
+                            cache_type,
+                            &reference_id,
+                        )),
+                        definite: false,
+                    }],
+                    ..Default::default()
+                }
+                .into(),
+            })));
+
+        Box::new(register_action_expr)
     }
 }
 
@@ -832,12 +843,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     &self.declared_idents[..declared_idents_until],
                 );
 
-                let maybe_new_expr = self.maybe_hoist_and_create_proxy_to_cache(
+                let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                     child_names.clone(),
                     f.ident.clone(),
                     cache_type_str.as_str(),
-                    Some(&mut f.function),
-                    None,
+                    &mut f.function,
                 );
 
                 if self.in_default_export_decl {
@@ -845,9 +855,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     // `export default async function() {}`
                     // This specific case (default export) isn't handled by `visit_mut_expr`.
                     // Replace the original function expr with a action proxy expr.
-                    self.rewrite_default_fn_expr_to_proxy_expr = maybe_new_expr;
+                    self.rewrite_default_fn_expr_to_proxy_expr = Some(new_expr);
                 } else {
-                    self.rewrite_expr_to_proxy_expr = maybe_new_expr;
+                    self.rewrite_expr_to_proxy_expr = Some(new_expr);
                 }
             }
         }
@@ -870,17 +880,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 &self.declared_idents[..declared_idents_until],
             );
 
-            let maybe_new_expr =
-                self.maybe_hoist_and_create_proxy(child_names, Some(&mut f.function), None);
+            let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
+                child_names,
+                &mut f.function,
+            );
 
             if self.in_default_export_decl {
                 // This function expression is also the default export:
                 // `export default async function() {}`
                 // This specific case (default export) isn't handled by `visit_mut_expr`.
                 // Replace the original function expr with a action proxy expr.
-                self.rewrite_default_fn_expr_to_proxy_expr = maybe_new_expr;
+                self.rewrite_default_fn_expr_to_proxy_expr = Some(new_expr);
             } else {
-                self.rewrite_expr_to_proxy_expr = maybe_new_expr;
+                self.rewrite_expr_to_proxy_expr = Some(new_expr);
             }
         }
     }
@@ -937,12 +949,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 });
             }
 
-            let maybe_new_expr = self.maybe_hoist_and_create_proxy_to_cache(
+            let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                 [].to_vec(),
                 Some(f.ident.clone()),
                 cache_type_str.as_str(),
-                Some(&mut f.function),
-                None,
+                &mut f.function,
             );
 
             // Replace the original function declaration with a cache decl.
@@ -952,7 +963,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 decls: vec![VarDeclarator {
                     span: DUMMY_SP,
                     name: Pat::Ident(f.ident.clone().into()),
-                    init: maybe_new_expr,
+                    init: Some(new_expr),
                     definite: false,
                 }],
                 ..Default::default()
@@ -978,8 +989,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     &self.declared_idents[..declared_idents_until],
                 );
 
-                let maybe_new_expr =
-                    self.maybe_hoist_and_create_proxy(child_names, Some(&mut f.function), None);
+                let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
+                    child_names,
+                    &mut f.function,
+                );
 
                 // Replace the original function declaration with a action proxy declaration
                 // expr.
@@ -989,7 +1002,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     decls: vec![VarDeclarator {
                         span: DUMMY_SP,
                         name: Pat::Ident(f.ident.clone().into()),
-                        init: maybe_new_expr,
+                        init: Some(new_expr),
                         definite: false,
                     }],
                     ..Default::default()
@@ -1082,17 +1095,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         );
 
         let maybe_new_expr = if is_action_fn {
-            self.maybe_hoist_and_create_proxy(child_names, None, Some(a))
-        } else if let Some(cache_type_str) = cache_type {
-            self.maybe_hoist_and_create_proxy_to_cache(
-                child_names,
-                None,
-                cache_type_str.as_str(),
-                None,
-                Some(a),
-            )
+            Some(self.maybe_hoist_and_create_proxy_for_server_action_arrow_expr(child_names, a))
         } else {
-            None
+            cache_type.map(|cache_type_str| {
+                self.maybe_hoist_and_create_proxy_for_cache_arrow_expr(
+                    child_names,
+                    cache_type_str.as_str(),
+                    a,
+                )
+            })
         };
 
         self.rewrite_expr_to_proxy_expr = maybe_new_expr;

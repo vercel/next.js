@@ -119,7 +119,7 @@ use crate::{
     analyzer::{
         builtin::early_replace_builtin,
         graph::{ConditionalKind, EffectArg, EvalContext, VarGraph},
-        imports::{ImportAnnotations, ImportOverrides, ImportedSymbol, Reexport},
+        imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
         ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
@@ -369,7 +369,7 @@ struct AnalysisState<'a> {
 
 impl<'a> AnalysisState<'a> {
     /// Links a value to the graph, returning the linked value.
-    async fn link_value(&self, value: JsValue, overrides: &ImportOverrides) -> Result<JsValue> {
+    async fn link_value(&self, value: JsValue, overrides: &ImportAttributes) -> Result<JsValue> {
         let fun_args_values = self.fun_args_values.lock().clone();
         link(
             self.var_graph,
@@ -397,12 +397,7 @@ where
     HANDLER.set(handler, || GLOBALS.set(globals, f))
 }
 
-/// Analyse a provided [EcmascriptModuleAsset] and return a
-/// [AnalyzeEcmascriptModuleResult].
-///
-/// # Arguments
-/// * ignored_spans - A set of spans to ignore when analysing the module. This is useful for example
-///   to respect turbopackIgnore directives on ignores.
+/// Analyse a provided [EcmascriptModuleAsset] and return a [AnalyzeEcmascriptModuleResult].
 #[turbo_tasks::function]
 pub(crate) async fn analyse_ecmascript_module(
     module: Vc<EcmascriptModuleAsset>,
@@ -627,7 +622,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
             },
             import_externals,
-            false,
         );
 
         import_references.push(r);
@@ -899,7 +893,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 in_try: _,
             } => {
                 let condition = analysis_state
-                    .link_value(condition, ImportOverrides::empty_ref())
+                    .link_value(condition, ImportAttributes::empty_ref())
                     .await?;
 
                 macro_rules! inactive {
@@ -1050,7 +1044,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
 
                 let func = analysis_state
-                    .link_value(func, eval_context.imports.get_overrides(span))
+                    .link_value(func, eval_context.imports.get_attributes(span))
                     .await?;
 
                 handle_call(
@@ -1082,10 +1076,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                 }
                 let mut obj = analysis_state
-                    .link_value(obj, ImportOverrides::empty_ref())
+                    .link_value(obj, ImportAttributes::empty_ref())
                     .await?;
                 let prop = analysis_state
-                    .link_value(prop, ImportOverrides::empty_ref())
+                    .link_value(prop, ImportAttributes::empty_ref())
                     .await?;
 
                 if !new {
@@ -1098,7 +1092,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         if matches!(prop.as_str(), Some("map" | "forEach" | "filter")) {
                             if let [EffectArg::Closure(value, block)] = &mut args[..] {
                                 *value = analysis_state
-                                    .link_value(take(value), ImportOverrides::empty_ref())
+                                    .link_value(take(value), ImportAttributes::empty_ref())
                                     .await?;
                                 if let JsValue::Function(_, func_ident, _) = value {
                                     let mut closure_arg = JsValue::alternatives(take(values));
@@ -1126,7 +1120,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 let func = analysis_state
                     .link_value(
                         JsValue::member(Box::new(obj.clone()), Box::new(prop)),
-                        ImportOverrides::empty_ref(),
+                        ImportAttributes::empty_ref(),
                     )
                     .await?;
 
@@ -1160,10 +1154,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 in_try: _,
             } => {
                 let obj = analysis_state
-                    .link_value(obj, ImportOverrides::empty_ref())
+                    .link_value(obj, ImportAttributes::empty_ref())
                     .await?;
                 let prop = analysis_state
-                    .link_value(prop, ImportOverrides::empty_ref())
+                    .link_value(prop, ImportAttributes::empty_ref())
                     .await?;
 
                 handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis).await?;
@@ -1192,7 +1186,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
             } => {
                 let arg = analysis_state
-                    .link_value(arg, ImportOverrides::empty_ref())
+                    .link_value(arg, ImportAttributes::empty_ref())
                     .await?;
                 handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
             }
@@ -1308,7 +1302,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             JsValue::unknown_empty(true, "spread is not supported yet")
                         }
                     };
-                    state.link_value(value, ImportOverrides::empty_ref()).await
+                    state.link_value(value, ImportAttributes::empty_ref()).await
                 }
             })
             .try_join()
@@ -1429,11 +1423,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 .await?;
             }
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore }) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::Import) => {
             let args = linked_args(args).await?;
-            if ignore {
-                return Ok(());
-            }
             if args.len() == 1 {
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
@@ -1471,11 +1462,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore }) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::Require) => {
             let args = linked_args(args).await?;
-            if ignore {
-                return Ok(());
-            }
             if args.len() == 1 {
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
@@ -1632,7 +1620,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         )),
                         args.clone(),
                     ),
-                    ImportOverrides::empty_ref(),
+                    ImportAttributes::empty_ref(),
                 )
                 .await?;
 
@@ -1667,7 +1655,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         Box::new(JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)),
                         args.clone(),
                     ),
-                    ImportOverrides::empty_ref(),
+                    ImportAttributes::empty_ref(),
                 )
                 .await?;
             let pat = js_value_to_pattern(&linked_func_call);
@@ -1702,7 +1690,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     let first_arg =
                         JsValue::member(Box::new(args[1].clone()), Box::new(0_f64.into()));
                     let first_arg = state
-                        .link_value(first_arg, ImportOverrides::empty_ref())
+                        .link_value(first_arg, ImportAttributes::empty_ref())
                         .await?;
                     let pat = js_value_to_pattern(&first_arg);
                     let dynamic = !pat.has_constant_parts();
@@ -1825,7 +1813,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let args = linked_args(args).await?;
             if args.len() == 1 {
                 let first_arg = state
-                    .link_value(args[0].clone(), ImportOverrides::empty_ref())
+                    .link_value(args[0].clone(), ImportAttributes::empty_ref())
                     .await?;
                 if let Some(s) = first_arg.as_str() {
                     // TODO this resolving should happen within Vc<NodeGypBuildReference>
@@ -1857,7 +1845,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let args = linked_args(args).await?;
             if args.len() == 1 {
                 let first_arg = state
-                    .link_value(args[0].clone(), ImportOverrides::empty_ref())
+                    .link_value(args[0].clone(), ImportAttributes::empty_ref())
                     .await?;
                 if let Some(s) = first_arg.as_str() {
                     analysis
@@ -1909,7 +1897,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                                     pkg_or_dir.clone(),
                                                 ],
                                             ),
-                                            ImportOverrides::empty_ref(),
+                                            ImportAttributes::empty_ref(),
                                         )
                                         .await?;
                                     js_value_to_pattern(&linked_func_call)
@@ -1966,7 +1954,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     "intl".into(),
                                 ],
                             ),
-                            ImportOverrides::empty_ref(),
+                            ImportAttributes::empty_ref(),
                         )
                         .await?;
                     js_value_to_pattern(&linked_func_call)
@@ -2217,7 +2205,6 @@ async fn handle_free_var_reference(
                     None => None,
                 },
                 state.import_externals,
-                false,
             )
             .resolve()
             .await?;
@@ -2441,7 +2428,7 @@ async fn value_visitor(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
-    overrides: &ImportOverrides,
+    overrides: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
     let (mut v, modified) =
         value_visitor_inner(origin, v, compile_time_info, var_graph, overrides).await?;
@@ -2454,9 +2441,9 @@ async fn value_visitor_inner(
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
     var_graph: &VarGraph,
-    overrides: &ImportOverrides,
+    overrides: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
-    let ImportOverrides { ignore, .. } = *overrides;
+    let ImportAttributes { ignore, .. } = *overrides;
     // This check is just an optimization
     if v.get_defineable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
@@ -2526,11 +2513,26 @@ async fn value_visitor_inner(
             "__dirname" => as_abs_path(origin.origin_path().parent()).await?,
             "__filename" => as_abs_path(origin.origin_path()).await?,
 
-            "require" => JsValue::WellKnownFunction(WellKnownFunctionKind::Require { ignore }),
-            "import" => JsValue::WellKnownFunction(WellKnownFunctionKind::Import { ignore }),
+            "require" => JsValue::unknown_if(
+                ignore,
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
+                true,
+                "ignored require",
+            ),
+            "import" => JsValue::unknown_if(
+                ignore,
+                JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
+                true,
+                "ignored import",
+            ),
+            "Worker" => JsValue::unknown_if(
+                ignore,
+                JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
+                true,
+                "ignored Worker constructor",
+            ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-            "Worker" => JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
             "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcess),
             "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
             "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),

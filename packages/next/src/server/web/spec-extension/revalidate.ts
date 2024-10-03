@@ -5,6 +5,7 @@ import {
   NEXT_CACHE_SOFT_TAG_MAX_LENGTH,
 } from '../../../lib/constants'
 import { workAsyncStorage } from '../../../client/components/work-async-storage.external'
+import { cacheAsyncStorage } from '../../../server/app-render/cache-async-storage.external'
 
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
@@ -48,15 +49,22 @@ function revalidate(tag: string, expression: string) {
     )
   }
 
-  if (store.isUnstableCacheCallback) {
-    throw new Error(
-      `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-    )
+  const cacheStore = cacheAsyncStorage.getStore()
+  if (cacheStore) {
+    if (cacheStore.type === 'cache') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside a "use cache" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+      )
+    } else if (cacheStore.type === 'unstable-cache') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+      )
+    }
   }
 
   // a route that makes use of revalidation APIs should be considered dynamic
   // as otherwise it would be impossible to revalidate
-  trackDynamicDataAccessed(store, expression)
+  trackDynamicDataAccessed(store, cacheStore, expression)
 
   if (!store.revalidatedTags) {
     store.revalidatedTags = []

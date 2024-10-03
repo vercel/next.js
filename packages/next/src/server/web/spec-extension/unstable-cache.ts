@@ -14,6 +14,8 @@ import {
   type CachedFetchData,
 } from '../../response-cache'
 import { prerenderAsyncStorage } from '../../app-render/prerender-async-storage.external'
+import type { UnstableCacheStore } from '../../app-render/cache-async-storage.external'
+import { cacheAsyncStorage } from '../../app-render/cache-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -99,6 +101,7 @@ export function unstable_cache<T extends Callback>(
   const cachedCb = async (...args: any[]) => {
     const workStore = workAsyncStorage.getStore()
     const requestStore = requestAsyncStorage.getStore()
+    const cacheStore = cacheAsyncStorage.getStore()
 
     // We must be able to find the incremental cache otherwise we throw
     const maybeIncrementalCache:
@@ -114,7 +117,10 @@ export function unstable_cache<T extends Callback>(
     const incrementalCache = maybeIncrementalCache
 
     const prerenderStore = prerenderAsyncStorage.getStore()
-    const cacheSignal = prerenderStore?.cacheSignal
+    const cacheSignal =
+      prerenderStore && prerenderStore.type === 'prerender'
+        ? prerenderStore.cacheSignal
+        : null
     if (cacheSignal) {
       cacheSignal.beginRead()
     }
@@ -146,46 +152,57 @@ export function unstable_cache<T extends Callback>(
       if (workStore) {
         workStore.nextFetchId = fetchIdx + 1
 
+        const isNestedCache =
+          cacheStore &&
+          (cacheStore.type === 'unstable-cache' || cacheStore.type === 'cache')
+
         // We are in an App Router context. We try to return the cached entry if it exists and is valid
         // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
         // the background. If the entry is missing or invalid we generate a new entry and return it.
 
         // We update the store's revalidate property if the option.revalidate is a higher precedence
-        if (typeof options.revalidate === 'number') {
-          if (
-            typeof workStore.revalidate === 'number' &&
-            workStore.revalidate < options.revalidate
+        if (!isNestedCache) {
+          if (typeof options.revalidate === 'number') {
+            if (
+              typeof workStore.revalidate === 'number' &&
+              workStore.revalidate < options.revalidate
+            ) {
+              // The store is already revalidating on a shorter time interval, leave it alone
+            } else {
+              workStore.revalidate = options.revalidate
+            }
+          } else if (
+            options.revalidate === false &&
+            typeof workStore.revalidate === 'undefined'
           ) {
-            // The store is already revalidating on a shorter time interval, leave it alone
-          } else {
+            // The store has not defined revalidate type so we can use the false option
             workStore.revalidate = options.revalidate
           }
-        } else if (
-          options.revalidate === false &&
-          typeof workStore.revalidate === 'undefined'
-        ) {
-          // The store has not defined revalidate type so we can use the false option
-          workStore.revalidate = options.revalidate
-        }
 
-        // We need to accumulate the tags for this invocation within the store
-        if (!workStore.tags) {
-          workStore.tags = tags.slice()
-        } else {
-          for (const tag of tags) {
-            // @TODO refactor tags to be a set to avoid this O(n) lookup
-            if (!workStore.tags.includes(tag)) {
-              workStore.tags.push(tag)
+          // We need to accumulate the tags for this invocation within the store
+          if (!workStore.tags) {
+            workStore.tags = tags.slice()
+          } else {
+            for (const tag of tags) {
+              // @TODO refactor tags to be a set to avoid this O(n) lookup
+              if (!workStore.tags.includes(tag)) {
+                workStore.tags.push(tag)
+              }
             }
           }
         }
         // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
         // of this function is potentially a little confusing
-        const implicitTags = addImplicitTags(workStore, requestStore)
+        const implicitTags = addImplicitTags(
+          workStore,
+          requestStore,
+          cacheStore
+        )
 
         if (
           // when we are nested inside of other unstable_cache's
           // we should bypass cache similar to fetches
+          !isNestedCache &&
           workStore.fetchCache !== 'force-no-store' &&
           !workStore.isOnDemandRevalidate &&
           !incrementalCache.isOnDemandRevalidate &&
@@ -225,19 +242,12 @@ export function unstable_cache<T extends Callback>(
                 if (!workStore.pendingRevalidates) {
                   workStore.pendingRevalidates = {}
                 }
+                const innerCacheStore: UnstableCacheStore = {
+                  type: 'unstable-cache',
+                }
                 // We run the cache function asynchronously and save the result when it completes
-                workStore.pendingRevalidates[invocationKey] = workAsyncStorage
-                  .run(
-                    {
-                      ...workStore,
-                      // force any nested fetches to bypass cache so they revalidate
-                      // when the unstable_cache call is revalidated
-                      fetchCache: 'force-no-store',
-                      isUnstableCacheCallback: true,
-                    },
-                    cb,
-                    ...args
-                  )
+                workStore.pendingRevalidates[invocationKey] = cacheAsyncStorage
+                  .run(innerCacheStore, cb, ...args)
                   .then((result) => {
                     return cacheNewResult(
                       result,
@@ -263,18 +273,11 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
+        const innerCacheStore: UnstableCacheStore = {
+          type: 'unstable-cache',
+        }
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        const result = await workAsyncStorage.run(
-          {
-            ...workStore,
-            // force any nested fetches to bypass cache so they revalidate
-            // when the unstable_cache call is revalidated
-            fetchCache: 'force-no-store',
-            isUnstableCacheCallback: true,
-          },
-          cb,
-          ...args
-        )
+        const result = await cacheAsyncStorage.run(innerCacheStore, cb, ...args)
 
         if (!workStore.isDraftMode) {
           cacheNewResult(
@@ -302,7 +305,7 @@ export function unstable_cache<T extends Callback>(
           // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
           // of this function is potentially a little confusing
           const implicitTags =
-            workStore && addImplicitTags(workStore, requestStore)
+            workStore && addImplicitTags(workStore, requestStore, cacheStore)
 
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,
@@ -333,6 +336,9 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
+        const innerCacheStore: UnstableCacheStore = {
+          type: 'unstable-cache',
+        }
         // If we got this far then we had an invalid cache entry and need to generate a new one
         // @TODO this storage wrapper is included here because it existed prior to the latest refactor
         // however it is incorrect logic because it causes any internal cache calls to follow the App Router
@@ -341,22 +347,17 @@ export function unstable_cache<T extends Callback>(
         // to allow tracking which "mode" we are in without the presence of a store or not. For now I have
         // maintained the existing behavior to limit the impact of the current refactor
         const result = await workAsyncStorage.run(
-          // We are making a fake store that is useful for scoping fetchCache: 'force-no-store' and isUnstableCacheCallback: true
+          // We are making a fake store that is useful for scoping fetchCache: 'force-no-store'
           // The fact that we need to construct this kind of fake store indicates the code is not factored correctly
           // @TODO refactor to not require this fake store object
           {
-            // force any nested fetches to bypass cache so they revalidate
-            // when the unstable_cache call is revalidated
-            fetchCache: 'force-no-store',
-            isUnstableCacheCallback: true,
             route: '/',
             page: '/',
             isStaticGeneration: false,
             fallbackRouteParams: null,
             buildId: '', // Since this is a fake one it can't "use cache" anyway.
           },
-          cb,
-          ...args
+          () => cacheAsyncStorage.run(innerCacheStore, cb, ...args)
         )
         cacheNewResult(
           result,
