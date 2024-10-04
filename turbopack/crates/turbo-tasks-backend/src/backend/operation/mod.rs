@@ -423,6 +423,10 @@ impl TaskGuard<'_> {
         self.task.get(key)
     }
 
+    pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue> {
+        self.task.get_mut(key)
+    }
+
     pub fn has_key(&self, key: &CachedDataItemKey) -> bool {
         self.task.has_key(key)
     }

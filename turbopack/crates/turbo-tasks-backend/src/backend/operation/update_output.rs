@@ -10,10 +10,13 @@ use crate::{
             invalidate::{make_task_dirty, make_task_dirty_internal},
             AggregationUpdateQueue, ExecuteContext, Operation,
         },
-        storage::get_many,
+        storage::{get, get_many},
         TaskDataCategory,
     },
-    data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, OutputValue},
+    data::{
+        CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, InProgressState,
+        OutputValue,
+    },
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -101,7 +104,7 @@ impl UpdateOutputOperation {
 
         let mut queue = AggregationUpdateQueue::new();
 
-        make_task_dirty_internal(&mut task, task_id, &mut queue, &mut ctx);
+        make_task_dirty_internal(&mut task, task_id, false, &mut queue, &mut ctx);
 
         drop(task);
         drop(old_content);
@@ -143,7 +146,7 @@ impl Operation for UpdateOutputOperation {
                     if let Some(child_id) = children.pop() {
                         let mut child_task = ctx.task(child_id, TaskDataCategory::Data);
                         if !child_task.has_key(&CachedDataItemKey::Output {}) {
-                            make_task_dirty_internal(&mut child_task, child_id, queue, ctx);
+                            make_task_dirty_internal(&mut child_task, child_id, false, queue, ctx);
                         }
                     }
                     if children.is_empty() {

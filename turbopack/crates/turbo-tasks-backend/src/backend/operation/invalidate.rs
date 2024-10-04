@@ -10,10 +10,10 @@ use crate::{
             },
             ExecuteContext, Operation,
         },
-        storage::get,
+        storage::{get, get_mut},
         TaskDataCategory,
     },
-    data::{CachedDataItem, CachedDataItemKey},
+    data::{CachedDataItem, CachedDataItemKey, InProgressState},
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -76,15 +76,21 @@ pub fn make_task_dirty(
 
     let mut task = ctx.task(task_id, TaskDataCategory::All);
 
-    make_task_dirty_internal(&mut task, task_id, queue, ctx);
+    make_task_dirty_internal(&mut task, task_id, true, queue, ctx);
 }
 
 pub fn make_task_dirty_internal(
     task: &mut super::TaskGuard,
     task_id: TaskId,
+    make_stale: bool,
     queue: &mut AggregationUpdateQueue,
     ctx: &mut ExecuteContext,
 ) {
+    if make_stale {
+        if let Some(InProgressState::InProgress { stale, .. }) = get_mut!(task, InProgress) {
+            *stale = true;
+        }
+    }
     if task.add(CachedDataItem::Dirty { value: () }) {
         let dirty_container = get!(task, AggregatedDirtyContainerCount)
             .copied()
