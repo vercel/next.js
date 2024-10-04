@@ -936,7 +936,8 @@
           key: key,
           owner: task.debugOwner
         };
-        outlineModel(request, componentDebugInfo);
+        componentDebugInfo.props = props;
+        outlineComponentInfo(request, componentDebugInfo);
         emitDebugChunk(request, componentDebugID, componentDebugInfo);
         task.environmentName = componentEnv;
       }
@@ -1105,7 +1106,7 @@
           return (
             (type = task.implicitSlot),
             null === task.keyPath && (task.implicitSlot = !0),
-            (props = renderModelDestructive(
+            (request = renderModelDestructive(
               request,
               task,
               emptyRoot,
@@ -1113,7 +1114,7 @@
               props.children
             )),
             (task.implicitSlot = type),
-            props
+            request
           );
         if (
           null != type &&
@@ -1139,13 +1140,12 @@
               type._store.validated = 1;
           }
       } else return renderFunctionComponent(request, task, key, type, props);
-      request = key;
-      key = task.keyPath;
-      null === request
-        ? (request = key)
-        : null !== key && (request = key + "," + request);
-      props = [REACT_ELEMENT_TYPE, type, request, props, task.debugOwner];
-      task = task.implicitSlot && null !== request ? [props] : props;
+      ref = task.keyPath;
+      null === key ? (key = ref) : null !== ref && (key = ref + "," + key);
+      null !== task.debugOwner &&
+        outlineComponentInfo(request, task.debugOwner);
+      request = [REACT_ELEMENT_TYPE, type, key, props, task.debugOwner];
+      task = task.implicitSlot && null !== key ? [request] : request;
       return task;
     }
     function pingTask(request, task) {
@@ -1415,18 +1415,6 @@
       reader.read().then(progress).catch(error);
       return "$B" + newTask.id.toString(16);
     }
-    function isReactComponentInfo(value) {
-      return (
-        (("object" === typeof value.debugTask &&
-          null !== value.debugTask &&
-          "function" === typeof value.debugTask.run) ||
-          value.debugStack instanceof Error) &&
-        "undefined" === typeof value.stack &&
-        "string" === typeof value.name &&
-        "string" === typeof value.env &&
-        void 0 !== value.owner
-      );
-    }
     function renderModel(request, task, parent, key, value) {
       var prevKeyPath = task.keyPath,
         prevImplicitSlot = task.implicitSlot;
@@ -1613,6 +1601,7 @@
         if (value instanceof Set) return serializeSet(request, value);
         if ("function" === typeof FormData && value instanceof FormData)
           return serializeFormData(request, value);
+        if (value instanceof Error) return serializeErrorValue(request, value);
         if (value instanceof ArrayBuffer)
           return serializeTypedArray(request, "A", new Uint8Array(value));
         if (value instanceof Int8Array)
@@ -1667,13 +1656,6 @@
             "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported." +
               describeObjectForErrorMessage(parent, parentPropertyName)
           );
-        if (isReactComponentInfo(value))
-          return {
-            name: value.name,
-            env: value.env,
-            key: value.key,
-            owner: value.owner
-          };
         if ("Object" !== objectName(value))
           callWithDebugContextInDEV(request, task, function () {
             console.error(
@@ -1825,6 +1807,27 @@
           closeWithError(request.destination, error))
         : ((request.status = CLOSING), (request.fatalError = error));
     }
+    function serializeErrorValue(request, error) {
+      var env = (0, request.environmentName)();
+      try {
+        var message = String(error.message);
+        var stack = filterStackTrace(request, error, 0);
+        var errorEnv = error.environmentName;
+        "string" === typeof errorEnv && (env = errorEnv);
+      } catch (x) {
+        (message =
+          "An error occurred but serializing the error message failed."),
+          (stack = []);
+      }
+      return (
+        "$Z" +
+        outlineModel(request, {
+          message: message,
+          stack: stack,
+          env: env
+        }).toString(16)
+      );
+    }
     function emitErrorChunk(request, id, digest, error) {
       var env = (0, request.environmentName)();
       try {
@@ -1859,7 +1862,7 @@
       request.completedRegularChunks.push(id);
     }
     function emitDebugChunk(request, id, debugInfo) {
-      var counter = { objectCount: 0 };
+      var counter = { objectLimit: 500 };
       debugInfo = stringify(debugInfo, function (parentPropertyName, value) {
         return renderConsoleValue(
           request,
@@ -1872,6 +1875,32 @@
       id = serializeRowHeader("D", id) + debugInfo + "\n";
       id = stringToChunk(id);
       request.completedRegularChunks.push(id);
+    }
+    function outlineComponentInfo(request, componentInfo) {
+      if (!request.writtenObjects.has(componentInfo)) {
+        null != componentInfo.owner &&
+          outlineComponentInfo(request, componentInfo.owner);
+        var objectLimit = 10;
+        null != componentInfo.stack &&
+          (objectLimit += componentInfo.stack.length);
+        objectLimit = { objectLimit: objectLimit };
+        var componentDebugInfo = {
+          name: componentInfo.name,
+          env: componentInfo.env,
+          key: componentInfo.key,
+          owner: componentInfo.owner
+        };
+        componentDebugInfo.props = componentInfo.props;
+        objectLimit = outlineConsoleValue(
+          request,
+          objectLimit,
+          componentDebugInfo
+        );
+        request.writtenObjects.set(
+          componentInfo,
+          serializeByValueID(objectLimit)
+        );
+      }
     }
     function emitTypedArrayChunk(request, id, tag, typedArray) {
       request.pendingChunks++;
@@ -1920,11 +1949,25 @@
           ((parent = request.temporaryReferences.get(value)), void 0 !== parent)
         )
           return "$T" + parent;
-        if (500 < counter.objectCount) return "$Y";
-        counter.objectCount++;
         parent = request.writtenObjects.get(value);
+        if (void 0 !== parent) return parent;
+        if (0 >= counter.objectLimit) return "$Y";
+        counter.objectLimit--;
+        switch (value.$$typeof) {
+          case REACT_ELEMENT_TYPE:
+            return (
+              null != value._owner &&
+                outlineComponentInfo(request, value._owner),
+              [
+                REACT_ELEMENT_TYPE,
+                value.type,
+                value.key,
+                value.props,
+                value._owner
+              ]
+            );
+        }
         if ("function" === typeof value.then) {
-          if (void 0 !== parent) return parent;
           switch (value.status) {
             case "fulfilled":
               return (
@@ -1942,20 +1985,19 @@
           }
           return "$@";
         }
-        return void 0 !== parent
-          ? parent
-          : isArrayImpl(value)
-            ? value
-            : value instanceof Map
+        return isArrayImpl(value)
+          ? value
+          : value instanceof Map
+            ? ((value = Array.from(value)),
+              "$Q" + outlineConsoleValue(request, counter, value).toString(16))
+            : value instanceof Set
               ? ((value = Array.from(value)),
-                "$Q" +
+                "$W" +
                   outlineConsoleValue(request, counter, value).toString(16))
-              : value instanceof Set
-                ? ((value = Array.from(value)),
-                  "$W" +
-                    outlineConsoleValue(request, counter, value).toString(16))
-                : "function" === typeof FormData && value instanceof FormData
-                  ? serializeFormData(request, value)
+              : "function" === typeof FormData && value instanceof FormData
+                ? serializeFormData(request, value)
+                : value instanceof Error
+                  ? serializeErrorValue(request, value)
                   : value instanceof ArrayBuffer
                     ? serializeTypedArray(request, "A", new Uint8Array(value))
                     : value instanceof Int8Array
@@ -1999,14 +2041,7 @@
                                               ? serializeBlob(request, value)
                                               : getIteratorFn(value)
                                                 ? Array.from(value)
-                                                : isReactComponentInfo(value)
-                                                  ? {
-                                                      name: value.name,
-                                                      env: value.env,
-                                                      key: value.key,
-                                                      owner: value.owner
-                                                    }
-                                                  : value;
+                                                : value;
       }
       if ("string" === typeof value)
         return "Z" === value[value.length - 1] && originalValue instanceof Date
@@ -2051,7 +2086,10 @@
             value
           );
         } catch (x) {
-          return "unknown value";
+          return (
+            "Unknown Value: React could not send it from the server.\n" +
+            x.message
+          );
         }
       });
       request.pendingChunks++;
@@ -2069,8 +2107,9 @@
       stackTrace,
       args
     ) {
-      var counter = { objectCount: 0 },
-        env = (0, request.environmentName)();
+      var counter = { objectLimit: 500 };
+      null != owner && outlineComponentInfo(request, owner);
+      var env = (0, request.environmentName)();
       methodName = [methodName, stackTrace, owner, env];
       methodName.push.apply(methodName, args);
       args = stringify(methodName, function (parentPropertyName, value) {
@@ -2083,7 +2122,10 @@
             value
           );
         } catch (x) {
-          return "unknown value";
+          return (
+            "Unknown Value: React could not send it from the server.\n" +
+            x.message
+          );
         }
       });
       id = serializeRowHeader("W", id) + args + "\n";
@@ -2094,7 +2136,7 @@
       for (var i = 0; i < debugInfo.length; i++)
         request.pendingChunks++,
           "string" === typeof debugInfo[i].name &&
-            outlineModel(request, debugInfo[i]),
+            outlineComponentInfo(request, debugInfo[i]),
           emitDebugChunk(request, id, debugInfo[i]);
     }
     function emitChunk(request, task, value) {
