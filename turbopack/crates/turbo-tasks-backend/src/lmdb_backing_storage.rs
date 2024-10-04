@@ -111,7 +111,7 @@ impl LmdbBackingStorage {
     ) -> Result<T> {
         if let Some(tx) = tx {
             let tx = self.to_tx(tx);
-            f(&*tx)
+            f(&tx)
         } else {
             let tx = self.env.begin_ro_txn()?;
             let r = f(&tx)?;
@@ -325,7 +325,7 @@ impl BackingStorage for LmdbBackingStorage {
             task_type: &CachedTaskType,
         ) -> Result<Option<TaskId>> {
             let task_type = pot::to_vec(task_type)?;
-            let bytes = match extended_key::get(&tx, this.forward_task_cache_db, &task_type) {
+            let bytes = match extended_key::get(tx, this.forward_task_cache_db, &task_type) {
                 Ok(result) => result,
                 Err(err) => {
                     if err == lmdb::Error::NotFound {
@@ -406,26 +406,19 @@ impl BackingStorage for LmdbBackingStorage {
     }
 }
 
-fn organize_task_data(
-    updates: Vec<ChunkedVec<CachedDataUpdate>>,
-) -> Vec<
-    HashMap<
-        TaskId,
-        HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
-    >,
-> {
+type OrganizedTaskData = HashMap<
+    TaskId,
+    HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
+>;
+type ShardedOrganizedTaskData = Vec<OrganizedTaskData>;
+
+fn organize_task_data(updates: Vec<ChunkedVec<CachedDataUpdate>>) -> ShardedOrganizedTaskData {
     let span = Span::current();
     updates
         .into_par_iter()
         .map(|updates| {
             let _span = span.clone().entered();
-            let mut task_updates: HashMap<
-                TaskId,
-                HashMap<
-                    CachedDataItemKey,
-                    (Option<CachedDataItemValue>, Option<CachedDataItemValue>),
-                >,
-            > = HashMap::new();
+            let mut task_updates: OrganizedTaskData = HashMap::new();
             for CachedDataUpdate {
                 task,
                 key,
@@ -455,12 +448,7 @@ fn organize_task_data(
 fn restore_task_data(
     this: &LmdbBackingStorage,
     db: Database,
-    task_updates: Vec<
-        HashMap<
-            TaskId,
-            HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
-        >,
-    >,
+    task_updates: ShardedOrganizedTaskData,
 ) -> Result<Vec<(TaskId, Vec<CachedDataItem>)>> {
     let mut result = Vec::with_capacity(task_updates.iter().map(|m| m.len()).sum());
 
