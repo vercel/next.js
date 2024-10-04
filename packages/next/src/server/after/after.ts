@@ -1,4 +1,4 @@
-import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
+import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
@@ -14,7 +14,13 @@ export type AfterCallback<T = unknown> = () => T | Promise<T>
 export function unstable_after<T>(task: AfterTask<T>) {
   const callingExpression = 'unstable_after'
 
-  const requestStore = getExpectedRequestStore(callingExpression)
+  // TODO: This is not safe. afterContext should move to WorkStore.
+  const requestStore = requestAsyncStorage.getStore()
+  if (!requestStore) {
+    throw new Error(
+      `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+    )
+  }
 
   const { afterContext } = requestStore
   if (!afterContext) {
