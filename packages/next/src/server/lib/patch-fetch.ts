@@ -729,6 +729,10 @@ export function createPatchedFetcher(
               }
             }
 
+            // we had response that we determined shouldn't be cached so we return it
+            // and don't cache it. This also needs to unlock the cache lock we acquired.
+            await handleUnlock()
+
             return res
           })
         }

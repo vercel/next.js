@@ -498,8 +498,6 @@ const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
   const partialStore: Partial<RequestStore> = {
     url: { pathname: '/', search: '' },
     afterContext: afterContext,
-    assetPrefix: '',
-    reactLoadableManifest: {},
     draftMode: undefined,
     isHmrRefresh: false,
     serverComponentsHmrCache: undefined,

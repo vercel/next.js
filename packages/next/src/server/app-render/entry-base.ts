@@ -33,6 +33,11 @@ import { createMetadataComponents } from '../../lib/metadata/metadata'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
 // not being used but needs to be included in the client manifest for /_not-found
 import '../../client/components/error-boundary'
+import {
+  MetadataBoundary,
+  ViewportBoundary,
+  OutletBoundary,
+} from '../../lib/metadata/metadata-boundary'
 
 import { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 import { Postpone } from './rsc/postpone'
@@ -65,6 +70,9 @@ export {
   preloadFont,
   preconnect,
   Postpone,
+  MetadataBoundary,
+  ViewportBoundary,
+  OutletBoundary,
   taintObjectReference,
   ClientPageRoot,
   ClientSegmentRoot,

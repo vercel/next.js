@@ -4,6 +4,7 @@ import type { DynamicServerError } from './hooks-server-context'
 import type { FetchMetrics } from '../../server/base-http'
 import type { Revalidate } from '../../server/lib/revalidate'
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorage } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -62,6 +63,11 @@ export interface WorkStore {
   requestEndedState?: { ended?: boolean }
 
   buildId: string
+
+  readonly reactLoadableManifest?: DeepReadonly<
+    Record<string, { files: string[] }>
+  >
+  readonly assetPrefix?: string
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

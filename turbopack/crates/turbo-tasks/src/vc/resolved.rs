@@ -222,7 +222,7 @@ where
 ///
 /// This trait is marked as unsafe. You should not derive it yourself, but
 /// instead you should rely on [`#[turbo_tasks::value(resolved)]`][macro@
-/// turbo_tasks::value] to do it for you.
+/// crate::value] to do it for you.
 pub unsafe trait ResolvedValue {}
 
 unsafe impl<T: ?Sized + Send + ResolvedValue> ResolvedValue for ResolvedVc<T> {}

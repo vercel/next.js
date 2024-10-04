@@ -9,5 +9,5 @@ export async function currentReferer() {
 }
 
 export async function isEditing() {
-  return (await draftMode()).isEnabled
+  return String((await draftMode()).isEnabled)
 }

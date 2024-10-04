@@ -205,6 +205,42 @@ export function transformDynamicAPI(
           }
         }
       })
+
+    // Handle type usage of async API, e.g. `type Cookie = ReturnType<typeof cookies>`
+    // convert it to `type Cookie = Awaited<ReturnType<typeof cookies>>`
+    root
+      .find(j.TSTypeReference, {
+        typeName: {
+          type: 'Identifier',
+          name: 'ReturnType',
+        },
+      })
+      .forEach((path) => {
+        const typeParam = path.node.typeParameters?.params[0]
+
+        // Check if the ReturnType is for 'cookies'
+        if (
+          typeParam &&
+          j.TSTypeQuery.check(typeParam) &&
+          j.Identifier.check(typeParam.exprName) &&
+          typeParam.exprName.name === asyncRequestApiName
+        ) {
+          // Replace ReturnType<typeof cookies> with Awaited<ReturnType<typeof cookies>>
+          const awaitedTypeReference = j.tsTypeReference(
+            j.identifier('Awaited'),
+            j.tsTypeParameterInstantiation([
+              j.tsTypeReference(
+                j.identifier('ReturnType'),
+                j.tsTypeParameterInstantiation([typeParam])
+              ),
+            ])
+          )
+
+          j(path).replaceWith(awaitedTypeReference)
+
+          modified = true
+        }
+      })
   }
 
   const isClientComponent = determineClientDirective(root, j)

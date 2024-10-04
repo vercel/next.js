@@ -4226,6 +4226,7 @@ dependencies = [
  "tracing-chrome",
  "tracing-subscriber",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
@@ -8566,6 +8567,33 @@ dependencies = [
  "turbo-tasks-macros",
  "turbo-tasks-malloc",
  "unsize",
+]
+
+[[package]]
+name = "turbo-tasks-backend"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "auto-hash-map",
+ "dashmap",
+ "either",
+ "hashbrown 0.14.5",
+ "indexmap 1.9.3",
+ "once_cell",
+ "parking_lot",
+ "rand",
+ "rustc-hash",
+ "serde",
+ "smallvec",
+ "tokio",
+ "tracing",
+ "turbo-prehash",
+ "turbo-tasks",
+ "turbo-tasks-build",
+ "turbo-tasks-hash",
+ "turbo-tasks-malloc",
+ "turbo-tasks-testing",
 ]
 
 [[package]]
