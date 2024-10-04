@@ -414,6 +414,11 @@ impl CachedDataItemKey {
     }
 }
 
+#[allow(non_upper_case_globals, dead_code)]
+pub mod allow_mut_access {
+    pub const InProgress: () = ();
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CachedDataItemIndex {
     Children,
