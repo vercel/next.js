@@ -1057,7 +1057,7 @@ async function renderToHTMLOrFlightImpl(
     res,
   }
 
-  getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
+  getTracer().setRootSpanAttribute('next.route', pagePath)
 
   if (isStaticGeneration) {
     // We're either building or revalidating. In either case we need to
@@ -1590,39 +1590,31 @@ async function renderToStream(
       throw err
     }
 
-    if (isNotFoundError(err)) {
-      res.statusCode = 404
-    }
-    let hasRedirectError = false
-    if (isRedirectError(err)) {
-      hasRedirectError = true
-      res.statusCode = getRedirectStatusCodeFromError(err)
-      if (err.mutableCookies) {
-        const headers = new Headers()
+    let errorType: 'not-found' | 'redirect' | undefined
 
-        // If there were mutable cookies set, we need to set them on the
-        // response.
-        if (appendMutableCookies(headers, err.mutableCookies)) {
-          setHeader('set-cookie', Array.from(headers.values()))
-        }
-      }
+    if (isNotFoundError(err)) {
+      errorType = 'not-found'
+      res.statusCode = 404
+    } else if (isRedirectError(err)) {
+      errorType = 'redirect'
+      res.statusCode = getRedirectStatusCodeFromError(err)
+
       const redirectUrl = addPathPrefix(
         getURLFromRedirectError(err),
         renderOpts.basePath
       )
-      setHeader('Location', redirectUrl)
-    }
 
-    const is404 = res.statusCode === 404
-    if (!is404 && !hasRedirectError && !shouldBailoutToCSR) {
+      // If there were mutable cookies set, we need to set them on the
+      // response.
+      const headers = new Headers()
+      if (appendMutableCookies(headers, ctx.requestStore.mutableCookies)) {
+        setHeader('set-cookie', Array.from(headers.values()))
+      }
+
+      setHeader('location', redirectUrl)
+    } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
     }
-
-    const errorType = is404
-      ? 'not-found'
-      : hasRedirectError
-        ? 'redirect'
-        : undefined
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
       renderOpts.buildManifest,
@@ -2765,45 +2757,37 @@ async function prerenderToStream(
       throw err
     }
 
-    if (isNotFoundError(err)) {
-      res.statusCode = 404
+    // If we errored when we did not have an RSC stream to read from. This is
+    // not just a render error, we need to throw early.
+    if (reactServerPrerenderResult === null) {
+      throw err
     }
-    let hasRedirectError = false
-    if (isRedirectError(err)) {
-      hasRedirectError = true
-      res.statusCode = getRedirectStatusCodeFromError(err)
-      if (err.mutableCookies) {
-        const headers = new Headers()
 
-        // If there were mutable cookies set, we need to set them on the
-        // response.
-        if (appendMutableCookies(headers, err.mutableCookies)) {
-          setHeader('set-cookie', Array.from(headers.values()))
-        }
-      }
+    let errorType: 'not-found' | 'redirect' | undefined
+
+    if (isNotFoundError(err)) {
+      errorType = 'not-found'
+      res.statusCode = 404
+    } else if (isRedirectError(err)) {
+      errorType = 'redirect'
+      res.statusCode = getRedirectStatusCodeFromError(err)
+
       const redirectUrl = addPathPrefix(
         getURLFromRedirectError(err),
         renderOpts.basePath
       )
-      setHeader('Location', redirectUrl)
-    }
 
-    const is404 = res.statusCode === 404
-    if (!is404 && !hasRedirectError && !shouldBailoutToCSR) {
+      // If there were mutable cookies set, we need to set them on the
+      // response.
+      const headers = new Headers()
+      if (appendMutableCookies(headers, ctx.requestStore.mutableCookies)) {
+        setHeader('set-cookie', Array.from(headers.values()))
+      }
+
+      setHeader('location', redirectUrl)
+    } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
     }
-
-    if (reactServerPrerenderResult === null) {
-      // We errored when we did not have an RSC stream to read from. This is not just a render
-      // error, we need to throw early
-      throw err
-    }
-
-    const errorType = is404
-      ? 'not-found'
-      : hasRedirectError
-        ? 'redirect'
-        : undefined
 
     const [errorPreinitScripts, errorBootstrapScript] = getRequiredScripts(
       renderOpts.buildManifest,
