@@ -57,12 +57,12 @@ impl Default for MiddlewaresManifest {
     Serialize,
     Deserialize,
 )]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct MiddlewareMatcher {
     // When skipped next.js with fill that during merging.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regexp: Option<RcStr>,
-    #[serde(skip_serializing_if = "bool_is_true", default = "bool_true")]
+    #[serde(skip_serializing_if = "bool_is_true")]
     pub locale: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has: Option<Vec<RouteHas>>,
@@ -85,10 +85,6 @@ impl Default for MiddlewareMatcher {
 
 fn bool_is_true(b: &bool) -> bool {
     *b
-}
-
-fn bool_true() -> bool {
-    true
 }
 
 #[derive(Serialize, Default, Debug)]
