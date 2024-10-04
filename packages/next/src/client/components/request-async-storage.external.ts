@@ -10,6 +10,7 @@ import type { AfterContext } from '../../server/after/after-context'
 import type { ServerComponentsHmrCache } from '../../server/response-cache'
 
 import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
+import { prerenderAsyncStorage } from '../../server/app-render/prerender-async-storage.external'
 
 export interface RequestStore {
   /**
@@ -43,6 +44,13 @@ export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>
 export { requestAsyncStorage }
 
 export function getExpectedRequestStore(callingExpression: string) {
+  const prerenderStore = prerenderAsyncStorage.getStore()
+  if (prerenderStore) {
+    // This should not happen because we should have checked it already.
+    throw new Error(
+      `\`${callingExpression}\` cannot be called inside a prerender. This is a bug in Next.js.`
+    )
+  }
   const store = requestAsyncStorage.getStore()
   if (store) return store
   const cacheStore = cacheAsyncStorage.getStore()
