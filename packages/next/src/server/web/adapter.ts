@@ -198,7 +198,7 @@ export async function adapter(
 
   const event = new NextFetchEvent({ request, page: params.page })
   let response
-  let cookiesFromResponse
+  let cookiesFromResponse: string[] | undefined
 
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
@@ -242,7 +242,10 @@ export async function adapter(
                 url: request.nextUrl,
                 renderOpts: {
                   onUpdateCookies: (cookies) => {
-                    cookiesFromResponse = cookies
+                    if (!cookiesFromResponse) {
+                      cookiesFromResponse = []
+                    }
+                    cookiesFromResponse.push(...cookies)
                   },
                   previewProps,
                   waitUntil,
@@ -279,7 +282,9 @@ export async function adapter(
   }
 
   if (response && cookiesFromResponse) {
-    response.headers.set('set-cookie', cookiesFromResponse)
+    for (const cookie of cookiesFromResponse) {
+      response.headers.append('set-cookie', cookie)
+    }
   }
 
   /**

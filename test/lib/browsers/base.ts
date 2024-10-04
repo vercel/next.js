@@ -1,3 +1,5 @@
+import { Response } from 'playwright'
+
 export type Event = 'request' | 'response'
 
 /**
@@ -110,4 +112,13 @@ export abstract class BrowserInterface<TCurrent = any> {
   abstract websocketFrames(): Promise<any[]>
   abstract url(): Promise<string>
   abstract waitForIdleNetwork(): Promise<void>
+  abstract waitForResponse(
+    urlOrPredicate:
+      | string
+      | RegExp
+      | ((response: Response) => boolean | Promise<boolean>),
+    options?: {
+      timeout?: number
+    }
+  ): Promise<Response>
 }
