@@ -59,7 +59,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 capture,
                 quote! {
                     {#(
-                        #fields.is_resolved() &&
+                        turbo_tasks::TaskInput::is_resolved(#fields) &&
                     )* true}
                 },
             )
@@ -70,7 +70,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 capture,
                 quote! {
                     {#(
-                        #fields.is_resolved() &&
+                        turbo_tasks::TaskInput::is_resolved(#fields) &&
                     )* true}
                 },
             )
@@ -85,7 +85,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 capture,
                 quote! {
                     {#(
-                        #fields.is_transient() ||
+                        turbo_tasks::TaskInput::is_transient(#fields) ||
                     )* false}
                 },
             )
@@ -96,7 +96,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 capture,
                 quote! {
                     {#(
-                        #fields.is_transient() ||
+                        turbo_tasks::TaskInput::is_transient(#fields) ||
                     )* false}
                 },
             )
@@ -112,7 +112,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 quote! {
                     {
                         #(
-                            let #fields = #fields.resolve().await?;
+                            let #fields = turbo_tasks::TaskInput::resolve(#fields).await?;
                         )*
                         Ok(#ident { #(#fields),* })
                     }
@@ -126,7 +126,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 quote! {
                     {
                         #(
-                            let #fields = #fields.resolve().await?;
+                            let #fields = turbo_tasks::TaskInput::resolve(#fields).await?;
                         )*
                         Ok(#ident(#(#fields),*))
                     }
