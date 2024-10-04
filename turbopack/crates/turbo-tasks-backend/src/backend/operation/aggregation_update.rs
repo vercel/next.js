@@ -251,13 +251,13 @@ impl AggregationUpdateQueue {
         self.jobs.extend(jobs);
     }
 
-    pub fn run(job: AggregationUpdateJob, ctx: &ExecuteContext<'_>) {
+    pub fn run(job: AggregationUpdateJob, ctx: &mut ExecuteContext<'_>) {
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
     }
 
-    pub fn process(&mut self, ctx: &ExecuteContext<'_>) -> bool {
+    pub fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
         if let Some(job) = self.jobs.pop_front() {
             match job {
                 AggregationUpdateJob::UpdateAggregationNumber {
@@ -385,7 +385,7 @@ impl AggregationUpdateQueue {
         self.jobs.is_empty()
     }
 
-    fn balance_edge(&mut self, ctx: &ExecuteContext, upper_id: TaskId, task_id: TaskId) {
+    fn balance_edge(&mut self, ctx: &mut ExecuteContext, upper_id: TaskId, task_id: TaskId) {
         let (mut upper, mut task) = ctx.task_pair(upper_id, task_id, TaskDataCategory::Meta);
         let upper_aggregation_number = get_aggregation_number(&upper);
         let task_aggregation_number = get_aggregation_number(&task);
@@ -485,7 +485,7 @@ impl AggregationUpdateQueue {
         }
     }
 
-    fn find_and_schedule_dirty(&mut self, mut task_ids: Vec<TaskId>, ctx: &ExecuteContext) {
+    fn find_and_schedule_dirty(&mut self, mut task_ids: Vec<TaskId>, ctx: &mut ExecuteContext) {
         let popped = task_ids.pop();
         if !task_ids.is_empty() {
             self.push(AggregationUpdateJob::FindAndScheduleDirty { task_ids });
@@ -519,7 +519,7 @@ impl AggregationUpdateQueue {
     fn aggregated_data_update(
         &mut self,
         upper_ids: Vec<TaskId>,
-        ctx: &ExecuteContext,
+        ctx: &mut ExecuteContext,
         update: AggregatedDataUpdate,
     ) {
         for upper_id in upper_ids {
@@ -539,7 +539,7 @@ impl AggregationUpdateQueue {
 
     fn inner_lost_follower(
         &mut self,
-        ctx: &ExecuteContext,
+        ctx: &mut ExecuteContext,
         lost_follower_id: TaskId,
         mut upper_ids: Vec<TaskId>,
     ) {
@@ -613,7 +613,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_uppers_has_new_follower(
         &mut self,
-        ctx: &ExecuteContext,
+        ctx: &mut ExecuteContext,
         new_follower_id: TaskId,
         mut upper_ids: Vec<TaskId>,
     ) {
@@ -698,7 +698,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_upper_has_new_followers(
         &mut self,
-        ctx: &ExecuteContext,
+        ctx: &mut ExecuteContext,
         new_follower_ids: Vec<TaskId>,
         upper_id: TaskId,
     ) {
@@ -797,7 +797,7 @@ impl AggregationUpdateQueue {
 
     fn update_aggregation_number(
         &mut self,
-        ctx: &ExecuteContext,
+        ctx: &mut ExecuteContext,
         task_id: TaskId,
         base_effective_distance: Option<std::num::NonZero<u32>>,
         base_aggregation_number: u32,
@@ -871,7 +871,7 @@ impl AggregationUpdateQueue {
 }
 
 impl Operation for AggregationUpdateQueue {
-    fn execute(mut self, ctx: &ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
         let _span = tracing::trace_span!("aggregation update queue").entered();
         loop {
             ctx.operation_suspend_point(&self);

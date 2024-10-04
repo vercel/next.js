@@ -29,7 +29,7 @@ pub enum ConnectChildOperation {
 }
 
 impl ConnectChildOperation {
-    pub fn run(parent_task_id: TaskId, child_task_id: TaskId, ctx: ExecuteContext<'_>) {
+    pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: ExecuteContext<'_>) {
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
         parent_task.remove(&CachedDataItemKey::OutdatedChild {
             task: child_task_id,
@@ -123,13 +123,13 @@ impl ConnectChildOperation {
             ConnectChildOperation::UpdateAggregation {
                 aggregation_update: queue,
             }
-            .execute(&ctx);
+            .execute(&mut ctx);
         }
     }
 }
 
 impl Operation for ConnectChildOperation {
-    fn execute(mut self, ctx: &ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {

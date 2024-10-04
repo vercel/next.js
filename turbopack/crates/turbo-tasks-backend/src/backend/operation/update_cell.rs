@@ -12,7 +12,7 @@ use crate::{
 pub struct UpdateCellOperation;
 
 impl UpdateCellOperation {
-    pub fn run(task_id: TaskId, cell: CellId, content: CellContent, ctx: ExecuteContext<'_>) {
+    pub fn run(task_id: TaskId, cell: CellId, content: CellContent, mut ctx: ExecuteContext<'_>) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let old_content = if let CellContent(Some(new_content)) = content {
             task.insert(CachedDataItem::CellData {

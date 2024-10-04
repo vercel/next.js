@@ -46,7 +46,7 @@ impl CleanupOldEdgesOperation {
         task_id: TaskId,
         outdated: Vec<OutdatedEdge>,
         data_update: Option<AggregationUpdateJob>,
-        ctx: ExecuteContext<'_>,
+        mut ctx: ExecuteContext<'_>,
     ) {
         let mut queue = AggregationUpdateQueue::new();
         queue.extend(data_update);
@@ -55,12 +55,12 @@ impl CleanupOldEdgesOperation {
             outdated,
             queue,
         }
-        .execute(&ctx);
+        .execute(&mut ctx);
     }
 }
 
 impl Operation for CleanupOldEdgesOperation {
-    fn execute(mut self, ctx: &ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
