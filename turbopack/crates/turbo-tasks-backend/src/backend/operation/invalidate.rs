@@ -84,7 +84,7 @@ pub fn make_task_dirty(
         if dirty_container == 0 {
             queue.extend(AggregationUpdateJob::data_update(
                 &mut task,
-                AggregatedDataUpdate::dirty_container(task_id),
+                AggregatedDataUpdate::new().dirty_container(task_id),
             ));
         }
         let root = task.has_key(&CachedDataItemKey::AggregateRoot {});

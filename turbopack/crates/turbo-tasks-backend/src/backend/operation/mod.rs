@@ -3,6 +3,7 @@ mod cleanup_old_edges;
 mod connect_child;
 mod invalidate;
 mod update_cell;
+mod update_collectible;
 mod update_output;
 
 use std::{
@@ -531,5 +532,6 @@ pub use self::{
     },
     cleanup_old_edges::OutdatedEdge,
     update_cell::UpdateCellOperation,
+    update_collectible::UpdateCollectibleOperation,
     update_output::UpdateOutputOperation,
 };

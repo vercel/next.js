@@ -1,15 +1,18 @@
 use std::{cmp::max, collections::VecDeque, num::NonZeroU32};
 
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
-        operation::{ExecuteContext, Operation, TaskGuard},
+        operation::{ExecuteContext, InvalidateOperation, Operation, TaskGuard},
         storage::{get, get_many, iter_many, remove, update, update_count},
         TaskDataCategory,
     },
-    data::{ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, RootState},
+    data::{
+        ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, CollectibleRef, RootState,
+    },
 };
 
 const LEAF_NUMBER: u32 = 16;
@@ -85,6 +88,9 @@ pub enum AggregationUpdateJob {
     FindAndScheduleDirty {
         task_ids: Vec<TaskId>,
     },
+    Invalidate {
+        task_ids: SmallVec<[TaskId; 4]>,
+    },
     BalanceEdge {
         upper_id: TaskId,
         task_id: TaskId,
@@ -111,13 +117,15 @@ impl AggregationUpdateJob {
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct AggregatedDataUpdate {
     dirty_container_update: Option<(TaskId, i32)>,
-    // TODO collectibles
+    collectibles_update: Vec<(CollectibleRef, i32)>,
 }
 
 impl AggregatedDataUpdate {
     fn from_task(task: &mut TaskGuard<'_>) -> Self {
         let aggregation = get_aggregation_number(task);
         let mut dirty = get!(task, Dirty).is_some();
+        let mut collectibles_update: Vec<_> =
+            get_many!(task, Collectible { collectible } => (collectible, 1));
         if is_aggregating_node(aggregation) {
             let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
                 .copied()
@@ -125,16 +133,29 @@ impl AggregatedDataUpdate {
             if dirty_container_count > 0 {
                 dirty = true;
             }
+            for collectible in iter_many!(task, AggregatedCollectible { collectible } count if count > 0 => collectible)
+            {
+                collectibles_update.push((collectible, 1));
+            }
         }
         if dirty {
-            Self::dirty_container(task.id())
+            Self::new()
+                .dirty_container(task.id())
+                .collectibles_update(collectibles_update)
         } else {
-            Self::default()
+            Self::new().collectibles_update(collectibles_update)
         }
     }
 
     fn invert(mut self) -> Self {
-        if let Some((_, value)) = self.dirty_container_update.as_mut() {
+        let Self {
+            dirty_container_update,
+            collectibles_update,
+        } = &mut self;
+        if let Some((_, value)) = dirty_container_update.as_mut() {
+            *value = -*value;
+        }
+        for (_, value) in collectibles_update.iter_mut() {
             *value = -*value;
         }
         self
@@ -147,6 +168,7 @@ impl AggregatedDataUpdate {
     ) -> AggregatedDataUpdate {
         let Self {
             dirty_container_update,
+            collectibles_update,
         } = self;
         let mut result = Self::default();
         if let Some((dirty_container_id, count)) = dirty_container_update {
@@ -204,26 +226,71 @@ impl AggregatedDataUpdate {
                 }
             }
         }
+        for (collectible, count) in collectibles_update {
+            let mut added = false;
+            let mut removed = false;
+            update!(
+                task,
+                AggregatedCollectible {
+                    collectible: *collectible
+                },
+                |old: Option<i32>| {
+                    let old = old.unwrap_or(0);
+                    let new = old + *count;
+                    if old <= 0 && new > 0 {
+                        added = true;
+                    } else if old > 0 && new <= 0 {
+                        removed = true;
+                    }
+                    (new != 0).then_some(new)
+                }
+            );
+            if added || removed {
+                let ty = collectible.collectible_type;
+                let dependent: SmallVec<[TaskId; 4]> = get_many!(task, CollectiblesDependent { collectible_type, task } if *collectible_type == ty => *task);
+                if !dependent.is_empty() {
+                    queue.push(AggregationUpdateJob::Invalidate {
+                        task_ids: dependent,
+                    })
+                }
+            }
+            if added {
+                result.collectibles_update.push((*collectible, 1));
+            } else if removed {
+                result.collectibles_update.push((*collectible, -1));
+            }
+        }
         result
     }
 
     fn is_empty(&self) -> bool {
         let Self {
             dirty_container_update,
+            collectibles_update,
         } = self;
-        dirty_container_update.is_none()
+        dirty_container_update.is_none() && collectibles_update.is_empty()
     }
 
-    pub fn dirty_container(task_id: TaskId) -> Self {
+    pub fn new() -> Self {
         Self {
-            dirty_container_update: Some((task_id, 1)),
+            dirty_container_update: None,
+            collectibles_update: Vec::new(),
         }
     }
 
-    pub fn no_longer_dirty_container(task_id: TaskId) -> Self {
-        Self {
-            dirty_container_update: Some((task_id, -1)),
-        }
+    pub fn dirty_container(mut self, task_id: TaskId) -> Self {
+        self.dirty_container_update = Some((task_id, 1));
+        self
+    }
+
+    pub fn no_longer_dirty_container(mut self, task_id: TaskId) -> Self {
+        self.dirty_container_update = Some((task_id, -1));
+        self
+    }
+
+    pub fn collectibles_update(mut self, collectibles_update: Vec<(CollectibleRef, i32)>) -> Self {
+        self.collectibles_update = collectibles_update;
+        self
     }
 }
 
@@ -378,6 +445,9 @@ impl AggregationUpdateQueue {
                 }
                 AggregationUpdateJob::BalanceEdge { upper_id, task_id } => {
                     self.balance_edge(ctx, upper_id, task_id);
+                }
+                AggregationUpdateJob::Invalidate { task_ids } => {
+                    ctx.run_operation(self, |ctx| InvalidateOperation::run(task_ids, ctx));
                 }
             }
         }

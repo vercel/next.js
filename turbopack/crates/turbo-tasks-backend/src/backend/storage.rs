@@ -404,11 +404,27 @@ macro_rules! get {
 }
 
 macro_rules! iter_many {
-    ($task:ident, $key:ident $input:tt => $value:ident) => {
+    ($task:ident, $key:ident $input:tt => $value:expr) => {
         $task
             .iter($crate::data::indicies::$key)
             .filter_map(|(key, _)| match *key {
                 $crate::data::CachedDataItemKey::$key $input => Some($value),
+                _ => None,
+            })
+    };
+    ($task:ident, $key:ident $input:tt => $value:expr) => {
+        $task
+            .iter($crate::data::indicies::$key)
+            .filter_map(|(key, _)| match key {
+                $crate::data::CachedDataItemKey::$key $input => Some($value),
+                _ => None,
+            })
+    };
+    ($task:ident, $key:ident $input:tt if $cond:expr => $value:expr) => {
+        $task
+            .iter($crate::data::indicies::$key)
+            .filter_map(|(key, _)| match key {
+                $crate::data::CachedDataItemKey::$key $input if $cond => Some($value),
                 _ => None,
             })
     };
@@ -431,8 +447,14 @@ macro_rules! iter_many {
 }
 
 macro_rules! get_many {
-    ($task:ident, $key:ident $input:tt => $value:ident) => {
+    ($task:ident, $key:ident $input:tt => $value:expr) => {
         $crate::backend::storage::iter_many!($task, $key $input => $value).collect()
+    };
+    ($task:ident, $key:ident $input:tt => $value:expr) => {
+        $crate::backend::storage::iter_many!($task, $key $input => $value).collect()
+    };
+    ($task:ident, $key:ident $input:tt if $cond:expr => $value:expr) => {
+        $crate::backend::storage::iter_many!($task, $key $input if $cond => $value).collect()
     };
     ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
         $crate::backend::storage::iter_many!($task, $key $input $value_ident => $value).collect()
