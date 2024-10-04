@@ -3,7 +3,7 @@ use turbo_tasks::{
     event::{Event, EventListener},
     registry,
     util::SharedError,
-    CellId, KeyValuePair, TaskId, TypedSharedReference, ValueTypeId,
+    CellId, KeyValuePair, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
 };
 
 use crate::backend::{indexed::Indexed, TaskDataCategory};
@@ -15,9 +15,15 @@ pub struct CellRef {
 }
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectibleRef {
+    pub collectible_type: TraitTypeId,
+    pub cell: CellRef,
+}
+
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CollectiblesRef {
     pub task: TaskId,
-    pub collectible_type: ValueTypeId,
+    pub collectible_type: TraitTypeId,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -147,8 +153,8 @@ pub enum CachedDataItem {
         value: OutputValue,
     },
     Collectible {
-        collectible: CellRef,
-        value: (),
+        collectible: CollectibleRef,
+        value: i32,
     },
 
     // State
@@ -200,7 +206,7 @@ pub enum CachedDataItem {
         value: (),
     },
     CollectiblesDependent {
-        collectibles_type: ValueTypeId,
+        collectible_type: TraitTypeId,
         task: TaskId,
         value: (),
     },
@@ -224,7 +230,7 @@ pub enum CachedDataItem {
         value: i32,
     },
     AggregatedCollectible {
-        collectible: CellRef,
+        collectible: CollectibleRef,
         value: i32,
     },
     AggregatedDirtyContainerCount {
@@ -247,18 +253,27 @@ pub enum CachedDataItem {
         cell: CellId,
         value: InProgressCellState,
     },
+    #[serde(skip)]
     OutdatedCollectible {
-        collectible: CellRef,
-        value: (),
+        collectible: CollectibleRef,
+        value: i32,
     },
+    #[serde(skip)]
     OutdatedOutputDependency {
         target: TaskId,
         value: (),
     },
+    #[serde(skip)]
     OutdatedCellDependency {
         target: CellRef,
         value: (),
     },
+    #[serde(skip)]
+    OutdatedCollectiblesDependency {
+        target: CollectiblesRef,
+        value: (),
+    },
+    #[serde(skip)]
     OutdatedChild {
         task: TaskId,
         value: (),
@@ -275,7 +290,9 @@ impl CachedDataItem {
     pub fn is_persistent(&self) -> bool {
         match self {
             CachedDataItem::Output { value } => value.is_transient(),
-            CachedDataItem::Collectible { collectible, .. } => !collectible.task.is_transient(),
+            CachedDataItem::Collectible { collectible, .. } => {
+                !collectible.cell.task.is_transient()
+            }
             CachedDataItem::Dirty { .. } => true,
             CachedDataItem::DirtyWhenPersisted { .. } => true,
             CachedDataItem::Child { task, .. } => !task.is_transient(),
@@ -292,7 +309,7 @@ impl CachedDataItem {
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
-                !collectible.task.is_transient()
+                !collectible.cell.task.is_transient()
             }
             CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
             CachedDataItem::AggregateRoot { .. } => false,
@@ -301,6 +318,7 @@ impl CachedDataItem {
             CachedDataItem::OutdatedCollectible { .. } => false,
             CachedDataItem::OutdatedOutputDependency { .. } => false,
             CachedDataItem::OutdatedCellDependency { .. } => false,
+            CachedDataItem::OutdatedCollectiblesDependency { .. } => false,
             CachedDataItem::OutdatedChild { .. } => false,
             CachedDataItem::Error { .. } => false,
         }
@@ -337,7 +355,9 @@ impl CachedDataItemKey {
     pub fn is_persistent(&self) -> bool {
         match self {
             CachedDataItemKey::Output { .. } => true,
-            CachedDataItemKey::Collectible { collectible, .. } => !collectible.task.is_transient(),
+            CachedDataItemKey::Collectible { collectible, .. } => {
+                !collectible.cell.task.is_transient()
+            }
             CachedDataItemKey::Dirty { .. } => true,
             CachedDataItemKey::DirtyWhenPersisted { .. } => true,
             CachedDataItemKey::Child { task, .. } => !task.is_transient(),
@@ -354,7 +374,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
-                !collectible.task.is_transient()
+                !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
             CachedDataItemKey::AggregateRoot { .. } => false,
@@ -363,6 +383,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedCollectible { .. } => false,
             CachedDataItemKey::OutdatedOutputDependency { .. } => false,
             CachedDataItemKey::OutdatedCellDependency { .. } => false,
+            CachedDataItemKey::OutdatedCollectiblesDependency { .. } => false,
             CachedDataItemKey::OutdatedChild { .. } => false,
             CachedDataItemKey::Error { .. } => false,
         }
@@ -386,6 +407,7 @@ impl CachedDataItemKey {
             | CachedDataItemKey::OutdatedCollectible { .. }
             | CachedDataItemKey::OutdatedOutputDependency { .. }
             | CachedDataItemKey::OutdatedCellDependency { .. }
+            | CachedDataItemKey::OutdatedCollectiblesDependency { .. }
             | CachedDataItemKey::OutdatedChild { .. }
             | CachedDataItemKey::Error { .. } => TaskDataCategory::Data,
 
@@ -405,13 +427,16 @@ impl CachedDataItemKey {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CachedDataItemIndex {
     Children,
+    Collectibles,
     Follower,
     Upper,
     AggregatedDirtyContainer,
+    AggregatedCollectible,
     CellData,
     CellTypeMaxIndex,
     CellDependent,
     OutputDependent,
+    CollectiblesDependent,
     Dependencies,
 }
 
@@ -421,18 +446,29 @@ pub mod indicies {
 
     pub const Child: CachedDataItemIndex = CachedDataItemIndex::Children;
     pub const OutdatedChild: CachedDataItemIndex = CachedDataItemIndex::Children;
+    pub const Collectible: CachedDataItemIndex = CachedDataItemIndex::Collectibles;
+    pub const OutdatedCollectible: CachedDataItemIndex = CachedDataItemIndex::Collectibles;
     pub const Follower: CachedDataItemIndex = CachedDataItemIndex::Follower;
     pub const Upper: CachedDataItemIndex = CachedDataItemIndex::Upper;
     pub const AggregatedDirtyContainer: CachedDataItemIndex =
         CachedDataItemIndex::AggregatedDirtyContainer;
+    pub const AggregatedCollectible: CachedDataItemIndex =
+        CachedDataItemIndex::AggregatedCollectible;
     pub const CellData: CachedDataItemIndex = CachedDataItemIndex::CellData;
     pub const CellTypeMaxIndex: CachedDataItemIndex = CachedDataItemIndex::CellTypeMaxIndex;
     pub const CellDependent: CachedDataItemIndex = CachedDataItemIndex::CellDependent;
     pub const OutputDependent: CachedDataItemIndex = CachedDataItemIndex::OutputDependent;
+    pub const CollectiblesDependent: CachedDataItemIndex =
+        CachedDataItemIndex::CollectiblesDependent;
     pub const OutputDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
     pub const CellDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
+    pub const CollectibleDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
     pub const OutdatedOutputDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
     pub const OutdatedCellDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
+    pub const OutdatedCollectiblesDependency: CachedDataItemIndex =
+        CachedDataItemIndex::Dependencies;
+    pub const OutdatedCollectibleDependency: CachedDataItemIndex =
+        CachedDataItemIndex::Dependencies;
 }
 
 impl Indexed for CachedDataItemKey {
@@ -442,10 +478,17 @@ impl Indexed for CachedDataItemKey {
         match self {
             CachedDataItemKey::Child { .. } => Some(CachedDataItemIndex::Children),
             CachedDataItemKey::OutdatedChild { .. } => Some(CachedDataItemIndex::Children),
+            CachedDataItemKey::Collectible { .. } => Some(CachedDataItemIndex::Collectibles),
+            CachedDataItemKey::OutdatedCollectible { .. } => {
+                Some(CachedDataItemIndex::Collectibles)
+            }
             CachedDataItemKey::Follower { .. } => Some(CachedDataItemIndex::Follower),
             CachedDataItemKey::Upper { .. } => Some(CachedDataItemIndex::Upper),
             CachedDataItemKey::AggregatedDirtyContainer { .. } => {
                 Some(CachedDataItemIndex::AggregatedDirtyContainer)
+            }
+            CachedDataItemKey::AggregatedCollectible { .. } => {
+                Some(CachedDataItemIndex::AggregatedCollectible)
             }
             CachedDataItemKey::CellData { .. } => Some(CachedDataItemIndex::CellData),
             CachedDataItemKey::CellTypeMaxIndex { .. } => {
@@ -455,10 +498,16 @@ impl Indexed for CachedDataItemKey {
             CachedDataItemKey::OutputDependent { .. } => Some(CachedDataItemIndex::OutputDependent),
             CachedDataItemKey::OutputDependency { .. } => Some(CachedDataItemIndex::Dependencies),
             CachedDataItemKey::CellDependency { .. } => Some(CachedDataItemIndex::Dependencies),
+            CachedDataItemKey::CollectiblesDependency { .. } => {
+                Some(CachedDataItemIndex::Dependencies)
+            }
             CachedDataItemKey::OutdatedOutputDependency { .. } => {
                 Some(CachedDataItemIndex::Dependencies)
             }
             CachedDataItemKey::OutdatedCellDependency { .. } => {
+                Some(CachedDataItemIndex::Dependencies)
+            }
+            CachedDataItemKey::OutdatedCollectiblesDependency { .. } => {
                 Some(CachedDataItemIndex::Dependencies)
             }
             _ => None,
