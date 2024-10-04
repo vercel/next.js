@@ -49,6 +49,8 @@ export function createMetadataComponents({
   errorType,
   createServerParamsForMetadata,
   workStore,
+  MetadataBoundary,
+  ViewportBoundary,
 }: {
   tree: LoaderTree
   searchParams: Promise<ParsedUrlQuery>
@@ -58,12 +60,18 @@ export function createMetadataComponents({
   errorType?: 'not-found' | 'redirect'
   createServerParamsForMetadata: CreateServerParamsForMetadata
   workStore: WorkStore
+  MetadataBoundary: (props: { children: React.ReactNode }) => React.ReactNode
+  ViewportBoundary: (props: { children: React.ReactNode }) => React.ReactNode
 }): [React.ComponentType, () => Promise<void>] {
   function MetadataRoot() {
     return (
       <>
-        <Metadata />
-        <Viewport />
+        <MetadataBoundary>
+          <Metadata />
+        </MetadataBoundary>
+        <ViewportBoundary>
+          <Viewport />
+        </ViewportBoundary>
         {appUsingSizeAdjustment ? <meta name="next-size-adjust" /> : null}
       </>
     )

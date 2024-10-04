@@ -101,8 +101,6 @@ describe('dynamic-data', () => {
       // in dev we expect the entire page to be rendered at runtime
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
-      // we expect there to be no suspense boundary in fallback state
-      expect($('#boundary').html()).toBeNull()
     } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
       expect($('#layout').text()).toBe('at buildtime')
