@@ -1492,8 +1492,15 @@ export default async function build(
           'Building'
         )
         const promises: Promise<any>[] = []
-        const sema = new Sema(5)
-        let extraSema = 5
+
+        // Concurrency will start at INITIAL_CONCURRENCY and
+        // slowly ramp up to CONCURRENCY by increasing the
+        // concurrency by 1 every time a task is completed.
+        const INITIAL_CONCURRENCY = 5
+        const CONCURRENCY = 10
+
+        const sema = new Sema(INITIAL_CONCURRENCY)
+        let remainingRampup = CONCURRENCY - INITIAL_CONCURRENCY
         const enqueue = (fn: () => Promise<void>) => {
           promises.push(
             (async () => {
@@ -1502,8 +1509,8 @@ export default async function build(
                 await fn()
               } finally {
                 sema.release()
-                if (extraSema > 0) {
-                  extraSema--
+                if (remainingRampup > 0) {
+                  remainingRampup--
                   sema.release()
                 }
                 progress()
