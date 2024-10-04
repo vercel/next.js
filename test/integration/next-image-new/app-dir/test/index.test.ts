@@ -1543,7 +1543,7 @@ function runTests(mode: 'dev' | 'server') {
       expect(manifest).toEqual({
         version: 1,
         images: {
-          contentDispositionType: 'attachment',
+          contentDispositionType: 'inline',
           contentSecurityPolicy:
             "script-src 'none'; frame-src 'none'; sandbox;",
           dangerouslyAllowSVG: false,
