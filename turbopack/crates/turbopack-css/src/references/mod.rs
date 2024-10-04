@@ -151,7 +151,7 @@ impl VisitMut for ModuleReferencesVisitor<'_> {
     }
 }
 
-impl<'a> Visitor<'_> for ModuleReferencesVisitor<'a> {
+impl Visitor<'_> for ModuleReferencesVisitor<'_> {
     type Error = Infallible;
 
     fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
