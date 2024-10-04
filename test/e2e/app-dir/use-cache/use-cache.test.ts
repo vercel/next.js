@@ -52,30 +52,25 @@ describe('use-cache', () => {
     const browser = await next.browser('/errors')
     expect(await browser.waitForElementByCss('#cookies').text()).toContain(
       isNextDev
-        ? '`cookies` cannot be called inside "use cache".'
+        ? 'Route /errors used "cookies" inside "use cache".'
         : GENERIC_RSC_ERROR
     )
     expect(await browser.waitForElementByCss('#headers').text()).toContain(
       isNextDev
-        ? '`headers` cannot be called inside "use cache".'
+        ? 'Route /errors used "headers" inside "use cache".'
         : GENERIC_RSC_ERROR
     )
     expect(await browser.waitForElementByCss('#draft-mode').text()).toContain(
-      isNextDev
-        ? '`draftMode` cannot be called inside "use cache".'
-        : GENERIC_RSC_ERROR
+      'Editing: false'
     )
 
     // CLI assertions are skipped in deploy mode because `next.cliOutput` will only contain build-time logs.
     if (!isNextDeploy) {
       expect(next.cliOutput).toContain(
-        '`cookies` cannot be called inside "use cache".'
+        'Route /errors used "cookies" inside "use cache". '
       )
       expect(next.cliOutput).toContain(
-        '`headers` cannot be called inside "use cache".'
-      )
-      expect(next.cliOutput).toContain(
-        '`draftMode` cannot be called inside "use cache".'
+        'Route /errors used "headers" inside "use cache". '
       )
     }
   })
