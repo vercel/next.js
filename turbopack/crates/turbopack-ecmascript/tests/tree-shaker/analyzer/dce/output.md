@@ -2,35 +2,37 @@
 
 Count: 4
 
-## Item 1: Stmt 0, `Normal`
+## Item 1: Stmt 0, `ImportOfModule`
 
 ```js
-a = ()=>{};
-
-```
-
-- Write: `a`
-
-## Item 2: Stmt 1, `Normal`
-
-```js
-function a() {}
+import { baz } from './module';
 
 ```
 
 - Hoisted
-- Declares: `a`
-- Write: `a`
+- Side effects
 
-## Item 3: Stmt 2, `Normal`
+## Item 2: Stmt 0, `ImportBinding(0)`
 
 ```js
-console.log(a);
+import { baz } from './module';
+
+```
+
+- Hoisted
+- Declares: `baz`
+
+## Item 3: Stmt 1, `Normal`
+
+```js
+if (1 + 1 == 3) {
+    baz();
+}
 
 ```
 
 - Side effects
-- Reads: `a`
+- Reads: `baz`
 
 # Phase 1
 ```mermaid
@@ -49,9 +51,8 @@ graph TD
     Item3;
     Item4;
     Item4["ModuleEvaluation"];
-    Item1 --> Item2;
-    Item3 --> Item1;
     Item3 --> Item2;
+    Item3 --> Item1;
 ```
 # Phase 3
 ```mermaid
@@ -61,9 +62,8 @@ graph TD
     Item3;
     Item4;
     Item4["ModuleEvaluation"];
-    Item1 --> Item2;
-    Item3 --> Item1;
     Item3 --> Item2;
+    Item3 --> Item1;
 ```
 # Phase 4
 ```mermaid
@@ -73,21 +73,21 @@ graph TD
     Item3;
     Item4;
     Item4["ModuleEvaluation"];
-    Item1 --> Item2;
-    Item3 --> Item1;
     Item3 --> Item2;
+    Item3 --> Item1;
+    Item4 --> Item1;
     Item4 --> Item3;
 ```
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(1, Normal)]"];
-    N1["Items: [ItemId(0, Normal)]"];
-    N2["Items: [ItemId(2, Normal)]"];
+    N0["Items: [ItemId(0, ImportOfModule)]"];
+    N1["Items: [ItemId(0, ImportBinding(0))]"];
+    N2["Items: [ItemId(1, Normal)]"];
     N3["Items: [ItemId(ModuleEvaluation)]"];
-    N1 --> N0;
     N2 --> N1;
     N2 --> N0;
+    N3 --> N0;
     N3 --> N2;
 ```
 # Entrypoints
@@ -103,33 +103,35 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-function a() {}
-export { a as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
+import './module';
 
 ```
 ## Part 1
 ```js
-import { a as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+import { baz } from './module';
+export { baz as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
-a = ()=>{};
 
 ```
 ## Part 2
 ```js
-import { a as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+import { a as baz } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+    __turbopack_part__: 0
 };
-console.log(a);
+if (1 + 1 == 3) {
+    baz();
+}
 
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
@@ -142,6 +144,9 @@ import "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
@@ -161,33 +166,35 @@ import "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-function a() {}
-export { a as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
+import './module';
 
 ```
 ## Part 1
 ```js
-import { a as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+import { baz } from './module';
+export { baz as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
-a = ()=>{};
 
 ```
 ## Part 2
 ```js
-import { a as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+import { a as baz } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+    __turbopack_part__: 0
 };
-console.log(a);
+if (1 + 1 == 3) {
+    baz();
+}
 
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
@@ -200,6 +207,9 @@ import "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
