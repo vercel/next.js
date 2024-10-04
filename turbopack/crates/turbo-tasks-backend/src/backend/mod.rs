@@ -23,7 +23,6 @@ use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
 use smallvec::smallvec;
-pub use storage::TaskDataCategory;
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
@@ -36,7 +35,7 @@ use turbo_tasks::{
     ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
-pub use self::operation::AnyOperation;
+pub use self::{operation::AnyOperation, storage::TaskDataCategory};
 use crate::{
     backend::{
         operation::{
