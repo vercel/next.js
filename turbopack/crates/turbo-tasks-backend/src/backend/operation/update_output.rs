@@ -44,6 +44,10 @@ impl UpdateOutputOperation {
         mut ctx: ExecuteContext<'_>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        if let Some(InProgressState::InProgress { stale: true, .. }) = get!(task, InProgress) {
+            // Skip updating the output when the task is stale
+            return;
+        }
         let old_error = task.remove(&CachedDataItemKey::Error {});
         let current_output = task.get(&CachedDataItemKey::Output {});
         let output_value = match output {
