@@ -187,7 +187,7 @@ pub(crate) async fn collect_next_dynamic_imports(
             }
         });
 
-        // Consolifate import mappings into a single indexmap
+        // Consolidate import mappings into a single indexmap
         let mut import_mappings: IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules> =
             IndexMap::new();
 
