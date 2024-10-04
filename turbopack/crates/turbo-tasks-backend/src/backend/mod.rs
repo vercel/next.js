@@ -1062,17 +1062,17 @@ impl Backend for TurboTasksBackend {
         );
         {
             let mut task = self.storage.access_mut(task_id);
-            let _ = task.add(CachedDataItem::AggregationNumber {
+            task.add(CachedDataItem::AggregationNumber {
                 value: AggregationNumber {
                     base: u32::MAX,
                     distance: 0,
                     effective: u32::MAX,
                 },
             });
-            let _ = task.add(CachedDataItem::AggregateRoot {
+            task.add(CachedDataItem::AggregateRoot {
                 value: RootState::new(root_type),
             });
-            let _ = task.add(CachedDataItem::new_scheduled(move || match root_type {
+            task.add(CachedDataItem::new_scheduled(move || match root_type {
                 ActiveType::RootTask => "Root Task".to_string(),
                 ActiveType::OnceTask => "Once Task".to_string(),
                 _ => unreachable!(),
