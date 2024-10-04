@@ -124,10 +124,6 @@ import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
 import {
-  handleBadRequestResponse,
-  handleInternalServerErrorResponse,
-} from './route-modules/helpers/response-handlers'
-import {
   fromNodeOutgoingHttpHeaders,
   normalizeNextQueryParam,
   toNodeOutgoingHttpHeaders,
@@ -2587,7 +2583,7 @@ export default abstract class Server<
             Log.error(err)
 
             // Otherwise, send a 500 response.
-            await sendResponse(req, res, handleInternalServerErrorResponse())
+            await sendResponse(req, res, new Response(null, { status: 500 }))
 
             return null
           }
@@ -2597,7 +2593,7 @@ export default abstract class Server<
         ) {
           // An OPTIONS request to a page handler is invalid.
           if (req.method === 'OPTIONS' && !is404Page) {
-            await sendResponse(req, res, handleBadRequestResponse())
+            await sendResponse(req, res, new Response(null, { status: 400 }))
             return null
           }
 
@@ -3576,7 +3572,7 @@ export default abstract class Server<
       shouldEnsure: false,
     })
     if (result) {
-      getTracer().getRootSpanAttributes()?.set('next.route', pathname)
+      getTracer().setRootSpanAttribute('next.route', pathname)
       try {
         return await this.renderToResponseWithComponents(ctx, result)
       } catch (err) {
