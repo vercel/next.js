@@ -206,21 +206,37 @@ export function transformDynamicAPI(
         }
       })
 
-    // Handle type usage of async API, e.g. `type Cookie = typeof cookies`
+    // Handle type usage of async API, e.g. `type Cookie = ReturnType<typeof cookies>`
+    // convert it to `type Cookie = Awaited<ReturnType<typeof cookies>>`
     root
-      .find(j.TSTypeQuery, { exprName: { name: asyncRequestApiName } })
+      .find(j.TSTypeReference, {
+        typeName: {
+          type: 'Identifier',
+          name: 'ReturnType',
+        },
+      })
       .forEach((path) => {
-        const queryNode = path.value
-        // If it's just "typeof cookies", wrap it with Awaited<>.
-        // e.g. `type Cookie = Awaited<typeof cookies>`
+        const typeParam = path.node.typeParameters?.params[0]
+
+        // Check if the ReturnType is for 'cookies'
         if (
-          j.Identifier.check(queryNode.exprName) &&
-          queryNode.exprName.name === asyncRequestApiName
+          typeParam &&
+          j.TSTypeQuery.check(typeParam) &&
+          j.Identifier.check(typeParam.exprName) &&
+          typeParam.exprName.name === asyncRequestApiName
         ) {
-          const newTypeQuery = j.identifier(
-            `Awaited<typeof ${asyncRequestApiName}>`
+          // Replace ReturnType<typeof cookies> with Awaited<ReturnType<typeof cookies>>
+          const awaitedTypeReference = j.tsTypeReference(
+            j.identifier('Awaited'),
+            j.tsTypeParameterInstantiation([
+              j.tsTypeReference(
+                j.identifier('ReturnType'),
+                j.tsTypeParameterInstantiation([typeParam])
+              ),
+            ])
           )
-          j(path).replaceWith(newTypeQuery)
+
+          j(path).replaceWith(awaitedTypeReference)
 
           modified = true
         }

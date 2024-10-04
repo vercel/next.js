@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 
-export type Cookie = typeof cookies
-export function foo(c: typeof cookies) {
+export type Cookie = ReturnType<typeof cookies>
+export function foo(c: ReturnType<typeof cookies>) {
   return c
 }
