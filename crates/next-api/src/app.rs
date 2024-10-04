@@ -18,7 +18,9 @@ use next_core::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
-    next_client_reference::{client_reference_graph, NextEcmascriptClientReferenceTransition},
+    next_client_reference::{
+        client_reference_graph, ClientReferenceGraphResult, NextEcmascriptClientReferenceTransition,
+    },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -62,7 +64,7 @@ use turbopack_core::{
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::resolve::cjs_resolve;
+use turbopack_ecmascript::{resolve::cjs_resolve, tree_shake::asset::EcmascriptModulePartAsset};
 
 use crate::{
     dynamic_imports::{
@@ -834,8 +836,6 @@ impl AppEndpoint {
 
         let rsc_entry = app_entry.rsc_entry;
 
-        let rsc_entry_asset = Vc::upcast(rsc_entry);
-
         let client_chunking_context = this.app_project.project().client_chunking_context();
 
         let (app_server_reference_modules, client_dynamic_imports, client_references) =
@@ -862,7 +862,50 @@ impl AppEndpoint {
                 }
                 let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
-                let client_references = client_reference_graph(Vc::cell(vec![rsc_entry_asset]));
+                let client_references = {
+                    let modules = if let Some(module_part_asset) =
+                        Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(rsc_entry)
+                            .await?
+                    {
+                        let mut modules: Vec<_> = module_part_asset
+                            .await?
+                            .full_module
+                            .await?
+                            .inner_assets
+                            .iter()
+                            .try_join() // TODO prevent double collect
+                            .await?
+                            .iter()
+                            .flat_map(|a| a.values())
+                            .copied()
+                            .collect(); // TODO prevent double collect
+                        modules.push(Vc::upcast(module_part_asset));
+                        modules
+                    } else {
+                        vec![rsc_entry]
+                    };
+
+                    println!(
+                        "before {:?}",
+                        modules
+                            .iter()
+                            .map(|module| module.ident().to_string())
+                            .try_join()
+                            .await?
+                    );
+
+                    let mut client_references: ClientReferenceGraphResult =
+                        ClientReferenceGraphResult::default();
+
+                    for module in modules {
+                        let current_client_references =
+                            client_reference_graph(module, client_references.visited_nodes).await?;
+
+                        client_references.extend(&current_client_references);
+                    }
+                    // TODO remove cell
+                    client_references.cell()
+                };
 
                 let ssr_chunking_context = if process_ssr {
                     Some(match runtime {

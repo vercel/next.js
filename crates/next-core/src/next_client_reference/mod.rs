@@ -7,5 +7,5 @@ pub use ecmascript_client_reference::{
 };
 pub use visit_client_reference::{
     client_reference_graph, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
-    ClientReferenceTypes,
+    ClientReferenceTypes, VisitedClientReferenceGraphNodes,
 };
