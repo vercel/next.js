@@ -579,7 +579,7 @@ impl TurboTasksBackendInner {
 
         let mut new_items = false;
 
-        fn shards_empty<T>(shards: &Vec<ChunkedVec<T>>) -> bool {
+        fn shards_empty<T>(shards: &[ChunkedVec<T>]) -> bool {
             shards.iter().all(|shard| shard.is_empty())
         }
 

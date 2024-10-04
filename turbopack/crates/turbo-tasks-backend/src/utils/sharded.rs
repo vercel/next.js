@@ -1,4 +1,4 @@
-use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash};
 
 use parking_lot::{Mutex, MutexGuard};
 use rustc_hash::FxHasher;
@@ -33,9 +33,8 @@ impl<T, H> Sharded<T, H> {
         K: Hash,
         H: BuildHasher,
     {
-        let mut h = self.hasher.build_hasher();
-        key.hash(&mut h);
-        let shard = h.finish() as u16 & self.bitmask;
+        let hash = self.hasher.hash_one(key);
+        let shard = hash as u16 & self.bitmask;
         self.data[shard as usize].lock()
     }
 

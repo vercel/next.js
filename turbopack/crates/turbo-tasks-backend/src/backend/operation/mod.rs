@@ -131,12 +131,11 @@ impl<'a> ExecuteContext<'a> {
         category: TaskDataCategory,
     ) -> Vec<CachedDataItem> {
         // Safety: `transaction` is a valid transaction from `self.backend.backing_storage`.
-        let items = unsafe {
+        unsafe {
             self.backend
                 .backing_storage
                 .lookup_data(self.transaction(), task_id, category)
-        };
-        items
+        }
     }
 
     pub fn is_once_task(&self, task_id: TaskId) -> bool {
@@ -358,8 +357,7 @@ impl<'a> TaskGuard<'a> {
         task.update(key, |old| {
             let old_value_when_persistent = old
                 .as_ref()
-                .map(|old| old.is_persistent().then(|| old.clone()))
-                .flatten();
+                .and_then(|old| old.is_persistent().then(|| old.clone()));
             let new = update(old);
             let new_persistent = new.as_ref().map(|new| new.is_persistent()).unwrap_or(false);
 
