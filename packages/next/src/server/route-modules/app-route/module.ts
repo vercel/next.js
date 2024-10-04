@@ -16,9 +16,9 @@ import {
   type RequestContext,
 } from '../../async-storage/with-request-store'
 import {
-  withStaticGenerationStore,
-  type StaticGenerationContext,
-} from '../../async-storage/with-static-generation-store'
+  withWorkStore,
+  type WorkStoreContext,
+} from '../../async-storage/with-work-store'
 import {
   handleBadRequestResponse,
   handleInternalServerErrorResponse,
@@ -44,14 +44,15 @@ import { DynamicServerError } from '../../../client/components/hooks-server-cont
 
 import { requestAsyncStorage } from '../../../client/components/request-async-storage.external'
 import {
-  staticGenerationAsyncStorage,
-  type StaticGenerationStore,
-} from '../../../client/components/static-generation-async-storage.external'
+  workAsyncStorage,
+  type WorkStore,
+} from '../../../client/components/work-async-storage.external'
 import {
   prerenderAsyncStorage,
   type PrerenderStore,
 } from '../../app-render/prerender-async-storage.external'
 import { actionAsyncStorage } from '../../../client/components/action-async-storage.external'
+import { cacheAsyncStorage } from '../../../server/app-render/cache-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
@@ -82,7 +83,7 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
  * handler for app routes.
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
-  renderOpts: StaticGenerationContext['renderOpts'] &
+  renderOpts: WorkStoreContext['renderOpts'] &
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'>
   prerenderManifest: DeepReadonly<PrerenderManifest>
 }
@@ -155,7 +156,7 @@ export class AppRouteRouteModule extends RouteModule<
   /**
    * A reference to the static generation async storage.
    */
-  public readonly staticGenerationAsyncStorage = staticGenerationAsyncStorage
+  public readonly workAsyncStorage = workAsyncStorage
 
   /**
    * prerenderAsyncStorage is used to scope a prerender context for renders ocurring
@@ -292,7 +293,7 @@ export class AppRouteRouteModule extends RouteModule<
     const dynamicIOEnabled = !!context.renderOpts.experimental?.dynamicIO
 
     // Get the context for the static generation.
-    const staticGenerationContext: StaticGenerationContext = {
+    const staticGenerationContext: WorkStoreContext = {
       // App Routes don't support unknown route params.
       fallbackRouteParams: null,
       page: this.definition.page,
@@ -315,22 +316,21 @@ export class AppRouteRouteModule extends RouteModule<
           this.requestAsyncStorage,
           requestContext,
           (requestStore) =>
-            withStaticGenerationStore(
-              this.staticGenerationAsyncStorage,
+            withWorkStore(
+              this.workAsyncStorage,
               staticGenerationContext,
-              (staticGenerationStore) => {
+              (workStore) => {
                 // Check to see if we should bail out of static generation based on
                 // having non-static methods.
-                const isStaticGeneration =
-                  staticGenerationStore.isStaticGeneration
+                const isStaticGeneration = workStore.isStaticGeneration
 
                 if (this.hasNonStaticMethods) {
                   if (isStaticGeneration) {
                     const err = new DynamicServerError(
                       'Route is configured with methods that cannot be statically generated.'
                     )
-                    staticGenerationStore.dynamicUsageDescription = err.message
-                    staticGenerationStore.dynamicUsageStack = err.stack
+                    workStore.dynamicUsageDescription = err.message
+                    workStore.dynamicUsageStack = err.stack
                     throw err
                   } else {
                     // We aren't statically generating but since this route has non-static methods
@@ -338,7 +338,7 @@ export class AppRouteRouteModule extends RouteModule<
                     // @TODO this type of logic is too indirect. we need to refactor how we set fetch cache
                     // behavior. Prior to the most recent refactor this logic was buried deep in staticGenerationBailout
                     // so it is possible it was unintentional and then tests were written to assert the current behavior
-                    staticGenerationStore.revalidate = 0
+                    workStore.revalidate = 0
                   }
                 }
 
@@ -350,13 +350,13 @@ export class AppRouteRouteModule extends RouteModule<
                 switch (this.dynamic) {
                   case 'force-dynamic': {
                     // Routes of generated paths should be dynamic
-                    staticGenerationStore.forceDynamic = true
+                    workStore.forceDynamic = true
                     break
                   }
                   case 'force-static':
                     // The dynamic property is set to force-static, so we should
                     // force the page to be static.
-                    staticGenerationStore.forceStatic = true
+                    workStore.forceStatic = true
                     // We also Proxy the request to replace dynamic data on the request
                     // with empty stubs to allow for safely executing as static
                     request = new Proxy(rawRequest, forceStaticRequestHandlers)
@@ -364,7 +364,7 @@ export class AppRouteRouteModule extends RouteModule<
                   case 'error':
                     // The dynamic property is set to error, so we should throw an
                     // error if the page is being statically generated.
-                    staticGenerationStore.dynamicShouldError = true
+                    workStore.dynamicShouldError = true
                     if (isStaticGeneration)
                       request = new Proxy(
                         rawRequest,
@@ -373,17 +373,13 @@ export class AppRouteRouteModule extends RouteModule<
                     break
                   default:
                     // We proxy `NextRequest` to track dynamic access, and potentially bail out of static generation
-                    request = proxyNextRequest(
-                      rawRequest,
-                      staticGenerationStore
-                    )
+                    request = proxyNextRequest(rawRequest, workStore)
                 }
 
                 // If the static generation store does not have a revalidate value
                 // set, then we should set it the revalidate value from the userland
                 // module or default to false.
-                staticGenerationStore.revalidate ??=
-                  this.userland.revalidate ?? false
+                workStore.revalidate ??= this.userland.revalidate ?? false
 
                 // TODO: propagate this pathname from route matcher
                 const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
@@ -399,8 +395,7 @@ export class AppRouteRouteModule extends RouteModule<
                   async () => {
                     // Patch the global fetch.
                     patchFetch({
-                      staticGenerationAsyncStorage:
-                        this.staticGenerationAsyncStorage,
+                      workAsyncStorage: this.workAsyncStorage,
                       requestAsyncStorage: this.requestAsyncStorage,
                       prerenderAsyncStorage: this.prerenderAsyncStorage,
                     })
@@ -409,7 +404,7 @@ export class AppRouteRouteModule extends RouteModule<
                       params: context.params
                         ? createServerParamsForRoute(
                             parsedUrlQueryToParams(context.params),
-                            staticGenerationStore
+                            workStore
                           )
                         : undefined,
                     }
@@ -439,6 +434,7 @@ export class AppRouteRouteModule extends RouteModule<
                       let dynamicTracking =
                         createDynamicTrackingState(undefined)
                       const prospectiveRoutePrerenderStore: PrerenderStore = {
+                        type: 'prerender',
                         cacheSignal,
                         // During prospective render we don't use a controller
                         // because we need to let all caches fill.
@@ -487,14 +483,14 @@ export class AppRouteRouteModule extends RouteModule<
                           getFirstDynamicReason(dynamicTracking)
                         if (dynamicReason) {
                           throw new DynamicServerError(
-                            `Route ${staticGenerationStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+                            `Route ${workStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
                           )
                         } else {
                           console.error(
                             'Expected Next.js to keep track of reason for opting out of static rendering but one was not found. This is a bug in Next.js'
                           )
                           throw new DynamicServerError(
-                            `Route ${staticGenerationStore.route} couldn't be rendered statically because it used a dynamic API. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+                            `Route ${workStore.route} couldn't be rendered statically because it used a dynamic API. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
                           )
                         }
                       }
@@ -506,6 +502,7 @@ export class AppRouteRouteModule extends RouteModule<
                       dynamicTracking = createDynamicTrackingState(undefined)
 
                       const finalRoutePrerenderStore: PrerenderStore = {
+                        type: 'prerender',
                         cacheSignal: null,
                         controller,
                         dynamicTracking,
@@ -551,11 +548,7 @@ export class AppRouteRouteModule extends RouteModule<
                               if (!bodyHandled) {
                                 bodyHandled = true
                                 controller.abort()
-                                reject(
-                                  createDynamicIOError(
-                                    staticGenerationStore.route
-                                  )
-                                )
+                                reject(createDynamicIOError(workStore.route))
                               }
                             })
                           } catch (err) {
@@ -566,12 +559,19 @@ export class AppRouteRouteModule extends RouteModule<
                           if (!responseHandled) {
                             responseHandled = true
                             controller.abort()
-                            reject(
-                              createDynamicIOError(staticGenerationStore.route)
-                            )
+                            reject(createDynamicIOError(workStore.route))
                           }
                         })
                       })
+                    } else if (isStaticGeneration) {
+                      res = await prerenderAsyncStorage.run(
+                        {
+                          type: 'prerender-legacy',
+                        },
+                        handler,
+                        request,
+                        handlerContext
+                      )
                     } else {
                       res = await handler(request, handlerContext)
                     }
@@ -580,21 +580,18 @@ export class AppRouteRouteModule extends RouteModule<
                         `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
                       )
                     }
-                    context.renderOpts.fetchMetrics =
-                      staticGenerationStore.fetchMetrics
+                    context.renderOpts.fetchMetrics = workStore.fetchMetrics
 
                     context.renderOpts.pendingWaitUntil = Promise.all([
-                      staticGenerationStore.incrementalCache?.revalidateTag(
-                        staticGenerationStore.revalidatedTags || []
+                      workStore.incrementalCache?.revalidateTag(
+                        workStore.revalidatedTags || []
                       ),
-                      ...Object.values(
-                        staticGenerationStore.pendingRevalidates || {}
-                      ),
+                      ...Object.values(workStore.pendingRevalidates || {}),
                     ])
 
-                    addImplicitTags(staticGenerationStore, requestStore)
+                    addImplicitTags(workStore, requestStore, undefined)
                     ;(context.renderOpts as any).fetchTags =
-                      staticGenerationStore.tags?.join(',')
+                      workStore.tags?.join(',')
 
                     // It's possible cookies were set in the handler, so we need
                     // to merge the modified cookies and the returned response
@@ -844,10 +841,7 @@ const forceStaticNextUrlHandlers = {
   },
 }
 
-function proxyNextRequest(
-  request: NextRequest,
-  staticGenerationStore: StaticGenerationStore
-) {
+function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
   const nextUrlHandlers = {
     get(
       target: NextURL & UrlSymbolTarget,
@@ -862,7 +856,8 @@ function proxyNextRequest(
         case 'toJSON':
         case 'toString':
         case 'origin': {
-          trackDynamicDataAccessed(staticGenerationStore, `nextUrl.${prop}`)
+          const cacheStore = cacheAsyncStorage.getStore()
+          trackDynamicDataAccessed(workStore, cacheStore, `nextUrl.${prop}`)
           return ReflectAdapter.get(target, prop, receiver)
         }
         case 'clone':
@@ -897,7 +892,8 @@ function proxyNextRequest(
         case 'text':
         case 'arrayBuffer':
         case 'formData': {
-          trackDynamicDataAccessed(staticGenerationStore, `request.${prop}`)
+          const cacheStore = cacheAsyncStorage.getStore()
+          trackDynamicDataAccessed(workStore, cacheStore, `request.${prop}`)
           // The receiver arg is intentionally the same as the target to fix an issue with
           // edge runtime, where attempting to access internal slots with the wrong `this` context
           // results in an error.

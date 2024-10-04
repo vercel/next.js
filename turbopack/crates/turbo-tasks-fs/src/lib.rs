@@ -59,7 +59,7 @@ use tokio::{
 };
 use tracing::Instrument;
 use turbo_tasks::{
-    mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef,
+    mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef, ResolvedVc,
     SerializationInvalidator, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
@@ -530,29 +530,29 @@ impl FileSystem for DiskFileSystem {
         match &*self.read_dir_internal(fs_path).await? {
             InternalDirectoryContent::NotFound => Ok(DirectoryContent::not_found()),
             InternalDirectoryContent::Entries(entries) => {
-                let fs = fs_path.await?.fs;
-                let entries = entries
-                    .iter()
-                    .map(|(name, entry)| {
-                        let entry = match entry {
-                            InternalDirectoryEntry::File(path) => DirectoryEntry::File(
-                                FileSystemPath::new_normalized(fs, path.clone()),
-                            ),
-                            InternalDirectoryEntry::Directory(path) => DirectoryEntry::Directory(
-                                FileSystemPath::new_normalized(fs, path.clone()),
-                            ),
-                            InternalDirectoryEntry::Symlink(path) => DirectoryEntry::Symlink(
-                                FileSystemPath::new_normalized(fs, path.clone()),
-                            ),
-                            InternalDirectoryEntry::Other(path) => DirectoryEntry::Other(
-                                FileSystemPath::new_normalized(fs, path.clone()),
-                            ),
-                            InternalDirectoryEntry::Error => DirectoryEntry::Error,
-                        };
-                        (name.clone(), entry)
-                    })
-                    .collect();
-                Ok(DirectoryContent::new(entries))
+                let fs = *fs_path.await?.fs;
+                let normalize =
+                    |path: &RcStr| FileSystemPath::new_normalized(fs, path.clone()).to_resolved();
+                let mut normalized_entries = AutoMap::new();
+                for (name, entry) in entries {
+                    let entry = match entry {
+                        InternalDirectoryEntry::File(path) => {
+                            DirectoryEntry::File(normalize(path).await?)
+                        }
+                        InternalDirectoryEntry::Directory(path) => {
+                            DirectoryEntry::Directory(normalize(path).await?)
+                        }
+                        InternalDirectoryEntry::Symlink(path) => {
+                            DirectoryEntry::Symlink(normalize(path).await?)
+                        }
+                        InternalDirectoryEntry::Other(path) => {
+                            DirectoryEntry::Other(normalize(path).await?)
+                        }
+                        InternalDirectoryEntry::Error => DirectoryEntry::Error,
+                    };
+                    normalized_entries.insert(name.clone(), entry);
+                }
+                Ok(DirectoryContent::new(normalized_entries))
             }
         }
     }
@@ -881,7 +881,7 @@ impl ValueToString for DiskFileSystem {
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub struct FileSystemPath {
-    pub fs: Vc<Box<dyn FileSystem>>,
+    pub fs: ResolvedVc<Box<dyn FileSystem>>,
     pub path: RcStr,
 }
 
@@ -1085,7 +1085,7 @@ impl FileSystemPath {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct FileSystemPathOption(Option<Vc<FileSystemPath>>);
+pub struct FileSystemPathOption(Option<ResolvedVc<FileSystemPath>>);
 
 #[turbo_tasks::value_impl]
 impl FileSystemPathOption {
@@ -1101,7 +1101,7 @@ impl FileSystemPath {
     /// /-separated path is expected to be already normalized (this is asserted
     /// in dev mode).
     #[turbo_tasks::function]
-    fn new_normalized(fs: Vc<Box<dyn FileSystem>>, path: RcStr) -> Vc<Self> {
+    fn new_normalized(fs: ResolvedVc<Box<dyn FileSystem>>, path: RcStr) -> Vc<Self> {
         // On Windows, the path must be converted to a unix path before creating. But on
         // Unix, backslashes are a valid char in file names, and the path can be
         // provided by the user, so we allow it.
@@ -1125,7 +1125,7 @@ impl FileSystemPath {
     pub async fn join(self: Vc<Self>, path: RcStr) -> Result<Vc<Self>> {
         let this = self.await?;
         if let Some(path) = join_path(&this.path, &path) {
-            Ok(Self::new_normalized(this.fs, path.into()))
+            Ok(Self::new_normalized(*this.fs, path.into()))
         } else {
             bail!(
                 "Vc<FileSystemPath>(\"{}\").join(\"{}\") leaves the filesystem root",
@@ -1147,7 +1147,7 @@ impl FileSystemPath {
             )
         }
         Ok(Self::new_normalized(
-            this.fs,
+            *this.fs,
             format!("{}{}", this.path, path).into(),
         ))
     }
@@ -1166,12 +1166,12 @@ impl FileSystemPath {
         }
         if let (path, Some(ext)) = this.split_extension() {
             return Ok(Self::new_normalized(
-                this.fs,
+                *this.fs,
                 format!("{}{}.{}", path, appending, ext).into(),
             ));
         }
         Ok(Self::new_normalized(
-            this.fs,
+            *this.fs,
             format!("{}{}", this.path, appending).into(),
         ))
     }
@@ -1182,7 +1182,9 @@ impl FileSystemPath {
     pub async fn try_join(&self, path: RcStr) -> Result<Vc<FileSystemPathOption>> {
         if let Some(path) = join_path(&self.path, &path) {
             Ok(Vc::cell(Some(
-                Self::new_normalized(self.fs, path.into()).resolve().await?,
+                Self::new_normalized(*self.fs, path.into())
+                    .to_resolved()
+                    .await?,
             )))
         } else {
             Ok(FileSystemPathOption::none())
@@ -1196,7 +1198,9 @@ impl FileSystemPath {
         if let Some(path) = join_path(&self.path, &path) {
             if path.starts_with(&*self.path) {
                 return Ok(Vc::cell(Some(
-                    Self::new_normalized(self.fs, path.into()).resolve().await?,
+                    Self::new_normalized(*self.fs, path.into())
+                        .to_resolved()
+                        .await?,
                 )));
             }
         }
@@ -1219,7 +1223,7 @@ impl FileSystemPath {
 
     #[turbo_tasks::function]
     pub fn fs(&self) -> Vc<Box<dyn FileSystem>> {
-        self.fs
+        *self.fs
     }
 
     #[turbo_tasks::function]
@@ -1243,7 +1247,7 @@ impl FileSystemPath {
     pub async fn with_extension(&self, extension: RcStr) -> Vc<FileSystemPath> {
         let (path_without_extension, _) = self.split_extension();
         Self::new_normalized(
-            self.fs,
+            *self.fs,
             // Like `Path::with_extension` and `PathBuf::set_extension`, if the extension is empty,
             // we remove the extension altogether.
             match extension.is_empty() {
@@ -1392,7 +1396,7 @@ impl FileSystemPath {
             Some(index) => path[..index].to_string(),
             None => "".to_string(),
         };
-        Ok(FileSystemPath::new_normalized(this.fs, p.into()))
+        Ok(FileSystemPath::new_normalized(*this.fs, p.into()))
     }
 
     #[turbo_tasks::function]
@@ -1427,7 +1431,7 @@ impl FileSystemPath {
     }
 
     #[turbo_tasks::function]
-    pub async fn realpath_with_links(self: Vc<Self>) -> Result<Vc<RealPathResult>> {
+    pub async fn realpath_with_links(self: ResolvedVc<Self>) -> Result<Vc<RealPathResult>> {
         let this = self.await?;
         if this.is_root() {
             return Ok(RealPathResult {
@@ -1436,14 +1440,18 @@ impl FileSystemPath {
             }
             .cell());
         }
-        let parent = self.parent().resolve().await?;
+        let parent = self.parent().to_resolved().await?;
         let parent_result = parent.realpath_with_links().await?;
         let basename = this
             .path
             .rsplit_once('/')
             .map_or(this.path.as_str(), |(_, name)| name);
         let real_self = if parent_result.path != parent {
-            parent_result.path.join(basename.into()).resolve().await?
+            parent_result
+                .path
+                .join(basename.into())
+                .to_resolved()
+                .await?
         } else {
             self
         };
@@ -1452,12 +1460,12 @@ impl FileSystemPath {
             if let LinkContent::Link { target, link_type } = &*real_self.read_link().await? {
                 result.symlinks.push(real_self);
                 result.path = if link_type.contains(LinkType::ABSOLUTE) {
-                    real_self.root().resolve().await?
+                    real_self.root().to_resolved().await?
                 } else {
                     result.path
                 }
                 .join(target.clone())
-                .resolve()
+                .to_resolved()
                 .await?;
                 return Ok(result.cell());
             }
@@ -1480,15 +1488,15 @@ impl ValueToString for FileSystemPath {
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub struct RealPathResult {
-    pub path: Vc<FileSystemPath>,
-    pub symlinks: Vec<Vc<FileSystemPath>>,
+    pub path: ResolvedVc<FileSystemPath>,
+    pub symlinks: Vec<ResolvedVc<FileSystemPath>>,
 }
 
 #[turbo_tasks::value_impl]
 impl RealPathResult {
     #[turbo_tasks::function]
     pub fn path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 }
 
@@ -2080,10 +2088,10 @@ pub enum InternalDirectoryEntry {
 
 #[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
 pub enum DirectoryEntry {
-    File(Vc<FileSystemPath>),
-    Directory(Vc<FileSystemPath>),
-    Symlink(Vc<FileSystemPath>),
-    Other(Vc<FileSystemPath>),
+    File(ResolvedVc<FileSystemPath>),
+    Directory(ResolvedVc<FileSystemPath>),
+    Symlink(ResolvedVc<FileSystemPath>),
+    Other(ResolvedVc<FileSystemPath>),
     Error,
 }
 
@@ -2093,7 +2101,7 @@ pub enum DirectoryEntry {
 impl DirectoryEntry {
     pub async fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = self {
-            let real_path = symlink.realpath().resolve().await?;
+            let real_path = symlink.realpath().to_resolved().await?;
             match *real_path.get_type().await? {
                 FileSystemEntryType::Directory => Ok(DirectoryEntry::Directory(real_path)),
                 FileSystemEntryType::File => Ok(DirectoryEntry::File(real_path)),

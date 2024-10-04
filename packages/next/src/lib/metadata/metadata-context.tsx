@@ -1,6 +1,6 @@
 import type { AppRenderContext } from '../../server/app-render/app-render'
 import type { MetadataContext } from './types/resolvers'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 
 export function createMetadataContext(
@@ -17,7 +17,7 @@ export function createMetadataContext(
 export function createTrackedMetadataContext(
   pathname: string,
   renderOpts: AppRenderContext['renderOpts'],
-  staticGenerationStore: StaticGenerationStore | null
+  workStore: WorkStore | null
 ): MetadataContext {
   return {
     // Use the regular metadata context, but we trap the pathname access.
@@ -29,15 +29,12 @@ export function createTrackedMetadataContext(
     // to provide it, and instead we should error.
     get pathname() {
       if (
-        staticGenerationStore &&
-        staticGenerationStore.isStaticGeneration &&
-        staticGenerationStore.fallbackRouteParams &&
-        staticGenerationStore.fallbackRouteParams.size > 0
+        workStore &&
+        workStore.isStaticGeneration &&
+        workStore.fallbackRouteParams &&
+        workStore.fallbackRouteParams.size > 0
       ) {
-        trackFallbackParamAccessed(
-          staticGenerationStore,
-          'metadata relative url resolving'
-        )
+        trackFallbackParamAccessed(workStore, 'metadata relative url resolving')
       }
 
       return pathname

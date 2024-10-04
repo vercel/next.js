@@ -205,7 +205,7 @@ async fn add_glob_results(
     let result = result.await?;
     for entry in result.results.values() {
         if let DirectoryEntry::File(path) = entry {
-            let source = Vc::upcast(FileSource::new(*path));
+            let source = Vc::upcast(FileSource::new(**path));
             let module = asset_context
                 .process(
                     source,
@@ -224,7 +224,7 @@ async fn add_glob_results(
             Box::pin(add_glob_results(asset_context, result, list))
         }
         // Boxing for async recursion
-        recurse(asset_context, *result, list).await?;
+        recurse(asset_context, **result, list).await?;
     }
     Ok(())
 }
