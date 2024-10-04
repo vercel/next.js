@@ -810,8 +810,16 @@ impl PageEndpoint {
                 runtime,
             } = *self.internal_ssr_chunk_module().await?;
 
-            let is_edge = matches!(runtime, NextRuntime::Edge);
+            let dynamic_import_modules = collect_next_dynamic_imports(
+                vec![Vc::upcast(ssr_module)],
+                this.pages_project.client_module_context(),
+                VisitedDynamicImportModules::empty(),
+            )
+            .await?
+            .client_dynamic_imports
+            .clone();
 
+            let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
                 let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
                 let evaluatable = Vc::try_resolve_sidecast(ssr_module)
@@ -825,14 +833,6 @@ impl PageEndpoint {
                     Value::new(AvailabilityInfo::Root),
                 );
 
-                let dynamic_import_modules = collect_next_dynamic_imports(
-                    vec![Vc::upcast(ssr_module)],
-                    this.pages_project.client_module_context(),
-                    VisitedDynamicImportModules::empty(),
-                )
-                .await?
-                .client_dynamic_imports
-                .clone();
                 let client_chunking_context =
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_evaluated_chunk_group(
@@ -866,21 +866,12 @@ impl PageEndpoint {
                     )
                     .await?;
 
-                let availability_info = Value::new(AvailabilityInfo::Root);
-                let dynamic_import_modules = collect_next_dynamic_imports(
-                    vec![Vc::upcast(ssr_module)],
-                    this.pages_project.client_module_context(),
-                    VisitedDynamicImportModules::empty(),
-                )
-                .await?
-                .client_dynamic_imports
-                .clone();
                 let client_chunking_context =
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_chunk_group(
                     Vc::upcast(client_chunking_context),
-                    dynamic_import_modules.clone(),
-                    availability_info,
+                    dynamic_import_modules,
+                    Value::new(AvailabilityInfo::Root),
                 )
                 .await?;
 
