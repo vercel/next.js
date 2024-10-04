@@ -1012,9 +1012,9 @@ async fn type_exists(
     for path in result.symlinks.iter() {
         refs.push(Vc::upcast(FileSource::new(**path)));
     }
-    let path = result.path.resolve().await?;
+    let path = result.path;
     Ok(if *path.get_type().await? == ty {
-        Some(path)
+        Some(*path)
     } else {
         None
     })
@@ -1028,7 +1028,7 @@ async fn any_exists(
     for path in result.symlinks.iter() {
         refs.push(Vc::upcast(FileSource::new(**path)));
     }
-    let path = result.path.resolve().await?;
+    let path = result.path;
     let ty = *path.get_type().await?;
     Ok(
         if matches!(
@@ -1037,7 +1037,7 @@ async fn any_exists(
         ) {
             None
         } else {
-            Some((ty, path))
+            Some((ty, *path))
         },
     )
 }
