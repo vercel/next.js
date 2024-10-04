@@ -18,7 +18,7 @@ impl UpdateOutputOperation {
     pub fn run(
         task_id: TaskId,
         output: Result<Result<RawVc>, Option<Cow<'static, str>>>,
-        ctx: ExecuteContext<'_>,
+        mut ctx: ExecuteContext<'_>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
         let old_error = task.remove(&CachedDataItemKey::Error {});

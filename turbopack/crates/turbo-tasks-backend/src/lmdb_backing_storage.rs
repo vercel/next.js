@@ -4,6 +4,7 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     error::Error,
     fs::create_dir_all,
+    mem::{transmute, ManuallyDrop},
     path::Path,
     sync::Arc,
     thread::available_parallelism,
@@ -11,14 +12,16 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
-use lmdb::{Database, DatabaseFlags, Environment, EnvironmentFlags, Transaction, WriteFlags};
+use lmdb::{
+    Database, DatabaseFlags, Environment, EnvironmentFlags, RoTransaction, Transaction, WriteFlags,
+};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::Span;
 use turbo_tasks::{backend::CachedTaskType, KeyValuePair, TaskId};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
-    backing_storage::BackingStorage,
+    backing_storage::{BackingStorage, ReadTransaction},
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate},
     utils::chunked_vec::ChunkedVec,
 };
@@ -90,6 +93,30 @@ impl LmdbBackingStorage {
             TaskDataCategory::Meta => self.meta_db,
             TaskDataCategory::Data => self.data_db,
             _ => unreachable!(),
+        }
+    }
+
+    fn to_tx(&self, tx: ReadTransaction) -> ManuallyDrop<RoTransaction<'_>> {
+        ManuallyDrop::new(unsafe { transmute::<*const (), RoTransaction<'_>>(tx.0) })
+    }
+
+    fn from_tx(tx: RoTransaction<'_>) -> ReadTransaction {
+        ReadTransaction(unsafe { transmute::<RoTransaction<'_>, *const ()>(tx) })
+    }
+
+    fn with_tx<T>(
+        &self,
+        tx: Option<ReadTransaction>,
+        f: impl FnOnce(&RoTransaction<'_>) -> Result<T>,
+    ) -> Result<T> {
+        if let Some(tx) = tx {
+            let tx = self.to_tx(tx);
+            f(&*tx)
+        } else {
+            let tx = self.env.begin_ro_txn()?;
+            let r = f(&tx)?;
+            tx.commit()?;
+            Ok(r)
         }
     }
 }
@@ -277,9 +304,26 @@ impl BackingStorage for LmdbBackingStorage {
         Ok(())
     }
 
-    fn forward_lookup_task_cache(&self, task_type: &CachedTaskType) -> Option<TaskId> {
-        fn lookup(this: &LmdbBackingStorage, task_type: &CachedTaskType) -> Result<Option<TaskId>> {
-            let tx = this.env.begin_ro_txn()?;
+    fn start_read_transaction(&self) -> Option<ReadTransaction> {
+        Some(Self::from_tx(self.env.begin_ro_txn().ok()?))
+    }
+
+    unsafe fn end_read_transaction(&self, transaction: ReadTransaction) {
+        ManuallyDrop::into_inner(self.to_tx(transaction))
+            .commit()
+            .unwrap();
+    }
+
+    unsafe fn forward_lookup_task_cache(
+        &self,
+        tx: Option<ReadTransaction>,
+        task_type: &CachedTaskType,
+    ) -> Option<TaskId> {
+        fn lookup(
+            this: &LmdbBackingStorage,
+            tx: &RoTransaction<'_>,
+            task_type: &CachedTaskType,
+        ) -> Result<Option<TaskId>> {
             let task_type = pot::to_vec(task_type)?;
             let bytes = match extended_key::get(&tx, this.forward_task_cache_db, &task_type) {
                 Ok(result) => result,
@@ -293,21 +337,25 @@ impl BackingStorage for LmdbBackingStorage {
             };
             let bytes = bytes.try_into()?;
             let id = TaskId::from(u32::from_be_bytes(bytes));
-            tx.commit()?;
             Ok(Some(id))
         }
-        let id = lookup(self, task_type)
+        let id = self
+            .with_tx(tx, |tx| lookup(self, tx, task_type))
             .inspect_err(|err| println!("Looking up task id for {task_type:?} failed: {err:?}"))
             .ok()??;
         Some(id)
     }
 
-    fn reverse_lookup_task_cache(&self, task_id: TaskId) -> Option<Arc<CachedTaskType>> {
+    unsafe fn reverse_lookup_task_cache(
+        &self,
+        tx: Option<ReadTransaction>,
+        task_id: TaskId,
+    ) -> Option<Arc<CachedTaskType>> {
         fn lookup(
             this: &LmdbBackingStorage,
+            tx: &RoTransaction<'_>,
             task_id: TaskId,
         ) -> Result<Option<Arc<CachedTaskType>>> {
-            let tx = this.env.begin_ro_txn()?;
             let bytes = match tx.get(this.reverse_task_cache_db, &IntKey::new(*task_id)) {
                 Ok(bytes) => bytes,
                 Err(err) => {
@@ -318,23 +366,27 @@ impl BackingStorage for LmdbBackingStorage {
                     }
                 }
             };
-            let result = pot::from_slice(bytes)?;
-            tx.commit()?;
-            Ok(Some(result))
+            Ok(Some(pot::from_slice(bytes)?))
         }
-        let result = lookup(self, task_id)
+        let result = self
+            .with_tx(tx, |tx| lookup(self, tx, task_id))
             .inspect_err(|err| println!("Looking up task type for {task_id} failed: {err:?}"))
             .ok()??;
         Some(result)
     }
 
-    fn lookup_data(&self, task_id: TaskId, category: TaskDataCategory) -> Vec<CachedDataItem> {
+    unsafe fn lookup_data(
+        &self,
+        tx: Option<ReadTransaction>,
+        task_id: TaskId,
+        category: TaskDataCategory,
+    ) -> Vec<CachedDataItem> {
         fn lookup(
             this: &LmdbBackingStorage,
+            tx: &RoTransaction<'_>,
             task_id: TaskId,
             category: TaskDataCategory,
         ) -> Result<Vec<CachedDataItem>> {
-            let tx = this.env.begin_ro_txn()?;
             let bytes = match tx.get(this.db(category), &IntKey::new(*task_id)) {
                 Ok(bytes) => bytes,
                 Err(err) => {
@@ -346,10 +398,9 @@ impl BackingStorage for LmdbBackingStorage {
                 }
             };
             let result: Vec<CachedDataItem> = pot::from_slice(bytes)?;
-            tx.commit()?;
             Ok(result)
         }
-        lookup(self, task_id, category)
+        self.with_tx(tx, |tx| lookup(self, tx, task_id, category))
             .inspect_err(|err| println!("Looking up data for {task_id} failed: {err:?}"))
             .unwrap_or_default()
     }

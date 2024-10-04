@@ -31,13 +31,13 @@ pub enum InvalidateOperation {
 }
 
 impl InvalidateOperation {
-    pub fn run(task_ids: SmallVec<[TaskId; 4]>, ctx: ExecuteContext<'_>) {
-        InvalidateOperation::MakeDirty { task_ids }.execute(&ctx)
+    pub fn run(task_ids: SmallVec<[TaskId; 4]>, mut ctx: ExecuteContext<'_>) {
+        InvalidateOperation::MakeDirty { task_ids }.execute(&mut ctx)
     }
 }
 
 impl Operation for InvalidateOperation {
-    fn execute(mut self, ctx: &ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -66,7 +66,11 @@ impl Operation for InvalidateOperation {
     }
 }
 
-pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx: &ExecuteContext) {
+pub fn make_task_dirty(
+    task_id: TaskId,
+    queue: &mut AggregationUpdateQueue,
+    ctx: &mut ExecuteContext,
+) {
     if ctx.is_once_task(task_id) {
         return;
     }
