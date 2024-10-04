@@ -50,8 +50,9 @@ pub enum ClientReferenceType {
 #[derive(Debug)]
 pub struct ClientReferenceGraphResult {
     pub client_references: Vec<ClientReference>,
+    /// Only the [`ClientReferenceType::EcmascriptClientReference`]s are listed in this map.
     #[allow(clippy::type_complexity)]
-    pub client_references_ecma_by_server_component:
+    pub client_references_by_server_component:
         IndexMap<Option<Vc<NextServerComponentModule>>, Vec<Vc<Box<dyn Module>>>>,
     pub server_component_entries: Vec<Vc<NextServerComponentModule>>,
     pub server_utils: Vec<Vc<Box<dyn Module>>>,
@@ -84,10 +85,10 @@ pub async fn client_reference_graph(
         let mut server_component_entries = vec![];
         let mut server_utils = vec![];
 
-        let mut client_references_ecma_by_server_component = IndexMap::new();
+        let mut client_references_by_server_component = IndexMap::new();
         // Make sure None (for the various internal next/dist/esm/client/components/*) is listed
         // first
-        client_references_ecma_by_server_component.insert(None, Vec::new());
+        client_references_by_server_component.insert(None, Vec::new());
 
         let graph = AdjacencyMap::new()
             .skip_duplicates()
@@ -127,7 +128,7 @@ pub async fn client_reference_graph(
                     if let ClientReferenceType::EcmascriptClientReference(entry) =
                         client_reference.ty()
                     {
-                        client_references_ecma_by_server_component
+                        client_references_by_server_component
                             .entry(client_reference.server_component)
                             .or_insert_with(Vec::new)
                             .push(Vc::upcast::<Box<dyn Module>>(entry.await?.ssr_module));
@@ -144,7 +145,7 @@ pub async fn client_reference_graph(
 
         Ok(ClientReferenceGraphResult {
             client_references,
-            client_references_ecma_by_server_component,
+            client_references_by_server_component,
             server_component_entries,
             server_utils,
         }

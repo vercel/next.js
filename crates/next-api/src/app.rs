@@ -884,7 +884,7 @@ impl AppEndpoint {
 
                     for refs in client_references
                         .await?
-                        .client_references_ecma_by_server_component
+                        .client_references_by_server_component
                         .values()
                     {
                         let result = collect_next_dynamic_imports(
@@ -893,7 +893,12 @@ impl AppEndpoint {
                             visited_modules,
                         )
                         .await?;
-                        client_dynamic_imports.extend(result.client_dynamic_imports.clone());
+                        client_dynamic_imports.extend(
+                            result
+                                .client_dynamic_imports
+                                .iter()
+                                .map(|(k, v)| (*k, v.clone())),
+                        );
                         visited_modules = result.visited_modules;
                     }
 
