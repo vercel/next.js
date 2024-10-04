@@ -500,6 +500,7 @@ macro_rules! impl_operation {
 pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
     Invalidate(invalidate::InvalidateOperation),
+    UpdateOutput(update_output::UpdateOutputOperation),
     CleanupOldEdges(cleanup_old_edges::CleanupOldEdgesOperation),
     AggregationUpdate(aggregation_update::AggregationUpdateQueue),
     Nested(Vec<AnyOperation>),
@@ -510,6 +511,7 @@ impl AnyOperation {
         match self {
             AnyOperation::ConnectChild(op) => op.execute(ctx),
             AnyOperation::Invalidate(op) => op.execute(ctx),
+            AnyOperation::UpdateOutput(op) => op.execute(ctx),
             AnyOperation::CleanupOldEdges(op) => op.execute(ctx),
             AnyOperation::AggregationUpdate(op) => op.execute(ctx),
             AnyOperation::Nested(ops) => {
@@ -523,6 +525,7 @@ impl AnyOperation {
 
 impl_operation!(ConnectChild connect_child::ConnectChildOperation);
 impl_operation!(Invalidate invalidate::InvalidateOperation);
+impl_operation!(UpdateOutput update_output::UpdateOutputOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 
@@ -533,5 +536,4 @@ pub use self::{
     cleanup_old_edges::OutdatedEdge,
     update_cell::UpdateCellOperation,
     update_collectible::UpdateCollectibleOperation,
-    update_output::UpdateOutputOperation,
 };
