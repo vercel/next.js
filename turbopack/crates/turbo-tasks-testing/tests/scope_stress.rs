@@ -26,7 +26,8 @@ async fn rectangle_stress() -> Result<()> {
                 }
             })
             .try_join()
-            .await
+            .await?;
+        Ok(())
     })
     .await
 }
