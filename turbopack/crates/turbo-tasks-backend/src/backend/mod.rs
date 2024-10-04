@@ -1296,6 +1296,23 @@ impl TurboTasksBackendInner {
         let mut collectibles = AutoMap::default();
         {
             let mut task = ctx.task(task_id, TaskDataCategory::Data);
+            // Ensure it's an root node
+            loop {
+                let aggregation_number = get_aggregation_number(&task);
+                if is_root_node(aggregation_number) {
+                    break;
+                }
+                drop(task);
+                AggregationUpdateQueue::run(
+                    AggregationUpdateJob::UpdateAggregationNumber {
+                        task_id,
+                        base_aggregation_number: u32::MAX,
+                        distance: None,
+                    },
+                    &mut ctx,
+                );
+                task = ctx.task(task_id, TaskDataCategory::All);
+            }
             for collectible in iter_many!(task, AggregatedCollectible { collectible } count if collectible.collectible_type == collectible_type && count > 0 => collectible.cell)
             {
                 *collectibles
