@@ -207,24 +207,24 @@ export function transformDynamicAPI(
       })
 
     // Handle type usage of async API, e.g. `type Cookie = typeof cookies`
-    root.find(j.Identifier, { name: asyncRequestApiName }).forEach((path) => {
-      const parentNode = path.parentPath?.value
-      // If it's just "typeof cookies", wrap it with Awaited<>.
-      // e.g. `type Cookie = Awaited<typeof cookies>`
-      if (
-        parentNode &&
-        j.TSTypeQuery.check(parentNode) &&
-        j.Identifier.check(parentNode.exprName) &&
-        parentNode.exprName.name === asyncRequestApiName
-      ) {
-        const newTypeQuery = j.identifier(
-          `Awaited<typeof ${asyncRequestApiName}>`
-        )
-        j(path.parentPath).replaceWith(newTypeQuery)
+    root
+      .find(j.TSTypeQuery, { exprName: { name: asyncRequestApiName } })
+      .forEach((path) => {
+        const queryNode = path.value
+        // If it's just "typeof cookies", wrap it with Awaited<>.
+        // e.g. `type Cookie = Awaited<typeof cookies>`
+        if (
+          j.Identifier.check(queryNode.exprName) &&
+          queryNode.exprName.name === asyncRequestApiName
+        ) {
+          const newTypeQuery = j.identifier(
+            `Awaited<typeof ${asyncRequestApiName}>`
+          )
+          j(path).replaceWith(newTypeQuery)
 
-        modified = true
-      }
-    })
+          modified = true
+        }
+      })
   }
 
   const isClientComponent = determineClientDirective(root, j)
