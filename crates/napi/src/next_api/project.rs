@@ -1,4 +1,4 @@
-use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
@@ -24,7 +24,6 @@ use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
-use turbo_tasks_memory::MemoryBackend;
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -44,8 +43,8 @@ use url::Url;
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask,
-        TurbopackResult, VcArc,
+        create_turbo_tasks, get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue,
+        NextBackend, RootTask, TurbopackResult, VcArc,
     },
 };
 use crate::register;
@@ -99,7 +98,7 @@ pub struct NapiProjectOptions {
 
     /// next.config's distDir. Project initialization occurs eariler than
     /// deserializing next.config, so passing it as separate option.
-    pub dist_dir: Option<String>,
+    pub dist_dir: String,
 
     /// Filesystem watcher options.
     pub watch: NapiWatchOptions,
@@ -273,7 +272,7 @@ impl From<NapiDefineEnv> for DefineEnv {
 }
 
 pub struct ProjectInstance {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: Arc<TurboTasks<NextBackend>>,
     container: Vc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
@@ -309,10 +308,7 @@ pub async fn project_new(
         let subscriber = Registry::default();
 
         let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
-        let dist_dir = options
-            .dist_dir
-            .as_ref()
-            .map_or_else(|| ".next".to_string(), |d| d.to_string());
+        let dist_dir = options.dist_dir.clone();
 
         let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);
         std::fs::create_dir_all(&internal_dir)
@@ -338,27 +334,30 @@ pub async fn project_new(
         subscriber.init();
     }
 
-    let turbo_tasks = TurboTasks::new(MemoryBackend::new(
-        turbo_engine_options
-            .memory_limit
-            .map(|m| m as usize)
-            .unwrap_or(usize::MAX),
-    ));
-    let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
-    if let Some(stats_path) = stats_path {
-        let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
-        exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || {
-                let mut file = std::fs::File::create(&stats_path)
-                    .with_context(|| format!("failed to create or open {stats_path:?}"))?;
-                serde_json::to_writer(&file, &task_stats)
-                    .context("failed to serialize or write task statistics")?;
-                file.flush().context("failed to flush file")
-            })
-            .await
-            .unwrap()
-            .unwrap();
-        });
+    let memory_limit = turbo_engine_options
+        .memory_limit
+        .map(|m| m as usize)
+        .unwrap_or(usize::MAX);
+    let turbo_tasks = create_turbo_tasks(PathBuf::from(&options.dist_dir), memory_limit)?;
+    #[cfg(not(feature = "new-backend"))]
+    {
+        use std::io::Write;
+        let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
+        if let Some(stats_path) = stats_path {
+            let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
+            exit.on_exit(async move {
+                tokio::task::spawn_blocking(move || {
+                    let mut file = std::fs::File::create(&stats_path)
+                        .with_context(|| format!("failed to create or open {stats_path:?}"))?;
+                    serde_json::to_writer(&file, &task_stats)
+                        .context("failed to serialize or write task statistics")?;
+                    file.flush().context("failed to flush file")
+                })
+                .await
+                .unwrap()
+                .unwrap();
+            });
+        }
     }
     let options: ProjectOptions = options.into();
     let container = turbo_tasks
@@ -502,7 +501,7 @@ impl NapiRoute {
     fn from_route(
         pathname: String,
         value: Route,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
     ) -> Self {
         let convert_endpoint = |endpoint: Vc<Box<dyn Endpoint>>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
@@ -569,7 +568,7 @@ struct NapiMiddleware {
 impl NapiMiddleware {
     fn from_middleware(
         value: &Middleware,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
     ) -> Result<Self> {
         Ok(NapiMiddleware {
             endpoint: External::new(ExternalEndpoint(VcArc::new(
@@ -589,7 +588,7 @@ struct NapiInstrumentation {
 impl NapiInstrumentation {
     fn from_instrumentation(
         value: &Instrumentation,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
     ) -> Result<Self> {
         Ok(NapiInstrumentation {
             node_js: External::new(ExternalEndpoint(VcArc::new(

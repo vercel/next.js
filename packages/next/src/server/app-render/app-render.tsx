@@ -118,6 +118,8 @@ import {
   isRenderInterruptedReason,
   createDynamicTrackingState,
   getFirstDynamicReason,
+  trackAllowedDynamicAccess,
+  throwIfDisallowedDynamic,
   type DynamicTrackingState,
 } from './dynamic-rendering'
 import {
@@ -389,6 +391,8 @@ async function generateDynamicRSCPayload(
       createServerSearchParamsForMetadata,
       createServerParamsForMetadata,
       createMetadataComponents,
+      MetadataBoundary,
+      ViewportBoundary,
     },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
@@ -415,6 +419,8 @@ async function generateDynamicRSCPayload(
       appUsingSizeAdjustment,
       createServerParamsForMetadata,
       workStore,
+      MetadataBoundary,
+      ViewportBoundary,
     })
     flightData = (
       await walkTreeWithFlightRouterState({
@@ -569,6 +575,8 @@ async function getRSCPayload(
       createServerSearchParamsForMetadata,
       createServerParamsForMetadata,
       createMetadataComponents,
+      MetadataBoundary,
+      ViewportBoundary,
     },
     requestStore: { url },
     workStore,
@@ -593,6 +601,8 @@ async function getRSCPayload(
     appUsingSizeAdjustment,
     createServerParamsForMetadata,
     workStore,
+    MetadataBoundary,
+    ViewportBoundary,
   })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -668,6 +678,8 @@ async function getErrorRSCPayload(
       createServerSearchParamsForMetadata,
       createServerParamsForMetadata,
       createMetadataComponents,
+      MetadataBoundary,
+      ViewportBoundary,
     },
     requestStore: { url },
     requestId,
@@ -686,6 +698,8 @@ async function getErrorRSCPayload(
     appUsingSizeAdjustment,
     createServerParamsForMetadata,
     workStore,
+    MetadataBoundary,
+    ViewportBoundary,
   })
 
   const initialHead = (
@@ -1813,7 +1827,6 @@ async function prerenderToStream(
     onHTMLRenderSSRError
   )
 
-  let dynamicTracking: null | DynamicTrackingState = null
   let reactServerPrerenderResult: null | ReactServerPrerenderResult = null
   const setHeader = (name: string, value: string | string[]) => {
     res.setHeader(name, value)
@@ -1932,7 +1945,7 @@ async function prerenderToStream(
         // Reset the dynamic IO state for the final render
         reactServerIsDynamic = false
         flightController = new AbortController()
-        dynamicTracking = createDynamicTrackingState(
+        let dynamicTracking = createDynamicTrackingState(
           renderOpts.isDebugDynamicAccesses
         )
 
@@ -2003,9 +2016,23 @@ async function prerenderToStream(
           dynamicTracking,
         }
         let SSRIsDynamic = false
-        function SSROnError(err: unknown, errorInfo?: ErrorInfo) {
-          if (err === abortReason || isPrerenderInterruptedError(err)) {
+        function SSROnError(err: unknown, errorInfo: ErrorInfo) {
+          if (
+            isAbortReason(err, abortReason) ||
+            isPrerenderInterruptedError(err)
+          ) {
             SSRIsDynamic = true
+
+            const componentStack: string | undefined = (errorInfo as any)
+              .componentStack
+            if (typeof componentStack === 'string') {
+              trackAllowedDynamicAccess(
+                workStore.route,
+                err,
+                componentStack,
+                dynamicTracking
+              )
+            }
             return
           }
 
@@ -2056,6 +2083,8 @@ async function prerenderToStream(
             SSRController.abort(abortReason)
           }
         )
+
+        throwIfDisallowedDynamic(workStore, dynamicTracking)
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
           polyfills,
@@ -2174,7 +2203,7 @@ async function prerenderToStream(
         // details between the prospective render and the final render
         let flightController = new AbortController()
 
-        dynamicTracking = createDynamicTrackingState(
+        let dynamicTracking = createDynamicTrackingState(
           renderOpts.isDebugDynamicAccesses
         )
 
@@ -2287,12 +2316,22 @@ async function prerenderToStream(
         )
 
         function SSROnError(err: unknown, errorInfo?: ErrorInfo) {
-          if (err === abortReason) {
+          if (
+            isAbortReason(err, abortReason) ||
+            isPrerenderInterruptedError(err)
+          ) {
             SSRIsDynamic = true
-            return PRERENDER_COMPLETE
-          } else if (isPrerenderInterruptedError(err)) {
-            SSRIsDynamic = true
-            return err.digest
+            const componentStack: string | undefined = (errorInfo as any)
+              .componentStack
+            if (typeof componentStack === 'string') {
+              trackAllowedDynamicAccess(
+                workStore.route,
+                err,
+                componentStack,
+                dynamicTracking
+              )
+            }
+            return
           }
 
           return htmlRendererErrorHandler(err, errorInfo)
@@ -2361,6 +2400,8 @@ async function prerenderToStream(
             throw err
           }
         }
+
+        throwIfDisallowedDynamic(workStore, dynamicTracking)
 
         if (SSRIsDynamic) {
           // Something dynamic happened in the SSR phase of the render. This could be IO or it could be
@@ -2431,7 +2472,7 @@ async function prerenderToStream(
       }
     } else if (renderOpts.experimental.isRoutePPREnabled) {
       // We're statically generating with PPR and need to do dynamic tracking
-      dynamicTracking = createDynamicTrackingState(
+      let dynamicTracking = createDynamicTrackingState(
         renderOpts.isDebugDynamicAccesses
       )
       const reactServerPrerenderStore: PrerenderStore = {
@@ -2835,7 +2876,7 @@ async function prerenderToStream(
           serverInsertedHTMLToHead: true,
           validateRootLayout,
         }),
-        dynamicTracking,
+        dynamicTracking: null,
       }
     } catch (finalErr: any) {
       if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
@@ -2901,4 +2942,8 @@ export async function warmFlightResponse(
   return new Promise((r) => {
     chunkListeners.push(r)
   })
+}
+
+function isAbortReason(err: unknown, abortReason: Error): err is Error {
+  return err === abortReason
 }

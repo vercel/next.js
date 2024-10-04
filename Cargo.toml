@@ -45,6 +45,7 @@ swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
+turbo-tasks-backend = { path = "turbopack/crates/turbo-tasks-backend" }
 turbo-tasks-build = { path = "turbopack/crates/turbo-tasks-build" }
 turbo-tasks-bytes = { path = "turbopack/crates/turbo-tasks-bytes" }
 turbo-tasks-env = { path = "turbopack/crates/turbo-tasks-env" }
@@ -143,6 +144,7 @@ dunce = "1.0.3"
 either = "1.9.0"
 futures = "0.3.26"
 futures-retry = "0.6.0"
+hashbrown = "0.14.5"
 httpmock = { version = "0.6.8", default-features = false }
 image = { version = "0.25.0", default-features = false }
 indexmap = "1.9.2"
