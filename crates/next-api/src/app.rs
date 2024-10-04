@@ -888,7 +888,8 @@ impl AppEndpoint {
                         .values()
                     {
                         let result = collect_next_dynamic_imports(
-                            *refs,
+                            // TODO get rid of this clone without breaking memoization
+                            refs.await?.clone_value(),
                             Vc::upcast(this.app_project.client_module_context()),
                             visited_modules,
                         )
@@ -1203,7 +1204,7 @@ impl AppEndpoint {
 
                 // create react-loadable-manifest for next/dynamic
                 let mut dynamic_import_modules = collect_next_dynamic_imports(
-                    Vc::cell(vec![Vc::upcast(app_entry.rsc_entry)]),
+                    vec![Vc::upcast(app_entry.rsc_entry)],
                     Vc::upcast(this.app_project.client_module_context()),
                     VisitedDynamicImportModules::empty(),
                 )
@@ -1358,7 +1359,7 @@ impl AppEndpoint {
                 // create react-loadable-manifest for next/dynamic
                 let availability_info = Value::new(AvailabilityInfo::Root);
                 let mut dynamic_import_modules = collect_next_dynamic_imports(
-                    Vc::cell(vec![Vc::upcast(app_entry.rsc_entry)]),
+                    vec![Vc::upcast(app_entry.rsc_entry)],
                     Vc::upcast(this.app_project.client_module_context()),
                     VisitedDynamicImportModules::empty(),
                 )

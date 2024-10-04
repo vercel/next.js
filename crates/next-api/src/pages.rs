@@ -826,7 +826,7 @@ impl PageEndpoint {
                 );
 
                 let dynamic_import_modules = collect_next_dynamic_imports(
-                    Vc::cell(vec![Vc::upcast(ssr_module)]),
+                    vec![Vc::upcast(ssr_module)],
                     this.pages_project.client_module_context(),
                     VisitedDynamicImportModules::empty(),
                 )
@@ -868,7 +868,7 @@ impl PageEndpoint {
 
                 let availability_info = Value::new(AvailabilityInfo::Root);
                 let dynamic_import_modules = collect_next_dynamic_imports(
-                    Vc::cell(vec![Vc::upcast(ssr_module)]),
+                    vec![Vc::upcast(ssr_module)],
                     this.pages_project.client_module_context(),
                     VisitedDynamicImportModules::empty(),
                 )
