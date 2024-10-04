@@ -114,11 +114,8 @@ export { cat as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 export { cat };
 
@@ -133,11 +130,8 @@ export { dog as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { b as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -2
 };
 export { dog as DOG };
 
@@ -189,11 +183,8 @@ export { cat as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 export { cat };
 
@@ -208,11 +199,8 @@ export { dog as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { b as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -2
 };
 export { dog as DOG };
 
