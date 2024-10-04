@@ -38,6 +38,7 @@ async fn dirty_in_progress() {
             let read = output.strongly_consistent().await?;
             assert_eq!(read.value, value);
             assert_eq!(read.collectible, collectible);
+            println!("\n");
         }
         anyhow::Ok(())
     })
