@@ -80,7 +80,6 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly hasDynamicIO?: boolean
 
   private readonly locks = new Map<string, Promise<void>>()
-  private readonly unlocks = new Map<string, () => Promise<void>>()
 
   /**
    * The revalidate timings for routes. This will source the timings from the
@@ -223,28 +222,22 @@ export class IncrementalCache implements IncrementalCacheType {
     this.cacheHandler?.resetRequestCache?.()
   }
 
-  /**
-   * @TODO this implementation of locking is brokne. Once a lock is created it
-   * will always be reused and all future locks will end up being granted
-   * non-exclusively which is sort of the opposite of what we want with a lock.
-   */
   async lock(cacheKey: string) {
     let unlockNext: () => Promise<void> = () => Promise.resolve()
     const existingLock = this.locks.get(cacheKey)
 
     if (existingLock) {
       await existingLock
-    } else {
-      const newLock = new Promise<void>((resolve) => {
-        unlockNext = async () => {
-          resolve()
-        }
-      })
-
-      this.locks.set(cacheKey, newLock)
-      this.unlocks.set(cacheKey, unlockNext)
     }
 
+    const newLock = new Promise<void>((resolve) => {
+      unlockNext = async () => {
+        resolve()
+        this.locks.delete(cacheKey) // Remove the lock upon release
+      }
+    })
+
+    this.locks.set(cacheKey, newLock)
     return unlockNext
   }
 

@@ -397,13 +397,6 @@ describe('dynamic-io', () => {
           expect.stringContaining(
             'searchParams are being enumerated incompletely'
           ),
-          expect.stringContaining(
-            'accessed directly with `searchParams.sentinel`'
-          ),
-          expect.stringContaining('accessed directly with `searchParams.foo`'),
-          expect.stringContaining(
-            'accessed directly with `searchParams.value`'
-          ),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
@@ -431,10 +424,6 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining('searchParams are being enumerated.'),
-          expect.stringContaining(
-            'accessed directly with `searchParams.sentinel`'
-          ),
-          expect.stringContaining('accessed directly with `searchParams.foo`'),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
@@ -705,13 +694,6 @@ describe('dynamic-io', () => {
           expect.stringContaining(
             'searchParams are being enumerated incompletely'
           ),
-          expect.stringContaining(
-            'accessed directly with `searchParams.sentinel`'
-          ),
-          expect.stringContaining('accessed directly with `searchParams.foo`'),
-          expect.stringContaining(
-            'accessed directly with `searchParams.value`'
-          ),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
@@ -735,10 +717,6 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining('searchParams are being enumerated.'),
-          expect.stringContaining(
-            'accessed directly with `searchParams.sentinel`'
-          ),
-          expect.stringContaining('accessed directly with `searchParams.foo`'),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)

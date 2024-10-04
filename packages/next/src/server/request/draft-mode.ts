@@ -2,8 +2,10 @@ import { getExpectedRequestStore } from '../../client/components/request-async-s
 
 import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
 
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
 /**
  * In this version of Next.js `draftMode()` returns a Promise however you can still reference the properties of the underlying draftMode object
@@ -34,13 +36,10 @@ export type UnsafeUnwrappedDraftMode = DraftMode
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
   const requestStore = getExpectedRequestStore(callingExpression)
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    !staticGenerationStore?.isPrefetchRequest
-  ) {
-    const route = staticGenerationStore?.route
+  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
+    const route = workStore?.route
     return createExoticDraftModeWithDevWarnings(requestStore.draftMode, route)
   } else {
     return createExoticDraftMode(requestStore.draftMode)
@@ -144,20 +143,22 @@ class DraftMode {
     return this._provider.isEnabled
   }
   public enable() {
-    const store = staticGenerationAsyncStorage.getStore()
+    const store = workAsyncStorage.getStore()
+    const cacheStore = cacheAsyncStorage.getStore()
     if (store) {
       // We we have a store we want to track dynamic data access to ensure we
       // don't statically generate routes that manipulate draft mode.
-      trackDynamicDataAccessed(store, 'draftMode().enable()')
+      trackDynamicDataAccessed(store, cacheStore, 'draftMode().enable()')
     }
     return this._provider.enable()
   }
   public disable() {
-    const store = staticGenerationAsyncStorage.getStore()
+    const store = workAsyncStorage.getStore()
+    const cacheStore = cacheAsyncStorage.getStore()
     if (store) {
       // We we have a store we want to track dynamic data access to ensure we
       // don't statically generate routes that manipulate draft mode.
-      trackDynamicDataAccessed(store, 'draftMode().disable()')
+      trackDynamicDataAccessed(store, cacheStore, 'draftMode().disable()')
     }
     return this._provider.disable()
   }
@@ -167,11 +168,14 @@ const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : function warnForSyncAccess(route: undefined | string, expression: string) {
+  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessWarning(
+      route: undefined | string,
+      expression: string
+    ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      console.error(
+      return (
         `${prefix}\`draftMode()\` property was accessed directly with \`${expression}\`. ` +
-          `\`draftMode()\` should be awaited before using its value. ` +
-          `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
+        `\`draftMode()\` should be awaited before using its value. ` +
+        `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
       )
-    }
+    })

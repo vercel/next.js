@@ -1017,6 +1017,14 @@ export default abstract class Server<
       req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest?.socket?.remoteAddress
 
+      // Validate that if i18n isn't configured or the passed parameters are not
+      // valid it should be removed from the query.
+      if (!this.i18nProvider?.validateQuery(parsedUrl.query)) {
+        delete parsedUrl.query.__nextLocale
+        delete parsedUrl.query.__nextDefaultLocale
+        delete parsedUrl.query.__nextInferredLocaleFromDefault
+      }
+
       // This should be done before any normalization of the pathname happens as
       // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)

@@ -564,6 +564,7 @@ dependencies = [
 name = "auto-hash-map"
 version = "0.1.0"
 dependencies = [
+ "rustc-hash",
  "serde",
  "smallvec",
 ]

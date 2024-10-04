@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
-    RcStr, VcRead, VcTransparentRead, VcValueType,
+    RcStr, ResolveTypeError, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -119,6 +119,79 @@ where
         Self {
             node: Vc::<T>::cell(inner),
         }
+    }
+}
+
+impl<T> ResolvedVc<T>
+where
+    T: ?Sized + Send,
+{
+    /// Upcasts the given `ResolvedVc<T>` to a `ResolvedVc<Box<dyn K>>`.
+    ///
+    /// See also: [`Vc::upcast`].
+    #[inline(always)]
+    pub fn upcast<K>(this: Self) -> ResolvedVc<K>
+    where
+        T: Upcast<K>,
+        K: VcValueTrait + ?Sized + Send,
+    {
+        ResolvedVc {
+            node: Vc::upcast(this.node),
+        }
+    }
+}
+
+impl<T> ResolvedVc<T>
+where
+    T: VcValueTrait + ?Sized + Send,
+{
+    /// Attempts to sidecast the given `Vc<Box<dyn T>>` to a `Vc<Box<dyn K>>`.
+    ///
+    /// Returns `None` if the underlying value type does not implement `K`.
+    ///
+    /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
+    /// This provides stronger guarantees, removing the need for a [`Result`] return type.
+    ///
+    /// See also: [`Vc::try_resolve_sidecast`].
+    pub async fn try_sidecast<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
+    where
+        K: VcValueTrait + ?Sized + Send,
+    {
+        // must be async, as we must read the cell to determine the type
+        Ok(Vc::try_resolve_sidecast(this.node)
+            .await?
+            .map(|node| ResolvedVc { node }))
+    }
+
+    /// Attempts to downcast the given `ResolvedVc<Box<dyn T>>` to a `ResolvedVc<K>`, where `K`
+    /// is of the form `Box<dyn L>`, and `L` is a value trait.
+    ///
+    /// Returns `None` if the underlying value type is not a `K`.
+    ///
+    /// See also: [`Vc::try_resolve_downcast`].
+    pub async fn try_downcast<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
+    where
+        K: Upcast<T>,
+        K: VcValueTrait + ?Sized + Send,
+    {
+        Ok(Vc::try_resolve_downcast(this.node)
+            .await?
+            .map(|node| ResolvedVc { node }))
+    }
+
+    /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K` is a value type.
+    ///
+    /// Returns `None` if the underlying value type is not a `K`.
+    ///
+    /// See also: [`Vc::try_resolve_downcast_type`].
+    pub async fn try_downcast_type<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
+    where
+        K: Upcast<T>,
+        K: VcValueType,
+    {
+        Ok(Vc::try_resolve_downcast_type(this.node)
+            .await?
+            .map(|node| ResolvedVc { node }))
     }
 }
 

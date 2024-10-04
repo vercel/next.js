@@ -2,7 +2,7 @@ import type { RequestCookies } from '../cookies'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
-import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
+import { workAsyncStorage } from '../../../../client/components/work-async-storage.external'
 
 /**
  * @internal
@@ -108,10 +108,10 @@ export class MutableRequestCookiesAdapter {
     let modifiedValues: ResponseCookie[] = []
     const modifiedCookies = new Set<string>()
     const updateResponseCookies = () => {
-      // TODO-APP: change method of getting staticGenerationAsyncStore
-      const staticGenerationAsyncStore = staticGenerationAsyncStorage.getStore()
-      if (staticGenerationAsyncStore) {
-        staticGenerationAsyncStore.pathWasRevalidated = true
+      // TODO-APP: change method of getting workStore
+      const workStore = workAsyncStorage.getStore()
+      if (workStore) {
+        workStore.pathWasRevalidated = true
       }
 
       const allCookies = responseCookies.getAll()

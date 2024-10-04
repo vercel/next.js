@@ -12,9 +12,9 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client.edge'
 
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
-import type { CacheStore } from '../app-render/cache-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import type { UseCacheStore } from '../app-render/cache-async-storage.external'
 import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
@@ -25,7 +25,7 @@ import {
   getServerModuleMap,
 } from '../app-render/encryption-utils'
 
-import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 type CacheEntry = {
   value: ReadableStream
@@ -76,7 +76,7 @@ cacheHandlerMap.set('default', {
 })
 
 function generateCacheEntry(
-  staticGenerationStore: StaticGenerationStore,
+  workStore: WorkStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -89,8 +89,8 @@ function generateCacheEntry(
   // Note: It is important that we await at least once before this because it lets us
   // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
   return runInCleanSnapshot(
-    generateCacheEntryWithRestoredStaticGenerationStore,
-    staticGenerationStore,
+    generateCacheEntryWithRestoredWorkStore,
+    workStore,
     clientReferenceManifest,
     cacheHandler,
     serializedCacheKey,
@@ -99,25 +99,25 @@ function generateCacheEntry(
   )
 }
 
-function generateCacheEntryWithRestoredStaticGenerationStore(
-  staticGenerationStore: StaticGenerationStore,
+function generateCacheEntryWithRestoredWorkStore(
+  workStore: WorkStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
   encodedArguments: FormData | string,
   fn: any
 ) {
-  // Since we cleared the AsyncLocalStorage we need to restore the staticGenerationStore.
+  // Since we cleared the AsyncLocalStorage we need to restore the workStore.
   // Note: We explicitly don't restore the RequestStore nor the PrerenderStore.
   // We don't want any request specific information leaking an we don't want to create a
   // bloated fake request mock for every cache call. So any feature that currently lives
-  // in RequestStore but should be available to Caches need to move to StaticGenerationStore.
+  // in RequestStore but should be available to Caches need to move to WorkStore.
   // PrerenderStore is not needed inside the cache scope because the outer most one will
   // be the one to report its result to the outer Prerender.
-  return staticGenerationAsyncStorage.run(
-    staticGenerationStore,
+  return workAsyncStorage.run(
+    workStore,
     generateCacheEntryWithCacheContext,
-    staticGenerationStore,
+    workStore,
     clientReferenceManifest,
     cacheHandler,
     serializedCacheKey,
@@ -127,7 +127,7 @@ function generateCacheEntryWithRestoredStaticGenerationStore(
 }
 
 function generateCacheEntryWithCacheContext(
-  staticGenerationStore: StaticGenerationStore,
+  workStore: WorkStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -135,11 +135,11 @@ function generateCacheEntryWithCacheContext(
   fn: any
 ) {
   // Initialize the Store for this Cache entry.
-  const cacheStore: CacheStore = {}
+  const cacheStore: UseCacheStore = { type: 'cache' }
   return cacheAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
-    staticGenerationStore,
+    workStore,
     clientReferenceManifest,
     cacheHandler,
     serializedCacheKey,
@@ -149,7 +149,7 @@ function generateCacheEntryWithCacheContext(
 }
 
 async function generateCacheEntryImpl(
-  staticGenerationStore: StaticGenerationStore,
+  workStore: WorkStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -219,13 +219,13 @@ async function generateCacheEntryImpl(
     },
   })
 
-  if (!staticGenerationStore.pendingRevalidateWrites) {
-    staticGenerationStore.pendingRevalidateWrites = []
+  if (!workStore.pendingRevalidateWrites) {
+    workStore.pendingRevalidateWrites = []
   }
 
   const promise = cacheHandler.set(serializedCacheKey, erroringSavedStream)
 
-  staticGenerationStore.pendingRevalidateWrites.push(promise)
+  workStore.pendingRevalidateWrites.push(promise)
 
   // Return the stream as we're creating it. This means that if it ends up
   // erroring we cannot return a stale-while-error version but it allows
@@ -246,10 +246,10 @@ export function cache(kind: string, id: string, fn: any) {
   const name = fn.name
   const cachedFn = {
     [name]: async function (...args: any[]) {
-      const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-      if (staticGenerationStore === undefined) {
+      const workStore = workAsyncStorage.getStore()
+      if (workStore === undefined) {
         throw new Error(
-          '"use cache" cannot be used outside of App Router. Expected a StaticGenerationStore.'
+          '"use cache" cannot be used outside of App Router. Expected a WorkStore.'
         )
       }
 
@@ -257,7 +257,7 @@ export function cache(kind: string, id: string, fn: any) {
       // safely reuse the results across builds yet. In the meantime we add the buildId to the
       // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
       // the implementation.
-      const buildId = staticGenerationStore.buildId
+      const buildId = workStore.buildId
 
       const temporaryReferences = createClientTemporaryReferenceSet()
       const encodedArguments: FormData | string = await encodeReply(
@@ -280,10 +280,15 @@ export function cache(kind: string, id: string, fn: any) {
       let entry: undefined | CacheEntry =
         await cacheHandler.get(serializedCacheKey)
 
+      // Get the clientReferenceManifestSingleton while we're still in the outer Context.
+      // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
+      const clientReferenceManifestSingleton =
+        getClientReferenceManifestSingleton()
+
       let stream
       if (
         entry === undefined ||
-        (entry.stale && staticGenerationStore.isStaticGeneration)
+        (entry.stale && workStore.isStaticGeneration)
       ) {
         // Miss. Generate a new result.
 
@@ -297,13 +302,8 @@ export function cache(kind: string, id: string, fn: any) {
         // Note: It is important that we await at least once before this because it lets us
         // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
 
-        // Get the clientReferenceManifestSingleton while we're still in the outer Context.
-        // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
-        const clientReferenceManifestSingleton =
-          getClientReferenceManifestSingleton()
-
         stream = await generateCacheEntry(
-          staticGenerationStore,
+          workStore,
           clientReferenceManifestSingleton,
           cacheHandler,
           serializedCacheKey,
@@ -315,10 +315,8 @@ export function cache(kind: string, id: string, fn: any) {
         if (entry.stale) {
           // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
           // then we should warm up the cache with a fresh revalidated entry.
-          const clientReferenceManifestSingleton =
-            getClientReferenceManifestSingleton()
           const ignoredStream = await generateCacheEntry(
-            staticGenerationStore,
+            workStore,
             clientReferenceManifestSingleton,
             cacheHandler,
             serializedCacheKey,
@@ -338,20 +336,14 @@ export function cache(kind: string, id: string, fn: any) {
       // the server, which is required to pick it up for replaying again on the client.
       const replayConsoleLogs = true
 
-      // TODO: We can't use the client reference manifest to resolve the modules
-      // on the server side - instead they need to be recovered as the module
-      // references (proxies) again.
-      // For now, we'll just use an empty module map.
-      const ssrModuleMap: {
-        [moduleExport: string]: ManifestNode
-      } = {}
-
       const ssrManifest = {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
         // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
         // which themselves will handle the preloading.
         moduleLoading: null,
-        moduleMap: ssrModuleMap,
+        moduleMap: isEdgeRuntime
+          ? clientReferenceManifestSingleton.edgeRscModuleMapping
+          : clientReferenceManifestSingleton.rscModuleMapping,
       }
       return createFromReadableStream(stream, {
         ssrManifest,
