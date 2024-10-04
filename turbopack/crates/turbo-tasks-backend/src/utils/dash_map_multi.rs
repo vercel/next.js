@@ -174,3 +174,47 @@ where
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::thread::scope;
+
+    use rand::prelude::SliceRandom;
+
+    use super::*;
+
+    #[test]
+    fn stress_deadlock() {
+        const N: usize = 100000;
+        const THREADS: usize = 20;
+
+        let map = DashMap::with_shard_amount(4);
+        let indicies = (0..THREADS)
+            .map(|_| {
+                let mut vec = (0..N).collect::<Vec<_>>();
+                vec.shuffle(&mut rand::thread_rng());
+                vec
+            })
+            .collect::<Vec<_>>();
+        let map = &map;
+        scope(|s| {
+            for indicies in indicies {
+                s.spawn(|| {
+                    for i in indicies {
+                        let (mut a, mut b) = get_multiple_mut(map, i, i + 1, || 0);
+                        *a += 1;
+                        *b += 1;
+                    }
+                });
+            }
+        });
+        let value = *map.get(&0).unwrap();
+        assert_eq!(value, THREADS);
+        for i in 1..N {
+            let value = *map.get(&i).unwrap();
+            assert_eq!(value, THREADS * 2);
+        }
+        let value = *map.get(&N).unwrap();
+        assert_eq!(value, THREADS);
+    }
+}
