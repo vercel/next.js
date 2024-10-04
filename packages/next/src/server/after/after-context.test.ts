@@ -1,18 +1,18 @@
 import { DetachedPromise } from '../../lib/detached-promise'
 import { AsyncLocalStorage } from 'async_hooks'
 
-import type { RequestStore } from '../../client/components/request-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { AfterContext } from './after-context'
 
 describe('AfterContext', () => {
   // 'async-local-storage.ts' needs `AsyncLocalStorage` on `globalThis` at import time,
   // so we have to do some contortions here to set it up before running anything else
-  type RASMod =
-    typeof import('../../client/components/request-async-storage.external')
+  type WASMod =
+    typeof import('../../client/components/work-async-storage.external')
   type AfterMod = typeof import('./after')
   type AfterContextMod = typeof import('./after-context')
 
-  let requestAsyncStorage: RASMod['requestAsyncStorage']
+  let workAsyncStorage: WASMod['workAsyncStorage']
   let AfterContext: AfterContextMod['AfterContext']
   let after: AfterMod['unstable_after']
 
@@ -20,10 +20,10 @@ describe('AfterContext', () => {
     // @ts-expect-error
     globalThis.AsyncLocalStorage = AsyncLocalStorage
 
-    const RASMod = await import(
-      '../../client/components/request-async-storage.external'
+    const WASMod = await import(
+      '../../client/components/work-async-storage.external'
     )
-    requestAsyncStorage = RASMod.requestAsyncStorage
+    workAsyncStorage = WASMod.workAsyncStorage
 
     const AfterContextMod = await import('./after-context')
     AfterContext = AfterContextMod.AfterContext
@@ -33,11 +33,9 @@ describe('AfterContext', () => {
   })
 
   const createRun =
-    (afterContext: AfterContext, requestStore: RequestStore) =>
+    (_afterContext: AfterContext, workStore: WorkStore) =>
     <T>(cb: () => T): T => {
-      return afterContext.run(requestStore, () =>
-        requestAsyncStorage.run(requestStore, cb)
-      )
+      return workAsyncStorage.run(workStore, cb)
     }
 
   it('runs after() callbacks from a run() callback that resolves', async () => {
@@ -54,8 +52,8 @@ describe('AfterContext', () => {
       onClose,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
-    const run = createRun(afterContext, requestStore)
+    const workStore = createMockWorkStore(afterContext)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -120,9 +118,9 @@ describe('AfterContext', () => {
       onClose,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
-    const run = createRun(afterContext, requestStore)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -167,9 +165,9 @@ describe('AfterContext', () => {
       onClose,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
-    const run = createRun(afterContext, requestStore)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -257,8 +255,8 @@ describe('AfterContext', () => {
       onClose,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
-    const run = createRun(afterContext, requestStore)
+    const workStore = createMockWorkStore(afterContext)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -316,9 +314,9 @@ describe('AfterContext', () => {
       onClose,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
-    const run = createRun(afterContext, requestStore)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -353,7 +351,7 @@ describe('AfterContext', () => {
       onClose,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
     // ==================================
 
@@ -367,13 +365,11 @@ describe('AfterContext', () => {
     const promise3 = new DetachedPromise<string>()
     const afterCallback3 = jest.fn(() => promise3.promise)
 
-    requestAsyncStorage.run(requestStore, () =>
-      afterContext.run(requestStore, () => {
-        after(afterCallback1)
-        after(afterCallback2)
-        after(afterCallback3)
-      })
-    )
+    workAsyncStorage.run(workStore, () => {
+      after(afterCallback1)
+      after(afterCallback2)
+      after(afterCallback3)
+    })
 
     expect(afterCallback1).not.toHaveBeenCalled()
     expect(afterCallback2).not.toHaveBeenCalled()
@@ -405,9 +401,9 @@ describe('AfterContext', () => {
       onClose,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
-    const run = createRun(afterContext, requestStore)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -434,9 +430,9 @@ describe('AfterContext', () => {
       onClose,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
-    const run = createRun(afterContext, requestStore)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -452,7 +448,7 @@ describe('AfterContext', () => {
     expect(afterCallback1).not.toHaveBeenCalled()
   })
 
-  it('shadows requestAsyncStorage within after callbacks', async () => {
+  it('does NOT shadow workAsyncStorage within after callbacks', async () => {
     const waitUntil = jest.fn()
 
     let onCloseCallback: (() => void) | undefined = undefined
@@ -465,19 +461,19 @@ describe('AfterContext', () => {
       onClose,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
-    const run = createRun(afterContext, requestStore)
+    const workStore = createMockWorkStore(afterContext)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
     const stores = new DetachedPromise<
-      [RequestStore | undefined, RequestStore | undefined]
+      [WorkStore | undefined, WorkStore | undefined]
     >()
 
     await run(async () => {
-      const store1 = requestAsyncStorage.getStore()
+      const store1 = workAsyncStorage.getStore()
       after(() => {
-        const store2 = requestAsyncStorage.getStore()
+        const store2 = workAsyncStorage.getStore()
         stores.resolve([store1, store2])
       })
     })
@@ -486,30 +482,34 @@ describe('AfterContext', () => {
     onCloseCallback!()
 
     const [store1, store2] = await stores.promise
-    // if we use .toBe, the proxy from createMockRequestStore throws because jest checks '$$typeof'
+    // if we use .toBe, the proxy from createMockWorkStore throws because jest checks '$$typeof'
     expect(store1).toBeTruthy()
     expect(store2).toBeTruthy()
-    expect(store1 === requestStore).toBe(true)
-    expect(store2 !== store1).toBe(true)
+    expect(store1 === workStore).toBe(true)
+    expect(store2 === store1).toBe(true)
   })
 })
 
-const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
-  const partialStore: Partial<RequestStore> = {
-    url: { pathname: '/', search: '' },
+const createMockWorkStore = (afterContext: AfterContext): WorkStore => {
+  const partialStore: Partial<WorkStore> = {
     afterContext: afterContext,
-    draftMode: undefined,
-    isHmrRefresh: false,
-    serverComponentsHmrCache: undefined,
+    forceStatic: false,
+    forceDynamic: false,
+    dynamicShouldError: false,
+    isStaticGeneration: false,
+    revalidatedTags: [],
+    pendingRevalidates: undefined,
+    pendingRevalidateWrites: undefined,
+    incrementalCache: undefined,
   }
 
-  return new Proxy(partialStore as RequestStore, {
+  return new Proxy(partialStore as WorkStore, {
     get(target, key) {
       if (key in target) {
         return target[key as keyof typeof target]
       }
       throw new Error(
-        `RequestStore property not mocked: '${typeof key === 'symbol' ? key.toString() : key}'`
+        `WorkStore property not mocked: '${typeof key === 'symbol' ? key.toString() : key}'`
       )
     },
   })

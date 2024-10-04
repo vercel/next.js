@@ -554,9 +554,6 @@ export class AppRouteRouteModule extends RouteModule<
       url: req.nextUrl,
       renderOpts: {
         previewProps: context.prerenderManifest.preview,
-        waitUntil: context.renderOpts.waitUntil,
-        onClose: context.renderOpts.onClose,
-        experimental: context.renderOpts.experimental,
       },
     }
 
