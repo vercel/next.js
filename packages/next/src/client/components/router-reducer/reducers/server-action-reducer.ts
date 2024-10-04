@@ -10,6 +10,10 @@ import {
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
+
+// Importing from dist so that we can define an alias if needed.
+import { findSourceMapURL } from 'next/dist/client/app-find-source-map-url'
+
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { createFromFetch } from 'react-server-dom-webpack/client'
 // // eslint-disable-next-line import/no-extraneous-dependencies
@@ -138,9 +142,7 @@ async function fetchServerAction(
   if (contentType?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
-      {
-        callServer,
-      }
+      { callServer, findSourceMapURL }
     )
 
     if (location) {

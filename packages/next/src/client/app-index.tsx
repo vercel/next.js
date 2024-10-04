@@ -20,6 +20,9 @@ import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 
+// Importing from dist so that we can define an alias if needed.
+import { findSourceMapURL } from 'next/dist/client/app-find-source-map-url'
+
 /// <reference types="react-dom/experimental" />
 
 const appElement: HTMLElement | Document | null = document
@@ -140,6 +143,7 @@ const readable = new ReadableStream({
 
 const initialServerResponse = createFromReadableStream(readable, {
   callServer,
+  findSourceMapURL,
 })
 
 // React overrides `.then` and doesn't return a new promise chain,
