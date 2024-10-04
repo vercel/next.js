@@ -166,11 +166,17 @@ export { dog as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 2
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import { a as cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+    __turbopack_part__: 0
 };
 import { b as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+    __turbopack_part__: 1
 };
 const CHIMERA = cat + dog;
 export { CHIMERA as c } from "__TURBOPACK_VAR__" assert {
@@ -180,16 +186,22 @@ export { CHIMERA as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { c as CHIMERA } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+    __turbopack_part__: 2
 };
 export { CHIMERA };
 
 ```
 ## Part 4
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import { b as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+    __turbopack_part__: 1
 };
 const DOG = dog;
 export { DOG as d } from "__TURBOPACK_VAR__" assert {
@@ -199,8 +211,11 @@ export { DOG as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
 import { d as DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+    __turbopack_part__: 4
 };
 export { DOG };
 
@@ -260,11 +275,17 @@ export { dog as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 2
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import { a as cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+    __turbopack_part__: 0
 };
 import { b as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+    __turbopack_part__: 1
 };
 const CHIMERA = cat + dog;
 export { CHIMERA as c } from "__TURBOPACK_VAR__" assert {
@@ -274,16 +295,22 @@ export { CHIMERA as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { c as CHIMERA } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+    __turbopack_part__: 2
 };
 export { CHIMERA };
 
 ```
 ## Part 4
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import { b as dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+    __turbopack_part__: 1
 };
 const DOG = dog;
 export { DOG as d } from "__TURBOPACK_VAR__" assert {
@@ -293,8 +320,11 @@ export { DOG as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
 import { d as DOG } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+    __turbopack_part__: 4
 };
 export { DOG };
 

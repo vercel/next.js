@@ -1,16 +1,17 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use turbo_tasks::Vc;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::Module,
-    reference::ModuleReferences,
+    reference::{ModuleReferences, SingleModuleReference},
     resolve::ModulePart,
 };
 
 use super::{
-    chunk_item::EcmascriptModulePartChunkItem, part_of_module, split, split_module, SplitResult,
+    chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split, split_module,
+    PartId, SplitResult,
 };
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
@@ -133,8 +134,53 @@ impl Module for EcmascriptModulePartAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        let split_data = split_module(self.full_module).await?;
+
         let analyze = analyze(self.full_module, self.part).await?;
-        Ok(analyze.references)
+
+        let deps = match &*split_data {
+            SplitResult::Ok { deps, .. } => deps,
+            SplitResult::Failed { .. } => return Ok(analyze.references),
+        };
+
+        // Facade depends on evaluation and re-exports
+        if matches!(&*self.part.await?, ModulePart::Facade | ModulePart::Exports) {
+            return Ok(analyze.references);
+        }
+
+        let deps = {
+            let part_id = get_part_id(&split_data, self.part)
+                .await
+                .with_context(|| format!("part {:?} is not found in the module", self.part))?;
+
+            match deps.get(&part_id) {
+                Some(v) => &**v,
+                None => &[],
+            }
+        };
+
+        let mut assets = deps
+            .iter()
+            .map(|part_id| {
+                Ok(Vc::upcast(SingleModuleReference::new(
+                    Vc::upcast(EcmascriptModulePartAsset::new(
+                        self.full_module,
+                        match part_id {
+                            PartId::Internal(part_id) => ModulePart::internal(*part_id),
+                            PartId::Export(name) => ModulePart::export(name.clone()),
+                            _ => unreachable!(
+                                "PartId other than Internal and Export should not be used here"
+                            ),
+                        },
+                    )),
+                    Vc::cell("ecmascript module part".into()),
+                )))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        assets.extend(analyze.references.await?.iter().cloned());
+
+        Ok(Vc::cell(assets))
     }
 }
 

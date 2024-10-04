@@ -301,7 +301,6 @@ impl DepGraph {
                 body: directives.to_vec(),
                 shebang: None,
             };
-            let mut part_deps_done = FxHashSet::default();
 
             let mut required_vars = group
                 .iter()
@@ -368,6 +367,25 @@ impl DepGraph {
 
                     _ => {}
                 }
+            }
+
+            // Depend on direct dependencies so that they are executed before this module.
+            for dep in groups
+                .idx_graph
+                .neighbors_directed(ix as u32, petgraph::Direction::Outgoing)
+            {
+                chunk
+                    .body
+                    .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                        span: DUMMY_SP,
+                        specifiers: vec![],
+                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                        type_only: false,
+                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
+                            dep,
+                        )))),
+                        phase: Default::default(),
+                    })));
             }
 
             // Workaround for implcit export issue of server actions.
@@ -455,12 +473,10 @@ impl DepGraph {
                     is_type_only: false,
                 })];
 
-                part_deps_done.insert(dep);
-
                 part_deps
                     .entry(ix as u32)
                     .or_default()
-                    .push(PartId::Internal(dep, false));
+                    .push(PartId::Internal(dep));
 
                 chunk
                     .body
@@ -470,35 +486,7 @@ impl DepGraph {
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
                         with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, false,
-                        )))),
-                        phase: Default::default(),
-                    })));
-            }
-
-            // Depend on direct dependencies so that they are executed before this module.
-            for dep in groups
-                .idx_graph
-                .neighbors_directed(ix as u32, petgraph::Direction::Outgoing)
-            {
-                if !part_deps_done.insert(dep) {
-                    continue;
-                }
-
-                part_deps
-                    .entry(ix as u32)
-                    .or_default()
-                    .push(PartId::Internal(dep, true));
-
-                chunk
-                    .body
-                    .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                        span: DUMMY_SP,
-                        specifiers: vec![],
-                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                        type_only: false,
-                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, true,
+                            dep,
                         )))),
                         phase: Default::default(),
                     })));
@@ -1302,8 +1290,7 @@ pub(crate) enum PartId {
     ModuleEvaluation,
     Exports,
     Export(RcStr),
-    /// `(part_id, is_for_eval)`
-    Internal(u32, bool),
+    Internal(u32),
 }
 
 pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
@@ -1316,15 +1303,7 @@ pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
                 PartId::ModuleEvaluation => "module evaluation".into(),
                 PartId::Exports => "exports".into(),
                 PartId::Export(e) => format!("export {e}").into(),
-                PartId::Internal(dep, is_for_eval) => {
-                    let v = dep as f64;
-                    if is_for_eval {
-                        v
-                    } else {
-                        -v
-                    }
-                }
-                .into(),
+                PartId::Internal(dep) => (dep as f64).into(),
             },
         })))],
     }
@@ -1335,10 +1314,7 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
         PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(key),
             value: box Expr::Lit(Lit::Num(chunk_id)),
-        })) if &*key.sym == ASSERT_CHUNK_KEY => Some(PartId::Internal(
-            chunk_id.value.abs() as u32,
-            chunk_id.value.is_sign_positive(),
-        )),
+        })) if &*key.sym == ASSERT_CHUNK_KEY => Some(PartId::Internal(chunk_id.value as u32)),
 
         PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(key),

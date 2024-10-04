@@ -288,14 +288,23 @@ export { eventCallbacks as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
 import { a as getSocketProtocol } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+    __turbopack_part__: 0
 };
 import { b as source } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+    __turbopack_part__: 1
 };
 import { c as eventCallbacks } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+    __turbopack_part__: 2
 };
 function connectHMR(options) {
     const { timeout = 5 * 1000 } = options;
@@ -345,16 +354,22 @@ export { connectHMR as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
 import { d as connectHMR } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: 3
 };
 export { connectHMR };
 
 ```
 ## Part 5
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import { b as source } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+    __turbopack_part__: 1
 };
 function sendMessage(data) {
     if (!source || source.readyState !== source.OPEN) return;
@@ -367,16 +382,22 @@ export { sendMessage as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 6
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
 import { e as sendMessage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: 5
 };
 export { sendMessage };
 
 ```
 ## Part 7
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { c as eventCallbacks } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+    __turbopack_part__: 2
 };
 function addMessageListener(cb) {
     eventCallbacks.push(cb);
@@ -388,8 +409,11 @@ export { addMessageListener as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
 import { f as addMessageListener } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: 7
 };
 export { addMessageListener };
 
@@ -469,14 +493,23 @@ export { eventCallbacks as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
 import { a as getSocketProtocol } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+    __turbopack_part__: 0
 };
 import { b as source } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+    __turbopack_part__: 1
 };
 import { c as eventCallbacks } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+    __turbopack_part__: 2
 };
 function connectHMR(options) {
     const { timeout = 5 * 1000 } = options;
@@ -526,16 +559,22 @@ export { connectHMR as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
 import { d as connectHMR } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: 3
 };
 export { connectHMR };
 
 ```
 ## Part 5
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import { b as source } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+    __turbopack_part__: 1
 };
 function sendMessage(data) {
     if (!source || source.readyState !== source.OPEN) return;
@@ -548,16 +587,22 @@ export { sendMessage as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 6
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
 import { e as sendMessage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+    __turbopack_part__: 5
 };
 export { sendMessage };
 
 ```
 ## Part 7
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { c as eventCallbacks } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+    __turbopack_part__: 2
 };
 function addMessageListener(cb) {
     eventCallbacks.push(cb);
@@ -569,8 +614,11 @@ export { addMessageListener as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
 import { f as addMessageListener } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+    __turbopack_part__: 7
 };
 export { addMessageListener };
 

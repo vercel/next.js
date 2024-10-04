@@ -154,19 +154,25 @@ export { effects as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+    __turbopack_part__: 2
 };
 export { effects };
 
 ```
 ## Part 4
 ```js
-import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
+};
+import { a as effects } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
 function effect(name) {
     effects.push(name);
@@ -178,8 +184,11 @@ export { effect as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
 import { b as effect } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+    __turbopack_part__: 4
 };
 export { effect };
 
@@ -242,8 +251,11 @@ export { effects as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+    __turbopack_part__: 2
 };
 function effect(name) {
     effects.push(name);
@@ -255,16 +267,22 @@ export { effect as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
 import { b as effect } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+    __turbopack_part__: 3
 };
 export { effect };
 
 ```
 ## Part 5
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { a as effects } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+    __turbopack_part__: 2
 };
 export { effects };
 
