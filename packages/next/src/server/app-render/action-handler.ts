@@ -13,7 +13,6 @@ import {
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
-  getRedirectStatusCodeFromError,
   getRedirectTypeFromError,
   getURLFromRedirectError,
   isRedirectError,
@@ -43,6 +42,7 @@ import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -855,7 +855,6 @@ export async function handleAction({
   } catch (err) {
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
-      const statusCode = getRedirectStatusCodeFromError(err)
       const redirectType = getRedirectTypeFromError(err)
 
       await addRevalidationHeader(res, {
@@ -865,7 +864,7 @@ export async function handleAction({
 
       // if it's a fetch action, we'll set the status code for logging/debugging purposes
       // but we won't set a Location header, as the redirect will be handled by the client router
-      res.statusCode = statusCode
+      res.statusCode = RedirectStatusCode.SeeOther
 
       if (isFetchAction) {
         return {
@@ -882,14 +881,11 @@ export async function handleAction({
         }
       }
 
-      if (err.mutableCookies) {
-        const headers = new Headers()
-
-        // If there were mutable cookies set, we need to set them on the
-        // response.
-        if (appendMutableCookies(headers, err.mutableCookies)) {
-          res.setHeader('set-cookie', Array.from(headers.values()))
-        }
+      // If there were mutable cookies set, we need to set them on the
+      // response.
+      const headers = new Headers()
+      if (appendMutableCookies(headers, requestStore.mutableCookies)) {
+        res.setHeader('set-cookie', Array.from(headers.values()))
       }
 
       res.setHeader('Location', redirectUrl)

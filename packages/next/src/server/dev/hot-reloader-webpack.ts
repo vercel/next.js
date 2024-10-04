@@ -852,13 +852,19 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   isDev: true,
                   page,
                 })
-              : {}
+              : undefined
 
-            if (staticInfo.amp === true || staticInfo.amp === 'hybrid') {
-              this.hasAmpEntrypoints = true
+            if (staticInfo?.type === PAGE_TYPES.PAGES) {
+              if (
+                staticInfo.config?.config?.amp === true ||
+                staticInfo.config?.config?.amp === 'hybrid'
+              ) {
+                this.hasAmpEntrypoints = true
+              }
             }
+
             const isServerComponent =
-              isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
+              isAppPath && staticInfo?.rsc !== RSC_MODULE_TYPES.client
 
             const pageType: PAGE_TYPES = entryData.bundlePath.startsWith(
               'pages/'
@@ -880,7 +886,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
             runDependingOnPageType({
               page,
-              pageRuntime: staticInfo.runtime,
+              pageRuntime: staticInfo?.runtime,
               pageType,
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
@@ -922,9 +928,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       basePath: this.config.basePath,
                       assetPrefix: this.config.assetPrefix,
                       nextConfigOutput: this.config.output,
-                      preferredRegion: staticInfo.preferredRegion,
+                      preferredRegion: staticInfo?.preferredRegion,
                       middlewareConfig: Buffer.from(
-                        JSON.stringify(staticInfo.middleware || {})
+                        JSON.stringify(staticInfo?.middleware || {})
                       ).toString('base64'),
                     }).import
                   : undefined
@@ -944,7 +950,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     isServerComponent,
                     appDirLoader,
                     pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
-                    preferredRegion: staticInfo.preferredRegion,
+                    preferredRegion: staticInfo?.preferredRegion,
                   }),
                   hasAppDir,
                 })
@@ -1021,9 +1027,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     basePath: this.config.basePath,
                     assetPrefix: this.config.assetPrefix,
                     nextConfigOutput: this.config.output,
-                    preferredRegion: staticInfo.preferredRegion,
+                    preferredRegion: staticInfo?.preferredRegion,
                     middlewareConfig: Buffer.from(
-                      JSON.stringify(staticInfo.middleware || {})
+                      JSON.stringify(staticInfo?.middleware || {})
                     ).toString('base64'),
                   })
                 } else if (isAPIRoute(page)) {
@@ -1031,8 +1037,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     kind: RouteKind.PAGES_API,
                     page,
                     absolutePagePath: relativeRequest,
-                    preferredRegion: staticInfo.preferredRegion,
-                    middlewareConfig: staticInfo.middleware || {},
+                    preferredRegion: staticInfo?.preferredRegion,
+                    middlewareConfig: staticInfo?.middleware || {},
                   })
                 } else if (
                   !isMiddlewareFile(page) &&
@@ -1045,8 +1051,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     page,
                     pages: this.pagesMapping,
                     absolutePagePath: relativeRequest,
-                    preferredRegion: staticInfo.preferredRegion,
-                    middlewareConfig: staticInfo.middleware ?? {},
+                    preferredRegion: staticInfo?.preferredRegion,
+                    middlewareConfig: staticInfo?.middleware ?? {},
                   })
                 } else {
                   value = relativeRequest

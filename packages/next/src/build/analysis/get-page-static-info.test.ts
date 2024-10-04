@@ -1,5 +1,4 @@
-/* eslint-env jest */
-import { getMiddlewareMatchers } from 'next/dist/build/analysis/get-page-static-info'
+import { getMiddlewareMatchers } from './get-page-static-info'
 
 describe('get-page-static-infos', () => {
   describe('getMiddlewareMatchers', () => {

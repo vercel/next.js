@@ -6,7 +6,7 @@ import type { RenderOpts } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { FallbackRouteParams } from '../request/fallback-params'
-import type { AppSegmentConfig } from '../../build/app-segments/app-segment-config'
+import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 

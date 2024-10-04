@@ -63,7 +63,7 @@ export function validateRevalidate(
       normalizedRevalidate = revalidateVal
     } else if (typeof revalidateVal !== 'undefined') {
       throw new Error(
-        `Invalid revalidate value "${revalidateVal}" on "${route}", must be a non-negative number or "false"`
+        `Invalid revalidate value "${revalidateVal}" on "${route}", must be a non-negative number or false`
       )
     }
     return normalizedRevalidate

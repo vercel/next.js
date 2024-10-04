@@ -5,10 +5,10 @@ import type { FetchMetrics } from '../../server/base-http'
 import type { Revalidate } from '../../server/lib/revalidate'
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorage } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
-import type { AppSegmentConfig } from '../../build/app-segments/app-segment-config'
 
 export interface WorkStore {
   readonly isStaticGeneration: boolean
