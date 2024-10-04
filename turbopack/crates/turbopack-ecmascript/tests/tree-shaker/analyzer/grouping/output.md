@@ -344,25 +344,19 @@ export { x as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 x = 3;
 
 ```
 ## Part 2
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 console.log(x);
 
@@ -377,20 +371,20 @@ import "__TURBOPACK_PART__" assert {
 ```
 ## Part 4
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 x = 5;
 
 ```
 ## Part 5
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
@@ -398,92 +392,71 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 x += 6;
 
 ```
 ## Part 6
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 x += 7;
 
 ```
 ## Part 7
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 x += 8;
 
 ```
 ## Part 8
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 x += 9;
 
 ```
 ## Part 9
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 export { x };
 
 ```
 ## Part 10
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 const y = x;
 export { y as b } from "__TURBOPACK_VAR__" assert {
@@ -493,36 +466,27 @@ export { y as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
-};
 import { b as y } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+    __turbopack_part__: -10
 };
 export { y };
 
 ```
 ## Part 12
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 x = 4;
 
 ```
 ## Part 13
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 x = 2;
 
@@ -572,106 +536,82 @@ export { x as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 x = 5;
 
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 x = 4;
 
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 x = 3;
 
 ```
 ## Part 4
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 x += 6;
 
 ```
 ## Part 5
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 x += 7;
 
 ```
 ## Part 6
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 5
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 x += 8;
 
 ```
 ## Part 7
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 x += 9;
 
 ```
 ## Part 8
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 const y = x;
 export { y as b } from "__TURBOPACK_VAR__" assert {
@@ -681,39 +621,30 @@ export { y as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 9
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
 import { b as y } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: -8
 };
 export { y };
 
 ```
 ## Part 10
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 export { x };
 
 ```
 ## Part 11
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 console.log(x);
 
@@ -728,11 +659,8 @@ import "__TURBOPACK_PART__" assert {
 ```
 ## Part 13
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as x } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 x = 2;
 

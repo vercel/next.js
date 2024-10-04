@@ -53,7 +53,7 @@ where
                         .as_deref()
                         .and_then(find_turbopack_part_id_in_asserts);
 
-                    if let Some(PartId::Internal(part_id)) = part_id {
+                    if let Some(PartId::Internal(part_id, _)) = part_id {
                         if self.done.insert((import.src.value.clone(), part_id)) {
                             if let Some(dep) = self.loader.load(&import.src.value, part_id)? {
                                 let mut dep = self.merge_recursively(dep)?;

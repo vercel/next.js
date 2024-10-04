@@ -113,11 +113,8 @@ export { __TURBOPACK__reexport__cat__ as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { a as __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -2
 };
 export { __TURBOPACK__reexport__cat__ as fakeCat };
 
@@ -174,11 +171,8 @@ export { __TURBOPACK__reexport__cat__ as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { a as __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -2
 };
 export { __TURBOPACK__reexport__cat__ as fakeCat };
 
