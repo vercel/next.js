@@ -3,6 +3,6 @@
 import { cookies } from 'next/headers'
 
 export async function cookieAction() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   cookieStore.set('common-cookie', 'from-action')
 }
