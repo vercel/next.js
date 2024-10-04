@@ -96,6 +96,7 @@ impl ClientReferenceGraphResult {
 }
 
 impl ClientReferenceGraphResult {
+    /// Merges multiple return values of client_reference_graph together.
     pub fn extend(&mut self, other: &Self) {
         self.client_references
             .extend(other.client_references.iter().copied());
@@ -112,15 +113,6 @@ impl ClientReferenceGraphResult {
         self.visited_nodes = other.visited_nodes;
     }
 }
-
-// impl ClientReferenceGraphResult {
-//     pub fn take_visited(&mut self) -> Vc<VisitedClientReferenceGraphNodes> {
-//         std::mem::replace(
-//             &mut self.visited_nodes,
-//             VisitedClientReferenceGraphNodes::empty(),
-//         )
-//     }
-// }
 
 #[turbo_tasks::function]
 pub async fn client_reference_graph(
