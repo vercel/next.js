@@ -1493,6 +1493,9 @@ importers:
       zod:
         specifier: 3.22.3
         version: 3.22.3
+      zod-validation-error:
+        specifier: 3.4.0
+        version: 3.4.0(zod@3.22.3)
 
   packages/next-bundle-analyzer:
     dependencies:
@@ -15125,6 +15128,12 @@ packages:
 
   zod-validation-error@2.1.0:
     resolution: {integrity: sha512-VJh93e2wb4c3tWtGgTa0OF/dTt/zoPCPzXq4V11ZjxmEAFaPi/Zss1xIZdEB5RD8GD00U0/iVXgqkF77RV7pdQ==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      zod: ^3.18.0
+
+  zod-validation-error@3.4.0:
+    resolution: {integrity: sha512-ZOPR9SVY6Pb2qqO5XHt+MkkTRxGXb4EVtnjc9JpXUOtUB1T9Ru7mZOT361AN3MsetVe7R0a1KZshJDZdgp9miQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       zod: ^3.18.0
@@ -31979,6 +31988,10 @@ snapshots:
   zod-validation-error@2.1.0(zod@3.23.8):
     dependencies:
       zod: 3.23.8
+
+  zod-validation-error@3.4.0(zod@3.22.3):
+    dependencies:
+      zod: 3.22.3
 
   zod@3.22.3: {}
 

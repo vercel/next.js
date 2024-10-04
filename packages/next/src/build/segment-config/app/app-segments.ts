@@ -1,43 +1,44 @@
-import type { LoadComponentsReturnType } from '../../server/load-components'
-import type { Params } from '../../server/request/params'
+import type { LoadComponentsReturnType } from '../../../server/load-components'
+import type { Params } from '../../../server/request/params'
 import type {
   AppPageRouteModule,
   AppPageModule,
-} from '../../server/route-modules/app-page/module.compiled'
+} from '../../../server/route-modules/app-page/module.compiled'
 import type {
   AppRouteRouteModule,
   AppRouteModule,
-} from '../../server/route-modules/app-route/module.compiled'
+} from '../../../server/route-modules/app-route/module.compiled'
 import {
   type AppSegmentConfig,
-  AppSegmentConfigSchema,
+  parseAppSegmentConfig,
 } from './app-segment-config'
 
-import { InvariantError } from '../../shared/lib/invariant-error'
+import { InvariantError } from '../../../shared/lib/invariant-error'
 import {
   isAppRouteRouteModule,
   isAppPageRouteModule,
-} from '../../server/route-modules/checks'
-import { isClientReference } from '../../lib/client-reference'
-import { getSegmentParam } from '../../server/app-render/get-segment-param'
-import { getLayoutOrPageModule } from '../../server/lib/app-dir-module'
+} from '../../../server/route-modules/checks'
+import { isClientReference } from '../../../lib/client-reference'
+import { getSegmentParam } from '../../../server/app-render/get-segment-param'
+import { getLayoutOrPageModule } from '../../../server/lib/app-dir-module'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
 /**
  * Parses the app config and attaches it to the segment.
  */
-function attach(segment: AppSegment, userland: unknown) {
+function attach(segment: AppSegment, userland: unknown, route: string) {
   // If the userland is not an object, then we can't do anything with it.
   if (typeof userland !== 'object' || userland === null) {
     return
   }
 
-  // Try to parse the application configuration. If there were any keys, attach
-  // it to the segment.
-  const config = AppSegmentConfigSchema.safeParse(userland)
-  if (config.success && Object.keys(config.data).length > 0) {
-    segment.config = config.data
+  // Try to parse the application configuration.
+  const config = parseAppSegmentConfig(userland, route)
+
+  // If there was any keys on the config, then attach it to the segment.
+  if (Object.keys(config).length > 0) {
+    segment.config = config
   }
 
   if (
@@ -96,7 +97,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     // an object, then we should skip it. This can happen when parsing the
     // error components.
     if (!isClientComponent) {
-      attach(segment, userland)
+      attach(segment, userland, routeModule.definition.pathname)
     }
 
     segments.push(segment)
@@ -145,7 +146,7 @@ function collectAppRouteSegments(
   segment.filePath = routeModule.definition.filename
 
   // Extract the segment config from the userland module.
-  attach(segment, routeModule.userland)
+  attach(segment, routeModule.userland, routeModule.definition.pathname)
 
   return segments
 }
