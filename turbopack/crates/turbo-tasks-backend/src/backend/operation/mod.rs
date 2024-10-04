@@ -35,8 +35,7 @@ pub trait Operation:
 pub struct ExecuteContext<'a> {
     backend: &'a TurboTasksBackend,
     turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
-    #[allow(dead_code)]
-    operation_guard: Option<OperationGuard<'a>>,
+    _operation_guard: Option<OperationGuard<'a>>,
     parent: Option<(&'a AnyOperation, &'a ExecuteContext<'a>)>,
 }
 
@@ -48,7 +47,7 @@ impl<'a> ExecuteContext<'a> {
         Self {
             backend,
             turbo_tasks,
-            operation_guard: Some(backend.start_operation()),
+            _operation_guard: Some(backend.start_operation()),
             parent: None,
         }
     }
@@ -123,7 +122,7 @@ impl<'a> ExecuteContext<'a> {
         let inner_ctx = ExecuteContext {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
-            operation_guard: None,
+            _operation_guard: None,
             parent: Some((&parent_op, self)),
         };
         run(inner_ctx);
