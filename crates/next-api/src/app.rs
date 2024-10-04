@@ -867,32 +867,23 @@ impl AppEndpoint {
                         Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(rsc_entry)
                             .await?
                     {
-                        let mut modules: Vec<_> = module_part_asset
+                        let modules: Vec<_> = module_part_asset
                             .await?
                             .full_module
                             .await?
                             .inner_assets
                             .iter()
-                            .try_join() // TODO prevent double collect
+                            .try_join()
                             .await?
                             .iter()
                             .flat_map(|a| a.values())
                             .copied()
-                            .collect(); // TODO prevent double collect
-                        modules.push(Vc::upcast(module_part_asset));
+                            .chain(std::iter::once(Vc::upcast(module_part_asset)))
+                            .collect();
                         modules
                     } else {
                         vec![rsc_entry]
                     };
-
-                    println!(
-                        "before {:?}",
-                        modules
-                            .iter()
-                            .map(|module| module.ident().to_string())
-                            .try_join()
-                            .await?
-                    );
 
                     let mut client_references: ClientReferenceGraphResult =
                         ClientReferenceGraphResult::default();
@@ -903,9 +894,9 @@ impl AppEndpoint {
 
                         client_references.extend(&current_client_references);
                     }
-                    // TODO remove cell
-                    client_references.cell()
+                    client_references
                 };
+                let client_references_cell = client_references.clone().cell();
 
                 let ssr_chunking_context = if process_ssr {
                     Some(match runtime {
@@ -926,7 +917,6 @@ impl AppEndpoint {
                     let mut visited_modules = VisitedDynamicImportModules::empty();
 
                     for refs in client_references
-                        .await?
                         .client_references_by_server_component
                         .values()
                     {
@@ -949,7 +939,7 @@ impl AppEndpoint {
                 };
 
                 let client_references_chunks = get_app_client_references_chunks(
-                    client_references,
+                    client_references_cell,
                     client_chunking_context,
                     Value::new(client_shared_availability_info),
                     ssr_chunking_context,
@@ -1049,7 +1039,7 @@ impl AppEndpoint {
                     node_root,
                     client_relative_path,
                     app_entry.original_name.clone(),
-                    client_references,
+                    client_references_cell,
                     client_references_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
@@ -1077,7 +1067,9 @@ impl AppEndpoint {
                 }
 
                 (
-                    Some(get_app_server_reference_modules(client_references.types())),
+                    Some(get_app_server_reference_modules(
+                        client_references_cell.types(),
+                    )),
                     Some(client_dynamic_imports),
                     Some(client_references),
                 )
@@ -1314,8 +1306,7 @@ impl AppEndpoint {
                     let mut current_chunks = OutputAssets::empty();
                     let mut current_availability_info = AvailabilityInfo::Root;
                     if let Some(client_references) = client_references {
-                        let client_references = client_references.await?;
-                        let span = tracing::trace_span!("server utils",);
+                        let span = tracing::trace_span!("server utils");
                         async {
                             let utils_module = IncludeModulesModule::new(
                                 AssetIdent::from_path(this.app_project.project().project_path())
