@@ -2,7 +2,7 @@ import type { WithStore } from './with-store'
 import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import type { RenderOptsPartial } from '../app-render/types'
+import type { RenderOpts } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { FallbackRouteParams } from '../request/fallback-params'
@@ -30,7 +30,7 @@ export type WorkStoreContext = {
     isServerAction?: boolean
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
-      RenderOptsPartial['experimental'],
+      RenderOpts['experimental'],
       'isRoutePPREnabled' | 'after' | 'dynamicIO'
     >
 
@@ -49,9 +49,10 @@ export type WorkStoreContext = {
     // TODO: remove this when we resolve accessing the store outside the execution context
     store?: WorkStore
   } & Pick<
-    // Pull some properties from RenderOptsPartial so that the docs are also
+    // Pull some properties from RenderOpts so that the docs are also
     // mirrored.
-    RenderOptsPartial,
+    RenderOpts,
+    | 'assetPrefix'
     | 'supportsDynamicResponse'
     | 'isRevalidate'
     | 'nextExport'
@@ -59,7 +60,8 @@ export type WorkStoreContext = {
     | 'isDebugDynamicAccesses'
     | 'buildId'
   > &
-    Partial<RequestLifecycleOpts>
+    Partial<RequestLifecycleOpts> &
+    Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
 }
 
 export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
@@ -114,6 +116,8 @@ export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
     requestEndedState,
     isPrefetchRequest,
     buildId: renderOpts.buildId,
+    reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
+    assetPrefix: renderOpts?.assetPrefix || '',
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

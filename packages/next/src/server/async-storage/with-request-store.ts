@@ -42,15 +42,7 @@ function getMutableCookies(
 }
 
 export type WrapperRenderOpts = RequestLifecycleOpts &
-  Partial<
-    Pick<
-      RenderOpts,
-      | 'ComponentMod'
-      | 'onUpdateCookies'
-      | 'assetPrefix'
-      | 'reactLoadableManifest'
-    >
-  > & {
+  Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
     experimental: Pick<RenderOpts['experimental'], 'after'>
     previewProps?: __ApiPreviewProps
   }
@@ -196,8 +188,6 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
       return cache.draftMode
     },
 
-    reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
-    assetPrefix: renderOpts?.assetPrefix || '',
     afterContext: createAfterContext(renderOpts),
     isHmrRefresh,
     serverComponentsHmrCache:

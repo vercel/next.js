@@ -141,8 +141,6 @@ function wrapRequestStoreForAfterCallbacks(
     },
     // TODO(after): calling a `cookies.set()` in an after() that's in an action doesn't currently error.
     mutableCookies: new ResponseCookies(new Headers()),
-    assetPrefix: requestStore.assetPrefix,
-    reactLoadableManifest: requestStore.reactLoadableManifest,
     afterContext: requestStore.afterContext,
     isHmrRefresh: requestStore.isHmrRefresh,
     serverComponentsHmrCache: requestStore.serverComponentsHmrCache,
