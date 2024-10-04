@@ -25,7 +25,6 @@ pub enum InvalidateOperation {
     AggregationUpdate {
         queue: AggregationUpdateQueue,
     },
-    // TODO Add to dirty tasks list
     #[default]
     Done,
 }
@@ -77,13 +76,22 @@ pub fn make_task_dirty(
 
     let mut task = ctx.task(task_id, TaskDataCategory::All);
 
+    make_task_dirty_internal(&mut task, task_id, queue, ctx);
+}
+
+pub fn make_task_dirty_internal(
+    task: &mut super::TaskGuard,
+    task_id: TaskId,
+    queue: &mut AggregationUpdateQueue,
+    ctx: &mut ExecuteContext,
+) {
     if task.add(CachedDataItem::Dirty { value: () }) {
         let dirty_container = get!(task, AggregatedDirtyContainerCount)
             .copied()
             .unwrap_or_default();
         if dirty_container == 0 {
             queue.extend(AggregationUpdateJob::data_update(
-                &mut task,
+                task,
                 AggregatedDataUpdate::new().dirty_container(task_id),
             ));
         }
