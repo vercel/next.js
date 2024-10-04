@@ -116,7 +116,7 @@ impl ClientReferenceGraphResult {
 
 #[turbo_tasks::function]
 pub async fn client_reference_graph(
-    entry: Vc<Box<dyn Module>>,
+    entries: Vec<Vc<Box<dyn Module>>>,
     visited_nodes: Vc<VisitedClientReferenceGraphNodes>,
 ) -> Result<Vc<ClientReferenceGraphResult>> {
     async move {
@@ -132,25 +132,34 @@ pub async fn client_reference_graph(
         let (graph, visited_nodes) = AdjacencyMap::new()
             .skip_duplicates_with_visited_nodes(VisitedNodes(visited_nodes.await?.0.clone()))
             .visit(
-                vec![VisitClientReferenceNode {
-                    state: {
-                        if let Some(server_component) =
-                            Vc::try_resolve_downcast_type::<NextServerComponentModule>(entry)
-                                .await?
-                        {
-                            VisitClientReferenceNodeState::InServerComponent { server_component }
-                        } else {
-                            VisitClientReferenceNodeState::Entry {
-                                entry_path: entry.ident().path().resolve().await?,
-                            }
-                        }
-                    },
-                    ty: VisitClientReferenceNodeType::Internal(
-                        entry,
-                        entry.ident().to_string().await?,
-                    ),
-                }],
-                VisitClientReference,
+                entries
+                    .iter()
+                    .copied()
+                    .map(|module| async move {
+                        Ok(VisitClientReferenceNode {
+                            state: if let Some(server_component) =
+                                Vc::try_resolve_downcast_type::<NextServerComponentModule>(module)
+                                    .await?
+                            {
+                                VisitClientReferenceNodeState::InServerComponent {
+                                    server_component,
+                                }
+                            } else {
+                                VisitClientReferenceNodeState::Entry {
+                                    entry_path: module.ident().path().resolve().await?,
+                                }
+                            },
+                            ty: VisitClientReferenceNodeType::Internal(
+                                module,
+                                module.ident().to_string().await?,
+                            ),
+                        })
+                    })
+                    .try_join()
+                    .await?,
+                VisitClientReference {
+                    stop_at_server_entries: false,
+                },
             )
             .await
             .completed()?
@@ -196,7 +205,60 @@ pub async fn client_reference_graph(
     .await
 }
 
-struct VisitClientReference;
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+pub struct ServerEntries {
+    pub server_component_entries: Vec<Vc<NextServerComponentModule>>,
+    pub server_utils: Vec<Vc<Box<dyn Module>>>,
+}
+
+#[turbo_tasks::function]
+pub async fn find_server_entries(entry: Vc<Box<dyn Module>>) -> Result<Vc<ServerEntries>> {
+    let graph = AdjacencyMap::new()
+        .skip_duplicates()
+        .visit(
+            vec![VisitClientReferenceNode {
+                state: {
+                    VisitClientReferenceNodeState::Entry {
+                        entry_path: entry.ident().path().resolve().await?,
+                    }
+                },
+                ty: VisitClientReferenceNodeType::Internal(entry, entry.ident().to_string().await?),
+            }],
+            VisitClientReference {
+                stop_at_server_entries: true,
+            },
+        )
+        .await
+        .completed()?
+        .into_inner();
+
+    let mut server_component_entries = vec![];
+    let mut server_utils = vec![];
+    for node in graph.reverse_topological() {
+        match &node.ty {
+            VisitClientReferenceNodeType::ServerUtilEntry(server_util, _) => {
+                server_utils.push(*server_util);
+            }
+            VisitClientReferenceNodeType::ServerComponentEntry(server_component, _) => {
+                server_component_entries.push(*server_component);
+            }
+            VisitClientReferenceNodeType::Internal(_, _)
+            | VisitClientReferenceNodeType::ClientReference(_, _) => {}
+        }
+    }
+
+    Ok(ServerEntries {
+        server_component_entries,
+        server_utils,
+    }
+    .cell())
+}
+
+struct VisitClientReference {
+    /// Used to discover ServerComponents and ServerUtils
+    stop_at_server_entries: bool,
+}
 
 #[derive(
     Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
@@ -246,6 +308,16 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
     fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<VisitClientReferenceNode> {
+        if self.stop_at_server_entries
+            && matches!(
+                edge.ty,
+                VisitClientReferenceNodeType::ServerUtilEntry(..)
+                    | VisitClientReferenceNodeType::ServerComponentEntry(..)
+            )
+        {
+            return VisitControlFlow::Skip(edge);
+        }
+
         match edge.ty {
             VisitClientReferenceNodeType::ClientReference(..) => VisitControlFlow::Skip(edge),
             VisitClientReferenceNodeType::Internal(..)

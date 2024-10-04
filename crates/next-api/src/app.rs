@@ -19,7 +19,8 @@ use next_core::{
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
     next_client_reference::{
-        client_reference_graph, ClientReferenceGraphResult, NextEcmascriptClientReferenceTransition,
+        client_reference_graph, find_server_entries, NextEcmascriptClientReferenceTransition,
+        ServerEntries, VisitedClientReferenceGraphNodes,
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
@@ -64,7 +65,7 @@ use turbopack_core::{
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::{resolve::cjs_resolve, tree_shake::asset::EcmascriptModulePartAsset};
+use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
     dynamic_imports::{
@@ -863,34 +864,26 @@ impl AppEndpoint {
                 let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
                 let client_references = {
-                    let modules = if let Some(module_part_asset) =
-                        Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(rsc_entry)
-                            .await?
+                    let ServerEntries {
+                        server_component_entries,
+                        server_utils,
+                    } = &*find_server_entries(rsc_entry).await?;
+
+                    let mut client_references = client_reference_graph(
+                        server_utils.clone(),
+                        VisitedClientReferenceGraphNodes::empty(),
+                    )
+                    .await?
+                    .clone_value();
+
+                    for module in server_component_entries
+                        .iter()
+                        .map(|m| Vc::upcast::<Box<dyn Module>>(*m))
+                        .chain(std::iter::once(rsc_entry))
                     {
-                        let modules: Vec<_> = module_part_asset
-                            .await?
-                            .full_module
-                            .await?
-                            .inner_assets
-                            .iter()
-                            .try_join()
-                            .await?
-                            .iter()
-                            .flat_map(|a| a.values())
-                            .copied()
-                            .chain(std::iter::once(Vc::upcast(module_part_asset)))
-                            .collect();
-                        modules
-                    } else {
-                        vec![rsc_entry]
-                    };
-
-                    let mut client_references: ClientReferenceGraphResult =
-                        ClientReferenceGraphResult::default();
-
-                    for module in modules {
                         let current_client_references =
-                            client_reference_graph(module, client_references.visited_nodes).await?;
+                            client_reference_graph(vec![module], client_references.visited_nodes)
+                                .await?;
 
                         client_references.extend(&current_client_references);
                     }
