@@ -3,8 +3,6 @@
 import cheerio from 'cheerio'
 import validateHTML from 'html-validator'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
   check,
   fetchViaHTTP,
   findPort,
