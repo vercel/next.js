@@ -483,7 +483,7 @@ export class AppRouteRouteModule extends RouteModule<
 
         // We need to capture any headers that should be sent on
         // the response.
-        const headers = new Headers()
+        const headers = new Headers({ Location: url })
 
         // Let's append any cookies that were added by the
         // cookie API.
