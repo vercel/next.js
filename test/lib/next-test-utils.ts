@@ -782,6 +782,65 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
   return result
 }
 
+export async function assertHasRedbox(browser: BrowserInterface) {
+  try {
+    await retry(
+      async () => {
+        const hasRedbox = await evaluate(browser, () => {
+          return Boolean(
+            [].slice
+              .call(document.querySelectorAll('nextjs-portal'))
+              .find((p) =>
+                p.shadowRoot.querySelector(
+                  '#nextjs__container_errors_label, #nextjs__container_errors_label'
+                )
+              )
+          )
+        })
+        expect(hasRedbox).toBe(true)
+      },
+      5000,
+      200
+    )
+  } catch (errorCause) {
+    const error = new Error('Expected Redbox but found none')
+    Error.captureStackTrace(error, assertHasRedbox)
+    throw error
+  }
+}
+
+export async function assertNoRedbox(browser: BrowserInterface) {
+  await waitFor(5000)
+  const hasRedbox = await evaluate(browser, () => {
+    return Boolean(
+      [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) =>
+          p.shadowRoot.querySelector(
+            '#nextjs__container_errors_label, #nextjs__container_errors_label'
+          )
+        )
+    )
+  })
+
+  if (hasRedbox) {
+    const [redboxHeader, redboxDescription, redboxSource] = await Promise.all([
+      getRedboxHeader(browser).catch(() => '<missing>'),
+      getRedboxDescription(browser).catch(() => '<missing>'),
+      getRedboxSource(browser).catch(() => '<missing>'),
+    ])
+
+    const error = new Error(
+      'Expected no Redbox but found one\n' +
+        `header: ${redboxHeader}\n` +
+        `description: ${redboxDescription}\n` +
+        `source: ${redboxSource}`
+    )
+    Error.captureStackTrace(error, assertNoRedbox)
+    throw error
+  }
+}
+
 export async function hasErrorToast(
   browser: BrowserInterface
 ): Promise<boolean> {
