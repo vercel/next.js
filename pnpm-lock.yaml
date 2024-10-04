@@ -792,7 +792,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.0.0-canary.178
+        specifier: 15.0.0-canary.179
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -853,7 +853,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.0.0-canary.178
+        specifier: 15.0.0-canary.179
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -863,7 +863,7 @@ importers:
         version: 0.5.13
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-27e0f40-20241002
+        version: 0.0.0-experimental-734b737-20241003
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -981,19 +981,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 15.0.0-canary.178
+        specifier: 15.0.0-canary.179
         version: link:../font
       '@next/polyfill-module':
-        specifier: 15.0.0-canary.178
+        specifier: 15.0.0-canary.179
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.0.0-canary.178
+        specifier: 15.0.0-canary.179
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.0.0-canary.178
+        specifier: 15.0.0-canary.179
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.0.0-canary.178
+        specifier: 15.0.0-canary.179
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1615,7 +1615,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.0.0-canary.178
+        specifier: 15.0.0-canary.179
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -5956,8 +5956,8 @@ packages:
     peerDependencies:
       '@babel/core': 7.22.5
 
-  babel-plugin-react-compiler@0.0.0-experimental-27e0f40-20241002:
-    resolution: {integrity: sha512-hMOwSqoI0gxyjgGVhsMqPsVV4bjCqJ2WTUFsQyrk+KAkDqK/o7Th9XRl/xhVApPbE4VzQeiutC60rbBGqNebHQ==}
+  babel-plugin-react-compiler@0.0.0-experimental-734b737-20241003:
+    resolution: {integrity: sha512-jdcHsQwYAPuB2u/wpyCXCMI2B9n4weLAx8csvjNwYBw9drXYv4GmoxMyboigR9NJqDdcpIgjCBvt9qnIZM7AhA==}
 
   babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
@@ -20691,7 +20691,7 @@ snapshots:
       - supports-color
     optional: true
 
-  babel-plugin-react-compiler@0.0.0-experimental-27e0f40-20241002:
+  babel-plugin-react-compiler@0.0.0-experimental-734b737-20241003:
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
