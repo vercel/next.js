@@ -3038,7 +3038,8 @@ export default abstract class Server<
           if (
             !cache &&
             !isPrefetchRSCRequest &&
-            routeModule?.definition.kind === RouteKind.APP_PAGE
+            routeModule?.definition.kind === RouteKind.APP_PAGE &&
+            !isServerAction
           ) {
             req.headers[RSC_HEADER] = '1'
             req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
