@@ -17,6 +17,9 @@ import {
   type WrapperRenderOpts,
 } from '../async-storage/with-request-store'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
+import { withWorkStore } from '../async-storage/with-work-store'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
@@ -234,27 +237,48 @@ export async function adapter(
           try {
             const previewProps = getEdgePreviewProps()
 
-            return await withRequestStore(
-              requestAsyncStorage,
+            return await withWorkStore(
+              workAsyncStorage,
               {
-                req: request,
-                res: undefined,
-                url: request.nextUrl,
+                page: '/', // Fake Work
+                fallbackRouteParams: null,
                 renderOpts: {
-                  onUpdateCookies: (cookies) => {
-                    cookiesFromResponse = cookies
-                  },
-                  previewProps,
-                  waitUntil,
-                  onClose: closeController
-                    ? closeController.onClose.bind(closeController)
-                    : undefined,
                   experimental: {
                     after: isAfterEnabled,
+                    isRoutePPREnabled: false,
+                    dynamicIO: false,
                   },
+                  buildId: buildId ?? '',
+                  supportsDynamicResponse: true,
                 },
+                requestEndedState: { ended: false },
+                isPrefetchRequest: request.headers.has(
+                  NEXT_ROUTER_PREFETCH_HEADER
+                ),
               },
-              () => params.handler(request, event)
+              () =>
+                withRequestStore(
+                  requestAsyncStorage,
+                  {
+                    req: request,
+                    res: undefined,
+                    url: request.nextUrl,
+                    renderOpts: {
+                      onUpdateCookies: (cookies) => {
+                        cookiesFromResponse = cookies
+                      },
+                      previewProps,
+                      waitUntil,
+                      onClose: closeController
+                        ? closeController.onClose.bind(closeController)
+                        : undefined,
+                      experimental: {
+                        after: isAfterEnabled,
+                      },
+                    },
+                  },
+                  () => params.handler(request, event)
+                )
             )
           } finally {
             // middleware cannot stream, so we can consider the response closed
