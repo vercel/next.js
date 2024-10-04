@@ -631,28 +631,25 @@ async function createComponentTreeInternal({
           )
 
           segmentNode = (
-            <>
-              <NotFoundBoundary
-                notFound={
-                  <>
-                    {layerAssets}
-                    {notfoundClientSegment}
-                  </>
-                }
-              >
-                {layerAssets}
-                {clientSegment}
-              </NotFoundBoundary>
-            </>
+            <NotFoundBoundary
+              key={cacheNodeKey}
+              notFound={
+                <>
+                  {layerAssets}
+                  {notfoundClientSegment}
+                </>
+              }
+            >
+              {layerAssets}
+              {clientSegment}
+            </NotFoundBoundary>
           )
         } else {
           segmentNode = (
-            <>
-              <NotFoundBoundary>
-                {layerAssets}
-                {clientSegment}
-              </NotFoundBoundary>
-            </>
+            <NotFoundBoundary key={cacheNodeKey}>
+              {layerAssets}
+              {clientSegment}
+            </NotFoundBoundary>
           )
         }
       } else {
@@ -680,24 +677,23 @@ async function createComponentTreeInternal({
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
         segmentNode = (
-          <>
-            <NotFoundBoundary
-              notFound={
-                NotFound ? (
-                  <>
-                    {layerAssets}
-                    <SegmentComponent params={params}>
-                      {notFoundStyles}
-                      <NotFound />
-                    </SegmentComponent>
-                  </>
-                ) : undefined
-              }
-            >
-              {layerAssets}
-              {serverSegment}
-            </NotFoundBoundary>
-          </>
+          <NotFoundBoundary
+            key={cacheNodeKey}
+            notFound={
+              NotFound ? (
+                <>
+                  {layerAssets}
+                  <SegmentComponent params={params}>
+                    {notFoundStyles}
+                    <NotFound />
+                  </SegmentComponent>
+                </>
+              ) : undefined
+            }
+          >
+            {layerAssets}
+            {serverSegment}
+          </NotFoundBoundary>
         )
       } else {
         segmentNode = (
