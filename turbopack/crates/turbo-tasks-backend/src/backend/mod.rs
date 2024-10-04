@@ -43,13 +43,13 @@ use crate::{
             AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation,
             ExecuteContext, OutdatedEdge,
         },
-        storage::{get, get_many, remove, Storage},
+        storage::{get, get_many, iter_many, remove, Storage},
     },
     backing_storage::{BackingStorage, ReadTransaction},
     data::{
         ActiveType, AggregationNumber, CachedDataItem, CachedDataItemIndex, CachedDataItemKey,
-        CachedDataItemValue, CachedDataUpdate, CellRef, InProgressCellState, InProgressState,
-        OutputValue, RootState,
+        CachedDataItemValue, CachedDataUpdate, CellRef, CollectibleRef, CollectiblesRef,
+        InProgressCellState, InProgressState, OutputValue, RootState,
     },
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded},
 };
@@ -845,6 +845,38 @@ impl TurboTasksBackendInner {
                 }
             }
 
+            // Make all current collectibles outdated (remove left-over outdated collectibles)
+            enum Collectible {
+                Current(CollectibleRef, i32),
+                Outdated(CollectibleRef),
+            }
+            let collectibles = task
+                .iter(CachedDataItemIndex::Collectibles)
+                .filter_map(|(key, value)| match (key, value) {
+                    (
+                        &CachedDataItemKey::Collectible { collectible },
+                        &CachedDataItemValue::Collectible { value },
+                    ) => Some(Collectible::Current(collectible, value)),
+                    (&CachedDataItemKey::OutdatedCollectible { collectible }, _) => {
+                        Some(Collectible::Outdated(collectible))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            for collectible in collectibles {
+                match collectible {
+                    Collectible::Current(collectible, value) => {
+                        let _ =
+                            task.insert(CachedDataItem::OutdatedCollectible { collectible, value });
+                    }
+                    Collectible::Outdated(collectible) => {
+                        if !task.has_key(&CachedDataItemKey::Collectible { collectible }) {
+                            task.remove(&CachedDataItemKey::OutdatedCollectible { collectible });
+                        }
+                    }
+                }
+            }
+
             // Make all dependencies outdated
             enum Dep {
                 CurrentCell(CellRef),
@@ -898,8 +930,6 @@ impl TurboTasksBackendInner {
                     }
                 }
             }
-
-            // TODO: Make all collectibles outdated
         }
 
         let (span, future) = match task_type {
@@ -1096,15 +1126,24 @@ impl TurboTasksBackendInner {
                     .collect::<Vec<_>>()
             } else {
                 task.iter_all()
-                    .filter_map(|(key, _)| match *key {
+                    .filter_map(|(key, value)| match *key {
                         CachedDataItemKey::OutdatedChild { task } => {
                             Some(OutdatedEdge::Child(task))
+                        }
+                        CachedDataItemKey::OutdatedCollectible { collectible } => {
+                            let CachedDataItemValue::OutdatedCollectible { value } = *value else {
+                                unreachable!();
+                            };
+                            Some(OutdatedEdge::Collectible(collectible, value))
                         }
                         CachedDataItemKey::OutdatedCellDependency { target } => {
                             Some(OutdatedEdge::CellDependency(target))
                         }
                         CachedDataItemKey::OutdatedOutputDependency { target } => {
                             Some(OutdatedEdge::OutputDependency(target))
+                        }
+                        CachedDataItemKey::OutdatedCollectiblesDependency { target } => {
+                            Some(OutdatedEdge::CollectiblesDependency(target))
                         }
                         CachedDataItemKey::CellDependent { cell, task }
                             if removed_cells
@@ -1132,7 +1171,7 @@ impl TurboTasksBackendInner {
                     }
                     AggregationUpdateJob::data_update(
                         &mut task,
-                        AggregatedDataUpdate::no_longer_dirty_container(task_id),
+                        AggregatedDataUpdate::new().no_longer_dirty_container(task_id),
                     )
                 } else {
                     None
@@ -1244,6 +1283,99 @@ impl TurboTasksBackendInner {
         } else {
             Ok(CellContent(None).into_typed(cell.type_id))
         }
+    }
+
+    fn read_task_collectibles(
+        &self,
+        task_id: TaskId,
+        collectible_type: TraitTypeId,
+        reader_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+    ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut collectibles = AutoMap::default();
+        {
+            let mut task = ctx.task(task_id, TaskDataCategory::Data);
+            for collectible in iter_many!(task, AggregatedCollectible { collectible } count if collectible.collectible_type == collectible_type && count > 0 => collectible.cell)
+            {
+                *collectibles
+                    .entry(RawVc::TaskCell(collectible.task, collectible.cell))
+                    .or_insert(0) += 1;
+            }
+            for (collectible, count) in iter_many!(task, Collectible { collectible } count if collectible.collectible_type == collectible_type => (collectible.cell, count))
+            {
+                *collectibles
+                    .entry(RawVc::TaskCell(collectible.task, collectible.cell))
+                    .or_insert(0) += count;
+            }
+            task.insert(CachedDataItem::CollectiblesDependent {
+                collectible_type,
+                task: reader_id,
+                value: (),
+            });
+        }
+        {
+            let mut reader = ctx.task(reader_id, TaskDataCategory::Data);
+            let target = CollectiblesRef {
+                task: task_id,
+                collectible_type,
+            };
+            if reader.add(CachedDataItem::CollectiblesDependency { target, value: () }) {
+                reader.remove(&CachedDataItemKey::OutdatedCollectiblesDependency { target });
+            }
+        }
+        collectibles
+    }
+
+    fn emit_collectible(
+        &self,
+        collectible_type: TraitTypeId,
+        collectible: RawVc,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+    ) {
+        let RawVc::TaskCell(collectible_task, cell) = collectible else {
+            panic!("Collectibles need to be resolved");
+        };
+        let cell = CellRef {
+            task: collectible_task,
+            cell,
+        };
+        operation::UpdateCollectibleOperation::run(
+            task_id,
+            CollectibleRef {
+                collectible_type,
+                cell,
+            },
+            1,
+            self.execute_context(turbo_tasks),
+        );
+    }
+
+    fn unemit_collectible(
+        &self,
+        collectible_type: TraitTypeId,
+        collectible: RawVc,
+        count: u32,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+    ) {
+        let RawVc::TaskCell(collectible_task, cell) = collectible else {
+            panic!("Collectibles need to be resolved");
+        };
+        let cell = CellRef {
+            task: collectible_task,
+            cell,
+        };
+        operation::UpdateCollectibleOperation::run(
+            task_id,
+            CollectibleRef {
+                collectible_type,
+                cell,
+            },
+            -(count as i32),
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn update_task_cell(
@@ -1474,33 +1606,36 @@ impl Backend for TurboTasksBackend {
 
     fn read_task_collectibles(
         &self,
-        _: TaskId,
-        _: TraitTypeId,
-        _: TaskId,
-        _: &dyn TurboTasksBackendApi<Self>,
+        task_id: TaskId,
+        collectible_type: TraitTypeId,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
-        todo!()
+        self.0
+            .read_task_collectibles(task_id, collectible_type, reader, turbo_tasks)
     }
 
     fn emit_collectible(
         &self,
-        _: TraitTypeId,
-        _: RawVc,
-        _: TaskId,
-        _: &dyn TurboTasksBackendApi<Self>,
+        collectible_type: TraitTypeId,
+        collectible: RawVc,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        todo!()
+        self.0
+            .emit_collectible(collectible_type, collectible, task_id, turbo_tasks)
     }
 
     fn unemit_collectible(
         &self,
-        _: TraitTypeId,
-        _: RawVc,
-        _: u32,
-        _: TaskId,
-        _: &dyn TurboTasksBackendApi<Self>,
+        collectible_type: TraitTypeId,
+        collectible: RawVc,
+        count: u32,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        todo!()
+        self.0
+            .unemit_collectible(collectible_type, collectible, count, task_id, turbo_tasks)
     }
 
     fn update_task_cell(
