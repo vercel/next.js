@@ -2,4 +2,4 @@ mod backend;
 mod data;
 mod utils;
 
-pub use backend::TurboTasksBackend;
+pub use self::backend::TurboTasksBackend;

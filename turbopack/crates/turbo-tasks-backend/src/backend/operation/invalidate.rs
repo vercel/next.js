@@ -2,12 +2,16 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_tasks::TaskId;
 
-use super::{
-    aggregation_update::{AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue},
-    ExecuteContext, Operation,
-};
 use crate::{
-    backend::storage::get,
+    backend::{
+        operation::{
+            aggregation_update::{
+                AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
+            },
+            ExecuteContext, Operation,
+        },
+        storage::get,
+    },
     data::{CachedDataItem, CachedDataItemKey},
 };
 

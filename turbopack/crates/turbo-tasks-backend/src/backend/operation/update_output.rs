@@ -3,9 +3,11 @@ use std::borrow::Cow;
 use anyhow::{anyhow, Result};
 use turbo_tasks::{util::SharedError, RawVc, TaskId};
 
-use super::{ExecuteContext, InvalidateOperation};
 use crate::{
-    backend::storage::get_many,
+    backend::{
+        operation::{ExecuteContext, InvalidateOperation},
+        storage::get_many,
+    },
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, OutputValue},
 };
 

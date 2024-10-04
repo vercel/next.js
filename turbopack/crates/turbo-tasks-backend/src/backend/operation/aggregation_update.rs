@@ -3,9 +3,11 @@ use std::{cmp::max, collections::VecDeque, num::NonZeroU32};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
-use super::{ExecuteContext, Operation, TaskGuard};
 use crate::{
-    backend::storage::{get, get_many, iter_many, remove, update, update_count},
+    backend::{
+        operation::{ExecuteContext, Operation, TaskGuard},
+        storage::{get, get_many, iter_many, remove, update, update_count},
+    },
     data::{ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, RootState},
 };
 

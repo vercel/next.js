@@ -11,8 +11,10 @@ use either::Either;
 use rustc_hash::FxHasher;
 use turbo_tasks::KeyValuePair;
 
-use super::indexed::Indexed;
-use crate::utils::dash_map_multi::{get_multiple_mut, RefMut};
+use crate::{
+    backend::indexed::Indexed,
+    utils::dash_map_multi::{get_multiple_mut, RefMut},
+};
 
 const INDEX_THRESHOLD: usize = 1024;
 

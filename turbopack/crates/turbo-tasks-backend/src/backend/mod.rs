@@ -19,11 +19,6 @@ use std::{
 use anyhow::{bail, Result};
 use auto_hash_map::{AutoMap, AutoSet};
 use dashmap::DashMap;
-pub use operation::AnyOperation;
-use operation::{
-    get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
-    AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation, OutdatedEdge,
-};
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
 use smallvec::smallvec;
@@ -39,9 +34,16 @@ use turbo_tasks::{
     ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
-use self::{operation::ExecuteContext, storage::Storage};
+pub use self::operation::AnyOperation;
 use crate::{
-    backend::storage::{get, get_many, remove},
+    backend::{
+        operation::{
+            get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
+            AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation,
+            ExecuteContext, OutdatedEdge,
+        },
+        storage::{get, get_many, remove, Storage},
+    },
     data::{
         ActiveType, AggregationNumber, CachedDataItem, CachedDataItemIndex, CachedDataItemKey,
         CachedDataItemValue, CachedDataUpdate, CellRef, InProgressCellState, InProgressState,

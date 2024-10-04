@@ -3,15 +3,17 @@ use std::mem::take;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
-use super::{
-    aggregation_update::{
-        get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
-        AggregationUpdateQueue,
+use crate::{
+    backend::operation::{
+        aggregation_update::{
+            get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
+            AggregationUpdateQueue,
+        },
+        invalidate::make_task_dirty,
+        ExecuteContext, Operation,
     },
-    invalidate::make_task_dirty,
-    ExecuteContext, Operation,
+    data::{CachedDataItemKey, CellRef},
 };
-use crate::data::{CachedDataItemKey, CellRef};
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum CleanupOldEdgesOperation {

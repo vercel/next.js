@@ -3,14 +3,16 @@ use std::{cmp::max, num::NonZeroU32};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
-use super::{
-    aggregation_update::{
-        get_uppers, is_aggregating_node, AggregationUpdateJob, AggregationUpdateQueue,
-    },
-    ExecuteContext, Operation,
-};
 use crate::{
-    backend::{operation::is_root_node, storage::get},
+    backend::{
+        operation::{
+            aggregation_update::{
+                get_uppers, is_aggregating_node, AggregationUpdateJob, AggregationUpdateQueue,
+            },
+            is_root_node, ExecuteContext, Operation,
+        },
+        storage::get,
+    },
     data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey},
 };
 

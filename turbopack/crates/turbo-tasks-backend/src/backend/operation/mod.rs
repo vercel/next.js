@@ -13,9 +13,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
 
-use super::{storage::StorageWriteGuard, TurboTasksBackend};
 use crate::{
-    backend::{OperationGuard, TransientTask},
+    backend::{storage::StorageWriteGuard, OperationGuard, TransientTask, TurboTasksBackend},
     data::{
         CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
         CachedDataUpdate,
@@ -351,9 +350,11 @@ impl_operation!(Invalidate invalidate::InvalidateOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 
-pub use aggregation_update::{
-    get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
+pub use self::{
+    aggregation_update::{
+        get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
+    },
+    cleanup_old_edges::OutdatedEdge,
+    update_cell::UpdateCellOperation,
+    update_output::UpdateOutputOperation,
 };
-pub use cleanup_old_edges::OutdatedEdge;
-pub use update_cell::UpdateCellOperation;
-pub use update_output::UpdateOutputOperation;
