@@ -888,8 +888,7 @@ impl AppEndpoint {
                         .values()
                     {
                         let result = collect_next_dynamic_imports(
-                            // TODO get rid of this clone without breaking memoization
-                            refs.await?.clone_value(),
+                            refs.clone(),
                             Vc::upcast(this.app_project.client_module_context()),
                             visited_modules,
                         )

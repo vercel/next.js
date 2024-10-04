@@ -52,7 +52,7 @@ pub struct ClientReferenceGraphResult {
     pub client_references: Vec<ClientReference>,
     #[allow(clippy::type_complexity)]
     pub client_references_ecma_by_server_component:
-        IndexMap<Option<Vc<NextServerComponentModule>>, Vc<Vec<Vc<Box<dyn Module>>>>>,
+        IndexMap<Option<Vc<NextServerComponentModule>>, Vec<Vc<Box<dyn Module>>>>,
     pub server_component_entries: Vec<Vc<NextServerComponentModule>>,
     pub server_utils: Vec<Vc<Box<dyn Module>>>,
 }
@@ -144,10 +144,7 @@ pub async fn client_reference_graph(
 
         Ok(ClientReferenceGraphResult {
             client_references,
-            client_references_ecma_by_server_component: client_references_ecma_by_server_component
-                .into_iter()
-                .map(|(k, v)| (k, Vc::cell(v)))
-                .collect(),
+            client_references_ecma_by_server_component,
             server_component_entries,
             server_utils,
         }

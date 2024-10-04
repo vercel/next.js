@@ -144,6 +144,8 @@ impl VisitedDynamicImportModules {
 ///      won't occur
 #[turbo_tasks::function]
 pub(crate) async fn collect_next_dynamic_imports(
+    // `server_entries` cannot be a `Vc<Vec<_>>` because that would compare by cell identity and
+    // not by value, breaking memoization.
     server_entries: Vec<Vc<Box<dyn Module>>>,
     client_asset_context: Vc<Box<dyn AssetContext>>,
     visited_modules: Vc<VisitedDynamicImportModules>,
