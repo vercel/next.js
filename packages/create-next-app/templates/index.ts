@@ -223,6 +223,7 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       postcss: "^8",
       tailwindcss: "^3.4.1",
+      autoprefixer: "^10",
     };
   }
 
