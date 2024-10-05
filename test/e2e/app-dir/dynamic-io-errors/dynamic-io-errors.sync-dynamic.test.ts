@@ -128,7 +128,7 @@ function runTests(options: { withMinification: boolean }) {
         )
         expectError('Error occurred prerendering page "/"')
         expectError(
-          'Error: Route / used a synchronous Dynamic API while prerendering which caused some part of the page to be dynamic without a Suspense boundary above it defining a fallback UI.'
+          'Error: Route / used `searchParams.foo` while prerendering which caused some part of the page to be dynamic without a Suspense boundary above it defining a fallback UI.'
         )
         expectError('exiting the build.')
       })
@@ -228,7 +228,7 @@ function runTests(options: { withMinification: boolean }) {
         }
         expectError('Error occurred prerendering page "/"')
         expectError(
-          'Error: Route / used a synchronous Dynamic API while prerendering which caused some part of the page to be dynamic without a Suspense boundary above it defining a fallback UI.'
+          'Error: Route / used `searchParams.foo` while prerendering which caused some part of the page to be dynamic without a Suspense boundary above it defining a fallback UI.'
         )
         expectError('exiting the build.')
       })
@@ -328,7 +328,7 @@ function runTests(options: { withMinification: boolean }) {
         }
         expectError('Error occurred prerendering page "/"')
         expectError(
-          'Error: Route / used a synchronous Dynamic API while prerendering which caused some part of the page to be dynamic without a Suspense boundary above it defining a fallback UI.'
+          "Error: Route / used cookies().get('token') while prerendering which caused some part of the page to be dynamic without a Suspense boundary above it defining a fallback UI."
         )
         expectError('exiting the build.')
       })
