@@ -20,7 +20,7 @@
   },
   "devDependencies": {
     "autoprefixer": "10.3.1",
-    "postcss": "8.3.6",
+    "postcss": "8.4.31",
     "prettier": "2.3.2",
     "stream-to-promise": "3.0.0",
     "tailwindcss": "2.2.7"
