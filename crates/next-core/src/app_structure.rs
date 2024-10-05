@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueToString, Vc,
+    ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -467,6 +467,17 @@ impl AppPageLoaderTree {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct FileSystemPathVec(Vec<ResolvedVc<FileSystemPath>>);
+
+#[turbo_tasks::value_impl]
+impl ValueDefault for FileSystemPathVec {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
+
 #[derive(
     Clone,
     PartialEq,
@@ -487,7 +498,7 @@ pub enum Entrypoint {
     AppRoute {
         page: AppPage,
         path: ResolvedVc<FileSystemPath>,
-        root_layouts: ResolvedVc<Vec<Vc<FileSystemPath>>>,
+        root_layouts: ResolvedVc<FileSystemPathVec>,
     },
     AppMetadata {
         page: AppPage,
@@ -615,7 +626,7 @@ fn add_app_route(
     result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: ResolvedVc<FileSystemPath>,
-    root_layouts: ResolvedVc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: ResolvedVc<FileSystemPathVec>,
 ) {
     let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
@@ -709,7 +720,7 @@ fn directory_tree_to_entrypoints(
     app_dir: Vc<FileSystemPath>,
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: Vc<FileSystemPathVec>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints_internal(
         app_dir,
@@ -792,6 +803,9 @@ fn check_duplicate(
     }
 }
 
+#[turbo_tasks::value(transparent)]
+struct AppPageLoaderTreeOption(Option<ResolvedVc<AppPageLoaderTree>>);
+
 /// creates the loader tree for a specific route (pathname / [AppPath])
 #[turbo_tasks::function]
 async fn directory_tree_to_loader_tree(
@@ -802,7 +816,7 @@ async fn directory_tree_to_loader_tree(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
-) -> Result<Vc<Option<Vc<AppPageLoaderTree>>>> {
+) -> Result<Vc<AppPageLoaderTreeOption>> {
     let plain_tree = &*directory_tree.into_plain().await?;
 
     let tree = directory_tree_to_loader_tree_internal(
@@ -814,7 +828,7 @@ async fn directory_tree_to_loader_tree(
         for_app_path,
     )?;
 
-    Ok(Vc::cell(tree.map(|tree| tree.cell())))
+    Ok(Vc::cell(tree.map(AppPageLoaderTree::resolved_cell)))
 }
 
 fn directory_tree_to_loader_tree_internal(
@@ -1044,7 +1058,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
-    root_layouts: ResolvedVc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
     let span = tracing::info_span!("build layout trees", name = display(&app_page));
     directory_tree_to_entrypoints_internal_untraced(
@@ -1065,7 +1079,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
-    root_layouts: ResolvedVc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
     let mut result = IndexMap::new();
 
@@ -1078,8 +1092,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     // segment config. https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-option
     // Pass down layouts from each tree to apply segment config when adding route.
     let root_layouts = if let Some(layout) = modules.layout {
-        let mut layouts = (*root_layouts.await?).clone();
-        layouts.push(layout);
+        let mut layouts = root_layouts.await?.clone_value();
+        layouts.push(layout.to_resolved().await?);
         ResolvedVc::cell(layouts)
     } else {
         root_layouts
