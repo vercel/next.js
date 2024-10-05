@@ -5,9 +5,14 @@ import { retry } from 'next-test-utils'
 const timeStampRegExp = /[ ]*\d{2}:\d{2}:\d{2}\.\d{3}[ ]*/gm
 
 describe('interceptors', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, isNextStart, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   let cliOutputLength: number
 
