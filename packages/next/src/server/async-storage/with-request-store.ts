@@ -127,6 +127,7 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
   } = {}
 
   const store: RequestStore = {
+    type: 'request',
     // Rather than just using the whole `url` here, we pull the parts we want
     // to ensure we don't use parts of the URL that we shouldn't. This also
     // lets us avoid requiring an empty string for `search` in the type.

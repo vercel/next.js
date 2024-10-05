@@ -133,6 +133,7 @@ function wrapRequestStoreForAfterCallbacks(
   requestStore: RequestStore
 ): RequestStore {
   return {
+    type: 'request',
     url: requestStore.url,
     get headers() {
       return requestStore.headers
