@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "buttercms": "1.2.8",
+    "buttercms": "1.2.9",
     "classnames": "2.3.1",
     "date-fns": "2.28.0",
     "next": "latest",
@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "autoprefixer": "10.4.2",
-    "postcss": "8.4.5",
+    "postcss": "8.4.31",
     "tailwindcss": "^3.0.15"
   }
 }
