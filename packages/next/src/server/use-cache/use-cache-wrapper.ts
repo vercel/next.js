@@ -14,8 +14,8 @@ import {
 
 import type { WorkStore } from '../../client/components/work-async-storage.external'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import type { UseCacheStore } from '../app-render/cache-async-storage.external'
-import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
+import type { UseCacheStore } from '../app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -136,7 +136,7 @@ function generateCacheEntryWithCacheContext(
 ) {
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = { type: 'cache' }
-  return cacheAsyncStorage.run(
+  return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
     workStore,
