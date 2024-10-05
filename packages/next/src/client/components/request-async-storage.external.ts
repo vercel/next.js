@@ -11,7 +11,9 @@ import type { ServerComponentsHmrCache } from '../../server/response-cache'
 import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
 import { prerenderAsyncStorage } from '../../server/app-render/prerender-async-storage.external'
 
-export interface RequestStore {
+export type RequestStore = {
+  type: 'request'
+
   /**
    * The URL of the request. This only specifies the pathname and the search
    * part of the URL.
