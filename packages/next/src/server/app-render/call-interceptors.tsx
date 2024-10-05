@@ -1,5 +1,4 @@
 import type { ModuleTuple } from '../../build/webpack/loaders/metadata/types'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { NextRequest } from '../web/exports'
 import { createInterceptor } from './create-interceptor'
@@ -13,17 +12,15 @@ import { parseLoaderTree } from './parse-loader-tree'
 export async function callInterceptorsWithLoaderTree({
   loaderTree,
   request,
-  workStore,
 }: {
   loaderTree: LoaderTree
   request: NextRequest
-  workStore: WorkStore
 }): Promise<void> {
   const { modules, parallelRoutes } = parseLoaderTree(loaderTree)
 
   const interceptor =
     modules.interceptor &&
-    (await createInterceptor(modules.interceptor, request, workStore))
+    (await createInterceptor(modules.interceptor, request))
 
   if (interceptor) {
     await interceptor()
@@ -34,7 +31,6 @@ export async function callInterceptorsWithLoaderTree({
       callInterceptorsWithLoaderTree({
         loaderTree: parallelRouteTree,
         request,
-        workStore,
       })
     )
   )
@@ -46,14 +42,12 @@ export async function callInterceptorsWithLoaderTree({
 export async function callInterceptors({
   interceptors,
   request,
-  workStore,
 }: {
   interceptors: ModuleTuple[]
   request: NextRequest
-  workStore: WorkStore
 }): Promise<void> {
   for (const moduleTuple of interceptors) {
-    const interceptor = await createInterceptor(moduleTuple, request, workStore)
+    const interceptor = await createInterceptor(moduleTuple, request)
 
     await interceptor()
   }

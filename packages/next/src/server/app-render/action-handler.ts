@@ -834,7 +834,6 @@ export async function handleAction({
       await callInterceptorsWithLoaderTree({
         loaderTree: ComponentMod.tree,
         request: ctx.requestStore.nextRequest,
-        workStore: ctx.workStore,
       })
 
       const returnVal = await actionHandler.apply(null, boundActionArguments)

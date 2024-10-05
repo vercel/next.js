@@ -1,8 +1,16 @@
 import type { ModuleTuple } from '../../build/webpack/loaders/metadata/types'
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  throwWithStaticGenerationBailoutErrorWithDynamicError,
+  throwWithStaticGenerationBailoutErrorWithDynamicForceStatic,
+} from '../request/utils'
 import type { NextRequest } from '../web/exports'
-import { markCurrentScopeAsDynamic } from './dynamic-rendering'
+import {
+  postponeWithTracking,
+  throwToInterruptStaticGeneration,
+  trackDynamicDataInDynamicRender,
+} from './dynamic-rendering'
 import { interopDefault } from './interop-default'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 
@@ -12,11 +20,9 @@ export type RequestBoundInterceptor = () => Promise<void>
 
 export async function createInterceptor(
   moduleTuple: ModuleTuple,
-  request: NextRequest,
-  workStore: WorkStore
+  request: NextRequest
 ): Promise<RequestBoundInterceptor> {
   const [getModule, , filePathRelative] = moduleTuple
-  const workUnitStore = workUnitAsyncStorage.getStore()
 
   const interceptRequest = interopDefault(await getModule()) as (
     request: NextRequest
@@ -30,13 +36,44 @@ export async function createInterceptor(
 
   let interceptorPromise: Promise<void> | undefined
 
-  return function intercept() {
-    if (workStore.forceStatic) {
-      throw new StaticGenBailoutError(
-        `Route ${workStore.route} with \`dynamic = "force-static"\` couldn't be rendered statically because it used ${callingExpression}. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-      )
-    } else {
-      markCurrentScopeAsDynamic(workStore, workUnitStore, callingExpression)
+  return async function intercept() {
+    const workStore = workAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (workStore) {
+      if (workStore.forceStatic) {
+        throwWithStaticGenerationBailoutErrorWithDynamicForceStatic(
+          workStore.route,
+          callingExpression
+        )
+      }
+
+      if (workStore.dynamicShouldError) {
+        throwWithStaticGenerationBailoutErrorWithDynamicError(
+          workStore.route,
+          callingExpression
+        )
+      }
+
+      if (workUnitStore) {
+        if (workUnitStore.type === 'prerender') {
+          return makeHangingPromise()
+        } else if (workUnitStore.type === 'prerender-ppr') {
+          postponeWithTracking(
+            workStore.route,
+            callingExpression,
+            workUnitStore.dynamicTracking
+          )
+        } else if (workUnitStore.type === 'prerender-legacy') {
+          throwToInterruptStaticGeneration(
+            callingExpression,
+            workStore,
+            workUnitStore
+          )
+        }
+      }
+
+      trackDynamicDataInDynamicRender(workStore, workUnitStore)
     }
 
     if (!interceptorPromise) {

@@ -315,11 +315,7 @@ export class AppRouteRouteModule extends RouteModule<
           : undefined
 
     const handleRequest = async () => {
-      await callInterceptors({
-        interceptors: this.interceptors,
-        request,
-        workStore,
-      })
+      await callInterceptors({ interceptors: this.interceptors, request })
 
       return handler(request, handlerContext)
     }
