@@ -86,6 +86,7 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
     Meta({ name: 'robots', content: metadata.robots?.basic }),
     Meta({ name: 'googlebot', content: metadata.robots?.googleBot }),
     Meta({ name: 'abstract', content: metadata.abstract }),
+    Meta({ name: 'pinterest-rich-pin', content: metadata.pinterest.toString()}),
     ...(metadata.archives
       ? metadata.archives.map((archive) => (
           <link rel="archives" href={archive} />

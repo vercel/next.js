@@ -342,6 +342,18 @@ interface Metadata extends DeprecatedMetadataFields {
   facebook?: null | Facebook
 
   /**
+   * The Pinterest metadata for the document.
+   * You can choose whether or not to opt out of rich pin data.
+   *
+   * @example
+   * ```tsx
+   *
+   * <meta name="pinterest-rich-pin" content="false" />
+   * ```
+   */
+    pinterest?: null | string
+
+  /**
    * The common verification tokens for the document.
    * @example
    * ```tsx
@@ -530,6 +542,8 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   twitter: null | ResolvedTwitterMetadata
 
   facebook: null | ResolvedFacebook
+
+  pinterest: null | string | boolean
 
   // common verification tokens
   verification: null | ResolvedVerification
