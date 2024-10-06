@@ -169,7 +169,7 @@ export async function getSourceMapFromFile(
     .readFile(filename, 'utf-8')
     .catch(() => undefined)
 
-  return fileContent ? getRawSourceMap(fileContent) : undefined
+  return fileContent ? getRawSourceMap(filename, fileContent) : undefined
 }
 
 export async function getSourceMapFromCompilation(
@@ -197,7 +197,7 @@ export async function getSourceMapFromCompilation(
 }
 
 export async function getSource(
-  file: string,
+  filename: string,
   options: {
     isAppDirectory: boolean
     isServer: boolean
@@ -207,15 +207,15 @@ export async function getSource(
     edgeServerStats(): webpack.Stats | null
   }
 ): Promise<Source | undefined> {
-  if (file.startsWith('file:')) {
-    const sourceMap = await getSourceMapFromFile(file)
+  if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
+    const sourceMap = await getSourceMapFromFile(filename)
 
     return sourceMap ? { sourceMap, compilation: undefined } : undefined
   }
 
   const { isAppDirectory, isEdgeServer, isServer } = options
 
-  const moduleId: string = file.replace(
+  const moduleId: string = filename.replace(
     /^(webpack-internal:\/\/\/|file:\/\/|webpack:\/\/(_N_E\/)?)/,
     ''
   )
