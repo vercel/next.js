@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "cookie": "^0.5.0",
+    "cookie": "^0.7.0",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
