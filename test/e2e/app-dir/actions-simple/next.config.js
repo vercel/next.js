@@ -10,6 +10,7 @@ const nextConfig = {
     return config
   },
   experimental: {
+    ppr: true,
     turbo: {
       resolveAlias: {
         'next/dist/client/app-find-source-map-url':
