@@ -138,6 +138,6 @@ export function onVersionInfo(versionInfo: VersionInfo) {
   Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
 }
 
-export { getErrorByType } from '../internal/helpers/getErrorByType'
-export { getServerError } from '../internal/helpers/nodeStackFrames'
+export { getErrorByType } from '../internal/helpers/get-error-by-type'
+export { getServerError } from '../internal/helpers/node-stack-frames'
 export { default as ReactDevOverlay } from './ReactDevOverlay'

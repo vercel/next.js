@@ -51,29 +51,33 @@ async function getSourceFrame(
   try {
     const loc =
       input.loc || input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
-    const originalSource = input.module.originalSource()
+    const originalSource = (input.module as webpack.Module).originalSource()
+    const sourceMap = originalSource?.map() ?? undefined
 
-    const result = await createOriginalStackFrame({
-      source: originalSource,
-      rootDirectory: compilation.options.context!,
-      modulePath: fileName,
-      frame: {
-        arguments: [],
-        file: fileName,
-        methodName: '',
-        lineNumber: loc.start.line,
-        column: loc.start.column,
-      },
-    })
+    if (sourceMap) {
+      const result = await createOriginalStackFrame({
+        sourceMap,
+        rootDirectory: compilation.options.context!,
+        modulePath: fileName,
+        frame: {
+          arguments: [],
+          file: fileName,
+          methodName: '',
+          lineNumber: loc.start.line,
+          column: loc.start.column,
+        },
+        compilation,
+      })
 
-    return {
-      frame: result?.originalCodeFrame ?? '',
-      lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? '',
-      column: result?.originalStackFrame?.column?.toString() ?? '',
+      return {
+        frame: result?.originalCodeFrame ?? '',
+        lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? '',
+        column: result?.originalStackFrame?.column?.toString() ?? '',
+      }
     }
-  } catch {
-    return { frame: '', lineNumber: '', column: '' }
-  }
+  } catch {}
+
+  return { frame: '', lineNumber: '', column: '' }
 }
 
 function getFormattedFileName(

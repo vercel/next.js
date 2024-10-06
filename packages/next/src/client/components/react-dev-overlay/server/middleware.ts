@@ -2,7 +2,7 @@ import { constants as FS, promises as fs } from 'fs'
 import path from 'path'
 import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { getRawSourceMap } from '../internal/helpers/getRawSourceMap'
+import { getRawSourceMap } from '../internal/helpers/get-raw-source-map'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import {
   badRequest,
@@ -13,15 +13,19 @@ import {
   noContent,
   type OriginalStackFrameResponse,
 } from './shared'
-export { getServerError } from '../internal/helpers/nodeStackFrames'
+export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parseStack'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
+import type { RawSourceMap } from 'next/dist/compiled/source-map08'
 
-type Source = { map: () => any } | null
+type Source = {
+  sourceMap: RawSourceMap
+  compilation: webpack.Compilation | undefined
+}
 
-function getModuleId(compilation: any, module: any) {
+function getModuleId(compilation: webpack.Compilation, module: webpack.Module) {
   return compilation.chunkGraph.getModuleId(module)
 }
 
@@ -38,23 +42,15 @@ function findModuleNotFoundFromError(errorMessage: string | undefined) {
   return errorMessage?.match(/'([^']+)' module/)?.[1]
 }
 
-function getModuleSource(compilation: any, module: any): any {
-  if (!module) return null
-  return (
-    compilation.codeGenerationResults.get(module)?.sources.get('javascript') ??
-    null
-  )
-}
-
 function getSourcePath(source: string) {
   return source.replace(/^(webpack:\/\/\/|webpack:\/\/|webpack:\/\/_N_E\/)/, '')
 }
 
 async function findOriginalSourcePositionAndContent(
-  webpackSource: any,
+  sourceMap: RawSourceMap,
   position: { line: number; column: number | null }
 ) {
-  const consumer = await new SourceMapConsumer(webpackSource.map())
+  const consumer = await new SourceMapConsumer(sourceMap)
   try {
     const sourcePosition = consumer.originalPositionFor({
       line: position.line,
@@ -90,7 +86,7 @@ function findOriginalSourcePositionAndContentFromCompilation(
 }
 
 export async function createOriginalStackFrame({
-  source,
+  sourceMap,
   moduleId,
   modulePath,
   rootDirectory,
@@ -98,19 +94,21 @@ export async function createOriginalStackFrame({
   errorMessage,
   compilation,
 }: {
-  source: any
+  sourceMap: RawSourceMap
   moduleId?: string
   modulePath?: string
   rootDirectory: string
   frame: StackFrame
   errorMessage?: string
   compilation?: webpack.Compilation
-}): Promise<OriginalStackFrameResponse | null> {
+}): Promise<OriginalStackFrameResponse | undefined> {
   const { lineNumber, column } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (async () => {
     if (moduleNotFound) {
-      if (!compilation) return null
+      if (!compilation) {
+        return undefined
+      }
 
       return findOriginalSourcePositionAndContentFromCompilation(
         moduleId,
@@ -119,13 +117,15 @@ export async function createOriginalStackFrame({
       )
     }
     // This returns 1-based lines and 0-based columns
-    return await findOriginalSourcePositionAndContent(source, {
+    return await findOriginalSourcePositionAndContent(sourceMap, {
       line: lineNumber ?? 1,
       column,
     })
   })()
 
-  if (!result?.sourcePosition.source) return null
+  if (!result?.sourcePosition.source) {
+    return undefined
+  }
 
   const { sourcePosition, sourceContent } = result
 
@@ -162,52 +162,122 @@ export async function createOriginalStackFrame({
   }
 }
 
-export async function getSourceById(
-  isFile: boolean,
+export async function getSourceMapFromFile(
+  filename: string
+): Promise<RawSourceMap | undefined> {
+  const fileContent = await fs
+    .readFile(filename, 'utf-8')
+    .catch(() => undefined)
+
+  return fileContent ? getRawSourceMap(fileContent) : undefined
+}
+
+export async function getSourceMapFromCompilation(
   id: string,
-  compilation?: webpack.Compilation
-): Promise<Source> {
-  if (isFile) {
-    const fileContent: string | null = await fs
-      .readFile(id, 'utf-8')
-      .catch(() => null)
-
-    if (fileContent == null) {
-      return null
-    }
-
-    const map = getRawSourceMap(fileContent)
-    if (map == null) {
-      return null
-    }
-
-    return {
-      map() {
-        return map
-      },
-    }
-  }
-
+  compilation: webpack.Compilation
+): Promise<RawSourceMap | undefined> {
   try {
-    if (!compilation) {
-      return null
+    const module = getModuleById(id, compilation)
+
+    if (!module) {
+      return undefined
     }
 
-    const module = getModuleById(id, compilation)
-    const moduleSource = getModuleSource(compilation, module)
-    return moduleSource
+    // @ts-expect-error The types for `CodeGenerationResults.get` require a
+    // runtime to be passed as second argument, but apparently it also works
+    // without it.
+    const codeGenerationResult = compilation.codeGenerationResults.get(module)
+    const source = codeGenerationResult?.sources.get('javascript')
+
+    return source?.map() ?? undefined
   } catch (err) {
     console.error(`Failed to lookup module by ID ("${id}"):`, err)
-    return null
+    return undefined
   }
+}
+
+export async function getSource(
+  file: string,
+  options: {
+    isAppDirectory: boolean
+    isServer: boolean
+    isEdgeServer: boolean
+    stats(): webpack.Stats | null
+    serverStats(): webpack.Stats | null
+    edgeServerStats(): webpack.Stats | null
+  }
+): Promise<Source | undefined> {
+  if (file.startsWith('file:')) {
+    const sourceMap = await getSourceMapFromFile(file)
+
+    return sourceMap ? { sourceMap, compilation: undefined } : undefined
+  }
+
+  const { isAppDirectory, isEdgeServer, isServer } = options
+
+  const moduleId: string = file.replace(
+    /^(webpack-internal:\/\/\/|file:\/\/|webpack:\/\/(_N_E\/)?)/,
+    ''
+  )
+
+  // Try Client Compilation first. In `pages` we leverage `isClientError` to
+  // check. In `app` it depends on if it's a server / client component and when
+  // the code throws. E.g. during HTML rendering it's the server/edge
+  // compilation.
+  if ((!isEdgeServer && !isServer) || isAppDirectory) {
+    const compilation = options.stats()?.compilation
+
+    if (compilation) {
+      const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
+
+      if (sourceMap) {
+        return { sourceMap, compilation }
+      }
+    }
+  }
+
+  // Try Server Compilation. In `pages` this could be something imported in
+  // getServerSideProps/getStaticProps as the code for those is tree-shaken. In
+  // `app` this finds server components and code that was imported from a server
+  // component. It also covers when client component code throws during HTML
+  // rendering.
+  if (isServer || isAppDirectory) {
+    const compilation = options.serverStats()?.compilation
+
+    if (compilation) {
+      const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
+
+      if (sourceMap) {
+        return { sourceMap, compilation }
+      }
+    }
+  }
+
+  // Try Edge Server Compilation. Both cases are the same as Server Compilation,
+  // main difference is that it covers `runtime: 'edge'` pages/app routes.
+  if (isEdgeServer || isAppDirectory) {
+    const compilation = options.edgeServerStats()?.compilation
+
+    if (compilation) {
+      const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
+
+      if (sourceMap) {
+        return { sourceMap, compilation }
+      }
+    }
+  }
+
+  return undefined
 }
 
 export function getOverlayMiddleware(options: {
   rootDirectory: string
-  stats(): webpack.Stats | null
-  serverStats(): webpack.Stats | null
-  edgeServerStats(): webpack.Stats | null
+  stats: () => webpack.Stats | null
+  serverStats: () => webpack.Stats | null
+  edgeServerStats: () => webpack.Stats | null
 }) {
+  const { rootDirectory, stats, serverStats, edgeServerStats } = options
+
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -228,8 +298,6 @@ export function getOverlayMiddleware(options: {
     const isAppDirectory = searchParams.get('isAppDirectory') === 'true'
 
     if (pathname === '/__nextjs_original-stack-frame') {
-      const isClient = !isServer && !isEdgeServer
-
       let sourcePackage = findSourcePackage(frame)
 
       if (
@@ -251,33 +319,17 @@ export function getOverlayMiddleware(options: {
         ''
       )
 
-      let source: Source = null
-
-      let compilation: webpack.Compilation | undefined
-
-      const isFile = frame.file.startsWith('file:')
+      let source: Source | undefined
 
       try {
-        if (isClient || isAppDirectory) {
-          compilation = options.stats()?.compilation
-          // Try Client Compilation first
-          // In `pages` we leverage `isClientError` to check
-          // In `app` it depends on if it's a server / client component and when the code throws. E.g. during HTML rendering it's the server/edge compilation.
-          source = await getSourceById(isFile, moduleId, compilation)
-        }
-        // Try Server Compilation
-        // In `pages` this could be something imported in getServerSideProps/getStaticProps as the code for those is tree-shaken.
-        // In `app` this finds server components and code that was imported from a server component. It also covers when client component code throws during HTML rendering.
-        if ((isServer || isAppDirectory) && source === null) {
-          compilation = options.serverStats()?.compilation
-          source = await getSourceById(isFile, moduleId, compilation)
-        }
-        // Try Edge Server Compilation
-        // Both cases are the same as Server Compilation, main difference is that it covers `runtime: 'edge'` pages/app routes.
-        if ((isEdgeServer || isAppDirectory) && source === null) {
-          compilation = options.edgeServerStats()?.compilation
-          source = await getSourceById(isFile, moduleId, compilation)
-        }
+        source = await getSource(frame.file, {
+          isAppDirectory,
+          isServer,
+          isEdgeServer,
+          stats,
+          serverStats,
+          edgeServerStats,
+        })
       } catch (err) {
         console.log('Failed to get source map:', err)
         return internalServerError(res)
@@ -291,11 +343,11 @@ export function getOverlayMiddleware(options: {
       try {
         const originalStackFrameResponse = await createOriginalStackFrame({
           frame,
-          source,
+          sourceMap: source.sourceMap,
           moduleId,
           modulePath,
-          rootDirectory: options.rootDirectory,
-          compilation,
+          rootDirectory,
+          compilation: source.compilation,
         })
 
         if (originalStackFrameResponse === null) {
@@ -313,7 +365,7 @@ export function getOverlayMiddleware(options: {
 
       // frame files may start with their webpack layer, like (middleware)/middleware.js
       const filePath = path.resolve(
-        options.rootDirectory,
+        rootDirectory,
         frame.file.replace(/^\([^)]+\)\//, '')
       )
       const fileExists = await fs.access(filePath, FS.F_OK).then(
@@ -332,5 +384,53 @@ export function getOverlayMiddleware(options: {
       return noContent(res)
     }
     return next()
+  }
+}
+
+export function getSourceMapMiddleware(options: {
+  stats: () => webpack.Stats | null
+  serverStats: () => webpack.Stats | null
+  edgeServerStats: () => webpack.Stats | null
+}) {
+  const { stats, serverStats, edgeServerStats } = options
+
+  return async function (
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: Function
+  ) {
+    const { pathname, searchParams } = new URL(`http://n${req.url}`)
+
+    if (pathname !== '/__nextjs_source-map') {
+      return next()
+    }
+
+    const filename = searchParams.get('filename')
+
+    if (filename) {
+      let source: Source | undefined
+
+      try {
+        source = await getSource(filename, {
+          isAppDirectory: true,
+          isServer: true, // TODO: figure out how to set this
+          isEdgeServer: false, // TODO: figure out how to set this
+          stats,
+          serverStats,
+          edgeServerStats,
+        })
+      } catch (error) {
+        console.log('Failed to get source map:', error)
+
+        return internalServerError(res)
+      }
+
+      if (!source) {
+        console.log('NO SOURCE MAP', filename)
+        return noContent(res)
+      }
+
+      return json(res, source.sourceMap)
+    }
   }
 }
