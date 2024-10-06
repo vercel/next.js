@@ -123,19 +123,21 @@ You can [revalidate cached data](/docs/app/building-your-application/data-fetchi
 export const revalidate = 60
 
 export async function GET() {
-  let data = await fetch('https://api.vercel.app/blog')
-  let posts = await data.json()
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
 
   return Response.json(posts)
 }
 ```
 
 ```js filename="app/posts/route.js" switcher
-export async function GET() {
-  let data = await fetch('https://api.vercel.app/blog')
-  let posts = await data.json()
+export const revalidate = 60
 
-  return Response.json(data)
+export async function GET() {
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
+
+  return Response.json(posts)
 }
 ```
 
