@@ -152,7 +152,9 @@ export function PinterestMeta({
   const { richPin } = pinterest
 
   return MetaFilter([
-    richPin !== null ? <meta property="pinterest-rich-pin" content={richPin.toString()} /> : null,
+    richPin !== null ? (
+      <meta property="pinterest-rich-pin" content={richPin.toString()} />
+    ) : null,
   ])
 }
 

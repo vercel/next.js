@@ -353,7 +353,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="pinterest-rich-pin" content="false" />
    * ```
    */
-    pinterest?: null | Pinterest
+  pinterest?: null | Pinterest
 
   /**
    * The common verification tokens for the document.
