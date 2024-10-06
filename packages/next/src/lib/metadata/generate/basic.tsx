@@ -86,7 +86,6 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
     Meta({ name: 'robots', content: metadata.robots?.basic }),
     Meta({ name: 'googlebot', content: metadata.robots?.googleBot }),
     Meta({ name: 'abstract', content: metadata.abstract }),
-    Meta({ name: 'pinterest-rich-pin', content: metadata.pinterest.toString()}),
     ...(metadata.archives
       ? metadata.archives.map((archive) => (
           <link rel="archives" href={archive} />
@@ -140,6 +139,20 @@ export function FacebookMeta({
     ...(admins
       ? admins.map((admin) => <meta property="fb:admins" content={admin} />)
       : []),
+  ])
+}
+
+export function PinterestMeta({
+  pinterest,
+}: {
+  pinterest: ResolvedMetadata['pinterest']
+}) {
+  if (!pinterest) return null
+
+  const { richPin } = pinterest
+
+  return MetaFilter([
+    richPin !== null ? <meta property="pinterest-rich-pin" content={richPin.toString()} /> : null,
   ])
 }
 
