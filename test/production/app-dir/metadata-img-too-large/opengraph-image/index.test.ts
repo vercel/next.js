@@ -1,11 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 import { generatePNG } from '../generate-image'
 
-describe('metadata-img-too-large opengraph-image', () => {
+describe('app-dir - metadata-img-too-large opengraph-image', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
   const pngFile = generatePNG(8)

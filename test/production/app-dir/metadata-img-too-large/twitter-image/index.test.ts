@@ -5,7 +5,6 @@ describe('metadata-img-too-large twitter-image', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
   const pngFile = generatePNG(6)
