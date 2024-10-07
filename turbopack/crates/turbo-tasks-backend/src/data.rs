@@ -71,10 +71,10 @@ pub struct RootState {
 }
 
 impl RootState {
-    pub fn new(ty: ActiveType) -> Self {
+    pub fn new(ty: ActiveType, id: TaskId) -> Self {
         Self {
             ty,
-            all_clean_event: Event::new(|| "RootState::all_clean_event".to_string()),
+            all_clean_event: Event::new(move || format!("RootState::all_clean_event {:?}", id)),
         }
     }
 }
