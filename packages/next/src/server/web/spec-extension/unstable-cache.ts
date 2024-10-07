@@ -340,26 +340,7 @@ export function unstable_cache<T extends Callback>(
           type: 'unstable-cache',
         }
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        // @TODO this storage wrapper is included here because it existed prior to the latest refactor
-        // however it is incorrect logic because it causes any internal cache calls to follow the App Router
-        // path rather than Pages router path. This may mean there is existing buggy behavior however no specific
-        // issues are known at this time. The whole static generation storage pathways should be reworked
-        // to allow tracking which "mode" we are in without the presence of a store or not. For now I have
-        // maintained the existing behavior to limit the impact of the current refactor
-        const result = await workAsyncStorage.run(
-          // We are making a fake store that is useful for scoping fetchCache: 'force-no-store'
-          // The fact that we need to construct this kind of fake store indicates the code is not factored correctly
-          // @TODO refactor to not require this fake store object
-          {
-            route: '/',
-            page: '/',
-            isStaticGeneration: false,
-            fallbackRouteParams: null,
-            buildId: '', // Since this is a fake one it can't "use cache" anyway.
-            afterContext: undefined, // TODO: Support Pages after()
-          },
-          () => cacheAsyncStorage.run(innerCacheStore, cb, ...args)
-        )
+        const result = await cacheAsyncStorage.run(innerCacheStore, cb, ...args)
         cacheNewResult(
           result,
           incrementalCache,
