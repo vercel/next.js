@@ -148,6 +148,15 @@ async fn static_route_source(
 
     let original_file_content_b64 = get_base64_file_content(path).await?;
 
+    let is_twitter = stem == "twitter-image";
+    let is_open_graph = stem == "opengraph-image";
+    // Twitter image file size limit is 5MB.
+    // General Open Graph image file size limit is 8MB.
+    // x-ref: https://developer.x.com/en/docs/x-for-websites/cards/overview/summary
+    // x-ref(facebook): https://developers.facebook.com/docs/sharing/webmasters/images
+    let file_size_limit = if is_twitter { 5 } else { 8 };
+    let img_name = if is_twitter { "Twitter" } else { "Open Graph" };
+
     let code = formatdoc! {
         r#"
             import {{ NextResponse }} from 'next/server'
@@ -155,6 +164,16 @@ async fn static_route_source(
             const contentType = {content_type}
             const cacheControl = {cache_control}
             const buffer = Buffer.from({original_file_content_b64}, 'base64')
+
+            if ({is_twitter} || {is_open_graph}) {{
+                const fileSizeInMB = buffer.byteLength / 1024 / 1024
+                if (fileSizeInMB > {file_size_limit}) {{
+                    throw new Error('File size for {img_name} image "{path}" exceeds {file_size_limit}MB. ' +
+                    `(Current: ${{fileSizeInMB.toFixed(2)}}MB)\n` +
+                    'Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif'
+                    )
+                }}
+            }}
 
             export function GET() {{
                 return new NextResponse(buffer, {{
@@ -170,6 +189,11 @@ async fn static_route_source(
         content_type = StringifyJs(&content_type),
         cache_control = StringifyJs(cache_control),
         original_file_content_b64 = StringifyJs(&original_file_content_b64),
+        is_twitter = is_twitter,
+        is_open_graph = is_open_graph,
+        file_size_limit = file_size_limit,
+        img_name = img_name,
+        path = path.to_string().await?,
     };
 
     let file = File::from(code);
