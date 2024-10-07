@@ -8,6 +8,8 @@ import type { RequestLifecycleOpts } from '../base-server'
 import type { FallbackRouteParams } from '../request/fallback-params'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 
+import { AfterContext } from '../after/after-context'
+
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 export type WorkStoreContext = {
@@ -118,10 +120,25 @@ export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
     buildId: renderOpts.buildId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
+
+    afterContext: createAfterContext(renderOpts),
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context
   renderOpts.store = store
 
   return storage.run(store, callback, store)
+}
+
+function createAfterContext(
+  renderOpts: Partial<RequestLifecycleOpts> & {
+    experimental: Pick<RenderOpts['experimental'], 'after'>
+  }
+): AfterContext | undefined {
+  const isAfterEnabled = renderOpts?.experimental?.after ?? false
+  if (!isAfterEnabled) {
+    return undefined
+  }
+  const { waitUntil, onClose } = renderOpts
+  return new AfterContext({ waitUntil, onClose })
 }
