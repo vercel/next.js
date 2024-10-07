@@ -10,8 +10,8 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, ValueToString,
-    Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -296,7 +296,6 @@ async fn get_directory_tree_internal(
         let entry = entry.resolve_symlink().await?;
         match entry {
             DirectoryEntry::File(file) => {
-                let file = file.resolve().await?;
                 // Do not process .d.ts files as routes
                 if basename.ends_with(".d.ts") {
                     continue;
@@ -304,15 +303,15 @@ async fn get_directory_tree_internal(
                 if let Some((stem, ext)) = basename.split_once('.') {
                     if page_extensions_value.iter().any(|e| e == ext) {
                         match stem {
-                            "page" => modules.page = Some(file),
-                            "layout" => modules.layout = Some(file),
-                            "error" => modules.error = Some(file),
-                            "global-error" => modules.global_error = Some(file),
-                            "loading" => modules.loading = Some(file),
-                            "template" => modules.template = Some(file),
-                            "not-found" => modules.not_found = Some(file),
-                            "default" => modules.default = Some(file),
-                            "route" => modules.route = Some(file),
+                            "page" => modules.page = Some(*file),
+                            "layout" => modules.layout = Some(*file),
+                            "error" => modules.error = Some(*file),
+                            "global-error" => modules.global_error = Some(*file),
+                            "loading" => modules.loading = Some(*file),
+                            "template" => modules.template = Some(*file),
+                            "not-found" => modules.not_found = Some(*file),
+                            "default" => modules.default = Some(*file),
+                            "route" => modules.route = Some(*file),
                             _ => {}
                         }
                     }
@@ -334,9 +333,9 @@ async fn get_directory_tree_internal(
                     "opengraph-image" => &mut metadata_open_graph,
                     "sitemap" => {
                         if dynamic {
-                            modules.metadata.sitemap = Some(MetadataItem::Dynamic { path: file });
+                            modules.metadata.sitemap = Some(MetadataItem::Dynamic { path: *file });
                         } else {
-                            modules.metadata.sitemap = Some(MetadataItem::Static { path: file });
+                            modules.metadata.sitemap = Some(MetadataItem::Static { path: *file });
                         }
                         continue;
                     }
@@ -344,7 +343,7 @@ async fn get_directory_tree_internal(
                 };
 
                 if dynamic {
-                    entry.push((number, MetadataWithAltItem::Dynamic { path: file }));
+                    entry.push((number, MetadataWithAltItem::Dynamic { path: *file }));
                     continue;
                 }
 
@@ -360,16 +359,15 @@ async fn get_directory_tree_internal(
                 entry.push((
                     number,
                     MetadataWithAltItem::Static {
-                        path: file,
+                        path: *file,
                         alt_path,
                     },
                 ));
             }
             DirectoryEntry::Directory(dir) => {
-                let dir = dir.resolve().await?;
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
-                    let result = get_directory_tree(dir, page_extensions);
+                    let result = get_directory_tree(*dir, page_extensions);
                     subdirectories.insert(basename.clone(), result);
                 }
             }
@@ -484,12 +482,12 @@ impl AppPageLoaderTree {
 pub enum Entrypoint {
     AppPage {
         pages: Vec<AppPage>,
-        loader_tree: Vc<AppPageLoaderTree>,
+        loader_tree: ResolvedVc<AppPageLoaderTree>,
     },
     AppRoute {
         page: AppPage,
-        path: Vc<FileSystemPath>,
-        root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+        path: ResolvedVc<FileSystemPath>,
+        root_layouts: ResolvedVc<Vec<Vc<FileSystemPath>>>,
     },
     AppMetadata {
         page: AppPage,
@@ -557,7 +555,7 @@ fn add_app_page(
     app_dir: Vc<FileSystemPath>,
     result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
-    loader_tree: Vc<AppPageLoaderTree>,
+    loader_tree: ResolvedVc<AppPageLoaderTree>,
 ) {
     let mut e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
@@ -616,8 +614,8 @@ fn add_app_route(
     app_dir: Vc<FileSystemPath>,
     result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
-    path: Vc<FileSystemPath>,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    path: ResolvedVc<FileSystemPath>,
+    root_layouts: ResolvedVc<Vec<Vc<FileSystemPath>>>,
 ) {
     let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
@@ -1046,7 +1044,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: ResolvedVc<Vec<Vc<FileSystemPath>>>,
 ) -> Result<Vc<Entrypoints>> {
     let span = tracing::info_span!("build layout trees", name = display(&app_page));
     directory_tree_to_entrypoints_internal_untraced(
@@ -1067,7 +1065,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: ResolvedVc<Vec<Vc<FileSystemPath>>>,
 ) -> Result<Vc<Entrypoints>> {
     let mut result = IndexMap::new();
 
@@ -1082,7 +1080,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     let root_layouts = if let Some(layout) = modules.layout {
         let mut layouts = (*root_layouts.await?).clone();
         layouts.push(layout);
-        Vc::cell(layouts)
+        ResolvedVc::cell(layouts)
     } else {
         root_layouts
     };
@@ -1104,7 +1102,10 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_dir,
             &mut result,
             app_page.complete(PageType::Page)?,
-            loader_tree.context("loader tree should be created for a page/default")?,
+            loader_tree
+                .context("loader tree should be created for a page/default")?
+                .to_resolved()
+                .await?,
         );
     }
 
@@ -1113,7 +1114,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_dir,
             &mut result,
             app_page.complete(PageType::Route)?,
-            route,
+            route.to_resolved().await?,
             root_layouts,
         );
     }
@@ -1191,7 +1192,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 },
                 modules: modules.without_leafs(),
                 global_metadata,
-            }.cell();
+            }.resolved_cell();
 
         {
             let app_page = app_page
@@ -1223,7 +1224,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 subdir_name.clone(),
                 subdirectory,
                 child_app_page.clone(),
-                root_layouts,
+                *root_layouts,
             )
             .await?;
 
@@ -1278,7 +1279,9 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             &mut result,
                             page.clone(),
                             loader_tree
-                                .context("loader tree should be created for a page/default")?,
+                                .context("loader tree should be created for a page/default")?
+                                .to_resolved()
+                                .await?,
                         );
                     }
                 }
