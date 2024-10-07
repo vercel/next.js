@@ -361,7 +361,7 @@ impl TurboTasksBackendInner {
                     // active and this task won't stale. CachedActiveUntilClean
                     // is automatically removed when this task is clean.
                     task.add_new(CachedDataItem::AggregateRoot {
-                        value: RootState::new(ActiveType::CachedActiveUntilClean),
+                        value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
                     });
                     get!(task, AggregateRoot).unwrap()
                 };
@@ -1442,7 +1442,7 @@ impl TurboTasksBackendInner {
                 },
             });
             task.add(CachedDataItem::AggregateRoot {
-                value: RootState::new(root_type),
+                value: RootState::new(root_type, task_id),
             });
             task.add(CachedDataItem::new_scheduled(move || match root_type {
                 ActiveType::RootTask => "Root Task".to_string(),
