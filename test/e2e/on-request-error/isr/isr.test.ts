@@ -15,10 +15,10 @@ describe('on-request-error - isr', () => {
   }
 
   if (isNextDev) {
-    it('should skip in development mode', () => {
-      // This ISR test is only applicable for production mode
+    it('should not have module not found error', async () => {
+      await next.fetch('/')
+      expect(next.cliOutput).not.toContain('Module not found')
     })
-    return
   }
 
   async function matchRevalidateReason(

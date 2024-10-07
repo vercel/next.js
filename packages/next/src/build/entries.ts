@@ -721,12 +721,15 @@ export async function createEntrypoints(
         onEdgeServer: () => {
           let appDirLoader: string = ''
           if (isInstrumentation) {
-            edgeServer[serverBundlePath.replace('src/', '')] =
-              getInstrumentationEntry({
-                absolutePagePath,
-                isEdgeServer: true,
-                isDev: false,
-              })
+            // Add instrumentation edge server entry when there's other edge server entries
+            if (Object.keys(edgeServer).length > 0) {
+              edgeServer[serverBundlePath.replace('src/', '')] =
+                getInstrumentationEntry({
+                  absolutePagePath,
+                  isEdgeServer: true,
+                  isDev: false,
+                })
+            }
           } else {
             if (pagesType === 'app') {
               const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
@@ -791,7 +794,8 @@ export async function createEntrypoints(
 
   // Optimization: If there's only one instrumentation hook in edge compiler, which means there's no edge server entry.
   // We remove the edge instrumentation entry from edge compiler as it can be pure server side.
-  if (edgeServer.instrumentation && Object.keys(edgeServer).length === 1) {
+  const edgeServerEntriesCount = Object.keys(edgeServer).length
+  if (edgeServer.instrumentation && edgeServerEntriesCount <= 1) {
     delete edgeServer.instrumentation
   }
 
