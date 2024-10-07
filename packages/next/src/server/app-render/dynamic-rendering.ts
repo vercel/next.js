@@ -325,11 +325,18 @@ export function trackDynamicDataInDynamicRender(
 // Despite it's name we don't actually abort unless we have a controller to call abort on
 // There are times when we let a prerender run long to discover caches where we want the semantics
 // of tracking dynamic access without terminating the prerender early
-function abortOnSynchronousDynamicDataAccess(
+export function abortOnSynchronousDynamicDataAccess(
   route: string,
   expression: string,
   prerenderStore: PrerenderStoreModern
 ): void {
+  if (prerenderStore.dynamicTracking) {
+    const disallowedDynamic = prerenderStore.dynamicTracking.disallowedDynamic
+    if (disallowedDynamic.syncDynamicExpression === '') {
+      disallowedDynamic.syncDynamicExpression = expression
+    }
+  }
+
   const reason = `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
 
   const error = createPrerenderInterruptedError(reason)
@@ -367,12 +374,6 @@ export function abortAndThrowOnSynchronousDynamicDataAccess(
   expression: string,
   prerenderStore: PrerenderStoreModern
 ): never {
-  if (prerenderStore.dynamicTracking) {
-    const disallowedDynamic = prerenderStore.dynamicTracking.disallowedDynamic
-    if (disallowedDynamic.syncDynamicExpression === '') {
-      disallowedDynamic.syncDynamicExpression = expression
-    }
-  }
   abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
   throw createPrerenderInterruptedError(
     `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
@@ -674,8 +675,10 @@ export function throwIfDisallowedDynamic(
     for (let i = 0; i < syncDynamicErrors.length; i++) {
       console.error(syncDynamicErrors[i])
     }
+    const expression =
+      disallowedDynamic.syncDynamicExpression || 'a synchronous Dynamic API'
     throw new StaticGenBailoutError(
-      `Route ${workStore.route} used a synchronous Dynamic API while prerendering which caused some part of the page to be dynamic without a Suspense boundary above it defining a fallback UI. It is best to avoid synchronous Dynamic API access during prerendering.`
+      `Route ${workStore.route} used ${expression} while prerendering which caused some part of the page to be dynamic without a Suspense boundary above it defining a fallback UI. It is best to avoid synchronous Dynamic API access during prerendering.`
     )
   }
 

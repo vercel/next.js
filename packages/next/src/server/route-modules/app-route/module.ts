@@ -462,6 +462,15 @@ export class AppRouteRouteModule extends RouteModule<
             }
           })
         })
+        if (controller.signal.aborted) {
+          // We aborted from within the execution
+          throw createDynamicIOError(workStore.route)
+        } else {
+          // We didn't abort during the execution. We can abort now as a matter of semantics
+          // though at the moment nothing actually consumes this signal so it won't halt any
+          // inflight work.
+          controller.abort()
+        }
       } else if (isStaticGeneration) {
         res = await workUnitAsyncStorage.run(
           {
