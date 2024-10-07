@@ -1,3 +1,5 @@
+use anyhow::Result;
+
 use crate::{self as turbo_tasks, RawVc, TryJoinIterExt, Vc};
 /// Just an empty type, but it's never equal to itself.
 /// [`Vc<Completion>`] can be used as return value instead of `()`
@@ -74,7 +76,9 @@ impl Completions {
             self.0
                 .iter()
                 .map(|&c| async move {
-                    c.await?;
+                    // Wraps the completion in a new completion. This makes it cheaper to restore
+                    // since it doesn't need to restore the original task resp task chain.
+                    wrap(c).await?;
                     Ok(())
                 })
                 .try_join()
@@ -82,4 +86,10 @@ impl Completions {
             Ok(Completion::new())
         }
     }
+}
+
+#[turbo_tasks::function]
+pub async fn wrap(completion: Vc<Completion>) -> Result<Vc<Completion>> {
+    completion.await?;
+    Ok(Completion::new())
 }

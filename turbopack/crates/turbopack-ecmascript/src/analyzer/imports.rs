@@ -201,6 +201,7 @@ pub(crate) enum ImportedSymbol {
     Symbol(JsWord),
     Exports,
     Part(u32),
+    PartEvaluation(u32),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -373,7 +374,6 @@ impl Visit for Analyzer<'_> {
 
             self.data.imports.insert(local, (i, orig_sym));
         }
-
         if import.specifiers.is_empty() {
             if let Some(internal_symbol) = internal_symbol {
                 self.ensure_reference(
@@ -587,7 +587,8 @@ pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
 
 fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
     find_turbopack_part_id_in_asserts(with?).map(|v| match v {
-        PartId::Internal(index) => ImportedSymbol::Part(index),
+        PartId::Internal(index, true) => ImportedSymbol::PartEvaluation(index),
+        PartId::Internal(index, false) => ImportedSymbol::Part(index),
         PartId::ModuleEvaluation => ImportedSymbol::ModuleEvaluation,
         PartId::Export(e) => ImportedSymbol::Symbol(e.as_str().into()),
         PartId::Exports => ImportedSymbol::Exports,

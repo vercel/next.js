@@ -28,7 +28,7 @@ describe('app-invalid-revalidate', () => {
           await next.fetch('/')
         }
         return next.cliOutput
-      }, /Invalid revalidate value "1" on "\/", must be a non-negative number or "false"/)
+      }, /Invalid revalidate value "1" on "\/", must be a non-negative number or false/)
     } finally {
       await next.patchFile('app/layout.tsx', origText)
     }
@@ -50,7 +50,7 @@ describe('app-invalid-revalidate', () => {
           await next.fetch('/')
         }
         return next.cliOutput
-      }, /Invalid revalidate value "1" on "\/", must be a non-negative number or "false"/)
+      }, /Invalid revalidate value "1" on "\/", must be a non-negative number or false/)
     } finally {
       await next.patchFile('app/page.tsx', origText)
     }
@@ -72,7 +72,7 @@ describe('app-invalid-revalidate', () => {
           await next.fetch('/')
         }
         return next.cliOutput
-      }, /Invalid revalidate value "1" on "\/", must be a non-negative number or "false"/)
+      }, /Invalid revalidate value "1" on "\/", must be a non-negative number or false/)
     } finally {
       await next.patchFile('app/page.tsx', origText)
     }

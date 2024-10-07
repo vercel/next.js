@@ -1,14 +1,21 @@
 'use client'
 
+import { use } from 'react'
+
 import type { UnsafeUnwrappedParams } from 'next/server'
 
 import { getSentinelValue } from '../../../../../../../../../getSentinelValue'
+
+import { createWaiter } from '../../../../../../../../../client-utils'
+const waiter = createWaiter()
 
 export default function Page({
   params,
 }: {
   params: Promise<{ dyn: string; then: string; value: string; status: string }>
 }) {
+  use(waiter.wait())
+  waiter.cleanup()
   const syncParams = params as unknown as UnsafeUnwrappedParams<typeof params>
   const copied = { ...syncParams }
   return (

@@ -32,7 +32,6 @@ import {
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
 import { resolveAsArrayOrUndefined } from './generate/utils'
-import { isClientReference } from '../client-reference'
 import {
   getComponentTypeModule,
   getLayoutOrPageModule,
@@ -331,9 +330,6 @@ async function getDefinedViewport(
   props: any,
   tracingProps: { route: string }
 ): Promise<Viewport | ViewportResolver | null> {
-  if (isClientReference(mod)) {
-    return null
-  }
   if (typeof mod.generateViewport === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingViewport) =>
@@ -356,11 +352,6 @@ async function getDefinedMetadata(
   props: any,
   tracingProps: { route: string }
 ): Promise<Metadata | MetadataResolver | null> {
-  // Layer is a client component, we just skip it. It can't have metadata exported.
-  // Return early to avoid accessing properties error for client references.
-  if (isClientReference(mod)) {
-    return null
-  }
   if (typeof mod.generateMetadata === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingMetadata) =>
