@@ -76,6 +76,7 @@ import {
 } from '../../../client/components/redirect'
 import { isNotFoundError } from '../../../client/components/not-found'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
+import { INFINITE_CACHE } from '../../../lib/constants'
 
 export class WrappedNextRouterError {
   constructor(
@@ -343,6 +344,8 @@ export class AppRouteRouteModule extends RouteModule<
           // because we need to let all caches fill.
           controller: null,
           dynamicTracking,
+          revalidate: INFINITE_CACHE,
+          tags: null,
         }
         let prospectiveResult
         try {
@@ -410,6 +413,8 @@ export class AppRouteRouteModule extends RouteModule<
           cacheSignal: null,
           controller: finalController,
           dynamicTracking,
+          revalidate: INFINITE_CACHE,
+          tags: null,
         }
 
         let responseHandled = false
@@ -480,6 +485,8 @@ export class AppRouteRouteModule extends RouteModule<
           {
             type: 'prerender-legacy',
             pathname,
+            revalidate: INFINITE_CACHE,
+            tags: null,
           },
           handler,
           request,
@@ -622,7 +629,7 @@ export class AppRouteRouteModule extends RouteModule<
                     // @TODO this type of logic is too indirect. we need to refactor how we set fetch cache
                     // behavior. Prior to the most recent refactor this logic was buried deep in staticGenerationBailout
                     // so it is possible it was unintentional and then tests were written to assert the current behavior
-                    workStore.revalidate = 0
+                    workStore.revalidateSegmentConfig = 0
                   }
                 }
 
@@ -660,7 +667,8 @@ export class AppRouteRouteModule extends RouteModule<
                 // If the static generation store does not have a revalidate value
                 // set, then we should set it the revalidate value from the userland
                 // module or default to false.
-                workStore.revalidate ??= this.userland.revalidate ?? false
+                workStore.revalidateSegmentConfig ??=
+                  this.userland.revalidate ?? false
 
                 // TODO: propagate this pathname from route matcher
                 const route = getPathnameFromAbsolutePath(this.resolvedPagePath)

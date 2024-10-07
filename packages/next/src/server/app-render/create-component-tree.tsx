@@ -243,11 +243,11 @@ async function createComponentTreeInternal({
     ctx.defaultRevalidate = layoutOrPageMod.revalidate as number
 
     if (
-      typeof workStore.revalidate === 'undefined' ||
-      (typeof workStore.revalidate === 'number' &&
-        workStore.revalidate > ctx.defaultRevalidate)
+      typeof workStore.revalidateSegmentConfig === 'undefined' ||
+      (typeof workStore.revalidateSegmentConfig === 'number' &&
+        workStore.revalidateSegmentConfig > ctx.defaultRevalidate)
     ) {
-      workStore.revalidate = ctx.defaultRevalidate
+      workStore.revalidateSegmentConfig = ctx.defaultRevalidate
     }
 
     if (

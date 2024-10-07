@@ -24,6 +24,7 @@ import {
   getClientReferenceManifestSingleton,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
+import { INFINITE_CACHE } from '../../lib/constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -135,7 +136,11 @@ function generateCacheEntryWithCacheContext(
   fn: any
 ) {
   // Initialize the Store for this Cache entry.
-  const cacheStore: UseCacheStore = { type: 'cache' }
+  const cacheStore: UseCacheStore = {
+    type: 'cache',
+    revalidate: INFINITE_CACHE,
+    tags: null,
+  }
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,

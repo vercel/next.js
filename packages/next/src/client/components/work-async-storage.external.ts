@@ -39,7 +39,7 @@ export interface WorkStore {
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
 
-  revalidate?: Revalidate
+  revalidateSegmentConfig?: Revalidate
   forceStatic?: boolean
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
@@ -52,8 +52,6 @@ export interface WorkStore {
 
   nextFetchId?: number
   pathWasRevalidated?: boolean
-
-  tags?: string[]
 
   revalidatedTags?: string[]
   fetchMetrics?: FetchMetrics

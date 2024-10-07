@@ -157,6 +157,7 @@ import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 
 import './clean-async-snapshot.external'
+import { INFINITE_CACHE } from '../../lib/constants'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1139,11 +1140,11 @@ async function renderToHTMLOrFlightImpl(
     // If force static is specifically set to false, we should not revalidate
     // the page.
     if (workStore.forceStatic === false) {
-      workStore.revalidate = 0
+      metadata.revalidate = 0
+    } else {
+      // Copy the revalidation value onto the render result metadata.
+      metadata.revalidate = workStore.revalidate ?? ctx.defaultRevalidate
     }
-
-    // Copy the revalidation value onto the render result metadata.
-    metadata.revalidate = workStore.revalidate ?? ctx.defaultRevalidate
 
     // provide bailout info for debugging
     if (metadata.revalidate === 0) {
@@ -1872,6 +1873,8 @@ async function prerenderToStream(
           // because we will always do a final render after caches have filled and we
           // will track it again there
           dynamicTracking: null,
+          revalidate: INFINITE_CACHE,
+          tags: null,
         }
 
         let reactServerIsDynamic = false
@@ -1960,6 +1963,8 @@ async function prerenderToStream(
           // include the flight controller in the store.
           controller: flightController,
           dynamicTracking,
+          revalidate: INFINITE_CACHE,
+          tags: null,
         }
 
         function onPostpone(reason: string) {
@@ -2019,6 +2024,8 @@ async function prerenderToStream(
           // We do track dynamic access because searchParams and certain hooks can still be
           // dynamic during SSR
           dynamicTracking,
+          revalidate: INFINITE_CACHE,
+          tags: null,
         }
         let SSRIsDynamic = false
         function SSROnError(err: unknown, errorInfo: ErrorInfo) {
@@ -2223,6 +2230,8 @@ async function prerenderToStream(
           // consider the route dynamic.
           controller: flightController,
           dynamicTracking,
+          revalidate: INFINITE_CACHE,
+          tags: null,
         }
 
         const firstAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -2301,6 +2310,8 @@ async function prerenderToStream(
           cacheSignal: null,
           controller: flightController,
           dynamicTracking,
+          revalidate: INFINITE_CACHE,
+          tags: null,
         }
 
         const SSRController = new AbortController()
@@ -2316,6 +2327,8 @@ async function prerenderToStream(
           // We do track dynamic access because searchParams and certain hooks can still be
           // dynamic during SSR
           dynamicTracking,
+          revalidate: INFINITE_CACHE,
+          tags: null,
         }
 
         const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
@@ -2490,6 +2503,8 @@ async function prerenderToStream(
         type: 'prerender-ppr',
         pathname: ctx.requestStore.url.pathname,
         dynamicTracking,
+        revalidate: INFINITE_CACHE,
+        tags: null,
       }
       const RSCPayload = await workUnitAsyncStorage.run(
         reactServerPrerenderStore,
@@ -2516,6 +2531,8 @@ async function prerenderToStream(
         type: 'prerender-ppr',
         pathname: ctx.requestStore.url.pathname,
         dynamicTracking,
+        revalidate: INFINITE_CACHE,
+        tags: null,
       }
 
       const prerender = require('react-dom/static.edge')
@@ -2671,6 +2688,8 @@ async function prerenderToStream(
       const prerenderLegacyStore: PrerenderStore = {
         type: 'prerender-legacy',
         pathname: ctx.requestStore.url.pathname,
+        revalidate: INFINITE_CACHE,
+        tags: null,
       }
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation

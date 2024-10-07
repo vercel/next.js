@@ -1336,7 +1336,7 @@ export async function buildAppStaticPaths({
             store.fetchCache = current.config.fetchCache
           }
           if (typeof current.config?.revalidate !== 'undefined') {
-            store.revalidate = current.config.revalidate
+            store.revalidateSegmentConfig = current.config.revalidate
           }
           if (current.config?.dynamic === 'force-dynamic') {
             store.forceDynamic = true
