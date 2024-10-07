@@ -31,8 +31,8 @@ use turbo_tasks::{
     event::{Event, EventListener},
     registry,
     util::IdFactoryWithReuse,
-    CellId, FunctionId, RawVc, ReadConsistency, TaskId, TraitTypeId, TurboTasksBackendApi,
-    ValueTypeId, TRANSIENT_TASK_BIT,
+    CellId, FunctionId, RawVc, ReadConsistency, SessionId, TaskId, TraitTypeId,
+    TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
@@ -43,13 +43,13 @@ use crate::{
             AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation,
             ExecuteContext, OutdatedEdge,
         },
-        storage::{get, get_many, iter_many, remove, Storage},
+        storage::{get, get_many, get_mut, iter_many, remove, Storage},
     },
     backing_storage::{BackingStorage, ReadTransaction},
     data::{
         ActiveType, AggregationNumber, CachedDataItem, CachedDataItemIndex, CachedDataItemKey,
         CachedDataItemValue, CachedDataUpdate, CellRef, CollectibleRef, CollectiblesRef,
-        InProgressCellState, InProgressState, OutputValue, RootState,
+        DirtyState, InProgressCellState, InProgressState, OutputValue, RootState,
     },
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded},
 };
@@ -99,6 +99,7 @@ pub struct TurboTasksBackend(Arc<TurboTasksBackendInner>);
 
 struct TurboTasksBackendInner {
     start_time: Instant,
+    session_id: SessionId,
 
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
@@ -149,6 +150,7 @@ impl TurboTasksBackendInner {
             (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
         Self {
             start_time: Instant::now(),
+            session_id: backing_storage.next_session_id(),
             persisted_task_id_factory: IdFactoryWithReuse::new(
                 *backing_storage.next_free_task_id() as u64,
                 (TRANSIENT_TASK_BIT - 1) as u64,
@@ -181,6 +183,10 @@ impl TurboTasksBackendInner {
         turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> ExecuteContext<'a> {
         ExecuteContext::new(self, turbo_tasks)
+    }
+
+    fn session_id(&self) -> SessionId {
+        self.session_id
     }
 
     /// # Safety
@@ -347,12 +353,22 @@ impl TurboTasksBackendInner {
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
 
+            let is_dirty = get!(task, Dirty)
+                .map(|dirty_state| {
+                    dirty_state
+                        .clean_in_session
+                        .map(|clean_in_session| clean_in_session != self.session_id)
+                        .unwrap_or(true)
+                })
+                .unwrap_or(false);
+
             // Check the dirty count of the root node
             let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
                 .copied()
-                .unwrap_or_default();
-            let root = get!(task, AggregateRoot);
-            if dirty_tasks > 0 {
+                .unwrap_or_default()
+                .get(self.session_id);
+            if dirty_tasks > 0 || is_dirty {
+                let root = get!(task, AggregateRoot);
                 // When there are dirty task, subscribe to the all_clean_event
                 let root = if let Some(root) = root {
                     root
@@ -591,6 +607,7 @@ impl TurboTasksBackendInner {
         {
             new_items = true;
             if let Err(err) = self.backing_storage.save_snapshot(
+                self.session_id,
                 suspended_operations,
                 persisted_task_cache_log,
                 persisted_storage_meta_log,
@@ -813,6 +830,7 @@ impl TurboTasksBackendInner {
                     stale: false,
                     once_task,
                     done_event,
+                    session_dependent: false,
                 },
             });
 
@@ -1033,6 +1051,7 @@ impl TurboTasksBackendInner {
             done_event,
             once_task: _,
             stale,
+            session_dependent,
         } = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
@@ -1157,21 +1176,53 @@ impl TurboTasksBackendInner {
                     .collect::<Vec<_>>()
             };
 
-            let was_dirty = task.remove(&CachedDataItemKey::Dirty {}).is_some();
-            let data_update = if was_dirty {
-                let dirty_containers = get!(task, AggregatedDirtyContainerCount)
+            let new_dirty_state = if session_dependent {
+                Some(DirtyState {
+                    clean_in_session: Some(self.session_id),
+                })
+            } else {
+                None
+            };
+
+            let old_dirty = if let Some(new_dirty_state) = new_dirty_state {
+                task.insert(CachedDataItem::Dirty {
+                    value: new_dirty_state,
+                })
+            } else {
+                task.remove(&CachedDataItemKey::Dirty {})
+            };
+
+            let old_dirty_state = old_dirty.map(|old_dirty| match old_dirty {
+                CachedDataItemValue::Dirty { value } => value,
+                _ => unreachable!(),
+            });
+
+            let data_update = if old_dirty_state.is_some() || new_dirty_state.is_some() {
+                let mut dirty_containers = get!(task, AggregatedDirtyContainerCount)
                     .copied()
                     .unwrap_or_default();
-                if dirty_containers == 0 {
-                    if let Some(root_state) = get!(task, AggregateRoot) {
-                        root_state.all_clean_event.notify(usize::MAX);
-                        if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
-                            task.remove(&CachedDataItemKey::AggregateRoot {});
+                if let Some(old_dirty_state) = old_dirty_state {
+                    dirty_containers.update_with_dirty_state(&old_dirty_state);
+                }
+                let aggregated_update = match (old_dirty_state, new_dirty_state) {
+                    (None, None) => unreachable!(),
+                    (Some(old), None) => dirty_containers.undo_update_with_dirty_state(&old),
+                    (None, Some(new)) => dirty_containers.update_with_dirty_state(&new),
+                    (Some(old), Some(new)) => dirty_containers.replace_dirty_state(&old, &new),
+                };
+                if !aggregated_update.is_default() {
+                    if aggregated_update.get(self.session_id) < 0 {
+                        if let Some(root_state) = get!(task, AggregateRoot) {
+                            root_state.all_clean_event.notify(usize::MAX);
+                            if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
+                                task.remove(&CachedDataItemKey::AggregateRoot {});
+                            }
                         }
                     }
                     AggregationUpdateJob::data_update(
                         &mut task,
-                        AggregatedDataUpdate::new().no_longer_dirty_container(task_id),
+                        AggregatedDataUpdate::new()
+                            .dirty_container_update(task_id, aggregated_update),
                     )
                 } else {
                     None
@@ -1420,6 +1471,21 @@ impl TurboTasksBackendInner {
             content,
             self.execute_context(turbo_tasks),
         );
+    }
+
+    fn mark_own_task_as_session_dependent(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task, TaskDataCategory::Data);
+        if let Some(InProgressState::InProgress {
+            session_dependent, ..
+        }) = get_mut!(task, InProgress)
+        {
+            *session_dependent = true;
+        }
     }
 
     fn connect_task(
@@ -1675,6 +1741,14 @@ impl Backend for TurboTasksBackend {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.update_task_cell(task_id, cell, content, turbo_tasks);
+    }
+
+    fn mark_own_task_as_session_dependent(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        self.0.mark_own_task_as_session_dependent(task, turbo_tasks);
     }
 
     fn connect_task(

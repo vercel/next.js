@@ -2,7 +2,7 @@ use std::{cmp::max, collections::VecDeque, num::NonZeroU32};
 
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use turbo_tasks::TaskId;
+use turbo_tasks::{SessionId, TaskId};
 
 use crate::{
     backend::{
@@ -11,7 +11,8 @@ use crate::{
         TaskDataCategory,
     },
     data::{
-        ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, CollectibleRef, RootState,
+        ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, CollectibleRef,
+        DirtyContainerCount, RootState,
     },
 };
 
@@ -116,41 +117,51 @@ impl AggregationUpdateJob {
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug)]
 pub struct AggregatedDataUpdate {
-    dirty_container_update: Option<(TaskId, i32)>,
+    dirty_container_update: Option<(TaskId, DirtyContainerCount)>,
     collectibles_update: Vec<(CollectibleRef, i32)>,
 }
 
 impl AggregatedDataUpdate {
     fn from_task(task: &mut TaskGuard<'_>) -> Self {
         let aggregation = get_aggregation_number(task);
-        let mut dirty = get!(task, Dirty).is_some();
+        let mut dirty_container_count = Default::default();
         let mut collectibles_update: Vec<_> =
             get_many!(task, Collectible { collectible } => (collectible, 1));
         if is_aggregating_node(aggregation) {
-            let dirty_container_count = get!(task, AggregatedDirtyContainerCount)
+            dirty_container_count = get!(task, AggregatedDirtyContainerCount)
                 .copied()
-                .unwrap_or(0);
-            if dirty_container_count > 0 {
-                dirty = true;
-            }
-            for collectible in iter_many!(
+                .unwrap_or_default();
+            let collectibles = iter_many!(
                 task,
                 AggregatedCollectible {
                     collectible
                 } count if count > 0 => {
                     collectible
                 }
-            ) {
+            );
+            for collectible in collectibles {
                 collectibles_update.push((collectible, 1));
             }
         }
-        if dirty {
-            Self::new()
-                .dirty_container(task.id())
-                .collectibles_update(collectibles_update)
-        } else {
-            Self::new().collectibles_update(collectibles_update)
+        if let Some(dirty) = get!(task, Dirty) {
+            dirty_container_count.update_with_dirty_state(dirty);
         }
+
+        let mut result = Self::new().collectibles_update(collectibles_update);
+        if !dirty_container_count.is_default() {
+            let DirtyContainerCount {
+                count,
+                count_in_session,
+            } = dirty_container_count;
+            result = result.dirty_container_update(
+                task.id(),
+                DirtyContainerCount {
+                    count: if count > 0 { 1 } else { 0 },
+                    count_in_session: count_in_session.map(|(s, c)| (s, if c > 0 { 1 } else { 0 })),
+                },
+            );
+        }
+        result
     }
 
     fn invert(mut self) -> Self {
@@ -159,7 +170,7 @@ impl AggregatedDataUpdate {
             collectibles_update,
         } = &mut self;
         if let Some((_, value)) = dirty_container_update.as_mut() {
-            *value = -*value;
+            *value = value.invert()
         }
         for (_, value) in collectibles_update.iter_mut() {
             *value = -*value;
@@ -170,6 +181,7 @@ impl AggregatedDataUpdate {
     fn apply(
         &self,
         task: &mut TaskGuard<'_>,
+        session_id: SessionId,
         queue: &mut AggregationUpdateQueue,
     ) -> AggregatedDataUpdate {
         let Self {
@@ -180,51 +192,47 @@ impl AggregatedDataUpdate {
         if let Some((dirty_container_id, count)) = dirty_container_update {
             // When a dirty container count is increased and the task is considered as active
             // `AggregateRoot` we need to schedule the dirty tasks in the new dirty container
-            if *count > 0 && task.has_key(&CachedDataItemKey::AggregateRoot {}) {
+            let current_session_update = count.get(session_id);
+            if current_session_update > 0 && task.has_key(&CachedDataItemKey::AggregateRoot {}) {
                 queue.push(AggregationUpdateJob::FindAndScheduleDirty {
                     task_ids: vec![*dirty_container_id],
                 })
             }
-            let mut added = false;
-            let mut removed = false;
+            let mut aggregated_update = Default::default();
             update!(
                 task,
                 AggregatedDirtyContainer {
                     task: *dirty_container_id
                 },
-                |old: Option<i32>| {
-                    let old = old.unwrap_or(0);
-                    let new = old + *count;
-                    if old <= 0 && new > 0 {
-                        added = true;
-                    } else if old > 0 && new <= 0 {
-                        removed = true;
-                    }
-                    (new != 0).then_some(new)
+                |old: Option<DirtyContainerCount>| {
+                    let mut new = old.unwrap_or_default();
+                    aggregated_update = new.update_count(count);
+                    (!new.is_default()).then_some(new)
                 }
             );
-            let mut count_update = 0;
-            if added {
-                count_update += 1;
-            } else if removed {
-                count_update -= 1;
-            }
-            let dirty = task.has_key(&CachedDataItemKey::Dirty {});
+
+            let dirty_state = get!(task, Dirty).copied();
             let task_id = task.id();
-            update!(task, AggregatedDirtyContainerCount, |old: Option<i32>| {
-                let old = old.unwrap_or(0);
-                let new = old + count_update;
-                if !dirty {
-                    if old <= 0 && new > 0 {
-                        result.dirty_container_update = Some((task_id, 1));
-                    } else if old > 0 && new <= 0 {
-                        result.dirty_container_update = Some((task_id, -1));
-                    }
+            update!(task, AggregatedDirtyContainerCount, |old: Option<
+                DirtyContainerCount,
+            >| {
+                let mut new = old.unwrap_or_default();
+                if let Some(dirty_state) = dirty_state {
+                    new.update_with_dirty_state(&dirty_state);
                 }
-                (new != 0).then_some(new)
+                let aggregated_update = new.update_count(&aggregated_update);
+                if let Some(dirty_state) = dirty_state {
+                    new.undo_update_with_dirty_state(&dirty_state);
+                }
+                if !aggregated_update.is_default() {
+                    result.dirty_container_update = Some((task_id, aggregated_update));
+                }
+                (!new.is_default()).then_some(new)
             });
             if let Some((_, count)) = result.dirty_container_update.as_ref() {
-                if *count < 0 {
+                if count.get(session_id) < 0 {
+                    // When the current task is no longer dirty, we need to fire the aggregate root
+                    // events and do some cleanup
                     if let Some(root_state) = get!(task, AggregateRoot) {
                         root_state.all_clean_event.notify(usize::MAX);
                         if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
@@ -294,13 +302,8 @@ impl AggregatedDataUpdate {
         }
     }
 
-    pub fn dirty_container(mut self, task_id: TaskId) -> Self {
-        self.dirty_container_update = Some((task_id, 1));
-        self
-    }
-
-    pub fn no_longer_dirty_container(mut self, task_id: TaskId) -> Self {
-        self.dirty_container_update = Some((task_id, -1));
+    pub fn dirty_container_update(mut self, task_id: TaskId, count: DirtyContainerCount) -> Self {
+        self.dirty_container_update = Some((task_id, count));
         self
     }
 
@@ -497,7 +500,7 @@ impl AggregationUpdateQueue {
                         // followers
                         let data = AggregatedDataUpdate::from_task(&mut task);
                         let followers = get_followers(&task);
-                        let diff = data.apply(&mut upper, self);
+                        let diff = data.apply(&mut upper, ctx.session_id(), self);
 
                         if !upper_ids.is_empty() && !diff.is_empty() {
                             // Notify uppers about changed aggregated data
@@ -545,7 +548,7 @@ impl AggregationUpdateQueue {
                 // followers
                 let data = AggregatedDataUpdate::from_task(&mut task).invert();
                 let followers = get_followers(&task);
-                let diff = data.apply(&mut upper, self);
+                let diff = data.apply(&mut upper, ctx.session_id(), self);
                 if !upper_ids.is_empty() && !diff.is_empty() {
                     self.push(AggregationUpdateJob::AggregatedDataUpdate {
                         upper_ids: upper_ids.clone(),
@@ -591,8 +594,8 @@ impl AggregationUpdateQueue {
                         value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
                     });
                 }
-                let dirty_containers: Vec<_> =
-                    get_many!(task, AggregatedDirtyContainer { task } count if count > 0 => task);
+                let session_id = ctx.session_id();
+                let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task);
                 if !dirty_containers.is_empty() {
                     self.push(AggregationUpdateJob::FindAndScheduleDirty {
                         task_ids: dirty_containers,
@@ -610,7 +613,7 @@ impl AggregationUpdateQueue {
     ) {
         for upper_id in upper_ids {
             let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
-            let diff = update.apply(&mut upper, self);
+            let diff = update.apply(&mut upper, ctx.session_id(), self);
             if !diff.is_empty() {
                 let upper_ids = get_uppers(&upper);
                 if !upper_ids.is_empty() {
@@ -659,7 +662,7 @@ impl AggregationUpdateQueue {
                 for upper_id in upper_ids.iter() {
                     // remove data from upper
                     let mut upper = ctx.task(*upper_id, TaskDataCategory::Meta);
-                    let diff = data.apply(&mut upper, self);
+                    let diff = data.apply(&mut upper, ctx.session_id(), self);
                     if !diff.is_empty() {
                         let upper_ids = get_uppers(&upper);
                         self.push(AggregationUpdateJob::AggregatedDataUpdate {
@@ -744,7 +747,7 @@ impl AggregationUpdateQueue {
                     for upper_id in upper_ids.iter() {
                         // add data to upper
                         let mut upper = ctx.task(*upper_id, TaskDataCategory::Meta);
-                        let diff = data.apply(&mut upper, self);
+                        let diff = data.apply(&mut upper, ctx.session_id(), self);
                         if !diff.is_empty() {
                             let upper_ids = get_uppers(&upper);
                             self.push(AggregationUpdateJob::AggregatedDataUpdate {
@@ -846,7 +849,7 @@ impl AggregationUpdateQueue {
             let diffs = upper_data_updates
                 .into_iter()
                 .filter_map(|data| {
-                    let diff = data.apply(&mut upper, self);
+                    let diff = data.apply(&mut upper, ctx.session_id(), self);
                     (!diff.is_empty()).then_some(diff)
                 })
                 .collect::<Vec<_>>();

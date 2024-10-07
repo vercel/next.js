@@ -17,7 +17,7 @@ use lmdb::{
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::Span;
-use turbo_tasks::{backend::CachedTaskType, KeyValuePair, TaskId};
+use turbo_tasks::{backend::CachedTaskType, KeyValuePair, SessionId, TaskId};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
@@ -28,6 +28,7 @@ use crate::{
 
 const META_KEY_OPERATIONS: u32 = 0;
 const META_KEY_NEXT_FREE_TASK_ID: u32 = 1;
+const META_KEY_SESSION_ID: u32 = 2;
 
 struct IntKey([u8; 4]);
 
@@ -138,6 +139,15 @@ impl BackingStorage for LmdbBackingStorage {
         TaskId::from(get(self).unwrap_or(1))
     }
 
+    fn next_session_id(&self) -> SessionId {
+        fn get(this: &LmdbBackingStorage) -> Result<u32> {
+            let tx = this.env.begin_rw_txn()?;
+            let session_id = as_u32(tx.get(this.infra_db, &IntKey::new(META_KEY_SESSION_ID)))?;
+            Ok(session_id)
+        }
+        SessionId::from(get(self).unwrap_or(0) + 1)
+    }
+
     fn uncompleted_operations(&self) -> Vec<AnyOperation> {
         fn get(this: &LmdbBackingStorage) -> Result<Vec<AnyOperation>> {
             let tx = this.env.begin_ro_txn()?;
@@ -151,6 +161,7 @@ impl BackingStorage for LmdbBackingStorage {
     #[tracing::instrument(level = "trace", skip_all, fields(operations = operations.len(), task_cache_updates = task_cache_updates.len(), data_updates = data_updates.len()))]
     fn save_snapshot(
         &self,
+        session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
         meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
@@ -207,6 +218,18 @@ impl BackingStorage for LmdbBackingStorage {
                     serialize_task_data(items)
                 });
             });
+
+            {
+                let _span =
+                    tracing::trace_span!("update session id", session_id = ?session_id).entered();
+                tx.put(
+                    self.infra_db,
+                    &IntKey::new(META_KEY_SESSION_ID),
+                    &session_id.to_be_bytes(),
+                    WriteFlags::empty(),
+                )
+                .with_context(|| anyhow!("Unable to write next session id"))?;
+            }
 
             let mut next_task_id =
                 as_u32(tx.get(self.infra_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID)))
