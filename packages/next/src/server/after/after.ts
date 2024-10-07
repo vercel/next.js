@@ -1,4 +1,4 @@
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../../server/app-render/work-unit-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 

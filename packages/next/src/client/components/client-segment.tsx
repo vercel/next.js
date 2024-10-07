@@ -26,7 +26,7 @@ export function ClientSegmentRoot({
 }) {
   if (typeof window === 'undefined') {
     const { workAsyncStorage } =
-      require('./work-async-storage.external') as typeof import('./work-async-storage.external')
+      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
 
     let clientParams: Promise<Params>
     // We are going to instrument the searchParams prop with tracking for the

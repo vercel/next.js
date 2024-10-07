@@ -2,7 +2,7 @@
 
 import { preload } from 'react-dom'
 
-import { workAsyncStorage } from '../../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../../server/app-render/work-async-storage.external'
 import { encodeURIPath } from '../encode-uri-path'
 
 export function PreloadChunks({

@@ -1,7 +1,7 @@
 import type {
   WorkAsyncStorage,
   WorkStore,
-} from '../../client/components/work-async-storage.external'
+} from '../../server/app-render/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'

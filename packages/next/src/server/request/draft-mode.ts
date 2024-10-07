@@ -2,7 +2,7 @@ import { getExpectedRequestStore } from '../../server/app-render/work-unit-async
 
 import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
 
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'

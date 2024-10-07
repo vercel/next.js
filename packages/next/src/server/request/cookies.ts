@@ -4,7 +4,7 @@ import {
   RequestCookiesAdapter,
 } from '../../server/web/spec-extension/adapters/request-cookies'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
@@ -16,7 +16,7 @@ import {
   trackDynamicDataInDynamicRender,
 } from '../../server/app-render/dynamic-rendering'
 import { getExpectedRequestStore } from '../../server/app-render/work-unit-async-storage.external'
-import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
+import { actionAsyncStorage } from '../../server/app-render/action-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeResolvedReactPromise } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'

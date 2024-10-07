@@ -1,14 +1,14 @@
 import { DetachedPromise } from '../../lib/detached-promise'
 import { AsyncLocalStorage } from 'async_hooks'
 
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type { AfterContext } from './after-context'
 
 describe('AfterContext', () => {
   // 'async-local-storage.ts' needs `AsyncLocalStorage` on `globalThis` at import time,
   // so we have to do some contortions here to set it up before running anything else
   type WASMod =
-    typeof import('../../client/components/work-async-storage.external')
+    typeof import('../../server/app-render/work-async-storage.external')
   type AfterMod = typeof import('./after')
   type AfterContextMod = typeof import('./after-context')
 
@@ -21,7 +21,7 @@ describe('AfterContext', () => {
     globalThis.AsyncLocalStorage = AsyncLocalStorage
 
     const WASMod = await import(
-      '../../client/components/work-async-storage.external'
+      '../../server/app-render/work-async-storage.external'
     )
     workAsyncStorage = WASMod.workAsyncStorage
 

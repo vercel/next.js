@@ -19,7 +19,7 @@ import {
   type RedirectType,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
   filterReqHeaders,

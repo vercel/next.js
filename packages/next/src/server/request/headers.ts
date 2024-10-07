@@ -2,7 +2,7 @@ import {
   HeadersAdapter,
   type ReadonlyHeaders,
 } from '../../server/web/spec-extension/adapters/headers'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
 import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
   workUnitAsyncStorage,

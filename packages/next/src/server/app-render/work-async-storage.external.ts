@@ -1,6 +1,6 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
-import type { DynamicServerError } from './hooks-server-context'
+import type { DynamicServerError } from '../../client/components/hooks-server-context'
 import type { FetchMetrics } from '../../server/base-http'
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
