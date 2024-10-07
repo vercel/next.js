@@ -1,6 +1,6 @@
 import type { NextConfig } from '../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
-import type { AppSegmentConfig } from '../../../build/app-segments/app-segment-config'
+import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
 import type { NextRequest } from '../../web/spec-extension/request'
 import type { PrerenderManifest } from '../../../build'
 import type { NextURL } from '../../web/next-url'
@@ -38,22 +38,18 @@ import * as serverHooks from '../../../client/components/hooks-server-context'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
 
 import {
-  requestAsyncStorage,
-  type RequestStore,
-} from '../../../client/components/request-async-storage.external'
-import {
   workAsyncStorage,
   type WorkStore,
 } from '../../../client/components/work-async-storage.external'
 import {
-  prerenderAsyncStorage,
+  workUnitAsyncStorage,
+  type WorkUnitStore,
   type PrerenderStore,
-} from '../../app-render/prerender-async-storage.external'
+} from '../../app-render/work-unit-async-storage.external'
 import {
   actionAsyncStorage,
   type ActionStore,
 } from '../../../client/components/action-async-storage.external'
-import { cacheAsyncStorage } from '../../../server/app-render/cache-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
@@ -71,7 +67,7 @@ import type { RenderOptsPartial } from '../../app-render/types'
 import { CacheSignal } from '../../app-render/cache-signal'
 import { scheduleImmediate } from '../../../lib/scheduler'
 import { createServerParamsForRoute } from '../../request/params'
-import type { AppSegment } from '../../../build/app-segments/collect-app-segments'
+import type { AppSegment } from '../../../build/segment-config/app/app-segments'
 import {
   getRedirectStatusCodeFromError,
   getURLFromRedirectError,
@@ -167,18 +163,12 @@ export class AppRouteRouteModule extends RouteModule<
   /**
    * A reference to the request async storage.
    */
-  public readonly requestAsyncStorage = requestAsyncStorage
+  public readonly workUnitAsyncStorage = workUnitAsyncStorage
 
   /**
    * A reference to the static generation async storage.
    */
   public readonly workAsyncStorage = workAsyncStorage
-
-  /**
-   * prerenderAsyncStorage is used to scope a prerender context for renders ocurring
-   * during a build or revalidate.
-   */
-  public readonly prerenderAsyncStorage = prerenderAsyncStorage
 
   /**
    * An interface to call server hooks which interact with the underlying
@@ -287,7 +277,7 @@ export class AppRouteRouteModule extends RouteModule<
     handler: AppRouteHandlerFn,
     actionStore: ActionStore,
     workStore: WorkStore,
-    requestStore: RequestStore,
+    workUnitStore: WorkUnitStore,
     request: NextRequest,
     context: AppRouteRouteHandlerContext
   ) {
@@ -297,8 +287,7 @@ export class AppRouteRouteModule extends RouteModule<
     // Patch the global fetch.
     patchFetch({
       workAsyncStorage: this.workAsyncStorage,
-      requestAsyncStorage: this.requestAsyncStorage,
-      prerenderAsyncStorage: this.prerenderAsyncStorage,
+      workUnitAsyncStorage: this.workUnitAsyncStorage,
     })
 
     const handlerContext: AppRouteHandlerFnContext = {
@@ -309,6 +298,14 @@ export class AppRouteRouteModule extends RouteModule<
           )
         : undefined,
     }
+
+    const pathname =
+      workUnitStore.type === 'request'
+        ? workUnitStore.url.pathname
+        : workUnitStore.type === 'prerender' ||
+            workUnitStore.type === 'prerender-legacy'
+          ? workUnitStore.pathname
+          : undefined
 
     let res: unknown
     try {
@@ -334,8 +331,10 @@ export class AppRouteRouteModule extends RouteModule<
         let prospectiveRenderIsDynamic = false
         const cacheSignal = new CacheSignal()
         let dynamicTracking = createDynamicTrackingState(undefined)
+
         const prospectiveRoutePrerenderStore: PrerenderStore = {
           type: 'prerender',
+          pathname,
           cacheSignal,
           // During prospective render we don't use a controller
           // because we need to let all caches fill.
@@ -344,7 +343,7 @@ export class AppRouteRouteModule extends RouteModule<
         }
         let prospectiveResult
         try {
-          prospectiveResult = this.prerenderAsyncStorage.run(
+          prospectiveResult = this.workUnitAsyncStorage.run(
             prospectiveRoutePrerenderStore,
             handler,
             request,
@@ -403,6 +402,7 @@ export class AppRouteRouteModule extends RouteModule<
 
         const finalRoutePrerenderStore: PrerenderStore = {
           type: 'prerender',
+          pathname,
           cacheSignal: null,
           controller,
           dynamicTracking,
@@ -412,7 +412,7 @@ export class AppRouteRouteModule extends RouteModule<
         res = await new Promise((resolve, reject) => {
           scheduleImmediate(async () => {
             try {
-              const result = await (this.prerenderAsyncStorage.run(
+              const result = await (this.workUnitAsyncStorage.run(
                 finalRoutePrerenderStore,
                 handler,
                 request,
@@ -462,10 +462,20 @@ export class AppRouteRouteModule extends RouteModule<
             }
           })
         })
+        if (controller.signal.aborted) {
+          // We aborted from within the execution
+          throw createDynamicIOError(workStore.route)
+        } else {
+          // We didn't abort during the execution. We can abort now as a matter of semantics
+          // though at the moment nothing actually consumes this signal so it won't halt any
+          // inflight work.
+          controller.abort()
+        }
       } else if (isStaticGeneration) {
-        res = await prerenderAsyncStorage.run(
+        res = await workUnitAsyncStorage.run(
           {
             type: 'prerender-legacy',
+            pathname,
           },
           handler,
           request,
@@ -487,7 +497,9 @@ export class AppRouteRouteModule extends RouteModule<
 
         // Let's append any cookies that were added by the
         // cookie API.
-        appendMutableCookies(headers, requestStore.mutableCookies)
+        if (workUnitStore.type === 'request') {
+          appendMutableCookies(headers, workUnitStore.mutableCookies)
+        }
 
         // Return the redirect response.
         return new Response(null, {
@@ -522,14 +534,17 @@ export class AppRouteRouteModule extends RouteModule<
       ...Object.values(workStore.pendingRevalidates || {}),
     ])
 
-    addImplicitTags(workStore, requestStore, undefined)
+    addImplicitTags(workStore, workUnitStore)
     ;(context.renderOpts as any).fetchTags = workStore.tags?.join(',')
 
     // It's possible cookies were set in the handler, so we need
     // to merge the modified cookies and the returned response
     // here.
     const headers = new Headers(res.headers)
-    if (appendMutableCookies(headers, requestStore.mutableCookies)) {
+    if (
+      workUnitStore.type === 'request' &&
+      appendMutableCookies(headers, workUnitStore.mutableCookies)
+    ) {
       return new Response(res.body, {
         status: res.status,
         statusText: res.statusText,
@@ -554,9 +569,6 @@ export class AppRouteRouteModule extends RouteModule<
       url: req.nextUrl,
       renderOpts: {
         previewProps: context.prerenderManifest.preview,
-        waitUntil: context.renderOpts.waitUntil,
-        onClose: context.renderOpts.onClose,
-        experimental: context.renderOpts.experimental,
       },
     }
 
@@ -583,9 +595,9 @@ export class AppRouteRouteModule extends RouteModule<
       actionStore,
       () =>
         withRequestStore(
-          this.requestAsyncStorage,
+          this.workUnitAsyncStorage,
           requestContext,
-          (requestStore) =>
+          (workUnitStore) =>
             withWorkStore(
               this.workAsyncStorage,
               staticGenerationContext,
@@ -667,7 +679,7 @@ export class AppRouteRouteModule extends RouteModule<
                       handler,
                       actionStore,
                       workStore,
-                      requestStore,
+                      workUnitStore,
                       request,
                       context
                     )
@@ -873,8 +885,8 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
         case 'toJSON':
         case 'toString':
         case 'origin': {
-          const cacheStore = cacheAsyncStorage.getStore()
-          trackDynamicDataAccessed(workStore, cacheStore, `nextUrl.${prop}`)
+          const workUnitStore = workUnitAsyncStorage.getStore()
+          trackDynamicDataAccessed(workStore, workUnitStore, `nextUrl.${prop}`)
           return ReflectAdapter.get(target, prop, receiver)
         }
         case 'clone':
@@ -909,8 +921,8 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
         case 'text':
         case 'arrayBuffer':
         case 'formData': {
-          const cacheStore = cacheAsyncStorage.getStore()
-          trackDynamicDataAccessed(workStore, cacheStore, `request.${prop}`)
+          const workUnitStore = workUnitAsyncStorage.getStore()
+          trackDynamicDataAccessed(workStore, workUnitStore, `request.${prop}`)
           // The receiver arg is intentionally the same as the target to fix an issue with
           // edge runtime, where attempting to access internal slots with the wrong `this` context
           // results in an error.

@@ -96,9 +96,9 @@ import {
 } from '../lib/fallback'
 import { getParamKeys } from '../server/request/fallback-params'
 import type { OutgoingHttpHeaders } from 'http'
-import type { AppSegmentConfig } from './app-segments/app-segment-config'
-import type { AppSegment } from './app-segments/collect-app-segments'
-import { collectSegments } from './app-segments/collect-app-segments'
+import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
+import type { AppSegment } from './segment-config/app/app-segments'
+import { collectSegments } from './segment-config/app/app-segments'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1733,11 +1733,13 @@ export async function isPageStatic({
 
 type ReducedAppConfig = Pick<
   AppSegmentConfig,
+  | 'revalidate'
   | 'dynamic'
   | 'fetchCache'
   | 'preferredRegion'
-  | 'revalidate'
   | 'experimental_ppr'
+  | 'runtime'
+  | 'maxDuration'
 >
 
 /**
@@ -1747,7 +1749,9 @@ type ReducedAppConfig = Pick<
  * @param segments the generate param segments
  * @returns the reduced app config
  */
-export function reduceAppConfig(segments: AppSegment[]): ReducedAppConfig {
+export function reduceAppConfig(
+  segments: Pick<AppSegment, 'config'>[]
+): ReducedAppConfig {
   const config: ReducedAppConfig = {}
 
   for (const segment of segments) {
@@ -1757,23 +1761,26 @@ export function reduceAppConfig(segments: AppSegment[]): ReducedAppConfig {
       preferredRegion,
       revalidate,
       experimental_ppr,
+      runtime,
+      maxDuration,
     } = segment.config || {}
 
     // TODO: should conflicting configs here throw an error
     // e.g. if layout defines one region but page defines another
 
-    // Get the first value of preferredRegion, dynamic, revalidate, and
-    // fetchCache.
-    if (typeof config.preferredRegion === 'undefined') {
+    if (typeof preferredRegion !== 'undefined') {
       config.preferredRegion = preferredRegion
     }
-    if (typeof config.dynamic === 'undefined') {
+
+    if (typeof dynamic !== 'undefined') {
       config.dynamic = dynamic
     }
-    if (typeof config.fetchCache === 'undefined') {
+
+    if (typeof fetchCache !== 'undefined') {
       config.fetchCache = fetchCache
     }
-    if (typeof config.revalidate === 'undefined') {
+
+    if (typeof revalidate !== 'undefined') {
       config.revalidate = revalidate
     }
 
@@ -1790,6 +1797,14 @@ export function reduceAppConfig(segments: AppSegment[]): ReducedAppConfig {
     // value is provided as it's resolved from root layout to leaf page.
     if (typeof experimental_ppr !== 'undefined') {
       config.experimental_ppr = experimental_ppr
+    }
+
+    if (typeof runtime !== 'undefined') {
+      config.runtime = runtime
+    }
+
+    if (typeof maxDuration !== 'undefined') {
+      config.maxDuration = maxDuration
     }
   }
 

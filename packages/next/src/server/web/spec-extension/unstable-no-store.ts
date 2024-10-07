@@ -1,5 +1,5 @@
 import { workAsyncStorage } from '../../../client/components/work-async-storage.external'
-import { cacheAsyncStorage } from '../../../server/app-render/cache-async-storage.external'
+import { workUnitAsyncStorage } from '../../../server/app-render/work-unit-async-storage.external'
 import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
 
 /**
@@ -20,7 +20,7 @@ import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
 export function unstable_noStore() {
   const callingExpression = 'unstable_noStore()'
   const store = workAsyncStorage.getStore()
-  const cacheStore = cacheAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
   if (!store) {
     // This generally implies we are being called in Pages router. We should probably not support
     // unstable_noStore in contexts outside of `react-server` condition but since we historically
@@ -30,6 +30,6 @@ export function unstable_noStore() {
     return
   } else {
     store.isUnstableNoStore = true
-    markCurrentScopeAsDynamic(store, cacheStore, callingExpression)
+    markCurrentScopeAsDynamic(store, workUnitStore, callingExpression)
   }
 }
