@@ -1,4 +1,4 @@
-use std::{collections::HashMap, future::Future, ops::Deref, sync::Arc};
+use std::{collections::HashMap, future::Future, ops::Deref, path::PathBuf, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use napi::{
@@ -9,7 +9,6 @@ use napi::{
 use serde::Serialize;
 use turbo_tasks::{ReadRef, TaskId, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_fs::FileContent;
-use turbo_tasks_memory::MemoryBackend;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
     error::PrettyPrintError,
@@ -19,22 +18,41 @@ use turbopack_core::{
 
 use crate::util::log_internal_error_and_inform;
 
+#[cfg(not(feature = "new-backend"))]
+pub type NextBackend = turbo_tasks_memory::MemoryBackend;
+#[cfg(feature = "new-backend")]
+pub type NextBackend = turbo_tasks_backend::TurboTasksBackend;
+
+#[allow(unused_variables, reason = "feature-gated")]
+pub fn create_turbo_tasks(
+    output_path: PathBuf,
+    memory_limit: usize,
+) -> Result<Arc<TurboTasks<NextBackend>>> {
+    #[cfg(not(feature = "new-backend"))]
+    let backend = TurboTasks::new(turbo_tasks_memory::MemoryBackend::new(memory_limit));
+    #[cfg(feature = "new-backend")]
+    let backend = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(Arc::new(
+        turbo_tasks_backend::LmdbBackingStorage::new(&output_path.join("cache/turbopack"))?,
+    )));
+    Ok(backend)
+}
+
 /// A helper type to hold both a Vc operation and the TurboTasks root process.
 /// Without this, we'd need to pass both individually all over the place
 #[derive(Clone)]
 pub struct VcArc<T> {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: Arc<TurboTasks<NextBackend>>,
     /// The Vc. Must be resolved, otherwise you are referencing an inactive
     /// operation.
     vc: T,
 }
 
 impl<T> VcArc<T> {
-    pub fn new(turbo_tasks: Arc<TurboTasks<MemoryBackend>>, vc: T) -> Self {
+    pub fn new(turbo_tasks: Arc<TurboTasks<NextBackend>>, vc: T) -> Self {
         Self { turbo_tasks, vc }
     }
 
-    pub fn turbo_tasks(&self) -> &Arc<TurboTasks<MemoryBackend>> {
+    pub fn turbo_tasks(&self) -> &Arc<TurboTasks<NextBackend>> {
         &self.turbo_tasks
     }
 }
@@ -57,7 +75,7 @@ pub fn serde_enum_to_string<T: Serialize>(value: &T) -> Result<String> {
 /// The root of our turbopack computation.
 pub struct RootTask {
     #[allow(dead_code)]
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: Arc<TurboTasks<NextBackend>>,
     #[allow(dead_code)]
     task_id: Option<TaskId>,
 }
@@ -301,7 +319,7 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
 }
 
 pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: Arc<TurboTasks<NextBackend>>,
     func: JsFunction,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
     mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,

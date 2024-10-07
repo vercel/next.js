@@ -1054,6 +1054,7 @@ async function loadWasm(importPath = '') {
             Log.error('Wasm binding does not support trace yet')
           },
           createTurboTasks: function (
+            _outputPath: string,
             _memoryLimit?: number | undefined
           ): ExternalObject<TurboTasks> {
             throw new Error(
@@ -1234,8 +1235,11 @@ function loadNative(importPath?: string) {
             turboTasks
           )
         },
-        createTurboTasks(memoryLimit?: number): ExternalObject<TurboTasks> {
-          return bindings.createTurboTasks(memoryLimit)
+        createTurboTasks(
+          outputPath: string,
+          memoryLimit?: number
+        ): ExternalObject<TurboTasks> {
+          return bindings.createTurboTasks(outputPath, memoryLimit)
         },
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath) {

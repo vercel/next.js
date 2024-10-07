@@ -1,7 +1,6 @@
-'use client';
-import { use } from "react";
+'use client'
 
-import { useState } from 'react'
+import { useState, use } from 'react';
 
 interface PageProps {
   params: Promise<{ slug: string }>

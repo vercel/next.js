@@ -4,23 +4,24 @@ import {
   RequestCookiesAdapter,
 } from '../../server/web/spec-extension/adapters/request-cookies'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import {
   isDynamicIOPrerender,
-  prerenderAsyncStorage,
-  type PrerenderStore,
-} from '../app-render/prerender-async-storage.external'
+  workUnitAsyncStorage,
+  type PrerenderStoreModern,
+} from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   abortAndThrowOnSynchronousDynamicDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../../server/app-render/dynamic-rendering'
-import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
+import { getExpectedRequestStore } from '../../server/app-render/work-unit-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeResolvedReactPromise } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
 /**
  * In this version of Next.js `cookies()` returns a Promise however you can still reference the properties of the underlying cookies object
@@ -50,65 +51,79 @@ export type UnsafeUnwrappedCookies = ReadonlyRequestCookies
 
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
-  const requestStore = getExpectedRequestStore(callingExpression)
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (staticGenerationStore) {
-    if (staticGenerationStore.forceStatic) {
+  if (workStore) {
+    if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
       // cookies object without tracking
       const underlyingCookies = createEmptyCookies()
       return makeUntrackedExoticCookies(underlyingCookies)
     }
 
-    if (staticGenerationStore.isUnstableCacheCallback) {
-      throw new Error(
-        `Route ${staticGenerationStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-      )
-    } else if (staticGenerationStore.dynamicShouldError) {
+    if (workUnitStore) {
+      if (workUnitStore.type === 'cache') {
+        throw new Error(
+          `Route ${workStore.route} used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        )
+      } else if (workUnitStore.type === 'unstable-cache') {
+        throw new Error(
+          `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      }
+    }
+    if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
-        `Route ${staticGenerationStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
 
-    if (prerenderStore) {
-      // We are in PPR and/or dynamicIO mode and prerendering
+    if (workUnitStore) {
+      if (workUnitStore.type === 'prerender') {
+        // We are in PPR and/or dynamicIO mode and prerendering
 
-      if (isDynamicIOPrerender(prerenderStore)) {
-        // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
-        // When resolving cookies for a prerender with dynamic IO we return a forever promise
-        // along with property access tracked synchronous cookies.
+        if (isDynamicIOPrerender(workUnitStore)) {
+          // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
+          // When resolving cookies for a prerender with dynamic IO we return a forever promise
+          // along with property access tracked synchronous cookies.
 
-        // We don't track dynamic access here because access will be tracked when you access
-        // one of the properties of the cookies object.
-        return makeDynamicallyTrackedExoticCookies(
-          staticGenerationStore.route,
-          prerenderStore
-        )
-      } else {
-        // We are prerendering with PPR. We need track dynamic access here eagerly
-        // to keep continuity with how cookies has worked in PPR without dynamicIO.
-        // TODO consider switching the semantic to throw on property access instead
-        postponeWithTracking(
-          staticGenerationStore.route,
+          // We don't track dynamic access here because access will be tracked when you access
+          // one of the properties of the cookies object.
+          return makeDynamicallyTrackedExoticCookies(
+            workStore.route,
+            workUnitStore
+          )
+        } else {
+          // We are prerendering with PPR. We need track dynamic access here eagerly
+          // to keep continuity with how cookies has worked in PPR without dynamicIO.
+          // TODO consider switching the semantic to throw on property access instead
+          postponeWithTracking(
+            workStore.route,
+            callingExpression,
+            workUnitStore.dynamicTracking
+          )
+        }
+      } else if (workUnitStore.type === 'prerender-legacy') {
+        // We are in a legacy static generation mode while prerendering
+        // We track dynamic access here so we don't need to wrap the cookies in
+        // individual property access tracking.
+        throwToInterruptStaticGeneration(
           callingExpression,
-          prerenderStore.dynamicTracking
+          workStore,
+          workUnitStore
         )
       }
-    } else if (staticGenerationStore.isStaticGeneration) {
-      // We are in a legacy static generation mode while prerendering
-      // We track dynamic access here so we don't need to wrap the cookies in
-      // individual property access tracking.
-      throwToInterruptStaticGeneration(callingExpression, staticGenerationStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using cookies inside a cache context
-    trackDynamicDataInDynamicRender(staticGenerationStore)
+    trackDynamicDataInDynamicRender(workStore, workUnitStore)
   }
 
   // cookies is being called in a dynamic context
   const actionStore = actionAsyncStorage.getStore()
+
+  const requestStore = getExpectedRequestStore(callingExpression)
 
   let underlyingCookies: ReadonlyRequestCookies
 
@@ -126,13 +141,10 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     underlyingCookies = requestStore.cookies
   }
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    !staticGenerationStore?.isPrefetchRequest
-  ) {
+  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     return makeUntrackedExoticCookiesWithDevWarnings(
       underlyingCookies,
-      staticGenerationStore?.route
+      workStore?.route
     )
   } else {
     return makeUntrackedExoticCookies(underlyingCookies)
@@ -151,7 +163,7 @@ const CachedCookies = new WeakMap<
 
 function makeDynamicallyTrackedExoticCookies(
   route: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyRequestCookies> {
   const cachedPromise = CachedCookies.get(prerenderStore)
   if (cachedPromise) {
@@ -510,19 +522,35 @@ function describeNameArg(arg: unknown) {
       : '...'
 }
 
-function warnForSyncIteration(route?: string) {
-  const prefix = route ? ` In route ${route} ` : ''
-  console.error(
-    `${prefix}cookies were iterated implicitly with something like \`for...of cookies())\` or \`[...cookies()]\`, or explicitly with \`cookies()[Symbol.iterator]()\`. \`cookies()\` now returns a Promise and the return value should be awaited before attempting to iterate over cookies. In this version of Next.js iterating cookies without awaiting first is still supported to facilitate migration but in a future version you will be required to await the result. If this \`cookies()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
-  )
-}
+const noop = () => {}
 
-function warnForSyncAccess(route: undefined | string, expression: string) {
-  const prefix = route ? ` In route ${route} a ` : 'A '
-  console.error(
-    `${prefix}cookie property was accessed directly with \`${expression}\`. \`cookies()\` now returns a Promise and the return value should be awaited before accessing properties of the underlying cookies instance. In this version of Next.js direct access to \`${expression}\` is still supported to facilitate migration but in a future version you will be required to await the result. If this \`cookies()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
-  )
-}
+const warnForSyncIteration = process.env
+  .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : createDedupedByCallsiteServerErrorLoggerDev(
+      function getSyncIterationMessage(route?: string) {
+        const prefix = route ? ` In route ${route} ` : ''
+        return (
+          `${prefix}cookies were iterated over. ` +
+          `\`cookies()\` should be awaited before using its value. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      }
+    )
+
+const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
+      route: undefined | string,
+      expression: string
+    ) {
+      const prefix = route ? ` In route ${route} a ` : 'A '
+      return (
+        `${prefix}cookie property was accessed directly with \`${expression}\`. ` +
+        `\`cookies()\` should be awaited before using its value. ` +
+        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+      )
+    })
 
 function polyfilledResponseCookiesIterator(
   this: ResponseCookies

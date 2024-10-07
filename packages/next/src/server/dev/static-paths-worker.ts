@@ -8,7 +8,7 @@ import {
   buildStaticPaths,
   reduceAppConfig,
 } from '../../build/utils'
-import { collectSegments } from '../../build/app-segments/collect-app-segments'
+import { collectSegments } from '../../build/segment-config/app/app-segments'
 import type { PartialStaticPathsResult } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'

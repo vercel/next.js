@@ -1,8 +1,8 @@
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import {
   isDynamicIOPrerender,
-  prerenderAsyncStorage,
-} from '../app-render/prerender-async-storage.external'
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
@@ -17,30 +17,37 @@ import { makeHangingPromise } from '../dynamic-rendering-utils'
  * During prerendering it will never resolve and during rendering it resolves immediately.
  */
 export function connection(): Promise<void> {
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (staticGenerationStore) {
-    if (staticGenerationStore.forceStatic) {
+  if (workStore) {
+    if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
       // headers object without tracking
       return Promise.resolve(undefined)
     }
 
-    if (staticGenerationStore.isUnstableCacheCallback) {
-      throw new Error(
-        `Route ${staticGenerationStore.route} used "connection" inside a function cached with "unstable_cache(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-      )
-    } else if (staticGenerationStore.dynamicShouldError) {
+    if (workUnitStore) {
+      if (workUnitStore.type === 'cache') {
+        throw new Error(
+          `Route ${workStore.route} used "connection" inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        )
+      } else if (workUnitStore.type === 'unstable-cache') {
+        throw new Error(
+          `Route ${workStore.route} used "connection" inside a function cached with "unstable_cache(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      }
+    }
+    if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
-        `Route ${staticGenerationStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
 
-    if (prerenderStore) {
+    if (workUnitStore && workUnitStore.type === 'prerender') {
       // We are in PPR and/or dynamicIO mode and prerendering
 
-      if (isDynamicIOPrerender(prerenderStore)) {
+      if (isDynamicIOPrerender(workUnitStore)) {
         // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
         // When resolving headers for a prerender with dynamic IO we return a forever promise
         // along with property access tracked synchronous headers.
@@ -53,19 +60,19 @@ export function connection(): Promise<void> {
         // to keep continuity with how headers has worked in PPR without dynamicIO.
         // TODO consider switching the semantic to throw on property access intead
         postponeWithTracking(
-          staticGenerationStore.route,
+          workStore.route,
           'connection',
-          prerenderStore.dynamicTracking
+          workUnitStore.dynamicTracking
         )
       }
-    } else if (staticGenerationStore.isStaticGeneration) {
+    } else if (workStore.isStaticGeneration) {
       // We are in a legacy static generation mode while prerendering
       // We treat this function call as a bailout of static generation
-      throwToInterruptStaticGeneration('connection', staticGenerationStore)
+      throwToInterruptStaticGeneration('connection', workStore, workUnitStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using headers inside a cache context
-    trackDynamicDataInDynamicRender(staticGenerationStore)
+    trackDynamicDataInDynamicRender(workStore, workUnitStore)
   }
 
   return Promise.resolve(undefined)

@@ -1512,7 +1512,7 @@ pub async fn read_matches(
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     results.push((
                                         pos,
-                                        PatternMatch::File(prefix.clone().into(), *path),
+                                        PatternMatch::File(prefix.clone().into(), **path),
                                     ));
                                 }
                                 prefix.truncate(len)
@@ -1527,7 +1527,7 @@ pub async fn read_matches(
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     results.push((
                                         pos,
-                                        PatternMatch::Directory(prefix.clone().into(), *path),
+                                        PatternMatch::Directory(prefix.clone().into(), **path),
                                     ));
                                 }
                                 prefix.push('/');
@@ -1535,13 +1535,13 @@ pub async fn read_matches(
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     results.push((
                                         pos,
-                                        PatternMatch::Directory(prefix.clone().into(), *path),
+                                        PatternMatch::Directory(prefix.clone().into(), **path),
                                     ));
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
                                     nested.push((
                                         pos,
-                                        read_matches(*path, prefix.clone().into(), true, pattern),
+                                        read_matches(**path, prefix.clone().into(), true, pattern),
                                     ));
                                 }
                                 prefix.truncate(len)
@@ -1562,13 +1562,16 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    *fs_path,
+                                                    **fs_path,
                                                 ),
                                             ));
                                         } else {
                                             results.push((
                                                 pos,
-                                                PatternMatch::File(prefix.clone().into(), *fs_path),
+                                                PatternMatch::File(
+                                                    prefix.clone().into(),
+                                                    **fs_path,
+                                                ),
                                             ));
                                         }
                                     }
@@ -1583,7 +1586,7 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    *fs_path,
+                                                    **fs_path,
                                                 ),
                                             ));
                                         }
@@ -1598,7 +1601,7 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    *fs_path,
+                                                    **fs_path,
                                                 ),
                                             ));
                                         }
