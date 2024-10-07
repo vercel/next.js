@@ -186,7 +186,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
     {
       type: 'text',
       name: 'customDevScript',
-      message: 'Please add "--turbo" to your dev command manually.',
+      message: 'Please manually add "--turbo" to your dev command.',
       initial: devScript,
     },
     { onCancel }
