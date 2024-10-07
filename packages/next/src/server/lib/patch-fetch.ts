@@ -220,7 +220,7 @@ function trackFetchMetric(
 
   workStore.fetchMetrics.push({
     ...ctx,
-    end: Date.now(),
+    end: performance.timeOrigin + performance.now(),
     idx: workStore.nextFetchId || 0,
   })
 }
@@ -250,7 +250,7 @@ export function createPatchedFetcher(
       url = undefined
     }
     const fetchUrl = url?.href ?? ''
-    const fetchStart = Date.now()
+    const fetchStart = performance.timeOrigin + performance.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
     // Do create a new span trace for internal fetches in the
