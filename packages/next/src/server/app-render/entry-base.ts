@@ -12,8 +12,7 @@ export { prerender } from 'react-server-dom-webpack/static.edge'
 import LayoutRouter from '../../client/components/layout-router'
 import RenderFromTemplateContext from '../../client/components/render-from-template-context'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
-import { prerenderAsyncStorage } from './prerender-async-storage.external'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
 import { ClientPageRoot } from '../../client/components/client-page'
 import { ClientSegmentRoot } from '../../client/components/client-segment'
@@ -48,8 +47,7 @@ import { taintObjectReference } from './rsc/taint'
 function patchFetch() {
   return _patchFetch({
     workAsyncStorage,
-    requestAsyncStorage,
-    prerenderAsyncStorage,
+    workUnitAsyncStorage,
   })
 }
 
@@ -57,7 +55,7 @@ export {
   LayoutRouter,
   RenderFromTemplateContext,
   workAsyncStorage,
-  requestAsyncStorage,
+  workUnitAsyncStorage,
   actionAsyncStorage,
   createServerSearchParamsForServerPage,
   createServerSearchParamsForMetadata,

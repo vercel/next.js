@@ -21,7 +21,7 @@
  */
 
 import type { WorkStore } from '../../client/components/work-async-storage.external'
-import type { CacheStore } from '../../server/app-render/cache-async-storage.external'
+import type { WorkUnitStore } from '../../server/app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
@@ -30,10 +30,9 @@ import { DynamicServerError } from '../../client/components/hooks-server-context
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   isDynamicIOPrerender,
-  prerenderAsyncStorage,
+  workUnitAsyncStorage,
   type PrerenderStoreModern,
-} from './prerender-async-storage.external'
-import { cacheAsyncStorage } from './cache-async-storage.external'
+} from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
@@ -117,11 +116,14 @@ export function getFirstDynamicReason(
  */
 export function markCurrentScopeAsDynamic(
   store: WorkStore,
-  cacheStore: void | CacheStore,
+  workUnitStore: undefined | WorkUnitStore,
   expression: string
 ): void {
-  if (cacheStore) {
-    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+  if (workUnitStore) {
+    if (
+      workUnitStore.type === 'cache' ||
+      workUnitStore.type === 'unstable-cache'
+    ) {
       // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
       // creates a cache boundary. This is subtly different from reading a dynamic data source which is
       // forbidden inside a cache scope.
@@ -140,7 +142,7 @@ export function markCurrentScopeAsDynamic(
     )
   }
 
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const prerenderStore = workUnitAsyncStorage.getStore()
   if (prerenderStore && prerenderStore.type === 'prerender') {
     if (isDynamicIOPrerender(prerenderStore)) {
       // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
@@ -187,7 +189,7 @@ export function trackFallbackParamAccessed(
   store: WorkStore,
   expression: string
 ): void {
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const prerenderStore = workUnitAsyncStorage.getStore()
   if (!prerenderStore || prerenderStore.type !== 'prerender') return
 
   postponeWithTracking(store.route, expression, prerenderStore.dynamicTracking)
@@ -204,15 +206,15 @@ export function trackFallbackParamAccessed(
  */
 export function trackDynamicDataAccessed(
   store: WorkStore,
-  cacheStore: void | CacheStore,
+  workUnitStore: undefined | WorkUnitStore,
   expression: string
 ): void {
-  if (cacheStore) {
-    if (cacheStore.type === 'cache') {
+  if (workUnitStore) {
+    if (workUnitStore.type === 'cache') {
       throw new Error(
         `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
       )
-    } else if (cacheStore.type === 'unstable-cache') {
+    } else if (workUnitStore.type === 'unstable-cache') {
       throw new Error(
         `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
@@ -224,7 +226,7 @@ export function trackDynamicDataAccessed(
     )
   }
 
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const prerenderStore = workUnitAsyncStorage.getStore()
   if (prerenderStore && prerenderStore.type === 'prerender') {
     if (isDynamicIOPrerender(prerenderStore)) {
       // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
@@ -268,15 +270,18 @@ export function trackDynamicDataAccessed(
 export function throwToInterruptStaticGeneration(
   expression: string,
   store: WorkStore,
-  cacheStore: void | CacheStore
+  workUnitStore: undefined | WorkUnitStore
 ): never {
   // We aren't prerendering but we are generating a static page. We need to bail out of static generation
   const err = new DynamicServerError(
     `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
   )
 
-  if (cacheStore) {
-    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+  if (workUnitStore) {
+    if (
+      workUnitStore.type === 'cache' ||
+      workUnitStore.type === 'unstable-cache'
+    ) {
       // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
       // creates a cache boundary. This is subtly different from reading a dynamic data source which is
       // forbidden inside a cache scope.
@@ -301,10 +306,13 @@ export function throwToInterruptStaticGeneration(
  */
 export function trackDynamicDataInDynamicRender(
   store: WorkStore,
-  cacheStore: void | CacheStore
+  workUnitStore: void | WorkUnitStore
 ) {
-  if (cacheStore) {
-    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+  if (workUnitStore) {
+    if (
+      workUnitStore.type === 'cache' ||
+      workUnitStore.type === 'unstable-cache'
+    ) {
       // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
       // creates a cache boundary. This is subtly different from reading a dynamic data source which is
       // forbidden inside a cache scope.
@@ -379,7 +387,7 @@ type PostponeProps = {
   route: string
 }
 export function Postpone({ reason, route }: PostponeProps): never {
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const prerenderStore = workUnitAsyncStorage.getStore()
   const dynamicTracking =
     prerenderStore && prerenderStore.type === 'prerender'
       ? prerenderStore.dynamicTracking
@@ -567,7 +575,7 @@ export function useDynamicRouteParams(expression: string) {
     ) {
       // There are fallback route params, we should track these as dynamic
       // accesses.
-      const prerenderStore = prerenderAsyncStorage.getStore()
+      const prerenderStore = workUnitAsyncStorage.getStore()
       if (prerenderStore && prerenderStore.type === 'prerender') {
         // We're prerendering with dynamicIO or PPR or both
         if (isDynamicIOPrerender(prerenderStore)) {
@@ -585,8 +593,8 @@ export function useDynamicRouteParams(expression: string) {
         }
       } else {
         // We're prerendering in legacy mode
-        const cacheStore = cacheAsyncStorage.getStore()
-        throwToInterruptStaticGeneration(expression, workStore, cacheStore)
+        const workUnitStore = workUnitAsyncStorage.getStore()
+        throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
       }
     }
   }

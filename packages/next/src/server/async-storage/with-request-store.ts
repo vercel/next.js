@@ -1,7 +1,10 @@
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 import type { AsyncLocalStorage } from 'async_hooks'
-import type { RequestStore } from '../../client/components/request-async-storage.external'
+import type {
+  RequestStore,
+  WorkUnitStore,
+} from '../../server/app-render/work-unit-async-storage.external'
 import type { RenderOpts } from '../app-render/types'
 import type { WithStore } from './with-store'
 import type { NextRequest } from '../web/spec-extension/request'
@@ -99,10 +102,10 @@ function mergeMiddlewareCookies(
   }
 }
 
-export const withRequestStore: WithStore<RequestStore, RequestContext> = <
+export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
   Result,
 >(
-  storage: AsyncLocalStorage<RequestStore>,
+  storage: AsyncLocalStorage<WorkUnitStore>,
   {
     req,
     url,
@@ -127,6 +130,7 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
   } = {}
 
   const store: RequestStore = {
+    type: 'request',
     // Rather than just using the whole `url` here, we pull the parts we want
     // to ensure we don't use parts of the URL that we shouldn't. This also
     // lets us avoid requiring an empty string for `search` in the type.
