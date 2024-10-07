@@ -342,7 +342,11 @@ export function unstable_cache<T extends Callback>(
           type: 'unstable-cache',
         }
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        const result = await cacheAsyncStorage.run(innerCacheStore, cb, ...args)
+        const result = await workUnitAsyncStorage.run(
+          innerCacheStore,
+          cb,
+          ...args
+        )
         cacheNewResult(
           result,
           incrementalCache,

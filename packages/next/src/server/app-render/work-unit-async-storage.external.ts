@@ -49,7 +49,7 @@ export type RequestStore = {
  * to fill all caches.
  */
 export type PrerenderStoreModern = {
-  type: 'prerender',
+  type: 'prerender'
   pathname: string | undefined
   /**
    * This is the AbortController passed to React. It can be used to abort the prerender
@@ -70,7 +70,7 @@ export type PrerenderStoreModern = {
 }
 
 export type PrerenderStoreLegacy = {
-  type: 'prerender-legacy',
+  type: 'prerender-legacy'
   pathname: string | undefined
 }
 
