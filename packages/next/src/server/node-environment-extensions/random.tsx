@@ -9,24 +9,24 @@
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import {
   isDynamicIOPrerender,
-  prerenderAsyncStorage,
-} from '../app-render/prerender-async-storage.external'
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import { abortOnSynchronousDynamicDataAccess } from '../app-render/dynamic-rendering'
 
 const originalRandom = Math.random
 
 Math.random = function random() {
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
   if (
-    prerenderStore &&
-    prerenderStore.type === 'prerender' &&
-    isDynamicIOPrerender(prerenderStore)
+    workUnitStore &&
+    workUnitStore.type === 'prerender' &&
+    isDynamicIOPrerender(workUnitStore)
   ) {
     const workStore = workAsyncStorage.getStore()
     const route = workStore ? workStore.route : ''
     const expression = '`Math.random()`'
     if (workStore) {
-      abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
+      abortOnSynchronousDynamicDataAccess(route, expression, workUnitStore)
     }
   }
 
