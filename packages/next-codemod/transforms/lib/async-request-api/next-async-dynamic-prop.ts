@@ -73,6 +73,21 @@ function awaitMemberAccessOfProp(
   return hasAwaited
 }
 
+function isParentUseCallExpression(path: ASTPath<any>, j: API['jscodeshift']) {
+  if (
+    // member access parentPath is argument
+    j.CallExpression.check(path.parent.value) &&
+    // member access is first argument
+    path.parent.value.arguments[0] === path.value &&
+    // function name is `use`
+    j.Identifier.check(path.parent.value.callee) &&
+    path.parent.value.callee.name === 'use'
+  ) {
+    return true
+  }
+  return false
+}
+
 function applyUseAndRenameAccessedProp(
   propIdName: string,
   path: ASTPath<FunctionScope>,
@@ -95,6 +110,11 @@ function applyUseAndRenameAccessedProp(
   const accessedNames: string[] = []
   // rename each member access
   memberAccess.forEach((memberAccessPath) => {
+    // If the member access expression is first argument of `use()`, we skip
+    if (isParentUseCallExpression(memberAccessPath, j)) {
+      return
+    }
+
     const member = memberAccessPath.value
     const memberProperty = member.property
     if (j.Identifier.check(memberProperty)) {
@@ -313,8 +333,8 @@ export function transformDynamicProps(
         currentParam.properties.forEach((prop) => {
           if (
             // Could be `Property` or `ObjectProperty`
-            'key' in prop &&
-            prop.key.type === 'Identifier' &&
+            (j.Property.check(prop) || j.ObjectProperty.check(prop)) &&
+            j.Identifier.check(prop.key) &&
             TARGET_PROP_NAMES.has(prop.key.name)
           ) {
             const value = 'value' in prop ? prop.value : null
@@ -322,12 +342,6 @@ export function transformDynamicProps(
           }
         })
 
-        modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
-
-        // Override the first param to `props`
-        params[propsArgumentIndex] = propsIdentifier
-
-        modified = true
         modifiedPropArgument = true
       } else if (currentParam.type === 'Identifier') {
         // case of accessing the props.params.<name>:
@@ -380,13 +394,23 @@ export function transformDynamicProps(
       }
 
       if (modifiedPropArgument) {
-        resolveAsyncProp(
+        const isModified = resolveAsyncProp(
           path,
           propertiesMap,
           propsIdentifier.name,
           allProperties,
           isDefaultExport
         )
+        if (isModified) {
+          // Make TS happy
+          if (j.ObjectPattern.check(currentParam)) {
+            modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
+          }
+          // Override the first param to `props`
+          params[propsArgumentIndex] = propsIdentifier
+
+          modified = true
+        }
       }
     }
 
@@ -397,7 +421,7 @@ export function transformDynamicProps(
       propsIdentifierName: string,
       allProperties: ObjectPattern['properties'],
       isDefaultExport: boolean
-    ) {
+    ): boolean {
       // Rename props to `prop` argument for the function
       const insertedRenamedPropFunctionNames = new Set<string>()
       const node = path.value
@@ -512,9 +536,30 @@ export function transformDynamicProps(
         }
       }
 
+      let modifiedPropertyCount = 0
       for (const [matchedPropName, paramsProperty] of propertiesMap) {
         if (!TARGET_PROP_NAMES.has(matchedPropName)) {
           continue
+        }
+
+        // In client component, if the param is already wrapped with `use()`, skip the transformation
+        if (isClientComponent) {
+          let shouldSkip = false
+          const propPaths = j(path).find(j.Identifier, {
+            name: matchedPropName,
+          })
+
+          for (const propPath of propPaths.paths()) {
+            if (isParentUseCallExpression(propPath, j)) {
+              // Skip transformation
+              shouldSkip = true
+              break
+            }
+          }
+
+          if (shouldSkip) {
+            continue
+          }
         }
 
         const propRenamedId = j.Identifier.check(paramsProperty)
@@ -524,16 +569,25 @@ export function transformDynamicProps(
 
         // if propName is not used in lower scope, and it stars with unused prefix `_`,
         // also skip the transformation
-        const hasDeclared = path.scope.declares(propName)
-        if (!hasDeclared && propName.startsWith('_')) continue
+
+        const functionBodyPath = path.get('body')
+        const hasUsedInBody =
+          j(functionBodyPath)
+            .find(j.Identifier, {
+              name: propName,
+            })
+            .size() > 0
+
+        if (!hasUsedInBody && propName.startsWith('_')) continue
+
+        modifiedPropertyCount++
 
         const propNameIdentifier = j.identifier(matchedPropName)
         const propsIdentifier = j.identifier(propsIdentifierName)
-        const accessedPropId = j.memberExpression(
+        const accessedPropIdExpr = j.memberExpression(
           propsIdentifier,
           propNameIdentifier
         )
-
         // Check param property value, if it's destructed, we need to destruct it as well
         // e.g.
         // input: Page({ params: { slug } })
@@ -576,7 +630,7 @@ export function transformDynamicProps(
           const paramAssignment = j.variableDeclaration('const', [
             j.variableDeclarator(
               j.identifier(propName),
-              j.awaitExpression(accessedPropId)
+              j.awaitExpression(accessedPropIdExpr)
             ),
           ])
           if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
@@ -598,7 +652,7 @@ export function transformDynamicProps(
               const paramAssignment = j.variableDeclaration('const', [
                 j.variableDeclarator(
                   j.identifier(propName),
-                  j.awaitExpression(accessedPropId)
+                  j.awaitExpression(accessedPropIdExpr)
                 ),
               ])
 
@@ -611,7 +665,7 @@ export function transformDynamicProps(
             const paramAssignment = j.variableDeclaration('const', [
               j.variableDeclarator(
                 j.identifier(propName),
-                j.callExpression(j.identifier('use'), [accessedPropId])
+                j.callExpression(j.identifier('use'), [accessedPropIdExpr])
               ),
             ])
             if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
@@ -622,6 +676,8 @@ export function transformDynamicProps(
           }
         }
       }
+
+      return modifiedPropertyCount > 0
     }
 
     const defaultExportsDeclarations = root.find(j.ExportDefaultDeclaration)
