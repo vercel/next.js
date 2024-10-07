@@ -37,8 +37,6 @@ export async function runUpgrade(
   const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
-  await detectWorkspace(appPackageJson)
-
   let targetNextPackageJson: {
     version: string
     peerDependencies: Record<string, string>
@@ -53,7 +51,7 @@ export async function runUpgrade(
     )
   }
 
-  const installedNextVersion = await getInstalledNextVersion()
+  const installedNextVersion = getInstalledNextVersion()
 
   const targetNextVersion = targetNextPackageJson.version
 
@@ -125,41 +123,21 @@ export async function runUpgrade(
   )
 }
 
-async function detectWorkspace(appPackageJson: any): Promise<void> {
-  let isWorkspace =
-    appPackageJson.workspaces ||
-    fs.existsSync(path.resolve(process.cwd(), 'pnpm-workspace.yaml'))
-
-  if (!isWorkspace) return
-
-  console.log(
-    `${chalk.red('⚠️')} You seem to be in the root of a monorepo. ${chalk.blue('@next/upgrade')} should be run in a specific app directory within the monorepo.`
-  )
-
-  const response = await prompts(
-    {
-      type: 'confirm',
-      name: 'value',
-      message: 'Do you still want to continue?',
-      initial: false,
-    },
-    { onCancel: () => process.exit(0) }
-  )
-
-  if (!response.value) {
-    process.exit(0)
+function getInstalledNextVersion(): string {
+  try {
+    return require(
+      require.resolve('next/package.json', {
+        paths: [process.cwd()],
+      })
+    ).version
+  } catch (error) {
+    throw new Error(
+      `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      {
+        cause: error,
+      }
+    )
   }
-}
-
-async function getInstalledNextVersion(): Promise<string> {
-  const installedNextPackageJsonDir = require.resolve('next/package.json', {
-    paths: [process.cwd()],
-  })
-  const installedNextPackageJson = JSON.parse(
-    fs.readFileSync(installedNextPackageJsonDir, 'utf8')
-  )
-
-  return installedNextPackageJson.version
 }
 
 /*
