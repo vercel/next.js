@@ -20,8 +20,6 @@ import {
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
-import { AfterContext } from '../after/after-context'
-import type { RequestLifecycleOpts } from '../base-server'
 import type { ServerComponentsHmrCache } from '../response-cache'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
@@ -41,11 +39,9 @@ function getMutableCookies(
   return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
-export type WrapperRenderOpts = RequestLifecycleOpts &
-  Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
-    experimental: Pick<RenderOpts['experimental'], 'after'>
-    previewProps?: __ApiPreviewProps
-  }
+export type WrapperRenderOpts = Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
+  previewProps?: __ApiPreviewProps
+}
 
 export type RequestContext = RequestResponsePair & {
   /**
@@ -188,34 +184,11 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
       return cache.draftMode
     },
 
-    afterContext: createAfterContext(renderOpts),
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
   }
 
-  if (store.afterContext) {
-    return store.afterContext.run(store, () =>
-      storage.run(store, callback, store)
-    )
-  }
-
   return storage.run(store, callback, store)
-}
-
-function createAfterContext(
-  renderOpts: WrapperRenderOpts | undefined
-): AfterContext | undefined {
-  if (!isAfterEnabled(renderOpts)) {
-    return undefined
-  }
-  const { waitUntil, onClose } = renderOpts
-  return new AfterContext({ waitUntil, onClose })
-}
-
-function isAfterEnabled(
-  renderOpts: WrapperRenderOpts | undefined
-): renderOpts is WrapperRenderOpts {
-  return renderOpts?.experimental?.after ?? false
 }

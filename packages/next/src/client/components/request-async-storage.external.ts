@@ -6,7 +6,6 @@ import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/ada
 
 // Share the instance module in the next-shared layer
 import { requestAsyncStorage } from './request-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
-import type { AfterContext } from '../../server/after/after-context'
 import type { ServerComponentsHmrCache } from '../../server/response-cache'
 
 import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
@@ -34,7 +33,6 @@ export interface RequestStore {
   readonly cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
-  readonly afterContext: AfterContext | undefined
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 }
