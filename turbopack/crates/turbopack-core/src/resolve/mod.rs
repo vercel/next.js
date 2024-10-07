@@ -10,7 +10,9 @@ use anyhow::{bail, Result};
 use indexmap::{indexmap, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, RcStr, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
 };
@@ -369,12 +371,12 @@ impl ModuleResolveResult {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ModuleResolveResultOption(Option<Vc<ModuleResolveResult>>);
+pub struct ModuleResolveResultOption(Option<ResolvedVc<ModuleResolveResult>>);
 
 #[turbo_tasks::value_impl]
 impl ModuleResolveResultOption {
     #[turbo_tasks::function]
-    pub fn some(result: Vc<ModuleResolveResult>) -> Vc<Self> {
+    pub fn some(result: ResolvedVc<ModuleResolveResult>) -> Vc<Self> {
         ModuleResolveResultOption(Some(result)).cell()
     }
 

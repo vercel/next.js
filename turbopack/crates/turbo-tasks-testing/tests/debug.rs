@@ -4,7 +4,7 @@
 
 use std::sync::Mutex;
 
-use turbo_tasks::{debug::ValueDebug, Vc};
+use turbo_tasks::{debug::ValueDebug, ResolvedVc, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -177,7 +177,7 @@ struct StructWithTransparent {
 
 #[turbo_tasks::value(shared)]
 struct StructWithOption {
-    option: Option<Vc<Transparent>>,
+    option: Option<ResolvedVc<Transparent>>,
 }
 
 #[turbo_tasks::value(shared)]

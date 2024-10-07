@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Upcast, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkingContext},
@@ -266,7 +266,7 @@ async fn module_factory_with_code_generation_issue(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkItemsChunk(Vec<Vc<Box<dyn EcmascriptChunkItem>>>);
+pub struct EcmascriptChunkItemsChunk(Vec<ResolvedVc<Box<dyn EcmascriptChunkItem>>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkItems(pub(super) Vec<Vc<Box<dyn EcmascriptChunkItem>>>);
+pub struct EcmascriptChunkItems(pub(super) Vec<ResolvedVc<Box<dyn EcmascriptChunkItem>>>);

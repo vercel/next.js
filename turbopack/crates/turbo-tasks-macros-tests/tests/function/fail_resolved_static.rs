@@ -2,10 +2,10 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(dead_code)]
 
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 #[turbo_tasks::value(transparent)]
-struct IntegersVec(Vec<Vc<u32>>);
+struct IntegersVec(Vec<ResolvedVc<u32>>);
 
 #[turbo_tasks::function(resolved)]
 fn return_contains_unresolved_vc() -> Vc<IntegersVec> {

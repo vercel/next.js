@@ -1,5 +1,5 @@
 use indexmap::IndexSet;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
@@ -38,7 +38,7 @@ impl Modules {
 
 /// A set of [Module]s
 #[turbo_tasks::value(transparent)]
-pub struct ModulesSet(IndexSet<Vc<Box<dyn Module>>>);
+pub struct ModulesSet(IndexSet<ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl ModulesSet {
