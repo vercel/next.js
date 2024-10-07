@@ -145,7 +145,7 @@ const getDerivedTags = (pathname: string): string[] => {
 export function addImplicitTags(
   workStore: WorkStore,
   requestStore: RequestStore | undefined,
-  _prerenderStore: PrerenderStore | undefined,
+  prerenderStore: PrerenderStore | undefined,
   cacheStore: CacheStore | undefined
 ) {
   const newTags: string[] = []
@@ -176,10 +176,17 @@ export function addImplicitTags(
     newTags.push(tag)
   }
 
+  const renderedPathname =
+    requestStore !== undefined
+      ? requestStore.url.pathname
+      : prerenderStore !== undefined
+        ? prerenderStore.pathname
+        : undefined
+
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
-  if (requestStore?.url.pathname && !hasFallbackRouteParams) {
-    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${requestStore.url.pathname}`
+  if (renderedPathname && !hasFallbackRouteParams) {
+    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${renderedPathname}`
     if (
       !cacheStore ||
       (cacheStore.type !== 'cache' && cacheStore.type !== 'unstable-cache')
