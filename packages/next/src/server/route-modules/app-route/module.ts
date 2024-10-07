@@ -522,7 +522,7 @@ export class AppRouteRouteModule extends RouteModule<
       ...Object.values(workStore.pendingRevalidates || {}),
     ])
 
-    addImplicitTags(workStore, requestStore, undefined)
+    addImplicitTags(workStore, requestStore, undefined, undefined)
     ;(context.renderOpts as any).fetchTags = workStore.tags?.join(',')
 
     // It's possible cookies were set in the handler, so we need
