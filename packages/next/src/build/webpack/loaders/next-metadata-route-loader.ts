@@ -175,12 +175,14 @@ ${errorOnBadHandler(resourcePath)}
 ${await createReExportsCode(resourcePath, loaderContext)}
 
 export async function GET(_, ctx) {
-  const { __metadata_id__, ...params } = ctx.params || {}
+  const params = await ctx.params
+  const { __metadata_id__, ...rest } = params || {}
+  const restParams = params ? rest : undefined
   const targetId = __metadata_id__
   let id = undefined
   
   if (generateImageMetadata) {
-    const imageMetadata = await generateImageMetadata({ params })
+    const imageMetadata = await generateImageMetadata({ params: restParams })
     id = imageMetadata.find((item) => {
       if (process.env.NODE_ENV !== 'production') {
         if (item?.id == null) {
@@ -196,7 +198,7 @@ export async function GET(_, ctx) {
     }
   }
 
-  return handler({ params: ctx.params ? params : undefined, id })
+  return handler({ params: restParams, id })
 }
 `
 }
@@ -243,7 +245,7 @@ ${errorOnBadHandler(resourcePath)}
 ${await createReExportsCode(resourcePath, loaderContext)}
 
 export async function GET(_, ctx) {
-  const { __metadata_id__: id, ...params } = ctx.params || {}
+  const { __metadata_id__: id, ...params } = await ctx.params || {}
   const hasXmlExtension = id ? id.endsWith('.xml') : false
 
   if (id && !hasXmlExtension) {
