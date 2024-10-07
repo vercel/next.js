@@ -95,7 +95,7 @@ impl VersionedContentMap {
     /// operation. When assets change, map_path_to_op is updated.
     #[turbo_tasks::function]
     async fn compute_entry(
-        self: Vc<Self>,
+        &self,
         assets_operation: Vc<OutputAssetsOperation>,
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
@@ -118,7 +118,7 @@ impl VersionedContentMap {
         }
         let entries = get_entries(assets).await.unwrap_or_default();
 
-        self.await?.map_path_to_op.update_conditionally(|map| {
+        self.map_path_to_op.update_conditionally(|map| {
             let mut changed = false;
 
             // get current map's keys, subtract keys that don't exist in operation
@@ -230,13 +230,13 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    async fn raw_get(&self, path: Vc<FileSystemPath>) -> Result<Vc<OptionMapEntry>> {
+    fn raw_get(&self, path: Vc<FileSystemPath>) -> Vc<OptionMapEntry> {
         let assets = {
             let map = self.map_path_to_op.get();
             map.get(&path).and_then(|m| m.iter().last().copied())
         };
         let Some(assets) = assets else {
-            return Ok(Vc::cell(None));
+            return Vc::cell(None);
         };
         // Need to reconnect the operation to the map
         Vc::connect(assets);
@@ -246,11 +246,11 @@ impl VersionedContentMap {
             map.get(&assets).copied()
         };
         let Some(compute_entry) = compute_entry else {
-            return Ok(Vc::cell(None));
+            return Vc::cell(None);
         };
         // Need to reconnect the operation to the map
         Vc::connect(compute_entry);
 
-        Ok(compute_entry)
+        compute_entry
     }
 }

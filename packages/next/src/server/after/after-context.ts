@@ -8,6 +8,8 @@ import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { isThenable } from '../../shared/lib/is-thenable'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { withExecuteRevalidates } from './revalidation-utils'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
@@ -29,11 +31,6 @@ export class AfterContext {
 
     this.callbackQueue = new PromiseQueue()
     this.callbackQueue.pause()
-  }
-
-  public run<T>(requestStore: RequestStore, callback: () => T): T {
-    this.requestStore = requestStore
-    return callback()
   }
 
   public after(task: AfterTask): void {
@@ -59,9 +56,10 @@ export class AfterContext {
       errorWaitUntilNotAvailable()
     }
     if (!this.requestStore) {
-      throw new InvariantError(
-        'unstable_after: Expected `AfterContext.requestStore` to be initialized'
-      )
+      // We just stash the first request store we have but this is not sufficient.
+      // TODO: We should store a request store per callback since each callback might
+      // be inside a different store. E.g. inside different batched actions, prerenders or caches.
+      this.requestStore = requestAsyncStorage.getStore()
     }
     if (!this.onClose) {
       throw new InvariantError(
@@ -96,19 +94,31 @@ export class AfterContext {
 
   private async runCallbacksOnClose() {
     await new Promise<void>((resolve) => this.onClose!(resolve))
-    return this.runCallbacks(this.requestStore!)
+    return this.runCallbacks(this.requestStore)
   }
 
-  private async runCallbacks(requestStore: RequestStore): Promise<void> {
+  private async runCallbacks(
+    requestStore: undefined | RequestStore
+  ): Promise<void> {
     if (this.callbackQueue.size === 0) return
 
-    const readonlyRequestStore: RequestStore =
-      wrapRequestStoreForAfterCallbacks(requestStore)
+    const readonlyRequestStore: undefined | RequestStore =
+      requestStore === undefined
+        ? undefined
+        : // TODO: This is not sufficient. It should just be the same store that mutates.
+          wrapRequestStoreForAfterCallbacks(requestStore)
 
-    return requestAsyncStorage.run(readonlyRequestStore, () => {
-      this.callbackQueue.start()
-      return this.callbackQueue.onIdle()
-    })
+    const workStore = workAsyncStorage.getStore()
+
+    return withExecuteRevalidates(workStore, () =>
+      // Clearing it out or running the first request store.
+      // TODO: This needs to be the request store that was active at the time the
+      // callback was scheduled but p-queue makes this hard so need further refactoring.
+      requestAsyncStorage.run(readonlyRequestStore as any, async () => {
+        this.callbackQueue.start()
+        await this.callbackQueue.onIdle()
+      })
+    )
   }
 }
 
@@ -135,9 +145,6 @@ function wrapRequestStoreForAfterCallbacks(
     },
     // TODO(after): calling a `cookies.set()` in an after() that's in an action doesn't currently error.
     mutableCookies: new ResponseCookies(new Headers()),
-    assetPrefix: requestStore.assetPrefix,
-    reactLoadableManifest: requestStore.reactLoadableManifest,
-    afterContext: requestStore.afterContext,
     isHmrRefresh: requestStore.isHmrRefresh,
     serverComponentsHmrCache: requestStore.serverComponentsHmrCache,
   }

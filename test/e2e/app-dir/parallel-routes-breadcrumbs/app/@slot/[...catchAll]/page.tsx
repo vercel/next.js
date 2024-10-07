@@ -1,4 +1,5 @@
-export default function Page({ params: { catchAll = [] } }) {
+export default async function Page({ params }) {
+  const { catchAll = [] } = await params
   return (
     <div id="slot">
       <h1>Parallel Route!</h1>

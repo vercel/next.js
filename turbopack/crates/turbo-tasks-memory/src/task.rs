@@ -268,8 +268,11 @@ struct MaybeCollectibles {
 
 impl MaybeCollectibles {
     /// Consumes the collectibles (if any) and return them.
-    fn take_collectibles(&mut self) -> Option<Collectibles> {
-        self.inner.as_mut().map(|boxed| take(&mut **boxed))
+    fn take_collectibles(&mut self) -> Collectibles {
+        self.inner
+            .as_mut()
+            .map(|boxed| take(&mut **boxed))
+            .unwrap_or_default()
     }
 
     /// Consumes the collectibles (if any) and return them.
@@ -304,6 +307,23 @@ impl MaybeCollectibles {
             .entry((trait_type, value))
             .or_default();
         *value -= count as i32;
+    }
+
+    /// Removes an collectible if the count is positive.
+    fn remove_emit(&mut self, trait_type: TraitTypeId, value: RawVc) -> bool {
+        let Some(inner) = self.inner.as_mut() else {
+            return false;
+        };
+
+        let auto_hash_map::map::Entry::Occupied(mut e) = inner.entry((trait_type, value)) else {
+            return false;
+        };
+        let value = e.get_mut();
+        *value -= 1;
+        if *value == 0 {
+            e.remove();
+        }
+        true
     }
 }
 
@@ -828,32 +848,32 @@ impl Task {
             let outdated_children = outdated_edges.drain_children();
             let outdated_collectibles = outdated_collectibles.take_collectibles();
 
+            let remove_job = if outdated_children.is_empty() {
+                None
+            } else {
+                state.aggregation_node.handle_lost_edges(
+                    &aggregation_context,
+                    &self.id,
+                    outdated_children,
+                )
+            };
+
             let mut change = TaskChange {
                 unfinished: -1,
                 #[cfg(feature = "track_unfinished")]
                 unfinished_tasks_update: vec![(self.id, -1)],
                 ..Default::default()
             };
-            if let Some(collectibles) = outdated_collectibles {
-                for ((trait_type, value), count) in collectibles.into_iter() {
-                    change.collectibles.push((trait_type, value, -count));
-                }
+            for ((trait_type, value), count) in outdated_collectibles.into_iter() {
+                change.collectibles.push((trait_type, value, -count));
             }
             let change_job = state
                 .aggregation_node
                 .apply_change(&aggregation_context, change);
-            let remove_job = if outdated_children.is_empty() {
-                None
-            } else {
-                Some(state.aggregation_node.handle_lost_edges(
-                    &aggregation_context,
-                    &self.id,
-                    outdated_children,
-                ))
-            };
+
             drop(state);
-            change_job.apply(&aggregation_context);
             remove_job.apply(&aggregation_context);
+            change_job.apply(&aggregation_context);
         }
         aggregation_context.apply_queued_updates();
     }
@@ -984,9 +1004,9 @@ impl Task {
                     for child in new_children {
                         outdated_edges.insert(TaskEdge::Child(child));
                     }
-                    if let Some(collectibles) = outdated_collectibles {
+                    if !outdated_collectibles.is_empty() {
                         let mut change = TaskChange::default();
-                        for ((trait_type, value), count) in collectibles.into_iter() {
+                        for ((trait_type, value), count) in outdated_collectibles.into_iter() {
                             change.collectibles.push((trait_type, value, -count));
                         }
                         change_job = state
@@ -1008,7 +1028,6 @@ impl Task {
                     outdated_edges.remove_all(&new_edges);
                     for child in new_children {
                         new_edges.insert(TaskEdge::Child(child));
-                        outdated_edges.remove(TaskEdge::Child(child));
                     }
                     if !backend.has_gc() {
                         // This will stay here for longer, so make sure to not consume too
@@ -1022,30 +1041,6 @@ impl Task {
                         stateful,
                         edges: new_edges.into_list(),
                     };
-                    if !count_as_finished {
-                        let mut change = TaskChange {
-                            unfinished: -1,
-                            #[cfg(feature = "track_unfinished")]
-                            unfinished_tasks_update: vec![(self.id, -1)],
-                            ..Default::default()
-                        };
-                        if let Some(collectibles) = outdated_collectibles {
-                            for ((trait_type, value), count) in collectibles.into_iter() {
-                                change.collectibles.push((trait_type, value, -count));
-                            }
-                        }
-                        change_job = state
-                            .aggregation_node
-                            .apply_change(&aggregation_context, change);
-                    } else if let Some(collectibles) = outdated_collectibles {
-                        let mut change = TaskChange::default();
-                        for ((trait_type, value), count) in collectibles.into_iter() {
-                            change.collectibles.push((trait_type, value, -count));
-                        }
-                        change_job = state
-                            .aggregation_node
-                            .apply_change(&aggregation_context, change);
-                    }
                     let outdated_children = outdated_edges.drain_children();
                     if !outdated_children.is_empty() {
                         remove_job = state.aggregation_node.handle_lost_edges(
@@ -1054,6 +1049,29 @@ impl Task {
                             outdated_children,
                         );
                     }
+                    if !count_as_finished {
+                        let mut change = TaskChange {
+                            unfinished: -1,
+                            #[cfg(feature = "track_unfinished")]
+                            unfinished_tasks_update: vec![(self.id, -1)],
+                            ..Default::default()
+                        };
+                        for ((trait_type, value), count) in outdated_collectibles.into_iter() {
+                            change.collectibles.push((trait_type, value, -count));
+                        }
+                        change_job = state
+                            .aggregation_node
+                            .apply_change(&aggregation_context, change);
+                    } else if !outdated_collectibles.is_empty() {
+                        let mut change = TaskChange::default();
+                        for ((trait_type, value), count) in outdated_collectibles.into_iter() {
+                            change.collectibles.push((trait_type, value, -count));
+                        }
+                        change_job = state
+                            .aggregation_node
+                            .apply_change(&aggregation_context, change);
+                    }
+
                     done_event.notify(usize::MAX);
                     drop(state);
                     self.clear_dependencies(outdated_edges, backend, turbo_tasks);
@@ -1062,8 +1080,8 @@ impl Task {
             for cell in drained_cells {
                 cell.gc_drop(turbo_tasks);
             }
-            change_job.apply(&aggregation_context);
             remove_job.apply(&aggregation_context);
+            change_job.apply(&aggregation_context);
         }
         if let TaskType::Once(_) = self.ty {
             // unset the root type, so tasks below are no longer active
@@ -1680,9 +1698,18 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) {
-        let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let mut state = self.full_state_mut();
         state.collectibles.emit(trait_type, collectible);
+        if let TaskStateType::InProgress(box InProgressState {
+            outdated_collectibles,
+            ..
+        }) = &mut state.state_type
+        {
+            if outdated_collectibles.remove_emit(trait_type, collectible) {
+                return;
+            }
+        }
+        let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let change_job = state.aggregation_node.apply_change(
             &aggregation_context,
             TaskChange {

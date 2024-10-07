@@ -86,8 +86,8 @@ impl SingleModuleReference {
 
     /// The [Vc<Box<dyn Asset>>] that this reference resolves to.
     #[turbo_tasks::function]
-    pub async fn asset(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        Ok(self.await?.asset)
+    pub fn asset(&self) -> Vc<Box<dyn Module>> {
+        self.asset
     }
 }
 
@@ -132,8 +132,8 @@ impl SingleOutputAssetReference {
 
     /// The [Vc<Box<dyn Asset>>] that this reference resolves to.
     #[turbo_tasks::function]
-    pub async fn asset(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
-        Ok(self.await?.asset)
+    pub fn asset(&self) -> Vc<Box<dyn OutputAsset>> {
+        self.asset
     }
 }
 

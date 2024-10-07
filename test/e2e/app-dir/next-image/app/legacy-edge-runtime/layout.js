@@ -1,7 +1,7 @@
 import Image from 'next/legacy/image'
 import testPng from '../../images/test.png'
 
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'
 
 export default function LegacyEdgeLayout({ children }) {
   return (

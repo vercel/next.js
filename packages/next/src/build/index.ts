@@ -86,7 +86,7 @@ import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
-import * as ciEnvironment from '../telemetry/ci-info'
+import * as ciEnvironment from '../server/ci-info'
 import {
   turborepoTraceAccess,
   TurborepoAccessTraceResult,
@@ -130,7 +130,8 @@ import {
   collectMeta,
   // getSupportedBrowsers,
 } from './utils'
-import type { PageInfo, PageInfos, AppConfig, PrerenderedRoute } from './utils'
+import type { PageInfo, PageInfos, PrerenderedRoute } from './utils'
+import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -193,7 +194,7 @@ import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
-import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import uploadTrace from '../trace/upload-trace'
 import {
@@ -461,7 +462,12 @@ async function writeClientSsgManifest(
 
 interface FunctionsConfigManifest {
   version: number
-  functions: Record<string, Record<string, string | number>>
+  functions: Record<
+    string,
+    {
+      maxDuration?: number | undefined
+    }
+  >
 }
 
 async function writeFunctionsConfigManifest(
@@ -500,13 +506,25 @@ async function writeImagesManifest(
   const images = { ...config.images }
   const { deviceSizes, imageSizes } = images
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+
+  // By default, remotePatterns will allow no remote images ([])
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
-    // Should be the same as matchRemotePattern()
+    // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol,
     hostname: makeRe(p.hostname).source,
     port: p.port,
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+    search: p.search,
   }))
+
+  // By default, localPatterns will allow all local images (undefined)
+  if (config?.images?.localPatterns) {
+    images.localPatterns = config.images.localPatterns.map((p) => ({
+      // Modifying the manifest should also modify matchLocalPattern()
+      pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+      search: p.search,
+    }))
+  }
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
     version: 1,
@@ -771,6 +789,15 @@ export default async function build(
         await fs.mkdir(shuttleDir, {
           recursive: true,
         })
+
+        // since inlining comes after static generation we need
+        // to ensure this value is assigned to process env so it
+        // can still be accessed
+        for (const key in config.env) {
+          if (!process.env[key]) {
+            process.env[key] = config.env[key]
+          }
+        }
       }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
@@ -806,7 +833,10 @@ export default async function build(
 
       // Generate a random encryption key for this build.
       // This key is used to encrypt cross boundary values and can be used to generate hashes.
-      const encryptionKey = await generateEncryptionKeyBase64()
+      const encryptionKey = await generateEncryptionKeyBase64({
+        isBuild: true,
+        distDir,
+      })
       NextBuildContext.encryptionKey = encryptionKey
 
       const isSrcDir = path
@@ -1354,9 +1384,12 @@ export default async function build(
               config.experimental?.turbo?.root ||
               config.outputFileTracingRoot ||
               dir,
+            distDir,
             nextConfig: config,
             jsConfig: await getTurbopackJsConfig(dir, config),
-            watch: false,
+            watch: {
+              enable: false,
+            },
             dev,
             env: process.env as Record<string, string>,
             defineEnv: createDefineEnv({
@@ -1459,7 +1492,15 @@ export default async function build(
           'Building'
         )
         const promises: Promise<any>[] = []
-        const sema = new Sema(10)
+
+        // Concurrency will start at INITIAL_CONCURRENCY and
+        // slowly ramp up to CONCURRENCY by increasing the
+        // concurrency by 1 every time a task is completed.
+        const INITIAL_CONCURRENCY = 5
+        const CONCURRENCY = 10
+
+        const sema = new Sema(INITIAL_CONCURRENCY)
+        let remainingRampup = CONCURRENCY - INITIAL_CONCURRENCY
         const enqueue = (fn: () => Promise<void>) => {
           promises.push(
             (async () => {
@@ -1468,6 +1509,10 @@ export default async function build(
                 await fn()
               } finally {
                 sema.release()
+                if (remainingRampup > 0) {
+                  remainingRampup--
+                  sema.release()
+                }
                 progress()
               }
             })()
@@ -1776,9 +1821,12 @@ export default async function build(
             {
               filter(item) {
                 // we copy page chunks separately to not copy stale entries
-                return !item.match(/^[/\\](pages|app)[/\\]/)
+                return (
+                  !item.startsWith('/middleware.js') &&
+                  !item.match(/^[/\\](pages|app)[/\\]/)
+                )
               },
-              overwrite: true,
+              overwrite: false,
             }
           )
         }
@@ -1802,7 +1850,7 @@ export default async function build(
       const staticPaths = new Map<string, PrerenderedRoute[]>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
-      const appDefaultConfigs = new Map<string, AppConfig>()
+      const appDefaultConfigs = new Map<string, AppSegmentConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
       let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
       const buildManifest = await readManifest<BuildManifest>(buildManifestPath)
@@ -1884,12 +1932,14 @@ export default async function build(
               distDir,
               configFileName,
               runtimeEnvConfig,
+              dynamicIO: Boolean(config.experimental.dynamicIO),
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
               isAppPPRFallbacksEnabled: config.experimental.pprFallbacks,
+              buildId,
             })
         )
 
@@ -2048,9 +2098,15 @@ export default async function build(
                     })
                   : undefined
 
-                if (staticInfo?.extraConfig) {
-                  functionsConfigManifest.functions[page] =
-                    staticInfo.extraConfig
+                // If there's any thing that would contribute to the functions
+                // configuration, we need to add it to the manifest.
+                if (
+                  typeof staticInfo?.runtime !== 'undefined' ||
+                  typeof staticInfo?.maxDuration !== 'undefined'
+                ) {
+                  functionsConfigManifest.functions[page] = {
+                    maxDuration: staticInfo?.maxDuration,
+                  }
                 }
 
                 const pageRuntime = middlewareManifest.functions[
@@ -2099,6 +2155,7 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
+                            dynamicIO: Boolean(config.experimental.dynamicIO),
                             cacheHandler: config.cacheHandler,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
@@ -2108,6 +2165,7 @@ export default async function build(
                             pprConfig: config.experimental.ppr,
                             isAppPPRFallbacksEnabled:
                               config.experimental.pprFallbacks,
+                            buildId,
                           })
                         }
                       )
@@ -2667,7 +2725,7 @@ export default async function build(
           await nextBuildSpan
             .traceChild('inline-static-env')
             .traceAsyncFn(async () => {
-              await inlineStaticEnv({ distDir })
+              await inlineStaticEnv({ config, distDir })
             })
         }
       }

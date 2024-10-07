@@ -1,4 +1,3 @@
-use anyhow::Result;
 use indexmap::IndexMap;
 use turbo_tasks::{RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -167,6 +166,12 @@ impl From<String> for DefineableNameSegment {
 #[derive(Debug, Clone)]
 pub struct CompileTimeDefines(pub IndexMap<Vec<DefineableNameSegment>, CompileTimeDefineValue>);
 
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
+pub struct CompileTimeDefinesIndividual(
+    pub IndexMap<Vec<DefineableNameSegment>, Vc<CompileTimeDefineValue>>,
+);
+
 impl IntoIterator for CompileTimeDefines {
     type Item = (Vec<DefineableNameSegment>, CompileTimeDefineValue);
     type IntoIter = indexmap::map::IntoIter<Vec<DefineableNameSegment>, CompileTimeDefineValue>;
@@ -181,6 +186,16 @@ impl CompileTimeDefines {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
         Vc::cell(IndexMap::new())
+    }
+
+    #[turbo_tasks::function]
+    pub fn individual(&self) -> Vc<CompileTimeDefinesIndividual> {
+        Vc::cell(
+            self.0
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone().cell()))
+                .collect(),
+        )
     }
 }
 
@@ -224,11 +239,27 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
 #[derive(Debug, Clone)]
 pub struct FreeVarReferences(pub IndexMap<Vec<DefineableNameSegment>, FreeVarReference>);
 
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
+pub struct FreeVarReferencesIndividual(
+    pub IndexMap<Vec<DefineableNameSegment>, Vc<FreeVarReference>>,
+);
+
 #[turbo_tasks::value_impl]
 impl FreeVarReferences {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
         Vc::cell(IndexMap::new())
+    }
+
+    #[turbo_tasks::function]
+    pub fn individual(&self) -> Vc<FreeVarReferencesIndividual> {
+        Vc::cell(
+            self.0
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone().cell()))
+                .collect(),
+        )
     }
 }
 
@@ -263,8 +294,8 @@ impl CompileTimeInfo {
     }
 
     #[turbo_tasks::function]
-    pub async fn environment(self: Vc<Self>) -> Result<Vc<Environment>> {
-        Ok(self.await?.environment)
+    pub fn environment(&self) -> Vc<Environment> {
+        self.environment
     }
 }
 

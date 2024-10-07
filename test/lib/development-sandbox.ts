@@ -12,7 +12,7 @@ import {
   getRedboxDescriptionWarning,
   toggleCollapseComponentStack,
 } from './next-test-utils'
-import webdriver from './next-webdriver'
+import webdriver, { WebdriverOptions } from './next-webdriver'
 import { NextInstance } from './next-modes/base'
 import { BrowserInterface } from './browsers/base'
 
@@ -35,7 +35,7 @@ export async function sandbox(
   next: NextInstance,
   initialFiles?: Map<string, string | ((contents: string) => string)>,
   initialUrl: string = '/',
-  webDriverOptions: any = undefined
+  webDriverOptions: WebdriverOptions = undefined
 ) {
   await next.stop()
   await next.clean()

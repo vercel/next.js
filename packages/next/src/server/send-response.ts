@@ -27,6 +27,13 @@ export async function sendResponse(
     res.statusCode = response.status
     res.statusMessage = response.statusText
 
+    // can add more headers to this list if needed
+    const headersWithMultipleValuesAllowed = [
+      'set-cookie',
+      'www-authenticate',
+      'proxy-authenticate',
+    ]
+
     // Copy over the response headers.
     response.headers?.forEach((value, name) => {
       // The append handling is special cased for `set-cookie`.
@@ -36,7 +43,15 @@ export async function sendResponse(
           res.appendHeader(name, cookie)
         }
       } else {
-        res.appendHeader(name, value)
+        // only append the header if it is either not present in the outbound response
+        // or if the header supports multiple values
+        const isHeaderPresent = typeof res.getHeader(name) !== 'undefined'
+        if (
+          headersWithMultipleValuesAllowed.includes(name.toLowerCase()) ||
+          !isHeaderPresent
+        ) {
+          res.appendHeader(name, value)
+        }
       }
     })
 

@@ -88,6 +88,7 @@ import {
   getBabelLoader,
   getReactCompilerLoader,
 } from './get-babel-loader-config'
+import type { NextFlightLoaderOptions } from './webpack/loaders/next-flight-loader'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -107,8 +108,8 @@ const NEXT_PROJECT_ROOT_DIST_CLIENT = path.join(
   'client'
 )
 
-if (parseInt(React.version) < 19) {
-  throw new Error('Next.js requires react >= 19.0.0 to be installed.')
+if (parseInt(React.version) < 18) {
+  throw new Error('Next.js requires react >= 18.2.0 to be installed.')
 }
 
 export const babelIncludeRegexes: RegExp[] = [
@@ -130,14 +131,14 @@ const browserNonTranspileModules = [
 const precompileRegex = /[\\/]next[\\/]dist[\\/]compiled[\\/]/
 
 const asyncStoragesRegex =
-  /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
+  /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](work-async-storage|action-async-storage|request-async-storage)/
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
   .split(process.platform === 'win32' ? ';' : ':')
   .filter((p) => !!p)
 
-const watchOptions = Object.freeze({
+const baseWatchOptions: webpack.Configuration['watchOptions'] = Object.freeze({
   aggregateTimeout: 5,
   ignored:
     // Matches **/node_modules/**, **/.git/** and **/.next/**
@@ -489,6 +490,7 @@ export default async function getBaseWebpackConfig(
         transpilePackages: finalTranspilePackages,
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
+        serverReferenceHashSalt: encryptionKey,
         ...extraOptions,
       } satisfies SWCLoaderOptions,
     }
@@ -524,7 +526,7 @@ export default async function getBaseWebpackConfig(
     loader: 'next-flight-loader',
     options: {
       isEdgeServer,
-    },
+    } satisfies NextFlightLoaderOptions,
   }
 
   const appServerLayerLoaders = hasAppDir
@@ -833,6 +835,8 @@ export default async function getBaseWebpackConfig(
 
   const aliasCodeConditionTest = [codeCondition.test, pageExtensionsRegex]
 
+  const builtinModules = require('module').builtinModules
+
   let webpackConfig: webpack.Configuration = {
     parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
@@ -856,6 +860,7 @@ export default async function getBaseWebpackConfig(
               : []),
           ]
         : [
+            ...builtinModules,
             ({
               context,
               request,
@@ -1101,7 +1106,10 @@ export default async function getBaseWebpackConfig(
         ...entrypoints,
       }
     },
-    watchOptions,
+    watchOptions: Object.freeze({
+      ...baseWatchOptions,
+      poll: config.watchOptions?.pollIntervalMs,
+    }),
     output: {
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
@@ -1197,6 +1205,8 @@ export default async function getBaseWebpackConfig(
         'next-metadata-route-loader',
         'modularize-import-loader',
         'next-barrel-loader',
+        'next-server-binary-loader',
+        'next-error-browser-binary-loader',
       ].reduce(
         (alias, loader) => {
           // using multiple aliases to replace `resolveLoader.modules`
@@ -1283,6 +1293,17 @@ export default async function getBaseWebpackConfig(
           issuerLayer: {
             or: WEBPACK_LAYERS.GROUP.neutralTarget,
           },
+        },
+        {
+          test: /[\\/].*?\.node$/,
+          loader: isNodeServer
+            ? 'next-server-binary-loader'
+            : 'next-error-browser-binary-loader',
+          // On server side bundling, only apply to app router, do not apply to pages router;
+          // On client side or edge runtime bundling, always error.
+          ...(isNodeServer && {
+            issuerLayer: isWebpackBundledLayer,
+          }),
         },
         ...(hasAppDir
           ? [
@@ -2098,6 +2119,7 @@ export default async function getBaseWebpackConfig(
     clientTraceMetadata: config.experimental.clientTraceMetadata,
     serverSourceMaps: config.experimental.serverSourceMaps,
     flyingShuttle: config.experimental.flyingShuttle,
+    serverReferenceHashSalt: encryptionKey,
   })
 
   const cache: any = {
@@ -2275,6 +2297,10 @@ export default async function getBaseWebpackConfig(
         '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
     }
+  }
+
+  if (isFullFlyingShuttle && !dev) {
+    webpack5Config.cache = false
   }
 
   const rules = webpackConfig.module?.rules || []

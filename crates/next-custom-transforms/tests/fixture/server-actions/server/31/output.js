@@ -21,5 +21,5 @@ ensureServerEntryExports([
     action,
     action2
 ]);
-registerServerReference("f14702b5a021dd117f7ec7a3c838f397c2046d3b", action);
-registerServerReference("abf760c735ba66c4c26a2913864dd7e28fb88a91", action2);
+registerServerReference(action, "f14702b5a021dd117f7ec7a3c838f397c2046d3b", null);
+registerServerReference(action2, "abf760c735ba66c4c26a2913864dd7e28fb88a91", null);

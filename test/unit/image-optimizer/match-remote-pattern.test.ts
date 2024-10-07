@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import {
   matchRemotePattern as m,
-  hasMatch,
+  hasRemoteMatch as hasMatch,
 } from 'next/dist/shared/lib/match-remote-pattern'
 
 describe('matchRemotePattern', () => {
@@ -43,6 +43,26 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://com'))).toBe(false)
     expect(m(p, new URL('https://example.com/path/to/file'))).toBe(true)
     expect(m(p, new URL('https://example.com/path/to/file?q=1'))).toBe(true)
+    expect(m(p, new URL('http://example.com/path/to/file'))).toBe(false)
+    expect(m(p, new URL('ftp://example.com/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file?q=1'))).toBe(false)
+    expect(m(p, new URL('http://example.com:81/path/to/file'))).toBe(false)
+  })
+
+  it('should match literal protocol, hostname, no port, no search', () => {
+    const p = {
+      protocol: 'https',
+      hostname: 'example.com',
+      port: '',
+      search: '',
+    } as const
+    expect(m(p, new URL('https://example.com'))).toBe(true)
+    expect(m(p, new URL('https://example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com'))).toBe(false)
+    expect(m(p, new URL('https://com'))).toBe(false)
+    expect(m(p, new URL('https://example.com/path/to/file'))).toBe(true)
+    expect(m(p, new URL('https://example.com/path/to/file?q=1'))).toBe(false)
     expect(m(p, new URL('http://example.com/path/to/file'))).toBe(false)
     expect(m(p, new URL('ftp://example.com/path/to/file'))).toBe(false)
     expect(m(p, new URL('https://example.com:81/path/to/file'))).toBe(false)
@@ -105,6 +125,73 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('ftp://example.com/path/to/file'))).toBe(false)
     expect(m(p, new URL('https://example.com:81/path/to/file'))).toBe(false)
     expect(m(p, new URL('https://example.com:81/path/to/file?q=1'))).toBe(false)
+  })
+
+  it('should match literal protocol, hostname, port, pathname, search', () => {
+    const p = {
+      protocol: 'https',
+      hostname: 'example.com',
+      port: '42',
+      pathname: '/path/to/file',
+      search: '?q=1&a=two&s=!@$^&-_+/()[]{};:~',
+    } as const
+    expect(m(p, new URL('https://example.com:42'))).toBe(false)
+    expect(m(p, new URL('https://example.com.uk:42'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com:42'))).toBe(false)
+    expect(m(p, new URL('https://example.com:42/path'))).toBe(false)
+    expect(m(p, new URL('https://example.com:42/path/to'))).toBe(false)
+    expect(m(p, new URL('https://example.com:42/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:42/path/to/file'))).toBe(false)
+    expect(m(p, new URL('http://example.com:42/path/to/file'))).toBe(false)
+    expect(m(p, new URL('ftp://example.com:42/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com'))).toBe(false)
+    expect(m(p, new URL('https://example.com.uk'))).toBe(false)
+    expect(m(p, new URL('https://sub.example.com'))).toBe(false)
+    expect(m(p, new URL('https://example.com/path'))).toBe(false)
+    expect(m(p, new URL('https://example.com/path/to'))).toBe(false)
+    expect(m(p, new URL('https://example.com/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com/path/to/file?q=1'))).toBe(false)
+    expect(m(p, new URL('http://example.com/path/to/file'))).toBe(false)
+    expect(m(p, new URL('ftp://example.com/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file?q=1'))).toBe(false)
+    expect(m(p, new URL('https://example.com:42/path/to/file?q=1'))).toBe(false)
+    expect(m(p, new URL('https://example.com:42/path/to/file?q=1&a=two'))).toBe(
+      false
+    )
+    expect(
+      m(p, new URL('https://example.com:42/path/to/file?q=1&a=two&s'))
+    ).toBe(false)
+    expect(
+      m(p, new URL('https://example.com:42/path/to/file?q=1&a=two&s='))
+    ).toBe(false)
+    expect(
+      m(p, new URL('https://example.com:42/path/to/file?q=1&a=two&s=!@'))
+    ).toBe(false)
+    expect(
+      m(
+        p,
+        new URL(
+          'https://example.com:42/path/to/file?q=1&a=two&s=!@$^&-_+/()[]{};:~'
+        )
+      )
+    ).toBe(true)
+    expect(
+      m(
+        p,
+        new URL(
+          'https://example.com:42/path/to/file?q=1&s=!@$^&-_+/()[]{};:~&a=two'
+        )
+      )
+    ).toBe(false)
+    expect(
+      m(
+        p,
+        new URL(
+          'https://example.com:42/path/to/file?a=two&q=1&s=!@$^&-_+/()[]{};:~'
+        )
+      )
+    ).toBe(false)
   })
 
   it('should match hostname pattern with single asterisk by itself', () => {

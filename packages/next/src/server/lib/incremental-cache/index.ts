@@ -10,6 +10,7 @@ import {
 import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
+import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope'
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
@@ -76,9 +77,9 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly fetchCacheKeyPrefix?: string
   readonly revalidatedTags?: string[]
   readonly isOnDemandRevalidate?: boolean
+  readonly hasDynamicIO?: boolean
 
   private readonly locks = new Map<string, Promise<void>>()
-  private readonly unlocks = new Map<string, () => Promise<void>>()
 
   /**
    * The revalidate timings for routes. This will source the timings from the
@@ -89,6 +90,7 @@ export class IncrementalCache implements IncrementalCacheType {
   constructor({
     fs,
     dev,
+    dynamicIO,
     flushToDisk,
     fetchCache,
     minimalMode,
@@ -103,6 +105,7 @@ export class IncrementalCache implements IncrementalCacheType {
   }: {
     fs?: CacheFs
     dev: boolean
+    dynamicIO: boolean
     fetchCache?: boolean
     minimalMode?: boolean
     serverDistDir?: string
@@ -143,6 +146,7 @@ export class IncrementalCache implements IncrementalCacheType {
       maxMemoryCacheSize = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
     }
     this.dev = dev
+    this.hasDynamicIO = dynamicIO
     this.disableForTestmode = process.env.NEXT_PRIVATE_TEST_PROXY === 'true'
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
     // because we replace this.minimalMode to true in production bundles.
@@ -218,28 +222,22 @@ export class IncrementalCache implements IncrementalCacheType {
     this.cacheHandler?.resetRequestCache?.()
   }
 
-  /**
-   * @TODO this implementation of locking is brokne. Once a lock is created it
-   * will always be reused and all future locks will end up being granted
-   * non-exclusively which is sort of the opposite of what we want with a lock.
-   */
   async lock(cacheKey: string) {
     let unlockNext: () => Promise<void> = () => Promise.resolve()
     const existingLock = this.locks.get(cacheKey)
 
     if (existingLock) {
       await existingLock
-    } else {
-      const newLock = new Promise<void>((resolve) => {
-        unlockNext = async () => {
-          resolve()
-        }
-      })
-
-      this.locks.set(cacheKey, newLock)
-      this.unlocks.set(cacheKey, unlockNext)
     }
 
+    const newLock = new Promise<void>((resolve) => {
+      unlockNext = async () => {
+        resolve()
+        this.locks.delete(cacheKey) // Remove the lock upon release
+      }
+    })
+
+    this.locks.set(cacheKey, newLock)
     return unlockNext
   }
 
@@ -404,6 +402,23 @@ export class IncrementalCache implements IncrementalCacheType {
     let entry: IncrementalCacheEntry | null = null
     let revalidate = ctx.revalidate
 
+    if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
+      const cacheScope = cacheScopeAsyncLocalStorage.getStore()
+
+      if (cacheScope?.cache) {
+        const memoryCacheData = cacheScope.cache.get(cacheKey)
+
+        if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
+          return {
+            isStale: false,
+            value: memoryCacheData,
+            revalidateAfter: false,
+            isFallback: false,
+          }
+        }
+      }
+    }
+
     const cacheData = await this.cacheHandler?.get(cacheKey, ctx)
 
     if (cacheData?.value?.kind === CachedRouteKind.FETCH) {
@@ -502,6 +517,17 @@ export class IncrementalCache implements IncrementalCacheType {
     }
   ) {
     if (this.disableForTestmode || (this.dev && !ctx.fetchCache)) return
+
+    pathname = this._getPathname(pathname, ctx.fetchCache)
+
+    if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
+      const cacheScope = cacheScopeAsyncLocalStorage.getStore()
+
+      if (cacheScope?.cache) {
+        cacheScope.cache.set(pathname, data)
+      }
+    }
+
     // FetchCache has upper limit of 2MB per-entry currently
     const itemSize = JSON.stringify(data).length
     if (
@@ -518,8 +544,6 @@ export class IncrementalCache implements IncrementalCacheType {
       }
       return
     }
-
-    pathname = this._getPathname(pathname, ctx.fetchCache)
 
     try {
       // Set the value for the revalidate seconds so if it changes we can

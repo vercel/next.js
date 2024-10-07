@@ -9,6 +9,18 @@ static REGISTRATION: Registration = register!();
 #[turbo_tasks::value]
 struct Wrapper(u32);
 
+#[turbo_tasks::function]
+fn returns_int(value: u32) -> Vc<u32> {
+    Vc::cell(value)
+}
+
+#[turbo_tasks::function]
+fn assert_resolved(input: ResolvedVc<u32>) {
+    // double-check that this `ResolvedVc` is *actually* resolved
+    let input_vc: Vc<u32> = *input;
+    assert!(input_vc.is_resolved());
+}
+
 #[tokio::test]
 async fn test_conversion() -> Result<()> {
     run(&REGISTRATION, || async {
@@ -31,6 +43,18 @@ async fn test_cell_construction() -> Result<()> {
         assert_eq!(*a.await?, 42);
         let b: ResolvedVc<Wrapper> = Wrapper(42).resolved_cell();
         assert_eq!(b.await?.0, 42);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+async fn test_resolved_vc_as_arg() -> Result<()> {
+    run(&REGISTRATION, || async {
+        let unresolved: Vc<u32> = returns_int(42);
+        assert!(!unresolved.is_resolved());
+        // calling a function should cause it's arguments to get resolved automatically
+        assert_resolved(unresolved).await?;
         Ok(())
     })
     .await

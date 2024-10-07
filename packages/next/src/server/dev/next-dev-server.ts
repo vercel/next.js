@@ -176,9 +176,13 @@ export default class DevServer extends Server {
       this.nextConfig.experimental?.amp?.skipValidation ?? false
     this.renderOpts.ampValidator = (html: string, pathname: string) => {
       const validatorPath =
-        this.nextConfig.experimental &&
-        this.nextConfig.experimental.amp &&
-        this.nextConfig.experimental.amp.validator
+        (this.nextConfig.experimental &&
+          this.nextConfig.experimental.amp &&
+          this.nextConfig.experimental.amp.validator) ||
+        require.resolve(
+          'next/dist/compiled/amphtml-validator/validator_wasm.js'
+        )
+
       const AmpHtmlValidator =
         require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
       return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
@@ -758,6 +762,7 @@ export default class DevServer extends Server {
             configFileName,
             publicRuntimeConfig,
             serverRuntimeConfig,
+            dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
           },
           httpAgentOptions,
           locales,
@@ -771,6 +776,7 @@ export default class DevServer extends Server {
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           isAppPPRFallbacksEnabled: this.nextConfig.experimental.pprFallbacks,
+          buildId: this.renderOpts.buildId,
         })
         return pathsResult
       } finally {

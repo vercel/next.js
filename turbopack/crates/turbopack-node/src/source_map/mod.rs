@@ -267,6 +267,7 @@ pub struct StructuredError {
     pub message: String,
     #[turbo_tasks(trace_ignore)]
     stack: Vec<StackFrame<'static>>,
+    cause: Option<Box<StructuredError>>,
 }
 
 impl StructuredError {
@@ -305,6 +306,20 @@ impl StructuredError {
                 formatting_mode,
             )?;
         }
+
+        if let Some(cause) = &self.cause {
+            message.write_str("\nCaused by: ")?;
+            message.write_str(
+                &Box::pin(cause.print(
+                    assets_for_source_mapping,
+                    root,
+                    project_dir,
+                    formatting_mode,
+                ))
+                .await?,
+            )?;
+        }
+
         Ok(message)
     }
 }

@@ -9,6 +9,11 @@ export default async function Page() {
           To home
         </Link>
       </p>
+      <p>
+        <Link href="/static-page" prefetch>
+          To Same Page
+        </Link>
+      </p>
     </>
   )
 }

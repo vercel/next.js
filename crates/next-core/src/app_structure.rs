@@ -51,7 +51,7 @@ pub struct AppDirModules {
     pub default: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Metadata::is_empty")]
+    #[serde(skip_serializing_if = "Metadata::is_empty", default)]
     pub metadata: Metadata,
 }
 
@@ -137,13 +137,13 @@ impl From<MetadataWithAltItem> for MetadataItem {
 /// Metadata file that can be placed in any segment of the app directory.
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct Metadata {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub icon: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub apple: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub twitter: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub open_graph: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sitemap: Option<MetadataItem>,
@@ -732,9 +732,8 @@ struct DuplicateParallelRouteIssue {
 #[turbo_tasks::value_impl]
 impl Issue for DuplicateParallelRouteIssue {
     #[turbo_tasks::function]
-    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        let this = self.await?;
-        Ok(this.app_dir.join(this.page.to_string().into()))
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.app_dir.join(self.page.to_string().into())
     }
 
     #[turbo_tasks::function]
@@ -1331,9 +1330,9 @@ pub async fn get_global_metadata(
         };
 
         if dynamic {
-            *entry = Some(MetadataItem::Dynamic { path: file });
+            *entry = Some(MetadataItem::Dynamic { path: *file });
         } else {
-            *entry = Some(MetadataItem::Static { path: file });
+            *entry = Some(MetadataItem::Static { path: *file });
         }
         // TODO(WEB-952) handle symlinks in app dir
     }
@@ -1356,8 +1355,8 @@ impl Issue for DirectoryTreeIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text("An issue occurred while preparing your Next.js app".into()).cell())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("An issue occurred while preparing your Next.js app".into()).cell()
     }
 
     #[turbo_tasks::function]

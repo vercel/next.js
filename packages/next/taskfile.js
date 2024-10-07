@@ -2049,6 +2049,14 @@ export async function ncc_zod(task, opts) {
     .target('src/compiled/zod')
 }
 
+externals['zod-validation-error'] = 'next/dist/compiled/zod-validation-error'
+export async function ncc_zod_validation_error(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('zod-validation-error')))
+    .ncc({ packageName: 'zod-validation-error', externals })
+    .target('src/compiled/zod-validation-error')
+}
+
 // eslint-disable-next-line camelcase
 externals['web-vitals'] = 'next/dist/compiled/web-vitals'
 export async function ncc_web_vitals(task, opts) {
@@ -2260,6 +2268,21 @@ export async function precompile(task, opts) {
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
     opts
   )
+
+  const validatorRes = await fetch(
+    'https://cdn.ampproject.org/v0/validator_wasm.js'
+  )
+
+  if (!validatorRes.ok) {
+    throw new Error(
+      `Failed to get the AMP validator, status: ${validatorRes.status}`
+    )
+  }
+
+  await fs.writeFile(
+    join(__dirname, 'dist/compiled/amphtml-validator/validator_wasm.js'),
+    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -2369,6 +2392,7 @@ export async function ncc(task, opts) {
         'ncc_strip_ansi',
         'ncc_superstruct',
         'ncc_zod',
+        'ncc_zod_validation_error',
         'ncc_nft',
         'ncc_tar',
         'ncc_terser',

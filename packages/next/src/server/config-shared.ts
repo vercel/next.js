@@ -770,8 +770,11 @@ export interface NextConfig extends Record<string, any> {
    */
   basePath?: string
 
-  /** @see [Customizing sass options](https://nextjs.org/docs/basic-features/built-in-css-support#customizing-sass-options) */
-  sassOptions?: { [key: string]: any }
+  /** @see [Customizing sass options](https://nextjs.org/docs/app/api-reference/next-config-js/sassOptions) */
+  sassOptions?: {
+    implementation?: string
+    [key: string]: any
+  }
 
   /**
    * Enable browser source map generation during the production build
@@ -941,6 +944,10 @@ export interface NextConfig extends Record<string, any> {
    * were not detected on a per-page basis.
    */
   outputFileTracingIncludes?: Record<string, string[]>
+
+  watchOptions?: {
+    pollIntervalMs?: number
+  }
 }
 
 export const defaultConfig: NextConfig = {
@@ -956,7 +963,7 @@ export const defaultConfig: NextConfig = {
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
-  cacheHandler: undefined,
+  cacheHandler: process.env.NEXT_CACHE_HANDLER_PATH,
   // default to 50MB limit
   cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
@@ -994,7 +1001,7 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
-  swrDelta: undefined,
+  swrDelta: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,

@@ -1108,17 +1108,22 @@
             }
           value = value[path[i]];
         }
-        parentObject[key] = map(response, value);
-        "" === key &&
-          null === handler.value &&
-          (handler.value = parentObject[key]);
-        parentObject[0] === REACT_ELEMENT_TYPE &&
-          "3" === key &&
+        i = map(response, value);
+        parentObject[key] = i;
+        "" === key && null === handler.value && (handler.value = i);
+        if (
+          parentObject[0] === REACT_ELEMENT_TYPE &&
           "object" === typeof handler.value &&
           null !== handler.value &&
-          handler.value.$$typeof === REACT_ELEMENT_TYPE &&
-          null === handler.value.props &&
-          (handler.value.props = parentObject[key]);
+          handler.value.$$typeof === REACT_ELEMENT_TYPE
+        )
+          switch (((value = handler.value), key)) {
+            case "3":
+              value.props = i;
+              break;
+            case "4":
+              value._owner = i;
+          }
         handler.deps--;
         0 === handler.deps &&
           ((i = handler.chunk),
@@ -2294,10 +2299,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-rc-e740d4b1-20240919",
+      version: "19.0.0-rc-2d16326d-20240930",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-rc-e740d4b1-20240919",
+      reconcilerVersion: "19.0.0-rc-2d16326d-20240930",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

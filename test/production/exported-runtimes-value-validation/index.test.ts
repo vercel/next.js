@@ -11,7 +11,7 @@ describe('Exported runtimes value validation', () => {
     expect(result).toMatchObject({
       code: 1,
       stderr: expect.stringContaining(
-        `Provided runtime "something-odd" is not supported.`
+        `Invalid enum value. Expected 'edge' | 'experimental-edge' | 'nodejs', received 'something-odd'`
       ),
     })
   })

@@ -6,9 +6,10 @@ import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/ada
 
 // Share the instance module in the next-shared layer
 import { requestAsyncStorage } from './request-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
-import type { DeepReadonly } from '../../shared/lib/deep-readonly'
-import type { AfterContext } from '../../server/after/after-context'
 import type { ServerComponentsHmrCache } from '../../server/response-cache'
+
+import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
+import { prerenderAsyncStorage } from '../../server/app-render/prerender-async-storage.external'
 
 export interface RequestStore {
   /**
@@ -32,11 +33,6 @@ export interface RequestStore {
   readonly cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
-  readonly reactLoadableManifest: DeepReadonly<
-    Record<string, { files: string[] }>
-  >
-  readonly assetPrefix: string
-  readonly afterContext: AfterContext | undefined
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 }
@@ -46,8 +42,27 @@ export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>
 export { requestAsyncStorage }
 
 export function getExpectedRequestStore(callingExpression: string) {
+  const prerenderStore = prerenderAsyncStorage.getStore()
+  if (prerenderStore) {
+    // This should not happen because we should have checked it already.
+    throw new Error(
+      `\`${callingExpression}\` cannot be called inside a prerender. This is a bug in Next.js.`
+    )
+  }
   const store = requestAsyncStorage.getStore()
   if (store) return store
+  const cacheStore = cacheAsyncStorage.getStore()
+  if (cacheStore) {
+    if (cacheStore.type === 'cache') {
+      throw new Error(
+        `\`${callingExpression}\` cannot be called inside "use cache". Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/messages/next-request-in-use-cache`
+      )
+    } else if (cacheStore.type === 'unstable-cache') {
+      throw new Error(
+        `\`${callingExpression}\` cannot be called inside unstable_cache. Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+      )
+    }
+  }
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )

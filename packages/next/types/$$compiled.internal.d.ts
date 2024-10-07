@@ -1,6 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/package.json'
-declare module 'next/dist/compiled/@napi-rs/triples'
 declare module 'next/dist/compiled/postcss-value-parser'
 declare module 'next/dist/compiled/icss-utils'
 declare module 'next/dist/compiled/postcss-modules-values'
@@ -22,21 +21,108 @@ declare module 'next/dist/compiled/react-server-dom-turbopack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
 declare module 'next/dist/compiled/react-server-dom-turbopack/static.edge'
-declare module 'next/dist/client/app-call-server'
+declare module 'next/dist/client/app-call-server' {
+  export function callServer(
+    actionId: string,
+    actionArgs: unknown[]
+  ): Promise<unknown>
+}
+declare module 'next/dist/client/app-find-source-map-url' {
+  export function findSourceMapURL(filename: string): string | null
+}
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/browserslist'
 
 declare module 'react-server-dom-webpack/client'
-declare module 'react-server-dom-webpack/server.edge'
+declare module 'react-server-dom-webpack/server.edge' {
+  export function renderToReadableStream(
+    model: any,
+    webpackMap: {
+      readonly [id: string]: {
+        readonly id: string | number
+        readonly chunks: readonly string[]
+        readonly name: string
+        readonly async?: boolean
+      }
+    },
+    options?: {
+      temporaryReferences?: string
+      environmentName?: string
+      filterStackFrame?: (url: string, functionName: string) => boolean
+      onError?: (error: unknown) => void
+      onPostpone?: (reason: string) => void
+      signal?: AbortSignal
+    }
+  ): ReadableStream<Uint8Array>
+
+  export function createTemporaryReferenceSet(...args: any[]): any
+
+  type ServerManifest = {}
+
+  export function decodeReply<T>(
+    body: string | FormData,
+    webpackMap: ServerManifest,
+    options?: {
+      temporaryReferences?: unknown
+    }
+  ): Promise<T>
+  export function decodeAction<T>(
+    body: FormData,
+    serverManifest: ServerManifest
+  ): Promise<() => T> | null
+  export function decodeFormState<S>(
+    actionResult: S,
+    body: FormData,
+    serverManifest: ServerManifest
+  ): Promise<unknown | null>
+
+  export function registerServerReference<T>(
+    reference: T,
+    id: string,
+    exportName: string | null
+  ): unknown
+
+  export function createClientModuleProxy(moduleId: string): unknown
+}
 declare module 'react-server-dom-webpack/server.node'
-declare module 'react-server-dom-webpack/static.edge'
+declare module 'react-server-dom-webpack/static.edge' {
+  export function prerender(
+    children: any,
+    webpackMap: {
+      readonly [id: string]: {
+        readonly id: string | number
+        readonly chunks: readonly string[]
+        readonly name: string
+        readonly async?: boolean
+      }
+    },
+    options?: {
+      environmentName?: string | (() => string)
+      filterStackFrame?: (url: string, functionName: string) => boolean
+      identifierPrefix?: string
+      signal?: AbortSignal
+      onError?: (error: unknown) => void
+      onPostpone?: (reason: string) => void
+    }
+  ): Promise<{
+    prelude: ReadableStream<Uint8Array>
+  }>
+}
 declare module 'react-server-dom-webpack/client.edge'
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
+
+declare module 'next/dist/server/ReactDOMServerPages' {
+  export * from 'react-dom/server.edge'
+}
+
+declare module 'next/dist/compiled/@napi-rs/triples' {
+  export * from '@napi-rs/triples'
+}
 
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
@@ -445,8 +531,13 @@ declare module 'next/dist/compiled/@opentelemetry/api' {
 }
 
 declare module 'next/dist/compiled/zod' {
-  import * as m from 'zod'
-  export = m
+  import * as z from 'zod'
+  export = z
+}
+
+declare module 'next/dist/compiled/zod-validation-error' {
+  import * as zve from 'zod-validation-error'
+  export = zve
 }
 
 declare module 'mini-css-extract-plugin'
@@ -483,6 +574,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
     ModuleFilenameHelpers,
   } from 'webpack'
   export type {
+    javascript,
     LoaderDefinitionFunction,
     LoaderContext,
     ModuleGraph,

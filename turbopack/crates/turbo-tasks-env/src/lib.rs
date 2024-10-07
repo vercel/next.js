@@ -30,12 +30,12 @@ impl EnvMap {
 #[turbo_tasks::value_impl]
 impl ProcessEnv for EnvMap {
     #[turbo_tasks::function]
-    async fn read_all(self: Vc<Self>) -> Result<Vc<EnvMap>> {
-        Ok(self)
+    fn read_all(self: Vc<Self>) -> Vc<EnvMap> {
+        self
     }
 
     #[turbo_tasks::function]
-    async fn read(self: Vc<Self>, name: RcStr) -> Vc<Option<RcStr>> {
+    fn read(self: Vc<Self>, name: RcStr) -> Vc<Option<RcStr>> {
         case_insensitive_read(self, name)
     }
 }

@@ -1,4 +1,4 @@
-use std::{future::Future, pin::Pin};
+use std::{collections::HashSet, future::Future, pin::Pin};
 
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, Stream};
@@ -8,6 +8,10 @@ use super::{
     with_future::With,
     SkipDuplicates, Visit, VisitControlFlow,
 };
+
+/// A list of modules that were already visited and should be skipped (including their subgraphs).
+#[derive(Clone, Default, Debug)]
+pub struct VisitedNodes<T>(pub HashSet<T>);
 
 /// [`GraphTraversal`] is a utility type that can be used to traverse a graph of
 /// nodes, where each node can have a variable number of outgoing edges. The
@@ -24,6 +28,10 @@ pub trait GraphTraversal: GraphStore + Sized {
         RootEdgesIt: IntoIterator<Item = VisitImpl::Edge>;
 
     fn skip_duplicates(self) -> SkipDuplicates<Self>;
+    fn skip_duplicates_with_visited_nodes(
+        self,
+        visited: VisitedNodes<Self::Node>,
+    ) -> SkipDuplicates<Self>;
 }
 
 impl<Store> GraphTraversal for Store
@@ -72,6 +80,13 @@ where
 
     fn skip_duplicates(self) -> SkipDuplicates<Self> {
         SkipDuplicates::new(self)
+    }
+
+    fn skip_duplicates_with_visited_nodes(
+        self,
+        visited: VisitedNodes<Store::Node>,
+    ) -> SkipDuplicates<Self> {
+        SkipDuplicates::new_with_visited_nodes(self, visited.0)
     }
 }
 

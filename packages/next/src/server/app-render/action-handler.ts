@@ -13,14 +13,13 @@ import {
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
-  getRedirectStatusCodeFromError,
   getRedirectTypeFromError,
   getURLFromRedirectError,
   isRedirectError,
   type RedirectType,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
   filterReqHeaders,
@@ -43,6 +42,7 @@ import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
 import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -110,18 +110,17 @@ function getForwardedHeaders(
 async function addRevalidationHeader(
   res: BaseNextResponse,
   {
-    staticGenerationStore,
+    workStore,
     requestStore,
   }: {
-    staticGenerationStore: StaticGenerationStore
+    workStore: WorkStore
     requestStore: RequestStore
   }
 ) {
   await Promise.all([
-    staticGenerationStore.incrementalCache?.revalidateTag(
-      staticGenerationStore.revalidatedTags || []
-    ),
-    ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+    workStore.incrementalCache?.revalidateTag(workStore.revalidatedTags || []),
+    ...Object.values(workStore.pendingRevalidates || {}),
+    ...(workStore.pendingRevalidateWrites || []),
   ])
 
   // If a tag was revalidated, the client router needs to invalidate all the
@@ -137,7 +136,7 @@ async function addRevalidationHeader(
   // TODO-APP: Currently paths are treated as tags, so the second element of the tuple
   // is always empty.
 
-  const isTagRevalidated = staticGenerationStore.revalidatedTags?.length ? 1 : 0
+  const isTagRevalidated = workStore.revalidatedTags?.length ? 1 : 0
   const isCookieRevalidated = getModifiedCookieValues(
     requestStore.mutableCookies
   ).length
@@ -159,7 +158,7 @@ async function createForwardedActionResponse(
   host: Host,
   workerPathname: string,
   basePath: string,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ) {
   if (!host) {
     throw new Error(
@@ -174,8 +173,7 @@ async function createForwardedActionResponse(
   // with the response from the forwarded worker
   forwardedHeaders.set('x-action-forwarded', '1')
 
-  const proto =
-    staticGenerationStore.incrementalCache?.requestProtocol || 'https'
+  const proto = workStore.incrementalCache?.requestProtocol || 'https'
 
   // For standalone or the serverful mode, use the internal origin directly
   // other than the host headers from the request.
@@ -280,7 +278,7 @@ async function createRedirectRenderResult(
   redirectUrl: string,
   redirectType: RedirectType,
   basePath: string,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ) {
   res.setHeader('x-action-redirect', `${redirectUrl};${redirectType}`)
 
@@ -305,8 +303,7 @@ async function createRedirectRenderResult(
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
 
-    const proto =
-      staticGenerationStore.incrementalCache?.requestProtocol || 'https'
+    const proto = workStore.incrementalCache?.requestProtocol || 'https'
 
     // For standalone or the serverful mode, use the internal origin directly
     // other than the host headers from the request.
@@ -317,15 +314,15 @@ async function createRedirectRenderResult(
       `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
     )
 
-    if (staticGenerationStore.revalidatedTags) {
+    if (workStore.revalidatedTags) {
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-        staticGenerationStore.revalidatedTags.join(',')
+        workStore.revalidatedTags.join(',')
       )
       forwardedHeaders.set(
         NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
-        staticGenerationStore.incrementalCache?.prerenderManifest?.preview
-          ?.previewModeId || ''
+        workStore.incrementalCache?.prerenderManifest?.preview?.previewModeId ||
+          ''
       )
     }
 
@@ -415,7 +412,7 @@ export async function handleAction({
   ComponentMod,
   serverModuleMap,
   generateFlight,
-  staticGenerationStore,
+  workStore,
   requestStore,
   serverActions,
   ctx,
@@ -425,7 +422,7 @@ export async function handleAction({
   ComponentMod: AppPageModule
   serverModuleMap: ServerModuleMap
   generateFlight: GenerateFlight
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
   requestStore: RequestStore
   serverActions?: ServerActionsConfig
   ctx: AppRenderContext
@@ -456,14 +453,14 @@ export async function handleAction({
     return
   }
 
-  if (staticGenerationStore.isStaticGeneration) {
+  if (workStore.isStaticGeneration) {
     throw new Error(
       "Invariant: server actions can't be handled during static rendering"
     )
   }
 
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
-  staticGenerationStore.fetchCache = 'default-no-store'
+  workStore.fetchCache = 'default-no-store'
 
   const originDomain =
     typeof req.headers['origin'] === 'string'
@@ -529,10 +526,11 @@ export async function handleAction({
       if (isFetchAction) {
         res.statusCode = 500
         await Promise.all([
-          staticGenerationStore.incrementalCache?.revalidateTag(
-            staticGenerationStore.revalidatedTags || []
+          workStore.incrementalCache?.revalidateTag(
+            workStore.revalidatedTags || []
           ),
-          ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+          ...Object.values(workStore.pendingRevalidates || {}),
+          ...(workStore.pendingRevalidateWrites || []),
         ])
 
         const promise = Promise.reject(error)
@@ -551,7 +549,7 @@ export async function handleAction({
           result: await generateFlight(req, ctx, {
             actionResult: promise,
             // if the page was not revalidated, we can skip the rendering the flight tree
-            skipFlight: !staticGenerationStore.pathWasRevalidated,
+            skipFlight: !workStore.pathWasRevalidated,
           }),
         }
       }
@@ -565,7 +563,8 @@ export async function handleAction({
     'Cache-Control',
     'no-cache, no-store, max-age=0, must-revalidate'
   )
-  let bound = []
+
+  let boundActionArguments: unknown[] = []
 
   const { actionAsyncStorage } = ComponentMod
 
@@ -592,7 +591,7 @@ export async function handleAction({
           host,
           forwardedWorker,
           ctx.renderOpts.basePath,
-          staticGenerationStore
+          workStore
         ),
       }
     }
@@ -618,14 +617,18 @@ export async function handleAction({
           // TODO-APP: Add streaming support
           const formData = await req.request.formData()
           if (isFetchAction) {
-            bound = await decodeReply(formData, serverModuleMap)
+            boundActionArguments = await decodeReply(formData, serverModuleMap)
           } else {
             const action = await decodeAction(formData, serverModuleMap)
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
               const actionReturnedState = await action()
-              formState = decodeFormState(actionReturnedState, formData)
+              formState = decodeFormState(
+                actionReturnedState,
+                formData,
+                serverModuleMap
+              )
             }
 
             // Skip the fetch path
@@ -657,9 +660,12 @@ export async function handleAction({
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
-            bound = await decodeReply(formData, serverModuleMap)
+            boundActionArguments = await decodeReply(formData, serverModuleMap)
           } else {
-            bound = await decodeReply(actionData, serverModuleMap)
+            boundActionArguments = await decodeReply(
+              actionData,
+              serverModuleMap
+            )
           }
         }
       } else if (
@@ -715,13 +721,17 @@ export async function handleAction({
         if (isMultipartAction) {
           if (isFetchAction) {
             const busboy = (require('busboy') as typeof import('busboy'))({
+              defParamCharset: 'utf8',
               headers: req.headers,
               limits: { fieldSize: bodySizeLimitBytes },
             })
 
             body.pipe(busboy)
 
-            bound = await decodeReplyFromBusboy(busboy, serverModuleMap)
+            boundActionArguments = await decodeReplyFromBusboy(
+              busboy,
+              serverModuleMap
+            )
           } else {
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
@@ -777,9 +787,12 @@ export async function handleAction({
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
-            bound = await decodeReply(formData, serverModuleMap)
+            boundActionArguments = await decodeReply(formData, serverModuleMap)
           } else {
-            bound = await decodeReply(actionData, serverModuleMap)
+            boundActionArguments = await decodeReply(
+              actionData,
+              serverModuleMap
+            )
           }
         }
       } else {
@@ -817,20 +830,19 @@ export async function handleAction({
         actionId!
       ]
 
-      const returnVal = await actionHandler.apply(null, bound)
+      const returnVal = await actionHandler.apply(null, boundActionArguments)
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
         await addRevalidationHeader(res, {
-          staticGenerationStore,
+          workStore,
           requestStore,
         })
 
         actionResult = await generateFlight(req, ctx, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
-          skipFlight:
-            !staticGenerationStore.pathWasRevalidated || actionWasForwarded,
+          skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
         })
       }
     })
@@ -843,17 +855,16 @@ export async function handleAction({
   } catch (err) {
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
-      const statusCode = getRedirectStatusCodeFromError(err)
       const redirectType = getRedirectTypeFromError(err)
 
       await addRevalidationHeader(res, {
-        staticGenerationStore,
+        workStore,
         requestStore,
       })
 
       // if it's a fetch action, we'll set the status code for logging/debugging purposes
       // but we won't set a Location header, as the redirect will be handled by the client router
-      res.statusCode = statusCode
+      res.statusCode = RedirectStatusCode.SeeOther
 
       if (isFetchAction) {
         return {
@@ -865,19 +876,16 @@ export async function handleAction({
             redirectUrl,
             redirectType,
             ctx.renderOpts.basePath,
-            staticGenerationStore
+            workStore
           ),
         }
       }
 
-      if (err.mutableCookies) {
-        const headers = new Headers()
-
-        // If there were mutable cookies set, we need to set them on the
-        // response.
-        if (appendMutableCookies(headers, err.mutableCookies)) {
-          res.setHeader('set-cookie', Array.from(headers.values()))
-        }
+      // If there were mutable cookies set, we need to set them on the
+      // response.
+      const headers = new Headers()
+      if (appendMutableCookies(headers, requestStore.mutableCookies)) {
+        res.setHeader('set-cookie', Array.from(headers.values()))
       }
 
       res.setHeader('Location', redirectUrl)
@@ -889,7 +897,7 @@ export async function handleAction({
       res.statusCode = 404
 
       await addRevalidationHeader(res, {
-        staticGenerationStore,
+        workStore,
         requestStore,
       })
 
@@ -920,10 +928,11 @@ export async function handleAction({
     if (isFetchAction) {
       res.statusCode = 500
       await Promise.all([
-        staticGenerationStore.incrementalCache?.revalidateTag(
-          staticGenerationStore.revalidatedTags || []
+        workStore.incrementalCache?.revalidateTag(
+          workStore.revalidatedTags || []
         ),
-        ...Object.values(staticGenerationStore.pendingRevalidates || {}),
+        ...Object.values(workStore.pendingRevalidates || {}),
+        ...(workStore.pendingRevalidateWrites || []),
       ])
       const promise = Promise.reject(err)
       try {
@@ -941,8 +950,7 @@ export async function handleAction({
         result: await generateFlight(req, ctx, {
           actionResult: promise,
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
-          skipFlight:
-            !staticGenerationStore.pathWasRevalidated || actionWasForwarded,
+          skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
         }),
       }
     }

@@ -1,4 +1,4 @@
-use std::path::MAIN_SEPARATOR;
+use std::{path::MAIN_SEPARATOR, time::Duration};
 
 use anyhow::{bail, Context, Result};
 use indexmap::{indexmap, map::Entry, IndexMap};
@@ -78,6 +78,19 @@ pub struct DraftModeOptions {
     pub preview_mode_signing_key: RcStr,
 }
 
+#[derive(
+    Debug, Default, Serialize, Deserialize, Copy, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct WatchOptions {
+    /// Whether to watch the filesystem for file changes.
+    pub enable: bool,
+
+    /// Enable polling at a certain interval if the native file watching doesn't work (e.g.
+    /// docker).
+    pub poll_interval: Option<Duration>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
@@ -101,8 +114,8 @@ pub struct ProjectOptions {
     /// time.
     pub define_env: DefineEnv,
 
-    /// Whether to watch the filesystem for file changes.
-    pub watch: bool,
+    /// Filesystem watcher options.
+    pub watch: WatchOptions,
 
     /// The mode in which Next.js is running.
     pub dev: bool,
@@ -143,8 +156,8 @@ pub struct PartialProjectOptions {
     /// time.
     pub define_env: Option<DefineEnv>,
 
-    /// Whether to watch the filesystem for file changes.
-    pub watch: Option<bool>,
+    /// Filesystem watcher options.
+    pub watch: Option<WatchOptions>,
 
     /// The mode in which Next.js is running.
     pub dev: Option<bool>,
@@ -203,18 +216,19 @@ impl ProjectContainer {
 impl ProjectContainer {
     #[tracing::instrument(level = "info", name = "initialize project", skip_all)]
     pub async fn initialize(self: Vc<Self>, options: ProjectOptions) -> Result<()> {
+        let watch = options.watch;
+
         self.await?.options_state.set(Some(options));
+
         let project = self.project();
-        project
-            .project_fs()
-            .strongly_consistent()
-            .await?
-            .start_watching_with_invalidation_reason()?;
-        project
-            .output_fs()
-            .strongly_consistent()
-            .await?
-            .invalidate_with_reason();
+        let project_fs = project.project_fs().strongly_consistent().await?;
+        if watch.enable {
+            project_fs.start_watching_with_invalidation_reason(watch.poll_interval)?;
+        } else {
+            project_fs.invalidate_with_reason();
+        }
+        let output_fs = project.output_fs().strongly_consistent().await?;
+        output_fs.invalidate_with_reason();
         Ok(())
     }
 
@@ -277,6 +291,7 @@ impl ProjectContainer {
         }
 
         // TODO: Handle mode switch, should prevent mode being switched.
+        let watch = new_options.watch;
 
         let project = self.project();
         let prev_project_fs = project.project_fs().strongly_consistent().await?;
@@ -287,8 +302,12 @@ impl ProjectContainer {
         let output_fs = project.output_fs().strongly_consistent().await?;
 
         if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
-            // TODO stop watching: prev_project_fs.stop_watching()?;
-            project_fs.start_watching_with_invalidation_reason()?;
+            if watch.enable {
+                // TODO stop watching: prev_project_fs.stop_watching()?;
+                project_fs.start_watching_with_invalidation_reason(watch.poll_interval)?;
+            } else {
+                project_fs.invalidate_with_reason();
+            }
         }
         if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
             prev_output_fs.invalidate_with_reason();
@@ -301,9 +320,7 @@ impl ProjectContainer {
 #[turbo_tasks::value_impl]
 impl ProjectContainer {
     #[turbo_tasks::function]
-    pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
-        let this = self.await?;
-
+    pub async fn project(&self) -> Result<Vc<Project>> {
         let env_map: Vc<EnvMap>;
         let next_config;
         let define_env;
@@ -317,7 +334,7 @@ impl ProjectContainer {
         let preview_props;
         let browserslist_query;
         {
-            let options = this.options_state.get();
+            let options = self.options_state.get();
             let options = options
                 .as_ref()
                 .context("ProjectContainer need to be initialized with initialize()")?;
@@ -361,7 +378,7 @@ impl ProjectContainer {
             } else {
                 NextMode::Build.cell()
             },
-            versioned_content_map: this.versioned_content_map,
+            versioned_content_map: self.versioned_content_map,
             build_id,
             encryption_key,
             preview_props,
@@ -384,16 +401,16 @@ impl ProjectContainer {
     /// Gets a source map for a particular `file_path`. If `dev` mode is
     /// disabled, this will always return [`OptionSourceMap::none`].
     #[turbo_tasks::function]
-    pub async fn get_source_map(
-        self: Vc<Self>,
+    pub fn get_source_map(
+        &self,
         file_path: Vc<FileSystemPath>,
         section: Option<RcStr>,
-    ) -> Result<Vc<OptionSourceMap>> {
-        Ok(if let Some(map) = self.await?.versioned_content_map {
+    ) -> Vc<OptionSourceMap> {
+        if let Some(map) = self.versioned_content_map {
             map.get_source_map(file_path, section)
         } else {
             OptionSourceMap::none()
-        })
+        }
     }
 }
 
@@ -409,8 +426,8 @@ pub struct Project {
     /// A path inside the root_path which contains the app/pages directories.
     pub project_path: RcStr,
 
-    /// Whether to watch the filesystem for file changes.
-    watch: bool,
+    /// Filesystem watcher options.
+    watch: WatchOptions,
 
     /// Next config.
     next_config: Vc<NextConfig>,
@@ -512,40 +529,33 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
-        Ok(PagesProject::new(self))
+    pub fn pages_project(self: Vc<Self>) -> Vc<PagesProject> {
+        PagesProject::new(self)
     }
 
     #[turbo_tasks::function]
-    async fn project_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
-        let this = self.await?;
-        let disk_fs = DiskFileSystem::new(
+    fn project_fs(&self) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
-            this.root_path.clone(),
+            self.root_path.clone(),
             vec![],
-        );
-        if this.watch {
-            disk_fs.await?.start_watching_with_invalidation_reason()?;
-        }
-        Ok(disk_fs)
+        )
     }
 
     #[turbo_tasks::function]
-    async fn client_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
         let virtual_fs = VirtualFileSystem::new();
-        Ok(Vc::upcast(virtual_fs))
+        Vc::upcast(virtual_fs)
     }
 
     #[turbo_tasks::function]
-    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
-        let this = self.await?;
-        let disk_fs = DiskFileSystem::new("output".into(), this.project_path.clone(), vec![]);
-        Ok(disk_fs)
+    pub fn output_fs(&self) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new("output".into(), self.project_path.clone(), vec![])
     }
 
     #[turbo_tasks::function]
-    pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.await?.dist_dir.clone()))
+    pub fn dist_dir(&self) -> Vc<RcStr> {
+        Vc::cell(self.dist_dir.clone())
     }
 
     #[turbo_tasks::function]
@@ -589,23 +599,23 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn env(self: Vc<Self>) -> Result<Vc<Box<dyn ProcessEnv>>> {
-        Ok(self.await?.env)
+    pub(super) fn env(&self) -> Vc<Box<dyn ProcessEnv>> {
+        self.env
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn next_config(self: Vc<Self>) -> Result<Vc<NextConfig>> {
-        Ok(self.await?.next_config)
+    pub(super) fn next_config(&self) -> Vc<NextConfig> {
+        self.next_config
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn next_mode(self: Vc<Self>) -> Result<Vc<NextMode>> {
-        Ok(self.await?.mode)
+    pub(super) fn next_mode(&self) -> Vc<NextMode> {
+        self.mode
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn js_config(self: Vc<Self>) -> Result<Vc<JsConfig>> {
-        Ok(self.await?.js_config)
+    pub(super) fn js_config(&self) -> Vc<JsConfig> {
+        self.js_config
     }
 
     #[turbo_tasks::function]
@@ -634,11 +644,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn client_compile_time_info(&self) -> Result<Vc<CompileTimeInfo>> {
-        Ok(get_client_compile_time_info(
-            self.browserslist_query.clone(),
-            self.define_env.client(),
-        ))
+    pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
+        get_client_compile_time_info(self.browserslist_query.clone(), self.define_env.client())
     }
 
     #[turbo_tasks::function]
@@ -672,17 +679,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub(super) async fn client_chunking_context(
-        self: Vc<Self>,
-    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(get_client_chunking_context(
+    pub(super) fn client_chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>> {
+        get_client_chunking_context(
             self.project_path(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]
@@ -1328,6 +1333,6 @@ fn all_assets_from_entries_operation(
 }
 
 #[turbo_tasks::function]
-async fn stable_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Result<Vc<Box<dyn Endpoint>>> {
-    Ok(endpoint)
+fn stable_endpoint(endpoint: Vc<Box<dyn Endpoint>>) -> Vc<Box<dyn Endpoint>> {
+    endpoint
 }
