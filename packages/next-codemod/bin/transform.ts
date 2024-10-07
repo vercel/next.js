@@ -63,7 +63,7 @@ export async function runTransform(
         type: 'select',
         name: 'transformer',
         message: 'Which transform would you like to apply?',
-        choices: TRANSFORMER_INQUIRER_CHOICES.map(
+        choices: TRANSFORMER_INQUIRER_CHOICES.reverse().map(
           ({ title, value, version }) => {
             return {
               title: `(v${version}) ${value}`,
