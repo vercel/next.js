@@ -84,7 +84,7 @@ impl DirList {
                 DirectoryEntry::File(path) => {
                     if let Some(relative_path) = root_val.get_relative_path_to(&*path.await?) {
                         if regex.is_match(&relative_path) {
-                            list.insert(relative_path, DirListEntry::File(*path));
+                            list.insert(relative_path, DirListEntry::File(**path));
                         }
                     }
                 }
@@ -93,7 +93,7 @@ impl DirList {
                         list.insert(
                             relative_path,
                             DirListEntry::Dir(DirList::read_internal(
-                                root, *path, recursive, filter,
+                                root, **path, recursive, filter,
                             )),
                         );
                     }

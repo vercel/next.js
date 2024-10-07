@@ -131,7 +131,7 @@ import {
   // getSupportedBrowsers,
 } from './utils'
 import type { PageInfo, PageInfos, PrerenderedRoute } from './utils'
-import type { AppSegmentConfig } from './app-segments/app-segment-config'
+import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -462,7 +462,12 @@ async function writeClientSsgManifest(
 
 interface FunctionsConfigManifest {
   version: number
-  functions: Record<string, Record<string, string | number>>
+  functions: Record<
+    string,
+    {
+      maxDuration?: number | undefined
+    }
+  >
 }
 
 async function writeFunctionsConfigManifest(
@@ -501,6 +506,8 @@ async function writeImagesManifest(
   const images = { ...config.images }
   const { deviceSizes, imageSizes } = images
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+
+  // By default, remotePatterns will allow no remote images ([])
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
     // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol,
@@ -509,11 +516,15 @@ async function writeImagesManifest(
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
     search: p.search,
   }))
-  images.localPatterns = (config?.images?.localPatterns || []).map((p) => ({
-    // Modifying the manifest should also modify matchLocalPattern()
-    pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
-    search: p.search,
-  }))
+
+  // By default, localPatterns will allow all local images (undefined)
+  if (config?.images?.localPatterns) {
+    images.localPatterns = config.images.localPatterns.map((p) => ({
+      // Modifying the manifest should also modify matchLocalPattern()
+      pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+      search: p.search,
+    }))
+  }
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
     version: 1,
@@ -1373,6 +1384,7 @@ export default async function build(
               config.experimental?.turbo?.root ||
               config.outputFileTracingRoot ||
               dir,
+            distDir,
             nextConfig: config,
             jsConfig: await getTurbopackJsConfig(dir, config),
             watch: {
@@ -2074,9 +2086,15 @@ export default async function build(
                     })
                   : undefined
 
-                if (staticInfo?.extraConfig) {
-                  functionsConfigManifest.functions[page] =
-                    staticInfo.extraConfig
+                // If there's any thing that would contribute to the functions
+                // configuration, we need to add it to the manifest.
+                if (
+                  typeof staticInfo?.runtime !== 'undefined' ||
+                  typeof staticInfo?.maxDuration !== 'undefined'
+                ) {
+                  functionsConfigManifest.functions[page] = {
+                    maxDuration: staticInfo?.maxDuration,
+                  }
                 }
 
                 const pageRuntime = middlewareManifest.functions[

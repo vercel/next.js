@@ -182,22 +182,19 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
   if (!hasReactUseImport) {
     const reactImportDeclaration = root.find(j.ImportDeclaration, {
       source: {
-        type: 'Literal',
         value: 'react',
       },
     })
 
     if (reactImportDeclaration.size() > 0) {
+      const importNode = reactImportDeclaration.get().node
+
       // Add 'use' to existing 'react' import declaration
-      reactImportDeclaration
-        .get()
-        .node.specifiers.push(j.importSpecifier(j.identifier('use')))
+      importNode.specifiers.push(j.importSpecifier(j.identifier('use')))
     } else {
       // Final all type imports to 'react'
-
       const reactImport = root.find(j.ImportDeclaration, {
         source: {
-          type: 'Literal',
           value: 'react',
         },
       })

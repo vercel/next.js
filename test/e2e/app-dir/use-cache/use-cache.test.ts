@@ -1,15 +1,20 @@
-// @ts-check
+/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 describe('use-cache', () => {
-  const { next, isNextDev, isNextDeploy } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
-  it('should cache results', async () => {
+  const itSkipTurbopack = isTurbopack ? it.skip : it
+
+  // TODO: Fix the following error with Turbopack:
+  // Error: Module [project]/app/client.tsx [app-client] (ecmascript) was
+  // instantiated because it was required from module...
+  itSkipTurbopack('should cache results', async () => {
     const browser = await next.browser('/?n=1')
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1a = await browser.waitForElementByCss('#y').text()
@@ -27,6 +32,12 @@ describe('use-cache', () => {
 
     // The navigation to n=2 should be some other random value.
     expect(random1a).not.toBe(random2)
+
+    // Client component should have rendered.
+    expect(await browser.waitForElementByCss('#z').text()).toBe('foo')
+
+    // Client component child should have rendered but not invalidated the cache.
+    expect(await browser.waitForElementByCss('#r').text()).toContain('rnd')
   })
 
   it('should dedupe with react cache inside "use cache"', async () => {
@@ -41,30 +52,25 @@ describe('use-cache', () => {
     const browser = await next.browser('/errors')
     expect(await browser.waitForElementByCss('#cookies').text()).toContain(
       isNextDev
-        ? '`cookies` cannot be called inside "use cache".'
+        ? 'Route /errors used "cookies" inside "use cache".'
         : GENERIC_RSC_ERROR
     )
     expect(await browser.waitForElementByCss('#headers').text()).toContain(
       isNextDev
-        ? '`headers` cannot be called inside "use cache".'
+        ? 'Route /errors used "headers" inside "use cache".'
         : GENERIC_RSC_ERROR
     )
     expect(await browser.waitForElementByCss('#draft-mode').text()).toContain(
-      isNextDev
-        ? '`draftMode` cannot be called inside "use cache".'
-        : GENERIC_RSC_ERROR
+      'Editing: false'
     )
 
     // CLI assertions are skipped in deploy mode because `next.cliOutput` will only contain build-time logs.
     if (!isNextDeploy) {
       expect(next.cliOutput).toContain(
-        '`cookies` cannot be called inside "use cache".'
+        'Route /errors used "cookies" inside "use cache". '
       )
       expect(next.cliOutput).toContain(
-        '`headers` cannot be called inside "use cache".'
-      )
-      expect(next.cliOutput).toContain(
-        '`draftMode` cannot be called inside "use cache".'
+        'Route /errors used "headers" inside "use cache". '
       )
     }
   })

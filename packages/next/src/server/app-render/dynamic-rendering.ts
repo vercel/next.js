@@ -20,7 +20,8 @@
  * read that data outside the cache and pass it in as an argument to the cached function.
  */
 
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { CacheStore } from '../../server/app-render/cache-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
@@ -30,10 +31,16 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import {
   isDynamicIOPrerender,
   prerenderAsyncStorage,
-  type PrerenderStore,
+  type PrerenderStoreModern,
 } from './prerender-async-storage.external'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
+import { cacheAsyncStorage } from './cache-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  METADATA_BOUNDARY_NAME,
+  VIEWPORT_BOUNDARY_NAME,
+  OUTLET_BOUNDARY_NAME,
+} from '../../lib/metadata/metadata-constants'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -62,6 +69,20 @@ export type DynamicTrackingState = {
    * The dynamic accesses that occurred during the render.
    */
   readonly dynamicAccesses: Array<DynamicAccess>
+
+  /**
+   * disallowedDynamic tracks information about what dynamic accesses
+   * were not properly scoped. These are prerender failures both at build
+   * and revalidate time.
+   */
+  readonly disallowedDynamic: {
+    hasSuspendedDynamic: boolean
+    hasDynamicMetadata: boolean
+    hasDynamicViewport: boolean
+    syncDynamicExpression: string
+    syncDynamicErrors: Array<Error>
+    dynamicErrors: Array<Error>
+  }
 }
 
 export function createDynamicTrackingState(
@@ -70,6 +91,14 @@ export function createDynamicTrackingState(
   return {
     isDebugDynamicAccesses,
     dynamicAccesses: [],
+    disallowedDynamic: {
+      hasSuspendedDynamic: false,
+      hasDynamicMetadata: false,
+      hasDynamicViewport: false,
+      syncDynamicExpression: '',
+      syncDynamicErrors: [],
+      dynamicErrors: [],
+    },
   }
 }
 
@@ -87,13 +116,18 @@ export function getFirstDynamicReason(
  * it during a normal prerender will cause the entire prerender to abort
  */
 export function markCurrentScopeAsDynamic(
-  store: StaticGenerationStore,
+  store: WorkStore,
+  cacheStore: void | CacheStore,
   expression: string
 ): void {
-  // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
-  // creates a cache boundary. This is subtly different from reading a dynamic data source which is
-  // forbidden inside a cache scope.
-  if (store.isUnstableCacheCallback) return
+  if (cacheStore) {
+    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
+      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+      // forbidden inside a cache scope.
+      return
+    }
+  }
 
   // If we're forcing dynamic rendering or we're forcing static rendering, we
   // don't need to do anything here because the entire page is already dynamic
@@ -107,19 +141,17 @@ export function markCurrentScopeAsDynamic(
   }
 
   const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
-    if (prerenderStore.controller) {
+  if (prerenderStore && prerenderStore.type === 'prerender') {
+    if (isDynamicIOPrerender(prerenderStore)) {
       // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
       // current render because something dynamic is being used.
       // This won't throw so we still need to fall through to determine if/how we handle
       // this specific dynamic request.
-      abortRender(prerenderStore.controller, store.route, expression)
-      errorWithTracking(prerenderStore.dynamicTracking, store.route, expression)
-    } else if (prerenderStore.cacheSignal) {
-      // we're prerendering with dynamicIO but we don't want to eagerly abort this
-      // prospective render. We error here to avoid returning anything from whatever
-      // is trying to access dynamic data.
-      errorWithTracking(prerenderStore.dynamicTracking, store.route, expression)
+      abortAndThrowOnSynchronousDynamicDataAccess(
+        store.route,
+        expression,
+        prerenderStore
+      )
     } else {
       postponeWithTracking(
         store.route,
@@ -152,11 +184,11 @@ export function markCurrentScopeAsDynamic(
  * @param expression The expression that was accessed dynamically
  */
 export function trackFallbackParamAccessed(
-  store: StaticGenerationStore,
+  store: WorkStore,
   expression: string
 ): void {
   const prerenderStore = prerenderAsyncStorage.getStore()
-  if (!prerenderStore) return
+  if (!prerenderStore || prerenderStore.type !== 'prerender') return
 
   postponeWithTracking(store.route, expression, prerenderStore.dynamicTracking)
 }
@@ -171,33 +203,39 @@ export function trackFallbackParamAccessed(
  * Also during a PPR Prerender we postpone
  */
 export function trackDynamicDataAccessed(
-  store: StaticGenerationStore,
+  store: WorkStore,
+  cacheStore: void | CacheStore,
   expression: string
 ): void {
-  if (store.isUnstableCacheCallback) {
-    throw new Error(
-      `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-    )
-  } else if (store.dynamicShouldError) {
+  if (cacheStore) {
+    if (cacheStore.type === 'cache') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+      )
+    } else if (cacheStore.type === 'unstable-cache') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+      )
+    }
+  }
+  if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
       `Route ${store.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
     )
   }
 
   const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
-    if (prerenderStore.controller) {
+  if (prerenderStore && prerenderStore.type === 'prerender') {
+    if (isDynamicIOPrerender(prerenderStore)) {
       // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
       // current render because something dynamic is being used.
       // This won't throw so we still need to fall through to determine if/how we handle
       // this specific dynamic request.
-      abortRender(prerenderStore.controller, store.route, expression)
-      errorWithTracking(prerenderStore.dynamicTracking, store.route, expression)
-    } else if (prerenderStore.cacheSignal) {
-      // we're prerendering with dynamicIO but we don't want to eagerly abort this
-      // prospective render. We error here to avoid returning anything from whatever
-      // is trying to access dynamic data.
-      errorWithTracking(prerenderStore.dynamicTracking, store.route, expression)
+      abortAndThrowOnSynchronousDynamicDataAccess(
+        store.route,
+        expression,
+        prerenderStore
+      )
     } else {
       postponeWithTracking(
         store.route,
@@ -229,14 +267,25 @@ export function trackDynamicDataAccessed(
  */
 export function throwToInterruptStaticGeneration(
   expression: string,
-  store: StaticGenerationStore
+  store: WorkStore,
+  cacheStore: void | CacheStore
 ): never {
-  store.revalidate = 0
-
   // We aren't prerendering but we are generating a static page. We need to bail out of static generation
   const err = new DynamicServerError(
     `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
   )
+
+  if (cacheStore) {
+    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
+      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+      // forbidden inside a cache scope.
+      throw err
+    }
+  }
+
+  store.revalidate = 0
+
   store.dynamicUsageDescription = expression
   store.dynamicUsageStack = err.stack
 
@@ -250,7 +299,18 @@ export function throwToInterruptStaticGeneration(
  *
  * @internal
  */
-export function trackDynamicDataInDynamicRender(store: StaticGenerationStore) {
+export function trackDynamicDataInDynamicRender(
+  store: WorkStore,
+  cacheStore: void | CacheStore
+) {
+  if (cacheStore) {
+    if (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache') {
+      // inside cache scopes marking a scope as dynamic has no effect because the outer cache scope
+      // creates a cache boundary. This is subtly different from reading a dynamic data source which is
+      // forbidden inside a cache scope.
+      return
+    }
+  }
   store.revalidate = 0
 }
 
@@ -260,7 +320,7 @@ export function trackDynamicDataInDynamicRender(store: StaticGenerationStore) {
 function abortOnSynchronousDynamicDataAccess(
   route: string,
   expression: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): void {
   const reason = `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
 
@@ -297,8 +357,14 @@ function abortOnSynchronousDynamicDataAccess(
 export function abortAndThrowOnSynchronousDynamicDataAccess(
   route: string,
   expression: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): never {
+  if (prerenderStore.dynamicTracking) {
+    const disallowedDynamic = prerenderStore.dynamicTracking.disallowedDynamic
+    if (disallowedDynamic.syncDynamicExpression === '') {
+      disallowedDynamic.syncDynamicExpression = expression
+    }
+  }
   abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
   throw createPrerenderInterruptedError(
     `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
@@ -314,31 +380,11 @@ type PostponeProps = {
 }
 export function Postpone({ reason, route }: PostponeProps): never {
   const prerenderStore = prerenderAsyncStorage.getStore()
-  const dynamicTracking = prerenderStore?.dynamicTracking || null
+  const dynamicTracking =
+    prerenderStore && prerenderStore.type === 'prerender'
+      ? prerenderStore.dynamicTracking
+      : null
   postponeWithTracking(route, reason, dynamicTracking)
-}
-
-function errorWithTracking(
-  dynamicTracking: null | DynamicTrackingState,
-  route: string,
-  expression: string
-): never {
-  if (dynamicTracking) {
-    dynamicTracking.dynamicAccesses.push({
-      // When we aren't debugging, we don't need to create another error for the
-      // stack trace.
-      stack: dynamicTracking.isDebugDynamicAccesses
-        ? new Error().stack
-        : undefined,
-      expression,
-    })
-  }
-  const reason =
-    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}. ` +
-    `React throws this special object to indicate where. It should not be caught by ` +
-    `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
-
-  throw createPrerenderInterruptedError(reason)
 }
 
 export function postponeWithTracking(
@@ -415,23 +461,11 @@ export function isPrerenderInterruptedError(
   return (
     typeof error === 'object' &&
     error !== null &&
-    (error as any).digest === NEXT_PRERENDER_INTERRUPTED
+    (error as any).digest === NEXT_PRERENDER_INTERRUPTED &&
+    'name' in error &&
+    'message' in error &&
+    error instanceof Error
   )
-}
-
-function abortRender(
-  controller: AbortController,
-  route: string,
-  expression: string
-): void {
-  // TODO improve the error message to communicate what it means to have a complete
-  // prerender that was interrupted
-  const reason =
-    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}. ` +
-    `React throws this special object to indicate where. It should not be caught by ` +
-    `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
-
-  controller.abort(createPrerenderInterruptedError(reason))
 }
 
 export function isRenderInterruptedReason(reason: string) {
@@ -508,7 +542,7 @@ export function createPostponedAbortSignal(reason: string): AbortSignal {
 
 export function annotateDynamicAccess(
   expression: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ) {
   const dynamicTracking = prerenderStore.dynamicTracking
   if (dynamicTracking) {
@@ -523,18 +557,18 @@ export function annotateDynamicAccess(
 
 export function useDynamicRouteParams(expression: string) {
   if (typeof window === 'undefined') {
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+    const workStore = workAsyncStorage.getStore()
 
     if (
-      staticGenerationStore &&
-      staticGenerationStore.isStaticGeneration &&
-      staticGenerationStore.fallbackRouteParams &&
-      staticGenerationStore.fallbackRouteParams.size > 0
+      workStore &&
+      workStore.isStaticGeneration &&
+      workStore.fallbackRouteParams &&
+      workStore.fallbackRouteParams.size > 0
     ) {
       // There are fallback route params, we should track these as dynamic
       // accesses.
       const prerenderStore = prerenderAsyncStorage.getStore()
-      if (prerenderStore) {
+      if (prerenderStore && prerenderStore.type === 'prerender') {
         // We're prerendering with dynamicIO or PPR or both
         if (isDynamicIOPrerender(prerenderStore)) {
           // We are in a prerender with dynamicIO semantics
@@ -544,15 +578,128 @@ export function useDynamicRouteParams(expression: string) {
         } else {
           // We're prerendering with PPR
           postponeWithTracking(
-            staticGenerationStore.route,
+            workStore.route,
             expression,
             prerenderStore.dynamicTracking
           )
         }
       } else {
         // We're prerendering in legacy mode
-        throwToInterruptStaticGeneration(expression, staticGenerationStore)
+        const cacheStore = cacheAsyncStorage.getStore()
+        throwToInterruptStaticGeneration(expression, workStore, cacheStore)
       }
+    }
+  }
+}
+
+const hasSuspenseRegex = /\n\s+at Suspense \(<anonymous>\)/
+const hasMetadataRegex = new RegExp(
+  `\\n\\s+at ${METADATA_BOUNDARY_NAME}[\\n\\s]`
+)
+const hasViewportRegex = new RegExp(
+  `\\n\\s+at ${VIEWPORT_BOUNDARY_NAME}[\\n\\s]`
+)
+const hasOutletRegex = new RegExp(`\\n\\s+at ${OUTLET_BOUNDARY_NAME}[\\n\\s]`)
+
+export function trackAllowedDynamicAccess(
+  route: string,
+  thrownValue: Error,
+  componentStack: string,
+  dynamicTracking: DynamicTrackingState
+) {
+  const disallowedDynamic = dynamicTracking.disallowedDynamic
+  if (hasSuspenseRegex.test(componentStack)) {
+    disallowedDynamic.hasSuspendedDynamic = true
+    return
+  } else if (hasOutletRegex.test(componentStack)) {
+    // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
+    return
+  } else if (hasMetadataRegex.test(componentStack)) {
+    //
+    disallowedDynamic.hasDynamicMetadata = true
+    return
+  } else if (hasViewportRegex.test(componentStack)) {
+    disallowedDynamic.hasDynamicViewport = true
+    return
+  } else if (isPrerenderInterruptedError(thrownValue)) {
+    const syncDynamicExpression = disallowedDynamic.syncDynamicExpression
+    let message: string
+    if (syncDynamicExpression) {
+      message = `Route ${route} used a synchronous Dynamic API: ${syncDynamicExpression}, which caused this component to not finish rendering before the prerender completed and no fallback UI was defined.`
+    } else {
+      message = `Route ${route} used a synchronous Dynamic API which caused this component to not finish rendering before the prerender completed and no fallback UI was defined.`
+    }
+    const error = createErrorWithComponentStack(message, componentStack)
+    disallowedDynamic.syncDynamicErrors.push(error)
+    return
+  } else if (disallowedDynamic.syncDynamicExpression) {
+    const message = `Route ${route} used a synchronous Dynamic API: ${disallowedDynamic.syncDynamicExpression}. This particular component may have been dynamic anyway or it may have just not finished before the synchronous Dynamic API was invoked.`
+    const error = createErrorWithComponentStack(message, componentStack)
+    disallowedDynamic.syncDynamicErrors.push(error)
+    return
+  } else {
+    // The thrownValue must have been the RENDER_COMPLETE abortReason because the only kinds of errors tracked here are
+    // interrupts or render completes
+    const message = `Route ${route} performed an IO operation that was not cached and no Suspense boundary was found to define a fallback UI.`
+    const error = createErrorWithComponentStack(message, componentStack)
+    disallowedDynamic.dynamicErrors.push(error)
+    return
+  }
+}
+
+function createErrorWithComponentStack(
+  message: string,
+  componentStack: string
+) {
+  const error = new Error(message)
+  error.stack = 'Error: ' + message + componentStack
+  return error
+}
+
+export function throwIfDisallowedDynamic(
+  workStore: WorkStore,
+  dynamicTracking: DynamicTrackingState
+): void {
+  const disallowedDynamic = dynamicTracking.disallowedDynamic
+  const syncDynamicErrors = disallowedDynamic.syncDynamicErrors
+  if (syncDynamicErrors.length) {
+    for (let i = 0; i < syncDynamicErrors.length; i++) {
+      console.error(syncDynamicErrors[i])
+    }
+    throw new StaticGenBailoutError(
+      `Route ${workStore.route} used a synchronous Dynamic API while prerendering which caused some part of the page to be dynamic without a Suspense boundary above it defining a fallback UI. It is best to avoid synchronous Dynamic API access during prerendering.`
+    )
+  }
+
+  const dynamicErrors = disallowedDynamic.dynamicErrors
+  if (dynamicErrors.length) {
+    for (let i = 0; i < dynamicErrors.length; i++) {
+      console.error(dynamicErrors[i])
+    }
+    throw new StaticGenBailoutError(
+      `Route ${workStore.route} has one or more dynamic components without a defined fallback UI. Render dynamic components inside a Suspense boundary to indicate what the appropriate fallback UI should be.`
+    )
+  }
+
+  if (!disallowedDynamic.hasSuspendedDynamic) {
+    if (disallowedDynamic.hasDynamicMetadata) {
+      if (disallowedDynamic.syncDynamicExpression) {
+        throw new StaticGenBailoutError(
+          `Route ${workStore.route} used ${disallowedDynamic.syncDynamicExpression} before Next.js could finish rendering metadata.`
+        )
+      }
+      throw new StaticGenBailoutError(
+        `Route ${workStore.route} has a dynamic \`generateMetadata\` but nothing else is dynamic. Try updating your \`generateMetadata\` to use cached data or ensure your route has at least one dynamic component in the a Page or Layout.`
+      )
+    } else if (disallowedDynamic.hasDynamicViewport) {
+      if (disallowedDynamic.syncDynamicExpression) {
+        throw new StaticGenBailoutError(
+          `Route ${workStore.route} used ${disallowedDynamic.syncDynamicExpression} before Next.js could finish rendering viewport.`
+        )
+      }
+      throw new StaticGenBailoutError(
+        `Route ${workStore.route} has a dynamic \`generateViewport\` but nothing else is dynamic. Try updating your \`generateViewport\` to use cached data or ensure your route has at least one dynamic component in the a Page or Layout.`
+      )
     }
   }
 }

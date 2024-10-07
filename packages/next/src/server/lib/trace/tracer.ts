@@ -450,6 +450,14 @@ class NextTracerImpl implements NextTracer {
     const spanId = context.active().getValue(rootSpanIdKey) as number
     return rootSpanAttributesStore.get(spanId)
   }
+
+  public setRootSpanAttribute(key: AttributeNames, value: AttributeValue) {
+    const spanId = context.active().getValue(rootSpanIdKey) as number
+    const attributes = rootSpanAttributesStore.get(spanId)
+    if (attributes) {
+      attributes.set(key, value)
+    }
+  }
 }
 
 const getTracer = (() => {

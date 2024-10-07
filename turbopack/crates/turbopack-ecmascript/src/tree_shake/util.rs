@@ -519,13 +519,6 @@ impl Visit for ShouldSkip {
             return;
         }
 
-        // This is needed to pass some tests even if we enable tree shaking only for production
-        // builds.
-        if n.is_ident_ref_to("__turbopack_refresh__") {
-            self.skip = true;
-            return;
-        }
-
         n.visit_children_with(self);
     }
 
