@@ -291,7 +291,7 @@ struct Analyzer<'a> {
     comments: Option<&'a dyn Comments>,
 }
 
-impl<'a> Analyzer<'a> {
+impl Analyzer<'_> {
     fn ensure_reference(
         &mut self,
         span: Span,

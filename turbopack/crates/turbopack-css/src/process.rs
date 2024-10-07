@@ -88,7 +88,7 @@ impl PartialEq for StyleSheetLike<'_, '_> {
 
 pub type CssOutput = (ToCssResult, Option<ParseCssResultSourceMap>);
 
-impl<'i, 'o> StyleSheetLike<'i, 'o> {
+impl StyleSheetLike<'_, '_> {
     pub fn to_static(
         &self,
         options: ParserOptions<'static, 'static>,
