@@ -348,7 +348,7 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
 
             export async function GET(_, ctx) {{
                 const params = await ctx.params
-                const {{ __metadata_id__, ...rest }} =  || {{}}
+                const {{ __metadata_id__, ...rest }} = params || {{}}
                 const restParams = params ? rest : undefined
                 const targetId = __metadata_id__
                 let id = undefined
