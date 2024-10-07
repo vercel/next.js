@@ -213,11 +213,15 @@ impl AggregatedDataUpdate {
                         result.dirty_container_update = Some((task_id, -1));
                     }
                 }
+                println!(
+                    "AggregatedDirtyContainerCount: {:?} {} -> {}",
+                    task_id, old, new
+                );
                 (new != 0).then_some(new)
             });
             if let Some((_, count)) = result.dirty_container_update.as_ref() {
-                if let Some(root_state) = get!(task, AggregateRoot) {
-                    if *count < 0 {
+                if *count < 0 {
+                    if let Some(root_state) = get!(task, AggregateRoot) {
                         root_state.all_clean_event.notify(usize::MAX);
                         if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
                             task.remove(&CachedDataItemKey::AggregateRoot {});
@@ -572,7 +576,7 @@ impl AggregationUpdateQueue {
             if is_aggregating_node(get_aggregation_number(&task)) {
                 if !task.has_key(&CachedDataItemKey::AggregateRoot {}) {
                     task.insert(CachedDataItem::AggregateRoot {
-                        value: RootState::new(ActiveType::CachedActiveUntilClean),
+                        value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
                     });
                 }
                 let dirty_containers: Vec<_> =
