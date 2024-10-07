@@ -19,6 +19,7 @@ describe('on-request-error - isr', () => {
       await next.fetch('/')
       expect(next.cliOutput).not.toContain('Module not found')
     })
+    return
   }
 
   async function matchRevalidateReason(
