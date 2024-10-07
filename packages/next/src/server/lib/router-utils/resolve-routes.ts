@@ -218,6 +218,11 @@ export function getResolveRoutes(
           parsedUrl.pathname = maybeAddTrailingSlash(parsedUrl.pathname)
         }
       }
+    } else {
+      // As i18n isn't configured we remove the locale related query params.
+      delete parsedUrl.query.__nextLocale
+      delete parsedUrl.query.__nextDefaultLocale
+      delete parsedUrl.query.__nextInferredLocaleFromDefault
     }
 
     const checkLocaleApi = (pathname: string) => {
@@ -474,6 +479,9 @@ export function getResolveRoutes(
               throw new Error(`Failed to initialize render server "middleware"`)
             }
 
+            addRequestMeta(req, 'invokePath', '')
+            addRequestMeta(req, 'invokeOutput', '')
+            addRequestMeta(req, 'invokeQuery', {})
             addRequestMeta(req, 'middlewareInvoke', true)
             debug('invoking middleware', req.url, req.headers)
 

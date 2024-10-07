@@ -4,8 +4,8 @@ import type { FlightDataPath } from '../../../server/app-render/types'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
-import { createPrefetchCacheEntryForInitialLoad } from './prefetch-cache-utils'
-import type { PrefetchCacheEntry } from './router-reducer-types'
+import { createSeededPrefetchCacheEntry } from './prefetch-cache-utils'
+import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
 import { addRefreshMarkerToActiveParallelSegments } from './refetch-inactive-parallel-segments'
 import { getFlightDataPartsFromPath } from '../../flight-data-helpers'
 
@@ -17,6 +17,7 @@ export interface InitialRouterStateParameters {
   location: Location | null
   couldBeIntercepted: boolean
   postponed: boolean
+  prerendered: boolean
 }
 
 export function createInitialRouterState({
@@ -27,6 +28,7 @@ export function createInitialRouterState({
   location,
   couldBeIntercepted,
   postponed,
+  prerendered,
 }: InitialRouterStateParameters) {
   // When initialized on the server, the canonical URL is provided as an array of parts.
   // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
@@ -112,19 +114,19 @@ export function createInitialRouterState({
       location.origin
     )
 
-    createPrefetchCacheEntryForInitialLoad({
+    createSeededPrefetchCacheEntry({
       url,
       data: {
         flightData: [normalizedFlightData],
         canonicalUrl: undefined,
         couldBeIntercepted: !!couldBeIntercepted,
-        // TODO: the server should probably send a value for this. Default to false for now.
-        isPrerender: false,
+        prerendered,
         postponed,
       },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,
       nextUrl: initialState.nextUrl,
+      kind: prerendered ? PrefetchKind.FULL : PrefetchKind.AUTO,
     })
   }
 

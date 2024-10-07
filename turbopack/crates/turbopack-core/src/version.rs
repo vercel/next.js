@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, RcStr, ReadRef, State, TraitRef, Vc,
 };
@@ -9,6 +8,9 @@ use turbo_tasks_fs::{FileContent, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
 use crate::asset::AssetContent;
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionVersionedContent(Option<Vc<Box<dyn VersionedContent>>>);
 
 /// The content of an [Asset] alongside its version.
 #[turbo_tasks::value_trait]
@@ -165,7 +167,7 @@ impl Version for NotFoundVersion {
 }
 
 /// Describes an update to a versioned object.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(serialization = "none", shared)]
 #[derive(Debug)]
 pub enum Update {
     /// The asset can't be meaningfully updated while the app is running, so the
@@ -176,12 +178,15 @@ pub enum Update {
     /// specific set of instructions.
     Partial(PartialUpdate),
 
+    // The asset is now missing, so it can't be updated. A full reload is required.
+    Missing,
+
     /// No update required.
     None,
 }
 
 /// A total update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat)]
 pub struct TotalUpdate {
     /// The version this update will bring the object to.
     #[turbo_tasks(trace_ignore)]
@@ -189,7 +194,7 @@ pub struct TotalUpdate {
 }
 
 /// A partial update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat)]
 pub struct PartialUpdate {
     /// The version this update will bring the object to.
     #[turbo_tasks(trace_ignore)]
@@ -230,12 +235,12 @@ impl FileHashVersion {
 #[turbo_tasks::value_impl]
 impl Version for FileHashVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.hash.clone()))
+    fn id(&self) -> Vc<RcStr> {
+        Vc::cell(self.hash.clone())
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(serialization = "none")]
 pub struct VersionState {
     #[turbo_tasks(trace_ignore)]
     version: State<TraitRef<Box<dyn Version>>>,
@@ -244,10 +249,9 @@ pub struct VersionState {
 #[turbo_tasks::value_impl]
 impl VersionState {
     #[turbo_tasks::function]
-    pub async fn get(self: Vc<Self>) -> Result<Vc<Box<dyn Version>>> {
-        let this = self.await?;
-        let version = TraitRef::cell(this.version.get().clone());
-        Ok(version)
+    pub fn get(&self) -> Vc<Box<dyn Version>> {
+        let version = TraitRef::cell(self.version.get().clone());
+        version
     }
 }
 

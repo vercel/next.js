@@ -68,7 +68,8 @@ function getExistingCacheEntry(
   url: URL,
   kind: PrefetchKind = PrefetchKind.TEMPORARY,
   nextUrl: string | null,
-  prefetchCache: Map<string, PrefetchCacheEntry>
+  prefetchCache: Map<string, PrefetchCacheEntry>,
+  allowAliasing: boolean
 ): AliasedPrefetchCacheEntry | undefined {
   // We first check if there's a more specific interception route prefetch entry
   // This is because when we detect a prefetch that corresponds with an interception route, we prefix it with nextUrl (see `createPrefetchCacheKey`)
@@ -90,8 +91,21 @@ function getExistingCacheEntry(
       ? cacheKeyWithParams
       : cacheKeyWithoutParams
 
-    if (prefetchCache.has(cacheKeyToUse)) {
-      return prefetchCache.get(cacheKeyToUse)
+    const existingEntry = prefetchCache.get(cacheKeyToUse)
+    if (existingEntry && allowAliasing) {
+      // We know we're returning an aliased entry when the pathname matches but the search params don't,
+      const isAliased =
+        existingEntry.url.pathname === url.pathname &&
+        existingEntry.url.search !== url.search
+
+      if (isAliased) {
+        return {
+          ...existingEntry,
+          aliased: true,
+        }
+      }
+
+      return existingEntry
     }
 
     // If the request contains search params, and we're not doing a full prefetch, we can return the
@@ -101,6 +115,7 @@ function getExistingCacheEntry(
     const entryWithoutParams = prefetchCache.get(cacheKeyWithoutParams)
     if (
       process.env.NODE_ENV !== 'development' &&
+      allowAliasing &&
       url.search &&
       kind !== PrefetchKind.FULL &&
       entryWithoutParams &&
@@ -117,10 +132,14 @@ function getExistingCacheEntry(
   // We attempt a partial match by checking if there's a cache entry with the same pathname.
   // Regardless of what we find, since it doesn't correspond with the requested URL, we'll mark it "aliased".
   // This will signal to the router that it should only apply the loading state on the prefetched data.
-  if (process.env.NODE_ENV !== 'development' && kind !== PrefetchKind.FULL) {
+  if (
+    process.env.NODE_ENV !== 'development' &&
+    kind !== PrefetchKind.FULL &&
+    allowAliasing
+  ) {
     for (const cacheEntry of prefetchCache.values()) {
       if (
-        cacheEntry.pathname === url.pathname &&
+        cacheEntry.url.pathname === url.pathname &&
         // We shouldn't return the aliased entry if it was relocated to a new cache key.
         // Since it's rewritten, it could respond with a completely different loading state.
         !cacheEntry.key.includes(INTERCEPTION_CACHE_KEY_MARKER)
@@ -144,18 +163,21 @@ export function getOrCreatePrefetchCacheEntry({
   buildId,
   prefetchCache,
   kind,
+  allowAliasing = true,
 }: Pick<
   ReadonlyReducerState,
   'nextUrl' | 'prefetchCache' | 'tree' | 'buildId'
 > & {
   url: URL
   kind?: PrefetchKind
+  allowAliasing: boolean
 }): AliasedPrefetchCacheEntry {
   const existingCacheEntry = getExistingCacheEntry(
     url,
     kind,
     nextUrl,
-    prefetchCache
+    prefetchCache,
+    allowAliasing
   )
 
   if (existingCacheEntry) {
@@ -169,16 +191,30 @@ export function getOrCreatePrefetchCacheEntry({
       kind === PrefetchKind.FULL
 
     if (switchedToFullPrefetch) {
-      return createLazyPrefetchEntry({
-        tree,
-        url,
-        buildId,
-        nextUrl,
-        prefetchCache,
-        // If we didn't get an explicit prefetch kind, we want to set a temporary kind
-        // rather than assuming the same intent as the previous entry, to be consistent with how we
-        // lazily create prefetch entries when intent is left unspecified.
-        kind: kind ?? PrefetchKind.TEMPORARY,
+      // If we switched to a full prefetch, validate that the existing cache entry contained partial data.
+      // It's possible that the cache entry was seeded with full data but has a cache type of "auto" (ie when cache entries
+      // are seeded but without a prefetch intent)
+      existingCacheEntry.data.then((prefetchResponse) => {
+        const isFullPrefetch =
+          Array.isArray(prefetchResponse.flightData) &&
+          prefetchResponse.flightData.some((flightData) => {
+            // If we started rendering from the root and we returned RSC data (seedData), we already had a full prefetch.
+            return flightData.isRootRender && flightData.seedData !== null
+          })
+
+        if (!isFullPrefetch) {
+          return createLazyPrefetchEntry({
+            tree,
+            url,
+            buildId,
+            nextUrl,
+            prefetchCache,
+            // If we didn't get an explicit prefetch kind, we want to set a temporary kind
+            // rather than assuming the same intent as the previous entry, to be consistent with how we
+            // lazily create prefetch entries when intent is left unspecified.
+            kind: kind ?? PrefetchKind.TEMPORARY,
+          })
+        }
       })
     }
 
@@ -236,19 +272,20 @@ function prefixExistingPrefetchCacheEntry({
 /**
  * Use to seed the prefetch cache with data that has already been fetched.
  */
-export function createPrefetchCacheEntryForInitialLoad({
+export function createSeededPrefetchCacheEntry({
   nextUrl,
   tree,
   prefetchCache,
   url,
   data,
+  kind,
 }: Pick<ReadonlyReducerState, 'nextUrl' | 'tree' | 'prefetchCache'> & {
   url: URL
   data: FetchServerResponseResult
+  kind: PrefetchKind
 }) {
   // The initial cache entry technically includes full data, but it isn't explicitly prefetched -- we just seed the
   // prefetch cache so that we can skip an extra prefetch request later, since we already have the data.
-  const kind = PrefetchKind.AUTO
   // if the prefetch corresponds with an interception route, we use the nextUrl to prefix the cache key
   const prefetchCacheKey = data.couldBeIntercepted
     ? createPrefetchCacheKey(url, kind, nextUrl)
@@ -262,7 +299,7 @@ export function createPrefetchCacheEntryForInitialLoad({
     lastUsedTime: Date.now(),
     key: prefetchCacheKey,
     status: PrefetchCacheEntryStatus.fresh,
-    pathname: url.pathname,
+    url,
   } satisfies PrefetchCacheEntry
 
   prefetchCache.set(prefetchCacheKey, prefetchEntry)
@@ -316,7 +353,7 @@ function createLazyPrefetchEntry({
       // If the prefetch was a cache hit, we want to update the existing cache entry to reflect that it was a full prefetch.
       // This is because we know that a static response will contain the full RSC payload, and can be updated to respect the `static`
       // staleTime.
-      if (prefetchResponse.isPrerender) {
+      if (prefetchResponse.prerendered) {
         const existingCacheEntry = prefetchCache.get(
           // if we prefixed the cache key due to route interception, we want to use the new key. Otherwise we use the original key
           newCacheKey ?? prefetchCacheKey
@@ -338,7 +375,7 @@ function createLazyPrefetchEntry({
     lastUsedTime: null,
     key: prefetchCacheKey,
     status: PrefetchCacheEntryStatus.fresh,
-    pathname: url.pathname,
+    url,
   }
 
   prefetchCache.set(prefetchCacheKey, prefetchEntry)

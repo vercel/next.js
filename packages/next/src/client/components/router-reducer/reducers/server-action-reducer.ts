@@ -5,10 +5,15 @@ import type {
 import { callServer } from '../../../app-call-server'
 import {
   ACTION_HEADER,
+  NEXT_IS_PRERENDER_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
+
+// Importing from dist so that we can define an alias if needed.
+import { findSourceMapURL } from 'next/dist/client/app-find-source-map-url'
+
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { createFromFetch } from 'react-server-dom-webpack/client'
 // // eslint-disable-next-line import/no-extraneous-dependencies
@@ -21,11 +26,12 @@ const { createFromFetch, encodeReply } = (
       require('react-server-dom-webpack/client')
 ) as typeof import('react-server-dom-webpack/client')
 
-import type {
-  ReadonlyReducerState,
-  ReducerState,
-  ServerActionAction,
-  ServerActionMutable,
+import {
+  PrefetchKind,
+  type ReadonlyReducerState,
+  type ReducerState,
+  type ServerActionAction,
+  type ServerActionMutable,
 } from '../router-reducer-types'
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
@@ -43,11 +49,17 @@ import {
   normalizeFlightData,
   type NormalizedFlightData,
 } from '../../../flight-data-helpers'
+import { getRedirectError, RedirectType } from '../../redirect'
+import { createSeededPrefetchCacheEntry } from '../prefetch-cache-utils'
+import { removeBasePath } from '../../../remove-base-path'
+import { hasBasePath } from '../../../has-base-path'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
+  redirectType: RedirectType | undefined
   actionResult?: ActionResult
   actionFlightData?: NormalizedFlightData[] | string
+  isPrerender: boolean
   revalidatedParts: {
     tag: boolean
     cookie: boolean
@@ -84,7 +96,21 @@ async function fetchServerAction(
     body,
   })
 
-  const location = res.headers.get('x-action-redirect')
+  const redirectHeader = res.headers.get('x-action-redirect')
+  const [location, _redirectType] = redirectHeader?.split(';') || []
+  let redirectType: RedirectType | undefined
+  switch (_redirectType) {
+    case 'push':
+      redirectType = RedirectType.push
+      break
+    case 'replace':
+      redirectType = RedirectType.replace
+      break
+    default:
+      redirectType = undefined
+  }
+
+  const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
   let revalidatedParts: FetchServerActionResult['revalidatedParts']
   try {
     const revalidatedHeader = JSON.parse(
@@ -113,12 +139,10 @@ async function fetchServerAction(
 
   const contentType = res.headers.get('content-type')
 
-  if (contentType === RSC_CONTENT_TYPE_HEADER) {
+  if (contentType?.startsWith(RSC_CONTENT_TYPE_HEADER)) {
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
-      {
-        callServer,
-      }
+      { callServer, findSourceMapURL }
     )
 
     if (location) {
@@ -126,7 +150,9 @@ async function fetchServerAction(
       return {
         actionFlightData: normalizeFlightData(response.f),
         redirectLocation,
+        redirectType,
         revalidatedParts,
+        isPrerender,
       }
     }
 
@@ -134,7 +160,9 @@ async function fetchServerAction(
       actionResult: response.a,
       actionFlightData: normalizeFlightData(response.f),
       redirectLocation,
+      redirectType,
       revalidatedParts,
+      isPrerender,
     }
   }
 
@@ -152,7 +180,9 @@ async function fetchServerAction(
 
   return {
     redirectLocation,
+    redirectType,
     revalidatedParts,
+    isPrerender,
   }
 }
 
@@ -186,12 +216,19 @@ export function serverActionReducer(
       actionResult,
       actionFlightData: flightData,
       redirectLocation,
+      redirectType,
+      isPrerender,
+      revalidatedParts,
     }) => {
-      // Make sure the redirection is a push instead of a replace.
-      // Issue: https://github.com/vercel/next.js/issues/53911
+      // honor the redirect type instead of defaulting to push in case of server actions.
       if (redirectLocation) {
-        state.pushRef.pendingPush = true
-        mutable.pendingPush = true
+        if (redirectType === RedirectType.replace) {
+          state.pushRef.pendingPush = false
+          mutable.pendingPush = false
+        } else {
+          state.pushRef.pendingPush = true
+          mutable.pendingPush = true
+        }
       }
 
       if (!flightData) {
@@ -219,10 +256,10 @@ export function serverActionReducer(
         )
       }
 
-      if (redirectLocation) {
-        const newHref = createHrefFromUrl(redirectLocation, false)
-        mutable.canonicalUrl = newHref
-      }
+      const actionRevalidated =
+        revalidatedParts.paths.length > 0 ||
+        revalidatedParts.tag ||
+        revalidatedParts.cookie
 
       for (const normalizedFlightData of flightData) {
         const {
@@ -262,7 +299,7 @@ export function serverActionReducer(
           )
         }
 
-        // Handles case where prefetch only returns the router tree patch without rendered components.
+        // The server sent back RSC data for the server action, so we need to apply it to the cache.
         if (cacheNodeSeedData !== null) {
           const rsc = cacheNodeSeedData[1]
           const cache: CacheNode = createEmptyCacheNode()
@@ -271,30 +308,73 @@ export function serverActionReducer(
           cache.loading = cacheNodeSeedData[3]
           fillLazyItemsTillLeafWithHead(
             cache,
-            // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
+            // Existing cache is not passed in as server actions have to invalidate the entire cache.
             undefined,
             treePatch,
             cacheNodeSeedData,
             head
           )
 
-          await refreshInactiveParallelSegments({
-            state,
-            updatedTree: newTree,
-            updatedCache: cache,
-            includeNextUrl: Boolean(nextUrl),
-            canonicalUrl: mutable.canonicalUrl || state.canonicalUrl,
-          })
-
           mutable.cache = cache
           mutable.prefetchCache = new Map()
+
+          if (actionRevalidated) {
+            await refreshInactiveParallelSegments({
+              state,
+              updatedTree: newTree,
+              updatedCache: cache,
+              includeNextUrl: Boolean(nextUrl),
+              canonicalUrl: mutable.canonicalUrl || state.canonicalUrl,
+            })
+          }
         }
 
         mutable.patchedTree = newTree
         currentTree = newTree
       }
 
-      resolve(actionResult)
+      if (redirectLocation) {
+        const newHref = createHrefFromUrl(redirectLocation, false)
+        mutable.canonicalUrl = newHref
+
+        // Because the RedirectBoundary will trigger a navigation, we need to seed the prefetch cache
+        // with the FlightData that we got from the server action for the target page, so that it's
+        // available when the page is navigated to and doesn't need to be re-fetched.
+        // We only do this if the server action didn't revalidate any data, as in that case the
+        // client cache will be cleared and the data will be re-fetched anyway.
+        if (!actionRevalidated) {
+          createSeededPrefetchCacheEntry({
+            url: redirectLocation,
+            data: {
+              flightData,
+              canonicalUrl: undefined,
+              couldBeIntercepted: false,
+              prerendered: false,
+              postponed: false,
+            },
+            tree: state.tree,
+            prefetchCache: state.prefetchCache,
+            nextUrl: state.nextUrl,
+            kind: isPrerender ? PrefetchKind.FULL : PrefetchKind.AUTO,
+          })
+          mutable.prefetchCache = state.prefetchCache
+        }
+
+        // If the action triggered a redirect, the action promise promise will be rejected with
+        // a redirect so that it's handled by RedirectBoundary as we won't have a valid
+        // action result to resolve the promise with. This will effectively reset the state of
+        // the component that called the action as the error boundary will remount the tree.
+        // The status code doesn't matter here as the action handler will have already sent
+        // a response with the correct status code.
+        reject(
+          getRedirectError(
+            hasBasePath(newHref) ? removeBasePath(newHref) : newHref,
+            redirectType || RedirectType.push
+          )
+        )
+      } else {
+        resolve(actionResult)
+      }
 
       return handleMutable(state, mutable)
     },

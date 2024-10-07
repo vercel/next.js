@@ -1,13 +1,13 @@
-export default function Layout(props: {
+export default async function Layout(props: {
   children: React.ReactNode
-  params: { locale: string }
+  params: Promise<{ locale: string }>
   modal: React.ReactNode
 }) {
   return (
     <html>
       <body>
         <div id="children">{props.children}</div>
-        <div>Locale: {props.params.locale}</div>
+        <div>Locale: {(await props.params).locale}</div>
         {props.modal}
       </body>
     </html>

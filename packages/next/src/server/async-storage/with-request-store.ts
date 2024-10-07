@@ -1,5 +1,5 @@
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-import type { IncomingHttpHeaders, IncomingMessage, ServerResponse } from 'http'
+import type { IncomingHttpHeaders } from 'http'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { RequestStore } from '../../client/components/request-async-storage.external'
 import type { RenderOpts } from '../app-render/types'
@@ -20,8 +20,6 @@ import {
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
-import { AfterContext } from '../after/after-context'
-import type { RequestLifecycleOpts } from '../base-server'
 import type { ServerComponentsHmrCache } from '../response-cache'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
@@ -41,22 +39,11 @@ function getMutableCookies(
   return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
-export type WrapperRenderOpts = RequestLifecycleOpts &
-  Partial<
-    Pick<
-      RenderOpts,
-      | 'ComponentMod'
-      | 'onUpdateCookies'
-      | 'assetPrefix'
-      | 'reactLoadableManifest'
-    >
-  > & {
-    experimental: Pick<RenderOpts['experimental'], 'after'>
-    previewProps?: __ApiPreviewProps
-  }
+export type WrapperRenderOpts = Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
+  previewProps?: __ApiPreviewProps
+}
 
-export type RequestContext = {
-  req: IncomingMessage | BaseNextRequest | NextRequest
+export type RequestContext = RequestResponsePair & {
   /**
    * The URL of the request. This only specifies the pathname and the search
    * part of the URL. This is only undefined when generating static paths (ie,
@@ -74,11 +61,14 @@ export type RequestContext = {
      */
     search?: string
   }
-  res?: ServerResponse | BaseNextResponse
   renderOpts?: WrapperRenderOpts
   isHmrRefresh?: boolean
   serverComponentsHmrCache?: ServerComponentsHmrCache
 }
+
+type RequestResponsePair =
+  | { req: BaseNextRequest; res: BaseNextResponse } // for an app page
+  | { req: NextRequest; res: undefined } // in an api route or middleware
 
 /**
  * If middleware set cookies in this request (indicated by `x-middleware-set-cookie`),
@@ -194,36 +184,11 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
       return cache.draftMode
     },
 
-    reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
-    assetPrefix: renderOpts?.assetPrefix || '',
-    afterContext: createAfterContext(renderOpts),
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
   }
 
-  if (store.afterContext) {
-    return store.afterContext.run(store, () =>
-      storage.run(store, callback, store)
-    )
-  }
-
   return storage.run(store, callback, store)
-}
-
-function createAfterContext(
-  renderOpts: WrapperRenderOpts | undefined
-): AfterContext | undefined {
-  if (!isAfterEnabled(renderOpts)) {
-    return undefined
-  }
-  const { waitUntil, onClose } = renderOpts
-  return new AfterContext({ waitUntil, onClose })
-}
-
-function isAfterEnabled(
-  renderOpts: WrapperRenderOpts | undefined
-): renderOpts is WrapperRenderOpts {
-  return renderOpts?.experimental?.after ?? false
 }

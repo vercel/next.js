@@ -112,6 +112,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
+  allowAliasing: boolean
 }
 
 /**
@@ -207,7 +208,7 @@ export type PrefetchCacheEntry = {
   lastUsedTime: number | null
   key: string
   status: PrefetchCacheEntryStatus
-  pathname: string
+  url: URL
 }
 
 export enum PrefetchCacheEntryStatus {
@@ -272,15 +273,3 @@ export type ReducerActions = Readonly<
   | HmrRefreshAction
   | ServerActionAction
 >
-
-export function isThenable(value: any): value is Promise<AppRouterState> {
-  // TODO: We don't gain anything from this abstraction. It's unsound, and only
-  // makes sense in the specific places where we use it. So it's better to keep
-  // the type coercion inline, instead of leaking this to other places in
-  // the codebase.
-  return (
-    value &&
-    (typeof value === 'object' || typeof value === 'function') &&
-    typeof value.then === 'function'
-  )
-}

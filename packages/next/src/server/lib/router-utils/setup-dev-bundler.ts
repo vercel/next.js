@@ -9,7 +9,8 @@ import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/midd
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
-import { createDefineEnv, type Project } from '../../../build/swc'
+import { createDefineEnv } from '../../../build/swc'
+import type { Project } from '../../../build/swc/types'
 import fs from 'fs'
 import { mkdir } from 'fs/promises'
 import url from 'url'
@@ -79,7 +80,7 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
 import {
   ModuleBuildError,
   TurbopackInternalError,
@@ -188,10 +189,13 @@ async function startWatcher(opts: SetupOpts) {
     : new HotReloaderWebpack(opts.dir, {
         appDir,
         pagesDir,
-        distDir: distDir,
+        distDir,
         config: opts.nextConfig,
         buildId: 'development',
-        encryptionKey: await generateEncryptionKeyBase64(),
+        encryptionKey: await generateEncryptionKeyBase64({
+          isBuild: false,
+          distDir,
+        }),
         telemetry: opts.telemetry,
         rewrites: opts.fsChecker.rewrites,
         previewProps: opts.fsChecker.prerenderManifest.preview,
@@ -953,7 +957,7 @@ async function startWatcher(opts: SetupOpts) {
                   file: frameFile,
                   methodName: frame.methodName,
                   line: frame.lineNumber ?? 0,
-                  column: frame.column,
+                  column: frame.column ?? undefined,
                   isServer: true,
                 }
               )
@@ -1124,7 +1128,7 @@ async function traceTurbopackErrorStack(
           file: f.file!,
           methodName: f.methodName,
           line: f.lineNumber ?? 0,
-          column: f.column,
+          column: f.column ?? undefined,
           isServer: true,
         })
 

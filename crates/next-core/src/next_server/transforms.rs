@@ -5,7 +5,6 @@ use turbopack::module_options::ModuleRule;
 
 use crate::{
     mode::NextMode,
-    next_client_reference::css_client_reference::css_client_reference_rule::get_next_css_client_reference_transforms_rule,
     next_config::NextConfig,
     next_server::context::ServerContextType,
     next_shared::transforms::{
@@ -33,9 +32,9 @@ pub async fn get_next_server_transforms_rules(
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
-    let modularize_imports_config = &next_config.await?.modularize_imports;
+    let modularize_imports_config = &next_config.modularize_imports().await?;
     let mdx_rs = next_config.mdx_rs().await?.is_some();
-    if let Some(modularize_imports_config) = modularize_imports_config {
+    if !modularize_imports_config.is_empty() {
         rules.push(get_next_modularize_imports_rule(
             modularize_imports_config,
             mdx_rs,
@@ -91,19 +90,12 @@ pub async fn get_next_server_transforms_rules(
 
             false
         }
-        ServerContextType::AppRSC {
-            client_transition, ..
-        } => {
+        ServerContextType::AppRSC { .. } => {
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
                 mdx_rs,
             ));
 
-            if let Some(client_transition) = client_transition {
-                rules.push(get_next_css_client_reference_transforms_rule(
-                    client_transition,
-                ));
-            }
             is_app_dir = true;
 
             true
@@ -131,14 +123,17 @@ pub async fn get_next_server_transforms_rules(
         // optimize_use_state))
 
         rules.push(get_next_image_rule());
+    }
 
-        if let NextRuntime::Edge = next_runtime {
-            rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+    if let NextRuntime::Edge = next_runtime {
+        rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
 
+        if !foreign_code {
             rules.push(next_edge_node_api_assert(
                 mdx_rs,
                 matches!(context_ty, ServerContextType::Middleware { .. })
                     && matches!(*mode.await?, NextMode::Build),
+                matches!(*mode.await?, NextMode::Build),
             ));
         }
     }
@@ -164,16 +159,8 @@ pub async fn get_next_server_internal_transforms_rules(
         ServerContextType::AppSSR { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs));
         }
-        ServerContextType::AppRSC {
-            client_transition, ..
-        } => {
+        ServerContextType::AppRSC { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs));
-            if let Some(client_transition) = client_transition {
-                rules.push(get_next_css_client_reference_transforms_rule(
-                    client_transition,
-                ));
-            }
-            {}
         }
         ServerContextType::AppRoute { .. } => {}
         ServerContextType::Middleware { .. } => {}

@@ -54,7 +54,10 @@ use turbopack_core::{
 };
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
-use turbopack_ecmascript::references::external_module::{CachedExternalModule, CachedExternalType};
+use turbopack_ecmascript::{
+    references::external_module::{CachedExternalModule, CachedExternalType},
+    tree_shake::asset::EcmascriptModulePartAsset,
+};
 use turbopack_json::JsonModuleAsset;
 pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
 use turbopack_resolve::{resolve_options_context::ResolveOptionsContext, typescript::type_resolve};
@@ -63,7 +66,7 @@ use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySo
 
 use self::{
     module_options::CustomModuleType,
-    transition::{Transition, TransitionsByName},
+    transition::{Transition, TransitionOptions},
 };
 
 #[turbo_tasks::value]
@@ -163,46 +166,39 @@ async fn apply_module_type(
             if runtime_code {
                 Vc::upcast(builder.build())
             } else {
+                let module = builder.build();
+                let part_ref = if let Some(part) = part {
+                    Some((part.await?, part))
+                } else {
+                    None
+                };
+                if let Some((part, _)) = part_ref {
+                    if let ModulePart::Evaluation = &*part {
+                        // Skip the evaluation part if the module is marked as side effect free.
+                        let side_effect_free_packages =
+                            module_asset_context.side_effect_free_packages();
+
+                        if *module
+                            .is_marked_as_side_effect_free(side_effect_free_packages)
+                            .await?
+                        {
+                            return Ok(ProcessResult::Ignore.cell());
+                        }
+                    }
+                }
+
                 let options = options.await?;
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
-                        let side_effect_free_packages =
-                            module_asset_context.side_effect_free_packages();
-
-                        let module = builder.clone().build();
-
-                        Vc::upcast(
-                            if let Some(part) = part {
-                                if let ModulePart::Evaluation = *part.await? {
-                                    if *module
-                                        .is_marked_as_side_effect_free(side_effect_free_packages)
-                                        .await?
-                                    {
-                                        return Ok(ProcessResult::Ignore.cell());
-                                    }
-                                }
-
-                                builder.build_part(part)
-                            } else {
-                                builder.build_part(ModulePart::facade())
-                            }
-                            .await?,
-                        )
+                        Vc::upcast(EcmascriptModulePartAsset::select_part(
+                            module,
+                            part.unwrap_or(ModulePart::facade()),
+                        ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
-                        let side_effect_free_packages =
-                            module_asset_context.side_effect_free_packages();
-
-                        let module = builder.build();
                         if let Some(part) = part {
                             match *part.await? {
                                 ModulePart::Evaluation => {
-                                    if *module
-                                        .is_marked_as_side_effect_free(side_effect_free_packages)
-                                        .await?
-                                    {
-                                        return Ok(ProcessResult::Ignore.cell());
-                                    }
                                     if *module.get_exports().needs_facade().await? {
                                         Vc::upcast(EcmascriptModuleFacadeModule::new(
                                             Vc::upcast(module),
@@ -213,6 +209,9 @@ async fn apply_module_type(
                                     }
                                 }
                                 ModulePart::Export(_) => {
+                                    let side_effect_free_packages =
+                                        module_asset_context.side_effect_free_packages();
+
                                     if *module.get_exports().needs_facade().await? {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(EcmascriptModuleFacadeModule::new(
@@ -243,7 +242,7 @@ async fn apply_module_type(
                             Vc::upcast(module)
                         }
                     }
-                    None => Vc::upcast(builder.build()),
+                    None => Vc::upcast(module),
                 }
             }
         }
@@ -321,7 +320,7 @@ async fn apply_reexport_tree_shaking(
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct ModuleAssetContext {
-    pub transitions: Vc<TransitionsByName>,
+    pub transitions: Vc<TransitionOptions>,
     pub compile_time_info: Vc<CompileTimeInfo>,
     pub module_options_context: Vc<ModuleOptionsContext>,
     pub resolve_options_context: Vc<ResolveOptionsContext>,
@@ -333,7 +332,7 @@ pub struct ModuleAssetContext {
 impl ModuleAssetContext {
     #[turbo_tasks::function]
     pub fn new(
-        transitions: Vc<TransitionsByName>,
+        transitions: Vc<TransitionOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
@@ -351,7 +350,7 @@ impl ModuleAssetContext {
 
     #[turbo_tasks::function]
     pub fn new_transition(
-        transitions: Vc<TransitionsByName>,
+        transitions: Vc<TransitionOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
@@ -369,18 +368,18 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        Ok(self.await?.module_options_context)
+    pub fn module_options_context(&self) -> Vc<ModuleOptionsContext> {
+        self.module_options_context
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        Ok(self.await?.resolve_options_context)
+    pub fn resolve_options_context(&self) -> Vc<ResolveOptionsContext> {
+        self.resolve_options_context
     }
 
     #[turbo_tasks::function]
-    pub async fn is_types_resolving_enabled(self: Vc<Self>) -> Result<Vc<bool>> {
-        let resolve_options_context = self.await?.resolve_options_context.await?;
+    pub async fn is_types_resolving_enabled(&self) -> Result<Vc<bool>> {
+        let resolve_options_context = self.resolve_options_context.await?;
         Ok(Vc::cell(
             resolve_options_context.enable_types && resolve_options_context.enable_typescript,
         ))
@@ -408,6 +407,28 @@ impl ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
+    async fn process_with_transition_rules(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        reference_type: Value<ReferenceType>,
+    ) -> Result<Vc<ProcessResult>> {
+        let this = self.await?;
+        Ok(
+            if let Some(transition) = this
+                .transitions
+                .await?
+                .get_by_rules(source, &reference_type)
+                .await?
+            {
+                transition.process(source, self, reference_type)
+            } else {
+                self.process_default(source, reference_type)
+            },
+        )
+    }
+}
+
+impl ModuleAssetContext {
     fn process_default(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
@@ -493,14 +514,28 @@ async fn process_default_internal(
                         current_source = transforms.transform(current_source);
                         if current_source.ident().resolve().await? != ident {
                             // The ident has been changed, so we need to apply new rules.
-                            let mut processed_rules = processed_rules.clone();
-                            processed_rules.push(i);
-                            return Ok(process_default(
-                                module_asset_context,
-                                current_source,
-                                Value::new(reference_type),
-                                processed_rules,
-                            ));
+                            if let Some(transition) = module_asset_context
+                                .await?
+                                .transitions
+                                .await?
+                                .get_by_rules(current_source, &reference_type)
+                                .await?
+                            {
+                                return Ok(transition.process(
+                                    current_source,
+                                    module_asset_context,
+                                    Value::new(reference_type),
+                                ));
+                            } else {
+                                let mut processed_rules = processed_rules.clone();
+                                processed_rules.push(i);
+                                return Ok(process_default(
+                                    module_asset_context,
+                                    current_source,
+                                    Value::new(reference_type),
+                                    processed_rules,
+                                ));
+                            }
                         }
                     }
                     ModuleRuleEffect::ModuleType(module) => {
@@ -672,7 +707,7 @@ impl AssetContext for ModuleAssetContext {
                     let process_result = if let Some(transition) = transition {
                         transition.process(source, self, reference_type)
                     } else {
-                        self.process_default(source, reference_type)
+                        self.process_with_transition_rules(source, reference_type)
                     };
                     Ok(match *process_result.await? {
                         ProcessResult::Module(m) => ModuleResolveResultItem::Module(Vc::upcast(m)),
@@ -704,21 +739,21 @@ impl AssetContext for ModuleAssetContext {
         if let Some(transition) = this.transition {
             Ok(transition.process(asset, self, reference_type))
         } else {
-            Ok(self.process_default(asset, reference_type))
+            Ok(self.process_with_transition_rules(asset, reference_type))
         }
     }
 
     #[turbo_tasks::function]
     async fn with_transition(&self, transition: RcStr) -> Result<Vc<Box<dyn AssetContext>>> {
         Ok(
-            if let Some(transition) = self.transitions.await?.get(&transition) {
+            if let Some(transition) = self.transitions.await?.get_named(transition) {
                 Vc::upcast(ModuleAssetContext::new_transition(
                     self.transitions,
                     self.compile_time_info,
                     self.module_options_context,
                     self.resolve_options_context,
                     self.layer,
-                    *transition,
+                    transition,
                 ))
             } else {
                 // TODO report issue
@@ -734,12 +769,8 @@ impl AssetContext for ModuleAssetContext {
     }
 
     #[turbo_tasks::function]
-    async fn side_effect_free_packages(self: Vc<Self>) -> Result<Vc<Glob>> {
-        let pkgs = &*self
-            .await?
-            .module_options_context
-            .await?
-            .side_effect_free_packages;
+    async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
+        let pkgs = &*self.module_options_context.await?.side_effect_free_packages;
 
         let mut globs = Vec::with_capacity(pkgs.len());
 
@@ -752,7 +783,7 @@ impl AssetContext for ModuleAssetContext {
 }
 
 #[turbo_tasks::function]
-pub async fn emit_with_completion(
+pub fn emit_with_completion(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -760,7 +791,7 @@ pub async fn emit_with_completion(
 }
 
 #[turbo_tasks::function]
-async fn emit_assets_aggregated(
+fn emit_assets_aggregated(
     asset: Vc<Box<dyn OutputAsset>>,
     output_dir: Vc<FileSystemPath>,
 ) -> Vc<Completion> {
@@ -785,7 +816,7 @@ async fn emit_aggregated_assets(
 }
 
 #[turbo_tasks::function]
-pub async fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
+pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Completion> {
     asset.content().write(asset.ident().path())
 }
 

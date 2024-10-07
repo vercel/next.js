@@ -6,18 +6,10 @@ import type { CloneableBody } from '../body-streams'
 import type { OutgoingHttpHeaders } from 'http'
 import type { FetchMetrics } from '../base-http'
 
-export type { MiddlewareConfig } from '../../build/analysis/get-page-static-info'
+export type { MiddlewareConfigInput as MiddlewareConfig } from '../../build/segment-config/middleware/middleware-config'
 
 export interface RequestData {
-  geo?: {
-    city?: string
-    country?: string
-    region?: string
-    latitude?: string
-    longitude?: string
-  }
   headers: OutgoingHttpHeaders
-  ip?: string
   method: string
   nextConfig?: {
     basePath?: string

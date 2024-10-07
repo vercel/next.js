@@ -6,7 +6,7 @@ use std::{
 use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::Lazy;
 use swc_core::{
-    common::{comments::Comments, source_map::SmallPos, Span, Spanned},
+    common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
     ecma::{
         ast::*,
         atoms::{js_word, JsWord},
@@ -17,7 +17,10 @@ use turbo_tasks::{RcStr, Vc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
-use crate::tree_shake::{find_turbopack_part_id_in_asserts, PartId};
+use crate::{
+    tree_shake::{find_turbopack_part_id_in_asserts, PartId},
+    SpecifiedModuleType,
+};
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Default, Debug, Clone, Hash)]
@@ -140,16 +143,56 @@ pub(crate) struct ImportMap {
     /// True if the module is an ESM module due to top-level await.
     has_top_level_await: bool,
 
-    /// Locations of webpackIgnore or turbopackIgnore comments
-    /// This is a webpack feature that allows opting out of static
-    /// imports, which we should respect.
+    /// Locations of [webpack-style "magic comments"][magic] that override import behaviors.
+    ///
+    /// Most commonly, these are `/* webpackIgnore: true */` comments. See [ImportAttributes] for
+    /// full details.
+    ///
+    /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
+    attributes: HashMap<BytePos, ImportAttributes>,
+}
+
+/// Represents a collection of [webpack-style "magic comments"][magic] that override import
+/// behaviors.
+///
+/// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
+#[derive(Debug)]
+pub(crate) struct ImportAttributes {
+    /// Should we ignore this import expression when bundling? If so, the import expression will be
+    /// left as-is in Turbopack's output.
+    ///
+    /// This is set by using either a `webpackIgnore` or `turbopackIgnore` comment.
     ///
     /// Example:
     /// ```js
     /// const a = import(/* webpackIgnore: true */ "a");
     /// const b = import(/* turbopackIgnore: true */ "b");
     /// ```
-    turbopack_ignores: HashMap<Span, bool>,
+    pub ignore: bool,
+}
+
+impl ImportAttributes {
+    pub const fn empty() -> Self {
+        ImportAttributes { ignore: false }
+    }
+
+    pub fn empty_ref() -> &'static Self {
+        // use `Self::empty` here as `Default::default` isn't const
+        static DEFAULT_VALUE: ImportAttributes = ImportAttributes::empty();
+        &DEFAULT_VALUE
+    }
+}
+
+impl Default for ImportAttributes {
+    fn default() -> Self {
+        ImportAttributes::empty()
+    }
+}
+
+impl Default for &ImportAttributes {
+    fn default() -> Self {
+        ImportAttributes::empty_ref()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -158,6 +201,7 @@ pub(crate) enum ImportedSymbol {
     Symbol(JsWord),
     Exports,
     Part(u32),
+    PartEvaluation(u32),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -169,8 +213,14 @@ pub(crate) struct ImportMapReference {
 }
 
 impl ImportMap {
-    pub fn is_esm(&self) -> bool {
-        self.has_exports || self.has_imports || self.has_top_level_await
+    pub fn is_esm(&self, specified_type: SpecifiedModuleType) -> bool {
+        match specified_type {
+            SpecifiedModuleType::Automatic => {
+                self.has_exports || self.has_imports || self.has_top_level_await
+            }
+            SpecifiedModuleType::CommonJs => false,
+            SpecifiedModuleType::EcmaScript => true,
+        }
     }
 
     pub fn get_import(&self, id: &Id) -> Option<JsValue> {
@@ -192,6 +242,10 @@ impl ImportMap {
             }));
         }
         None
+    }
+
+    pub fn get_attributes(&self, span: Span) -> &ImportAttributes {
+        self.attributes.get(&span.lo).unwrap_or_default()
     }
 
     // TODO this could return &str instead of String to avoid cloning
@@ -320,7 +374,6 @@ impl Visit for Analyzer<'_> {
 
             self.data.imports.insert(local, (i, orig_sym));
         }
-
         if import.specifiers.is_empty() {
             if let Some(internal_symbol) = internal_symbol {
                 self.ensure_reference(
@@ -430,6 +483,12 @@ impl Visit for Analyzer<'_> {
         self.data.has_exports = true;
     }
 
+    fn visit_program(&mut self, m: &Program) {
+        self.data.has_top_level_await = has_top_level_await(m).is_some();
+
+        m.visit_children_with(self);
+    }
+
     fn visit_stmt(&mut self, n: &Stmt) {
         if self.comments.is_some() {
             // only visit children if we potentially need to mark import / requires
@@ -445,13 +504,14 @@ impl Visit for Analyzer<'_> {
     ///
     /// We can do this by checking if any of the comment spans are between the
     /// callee and the first argument.
+    //
+    // potentially support more webpack magic comments in the future:
+    // https://webpack.js.org/api/module-methods/#magic-comments
     fn visit_call_expr(&mut self, n: &CallExpr) {
-        // we can actually unwrap thanks to the optimisation above
-        // but it can't hurt to be safe...
+        // we could actually unwrap thanks to the optimisation above but it can't hurt to be safe...
         if let Some(comments) = self.comments {
             let callee_span = match &n.callee {
                 Callee::Import(Import { span, .. }) => Some(span),
-                // this assumes you cannot reassign `require`
                 Callee::Expr(box Expr::Ident(Ident { span, sym, .. })) if sym == "require" => {
                     Some(span)
                 }
@@ -459,40 +519,63 @@ impl Visit for Analyzer<'_> {
             };
 
             // we are interested here in the last comment with a valid directive
-            let ignore_statement = n
-                .args
-                .first()
-                .map(|arg| arg.span_lo())
-                .and_then(|comment_pos| comments.get_leading(comment_pos))
-                .iter()
-                .flatten()
-                .rev()
-                .filter_map(|comment| {
-                    let (directive, value) = comment.text.trim().split_once(':')?;
-                    // support whitespace between the colon
-                    match (directive.trim(), value.trim()) {
-                        ("webpackIgnore" | "turbopackIgnore", "true") => Some(true),
-                        ("webpackIgnore" | "turbopackIgnore", "false") => Some(false),
-                        _ => None, // ignore anything else
-                    }
-                })
-                .next();
+            let ignore_directive = parse_ignore_directive(comments, n.args.first());
 
-            if let Some((callee_span, ignore_statement)) = callee_span.zip(ignore_statement) {
-                self.data
-                    .turbopack_ignores
-                    .insert(*callee_span, ignore_statement);
+            if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
+                self.data.attributes.insert(
+                    callee_span.lo,
+                    ImportAttributes {
+                        ignore: ignore_directive,
+                    },
+                );
             };
         }
 
         n.visit_children_with(self);
     }
 
-    fn visit_program(&mut self, m: &Program) {
-        self.data.has_top_level_await = has_top_level_await(m).is_some();
+    fn visit_new_expr(&mut self, n: &NewExpr) {
+        // we could actually unwrap thanks to the optimisation above but it can't hurt to be safe...
+        if let Some(comments) = self.comments {
+            let callee_span = match &n.callee {
+                box Expr::Ident(Ident { sym, .. }) if sym == "Worker" => Some(n.span),
+                _ => None,
+            };
 
-        m.visit_children_with(self);
+            let ignore_directive = parse_ignore_directive(comments, n.args.iter().flatten().next());
+
+            if let Some((callee_span, ignore_directive)) = callee_span.zip(ignore_directive) {
+                self.data.attributes.insert(
+                    callee_span.lo,
+                    ImportAttributes {
+                        ignore: ignore_directive,
+                    },
+                );
+            };
+        }
+
+        n.visit_children_with(self);
     }
+}
+
+fn parse_ignore_directive(comments: &dyn Comments, value: Option<&ExprOrSpread>) -> Option<bool> {
+    // we are interested here in the last comment with a valid directive
+    value
+        .map(|arg| arg.span_lo())
+        .and_then(|comment_pos| comments.get_leading(comment_pos))
+        .iter()
+        .flatten()
+        .rev()
+        .filter_map(|comment| {
+            let (directive, value) = comment.text.trim().split_once(':')?;
+            // support whitespace between the colon
+            match (directive.trim(), value.trim()) {
+                ("webpackIgnore" | "turbopackIgnore", "true") => Some(true),
+                ("webpackIgnore" | "turbopackIgnore", "false") => Some(false),
+                _ => None, // ignore anything else
+            }
+        })
+        .next()
 }
 
 pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
@@ -504,7 +587,8 @@ pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
 
 fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
     find_turbopack_part_id_in_asserts(with?).map(|v| match v {
-        PartId::Internal(index) => ImportedSymbol::Part(index),
+        PartId::Internal(index, true) => ImportedSymbol::PartEvaluation(index),
+        PartId::Internal(index, false) => ImportedSymbol::Part(index),
         PartId::ModuleEvaluation => ImportedSymbol::ModuleEvaluation,
         PartId::Export(e) => ImportedSymbol::Symbol(e.as_str().into()),
         PartId::Exports => ImportedSymbol::Exports,

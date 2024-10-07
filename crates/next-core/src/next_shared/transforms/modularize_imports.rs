@@ -18,7 +18,7 @@ use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, Transfor
 
 use super::module_rule_match_js_no_url;
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ModularizeImportPackageConfig {
     pub transform: Transform,
@@ -28,7 +28,7 @@ pub struct ModularizeImportPackageConfig {
     pub skip_default_conversion: bool,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum Transform {
     #[default]

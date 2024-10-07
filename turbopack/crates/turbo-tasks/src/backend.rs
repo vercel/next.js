@@ -27,22 +27,25 @@ use crate::{
     TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
-type TransientTaskRoot =
+pub type TransientTaskRoot =
     Box<dyn Fn() -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> + Send + Sync>;
 
 pub enum TransientTaskType {
     /// A root task that will track dependencies and re-execute when
     /// dependencies change. Task will eventually settle to the correct
     /// execution.
+    ///
     /// Always active. Automatically scheduled.
     Root(TransientTaskRoot),
 
     // TODO implement these strongly consistency
     /// A single root task execution. It won't track dependencies.
+    ///
     /// Task will definitely include all invalidations that happened before the
     /// start of the task. It may or may not include invalidations that
     /// happened after that. It may see these invalidations partially
     /// applied.
+    ///
     /// Active until done. Automatically scheduled.
     Once(Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'static>>),
 }
@@ -92,12 +95,92 @@ impl Display for CachedTaskType {
 }
 
 mod ser {
+    use std::any::Any;
+
     use serde::{
+        de::{self},
         ser::{SerializeSeq, SerializeTuple},
         Deserialize, Deserializer, Serialize, Serializer,
     };
 
     use super::*;
+
+    impl Serialize for TypedCellContent {
+        fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let value_type = registry::get_value_type(self.0);
+            let serializable = if let Some(value) = &self.1 .0 {
+                value_type.any_as_serializable(&value.0)
+            } else {
+                None
+            };
+            let mut state = serializer.serialize_tuple(3)?;
+            state.serialize_element(registry::get_value_type_global_name(self.0))?;
+            if let Some(serializable) = serializable {
+                state.serialize_element(&true)?;
+                state.serialize_element(serializable)?;
+            } else {
+                state.serialize_element(&false)?;
+                state.serialize_element(&())?;
+            }
+            state.end()
+        }
+    }
+
+    impl<'de> Deserialize<'de> for TypedCellContent {
+        fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            struct Visitor;
+
+            impl<'de> serde::de::Visitor<'de> for Visitor {
+                type Value = TypedCellContent;
+
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                    write!(formatter, "a valid TypedCellContent")
+                }
+
+                fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
+                where
+                    A: de::SeqAccess<'de>,
+                {
+                    let value_type = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(0, &self))?;
+                    let value_type = registry::get_value_type_id_by_global_name(value_type)
+                        .ok_or_else(|| de::Error::custom("Unknown value type"))?;
+                    let has_value: bool = seq
+                        .next_element()?
+                        .ok_or_else(|| de::Error::invalid_length(1, &self))?;
+                    if has_value {
+                        let seed = registry::get_value_type(value_type)
+                            .get_any_deserialize_seed()
+                            .ok_or_else(|| {
+                                de::Error::custom("Value type doesn't support deserialization")
+                            })?;
+                        let value = seq
+                            .next_element_seed(seed)?
+                            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                        let arc = triomphe::Arc::<dyn Any + Send + Sync>::from(value);
+                        Ok(TypedCellContent(
+                            value_type,
+                            CellContent(Some(SharedReference(arc))),
+                        ))
+                    } else {
+                        let () = seq
+                            .next_element()?
+                            .ok_or_else(|| de::Error::invalid_length(2, &self))?;
+                        Ok(TypedCellContent(value_type, CellContent(None)))
+                    }
+                }
+            }
+
+            deserializer.deserialize_tuple(2, Visitor)
+        }
+    }
 
     enum FunctionAndArg<'a> {
         Owned {
@@ -164,23 +247,27 @@ mod ser {
         {
             match self {
                 CachedTaskType::Native { fn_type, this, arg } => {
-                    let mut s = serializer.serialize_seq(Some(3))?;
+                    let mut s = serializer.serialize_tuple(5)?;
                     s.serialize_element::<u8>(&0)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
-                        arg,
+                        arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
+                    s.serialize_element(&())?;
+                    s.serialize_element(&())?;
                     s.end()
                 }
                 CachedTaskType::ResolveNative { fn_type, this, arg } => {
-                    let mut s = serializer.serialize_seq(Some(3))?;
+                    let mut s = serializer.serialize_tuple(5)?;
                     s.serialize_element::<u8>(&1)?;
                     s.serialize_element(&FunctionAndArg::Borrowed {
                         fn_type: *fn_type,
                         arg: &**arg,
                     })?;
                     s.serialize_element(this)?;
+                    s.serialize_element(&())?;
+                    s.serialize_element(&())?;
                     s.end()
                 }
                 CachedTaskType::ResolveTrait {
@@ -236,6 +323,12 @@ mod ser {
                             let this = seq
                                 .next_element()?
                                 .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::Native { fn_type, this, arg })
                         }
                         1 => {
@@ -248,18 +341,24 @@ mod ser {
                             let this = seq
                                 .next_element()?
                                 .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                            let () = seq
+                                .next_element()?
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::ResolveNative { fn_type, this, arg })
                         }
                         2 => {
                             let trait_type = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
                             let method_name = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
                             let this = seq
                                 .next_element()?
-                                .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
                             let Some(method) =
                                 registry::get_trait(trait_type).methods.get(&method_name)
                             else {
@@ -267,7 +366,7 @@ mod ser {
                             };
                             let arg = seq
                                 .next_element_seed(method.arg_deserializer)?
-                                .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
+                                .ok_or_else(|| serde::de::Error::invalid_length(4, &self))?;
                             Ok(CachedTaskType::ResolveTrait {
                                 trait_type,
                                 method_name,
@@ -279,7 +378,7 @@ mod ser {
                     }
                 }
             }
-            deserializer.deserialize_seq(Visitor)
+            deserializer.deserialize_tuple(5, Visitor)
         }
     }
 }
@@ -296,18 +395,18 @@ impl CachedTaskType {
                 fn_type: native_fn,
                 this: _,
                 arg: _,
-            }
-            | Self::ResolveNative {
+            } => Cow::Borrowed(&registry::get_function(*native_fn).name),
+            Self::ResolveNative {
                 fn_type: native_fn,
                 this: _,
                 arg: _,
-            } => Cow::Borrowed(&registry::get_function(*native_fn).name),
+            } => format!("*{}", registry::get_function(*native_fn).name).into(),
             Self::ResolveTrait {
                 trait_type: trait_id,
                 method_name: fn_name,
                 this: _,
                 arg: _,
-            } => format!("{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
+            } => format!("*{}::{}", registry::get_trait(*trait_id).name, fn_name).into(),
         }
     }
 
@@ -439,17 +538,37 @@ pub trait Backend: Sync + Send {
     fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>);
     fn invalidate_tasks_set(&self, tasks: &TaskIdSet, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
+    fn invalidate_serialization(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+    }
+
     fn get_task_description(&self, task: TaskId) -> String;
 
-    type ExecutionScopeFuture<T: Future<Output = Result<()>> + Send + 'static>: Future<Output = Result<()>>
-        + Send
-        + 'static;
+    /// Task-local state that stored inside of [`TurboTasksBackendApi`]. Constructed with
+    /// [`Self::new_task_state`].
+    ///
+    /// This value that can later be written to or read from using
+    /// [`crate::TurboTasksBackendApiExt::write_task_state`] or
+    /// [`crate::TurboTasksBackendApiExt::read_task_state`]
+    ///
+    /// This data may be shared across multiple threads (must be `Sync`) in order to support
+    /// detached futures ([`crate::TurboTasksApi::detached_for_testing`]) and [pseudo-tasks using
+    /// `local_cells`][crate::function]. A [`RwLock`][std::sync::RwLock] is used to provide
+    /// concurrent access.
+    type TaskState: Send + Sync + 'static;
 
-    fn execution_scope<T: Future<Output = Result<()>> + Send + 'static>(
-        &self,
-        task: TaskId,
-        future: T,
-    ) -> Self::ExecutionScopeFuture<T>;
+    /// Constructs a new task-local [`Self::TaskState`] for the given `task_id`.
+    ///
+    /// If a task is re-executed (e.g. because it is invalidated), this function will be called
+    /// again with the same [`TaskId`].
+    ///
+    /// This value can be written to or read from using
+    /// [`crate::TurboTasksBackendApiExt::write_task_state`] and
+    /// [`crate::TurboTasksBackendApiExt::read_task_state`]
+    fn new_task_state(&self, task: TaskId) -> Self::TaskState;
 
     fn try_start_task_execution<'a>(
         &'a self,
@@ -594,6 +713,14 @@ pub trait Backend: Sync + Send {
         // Do nothing by default
     }
 
+    fn mark_own_task_as_dirty_when_persisted(
+        &self,
+        _task: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        // Do nothing by default
+    }
+
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
@@ -719,7 +846,7 @@ pub(crate) mod tests {
                 arg: Box::new(()),
             }
             .get_name(),
-            "MockTrait::mock_method_task",
+            "*MockTrait::mock_method_task",
         );
     }
 }

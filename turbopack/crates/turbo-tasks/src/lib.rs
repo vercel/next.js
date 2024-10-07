@@ -49,6 +49,7 @@ mod id;
 mod id_factory;
 mod invalidation;
 mod join_iter_ext;
+mod key_value_pair;
 #[doc(hidden)]
 pub mod macro_helpers;
 mod magic_any;
@@ -56,12 +57,14 @@ mod manager;
 mod native_function;
 mod no_move_vec;
 mod once_map;
+mod output;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
 mod rcstr;
 mod read_ref;
 pub mod registry;
+mod serialization_invalidation;
 pub mod small_duration;
 mod state;
 pub mod task;
@@ -81,26 +84,32 @@ use auto_hash_map::AutoSet;
 pub use collectibles::CollectiblesSource;
 pub use completion::{Completion, Completions};
 pub use display::ValueToString;
-pub use id::{ExecutionId, FunctionId, TaskId, TraitTypeId, ValueTypeId, TRANSIENT_TASK_BIT};
+pub use id::{
+    ExecutionId, FunctionId, LocalTaskId, TaskId, TraitTypeId, ValueTypeId, TRANSIENT_TASK_BIT,
+};
 pub use invalidation::{
-    DynamicEqHash, InvalidationReason, InvalidationReasonKind, InvalidationReasonSet,
+    get_invalidator, DynamicEqHash, InvalidationReason, InvalidationReasonKind,
+    InvalidationReasonSet, Invalidator,
 };
 pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
+pub use key_value_pair::KeyValuePair;
 pub use magic_any::MagicAny;
 pub use manager::{
-    dynamic_call, dynamic_this_call, emit, get_invalidator, mark_finished, mark_stateful,
+    dynamic_call, dynamic_this_call, emit, mark_dirty_when_persisted, mark_finished, mark_stateful,
     prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
-    turbo_tasks, CurrentCellRef, Invalidator, ReadConsistency, TaskPersistence, TurboTasks,
-    TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo,
+    turbo_tasks, CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
+    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
 };
 pub use native_function::{FunctionMeta, NativeFunction};
+pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
-pub use state::State;
+pub use serialization_invalidation::SerializationInvalidator;
+pub use state::{State, TransientState};
 pub use task::{task_input::TaskInput, SharedReference};
 pub use trait_ref::{IntoTraitRef, TraitRef};
-pub use turbo_tasks_macros::{function, value, value_impl, value_trait, TaskInput};
+pub use turbo_tasks_macros::{function, value_impl, value_trait, KeyValuePair, TaskInput};
 pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
@@ -110,6 +119,109 @@ pub use vc::{
 };
 
 pub use crate::rcstr::RcStr;
+
+/// Implements [`VcValueType`] for the given `struct` or `enum`. These value types can be used
+/// inside of a "value cell" as [`Vc<...>`][Vc].
+///
+/// A [`Vc`] represents a (potentially lazy) memoized computation. Each [`Vc`]'s value is placed
+/// into a cell associated with the current [`TaskId`]. That [`Vc`] object can be `await`ed to get
+/// [a read-only reference to the value contained in the cell][ReadRef].
+///
+/// This macro accepts multiple comma-separated arguments. For example:
+///
+/// ```
+/// # #![feature(arbitrary_self_types)]
+/// #[turbo_tasks::value(transparent, into = "shared")]
+/// struct Foo(Vec<u32>);
+/// ```
+///
+/// ## `cell = "..."`
+///
+/// Controls when a cell is invalidated upon recomputation of a task. Internally, this is performed
+/// by setting the [`VcValueType::CellMode`] associated type.
+///
+/// - **`"new"`:** Always overrides the value in the cell, invalidating all dependent tasks.
+/// - **`"shared"` *(default)*:** Compares with the existing value in the cell, before overriding it.
+///   Requires the value to implement [`Eq`].
+///
+/// Avoiding unnecessary invalidation is important to reduce downstream recomputation of tasks that
+/// depend on this cell's value.
+///
+/// Use `"new"` only if a correct implementation of [`Eq`] is not possible, would be expensive (e.g.
+/// would require comparing a large collection), or if you're implementing a low-level primitive
+/// that intentionally forces recomputation.
+///
+/// ## `eq = "..."`
+///
+/// By default, we `#[derive(PartialEq, Eq)]`. [`Eq`] is required by `cell = "shared"`. This
+/// argument allows overriding that default implementation behavior.
+///
+/// - **`"manual"`:** Prevents deriving [`Eq`] and [`PartialEq`] so you can do it manually.
+///
+/// ## `into = "..."`
+///
+/// This macro always implements a `.cell()` method on your type with the signature:
+///
+/// ```ignore
+/// /// Wraps the value in a cell.
+/// fn cell(self) -> Vc<Self>;
+/// ```
+///
+/// This argument controls the visibility of the `.cell()` method, as well as whether a
+/// [`From<T> for Vc<T>`][From] implementation is generated.
+///
+/// - **`"new"` or `"shared"`:** Exposes both `.cell()` and [`From`]/[`Into`] implementations. Both
+///   of these values (`"new"` or `"shared"`) do the same thing (for legacy reasons).
+/// - **`"none"` *(default)*:** Makes `.cell()` private and prevents implementing [`From`]/[`Into`].
+///
+/// You should use the default value of `"none"` when providing your own public constructor methods.
+///
+/// The naming of this field and it's values are due to legacy reasons.
+///
+/// ## `serialization = "..."`
+///
+/// Affects serialization via [`serde::Serialize`] and [`serde::Deserialize`]. Serialization is
+/// required for persistent caching of tasks to disk.
+///
+/// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
+/// - **`"auto_for_input"`:** Same as `"auto"`, but also adds the marker trait [`TypedForInput`].
+/// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
+///   (you must manually implement [`serde::Serialize`] and [`serde::Deserialize`]).
+/// - **`"custom_for_input"`:** Same as `"custom"`, but also adds the marker trait
+///   [`TypedForInput`].
+/// - **`"none"`:** Disables serialization and prevents deriving the traits.
+///
+/// ## `shared`
+///
+/// Sets both `cell = "shared"` *(already the default)* and `into = "shared"`, exposing the
+/// `.cell()` method and adding a [`From`]/[`Into`] implementation.
+///
+/// ## `transparent`
+///
+/// This attribute is only valid on single-element unit structs. When this value is set:
+///
+/// 1. The struct will use [`#[repr(transparent)]`][repr-transparent].
+/// 1. Read operations (`vc.await?`) return a [`ReadRef`] containing the inner type, rather than the
+///    outer struct. Internally, this is accomplished using [`VcTransparentRead`] for the
+///    [`VcValueType::Read`] associated type.
+/// 1. Construction of the type must be performed using [`Vc::cell(inner)`][Vc::cell], rather than
+///    using the `.cell()` method on the outer type (`outer.cell()`).
+/// 1. The [`ValueDebug`][crate::debug::ValueDebug] implementation will defer to the inner type.
+///
+/// This is commonly used to create [`VcValueType`] wrappers for foreign or generic types, such as
+/// [`Vec`] or [`Option`].
+///
+/// [repr-transparent]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprtransparent
+///
+/// ## `resolved`
+///
+/// Applies the [`#[derive(ResolvedValue)]`][macro@ResolvedValue] macro.
+///
+/// Indicates that this struct has no fields containing [`Vc`] by implementing the [`ResolvedValue`]
+/// marker trait. In order to safely implement [`ResolvedValue`], this inserts compile-time
+/// assertions that every field in this struct has a type that is also a [`ResolvedValue`].
+#[rustfmt::skip]
+pub use turbo_tasks_macros::value;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 

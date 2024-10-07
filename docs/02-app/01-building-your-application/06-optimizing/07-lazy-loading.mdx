@@ -59,6 +59,8 @@ export default function ClientComponentExample() {
 
 When using `React.lazy()` and Suspense, Client Components will be pre-rendered (SSR) by default.
 
+> **Note:** `ssr: false` option will only work for client components, move it into client components ensure the client code-splitting working properly.
+
 If you want to disable pre-rendering for a Client Component, you can use the `ssr` option set to `false`:
 
 ```jsx
@@ -68,6 +70,7 @@ const ComponentC = dynamic(() => import('../components/C'), { ssr: false })
 ### Importing Server Components
 
 If you dynamically import a Server Component, only the Client Components that are children of the Server Component will be lazy-loaded - not the Server Component itself.
+It will also help preload the static assets such as CSS when you're using it in Server Components.
 
 ```jsx filename="app/page.js"
 import dynamic from 'next/dynamic'
@@ -83,6 +86,9 @@ export default function ServerComponentExample() {
   )
 }
 ```
+
+> **Note:** `ssr: false` option is not supported in Server Components. You will see an error if you try to use it in Server Components.
+> `ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a client component.
 
 ### Loading External Libraries
 
@@ -202,6 +208,8 @@ const DynamicComponent = dynamic(() =>
 To dynamically load a component on the client side, you can use the `ssr` option to disable server-rendering. This is useful if an external dependency or component relies on browser APIs like `window`.
 
 ```jsx
+'use client'
+
 import dynamic from 'next/dynamic'
 
 const DynamicHeader = dynamic(() => import('../components/header'), {

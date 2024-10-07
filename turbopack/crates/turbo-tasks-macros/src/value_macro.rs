@@ -317,6 +317,15 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::Vc::cell_private(#cell_access_content)
         }
 
+        /// Places a value in a cell of the current task. Returns a
+        /// [`ResolvedVc`][turbo_tasks::ResolvedVc].
+        ///
+        /// Cell is selected based on the value type and call order of `cell`.
+        #cell_prefix fn resolved_cell(self) -> turbo_tasks::ResolvedVc<Self> {
+            let content = self;
+            turbo_tasks::ResolvedVc::cell_private(#cell_access_content)
+        }
+
         /// Places a value in a task-local cell stored in the current task.
         ///
         /// Task-local cells are stored in a task-local arena, and do not persist outside the
@@ -330,9 +339,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let into = if let IntoMode::New | IntoMode::Shared = into_mode {
         quote! {
-            impl Into<turbo_tasks::Vc<#ident>> for #ident {
-                fn into(self) -> turbo_tasks::Vc<#ident> {
-                    self.cell()
+            impl ::std::convert::From<#ident> for turbo_tasks::Vc<#ident> {
+                fn from(value: #ident) -> Self {
+                    value.cell()
                 }
             }
         }

@@ -19,7 +19,7 @@ import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
-import type { Params } from '../../client/components/params'
+import type { Params } from '../request/params'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -47,7 +47,10 @@ export function createComponentTree(props: {
   )
 }
 
-function errorMissingDefaultExport(pagePath: string, convention: string) {
+function errorMissingDefaultExport(
+  pagePath: string,
+  convention: string
+): never {
   throw new Error(
     `The default export is not a React Component in "${pagePath}/${convention}"`
   )
@@ -84,15 +87,18 @@ async function createComponentTreeInternal({
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
-    staticGenerationStore,
+    workStore,
     componentMod: {
       NotFoundBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
+      OutletBoundary,
       ClientPageRoot,
-      createUntrackedSearchParams,
-      createDynamicallyTrackedSearchParams,
-      createDynamicallyTrackedParams,
+      ClientSegmentRoot,
+      createServerSearchParamsForServerPage,
+      createPrerenderSearchParamsForClientPage,
+      createServerParamsForServerSegment,
+      createPrerenderParamsForClientSegment,
       serverHooks: { DynamicServerError },
       Postpone,
     },
@@ -102,10 +108,10 @@ async function createComponentTreeInternal({
     query,
   } = ctx
 
-  const { page, layoutOrPagePath, segment, components, parallelRoutes } =
+  const { page, layoutOrPagePath, segment, modules, parallelRoutes } =
     parseLoaderTree(tree)
 
-  const { layout, template, error, loading, 'not-found': notFound } = components
+  const { layout, template, error, loading, 'not-found': notFound } = modules
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
@@ -154,7 +160,7 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const [layoutOrPageMod] = await getTracer().trace(
+  const { mod: layoutOrPageMod } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),
@@ -204,69 +210,66 @@ async function createComponentTreeInternal({
     // if it's configured above any parent that configured
     // otherwise
     if (dynamic === 'error') {
-      staticGenerationStore.dynamicShouldError = true
+      workStore.dynamicShouldError = true
     } else if (dynamic === 'force-dynamic') {
-      staticGenerationStore.forceDynamic = true
+      workStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (
-        staticGenerationStore.isStaticGeneration &&
-        !experimental.isRoutePPREnabled
-      ) {
+      if (workStore.isStaticGeneration && !experimental.isRoutePPREnabled) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
         const err = new DynamicServerError(
           `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
         )
-        staticGenerationStore.dynamicUsageDescription = err.message
-        staticGenerationStore.dynamicUsageStack = err.stack
+        workStore.dynamicUsageDescription = err.message
+        workStore.dynamicUsageStack = err.stack
         throw err
       }
     } else {
-      staticGenerationStore.dynamicShouldError = false
-      staticGenerationStore.forceStatic = dynamic === 'force-static'
+      workStore.dynamicShouldError = false
+      workStore.forceStatic = dynamic === 'force-static'
     }
   }
 
   if (typeof layoutOrPageMod?.fetchCache === 'string') {
-    staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
+    workStore.fetchCache = layoutOrPageMod?.fetchCache
   }
 
   if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
-    validateRevalidate(layoutOrPageMod?.revalidate, staticGenerationStore.route)
+    validateRevalidate(layoutOrPageMod?.revalidate, workStore.route)
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
     ctx.defaultRevalidate = layoutOrPageMod.revalidate as number
 
     if (
-      typeof staticGenerationStore.revalidate === 'undefined' ||
-      (typeof staticGenerationStore.revalidate === 'number' &&
-        staticGenerationStore.revalidate > ctx.defaultRevalidate)
+      typeof workStore.revalidate === 'undefined' ||
+      (typeof workStore.revalidate === 'number' &&
+        workStore.revalidate > ctx.defaultRevalidate)
     ) {
-      staticGenerationStore.revalidate = ctx.defaultRevalidate
+      workStore.revalidate = ctx.defaultRevalidate
     }
 
     if (
-      !staticGenerationStore.forceStatic &&
-      staticGenerationStore.isStaticGeneration &&
+      !workStore.forceStatic &&
+      workStore.isStaticGeneration &&
       ctx.defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
       !experimental.isRoutePPREnabled
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
-      staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
+      workStore.dynamicUsageDescription = dynamicUsageDescription
 
       throw new DynamicServerError(dynamicUsageDescription)
     }
   }
 
-  const isStaticGeneration = staticGenerationStore.isStaticGeneration
+  const isStaticGeneration = workStore.isStaticGeneration
 
   // If there's a dynamic usage error attached to the store, throw it.
-  if (staticGenerationStore.dynamicUsageErr) {
-    throw staticGenerationStore.dynamicUsageErr
+  if (workStore.dynamicUsageErr) {
+    throw workStore.dynamicUsageErr
   }
 
   const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
@@ -276,51 +279,13 @@ async function createComponentTreeInternal({
   /**
    * The React Component to render.
    */
-  let Component = LayoutOrPage
-  const parallelKeys = Object.keys(parallelRoutes)
-  const hasSlotKey = parallelKeys.length > 1
-
-  // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
-  // This ensures that a `NotFoundBoundary` is available for when that happens,
-  // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
-  // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
-  // rely on the `NotFound` behavior.
-  if (hasSlotKey && rootLayoutAtThisLevel && LayoutOrPage) {
-    Component = (componentProps: { params: Params }) => {
-      const NotFoundComponent = NotFound
-      const RootLayoutComponent = LayoutOrPage
-      return (
-        <NotFoundBoundary
-          notFound={
-            NotFoundComponent ? (
-              <Segment
-                isStaticGeneration={isStaticGeneration}
-                ready={getMetadataReady}
-              >
-                {layerAssets}
-                {/*
-                 * We are intentionally only forwarding params to the root layout, as passing any of the parallel route props
-                 * might trigger `notFound()`, which is not currently supported in the root layout.
-                 */}
-                <RootLayoutComponent params={componentProps.params}>
-                  {notFoundStyles}
-                  <NotFoundComponent />
-                </RootLayoutComponent>
-              </Segment>
-            ) : undefined
-          }
-        >
-          <RootLayoutComponent {...componentProps} />
-        </NotFoundBoundary>
-      )
-    }
-  }
+  let MaybeComponent = LayoutOrPage
 
   if (process.env.NODE_ENV === 'development') {
     const { isValidElementType } = require('next/dist/compiled/react-is')
     if (
-      (isPage || typeof Component !== 'undefined') &&
-      !isValidElementType(Component)
+      (isPage || typeof MaybeComponent !== 'undefined') &&
+      !isValidElementType(MaybeComponent)
     ) {
       errorMissingDefaultExport(pagePath, 'page')
     }
@@ -345,15 +310,13 @@ async function createComponentTreeInternal({
   const segmentParam = getDynamicParamFromSegment(segment)
 
   // Create object holding the parent params and current params
-  const currentParams =
-    // Handle null case where dynamic param is optional
-    segmentParam && segmentParam.value !== null
-      ? {
-          ...parentParams,
-          [segmentParam.param]: segmentParam.value,
-        }
-      : // Pass through parent params to children
-        parentParams
+  let currentParams: Params = parentParams
+  if (segmentParam && segmentParam.value !== null) {
+    currentParams = {
+      ...parentParams,
+      [segmentParam.param]: segmentParam.value,
+    }
+  }
 
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
@@ -386,7 +349,7 @@ async function createComponentTreeInternal({
           // prefetch everything up to the first route segment that defines a
           // loading.tsx boundary. (We do the same if there's no loading
           // boundary in the entire tree, because we don't want to prefetch too
-          // much) The rest of the tree is defered until the actual navigation.
+          // much) The rest of the tree is deferred until the actual navigation.
           // It does not take into account whether the data is dynamic — even if
           // the tree is completely static, it will still defer everything
           // inside the loading boundary.
@@ -495,21 +458,19 @@ async function createComponentTreeInternal({
     : null
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
-  if (!Component) {
+  if (!MaybeComponent) {
     return [
       actualSegment,
-      <Segment
-        key={cacheNodeKey}
-        isStaticGeneration={isStaticGeneration}
-        ready={getMetadataReady}
-      >
+      <React.Fragment key={cacheNodeKey}>
         {layerAssets}
         {parallelRouteProps.children}
-      </Segment>,
+      </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]
   }
+
+  const Component = MaybeComponent
 
   // If force-dynamic is used and the current render supports postponing, we
   // replace it with a node that will postpone the render. This ensures that the
@@ -523,23 +484,19 @@ async function createComponentTreeInternal({
   // render force-dynamic. We should refactor this function so that we can correctly track which segments
   // need to be dynamic
   if (
-    staticGenerationStore.isStaticGeneration &&
-    staticGenerationStore.forceDynamic &&
+    workStore.isStaticGeneration &&
+    workStore.forceDynamic &&
     experimental.isRoutePPREnabled
   ) {
     return [
       actualSegment,
-      <Segment
-        key={cacheNodeKey}
-        isStaticGeneration={isStaticGeneration}
-        ready={getMetadataReady}
-      >
+      <React.Fragment key={cacheNodeKey}>
         <Postpone
           reason='dynamic = "force-dynamic" was used'
-          route={staticGenerationStore.route}
+          route={workStore.route}
         />
         {layerAssets}
-      </Segment>,
+      </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]
@@ -547,10 +504,6 @@ async function createComponentTreeInternal({
 
   const isClientComponent = isClientReference(layoutOrPageMod)
 
-  // We avoid cloning this object because it gets consumed here exclusively.
-  const props: { [prop: string]: any } = parallelRouteProps
-
-  // Assign params to props
   if (
     process.env.NODE_ENV === 'development' &&
     'params' in parallelRouteProps
@@ -562,58 +515,199 @@ async function createComponentTreeInternal({
   }
 
   if (isPage) {
+    const PageComponent = Component
     // Assign searchParams to props if this is a page
     let pageElement: React.ReactNode
     if (isClientComponent) {
-      // When we are passing searchParams to a client component Page we don't want to track the dynamic access
-      // here in the RSC layer because the serialization will trigger a dynamic API usage.
-      // Instead we pass the searchParams untracked but we wrap the Page in a root client component
-      // which can among other things adds the dynamic tracking before rendering the page.
-      // @TODO make the root wrapper part of next-app-loader so we don't need the extra client component
-      props.params = currentParams
-      props.searchParams = createUntrackedSearchParams(query)
-      pageElement = <ClientPageRoot props={props} Component={Component} />
+      if (isStaticGeneration) {
+        const promiseOfParams = createPrerenderParamsForClientSegment(
+          currentParams,
+          workStore
+        )
+        const promiseOfSearchParams =
+          createPrerenderSearchParamsForClientPage(workStore)
+        pageElement = (
+          <ClientPageRoot
+            Component={PageComponent}
+            searchParams={query}
+            params={currentParams}
+            promises={[promiseOfSearchParams, promiseOfParams]}
+          />
+        )
+      } else {
+        pageElement = (
+          <ClientPageRoot
+            Component={PageComponent}
+            searchParams={query}
+            params={currentParams}
+          />
+        )
+      }
     } else {
       // If we are passing searchParams to a server component Page we need to track their usage in case
       // the current render mode tracks dynamic API usage.
-      props.params = createDynamicallyTrackedParams(currentParams)
-      props.searchParams = createDynamicallyTrackedSearchParams(query)
-      pageElement = <Component {...props} />
+      const params = createServerParamsForServerSegment(
+        currentParams,
+        workStore
+      )
+      const searchParams = createServerSearchParamsForServerPage(
+        query,
+        workStore
+      )
+      pageElement = (
+        <PageComponent params={params} searchParams={searchParams} />
+      )
     }
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
-        <MetadataOutlet ready={getMetadataReady} />
-        <Segment
-          isStaticGeneration={isStaticGeneration}
-          ready={getMetadataReady}
-        >
-          {pageElement}
-          {layerAssets}
-        </Segment>
+        {pageElement}
+        {layerAssets}
+        <OutletBoundary>
+          <MetadataOutlet ready={getMetadataReady} />
+        </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]
   } else {
-    props.params = createDynamicallyTrackedParams(currentParams)
+    const SegmentComponent = Component
 
+    const isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot =
+      rootLayoutAtThisLevel &&
+      'children' in parallelRoutes &&
+      Object.keys(parallelRoutes).length > 1
+
+    let segmentNode: React.ReactNode
+
+    if (isClientComponent) {
+      let clientSegment: React.ReactNode
+
+      if (isStaticGeneration) {
+        const promiseOfParams = createPrerenderParamsForClientSegment(
+          currentParams,
+          workStore
+        )
+
+        clientSegment = (
+          <ClientSegmentRoot
+            Component={SegmentComponent}
+            slots={parallelRouteProps}
+            params={currentParams}
+            promise={promiseOfParams}
+          />
+        )
+      } else {
+        clientSegment = (
+          <ClientSegmentRoot
+            Component={SegmentComponent}
+            slots={parallelRouteProps}
+            params={currentParams}
+          />
+        )
+      }
+
+      if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
+        // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
+        // This ensures that a `NotFoundBoundary` is available for when that happens,
+        // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
+        // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
+        // rely on the `NotFound` behavior.
+        if (NotFound) {
+          const notFoundParallelRouteProps = {
+            children: (
+              <>
+                {notFoundStyles}
+                <NotFound />
+              </>
+            ),
+          }
+          const notfoundClientSegment = (
+            <ClientSegmentRoot
+              Component={SegmentComponent}
+              slots={notFoundParallelRouteProps}
+              params={currentParams}
+            />
+          )
+
+          segmentNode = (
+            <NotFoundBoundary
+              key={cacheNodeKey}
+              notFound={
+                <>
+                  {layerAssets}
+                  {notfoundClientSegment}
+                </>
+              }
+            >
+              {layerAssets}
+              {clientSegment}
+            </NotFoundBoundary>
+          )
+        } else {
+          segmentNode = (
+            <NotFoundBoundary key={cacheNodeKey}>
+              {layerAssets}
+              {clientSegment}
+            </NotFoundBoundary>
+          )
+        }
+      } else {
+        segmentNode = (
+          <React.Fragment key={cacheNodeKey}>
+            {layerAssets}
+            {clientSegment}
+          </React.Fragment>
+        )
+      }
+    } else {
+      const params = createServerParamsForServerSegment(
+        currentParams,
+        workStore
+      )
+
+      let serverSegment = (
+        <SegmentComponent {...parallelRouteProps} params={params} />
+      )
+
+      if (isRootLayoutWithChildrenSlotAndAtLeastOneMoreSlot) {
+        // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
+        // This ensures that a `NotFoundBoundary` is available for when that happens,
+        // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
+        // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
+        // rely on the `NotFound` behavior.
+        segmentNode = (
+          <NotFoundBoundary
+            key={cacheNodeKey}
+            notFound={
+              NotFound ? (
+                <>
+                  {layerAssets}
+                  <SegmentComponent params={params}>
+                    {notFoundStyles}
+                    <NotFound />
+                  </SegmentComponent>
+                </>
+              ) : undefined
+            }
+          >
+            {layerAssets}
+            {serverSegment}
+          </NotFoundBoundary>
+        )
+      } else {
+        segmentNode = (
+          <React.Fragment key={cacheNodeKey}>
+            {layerAssets}
+            {serverSegment}
+          </React.Fragment>
+        )
+      }
+    }
     // For layouts we just render the component
     return [
       actualSegment,
-      // It is critical that this tree render something other than `null` because the client router uses
-      // null to represent an lazy hole. The current implementation satisfies this because the two inner slots
-      // ensure there is a fragment even if both slots render null. If we ever refactor this to only render the component
-      // or similar we need to ensure there is a fragment. Long term we should move to using a Symbol to communicate
-      // a lazy hole rather than null
-      <Segment
-        key={cacheNodeKey}
-        isStaticGeneration={isStaticGeneration}
-        ready={getMetadataReady}
-      >
-        {layerAssets}
-        <Component {...props} />
-      </Segment>,
+      segmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]
@@ -633,27 +727,4 @@ async function MetadataOutlet({
     await r
   }
   return null
-}
-
-async function Segment({
-  isStaticGeneration,
-  ready,
-  children,
-}: {
-  isStaticGeneration: boolean
-  ready?: () => Promise<void>
-  children: React.ReactNode
-}) {
-  if (isStaticGeneration && ready) {
-    // During static generation we wait for metadata to complete before rendering segments.
-    // This is slower but it allows us to ensure that metadata is finished before we start
-    // rendering the segment which can synchronously abort the render in certain circumstances
-    try {
-      await ready()
-    } catch {
-      // we'll let the MetadataOutlet component render with the page error to let the right
-      // error boundary catch this error
-    }
-  }
-  return children
 }

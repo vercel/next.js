@@ -13,10 +13,11 @@ async function Static({ dataKey }) {
 }
 
 export default async function Page({
-  params: { dataKey },
+  params,
 }: {
-  params: { dataKey: string }
+  params: Promise<{ dataKey: string }>
 }) {
+  const { dataKey } = await params
   return (
     <>
       <div id="container">

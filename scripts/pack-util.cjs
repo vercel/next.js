@@ -82,6 +82,19 @@ function execAsyncWithOutput(title, command, opts) {
 exports.execAsyncWithOutput = execAsyncWithOutput
 
 /**
+ * @template T
+ * @param {string} title
+ * @param {() => T} fn
+ * @returns {T}
+ */
+function execFn(title, fn) {
+  logCommand(title, fn.toString())
+  return fn()
+}
+
+exports.execFn = execFn
+
+/**
  * @param {string | string[]} command
  */
 function prettyCommand(command) {
@@ -151,7 +164,16 @@ async function packageFiles(path) {
     .filter((f) => !isGlob(f) && existsSync(join(path, f)))
     .map((f) => f.replace(/^\.\//, ''))
   const globFiles = allFiles.filter(isGlob)
-  const globbedFiles = await glob(`+(${globFiles.join('|')})`, { cwd: path })
+  const globbedFiles = await glob(
+    `+(${globFiles.filter((f) => !f.startsWith('!')).join('|')})`,
+    {
+      cwd: path,
+      ignore: `+(${globFiles
+        .filter((f) => f.startsWith('!'))
+        .map((f) => f.slice(1))
+        .join('|')})`,
+    }
+  )
   const packageFiles = [...globbedFiles, ...simpleFiles].sort()
   const set = new Set()
   return packageFiles.filter((f) => {

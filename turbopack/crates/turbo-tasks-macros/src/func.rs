@@ -1,24 +1,30 @@
-use std::collections::HashSet;
+use std::{borrow::Cow, collections::HashSet};
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
-    parse_quote,
+    parse_quote, parse_quote_spanned,
     punctuated::{Pair, Punctuated},
     spanned::Spanned,
     token::Paren,
-    AngleBracketedGenericArguments, Block, Expr, ExprPath, FnArg, GenericArgument, Meta, Pat,
-    PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType, Signature, Token,
-    Type, TypeGroup, TypePath, TypeTuple,
+    visit_mut::VisitMut,
+    AngleBracketedGenericArguments, Block, Expr, ExprBlock, ExprPath, FnArg, GenericArgument,
+    Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType,
+    Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
 };
 
 #[derive(Debug)]
-pub struct TurboFn {
-    // signature: Signature,
-    // block: Block,
-    ident: Ident,
+pub struct TurboFn<'a> {
+    orig_signature: &'a Signature,
+
+    /// Identifier of the exposed function (same as the original function's name).
+    ident: &'a Ident,
+
+    /// Identifier of the inline function (a mangled version of the original function's name).
+    inline_ident: Ident,
+
     output: Type,
     this: Option<Input>,
     inputs: Vec<Input>,
@@ -34,14 +40,14 @@ pub struct Input {
     pub ty: Type,
 }
 
-impl TurboFn {
+impl TurboFn<'_> {
     pub fn new(
-        original_signature: &Signature,
+        orig_signature: &Signature,
         definition_context: DefinitionContext,
         args: FunctionArguments,
     ) -> Option<TurboFn> {
-        if !original_signature.generics.params.is_empty() {
-            original_signature
+        if !orig_signature.generics.params.is_empty() {
+            orig_signature
                 .generics
                 .span()
                 .unwrap()
@@ -53,8 +59,8 @@ impl TurboFn {
             return None;
         }
 
-        if original_signature.generics.where_clause.is_some() {
-            original_signature
+        if orig_signature.generics.where_clause.is_some() {
+            orig_signature
                 .generics
                 .where_clause
                 .span()
@@ -67,7 +73,7 @@ impl TurboFn {
             return None;
         }
 
-        let mut raw_inputs = original_signature.inputs.iter();
+        let mut raw_inputs = orig_signature.inputs.iter();
         let mut this = None;
         let mut inputs = Vec::with_capacity(raw_inputs.len());
 
@@ -251,15 +257,25 @@ impl TurboFn {
             }
         }
 
-        let output = return_type_to_type(&original_signature.output);
+        let output = return_type_to_type(&orig_signature.output);
+
+        let orig_ident = &orig_signature.ident;
+        let inline_ident = Ident::new(
+            // Hygiene: This should use `.resolved_at(Span::def_site())`, but that's unstable, so
+            // instead we just pick a long, unique name
+            &format!("{orig_ident}_turbo_tasks_function_inline"),
+            orig_ident.span(),
+        );
 
         Some(TurboFn {
-            ident: original_signature.ident.clone(),
+            orig_signature,
+            ident: orig_ident,
             output,
             this,
             inputs,
             resolved: args.resolved,
             local_cells: args.local_cells.is_some(),
+            inline_ident,
         })
     }
 
@@ -273,8 +289,7 @@ impl TurboFn {
             .chain(self.inputs.iter())
             .map(|input| {
                 FnArg::Typed(PatType {
-                    attrs: Default::default(),
-                    ty: Box::new(input.ty.clone()),
+                    attrs: Vec::new(),
                     pat: Box::new(Pat::Ident(PatIdent {
                         attrs: Default::default(),
                         by_ref: None,
@@ -283,6 +298,7 @@ impl TurboFn {
                         subpat: None,
                     })),
                     colon_token: Default::default(),
+                    ty: Box::new(expand_task_input_type(&input.ty).into_owned()),
                 })
             })
             .collect();
@@ -304,6 +320,141 @@ impl TurboFn {
         }
     }
 
+    /// Signature for the "inline" function. The inline function is the function with minimal
+    /// changes that's called by the turbo-tasks framework during scheduling.
+    ///
+    /// This is in contrast to the "exposed" function, which is the public function that the user
+    /// should call.
+    ///
+    /// This function signature should match the name given by [`Self::inline_ident`].
+    ///
+    /// A minimally wrapped version of the original function block.
+    pub fn inline_signature_and_block<'a>(
+        &self,
+        orig_block: &'a Block,
+    ) -> (Signature, Cow<'a, Block>) {
+        let mut shadow_self = None;
+        let (inputs, transform_stmts): (Punctuated<_, _>, Vec<Option<_>>) = self
+            .orig_signature
+            .inputs
+            .iter()
+            .enumerate()
+            .map(|(idx, arg)| match arg {
+                FnArg::Receiver(_) => (arg.clone(), None),
+                FnArg::Typed(pat_type) => {
+                    let Cow::Owned(expanded_ty) = expand_task_input_type(&pat_type.ty) else {
+                        // common-case: skip if no type conversion is needed
+                        return (arg.clone(), None);
+                    };
+
+                    let arg_id = if let Pat::Ident(pat_id) = &*pat_type.pat {
+                        // common case: argument is just an identifier
+                        Cow::Borrowed(&pat_id.ident)
+                    } else {
+                        // argument is a pattern, we need to rewrite it to a unique identifier
+                        Cow::Owned(Ident::new(
+                            &format!("arg{idx}"),
+                            pat_type.span().resolved_at(Span::mixed_site()),
+                        ))
+                    };
+
+                    let arg = FnArg::Typed(PatType {
+                        pat: Box::new(Pat::Ident(PatIdent {
+                            attrs: Vec::new(),
+                            by_ref: None,
+                            mutability: None,
+                            ident: arg_id.clone().into_owned(),
+                            subpat: None,
+                        })),
+                        ty: Box::new(expanded_ty),
+                        ..pat_type.clone()
+                    });
+
+                    // We can't shadow `self` variables, so it this argument is a `self` argument,
+                    // generate a new identifier, and rewrite the body of the function later to use
+                    // that new identifier.
+                    // NOTE: arbitrary self types aren't `FnArg::Receiver` on syn 1.x (fixed in 2.x)
+                    let transform_pat = match &*pat_type.pat {
+                        Pat::Ident(pat_id) if pat_id.ident == "self" => {
+                            let shadow_self_id = Ident::new(
+                                "turbo_tasks_self",
+                                Span::mixed_site().located_at(pat_id.ident.span()),
+                            );
+                            shadow_self = Some(shadow_self_id.clone());
+                            Pat::Ident(PatIdent {
+                                ident: shadow_self_id,
+                                ..pat_id.clone()
+                            })
+                        }
+                        pat => pat.clone(),
+                    };
+
+                    // convert an argument of type `FromTaskInput<T>::TaskInput` into `T`.
+                    // essentially, replace any instances of `Vc` with `ResolvedVc`.
+                    let orig_ty = &*pat_type.ty;
+                    let transform_stmt = Some(Stmt::Local(Local {
+                        attrs: Vec::new(),
+                        let_token: Default::default(),
+                        pat: transform_pat,
+                        init: Some((
+                            Default::default(),
+                            // we know the argument implements `FromTaskInput` because
+                            // `expand_task_input_type` returned `Cow::Owned`
+                            parse_quote_spanned! {
+                                pat_type.span() =>
+                                <#orig_ty as turbo_tasks::task::FromTaskInput>::from_task_input(
+                                    #arg_id
+                                )
+                            },
+                        )),
+                        semi_token: Default::default(),
+                    }));
+
+                    (arg, transform_stmt)
+                }
+            })
+            .unzip();
+        let transform_stmts: Vec<Stmt> = transform_stmts.into_iter().flatten().collect();
+
+        let inline_signature = Signature {
+            ident: self.inline_ident.clone(),
+            inputs,
+            ..self.orig_signature.clone()
+        };
+
+        let inline_block = if transform_stmts.is_empty() {
+            // common case: No argument uses ResolvedVc, don't rewrite anything!
+            Cow::Borrowed(orig_block)
+        } else {
+            let mut stmts = transform_stmts;
+            stmts.push(Stmt::Expr(Expr::Block(ExprBlock {
+                attrs: Vec::new(),
+                label: None,
+                block: if let Some(shadow_self) = shadow_self {
+                    // if `self` is a `ResolvedVc<Self>`, we need to rewrite references to `self`
+                    let mut block = orig_block.clone();
+                    RewriteSelfVisitMut {
+                        self_ident: shadow_self,
+                    }
+                    .visit_block_mut(&mut block);
+                    block
+                } else {
+                    orig_block.clone()
+                },
+            })));
+            Cow::Owned(Block {
+                brace_token: Default::default(),
+                stmts,
+            })
+        };
+
+        (inline_signature, inline_block)
+    }
+
+    pub fn inline_ident(&self) -> &Ident {
+        &self.inline_ident
+    }
+
     fn input_idents(&self) -> impl Iterator<Item = &Ident> {
         self.inputs.iter().map(|Input { ident, .. }| ident)
     }
@@ -320,6 +471,18 @@ impl TurboFn {
         } else {
             quote! {
                 turbo_tasks::macro_helpers::get_non_local_persistence_from_inputs(&*inputs)
+            }
+        }
+    }
+
+    pub fn persistence_with_this(&self) -> impl ToTokens {
+        if self.local_cells {
+            quote! {
+                turbo_tasks::TaskPersistence::LocalCells
+            }
+        } else {
+            quote! {
+                turbo_tasks::macro_helpers::get_non_local_persistence_from_inputs_and_this(this, &*inputs)
             }
         }
     }
@@ -361,17 +524,18 @@ impl TurboFn {
         let output = &self.output;
         let assertions = self.get_assertions();
         let inputs = self.input_idents();
-        let persistence = self.persistence();
+        let persistence = self.persistence_with_this();
         parse_quote! {
             {
                 #assertions
                 let inputs = std::boxed::Box::new((#(#inputs,)*));
+                let this = #converted_this;
                 let persistence = #persistence;
                 <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                     turbo_tasks::trait_call(
                         *#trait_type_id_ident,
                         std::borrow::Cow::Borrowed(stringify!(#ident)),
-                        #converted_this,
+                        this,
                         inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                         persistence,
                     )
@@ -385,18 +549,19 @@ impl TurboFn {
     pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
         let output = &self.output;
         let inputs = self.input_idents();
-        let persistence = self.persistence();
         let assertions = self.get_assertions();
         if let Some(converted_this) = self.converted_this() {
+            let persistence = self.persistence_with_this();
             parse_quote! {
                 {
                     #assertions
                     let inputs = std::boxed::Box::new((#(#inputs,)*));
+                    let this = #converted_this;
                     let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_this_call(
                             *#native_function_id_ident,
-                            #converted_this,
+                            this,
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
                         )
@@ -404,6 +569,7 @@ impl TurboFn {
                 }
             }
         } else {
+            let persistence = self.persistence();
             parse_quote! {
                 {
                     #assertions
@@ -545,6 +711,112 @@ fn return_type_to_type(return_type: &ReturnType) -> Type {
     }
 }
 
+/// Approximates the conversion of type `T` to `<T as FromTaskInput>::TaskInput` (in combination
+/// with the `AutoFromTaskInput` specialization hack).
+///
+/// This expansion happens manually here for a couple reasons:
+/// - While it's possible to simulate specialization of methods (with inherent impls, autoref, or
+///   autoderef) there's currently no way to simulate specialization of type aliases on stable rust.
+/// - Replacing arguments with types like `<T as FromTaskInput>::TaskInput` would make function
+///   signatures illegible in the resulting rustdocs.
+///
+/// Returns `Cow::Owned` when a transformation was applied, and `Cow::Borrowed` when no change was
+/// made to the input type.
+fn expand_task_input_type(orig_input: &Type) -> Cow<'_, Type> {
+    match orig_input {
+        Type::Group(TypeGroup { elem, .. }) => expand_task_input_type(elem),
+        Type::Path(TypePath {
+            qself: None,
+            path: Path {
+                leading_colon,
+                segments,
+            },
+        }) => {
+            enum PathMatch {
+                Empty,
+                StdMod,
+                VecMod,
+                Vec,
+                OptionMod,
+                Option,
+                TurboTasksMod,
+                ResolvedVc,
+            }
+
+            let mut path_match = PathMatch::Empty;
+            let has_leading_colon = leading_colon.is_some();
+            for segment in segments {
+                path_match = match (has_leading_colon, path_match, &segment.ident) {
+                    (_, PathMatch::Empty, id) if id == "std" || id == "core" || id == "alloc" => {
+                        PathMatch::StdMod
+                    }
+
+                    (_, PathMatch::StdMod, id) if id == "vec" => PathMatch::VecMod,
+                    (false, PathMatch::Empty | PathMatch::VecMod, id) if id == "Vec" => {
+                        PathMatch::Vec
+                    }
+
+                    (_, PathMatch::StdMod, id) if id == "option" => PathMatch::OptionMod,
+                    (false, PathMatch::Empty | PathMatch::OptionMod, id) if id == "Option" => {
+                        PathMatch::Option
+                    }
+
+                    (_, PathMatch::Empty, id) if id == "turbo_tasks" => PathMatch::TurboTasksMod,
+                    (false, PathMatch::Empty | PathMatch::TurboTasksMod, id)
+                        if id == "ResolvedVc" =>
+                    {
+                        PathMatch::ResolvedVc
+                    }
+
+                    // some type we don't have an expansion for
+                    _ => return Cow::Borrowed(orig_input),
+                }
+            }
+
+            let last_segment = segments.last().expect("non-empty");
+            let mut segments = Cow::Borrowed(segments);
+            match path_match {
+                PathMatch::Vec | PathMatch::Option => {
+                    if let PathArguments::AngleBracketed(
+                        bracketed_args @ AngleBracketedGenericArguments { args, .. },
+                    ) = &last_segment.arguments
+                    {
+                        if let Some(GenericArgument::Type(first_arg)) = args.first() {
+                            match expand_task_input_type(first_arg) {
+                                Cow::Borrowed(_) => {} // was not transformed
+                                Cow::Owned(first_arg) => {
+                                    let mut bracketed_args = bracketed_args.clone();
+                                    *bracketed_args.args.first_mut().expect("non-empty") =
+                                        GenericArgument::Type(first_arg);
+                                    segments.to_mut().last_mut().expect("non-empty").arguments =
+                                        PathArguments::AngleBracketed(bracketed_args);
+                                }
+                            }
+                        }
+                    }
+                }
+                PathMatch::ResolvedVc => {
+                    let args = &last_segment.arguments;
+                    segments =
+                        Cow::Owned(parse_quote_spanned!(segments.span() => turbo_tasks::Vc #args));
+                }
+                _ => {}
+            }
+            match segments {
+                Cow::Borrowed(_) => Cow::Borrowed(orig_input),
+                Cow::Owned(segments) => Cow::Owned(Type::Path(TypePath {
+                    qself: None,
+                    path: Path {
+                        leading_colon: *leading_colon,
+                        segments,
+                    },
+                })),
+            }
+        }
+        _ => Cow::Borrowed(orig_input),
+    }
+}
+
 fn expand_vc_return_type(orig_output: &Type) -> Type {
     // HACK: Approximate the expansion that we'd otherwise get from
     // `<T as TaskOutput>::Return`, so that the return type shown in the rustdocs
@@ -637,6 +909,26 @@ fn expand_vc_return_type(orig_output: &Type) -> Type {
     }
 
     new_output
+}
+
+struct RewriteSelfVisitMut {
+    self_ident: Ident,
+}
+
+impl VisitMut for RewriteSelfVisitMut {
+    fn visit_ident_mut(&mut self, ident: &mut Ident) {
+        if ident == "self" {
+            let span = self.self_ident.span().located_at(ident.span());
+            *ident = self.self_ident.clone();
+            ident.set_span(span);
+        }
+        // no children to visit
+    }
+
+    fn visit_item_impl_mut(&mut self, _: &mut syn::ItemImpl) {
+        // skip children of `impl`: the definition of "self" inside of an impl is different than the
+        // parent scope's definition of "self"
+    }
 }
 
 /// The context in which the function is being defined.

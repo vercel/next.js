@@ -20,11 +20,11 @@ use turbo_tasks::{
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, ExecutionId, InvalidationReason, MagicAny, RawVc, ReadConsistency, TaskId,
+    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadConsistency, TaskId,
     TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
-pub use crate::run::{run, run_without_cache_check, Registration};
+pub use crate::run::{run, run_with_tt, run_without_cache_check, Registration};
 
 enum Task {
     Spawned(Event),
@@ -177,6 +177,10 @@ impl TurboTasksApi for VcStorage {
         unreachable!()
     }
 
+    fn invalidate_serialization(&self, _task: TaskId) {
+        // ingore
+    }
+
     fn notify_scheduled_tasks(&self) {
         // ignore
     }
@@ -242,6 +246,24 @@ impl TurboTasksApi for VcStorage {
         self.read_own_task_cell(current_task, index)
     }
 
+    fn try_read_local_output(
+        &self,
+        parent_task_id: TaskId,
+        local_task_id: LocalTaskId,
+        consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>> {
+        self.try_read_local_output_untracked(parent_task_id, local_task_id, consistency)
+    }
+
+    fn try_read_local_output_untracked(
+        &self,
+        _parent_task_id: TaskId,
+        _local_task_id: LocalTaskId,
+        _consistency: ReadConsistency,
+    ) -> Result<Result<RawVc, EventListener>> {
+        unimplemented!()
+    }
+
     fn emit_collectible(&self, _trait_type: turbo_tasks::TraitTypeId, _collectible: RawVc) {
         unimplemented!()
     }
@@ -291,11 +313,19 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
+    fn mark_own_task_as_dirty_when_persisted(&self, _task: TaskId) {
+        // no-op
+    }
+
     fn detached_for_testing(
         &self,
         _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
         unimplemented!()
+    }
+
+    fn stop_and_wait(&self) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
+        Box::pin(async {})
     }
 }
 

@@ -15,7 +15,7 @@ use turbopack_core::{
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
@@ -256,6 +256,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     async fn chunk_group(
         self: Vc<Self>,
+        _ident: Vc<AssetIdent>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -303,6 +304,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn Module>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        extra_chunks: Vc<OutputAssets>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let availability_info = availability_info.into_value();
@@ -322,9 +324,11 @@ impl ChunkingContext for NodeJsChunkingContext {
         )
         .await?;
 
-        let other_chunks: Vec<_> = chunks
+        let extra_chunks = extra_chunks.await?;
+        let other_chunks: Vec<_> = extra_chunks
             .iter()
-            .map(|chunk| self.generate_chunk(*chunk))
+            .copied()
+            .chain(chunks.iter().map(|chunk| self.generate_chunk(*chunk)))
             .collect();
 
         let Some(module) = Vc::try_resolve_downcast(module).await? else {
@@ -359,11 +363,8 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn chunk_item_id_from_ident(
-        self: Vc<Self>,
-        ident: Vc<AssetIdent>,
-    ) -> Result<Vc<ModuleId>> {
-        Ok(self.await?.module_id_strategy.get_module_id(ident))
+    fn chunk_item_id_from_ident(&self, ident: Vc<AssetIdent>) -> Vc<ModuleId> {
+        self.module_id_strategy.get_module_id(ident)
     }
 
     #[turbo_tasks::function]

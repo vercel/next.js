@@ -16,7 +16,9 @@ import { prerenderAsyncStorage } from './prerender-async-storage-instance' with 
  * only needs to happen during the RSC prerender when we are prospectively prerendering
  * to fill all caches.
  */
-export type PrerenderStore = {
+export type PrerenderStoreModern = {
+  type: 'prerender'
+  pathname: string | undefined
   /**
    * This is the AbortController passed to React. It can be used to abort the prerender
    * if we encounter conditions that do not require further rendering
@@ -33,6 +35,20 @@ export type PrerenderStore = {
    * During some prerenders we want to track dynamic access.
    */
   readonly dynamicTracking: null | DynamicTrackingState
+}
+
+export type PrerenderStoreLegacy = {
+  type: 'prerender-legacy'
+  pathname: string | undefined
+}
+
+export type PrerenderStore = PrerenderStoreLegacy | PrerenderStoreModern
+
+export function isDynamicIOPrerender(prerenderStore: PrerenderStore): boolean {
+  return (
+    prerenderStore.type === 'prerender' &&
+    !!(prerenderStore.controller || prerenderStore.cacheSignal)
+  )
 }
 
 export type PrerenderAsyncStorage = AsyncLocalStorage<PrerenderStore>

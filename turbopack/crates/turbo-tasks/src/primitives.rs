@@ -1,4 +1,4 @@
-use std::{future::IntoFuture, ops::Deref};
+use std::{future::IntoFuture, ops::Deref, time::Duration};
 
 use anyhow::Result;
 use futures::TryFutureExt;
@@ -71,6 +71,7 @@ __turbo_tasks_internal_primitive!(i128);
 __turbo_tasks_internal_primitive!(usize);
 __turbo_tasks_internal_primitive!(isize);
 __turbo_tasks_internal_primitive!(serde_json::Value);
+__turbo_tasks_internal_primitive!(Duration);
 __turbo_tasks_internal_primitive!(Vec<u8>);
 
 __turbo_tasks_internal_primitive!(Vec<bool>);
@@ -86,10 +87,9 @@ impl Bools {
     }
 
     #[turbo_tasks::function]
-    async fn into_bools(self: Vc<Bools>) -> Result<Vc<Vec<bool>>> {
-        let this = self.await?;
-
-        let bools = this
+    async fn into_bools(&self) -> Result<Vc<Vec<bool>>> {
+        let bools = self
+            .0
             .iter()
             .map(|b| b.into_future().map_ok(|b| *b))
             .try_join()

@@ -6,8 +6,8 @@ use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
 use super::{
-    imports::ImportAnnotations, ConstantValue, JsValue, ModuleValue, WellKnownFunctionKind,
-    WellKnownObjectKind,
+    imports::ImportAnnotations, ConstantValue, JsValue, JsValueUrlKind, ModuleValue,
+    WellKnownFunctionKind, WellKnownObjectKind,
 };
 use crate::analyzer::RequireContextValue;
 
@@ -322,6 +322,8 @@ pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
     )
 }
 
+/// Resolve the contents of a require call, throwing errors
+/// if we come across any unsupported syntax.
 pub fn require(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         if let Some(s) = args[0].as_str() {
@@ -478,8 +480,7 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
     if args.len() == 1 {
         if let Some(path) = args[0].as_str() {
             Url::from_file_path(path)
-                .map(Box::new)
-                .map(JsValue::Url)
+                .map(|url| JsValue::Url(String::from(url).into(), JsValueUrlKind::Absolute))
                 .unwrap_or_else(|_| {
                     JsValue::unknown(
                         JsValue::call(
@@ -520,13 +521,13 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
 
 pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> (JsValue, bool) {
     let new_value = match (kind, prop.as_str()) {
-        (WellKnownFunctionKind::Require, Some("resolve")) => {
+        (WellKnownFunctionKind::Require { .. }, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
         }
-        (WellKnownFunctionKind::Require, Some("cache")) => {
+        (WellKnownFunctionKind::Require { .. }, Some("cache")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::RequireCache)
         }
-        (WellKnownFunctionKind::Require, Some("context")) => {
+        (WellKnownFunctionKind::Require { .. }, Some("context")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)
         }
         (WellKnownFunctionKind::RequireContextRequire(val), Some("resolve")) => {
@@ -540,6 +541,9 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
         }
         (WellKnownFunctionKind::NodeResolveFrom, Some("silent")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
+        }
+        (WellKnownFunctionKind::Import { .. }, Some("meta")) => {
+            JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
         }
         #[allow(unreachable_patterns)]
         (kind, _) => {
