@@ -1,4 +1,4 @@
-import type { IncomingMessage } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { BaseNextRequest } from '../base-http'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import type { NextApiResponse } from '../../shared/lib/utils'
@@ -20,10 +20,11 @@ export type __ApiPreviewProps = {
   previewModeSigningKey: string
 }
 
-export function wrapApiHandler<T extends (...args: any[]) => any>(
-  page: string,
-  handler: T
-): T {
+export function wrapApiHandler<
+  T extends (
+    ...args: [req: IncomingMessage, res: ServerResponse, ...any[]]
+  ) => any,
+>(page: string, handler: T): T {
   return ((...args) => {
     getTracer().setRootSpanAttribute('next.route', page)
     // Call API route method
@@ -31,8 +32,21 @@ export function wrapApiHandler<T extends (...args: any[]) => any>(
       NodeSpan.runHandler,
       {
         spanName: `executing api route (pages) ${page}`,
+        manualSpanEnd: true,
       },
-      () => handler(...args)
+      (span) => {
+        if (span) {
+          const res = args[1]
+          res.end = new Proxy(res.end, {
+            apply(target, thisArg, argArray) {
+              span.end()
+              return target.apply(thisArg, argArray as any)
+            },
+          })
+        }
+
+        return handler(...args)
+      }
     )
   }) as T
 }
