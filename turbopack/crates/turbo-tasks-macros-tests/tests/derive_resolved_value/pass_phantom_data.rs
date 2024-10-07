@@ -2,15 +2,15 @@
 
 use std::marker::PhantomData;
 
-use turbo_tasks::{ResolvedValue, ResolvedVc, Vc};
+use turbo_tasks::{ResolvedValue, Vc};
 
 struct Unresolved;
 
 #[derive(ResolvedValue)]
 struct PhantomDataCanContainAnything<T: Send>(
-    PhantomData<ResolvedVc<T>>,
+    PhantomData<Vc<T>>,
     PhantomData<Unresolved>,
-    PhantomData<ResolvedVc<Unresolved>>,
+    PhantomData<Vc<Unresolved>>,
 );
 
 fn main() {}
