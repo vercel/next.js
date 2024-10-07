@@ -18,8 +18,6 @@ import type {
   WorkUnitAsyncStorage,
   WorkUnitStore,
   RequestStore,
-  PrerenderStore,
-  CacheStore,
 } from '../../server/app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
@@ -173,13 +171,14 @@ export function addImplicitTags(
   }
 
   const renderedPathname =
-    workUnitStore !== undefined ? (
-      workUnitStore.type === 'request' ?
-      workUnitStore.url.pathname :
-      workUnitStore.type === 'prerender' ||
-      workUnitStore.type === 'prerender-legacy' ?
-      workUnitStore.pathname : undefined
-    ) : undefined
+    workUnitStore !== undefined
+      ? workUnitStore.type === 'request'
+        ? workUnitStore.url.pathname
+        : workUnitStore.type === 'prerender' ||
+            workUnitStore.type === 'prerender-legacy'
+          ? workUnitStore.pathname
+          : undefined
+      : undefined
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
