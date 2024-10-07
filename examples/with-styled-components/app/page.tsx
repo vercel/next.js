@@ -1,3 +1,4 @@
+"use client";
 import Head from "next/head";
 import {
   Container,
@@ -5,8 +6,8 @@ import {
   Title,
   Description,
   CodeTag,
-} from "@/components/sharedstyles";
-import Cards from "@/components/cards";
+} from "./_components/sharedstyles";
+import Cards from "./_components/cards";
 
 export default function Home() {
   return (
@@ -23,7 +24,7 @@ export default function Home() {
 
         <Description>
           Get started by editing
-          <CodeTag>pages/index.tsx</CodeTag>
+          <CodeTag>app/page.tsx</CodeTag>
         </Description>
 
         <Cards />

@@ -52,7 +52,6 @@ export type UnsafeUnwrappedCookies = ReadonlyRequestCookies
 
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
-  const requestStore = getExpectedRequestStore(callingExpression)
   const workStore = workAsyncStorage.getStore()
   const prerenderStore = prerenderAsyncStorage.getStore()
   const cacheStore = cacheAsyncStorage.getStore()
@@ -82,35 +81,41 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       )
     }
 
-    if (prerenderStore && prerenderStore.type === 'prerender') {
-      // We are in PPR and/or dynamicIO mode and prerendering
+    if (prerenderStore) {
+      if (prerenderStore.type === 'prerender') {
+        // We are in PPR and/or dynamicIO mode and prerendering
 
-      if (isDynamicIOPrerender(prerenderStore)) {
-        // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
-        // When resolving cookies for a prerender with dynamic IO we return a forever promise
-        // along with property access tracked synchronous cookies.
+        if (isDynamicIOPrerender(prerenderStore)) {
+          // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
+          // When resolving cookies for a prerender with dynamic IO we return a forever promise
+          // along with property access tracked synchronous cookies.
 
-        // We don't track dynamic access here because access will be tracked when you access
-        // one of the properties of the cookies object.
-        return makeDynamicallyTrackedExoticCookies(
-          workStore.route,
-          prerenderStore
-        )
-      } else {
-        // We are prerendering with PPR. We need track dynamic access here eagerly
-        // to keep continuity with how cookies has worked in PPR without dynamicIO.
-        // TODO consider switching the semantic to throw on property access instead
-        postponeWithTracking(
-          workStore.route,
+          // We don't track dynamic access here because access will be tracked when you access
+          // one of the properties of the cookies object.
+          return makeDynamicallyTrackedExoticCookies(
+            workStore.route,
+            prerenderStore
+          )
+        } else {
+          // We are prerendering with PPR. We need track dynamic access here eagerly
+          // to keep continuity with how cookies has worked in PPR without dynamicIO.
+          // TODO consider switching the semantic to throw on property access instead
+          postponeWithTracking(
+            workStore.route,
+            callingExpression,
+            prerenderStore.dynamicTracking
+          )
+        }
+      } else if (prerenderStore.type === 'prerender-legacy') {
+        // We are in a legacy static generation mode while prerendering
+        // We track dynamic access here so we don't need to wrap the cookies in
+        // individual property access tracking.
+        throwToInterruptStaticGeneration(
           callingExpression,
-          prerenderStore.dynamicTracking
+          workStore,
+          cacheStore
         )
       }
-    } else if (workStore.isStaticGeneration) {
-      // We are in a legacy static generation mode while prerendering
-      // We track dynamic access here so we don't need to wrap the cookies in
-      // individual property access tracking.
-      throwToInterruptStaticGeneration(callingExpression, workStore, cacheStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using cookies inside a cache context
@@ -119,6 +124,8 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
 
   // cookies is being called in a dynamic context
   const actionStore = actionAsyncStorage.getStore()
+
+  const requestStore = getExpectedRequestStore(callingExpression)
 
   let underlyingCookies: ReadonlyRequestCookies
 

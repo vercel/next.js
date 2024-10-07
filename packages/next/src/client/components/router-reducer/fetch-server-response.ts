@@ -33,6 +33,9 @@ import {
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
 
+// Importing from dist so that we can define an alias if needed.
+import { findSourceMapURL } from 'next/dist/client/app-find-source-map-url'
+
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
@@ -208,9 +211,7 @@ export async function fetchServerResponse(
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
     const response: NavigationFlightResponse = await createFromFetch(
       Promise.resolve(res),
-      {
-        callServer,
-      }
+      { callServer, findSourceMapURL }
     )
 
     if (buildId !== response.b) {

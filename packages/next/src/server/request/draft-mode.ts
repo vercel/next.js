@@ -4,6 +4,7 @@ import type { DraftModeProvider } from '../../server/async-storage/draft-mode-pr
 
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
+import { prerenderAsyncStorage } from '../../server/app-render/prerender-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
@@ -35,31 +36,58 @@ export type UnsafeUnwrappedDraftMode = DraftMode
 
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
-  const requestStore = getExpectedRequestStore(callingExpression)
   const workStore = workAsyncStorage.getStore()
+  const prerenderStore = prerenderAsyncStorage.getStore()
+  const cacheStore = cacheAsyncStorage.getStore()
 
+  if (
+    (cacheStore &&
+      (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache')) ||
+    (prerenderStore &&
+      (prerenderStore.type === 'prerender' ||
+        prerenderStore.type === 'prerender-legacy'))
+  ) {
+    // Return empty draft mode
+    if (
+      process.env.NODE_ENV === 'development' &&
+      !workStore?.isPrefetchRequest
+    ) {
+      const route = workStore?.route
+      return createExoticDraftModeWithDevWarnings(null, route)
+    } else {
+      return createExoticDraftMode(null)
+    }
+  }
+
+  const requestStore = getExpectedRequestStore(callingExpression)
+
+  const cachedDraftMode = CachedDraftModes.get(requestStore.draftMode)
+  if (cachedDraftMode) {
+    return cachedDraftMode
+  }
+
+  let promise
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     const route = workStore?.route
-    return createExoticDraftModeWithDevWarnings(requestStore.draftMode, route)
+    promise = createExoticDraftModeWithDevWarnings(
+      requestStore.draftMode,
+      route
+    )
   } else {
-    return createExoticDraftMode(requestStore.draftMode)
+    promise = createExoticDraftMode(requestStore.draftMode)
   }
+  CachedDraftModes.set(requestStore.draftMode, promise)
+  return promise
 }
 
 interface CacheLifetime {}
 const CachedDraftModes = new WeakMap<CacheLifetime, Promise<DraftMode>>()
 
 function createExoticDraftMode(
-  underlyingProvider: DraftModeProvider
+  underlyingProvider: null | DraftModeProvider
 ): Promise<DraftMode> {
-  const cachedDraftMode = CachedDraftModes.get(underlyingProvider)
-  if (cachedDraftMode) {
-    return cachedDraftMode
-  }
-
   const instance = new DraftMode(underlyingProvider)
   const promise = Promise.resolve(instance)
-  CachedDraftModes.set(underlyingProvider, promise)
 
   Object.defineProperty(promise, 'isEnabled', {
     get() {
@@ -82,17 +110,11 @@ function createExoticDraftMode(
 }
 
 function createExoticDraftModeWithDevWarnings(
-  underlyingProvider: DraftModeProvider,
+  underlyingProvider: null | DraftModeProvider,
   route: undefined | string
 ): Promise<DraftMode> {
-  const cachedDraftMode = CachedDraftModes.get(underlyingProvider)
-  if (cachedDraftMode) {
-    return cachedDraftMode
-  }
-
   const instance = new DraftMode(underlyingProvider)
   const promise = Promise.resolve(instance)
-  CachedDraftModes.set(underlyingProvider, promise)
 
   Object.defineProperty(promise, 'isEnabled', {
     get() {
@@ -134,13 +156,16 @@ class DraftMode {
   /**
    * @internal - this declaration is stripped via `tsc --stripInternal`
    */
-  private readonly _provider: DraftModeProvider
+  private readonly _provider: null | DraftModeProvider
 
-  constructor(provider: DraftModeProvider) {
+  constructor(provider: null | DraftModeProvider) {
     this._provider = provider
   }
   get isEnabled() {
-    return this._provider.isEnabled
+    if (this._provider !== null) {
+      return this._provider.isEnabled
+    }
+    return false
   }
   public enable() {
     const store = workAsyncStorage.getStore()
@@ -150,7 +175,9 @@ class DraftMode {
       // don't statically generate routes that manipulate draft mode.
       trackDynamicDataAccessed(store, cacheStore, 'draftMode().enable()')
     }
-    return this._provider.enable()
+    if (this._provider !== null) {
+      this._provider.enable()
+    }
   }
   public disable() {
     const store = workAsyncStorage.getStore()
@@ -160,7 +187,9 @@ class DraftMode {
       // don't statically generate routes that manipulate draft mode.
       trackDynamicDataAccessed(store, cacheStore, 'draftMode().disable()')
     }
-    return this._provider.disable()
+    if (this._provider !== null) {
+      this._provider.disable()
+    }
   }
 }
 

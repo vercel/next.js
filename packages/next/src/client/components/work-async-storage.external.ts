@@ -5,10 +5,11 @@ import type { FetchMetrics } from '../../server/base-http'
 import type { Revalidate } from '../../server/lib/revalidate'
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
+import type { AfterContext } from '../../server/after/after-context'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorage } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
-import type { AppSegmentConfig } from '../../build/app-segments/app-segment-config'
 
 export interface WorkStore {
   readonly isStaticGeneration: boolean
@@ -43,6 +44,7 @@ export interface WorkStore {
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
   pendingRevalidateWrites?: Array<Promise<void>> // This is like pendingRevalidates but isn't used for deduping.
+  readonly afterContext: AfterContext | undefined
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string

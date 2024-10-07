@@ -57,7 +57,6 @@ export type UnsafeUnwrappedHeaders = ReadonlyHeaders
  * Read more: [Next.js Docs: `headers`](https://nextjs.org/docs/app/api-reference/functions/headers)
  */
 export function headers(): Promise<ReadonlyHeaders> {
-  const requestStore = getExpectedRequestStore('headers')
   const workStore = workAsyncStorage.getStore()
   const prerenderStore = prerenderAsyncStorage.getStore()
   const cacheStore = cacheAsyncStorage.getStore()
@@ -87,41 +86,44 @@ export function headers(): Promise<ReadonlyHeaders> {
       )
     }
 
-    if (prerenderStore && prerenderStore.type === 'prerender') {
-      // We are in PPR and/or dynamicIO mode and prerendering
+    if (prerenderStore) {
+      if (prerenderStore.type === 'prerender') {
+        // We are in PPR and/or dynamicIO mode and prerendering
 
-      if (isDynamicIOPrerender(prerenderStore)) {
-        // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
-        // When resolving headers for a prerender with dynamic IO we return a forever promise
-        // along with property access tracked synchronous headers.
+        if (isDynamicIOPrerender(prerenderStore)) {
+          // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
+          // When resolving headers for a prerender with dynamic IO we return a forever promise
+          // along with property access tracked synchronous headers.
 
-        // We don't track dynamic access here because access will be tracked when you access
-        // one of the properties of the headers object.
-        return makeDynamicallyTrackedExoticHeaders(
-          workStore.route,
-          prerenderStore
-        )
-      } else {
-        // We are prerendering with PPR. We need track dynamic access here eagerly
-        // to keep continuity with how headers has worked in PPR without dynamicIO.
-        // TODO consider switching the semantic to throw on property access instead
-        postponeWithTracking(
-          workStore.route,
-          'headers',
-          prerenderStore.dynamicTracking
-        )
+          // We don't track dynamic access here because access will be tracked when you access
+          // one of the properties of the headers object.
+          return makeDynamicallyTrackedExoticHeaders(
+            workStore.route,
+            prerenderStore
+          )
+        } else {
+          // We are prerendering with PPR. We need track dynamic access here eagerly
+          // to keep continuity with how headers has worked in PPR without dynamicIO.
+          // TODO consider switching the semantic to throw on property access instead
+          postponeWithTracking(
+            workStore.route,
+            'headers',
+            prerenderStore.dynamicTracking
+          )
+        }
+      } else if (prerenderStore.type === 'prerender-legacy') {
+        // We are in a legacy static generation mode while prerendering
+        // We track dynamic access here so we don't need to wrap the headers in
+        // individual property access tracking.
+        throwToInterruptStaticGeneration('headers', workStore, cacheStore)
       }
-    } else if (workStore.isStaticGeneration) {
-      // We are in a legacy static generation mode while prerendering
-      // We track dynamic access here so we don't need to wrap the headers in
-      // individual property access tracking.
-      throwToInterruptStaticGeneration('headers', workStore, cacheStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using headers inside a cache context
     trackDynamicDataInDynamicRender(workStore, cacheStore)
   }
 
+  const requestStore = getExpectedRequestStore('headers')
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     return makeUntrackedExoticHeadersWithDevWarnings(
       requestStore.headers,
