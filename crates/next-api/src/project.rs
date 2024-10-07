@@ -216,21 +216,19 @@ impl ProjectContainer {
 impl ProjectContainer {
     #[tracing::instrument(level = "info", name = "initialize project", skip_all)]
     pub async fn initialize(self: Vc<Self>, options: ProjectOptions) -> Result<()> {
-        let poll_interval = options.watch.poll_interval;
+        let watch = options.watch;
 
         self.await?.options_state.set(Some(options));
 
         let project = self.project();
-        project
-            .project_fs()
-            .strongly_consistent()
-            .await?
-            .start_watching_with_invalidation_reason(poll_interval)?;
-        project
-            .output_fs()
-            .strongly_consistent()
-            .await?
-            .invalidate_with_reason();
+        let project_fs = project.project_fs().strongly_consistent().await?;
+        if watch.enable {
+            project_fs.start_watching_with_invalidation_reason(watch.poll_interval)?;
+        } else {
+            project_fs.invalidate_with_reason();
+        }
+        let output_fs = project.output_fs().strongly_consistent().await?;
+        output_fs.invalidate_with_reason();
         Ok(())
     }
 
@@ -293,20 +291,23 @@ impl ProjectContainer {
         }
 
         // TODO: Handle mode switch, should prevent mode being switched.
+        let watch = new_options.watch;
 
         let project = self.project();
         let prev_project_fs = project.project_fs().strongly_consistent().await?;
         let prev_output_fs = project.output_fs().strongly_consistent().await?;
-
-        let poll_interval = new_options.watch.poll_interval;
 
         this.options_state.set(Some(new_options));
         let project_fs = project.project_fs().strongly_consistent().await?;
         let output_fs = project.output_fs().strongly_consistent().await?;
 
         if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
-            // TODO stop watching: prev_project_fs.stop_watching()?;
-            project_fs.start_watching_with_invalidation_reason(poll_interval)?;
+            if watch.enable {
+                // TODO stop watching: prev_project_fs.stop_watching()?;
+                project_fs.start_watching_with_invalidation_reason(watch.poll_interval)?;
+            } else {
+                project_fs.invalidate_with_reason();
+            }
         }
         if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
             prev_output_fs.invalidate_with_reason();
@@ -533,18 +534,12 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn project_fs(&self) -> Result<Vc<DiskFileSystem>> {
-        let disk_fs = DiskFileSystem::new(
+    fn project_fs(&self) -> Vc<DiskFileSystem> {
+        DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.into(),
             self.root_path.clone(),
             vec![],
-        );
-        if self.watch.enable {
-            disk_fs
-                .await?
-                .start_watching_with_invalidation_reason(self.watch.poll_interval)?;
-        }
-        Ok(disk_fs)
+        )
     }
 
     #[turbo_tasks::function]

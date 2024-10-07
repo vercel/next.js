@@ -48,6 +48,7 @@ use invalidation::InvalidateFilesystem;
 use invalidator_map::InvalidatorMap;
 use jsonc_parser::{parse_to_serde_value, ParseOptions};
 use mime::Mime;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use read_glob::read_glob;
 pub use read_glob::ReadGlobResult;
 use serde::{Deserialize, Serialize};
@@ -273,30 +274,43 @@ impl DiskFileSystem {
 
     pub fn invalidate(&self) {
         let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
-        for (_, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
-            invalidators.into_iter().for_each(|i| i.invalidate());
-        }
-        for (_, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter() {
-            invalidators.into_iter().for_each(|i| i.invalidate());
-        }
+        let span = tracing::Span::current();
+        let handle = tokio::runtime::Handle::current();
+        let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
+        let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
+        let iter = invalidator_map
+            .into_par_iter()
+            .chain(dir_invalidator_map.into_par_iter())
+            .flat_map(|(_, invalidators)| invalidators.into_par_iter());
+        iter.for_each(|i| {
+            let _span = span.clone().entered();
+            let _guard = handle.enter();
+            i.invalidate()
+        });
         self.serialization_invalidator.invalidate();
     }
 
     pub fn invalidate_with_reason(&self) {
         let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
-        for (path, invalidators) in take(&mut *self.invalidator_map.lock().unwrap()).into_iter() {
-            let reason = InvalidateFilesystem { path: path.into() };
-            invalidators
-                .into_iter()
-                .for_each(|i| i.invalidate_with_reason(reason.clone()));
-        }
-        for (path, invalidators) in take(&mut *self.dir_invalidator_map.lock().unwrap()).into_iter()
-        {
-            let reason = InvalidateFilesystem { path: path.into() };
-            invalidators
-                .into_iter()
-                .for_each(|i| i.invalidate_with_reason(reason.clone()));
-        }
+        let span = tracing::Span::current();
+        let handle = tokio::runtime::Handle::current();
+        let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
+        let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
+        let iter = invalidator_map
+            .into_par_iter()
+            .chain(dir_invalidator_map.into_par_iter())
+            .flat_map(|(path, invalidators)| {
+                let _span = span.clone().entered();
+                let reason = InvalidateFilesystem { path: path.into() };
+                invalidators
+                    .into_par_iter()
+                    .map(move |i| (reason.clone(), i))
+            });
+        iter.for_each(|(reason, invalidator)| {
+            let _span = span.clone().entered();
+            let _guard = handle.enter();
+            invalidator.invalidate_with_reason(reason)
+        });
         self.serialization_invalidator.invalidate();
     }
 
@@ -333,6 +347,7 @@ impl DiskFileSystem {
             invalidator_map,
             dir_invalidator_map,
             poll_interval,
+            self.serialization_invalidator.clone(),
         )?;
         self.serialization_invalidator.invalidate();
 
@@ -441,11 +456,11 @@ impl DiskFileSystem {
 
         // we use the sync std function here as it's a lot faster (600%) in
         // node-file-trace
-        let read_dir = match retry_blocking(
-            &full_path,
-            tracing::info_span!("read directory", path = display(full_path.display())),
-            |path| std::fs::read_dir(path),
-        )
+        let read_dir = match retry_blocking(&full_path, |path| {
+            let _span =
+                tracing::info_span!("read directory", path = display(path.display())).entered();
+            std::fs::read_dir(path)
+        })
         .await
         {
             Ok(dir) => dir,
@@ -810,26 +825,25 @@ impl FileSystem for DiskFileSystem {
                 } else {
                     PathBuf::from(unix_to_sys(target).as_ref())
                 };
-                retry_blocking(
-                    &target_path,
-                    tracing::info_span!("write symlink", path = display(full_path.display())),
-                    move |target_path| {
-                        // we use the sync std method here because `symlink` is fast
-                        // if we put it into a task, it will be slower
-                        #[cfg(not(target_family = "windows"))]
-                        {
-                            std::os::unix::fs::symlink(target_path, &full_path)
+                retry_blocking(&target_path, move |target_path| {
+                    let _span =
+                        tracing::info_span!("write symlink", path = display(target_path.display()))
+                            .entered();
+                    // we use the sync std method here because `symlink` is fast
+                    // if we put it into a task, it will be slower
+                    #[cfg(not(target_family = "windows"))]
+                    {
+                        std::os::unix::fs::symlink(target_path, &full_path)
+                    }
+                    #[cfg(target_family = "windows")]
+                    {
+                        if link_type.contains(LinkType::DIRECTORY) {
+                            std::os::windows::fs::symlink_dir(target_path, &full_path)
+                        } else {
+                            std::os::windows::fs::symlink_file(target_path, &full_path)
                         }
-                        #[cfg(target_family = "windows")]
-                        {
-                            if link_type.contains(LinkType::DIRECTORY) {
-                                std::os::windows::fs::symlink_dir(target_path, &full_path)
-                            } else {
-                                std::os::windows::fs::symlink_file(target_path, &full_path)
-                            }
-                        }
-                    },
-                )
+                    }
+                })
                 .await
                 .with_context(|| format!("create symlink to {}", target))?;
             }
