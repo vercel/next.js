@@ -356,6 +356,7 @@ export function unstable_cache<T extends Callback>(
             isStaticGeneration: false,
             fallbackRouteParams: null,
             buildId: '', // Since this is a fake one it can't "use cache" anyway.
+            afterContext: undefined, // TODO: Support Pages after()
           },
           () => cacheAsyncStorage.run(innerCacheStore, cb, ...args)
         )
