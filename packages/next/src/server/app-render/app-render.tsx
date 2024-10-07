@@ -1128,7 +1128,7 @@ async function renderToHTMLOrFlightImpl(
       ])
     }
 
-    addImplicitTags(workStore, requestStore, undefined)
+    addImplicitTags(workStore, requestStore, undefined, undefined)
 
     if (workStore.tags) {
       metadata.fetchTags = workStore.tags.join(',')
@@ -1237,7 +1237,7 @@ async function renderToHTMLOrFlightImpl(
       ])
     }
 
-    addImplicitTags(workStore, requestStore, undefined)
+    addImplicitTags(workStore, requestStore, undefined, undefined)
 
     if (workStore.tags) {
       metadata.fetchTags = workStore.tags.join(',')
@@ -1852,6 +1852,7 @@ async function prerenderToStream(
         const cacheSignal = new CacheSignal()
         const prospectiveRenderPrerenderStore: PrerenderStore = {
           type: 'prerender',
+          pathname: ctx.requestStore.url.pathname,
           cacheSignal,
           // During the prospective render we don't want to synchronously abort on dynamic access
           // because it could prevent us from discovering all caches in siblings. So we omit the controller
@@ -1943,6 +1944,7 @@ async function prerenderToStream(
 
         const finalRenderPrerenderStore: PrerenderStore = {
           type: 'prerender',
+          pathname: ctx.requestStore.url.pathname,
           // During the final prerender we don't need to track cache access so we omit the signal
           cacheSignal: null,
           // During the final render we do want to abort synchronously on dynamic access so we
@@ -1998,6 +2000,7 @@ async function prerenderToStream(
         const SSRController = new AbortController()
         const ssrPrerenderStore: PrerenderStore = {
           type: 'prerender',
+          pathname: ctx.requestStore.url.pathname,
           // For HTML Generation we don't need to track cache reads (RSC only)
           cacheSignal: null,
           // We expect the SSR render to complete in a single Task and need to be able to synchronously abort
@@ -2202,6 +2205,7 @@ async function prerenderToStream(
         const cacheSignal = new CacheSignal()
         const prospectiveRenderPrerenderStore: PrerenderStore = {
           type: 'prerender',
+          pathname: ctx.requestStore.url.pathname,
           cacheSignal,
           // When PPR is off we can synchronously abort the prospective render because we will
           // always hit this path on the final render and thus we can skip the final render and just
@@ -2280,6 +2284,7 @@ async function prerenderToStream(
 
         const finalRenderPrerenderStore: PrerenderStore = {
           type: 'prerender',
+          pathname: ctx.requestStore.url.pathname,
           // During the final prerender we don't need to track cache access so we omit the signal
           cacheSignal: null,
           controller: flightController,
@@ -2289,6 +2294,7 @@ async function prerenderToStream(
         const SSRController = new AbortController()
         const ssrPrerenderStore: PrerenderStore = {
           type: 'prerender',
+          pathname: ctx.requestStore.url.pathname,
           // For HTML Generation we don't need to track cache reads (RSC only)
           cacheSignal: null,
           // We expect the SSR render to complete in a single Task and need to be able to synchronously abort
@@ -2469,6 +2475,7 @@ async function prerenderToStream(
       )
       const reactServerPrerenderStore: PrerenderStore = {
         type: 'prerender',
+        pathname: ctx.requestStore.url.pathname,
         cacheSignal: null,
         controller: null,
         dynamicTracking,
@@ -2496,6 +2503,7 @@ async function prerenderToStream(
 
       const ssrPrerenderStore: PrerenderStore = {
         type: 'prerender',
+        pathname: ctx.requestStore.url.pathname,
         cacheSignal: null,
         controller: null,
         dynamicTracking,
@@ -2653,6 +2661,7 @@ async function prerenderToStream(
     } else {
       const prerenderLegacyStore: PrerenderStore = {
         type: 'prerender-legacy',
+        pathname: ctx.requestStore.url.pathname,
       }
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation

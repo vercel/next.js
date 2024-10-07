@@ -196,6 +196,7 @@ export function unstable_cache<T extends Callback>(
         const implicitTags = addImplicitTags(
           workStore,
           requestStore,
+          prerenderStore,
           cacheStore
         )
 
@@ -305,7 +306,8 @@ export function unstable_cache<T extends Callback>(
           // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
           // of this function is potentially a little confusing
           const implicitTags =
-            workStore && addImplicitTags(workStore, requestStore, cacheStore)
+            workStore &&
+            addImplicitTags(workStore, requestStore, prerenderStore, cacheStore)
 
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,

@@ -18,6 +18,7 @@ import type {
   RequestAsyncStorage,
   RequestStore,
 } from '../../client/components/request-async-storage.external'
+import type { PrerenderStore } from '../app-render/prerender-async-storage.external'
 import {
   cacheAsyncStorage,
   type CacheStore,
@@ -144,6 +145,7 @@ const getDerivedTags = (pathname: string): string[] => {
 export function addImplicitTags(
   workStore: WorkStore,
   requestStore: RequestStore | undefined,
+  prerenderStore: PrerenderStore | undefined,
   cacheStore: CacheStore | undefined
 ) {
   const newTags: string[] = []
@@ -174,10 +176,17 @@ export function addImplicitTags(
     newTags.push(tag)
   }
 
+  const renderedPathname =
+    requestStore !== undefined
+      ? requestStore.url.pathname
+      : prerenderStore !== undefined
+        ? prerenderStore.pathname
+        : undefined
+
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
-  if (requestStore?.url.pathname && !hasFallbackRouteParams) {
-    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${requestStore.url.pathname}`
+  if (renderedPathname && !hasFallbackRouteParams) {
+    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${renderedPathname}`
     if (
       !cacheStore ||
       (cacheStore.type !== 'cache' && cacheStore.type !== 'unstable-cache')
@@ -263,6 +272,7 @@ export function createPatchedFetcher(
     const hideSpan = process.env.NEXT_OTEL_FETCH_DISABLED === '1'
 
     const workStore = workAsyncStorage.getStore()
+    const prerenderStore = prerenderAsyncStorage.getStore()
 
     const result = getTracer().trace(
       isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
@@ -345,6 +355,7 @@ export function createPatchedFetcher(
         const implicitTags = addImplicitTags(
           workStore,
           requestStore,
+          prerenderStore,
           cacheStore
         )
 
@@ -772,7 +783,6 @@ export function createPatchedFetcher(
               // We sometimes use the cache to dedupe fetches that do not specify a cache configuration
               // In these cases we want to make sure we still exclude them from prerenders if dynamicIO is on
               // so we introduce an artificial Task boundary here.
-              const prerenderStore = prerenderAsyncStorage.getStore()
               if (prerenderStore) {
                 await waitAtLeastOneReactRenderTask()
               }
@@ -953,7 +963,6 @@ export function createPatchedFetcher(
       }
     )
 
-    const prerenderStore = prerenderAsyncStorage.getStore()
     if (
       prerenderStore &&
       prerenderStore.type === 'prerender' &&
