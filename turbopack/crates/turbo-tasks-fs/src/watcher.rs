@@ -186,8 +186,10 @@ impl DiskWatcher {
             let dir_invalidator_map = take(&mut *dir_invalidator_map.lock().unwrap());
             let iter = invalidator_map
                 .into_par_iter()
-                .chain(dir_invalidator_map.into_par_iter())
-                .flat_map(|(path, invalidators)| {
+                .chain(dir_invalidator_map.into_par_iter());
+            let handle = tokio::runtime::Handle::current();
+            if report_invalidation_reason.is_some() {
+                iter.flat_map(|(path, invalidators)| {
                     let _span = span.clone().entered();
                     let reason = WatchStart {
                         name: name.clone(),
@@ -196,11 +198,23 @@ impl DiskWatcher {
                     invalidators
                         .into_par_iter()
                         .map(move |i| (reason.clone(), i))
+                })
+                .for_each(|(reason, invalidator)| {
+                    let _span = span.clone().entered();
+                    let _guard = handle.enter();
+                    invalidator.invalidate_with_reason(reason)
                 });
-            iter.for_each(|(reason, invalidator)| {
-                let _span = span.clone().entered();
-                invalidator.invalidate_with_reason(reason)
-            });
+            } else {
+                iter.flat_map(|(_, invalidators)| {
+                    let _span = span.clone().entered();
+                    invalidators.into_par_iter().map(move |i| i)
+                })
+                .for_each(|invalidator| {
+                    let _span = span.clone().entered();
+                    let _guard = handle.enter();
+                    invalidator.invalidate()
+                });
+            }
             serialization_invalidator.invalidate();
         }
 

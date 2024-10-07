@@ -275,6 +275,7 @@ impl DiskFileSystem {
     pub fn invalidate(&self) {
         let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
         let span = tracing::Span::current();
+        let handle = tokio::runtime::Handle::current();
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
         let iter = invalidator_map
@@ -283,6 +284,7 @@ impl DiskFileSystem {
             .flat_map(|(_, invalidators)| invalidators.into_par_iter());
         iter.for_each(|i| {
             let _span = span.clone().entered();
+            let _guard = handle.enter();
             i.invalidate()
         });
         self.serialization_invalidator.invalidate();
@@ -291,6 +293,7 @@ impl DiskFileSystem {
     pub fn invalidate_with_reason(&self) {
         let _span = tracing::info_span!("invalidate filesystem", path = &*self.root).entered();
         let span = tracing::Span::current();
+        let handle = tokio::runtime::Handle::current();
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
         let iter = invalidator_map
@@ -305,6 +308,7 @@ impl DiskFileSystem {
             });
         iter.for_each(|(reason, invalidator)| {
             let _span = span.clone().entered();
+            let _guard = handle.enter();
             invalidator.invalidate_with_reason(reason)
         });
         self.serialization_invalidator.invalidate();
