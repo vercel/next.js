@@ -18,6 +18,7 @@ import { prerenderAsyncStorage } from './prerender-async-storage-instance' with 
  */
 export type PrerenderStoreModern = {
   type: 'prerender'
+  pathname: string | undefined
   /**
    * This is the AbortController passed to React. It can be used to abort the prerender
    * if we encounter conditions that do not require further rendering
@@ -38,6 +39,7 @@ export type PrerenderStoreModern = {
 
 export type PrerenderStoreLegacy = {
   type: 'prerender-legacy'
+  pathname: string | undefined
 }
 
 export type PrerenderStore = PrerenderStoreLegacy | PrerenderStoreModern

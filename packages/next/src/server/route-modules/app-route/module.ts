@@ -336,6 +336,7 @@ export class AppRouteRouteModule extends RouteModule<
         let dynamicTracking = createDynamicTrackingState(undefined)
         const prospectiveRoutePrerenderStore: PrerenderStore = {
           type: 'prerender',
+          pathname: requestStore.url.pathname,
           cacheSignal,
           // During prospective render we don't use a controller
           // because we need to let all caches fill.
@@ -403,6 +404,7 @@ export class AppRouteRouteModule extends RouteModule<
 
         const finalRoutePrerenderStore: PrerenderStore = {
           type: 'prerender',
+          pathname: requestStore.url.pathname,
           cacheSignal: null,
           controller,
           dynamicTracking,
@@ -466,6 +468,7 @@ export class AppRouteRouteModule extends RouteModule<
         res = await prerenderAsyncStorage.run(
           {
             type: 'prerender-legacy',
+            pathname: requestStore.url.pathname,
           },
           handler,
           request,
@@ -522,7 +525,7 @@ export class AppRouteRouteModule extends RouteModule<
       ...Object.values(workStore.pendingRevalidates || {}),
     ])
 
-    addImplicitTags(workStore, requestStore, undefined)
+    addImplicitTags(workStore, requestStore, undefined, undefined)
     ;(context.renderOpts as any).fetchTags = workStore.tags?.join(',')
 
     // It's possible cookies were set in the handler, so we need

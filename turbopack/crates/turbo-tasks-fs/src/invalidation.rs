@@ -51,7 +51,7 @@ impl InvalidationReasonKind for WatchChangeKind {
 
 /// Invalidation was caused by a directory starting to watch from which was read
 /// before.
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub struct WatchStart {
     pub name: RcStr,
     pub path: RcStr,
