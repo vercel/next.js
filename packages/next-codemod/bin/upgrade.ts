@@ -53,7 +53,7 @@ export async function runUpgrade(
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
     throw new Error(
-      `${pc.yellow(`next@${revision}`)} does not exist. Check available versions at ${pc.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
+      `${pc.yellow(`next@${revision}`)} does not exist. Make sure you entered a valid Next.js version or dist-tag. Check available versions at ${pc.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
     )
   }
 
