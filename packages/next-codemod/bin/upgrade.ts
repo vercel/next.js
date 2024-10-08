@@ -7,6 +7,7 @@ import chalk from 'chalk'
 import { availableCodemods } from '../lib/codemods'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { runTransform } from './transform'
+import { onCancel } from '../lib/utils'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
@@ -162,11 +163,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
       message: 'Turbopack is now the stable default for dev mode. Enable it?',
       initial: true,
     },
-    {
-      onCancel: () => {
-        process.exit(0)
-      },
-    }
+    { onCancel }
   )
 
   if (!responseTurbopack.enable) {
@@ -181,12 +178,15 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
     return
   }
 
-  const responseCustomDevScript = await prompts({
-    type: 'text',
-    name: 'customDevScript',
-    message: 'Please add `--turbo` to your dev command:',
-    initial: devScript,
-  })
+  const responseCustomDevScript = await prompts(
+    {
+      type: 'text',
+      name: 'customDevScript',
+      message: 'Please add `--turbo` to your dev command:',
+      initial: devScript,
+    },
+    { onCancel }
+  )
 
   packageJson.scripts['dev'] =
     responseCustomDevScript.customDevScript || devScript
@@ -233,11 +233,7 @@ async function suggestCodemods(
         }
       }),
     },
-    {
-      onCancel: () => {
-        process.exit(0)
-      },
-    }
+    { onCancel }
   )
 
   return codemods
