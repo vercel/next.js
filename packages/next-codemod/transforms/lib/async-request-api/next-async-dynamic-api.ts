@@ -187,7 +187,7 @@ export function transformDynamicAPI(
                   root,
                   filePath,
                   insertedTypes,
-                  ` Next.js Dynamic Async API Codemod: please manually await this call, if it's a server component, you can turn it to async function `
+                  ` Next.js Dynamic Async API Codemod: Manually await this call, if it's a Server Component `
                 )
               }
             } else {
