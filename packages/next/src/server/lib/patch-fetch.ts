@@ -550,9 +550,6 @@ export function createPatchedFetcher(
         const fetchIdx = workStore.nextFetchId ?? 1
         workStore.nextFetchId = fetchIdx + 1
 
-        const normalizedRevalidate =
-          typeof finalRevalidate !== 'number' ? CACHE_ONE_YEAR : finalRevalidate
-
         let handleUnlock = () => Promise.resolve()
 
         const doOriginalFetch = async (
@@ -625,6 +622,13 @@ export function createPatchedFetcher(
               cacheKey &&
               (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
             ) {
+              const normalizedRevalidate =
+                finalRevalidate >= INFINITE_CACHE
+                  ? CACHE_ONE_YEAR
+                  : finalRevalidate
+              const externalRevalidate =
+                finalRevalidate >= INFINITE_CACHE ? false : finalRevalidate
+
               if (workUnitStore && workUnitStore.type === 'prerender') {
                 // We are prerendering at build time or revalidate time with dynamicIO so we need to
                 // buffer the response so we can guarantee it can be read in a microtask
@@ -650,7 +654,7 @@ export function createPatchedFetcher(
                   },
                   {
                     fetchCache: true,
-                    revalidate: finalRevalidate,
+                    revalidate: externalRevalidate,
                     fetchUrl,
                     fetchIdx,
                     tags,
@@ -696,7 +700,7 @@ export function createPatchedFetcher(
                         },
                         {
                           fetchCache: true,
-                          revalidate: finalRevalidate,
+                          revalidate: externalRevalidate,
                           fetchUrl,
                           fetchIdx,
                           tags,
