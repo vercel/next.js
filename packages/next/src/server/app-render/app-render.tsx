@@ -1140,7 +1140,10 @@ async function renderToHTMLOrFlightImpl(
       metadata.revalidate = 0
     } else {
       // Copy the revalidation value onto the render result metadata.
-      metadata.revalidate = response.collectedRevalidate
+      metadata.revalidate =
+        response.collectedRevalidate >= INFINITE_CACHE
+          ? false
+          : response.collectedRevalidate
     }
 
     // provide bailout info for debugging
