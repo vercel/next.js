@@ -12,19 +12,41 @@ This API extends the [Web Headers API](https://developer.mozilla.org/docs/Web/AP
 ```tsx filename="app/page.tsx" switcher
 import { headers } from 'next/headers'
 
+// Async page component
+export default async function Page() {
+  const headersList = await headers()
+  const referer = headersList.get('referer')
+
+  return <div>Referer: {referer}</div>
+}
+
+// Sync page component
+import { use } from "react"
+
 export default function Page() {
-  const headersList = headers()
+  const headersList = use(headers())
   const referer = headersList.get('referer')
 
   return <div>Referer: {referer}</div>
 }
 ```
 
-```jsx filename="app/page.js" switcher
+```jsx filename="app/page.jsx" switcher
 import { headers } from 'next/headers'
 
+// Async page component
+export default async function Page() {
+  const headersList = await headers()
+  const referer = headersList.get('referer')
+
+  return <div>Referer: {referer}</div>
+}
+
+// Sync page component
+import { use } from "react"
+
 export default function Page() {
-  const headersList = headers()
+  const headersList = use(headers())
   const referer = headersList.get('referer')
 
   return <div>Referer: {referer}</div>
@@ -33,12 +55,18 @@ export default function Page() {
 
 > **Good to know**:
 >
-> - `headers()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)** at request time.
+> - `headers()` is an async **[Dynamic Function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)** at request time.
 
 ### API Reference
 
 ```tsx
-const headersList = headers()
+// async server component
+const headersList = await headers()
+
+// sync server component
+import { use } from "react"
+
+const headersList = use(headers())
 ```
 
 #### Parameters
@@ -47,7 +75,7 @@ const headersList = headers()
 
 #### Returns
 
-`headers` returns a **read-only** [Web Headers](https://developer.mozilla.org/docs/Web/API/Headers) object.
+`headers` returns a promise **read-only** [Web Headers](https://developer.mozilla.org/docs/Web/API/Headers) object.
 
 - [`Headers.entries()`](https://developer.mozilla.org/docs/Web/API/Headers/entries): Returns an [`iterator`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Iteration_protocols) allowing to go through all key/value pairs contained in this object.
 - [`Headers.forEach()`](https://developer.mozilla.org/docs/Web/API/Headers/forEach): Executes a provided function once for each key/value pair in this `Headers` object.
@@ -67,7 +95,7 @@ import { Suspense } from 'react'
 import { headers } from 'next/headers'
 
 async function User() {
-  const authorization = headers().get('authorization')
+  const authorization = (await headers()).get('authorization')
   const res = await fetch('...', {
     headers: { authorization }, // Forward the authorization header
   })
@@ -93,15 +121,15 @@ export default function Page() {
 import { Suspense } from 'react'
 import { headers } from 'next/headers'
 
-function IP() {
+async function IP() {
   const FALLBACK_IP_ADDRESS = '0.0.0.0'
-  const forwardedFor = headers().get('x-forwarded-for')
+  const forwardedFor = (await headers()).get('x-forwarded-for')
 
   if (forwardedFor) {
     return forwardedFor.split(',')[0] ?? FALLBACK_IP_ADDRESS
   }
 
-  return headers().get('x-real-ip') ?? FALLBACK_IP_ADDRESS
+  return (await headers()).get('x-real-ip') ?? FALLBACK_IP_ADDRESS
 }
 
 export default function Page() {
@@ -125,3 +153,4 @@ In addition to `x-forwarded-for`, `headers()` can also read:
 | Version   | Changes               |
 | --------- | --------------------- |
 | `v13.0.0` | `headers` introduced. |
+| `v15.0.0` | `headers` returns a promise |
