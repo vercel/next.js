@@ -30,6 +30,69 @@ async function loadHighestNPMVersionMatching(query: string) {
   return versions[versions.length - 1]
 }
 
+const MIGRATION_INSTRUCTIONS = `\
+The codemods are applied, please review the changes of transformed files and follow the instructions below to complete the migration:
+
+There're some codemod transform still require you to manually migrate, please follow the instructions below:
+  - Search for comment "Next.js Dynamic Async API Codemod:", and read the instructions in comment and migrate them manually.
+    For example:
+
+    Codemod output:
+    \`\`\`
+    import { cookies } from 'next/headers'
+    export function foo() {
+      callback(/* Next.js Dynamic Async API Codemod: 'props' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. */
+      cookies())
+    }
+    \`\`\`
+
+    Manual migration:
+    \`\`\`
+    import { cookies } from 'next/headers'
+    export async function foo() {
+      callback(await cookies())
+    }
+    \`\`\`
+    And update the usage of \`foo()\` to make sure it's awaited if necessary.    
+
+    
+  - Search for \`UnsafeUnwrappedCookies\`, \`UnsafeUnwrappedHeaders\` and \`UnsafeUnwrappedDraftMode\` type, replace the type casting with awaiting the API calls, and populate the async scope.
+    For example: await the API calls and populate the async scope:
+
+    Codemod output:
+    \`\`\`
+    import { cookies, type UnsafeUnwrappedCookies } from 'next/headers'
+    export function foo() {
+      callback(cookies() as UnsafeUnwrappedCookies)
+    }
+    \`\`\`
+
+    Manual migration:
+    \`\`\`
+    import { cookies } from 'next/headers'
+    export async function foo() {
+      const cookies = await cookies()
+      callback(cookies)
+    }
+    \`\`\`
+
+    And update the usage of \`foo()\` to make sure it's awaited if necessary.
+
+
+After finished the manual migration, please check if you have any of the following cases that require manual migration:
+  - If they're any functions are not located in entry files but receiving the async \`params\` or \`searchParams\`.
+  - If they're any entry file is wrapped by HoC where the params types are not correctly inferred as Promise.
+  - if the entry exports are re-exported from other files, but the params are not awaited.
+
+For the above cases, you need to find them and manually update migrate if necessary.
+
+${'' /* TODO: change the url to upgrading/next-15 once the guide is out */}
+Checkout Next.js migration guide for more details! https://nextjs.org/docs/pages/building-your-application/upgrading/
+`
+function printMigrationInstructionsAfterCodemod() {
+  console.log(`Migration Instructions\n\n${MIGRATION_INSTRUCTIONS}`)
+}
+
 export async function runUpgrade(
   revision: string | undefined,
   options: { verbose: boolean }
@@ -119,9 +182,9 @@ export async function runUpgrade(
     await runTransform(codemod, process.cwd(), { force: true })
   }
 
-  console.log(
-    `\n${chalk.green('✔')} Your Next.js project has been upgraded successfully. ${chalk.bold('Time to ship! 🚢')}`
-  )
+  printMigrationInstructionsAfterCodemod()
+
+  console.log(`\n${chalk.green('✔')} Next.js upgrade has been finished`)
 }
 
 function getInstalledNextVersion(): string {
