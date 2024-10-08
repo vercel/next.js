@@ -1133,8 +1133,8 @@ async function renderToHTMLOrFlightImpl(
 
     addImplicitTags(workStore, requestStore)
 
-    if (workStore.tags) {
-      metadata.fetchTags = workStore.tags.join(',')
+    if (response.collectedTags) {
+      metadata.fetchTags = response.collectedTags.join(',')
     }
 
     // If force static is specifically set to false, we should not revalidate
@@ -1143,7 +1143,8 @@ async function renderToHTMLOrFlightImpl(
       metadata.revalidate = 0
     } else {
       // Copy the revalidation value onto the render result metadata.
-      metadata.revalidate = workStore.revalidate ?? ctx.defaultRevalidate
+      metadata.revalidate =
+        response.collectedRevalidate ?? ctx.defaultRevalidate
     }
 
     // provide bailout info for debugging
@@ -1241,10 +1242,6 @@ async function renderToHTMLOrFlightImpl(
     }
 
     addImplicitTags(workStore, requestStore)
-
-    if (workStore.tags) {
-      metadata.fetchTags = workStore.tags.join(',')
-    }
 
     // Create the new render result for the response.
     return new RenderResult(stream, options)
@@ -1720,6 +1717,8 @@ type PrerenderToStreamResult = {
   digestErrorsMap: Map<string, DigestedError>
   ssrErrors: Array<unknown>
   dynamicTracking?: null | DynamicTrackingState
+  collectedRevalidate: number
+  collectedTags: null | string[]
 }
 
 /**
@@ -2127,6 +2126,9 @@ async function prerenderToStream(
               getServerInsertedHTML,
             }),
             dynamicTracking,
+            // TODO: Should this include the SSR pass?
+            collectedRevalidate: finalRenderPrerenderStore.revalidate,
+            collectedTags: finalRenderPrerenderStore.tags,
           }
         } else {
           // Static case
@@ -2179,6 +2181,9 @@ async function prerenderToStream(
               getServerInsertedHTML,
             }),
             dynamicTracking,
+            // TODO: Should this include the SSR pass?
+            collectedRevalidate: finalRenderPrerenderStore.revalidate,
+            collectedTags: finalRenderPrerenderStore.tags,
           }
         }
       } else {
@@ -2492,6 +2497,9 @@ async function prerenderToStream(
             validateRootLayout,
           }),
           dynamicTracking,
+          // TODO: Should this include the SSR pass?
+          collectedRevalidate: finalRenderPrerenderStore.revalidate,
+          collectedTags: finalRenderPrerenderStore.tags,
         }
       }
     } else if (renderOpts.experimental.isRoutePPREnabled) {
@@ -2617,6 +2625,9 @@ async function prerenderToStream(
             getServerInsertedHTML,
           }),
           dynamicTracking,
+          // TODO: Should this include the SSR pass?
+          collectedRevalidate: reactServerPrerenderStore.revalidate,
+          collectedTags: reactServerPrerenderStore.tags,
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
@@ -2629,6 +2640,9 @@ async function prerenderToStream(
             getServerInsertedHTML,
           }),
           dynamicTracking,
+          // TODO: Should this include the SSR pass?
+          collectedRevalidate: reactServerPrerenderStore.revalidate,
+          collectedTags: reactServerPrerenderStore.tags,
         }
       } else {
         // Static case
@@ -2682,6 +2696,9 @@ async function prerenderToStream(
             getServerInsertedHTML,
           }),
           dynamicTracking,
+          // TODO: Should this include the SSR pass?
+          collectedRevalidate: reactServerPrerenderStore.revalidate,
+          collectedTags: reactServerPrerenderStore.tags,
         }
       }
     } else {
@@ -2761,6 +2778,9 @@ async function prerenderToStream(
           getServerInsertedHTML,
           serverInsertedHTMLToHead: true,
         }),
+        // TODO: Should this include the SSR pass?
+        collectedRevalidate: prerenderLegacyStore.revalidate,
+        collectedTags: prerenderLegacyStore.tags,
       }
     }
   } catch (err) {
@@ -2912,6 +2932,9 @@ async function prerenderToStream(
           validateRootLayout,
         }),
         dynamicTracking: null,
+        // TODO: What should error state have as revalidate?
+        collectedRevalidate: 0,
+        collectedTags: null,
       }
     } catch (finalErr: any) {
       if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
