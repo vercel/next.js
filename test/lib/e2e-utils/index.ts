@@ -214,7 +214,9 @@ export async function createNext(
     require('console').error('Failed to create next instance', err)
     try {
       await nextInstance?.destroy()
-    } catch (_) {}
+    } catch (err) {
+      require('console').error('...and also failed to destroy it', err)
+    }
 
     nextInstance = undefined
     // Throw instead of process exit to ensure that Jest reports the tests as failed.

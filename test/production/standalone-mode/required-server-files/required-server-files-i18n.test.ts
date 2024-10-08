@@ -60,6 +60,10 @@ describe('required server files i18n', () => {
           locales: ['en', 'fr'],
           defaultLocale: 'en',
         },
+        distDir: '.next',
+        experimental: {
+          turbotrace: {},
+        },
         eslint: {
           ignoreDuringBuilds: true,
         },

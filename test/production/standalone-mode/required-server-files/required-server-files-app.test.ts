@@ -41,6 +41,10 @@ describe('required server files app router', () => {
       nextConfig: {
         cacheHandler: './cache-handler.js',
         cacheMaxMemorySize: 0,
+        distDir: '.next',
+        experimental: {
+          turbotrace: {},
+        },
         eslint: {
           ignoreDuringBuilds: true,
         },

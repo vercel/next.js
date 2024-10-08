@@ -42,9 +42,11 @@ describe('required server files app router', () => {
       },
       nextConfig: {
         cacheHandler: './cache-handler.js',
+        distDir: '.next',
         experimental: {
           ppr: true,
           pprFallbacks: true,
+          turbotrace: {},
         },
         eslint: {
           ignoreDuringBuilds: true,

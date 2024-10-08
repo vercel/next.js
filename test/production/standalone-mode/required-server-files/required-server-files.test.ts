@@ -44,6 +44,10 @@ describe('required server files', () => {
       nextConfig: {
         cacheHandler: './cache-handler.js',
         cacheMaxMemorySize: 0,
+        distDir: '.next',
+        experimental: {
+          turbotrace: {},
+        },
         eslint: {
           ignoreDuringBuilds: true,
         },
