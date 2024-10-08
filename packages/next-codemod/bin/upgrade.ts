@@ -153,14 +153,14 @@ function getInstalledNextVersion(): string {
  *    showing the current dev command as the initial value.
  */
 async function suggestTurbopack(packageJson: any): Promise<void> {
-  const devScript = packageJson.scripts['dev']
+  const devScript: string = packageJson.scripts['dev']
   if (devScript.includes('--turbo')) return
 
   const responseTurbopack = await prompts(
     {
       type: 'confirm',
       name: 'enable',
-      message: 'Turbopack is now the stable default for dev mode. Enable it?',
+      message: 'Enable Turbopack for next dev?',
       initial: true,
     },
     { onCancel }
@@ -178,11 +178,15 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
     return
   }
 
+  console.log(
+    `${chalk.yellow('⚠')} Could not find "${chalk.bold('next dev')}" in your dev script.`
+  )
+
   const responseCustomDevScript = await prompts(
     {
       type: 'text',
       name: 'customDevScript',
-      message: 'Please add `--turbo` to your dev command:',
+      message: 'Please manually add "--turbo" to your dev command.',
       initial: devScript,
     },
     { onCancel }
