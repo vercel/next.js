@@ -7,6 +7,7 @@ import chalk from 'chalk'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import semver from 'semver'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
@@ -30,9 +31,20 @@ async function loadHighestNPMVersionMatching(query: string) {
 }
 
 export async function runUpgrade(
-  revision: string | undefined,
+  revision: string,
   options: { verbose: boolean }
 ): Promise<void> {
+  console.log(chalk.bold(`Next.js upgrade codemode (version: ${revision})`))
+
+  if (
+    !['rc', 'latest', 'canary'].includes(revision) &&
+    !semver.valid(revision)
+  ) {
+    throw new Error(
+      `Invalid version "${revision}". Please provide a valid semver version or "rc", "latest" or "canary".`
+    )
+  }
+
   const { verbose } = options
   const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
