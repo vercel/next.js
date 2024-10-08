@@ -14,10 +14,11 @@ use turbopack_core::{
         resolve, ModuleResolveResult, ResolveResult,
     },
 };
-/// Retrieves the [ResolutionConditions] of both the "into" package (allowing a
-/// package to control how it can be imported) and the "in" package (controlling
-/// how this package imports others) resolution options, so that they can be
-/// manipulated together.
+/// Retrieves the [ResolutionConditions] of the "into" and "in" package resolution options, so that
+/// they can be manipulated together.
+///
+/// - "into" allows a package to control how it can be imported
+/// - "in" controls how this package imports others
 pub fn get_condition_maps(
     options: &mut ResolveOptions,
 ) -> impl Iterator<Item = &mut ResolutionConditions> {

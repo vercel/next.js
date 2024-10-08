@@ -29,8 +29,9 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(result_flattening)]
 #![feature(error_generic_member_access)]
-#![feature(new_uninit)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![feature(new_zeroed_alloc)]
 #![feature(type_alias_impl_trait)]
 #![feature(never_type)]
 #![feature(impl_trait_in_assoc_type)]
@@ -131,6 +132,7 @@ pub use crate::rcstr::RcStr;
 ///
 /// ```
 /// # #![feature(arbitrary_self_types)]
+//  # #![feature(arbitrary_self_types_pointers)]
 /// #[turbo_tasks::value(transparent, into = "shared")]
 /// struct Foo(Vec<u32>);
 /// ```

@@ -176,7 +176,7 @@ impl<'a> SpanBottomUpRef<'a> {
     }
 }
 
-impl<'a> Debug for SpanBottomUpRef<'a> {
+impl Debug for SpanBottomUpRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpanBottomUpRef")
             .field("group_name", &self.group_name())

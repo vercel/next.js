@@ -204,7 +204,7 @@ pub(crate) struct OperationGuard<'a> {
     backend: &'a TurboTasksBackend,
 }
 
-impl<'a> Drop for OperationGuard<'a> {
+impl Drop for OperationGuard<'_> {
     fn drop(&mut self) {
         let fetch_sub = self
             .backend

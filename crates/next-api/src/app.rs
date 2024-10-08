@@ -5,7 +5,7 @@ use next_core::{
     app_segment_config::NextSegmentConfig,
     app_structure::{
         get_entrypoints, AppPageLoaderTree, Entrypoint as AppEntrypoint,
-        Entrypoints as AppEntrypoints, MetadataItem,
+        Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
@@ -630,7 +630,7 @@ pub fn app_entry_point_to_route(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Html,
-                                loader_tree,
+                                loader_tree: *loader_tree,
                             },
                             app_project,
                             page: page.clone(),
@@ -641,7 +641,7 @@ pub fn app_entry_point_to_route(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Rsc,
-                                loader_tree,
+                                loader_tree: *loader_tree,
                             },
                             app_project,
                             page,
@@ -659,7 +659,10 @@ pub fn app_entry_point_to_route(
             original_name: page.to_string(),
             endpoint: Vc::upcast(
                 AppEndpoint {
-                    ty: AppEndpointType::Route { path, root_layouts },
+                    ty: AppEndpointType::Route {
+                        path: *path,
+                        root_layouts: *root_layouts,
+                    },
                     app_project,
                     page,
                 }
@@ -705,7 +708,7 @@ enum AppEndpointType {
     },
     Route {
         path: Vc<FileSystemPath>,
-        root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+        root_layouts: Vc<FileSystemPathVec>,
     },
     Metadata {
         metadata: MetadataItem,
@@ -737,7 +740,7 @@ impl AppEndpoint {
     async fn app_route_entry(
         &self,
         path: Vc<FileSystemPath>,
-        root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+        root_layouts: Vc<FileSystemPathVec>,
         next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
         let root_layouts = root_layouts.await?;
@@ -747,7 +750,7 @@ impl AppEndpoint {
             let mut config = NextSegmentConfig::default();
 
             for layout in root_layouts.iter().rev() {
-                let source = Vc::upcast(FileSource::new(*layout));
+                let source = Vc::upcast(FileSource::new(**layout));
                 let layout_config = parse_segment_config_from_source(source);
                 config.apply_parent_config(&*layout_config.await?);
             }

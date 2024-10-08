@@ -49,14 +49,14 @@ pub fn on_added<C: AggregationContext>(
     let followers_len = aggregating.followers.len();
     let optimize = (!already_optimizing_for_node
         && followers_len >= MAX_FOLLOWERS
-        && followers_len.count_ones() == 1)
-        .then(|| {
-            aggregating
-                .followers
-                .iter()
-                .cloned()
-                .collect::<StackVec<_>>()
-        });
+        && followers_len.is_power_of_two())
+    .then(|| {
+        aggregating
+            .followers
+            .iter()
+            .cloned()
+            .collect::<StackVec<_>>()
+    });
     let uppers = aggregating.uppers.iter().cloned().collect::<StackVec<_>>();
     start_in_progress_all(ctx, &uppers);
     drop(node);

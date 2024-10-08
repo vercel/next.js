@@ -3,13 +3,12 @@ import {
   type ReadonlyHeaders,
 } from '../../server/web/spec-extension/adapters/headers'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
+import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
   isDynamicIOPrerender,
-  prerenderAsyncStorage,
+  workUnitAsyncStorage,
   type PrerenderStoreModern,
-} from '../app-render/prerender-async-storage.external'
-import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
+} from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   abortAndThrowOnSynchronousDynamicDataAccess,
@@ -58,8 +57,7 @@ export type UnsafeUnwrappedHeaders = ReadonlyHeaders
  */
 export function headers(): Promise<ReadonlyHeaders> {
   const workStore = workAsyncStorage.getStore()
-  const prerenderStore = prerenderAsyncStorage.getStore()
-  const cacheStore = cacheAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
     if (workStore.forceStatic) {
@@ -69,12 +67,12 @@ export function headers(): Promise<ReadonlyHeaders> {
       return makeUntrackedExoticHeaders(underlyingHeaders)
     }
 
-    if (cacheStore) {
-      if (cacheStore.type === 'cache') {
+    if (workUnitStore) {
+      if (workUnitStore.type === 'cache') {
         throw new Error(
           `Route ${workStore.route} used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
         )
-      } else if (cacheStore.type === 'unstable-cache') {
+      } else if (workUnitStore.type === 'unstable-cache') {
         throw new Error(
           `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
         )
@@ -86,11 +84,11 @@ export function headers(): Promise<ReadonlyHeaders> {
       )
     }
 
-    if (prerenderStore) {
-      if (prerenderStore.type === 'prerender') {
+    if (workUnitStore) {
+      if (workUnitStore.type === 'prerender') {
         // We are in PPR and/or dynamicIO mode and prerendering
 
-        if (isDynamicIOPrerender(prerenderStore)) {
+        if (isDynamicIOPrerender(workUnitStore)) {
           // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
           // When resolving headers for a prerender with dynamic IO we return a forever promise
           // along with property access tracked synchronous headers.
@@ -99,7 +97,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           // one of the properties of the headers object.
           return makeDynamicallyTrackedExoticHeaders(
             workStore.route,
-            prerenderStore
+            workUnitStore
           )
         } else {
           // We are prerendering with PPR. We need track dynamic access here eagerly
@@ -108,19 +106,19 @@ export function headers(): Promise<ReadonlyHeaders> {
           postponeWithTracking(
             workStore.route,
             'headers',
-            prerenderStore.dynamicTracking
+            workUnitStore.dynamicTracking
           )
         }
-      } else if (prerenderStore.type === 'prerender-legacy') {
+      } else if (workUnitStore.type === 'prerender-legacy') {
         // We are in a legacy static generation mode while prerendering
         // We track dynamic access here so we don't need to wrap the headers in
         // individual property access tracking.
-        throwToInterruptStaticGeneration('headers', workStore, cacheStore)
+        throwToInterruptStaticGeneration('headers', workStore, workUnitStore)
       }
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using headers inside a cache context
-    trackDynamicDataInDynamicRender(workStore, cacheStore)
+    trackDynamicDataInDynamicRender(workStore, workUnitStore)
   }
 
   const requestStore = getExpectedRequestStore('headers')

@@ -1,4 +1,5 @@
 #![feature(trivial_bounds)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use std::{
     env::current_dir,

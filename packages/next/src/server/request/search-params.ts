@@ -11,11 +11,10 @@ import {
 
 import {
   isDynamicIOPrerender,
-  prerenderAsyncStorage,
-  type PrerenderStore,
+  workUnitAsyncStorage,
+  type WorkUnitStore,
   type PrerenderStoreModern,
-} from '../app-render/prerender-async-storage.external'
-import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
+} from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
@@ -90,7 +89,7 @@ export function createPrerenderSearchParamsForClientPage(
     return Promise.resolve({})
   }
 
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const prerenderStore = workUnitAsyncStorage.getStore()
   if (prerenderStore) {
     if (isDynamicIOPrerender(prerenderStore)) {
       // We're prerendering in a mode that aborts (dynamicIO) and should stall
@@ -113,7 +112,7 @@ function createPrerenderSearchParams(
     return Promise.resolve({})
   }
 
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const prerenderStore = workUnitAsyncStorage.getStore()
   if (prerenderStore && prerenderStore.type === 'prerender') {
     if (prerenderStore.controller || prerenderStore.cacheSignal) {
       // We are in a dynamicIO (PPR or otherwise) prerender
@@ -259,7 +258,7 @@ function makeAbortingExoticSearchParams(
 
 function makeErroringExoticSearchParams(
   workStore: WorkStore,
-  prerenderStore: undefined | PrerenderStore
+  prerenderStore: undefined | WorkUnitStore
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(workStore)
   if (cachedSearchParams) {
@@ -319,8 +318,12 @@ function makeErroringExoticSearchParams(
               prerenderStore.dynamicTracking
             )
           } else {
-            const cacheStore = cacheAsyncStorage.getStore()
-            throwToInterruptStaticGeneration(expression, workStore, cacheStore)
+            const workUnitStore = workUnitAsyncStorage.getStore()
+            throwToInterruptStaticGeneration(
+              expression,
+              workStore,
+              workUnitStore
+            )
           }
           return
         }
@@ -339,8 +342,12 @@ function makeErroringExoticSearchParams(
               prerenderStore.dynamicTracking
             )
           } else {
-            const cacheStore = cacheAsyncStorage.getStore()
-            throwToInterruptStaticGeneration(expression, workStore, cacheStore)
+            const workUnitStore = workUnitAsyncStorage.getStore()
+            throwToInterruptStaticGeneration(
+              expression,
+              workStore,
+              workUnitStore
+            )
           }
           return
         }
@@ -362,11 +369,11 @@ function makeErroringExoticSearchParams(
                 prerenderStore.dynamicTracking
               )
             } else {
-              const cacheStore = cacheAsyncStorage.getStore()
+              const workUnitStore = workUnitAsyncStorage.getStore()
               throwToInterruptStaticGeneration(
                 expression,
                 workStore,
-                cacheStore
+                workUnitStore
               )
             }
           }
@@ -396,8 +403,8 @@ function makeErroringExoticSearchParams(
             prerenderStore.dynamicTracking
           )
         } else {
-          const cacheStore = cacheAsyncStorage.getStore()
-          throwToInterruptStaticGeneration(expression, workStore, cacheStore)
+          const workUnitStore = workUnitAsyncStorage.getStore()
+          throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
         }
         return false
       }
@@ -418,8 +425,8 @@ function makeErroringExoticSearchParams(
           prerenderStore.dynamicTracking
         )
       } else {
-        const cacheStore = cacheAsyncStorage.getStore()
-        throwToInterruptStaticGeneration(expression, workStore, cacheStore)
+        const workUnitStore = workUnitAsyncStorage.getStore()
+        throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
       }
     },
   })
@@ -475,8 +482,8 @@ function makeUntrackedExoticSearchParams(
       default: {
         Object.defineProperty(promise, prop, {
           get() {
-            const cacheStore = cacheAsyncStorage.getStore()
-            trackDynamicDataInDynamicRender(store, cacheStore)
+            const workUnitStore = workUnitAsyncStorage.getStore()
+            trackDynamicDataInDynamicRender(store, workUnitStore)
             return underlyingSearchParams[prop]
           },
           set(value) {
@@ -525,8 +532,8 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
             expression
           )
         }
-        const cacheStore = cacheAsyncStorage.getStore()
-        trackDynamicDataInDynamicRender(store, cacheStore)
+        const workUnitStore = workUnitAsyncStorage.getStore()
+        trackDynamicDataInDynamicRender(store, workUnitStore)
       }
       return ReflectAdapter.get(target, prop, receiver)
     },
