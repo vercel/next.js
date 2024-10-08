@@ -6,13 +6,8 @@ use swc_core::{
     common::{comments::NoopComments, FileName},
     ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith},
 };
-use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionStyledComponentsTransformConfig(
-    Option<ResolvedVc<StyledComponentsTransformConfig>>,
-);
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]

@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, ValueDefault, Vc};
 use turbopack_core::{
     condition::ContextCondition, environment::Environment, resolve::options::ImportMapping,
 };
@@ -33,10 +33,6 @@ pub struct WebpackLoadersOptions {
     pub rules: Vc<WebpackRules>,
     pub loader_runner_package: Option<Vc<ImportMapping>>,
 }
-
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct OptionWebpackLoadersOptions(Option<ResolvedVc<WebpackLoadersOptions>>);
 
 /// The kind of decorators transform to use.
 /// [TODO]: might need bikeshed for the name (Ecma)

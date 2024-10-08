@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -186,17 +186,6 @@ pub async fn is_marked_as_side_effect_free(
     }
 
     Ok(Vc::cell(false))
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkPlaceables(Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>);
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceables {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
-        Vc::cell(Vec::new())
-    }
 }
 
 #[turbo_tasks::value(shared)]

@@ -56,8 +56,8 @@ use swc_core::{
     },
 };
 pub use transform::{
-    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, OptionTransformPlugin,
-    TransformContext, TransformPlugin, UnsupportedServerActionIssue,
+    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
+    TransformPlugin, UnsupportedServerActionIssue,
 };
 use turbo_tasks::{
     trace::TraceRawVcs, RcStr, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
@@ -280,14 +280,6 @@ pub trait EcmascriptAnalyzable {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>>;
 }
-
-/// An optional [EcmascriptModuleAsset]
-#[turbo_tasks::value(transparent)]
-pub struct OptionEcmascriptModuleAsset(Option<ResolvedVc<EcmascriptModuleAsset>>);
-
-/// A list of [EcmascriptModuleAsset]s
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptModuleAssets(Vec<ResolvedVc<EcmascriptModuleAsset>>);
 
 impl EcmascriptModuleAsset {
     pub fn builder(

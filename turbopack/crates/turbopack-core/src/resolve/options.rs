@@ -4,8 +4,7 @@ use anyhow::{bail, Result};
 use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ResolvedVc, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
@@ -38,10 +37,6 @@ pub enum ResolveModules {
         dir: Vc<FileSystemPath>,
         excluded_extensions: Vc<ExcludedExtensions>,
     },
-    /// lookup versions based on lockfile in the registry filesystem
-    /// registry filesystem is assumed to have structure like
-    /// @scope/module/version/<path-in-package>
-    Registry(ResolvedVc<FileSystemPath>, ResolvedVc<LockedVersions>),
 }
 
 #[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]

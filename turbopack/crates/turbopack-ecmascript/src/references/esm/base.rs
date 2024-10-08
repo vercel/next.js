@@ -5,7 +5,7 @@ use swc_core::{
     ecma::ast::{Decl, Expr, ExprStmt, Ident, Stmt},
     quote,
 };
-use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -103,10 +103,6 @@ pub struct EsmAssetReference {
     pub export_name: Option<Vc<ModulePart>>,
     pub import_externals: bool,
 }
-
-/// A list of [EsmAssetReference]s
-#[turbo_tasks::value(transparent)]
-pub struct EsmAssetReferences(Vec<ResolvedVc<EsmAssetReference>>);
 
 impl EsmAssetReference {
     fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
