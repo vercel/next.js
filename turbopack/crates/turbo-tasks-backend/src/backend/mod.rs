@@ -14,7 +14,6 @@ use std::{
         Arc,
     },
     thread::available_parallelism,
-    time::{Duration, Instant},
 };
 
 use anyhow::{bail, Result};
@@ -23,6 +22,7 @@ use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
 use smallvec::smallvec;
+use tokio::time::{Duration, Instant};
 use turbo_tasks::{
     backend::{
         Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
@@ -53,6 +53,9 @@ use crate::{
     },
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded},
 };
+
+const BACKEND_JOB_INITIAL_SNAPSHOT: BackendJobId = unsafe { BackendJobId::new_unchecked(1) };
+const BACKEND_JOB_FOLLOW_UP_SNAPSHOT: BackendJobId = unsafe { BackendJobId::new_unchecked(2) };
 
 const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 
@@ -123,7 +126,7 @@ struct TurboTasksBackendInner {
     /// Condition Variable that is triggered when a snapshot is completed and
     /// operations can continue.
     snapshot_completed: Condvar,
-    /// The timestamp of the last started snapshot.
+    /// The timestamp of the last started snapshot since [`Self::start_time`].
     last_snapshot: AtomicU64,
 
     stopping: AtomicBool,
@@ -291,10 +294,11 @@ impl TurboTasksBackendInner {
         child_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) {
-        operation::ConnectChildOperation::run(parent_task, child_task, unsafe {
-            // Safety: Passing `None` is safe.
-            self.execute_context_with_tx(None, turbo_tasks)
-        });
+        operation::ConnectChildOperation::run(
+            parent_task,
+            child_task,
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn try_read_task_output(
@@ -541,13 +545,11 @@ impl TurboTasksBackendInner {
         snapshot_request.snapshot_requested = true;
         let active_operations = self
             .in_progress_operations
-            .fetch_or(SNAPSHOT_REQUESTED_BIT, std::sync::atomic::Ordering::Relaxed);
+            .fetch_or(SNAPSHOT_REQUESTED_BIT, Ordering::Relaxed);
         if active_operations != 0 {
             self.operations_suspended
                 .wait_while(&mut snapshot_request, |_| {
-                    self.in_progress_operations
-                        .load(std::sync::atomic::Ordering::Relaxed)
-                        != SNAPSHOT_REQUESTED_BIT
+                    self.in_progress_operations.load(Ordering::Relaxed) != SNAPSHOT_REQUESTED_BIT
                 });
         }
         let suspended_operations = snapshot_request
@@ -562,7 +564,7 @@ impl TurboTasksBackendInner {
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = false;
         self.in_progress_operations
-            .fetch_sub(SNAPSHOT_REQUESTED_BIT, std::sync::atomic::Ordering::Relaxed);
+            .fetch_sub(SNAPSHOT_REQUESTED_BIT, Ordering::Relaxed);
         self.snapshot_completed.notify_all();
         let snapshot_time = Instant::now();
         drop(snapshot_request);
@@ -622,7 +624,7 @@ impl TurboTasksBackendInner {
         }
 
         // Schedule the snapshot job
-        turbo_tasks.schedule_backend_background_job(BackendJobId::from(1));
+        turbo_tasks.schedule_backend_background_job(BACKEND_JOB_INITIAL_SNAPSHOT);
     }
 
     fn stopping(&self) {
@@ -1157,7 +1159,7 @@ impl TurboTasksBackendInner {
         turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
-            if *id == 1 || *id == 2 {
+            if id == BACKEND_JOB_INITIAL_SNAPSHOT || id == BACKEND_JOB_FOLLOW_UP_SNAPSHOT {
                 let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
                 let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
                 loop {
@@ -1165,7 +1167,7 @@ impl TurboTasksBackendInner {
                     const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(15);
                     const IDLE_TIMEOUT: Duration = Duration::from_secs(1);
 
-                    let time = if *id == 1 {
+                    let time = if id == BACKEND_JOB_INITIAL_SNAPSHOT {
                         FIRST_SNAPSHOT_WAIT
                     } else {
                         SNAPSHOT_INTERVAL
@@ -1177,7 +1179,11 @@ impl TurboTasksBackendInner {
                         if !self.stopping.load(Ordering::Acquire) {
                             let mut idle_start_listener = self.idle_start_event.listen();
                             let mut idle_end_listener = self.idle_end_event.listen();
-                            let mut idle_time = until + IDLE_TIMEOUT;
+                            let mut idle_time = if turbo_tasks.is_idle() {
+                                Instant::now() + IDLE_TIMEOUT
+                            } else {
+                                far_future()
+                            };
                             loop {
                                 tokio::select! {
                                     _ = &mut stop_listener => {
@@ -1191,10 +1197,10 @@ impl TurboTasksBackendInner {
                                         idle_time = until + IDLE_TIMEOUT;
                                         idle_end_listener = self.idle_end_event.listen()
                                     },
-                                    _ = tokio::time::sleep_until(until.into()) => {
+                                    _ = tokio::time::sleep_until(until) => {
                                         break;
                                     },
-                                    _ = tokio::time::sleep_until(idle_time.into()) => {
+                                    _ = tokio::time::sleep_until(idle_time) => {
                                         if turbo_tasks.is_idle() {
                                             break;
                                         }
@@ -1212,10 +1218,12 @@ impl TurboTasksBackendInner {
                             continue;
                         }
                         let last_snapshot = last_snapshot.duration_since(self.start_time);
-                        self.last_snapshot
-                            .store(last_snapshot.as_millis() as u64, Ordering::Relaxed);
+                        self.last_snapshot.store(
+                            last_snapshot.as_millis().try_into().unwrap(),
+                            Ordering::Relaxed,
+                        );
 
-                        turbo_tasks.schedule_backend_background_job(BackendJobId::from(2));
+                        turbo_tasks.schedule_backend_background_job(BACKEND_JOB_FOLLOW_UP_SNAPSHOT);
                         return;
                     }
                 }
@@ -1524,4 +1532,13 @@ impl Backend for TurboTasksBackend {
     fn dispose_root_task(&self, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
         todo!()
     }
+}
+
+// from https://github.com/tokio-rs/tokio/blob/29cd6ec1ec6f90a7ee1ad641c03e0e00badbcb0e/tokio/src/time/instant.rs#L57-L63
+fn far_future() -> Instant {
+    // Roughly 30 years from now.
+    // API does not provide a way to obtain max `Instant`
+    // or convert specific date in the future to instant.
+    // 1000 years overflows on macOS, 100 years overflows on FreeBSD.
+    Instant::now() + Duration::from_secs(86400 * 365 * 30)
 }

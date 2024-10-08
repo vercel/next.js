@@ -8,6 +8,26 @@ use turbo_tasks::{
 
 use crate::backend::{indexed::Indexed, TaskDataCategory};
 
+// this traits are needed for the transient variants of `CachedDataItem`
+// transient variants are never cloned or compared
+macro_rules! transient_traits {
+    ($name:ident) => {
+        impl Clone for $name {
+            fn clone(&self) -> Self {
+                // this impl is needed for the transient variants of `CachedDataItem`
+                // transient variants are never cloned
+                panic!(concat!(stringify!($name), " cannot be cloned"));
+            }
+        }
+
+        impl PartialEq for $name {
+            fn eq(&self, _other: &Self) -> bool {
+                panic!(concat!(stringify!($name), " cannot be compared"));
+            }
+        }
+    };
+}
+
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CellRef {
     pub task: TaskId,
@@ -53,17 +73,7 @@ impl RootState {
     }
 }
 
-impl Clone for RootState {
-    fn clone(&self) -> Self {
-        panic!("RootState cannot be cloned");
-    }
-}
-
-impl PartialEq for RootState {
-    fn eq(&self, _other: &Self) -> bool {
-        panic!("RootState cannot be compared");
-    }
-}
+transient_traits!(RootState);
 
 impl Eq for RootState {}
 
@@ -90,17 +100,7 @@ pub enum InProgressState {
     },
 }
 
-impl Clone for InProgressState {
-    fn clone(&self) -> Self {
-        panic!("InProgressState cannot be cloned");
-    }
-}
-
-impl PartialEq for InProgressState {
-    fn eq(&self, _other: &Self) -> bool {
-        panic!("InProgressState cannot be compared");
-    }
-}
+transient_traits!(InProgressState);
 
 impl Eq for InProgressState {}
 
@@ -109,17 +109,7 @@ pub struct InProgressCellState {
     pub event: Event,
 }
 
-impl Clone for InProgressCellState {
-    fn clone(&self) -> Self {
-        panic!("InProgressCell cannot be cloned");
-    }
-}
-
-impl PartialEq for InProgressCellState {
-    fn eq(&self, _other: &Self) -> bool {
-        panic!("InProgressCell cannot be compared");
-    }
-}
+transient_traits!(InProgressCellState);
 
 impl Eq for InProgressCellState {}
 

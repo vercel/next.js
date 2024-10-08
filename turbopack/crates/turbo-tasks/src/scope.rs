@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{turbo_tasks, turbo_tasks_scope, TurboTasksApi};
 
+/// A wrapper around [`rayon::Scope`] that preserves the [`turbo_tasks_scope`].
 pub struct Scope<'scope, 'a> {
     scope: &'a rayon::Scope<'scope>,
     handle: tokio::runtime::Handle,
@@ -10,9 +11,9 @@ pub struct Scope<'scope, 'a> {
 }
 
 impl<'scope, 'a> Scope<'scope, 'a> {
-    pub fn spawn<BODY>(&self, body: BODY)
+    pub fn spawn<Body>(&self, body: Body)
     where
-        BODY: FnOnce(&Scope<'scope, '_>) + Send + 'scope,
+        Body: FnOnce(&Scope<'scope, '_>) + Send + 'scope,
     {
         let span = self.span.clone();
         let handle = self.handle.clone();
@@ -32,9 +33,10 @@ impl<'scope, 'a> Scope<'scope, 'a> {
     }
 }
 
-pub fn scope<'scope, OP, R>(op: OP) -> R
+/// A wrapper around [`rayon::in_place_scope`] that preserves the [`turbo_tasks_scope`].
+pub fn scope<'scope, Op, R>(op: Op) -> R
 where
-    OP: FnOnce(&Scope<'scope, '_>) -> R,
+    Op: FnOnce(&Scope<'scope, '_>) -> R,
 {
     let span = tracing::Span::current();
     let handle = tokio::runtime::Handle::current();
