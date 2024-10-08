@@ -170,8 +170,13 @@ export function markCurrentScopeAsDynamic(
       store.dynamicUsageStack = err.stack
 
       throw err
+    } else if (
+      process.env.NODE_ENV === 'development' &&
+      workUnitStore &&
+      workUnitStore.type === 'request'
+    ) {
+      workUnitStore.usedDynamic = true
     }
-    // We fall through in all other cases to just tracking that something dynamic happened on the work store
   }
 }
 
@@ -251,6 +256,12 @@ export function trackDynamicDataAccessed(
       store.dynamicUsageStack = err.stack
 
       throw err
+    } else if (
+      process.env.NODE_ENV === 'development' &&
+      workUnitStore &&
+      workUnitStore.type === 'request'
+    ) {
+      workUnitStore.usedDynamic = true
     }
   }
 }
@@ -272,7 +283,7 @@ export function throwToInterruptStaticGeneration(
   )
 
   prerenderStore.revalidate = 0
- 
+
   store.dynamicUsageDescription = expression
   store.dynamicUsageStack = err.stack
 
@@ -305,6 +316,12 @@ export function trackDynamicDataInDynamicRender(
       workUnitStore.type === 'prerender-legacy'
     ) {
       workUnitStore.revalidate = 0
+    }
+    if (
+      process.env.NODE_ENV === 'development' &&
+      workUnitStore.type === 'request'
+    ) {
+      workUnitStore.usedDynamic = true
     }
   }
 }

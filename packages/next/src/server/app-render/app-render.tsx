@@ -919,7 +919,6 @@ async function renderToHTMLOrFlightImpl(
     isNodeNextRequest(req)
   ) {
     req.originalRequest.on('end', () => {
-      const staticGenStore = ComponentMod.workAsyncStorage.getStore()
       const prerenderStore = workUnitAsyncStorage.getStore()
       const isPPR =
         prerenderStore &&
@@ -930,19 +929,13 @@ async function renderToHTMLOrFlightImpl(
 
       if (
         process.env.NODE_ENV === 'development' &&
-        staticGenStore &&
         renderOpts.setAppIsrStatus &&
-        !isPPR
+        !isPPR &&
+        !requestStore.usedDynamic
       ) {
         // only node can be ISR so we only need to update the status here
         const { pathname } = new URL(req.url || '/', 'http://n')
-        let { revalidate } = staticGenStore
-        if (typeof revalidate === 'undefined') {
-          revalidate = false
-        }
-        if (revalidate === false || revalidate > 0) {
-          renderOpts.setAppIsrStatus(pathname, revalidate)
-        }
+        renderOpts.setAppIsrStatus(pathname, true)
       }
 
       requestEndedState.ended = true
@@ -1134,7 +1127,7 @@ async function renderToHTMLOrFlightImpl(
 
     // If force static is specifically set to false, we should not revalidate
     // the page.
-    if (workStore.forceStatic === false) {
+    if (workStore.forceStatic === false || response.collectedRevalidate === 0) {
       metadata.revalidate = 0
     } else {
       // Copy the revalidation value onto the render result metadata.

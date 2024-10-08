@@ -36,6 +36,9 @@ export type RequestStore = {
   readonly draftMode: DraftModeProvider
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
+
+  // DEV-only
+  usedDynamic?: boolean
 }
 
 /**
