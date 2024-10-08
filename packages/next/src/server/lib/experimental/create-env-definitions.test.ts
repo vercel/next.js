@@ -2,24 +2,43 @@ import { createEnvDefinitions } from './create-env-definitions'
 
 describe('create-env-definitions', () => {
   it('should create env definitions', async () => {
-    const env = {
-      FROM_DEV_ENV_LOCAL: 'FROM_DEV_ENV_LOCAL',
-      FROM_ENV_LOCAL: 'FROM_ENV_LOCAL',
-      FROM_ENV: 'FROM_ENV',
-      FROM_NEXT_CONFIG: 'FROM_NEXT_CONFIG',
-    }
+    const loadedEnvFiles = [
+      {
+        path: '.env.local',
+        contents: '',
+        env: {
+          FROM_ENV_LOCAL: 'FROM_ENV_LOCAL',
+        },
+      },
+      {
+        path: '.env.development.local',
+        contents: '',
+        env: {
+          FROM_ENV_DEV_LOCAL: 'FROM_ENV_DEV_LOCAL',
+        },
+      },
+      {
+        path: 'next.config.js',
+        contents: '',
+        env: {
+          FROM_NEXT_CONFIG: 'FROM_NEXT_CONFIG',
+        },
+      },
+    ]
     const definitionStr = await createEnvDefinitions({
       distDir: '/dist',
-      env,
+      loadedEnvFiles,
     })
     expect(definitionStr).toMatchInlineSnapshot(`
       "// Type definitions for Next.js environment variables
       declare global {
         namespace NodeJS {
           interface ProcessEnv {
-            FROM_DEV_ENV_LOCAL?: string
+            /** Loaded from \`.env.local\` */
             FROM_ENV_LOCAL?: string
-            FROM_ENV?: string
+            /** Loaded from \`.env.development.local\` */
+            FROM_ENV_DEV_LOCAL?: string
+            /** Loaded from \`next.config.js\` */
             FROM_NEXT_CONFIG?: string
           }
         }
@@ -31,7 +50,7 @@ describe('create-env-definitions', () => {
   it('should allow empty env', async () => {
     const definitionStr = await createEnvDefinitions({
       distDir: '/dist',
-      env: {},
+      loadedEnvFiles: [],
     })
     expect(definitionStr).toMatchInlineSnapshot(`
       "// Type definitions for Next.js environment variables
