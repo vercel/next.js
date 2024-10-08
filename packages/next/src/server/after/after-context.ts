@@ -1,16 +1,11 @@
 import PromiseQueue from 'next/dist/compiled/p-queue'
-import {
-  workUnitAsyncStorage,
-  type RequestStore,
-  type WorkUnitStore,
-} from '../../server/app-render/work-unit-async-storage.external'
-import { ResponseCookies } from '../web/spec-extension/cookies'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { isThenable } from '../../shared/lib/is-thenable'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { withExecuteRevalidates } from './revalidation-utils'
+import { bindSnapshot } from '../../client/components/async-local-storage'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
@@ -20,8 +15,6 @@ export type AfterContextOpts = {
 export class AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   private onClose: RequestLifecycleOpts['onClose'] | undefined
-
-  private workUnitStore: WorkUnitStore | undefined
 
   private runCallbacksOnClosePromise: Promise<void> | undefined
   private callbackQueue: PromiseQueue
@@ -56,12 +49,6 @@ export class AfterContext {
     if (!this.waitUntil) {
       errorWaitUntilNotAvailable()
     }
-    if (!this.workUnitStore) {
-      // We just stash the first request store we have but this is not sufficient.
-      // TODO: We should store a request store per callback since each callback might
-      // be inside a different store. E.g. inside different batched actions, prerenders or caches.
-      this.workUnitStore = workUnitAsyncStorage.getStore()
-    }
     if (!this.onClose) {
       throw new InvariantError(
         'unstable_after: Missing `onClose` implementation'
@@ -70,15 +57,16 @@ export class AfterContext {
 
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
-      // NOTE: We're creating a promise here, which means that
-      // we will propagate any AsyncLocalStorage contexts we're currently in
-      // to the callbacks that'll execute later.
-      // This includes e.g. `workUnitAsyncStorage` and React's `requestStorage` (which backs `React.cache()`).
       this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
       this.waitUntil(this.runCallbacksOnClosePromise)
     }
 
-    const wrappedCallback = async () => {
+    // Bind the callback to the current execution context (i.e. preserve all currently available ALS-es).
+    // We do this because we want all of these to be equivalent in every regard except timing:
+    //   after(() => x())
+    //   after(x())
+    //   await x()
+    const wrappedCallback = bindSnapshot(async () => {
       try {
         await callback()
       } catch (err) {
@@ -88,38 +76,26 @@ export class AfterContext {
           err
         )
       }
-    }
+    })
 
     this.callbackQueue.add(wrappedCallback)
   }
 
   private async runCallbacksOnClose() {
     await new Promise<void>((resolve) => this.onClose!(resolve))
-    return this.runCallbacks(this.workUnitStore)
+    return this.runCallbacks()
   }
 
-  private async runCallbacks(
-    workUnitStore: undefined | WorkUnitStore
-  ): Promise<void> {
+  private async runCallbacks(): Promise<void> {
     if (this.callbackQueue.size === 0) return
-
-    const readonlyRequestStore: undefined | WorkUnitStore =
-      workUnitStore === undefined || workUnitStore.type !== 'request'
-        ? undefined
-        : // TODO: This is not sufficient. It should just be the same store that mutates.
-          wrapRequestStoreForAfterCallbacks(workUnitStore)
 
     const workStore = workAsyncStorage.getStore()
 
-    return withExecuteRevalidates(workStore, () =>
-      // Clearing it out or running the first request store.
-      // TODO: This needs to be the request store that was active at the time the
-      // callback was scheduled but p-queue makes this hard so need further refactoring.
-      workUnitAsyncStorage.run(readonlyRequestStore as any, async () => {
-        this.callbackQueue.start()
-        await this.callbackQueue.onIdle()
-      })
-    )
+    // TODO(after): Change phase in workUnitStore to disable e.g. `cookies().set()`
+    return withExecuteRevalidates(workStore, () => {
+      this.callbackQueue.start()
+      return this.callbackQueue.onIdle()
+    })
   }
 }
 
@@ -127,27 +103,4 @@ function errorWaitUntilNotAvailable(): never {
   throw new Error(
     '`unstable_after()` will not work correctly, because `waitUntil` is not available in the current environment.'
   )
-}
-
-/** Disable mutations of `requestStore` within `after()` and disallow nested after calls.  */
-function wrapRequestStoreForAfterCallbacks(
-  requestStore: RequestStore
-): RequestStore {
-  return {
-    type: 'request',
-    url: requestStore.url,
-    get headers() {
-      return requestStore.headers
-    },
-    get cookies() {
-      return requestStore.cookies
-    },
-    get draftMode() {
-      return requestStore.draftMode
-    },
-    // TODO(after): calling a `cookies.set()` in an after() that's in an action doesn't currently error.
-    mutableCookies: new ResponseCookies(new Headers()),
-    isHmrRefresh: requestStore.isHmrRefresh,
-    serverComponentsHmrCache: requestStore.serverComponentsHmrCache,
-  }
 }
