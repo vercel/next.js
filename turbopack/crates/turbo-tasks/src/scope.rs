@@ -10,7 +10,7 @@ pub struct Scope<'scope, 'a> {
     span: tracing::Span,
 }
 
-impl<'scope, 'a> Scope<'scope, 'a> {
+impl<'scope> Scope<'scope, '_> {
     pub fn spawn<Body>(&self, body: Body)
     where
         Body: FnOnce(&Scope<'scope, '_>) + Send + 'scope,

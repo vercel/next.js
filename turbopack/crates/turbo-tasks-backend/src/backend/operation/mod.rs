@@ -43,7 +43,7 @@ pub struct ExecuteContext<'a> {
     transaction: Option<Option<ReadTransaction>>,
 }
 
-impl<'a> Drop for ExecuteContext<'a> {
+impl Drop for ExecuteContext<'_> {
     fn drop(&mut self) {
         if self.parent.is_none() {
             if let Some(Some(transaction)) = self.transaction {
