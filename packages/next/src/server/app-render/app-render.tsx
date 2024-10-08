@@ -2857,6 +2857,8 @@ async function prerenderToStream(
     const prerenderLegacyStore: PrerenderStore = {
       type: 'prerender-legacy',
       pathname: ctx.requestStore.url.pathname,
+      revalidate: INFINITE_CACHE,
+      tags: null,
     }
     const errorRSCPayload = await workUnitAsyncStorage.run(
       prerenderLegacyStore,

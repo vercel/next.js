@@ -313,188 +313,199 @@ export class AppRouteRouteModule extends RouteModule<
 
     let res: unknown
     try {
-      if (isStaticGeneration && dynamicIOEnabled) {
-        /**
-         * When we are attempting to statically prerender the GET handler of a route.ts module
-         * and dynamicIO is on we follow a similar pattern to rendering.
-         *
-         * We first run the handler letting caches fill. If something synchronously dynamic occurs
-         * during this prospective render then we can infer it will happen on every render and we
-         * just bail out of prerendering.
-         *
-         * Next we run the handler again and we check if we get a result back in a microtask.
-         * Next.js expects the return value to be a Response or a Thenable that resolves to a Response.
-         * Unfortunately Response's do not allow for acessing the response body synchronously or in
-         * a microtask so we need to allow one more task to unwrap the response body. This is a slightly
-         * different semantic than what we have when we render and it means that certain tasks can still
-         * execute before a prerender completes such as a carefully timed setImmediate.
-         *
-         * Functionally though IO should still take longer than the time it takes to unwrap the response body
-         * so our heuristic of excluding any IO should be preserved.
-         */
-        const prospectiveController = new AbortController()
-        let prospectiveRenderIsDynamic = false
-        const cacheSignal = new CacheSignal()
-        let dynamicTracking = createDynamicTrackingState(undefined)
+      if (isStaticGeneration) {
+        const userlandRevalidate = this.userland.revalidate
+        const defaultRevalidate: number =
+          // If the static generation store does not have a revalidate value
+          // set, then we should set it the revalidate value from the userland
+          // module or default to false.
+          userlandRevalidate === false || userlandRevalidate === undefined
+            ? INFINITE_CACHE
+            : userlandRevalidate
 
-        const prospectiveRoutePrerenderStore: PrerenderStore = (prerenderStore =
-          {
+        if (dynamicIOEnabled) {
+          /**
+           * When we are attempting to statically prerender the GET handler of a route.ts module
+           * and dynamicIO is on we follow a similar pattern to rendering.
+           *
+           * We first run the handler letting caches fill. If something synchronously dynamic occurs
+           * during this prospective render then we can infer it will happen on every render and we
+           * just bail out of prerendering.
+           *
+           * Next we run the handler again and we check if we get a result back in a microtask.
+           * Next.js expects the return value to be a Response or a Thenable that resolves to a Response.
+           * Unfortunately Response's do not allow for acessing the response body synchronously or in
+           * a microtask so we need to allow one more task to unwrap the response body. This is a slightly
+           * different semantic than what we have when we render and it means that certain tasks can still
+           * execute before a prerender completes such as a carefully timed setImmediate.
+           *
+           * Functionally though IO should still take longer than the time it takes to unwrap the response body
+           * so our heuristic of excluding any IO should be preserved.
+           */
+          const prospectiveController = new AbortController()
+          let prospectiveRenderIsDynamic = false
+          const cacheSignal = new CacheSignal()
+          let dynamicTracking = createDynamicTrackingState(undefined)
+
+          const prospectiveRoutePrerenderStore: PrerenderStore =
+            (prerenderStore = {
+              type: 'prerender',
+              renderSignal: prospectiveController.signal,
+              pathname,
+              cacheSignal,
+              // During prospective render we don't use a controller
+              // because we need to let all caches fill.
+              controller: null,
+              dynamicTracking,
+              revalidate: defaultRevalidate,
+              tags: null,
+            })
+          let prospectiveResult
+          try {
+            prospectiveResult = this.workUnitAsyncStorage.run(
+              prospectiveRoutePrerenderStore,
+              handler,
+              request,
+              handlerContext
+            )
+          } catch (err) {
+            if (isPrerenderInterruptedError(err)) {
+              // the route handler called an API which is always dynamic
+              // there is no need to try again
+              prospectiveRenderIsDynamic = true
+            }
+          }
+          if (
+            typeof prospectiveResult === 'object' &&
+            prospectiveResult !== null &&
+            typeof (prospectiveResult as any).then === 'function'
+          ) {
+            // The handler returned a Thenable. We'll listen for rejections to determine
+            // if the route is erroring for dynamic reasons.
+            ;(prospectiveResult as any as Promise<unknown>).then(
+              () => {},
+              (err) => {
+                if (isPrerenderInterruptedError(err)) {
+                  // the route handler called an API which is always dynamic
+                  // there is no need to try again
+                  prospectiveRenderIsDynamic = true
+                }
+              }
+            )
+          }
+          await cacheSignal.cacheReady()
+
+          if (prospectiveRenderIsDynamic) {
+            // the route handler called an API which is always dynamic
+            // there is no need to try again
+            const dynamicReason = getFirstDynamicReason(dynamicTracking)
+            if (dynamicReason) {
+              throw new DynamicServerError(
+                `Route ${workStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+              )
+            } else {
+              console.error(
+                'Expected Next.js to keep track of reason for opting out of static rendering but one was not found. This is a bug in Next.js'
+              )
+              throw new DynamicServerError(
+                `Route ${workStore.route} couldn't be rendered statically because it used a dynamic API. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+              )
+            }
+          }
+
+          // TODO start passing this controller to the route handler. We should expose
+          // it so the handler to abort inflight requests and other operations if we abort
+          // the prerender.
+          const finalController = new AbortController()
+          dynamicTracking = createDynamicTrackingState(undefined)
+
+          const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
             type: 'prerender',
-            renderSignal: prospectiveController.signal,
+            renderSignal: finalController.signal,
             pathname,
-            cacheSignal,
-            // During prospective render we don't use a controller
-            // because we need to let all caches fill.
-            controller: null,
+            cacheSignal: null,
+            controller: finalController,
             dynamicTracking,
-            revalidate: INFINITE_CACHE,
+            revalidate: defaultRevalidate,
             tags: null,
           })
-        let prospectiveResult
-        try {
-          prospectiveResult = this.workUnitAsyncStorage.run(
-            prospectiveRoutePrerenderStore,
+
+          let responseHandled = false
+          res = await new Promise((resolve, reject) => {
+            scheduleImmediate(async () => {
+              try {
+                const result = await (this.workUnitAsyncStorage.run(
+                  finalRoutePrerenderStore,
+                  handler,
+                  request,
+                  handlerContext
+                ) as Promise<Response>)
+                if (responseHandled) {
+                  // we already rejected in the followup task
+                  return
+                } else if (!(result instanceof Response)) {
+                  // This is going to error but we let that happen below
+                  resolve(result)
+                  return
+                }
+
+                responseHandled = true
+
+                let bodyHandled = false
+                result.arrayBuffer().then((body) => {
+                  if (!bodyHandled) {
+                    bodyHandled = true
+
+                    resolve(
+                      new Response(body, {
+                        headers: result.headers,
+                        status: result.status,
+                        statusText: result.statusText,
+                      })
+                    )
+                  }
+                }, reject)
+                scheduleImmediate(() => {
+                  if (!bodyHandled) {
+                    bodyHandled = true
+                    finalController.abort()
+                    reject(createDynamicIOError(workStore.route))
+                  }
+                })
+              } catch (err) {
+                reject(err)
+              }
+            })
+            scheduleImmediate(() => {
+              if (!responseHandled) {
+                responseHandled = true
+                finalController.abort()
+                reject(createDynamicIOError(workStore.route))
+              }
+            })
+          })
+          if (finalController.signal.aborted) {
+            // We aborted from within the execution
+            throw createDynamicIOError(workStore.route)
+          } else {
+            // We didn't abort during the execution. We can abort now as a matter of semantics
+            // though at the moment nothing actually consumes this signal so it won't halt any
+            // inflight work.
+            finalController.abort()
+          }
+        } else {
+          res = await workUnitAsyncStorage.run(
+            (prerenderStore = {
+              type: 'prerender-legacy',
+              pathname,
+              revalidate: defaultRevalidate,
+              tags: null,
+            }),
             handler,
             request,
             handlerContext
           )
-        } catch (err) {
-          if (isPrerenderInterruptedError(err)) {
-            // the route handler called an API which is always dynamic
-            // there is no need to try again
-            prospectiveRenderIsDynamic = true
-          }
         }
-        if (
-          typeof prospectiveResult === 'object' &&
-          prospectiveResult !== null &&
-          typeof (prospectiveResult as any).then === 'function'
-        ) {
-          // The handler returned a Thenable. We'll listen for rejections to determine
-          // if the route is erroring for dynamic reasons.
-          ;(prospectiveResult as any as Promise<unknown>).then(
-            () => {},
-            (err) => {
-              if (isPrerenderInterruptedError(err)) {
-                // the route handler called an API which is always dynamic
-                // there is no need to try again
-                prospectiveRenderIsDynamic = true
-              }
-            }
-          )
-        }
-        await cacheSignal.cacheReady()
-
-        if (prospectiveRenderIsDynamic) {
-          // the route handler called an API which is always dynamic
-          // there is no need to try again
-          const dynamicReason = getFirstDynamicReason(dynamicTracking)
-          if (dynamicReason) {
-            throw new DynamicServerError(
-              `Route ${workStore.route} couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-            )
-          } else {
-            console.error(
-              'Expected Next.js to keep track of reason for opting out of static rendering but one was not found. This is a bug in Next.js'
-            )
-            throw new DynamicServerError(
-              `Route ${workStore.route} couldn't be rendered statically because it used a dynamic API. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-            )
-          }
-        }
-
-        // TODO start passing this controller to the route handler. We should expose
-        // it so the handler to abort inflight requests and other operations if we abort
-        // the prerender.
-        const finalController = new AbortController()
-        dynamicTracking = createDynamicTrackingState(undefined)
-
-        const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          renderSignal: finalController.signal,
-          pathname,
-          cacheSignal: null,
-          controller: finalController,
-          dynamicTracking,
-          revalidate: INFINITE_CACHE,
-          tags: null,
-        })
-
-        let responseHandled = false
-        res = await new Promise((resolve, reject) => {
-          scheduleImmediate(async () => {
-            try {
-              const result = await (this.workUnitAsyncStorage.run(
-                finalRoutePrerenderStore,
-                handler,
-                request,
-                handlerContext
-              ) as Promise<Response>)
-              if (responseHandled) {
-                // we already rejected in the followup task
-                return
-              } else if (!(result instanceof Response)) {
-                // This is going to error but we let that happen below
-                resolve(result)
-                return
-              }
-
-              responseHandled = true
-
-              let bodyHandled = false
-              result.arrayBuffer().then((body) => {
-                if (!bodyHandled) {
-                  bodyHandled = true
-
-                  resolve(
-                    new Response(body, {
-                      headers: result.headers,
-                      status: result.status,
-                      statusText: result.statusText,
-                    })
-                  )
-                }
-              }, reject)
-              scheduleImmediate(() => {
-                if (!bodyHandled) {
-                  bodyHandled = true
-                  finalController.abort()
-                  reject(createDynamicIOError(workStore.route))
-                }
-              })
-            } catch (err) {
-              reject(err)
-            }
-          })
-          scheduleImmediate(() => {
-            if (!responseHandled) {
-              responseHandled = true
-              finalController.abort()
-              reject(createDynamicIOError(workStore.route))
-            }
-          })
-        })
-        if (finalController.signal.aborted) {
-          // We aborted from within the execution
-          throw createDynamicIOError(workStore.route)
-        } else {
-          // We didn't abort during the execution. We can abort now as a matter of semantics
-          // though at the moment nothing actually consumes this signal so it won't halt any
-          // inflight work.
-          finalController.abort()
-        }
-      } else if (isStaticGeneration) {
-        res = await workUnitAsyncStorage.run(
-          (prerenderStore = {
-            type: 'prerender-legacy',
-            pathname,
-            revalidate: INFINITE_CACHE,
-            tags: null,
-          }),
-          handler,
-          request,
-          handlerContext
-        )
       } else {
         res = await handler(request, handlerContext)
       }
@@ -631,13 +642,6 @@ export class AppRouteRouteModule extends RouteModule<
                     workStore.dynamicUsageDescription = err.message
                     workStore.dynamicUsageStack = err.stack
                     throw err
-                  } else {
-                    // We aren't statically generating but since this route has non-static methods
-                    // we still need to set the default caching to no cache by setting revalidate = 0
-                    // @TODO this type of logic is too indirect. we need to refactor how we set fetch cache
-                    // behavior. Prior to the most recent refactor this logic was buried deep in staticGenerationBailout
-                    // so it is possible it was unintentional and then tests were written to assert the current behavior
-                    workStore.revalidateSegmentConfig = 0
                   }
                 }
 
@@ -671,12 +675,6 @@ export class AppRouteRouteModule extends RouteModule<
                     // We proxy `NextRequest` to track dynamic access, and potentially bail out of static generation
                     request = proxyNextRequest(req, workStore)
                 }
-
-                // If the static generation store does not have a revalidate value
-                // set, then we should set it the revalidate value from the userland
-                // module or default to false.
-                workStore.revalidateSegmentConfig ??=
-                  this.userland.revalidate ?? false
 
                 // TODO: propagate this pathname from route matcher
                 const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
