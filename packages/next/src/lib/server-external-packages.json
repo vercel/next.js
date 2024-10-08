@@ -50,6 +50,7 @@
   "prisma",
   "puppeteer",
   "puppeteer-core",
+  "require-in-the-middle",
   "rimraf",
   "sharp",
   "shiki",

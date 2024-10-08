@@ -415,8 +415,10 @@ pub enum ResolveResultItem {
     Unresolveable,
 }
 
-/// This represents the key for a request that leads to a certain results during
-/// resolving. A primary factor is the actual request string, but there are
+/// Represents the key for a request that leads to a certain results during
+/// resolving.
+///
+/// A primary factor is the actual request string, but there are
 /// other factors like exports conditions that can affect resolting and become
 /// part of the key (assuming the condition is unknown at compile time)
 #[derive(Clone, Debug, Default, Hash)]
@@ -1012,9 +1014,9 @@ async fn type_exists(
     for path in result.symlinks.iter() {
         refs.push(Vc::upcast(FileSource::new(**path)));
     }
-    let path = result.path.resolve().await?;
+    let path = result.path;
     Ok(if *path.get_type().await? == ty {
-        Some(path)
+        Some(*path)
     } else {
         None
     })
@@ -1028,7 +1030,7 @@ async fn any_exists(
     for path in result.symlinks.iter() {
         refs.push(Vc::upcast(FileSource::new(**path)));
     }
-    let path = result.path.resolve().await?;
+    let path = result.path;
     let ty = *path.get_type().await?;
     Ok(
         if matches!(
@@ -1037,7 +1039,7 @@ async fn any_exists(
         ) {
             None
         } else {
-            Some((ty, path))
+            Some((ty, *path))
         },
     )
 }

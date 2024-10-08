@@ -488,6 +488,52 @@ describe('AfterContext', () => {
     expect(store1 === workStore).toBe(true)
     expect(store2 === store1).toBe(true)
   })
+
+  it('preserves the ALS context the callback was created in', async () => {
+    type TestStore = string
+    const testStorage = new AsyncLocalStorage<TestStore>()
+
+    const waitUntil = jest.fn()
+
+    let onCloseCallback: (() => void) | undefined = undefined
+    const onClose = jest.fn((cb) => {
+      onCloseCallback = cb
+    })
+
+    const afterContext = new AfterContext({
+      waitUntil,
+      onClose,
+    })
+
+    const workStore = createMockWorkStore(afterContext)
+    const run = createRun(afterContext, workStore)
+
+    // ==================================
+
+    const stores = new DetachedPromise<
+      [TestStore | undefined, TestStore | undefined]
+    >()
+
+    await testStorage.run('value', () =>
+      run(async () => {
+        const store1 = testStorage.getStore()
+        after(() => {
+          const store2 = testStorage.getStore()
+          stores.resolve([store1, store2])
+        })
+      })
+    )
+
+    // the response is done.
+    onCloseCallback!()
+
+    const [store1, store2] = await stores.promise
+    // if we use .toBe, the proxy from createMockWorkStore throws because jest checks '$$typeof'
+    expect(store1).toBeDefined()
+    expect(store2).toBeDefined()
+    expect(store1 === 'value').toBe(true)
+    expect(store2 === store1).toBe(true)
+  })
 })
 
 const createMockWorkStore = (afterContext: AfterContext): WorkStore => {

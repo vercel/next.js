@@ -27,6 +27,7 @@ export const TARGET_ROUTE_EXPORTS = new Set([
 export const TARGET_NAMED_EXPORTS = new Set([
   // For page and layout
   'generateMetadata',
+  'generateViewport',
   ...TARGET_ROUTE_EXPORTS,
 ])
 

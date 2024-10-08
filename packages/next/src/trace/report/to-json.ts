@@ -147,12 +147,12 @@ const reportToLocalHost = (event: TraceEvent) => {
 }
 
 export default {
-  flushAll: () =>
+  flushAll: (opts?: { end: boolean }) =>
     batch
       ? batch.flushAll().then(() => {
           const phase = traceGlobals.get('phase')
           // Only end writeStream when manually flushing in production
-          if (phase !== PHASE_DEVELOPMENT_SERVER) {
+          if (opts?.end || phase !== PHASE_DEVELOPMENT_SERVER) {
             return writeStream.end()
           }
         })
