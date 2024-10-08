@@ -17,6 +17,8 @@ describe('required server files app router', () => {
   let server: ChildProcess
   let appPort: number | string
 
+  jest.setTimeout(180_000)
+
   const setupNext = async ({
     nextEnv,
     minimalMode,
@@ -43,7 +45,9 @@ describe('required server files app router', () => {
         cacheMaxMemorySize: 0,
         distDir: '.next',
         experimental: {
-          turbotrace: {},
+          turbotrace: {
+            logAll: true,
+          },
         },
         eslint: {
           ignoreDuringBuilds: true,

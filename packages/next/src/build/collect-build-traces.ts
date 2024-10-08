@@ -193,6 +193,7 @@ async function traceEntries(
 
   const depModSet = new Set(depModArray)
 
+  action.showAll = true
   const filesTracedInEntries: string[] = await bindings.turbo.startTrace(
     action,
     turboTasksForTrace
@@ -386,8 +387,11 @@ async function doNextBuild(
   }
 
   if (config.experimental.turbotrace) {
-    const nextServerEntry = require.resolve('next/dist/server/next-server')
-    const traceContext = path.join(nextServerEntry, '..', '..', '..')
+    // const nextServerEntry = require.resolve('next/dist/server/next-server')
+    // const traceContext = path.join(nextServerEntry, '..', '..', '..')
+
+    // TODO(arlyon): if inside package and try to import yourself, only works if has exports field or inside yourself
+    const traceContext = outputFileTracingRoot
 
     console.log('got ignores', sharedEntriesSet)
 
@@ -770,6 +774,7 @@ async function traceChunks(
       )
     )
   })
+  action.showAll = true
   await bindings.turbo.startTrace(action, turboTasksForTrace)
   if (turbotraceOutputPath && turbotraceFiles) {
     const existedNftFile = await fs
