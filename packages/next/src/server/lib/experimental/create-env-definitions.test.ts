@@ -64,4 +64,46 @@ describe('create-env-definitions', () => {
       export {}"
     `)
   })
+
+  it('should dedupe env definitions in order of priority', async () => {
+    const loadedEnvFiles = [
+      {
+        path: '.env.local',
+        contents: '',
+        env: {
+          DUPLICATE_ENV: 'DUPLICATE_ENV',
+        },
+      },
+      {
+        path: '.env.development.local',
+        contents: '',
+        env: {
+          DUPLICATE_ENV: 'DUPLICATE_ENV',
+        },
+      },
+      {
+        path: 'next.config.js',
+        contents: '',
+        env: {
+          DUPLICATE_ENV: 'DUPLICATE_ENV',
+        },
+      },
+    ]
+    const definitionStr = await createEnvDefinitions({
+      distDir: '/dist',
+      loadedEnvFiles,
+    })
+    expect(definitionStr).toMatchInlineSnapshot(`
+      "// Type definitions for Next.js environment variables
+      declare global {
+        namespace NodeJS {
+          interface ProcessEnv {
+            /** Loaded from \`.env.local\` */
+            DUPLICATE_ENV?: string
+          }
+        }
+      }
+      export {}"
+    `)
+  })
 })
