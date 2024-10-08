@@ -877,18 +877,19 @@ describe('Error overlay for hydration errors in App router', () => {
             <RedirectBoundary>
               <RedirectErrorBoundary router={{...}}>
                 <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
-                  <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                    <Page params={Promise} searchParams={Promise}>
-                      <div>
+                  <MaybeIntercepted>
+                    <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                      <Page params={Promise} searchParams={Promise}>
                         <div>
                           <div>
                             <div>
-                              <Mismatch>
-                                <p>
-                                  <span>
-                                    ...
-        +                            client
-        -                            server"
+                              <div>
+                                <Mismatch>
+                                  <p>
+                                    <span>
+                                      ...
+        +                              client
+        -                              server"
       `)
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
@@ -897,17 +898,18 @@ describe('Error overlay for hydration errors in App router', () => {
             <RedirectBoundary>
               <RedirectErrorBoundary router={{...}}>
                 <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
-                  <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                    <Page params={Promise} searchParams={Promise}>
-                      <div>
+                  <MaybeIntercepted>
+                    <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                      <Page params={Promise} searchParams={Promise}>
                         <div>
                           <div>
                             <div>
-                              <Mismatch>
-                                <p>
-                                  <span>
-        +                            client
-        -                            server"
+                              <div>
+                                <Mismatch>
+                                  <p>
+                                    <span>
+        +                              client
+        -                              server"
       `)
     }
 
