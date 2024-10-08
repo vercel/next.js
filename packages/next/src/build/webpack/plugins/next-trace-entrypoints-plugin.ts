@@ -105,6 +105,11 @@ export function getFilesMapFromReasons(
 }
 
 export interface TurbotraceAction {
+  /**
+   * Corresponds to the action that tracing performs on the file.
+   * 'print' will ...
+   * 'annotate' will produce a `nft.json` file
+   */
   action: 'print' | 'annotate'
   input: string[]
   contextDirectory: string
@@ -586,7 +591,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               return source || ''
             }
 
-            const entryPaths = Array.from(entryModMap.keys())
             const entryPathDepMap = new Map<string, Set<string>>()
 
             const collectDependencies = async (mod: any, parent: string) => {
@@ -615,7 +619,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                 }
               }
             }
-            const entriesToTrace = [...entryPaths]
+
+            const entryPaths = entryModMap.keys()
+            const entriesToTrace = new Set<string>(entryModMap.keys())
 
             for (const entry of entryPaths) {
               await collectDependencies(entryModMap.get(entry), entry)
@@ -623,18 +629,22 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               const curExtraEntries = additionalEntries.get(entryName)
 
               if (curExtraEntries) {
-                entriesToTrace.push(...curExtraEntries.keys())
+                for (const key in curExtraEntries.keys()) {
+                  // TODO(arlyon): revise this check
+                  if (curExtraEntries.get(key).resource.length > 0) {
+                    entriesToTrace.add(key)
+                  }
+                }
               }
             }
 
             const contextDirectory =
               this.turbotrace?.contextDirectory ?? this.tracingRoot
-            const chunks = [...entriesToTrace]
 
             this.buildTraceContext.entriesTrace = {
               action: {
                 action: 'print',
-                input: chunks,
+                input: [...entriesToTrace],
                 contextDirectory,
                 processCwd: this.turbotrace?.processCwd ?? this.rootDir,
                 logLevel: this.turbotrace?.logLevel,
@@ -678,10 +688,10 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
             await finishModulesSpan
               .traceChild('node-file-trace-plugin', {
-                traceEntryCount: entriesToTrace.length + '',
+                traceEntryCount: entriesToTrace.size + '',
               })
               .traceAsyncFn(async () => {
-                const result = await nodeFileTrace(entriesToTrace, {
+                const result = await nodeFileTrace([...entriesToTrace], {
                   base: this.tracingRoot,
                   processCwd: this.rootDir,
                   readFile,
