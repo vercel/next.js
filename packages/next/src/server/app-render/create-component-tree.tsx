@@ -240,20 +240,20 @@ async function createComponentTreeInternal({
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
-    ctx.defaultRevalidate = layoutOrPageMod.revalidate as number
+    const defaultRevalidate = layoutOrPageMod.revalidate as number
 
     if (
       typeof workStore.revalidateSegmentConfig === 'undefined' ||
       (typeof workStore.revalidateSegmentConfig === 'number' &&
-        workStore.revalidateSegmentConfig > ctx.defaultRevalidate)
+        workStore.revalidateSegmentConfig > defaultRevalidate)
     ) {
-      workStore.revalidateSegmentConfig = ctx.defaultRevalidate
+      workStore.revalidateSegmentConfig = defaultRevalidate
     }
 
     if (
       !workStore.forceStatic &&
       workStore.isStaticGeneration &&
-      ctx.defaultRevalidate === 0 &&
+      defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
       !experimental.isRoutePPREnabled

@@ -17,7 +17,6 @@ import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
-import type { Revalidate } from '../lib/revalidate'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
@@ -185,7 +184,6 @@ export type AppRenderContext = {
   appUsingSizeAdjustment: boolean
   flightRouterState?: FlightRouterState
   requestId: string
-  defaultRevalidate: Revalidate
   pagePath: string
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   assetPrefix: string
@@ -1051,7 +1049,6 @@ async function renderToHTMLOrFlightImpl(
     appUsingSizeAdjustment,
     flightRouterState,
     requestId,
-    defaultRevalidate: false,
     pagePath,
     clientReferenceManifest,
     assetPrefix,
@@ -1143,8 +1140,7 @@ async function renderToHTMLOrFlightImpl(
       metadata.revalidate = 0
     } else {
       // Copy the revalidation value onto the render result metadata.
-      metadata.revalidate =
-        response.collectedRevalidate ?? ctx.defaultRevalidate
+      metadata.revalidate = response.collectedRevalidate
     }
 
     // provide bailout info for debugging
