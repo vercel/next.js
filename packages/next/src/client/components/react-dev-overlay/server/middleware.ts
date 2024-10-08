@@ -14,7 +14,8 @@ import {
   type OriginalStackFrameResponse,
 } from './shared'
 export { getServerError } from '../internal/helpers/node-stack-frames'
-export { parseStack } from '../internal/helpers/parseStack'
+export { parseStack } from '../internal/helpers/parse-stack'
+import { createStackFrame } from '../internal/helpers/create-stack-frame'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
@@ -295,19 +296,12 @@ export function getOverlayMiddleware(options: {
   ): Promise<void> {
     const { pathname, searchParams } = new URL(`http://n${req.url}`)
 
-    const frame = {
-      file: searchParams.get('file') as string,
-      methodName: searchParams.get('methodName') as string,
-      lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
-      column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
-      arguments: searchParams.getAll('arguments').filter(Boolean),
-    } satisfies StackFrame
-
-    const isServer = searchParams.get('isServer') === 'true'
-    const isEdgeServer = searchParams.get('isEdgeServer') === 'true'
-    const isAppDirectory = searchParams.get('isAppDirectory') === 'true'
-
     if (pathname === '/__nextjs_original-stack-frame') {
+      const isServer = searchParams.get('isServer') === 'true'
+      const isEdgeServer = searchParams.get('isEdgeServer') === 'true'
+      const isAppDirectory = searchParams.get('isAppDirectory') === 'true'
+      const frame = createStackFrame(searchParams)
+
       let sourcePackage = findSourcePackage(frame)
 
       if (
@@ -372,6 +366,8 @@ export function getOverlayMiddleware(options: {
         return internalServerError(res)
       }
     } else if (pathname === '/__nextjs_launch-editor') {
+      const frame = createStackFrame(searchParams)
+
       if (!frame.file) return badRequest(res)
 
       // frame files may start with their webpack layer, like (middleware)/middleware.js
@@ -394,6 +390,7 @@ export function getOverlayMiddleware(options: {
 
       return noContent(res)
     }
+
     return next()
   }
 }

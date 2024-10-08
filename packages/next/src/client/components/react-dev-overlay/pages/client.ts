@@ -1,5 +1,5 @@
 import * as Bus from './bus'
-import { parseStack } from '../internal/helpers/parseStack'
+import { parseStack } from '../internal/helpers/parse-stack'
 import { parseComponentStack } from '../internal/helpers/parse-component-stack'
 import {
   hydrationErrorState,
