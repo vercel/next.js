@@ -38,7 +38,7 @@ export function onCancel() {
 export const TRANSFORMER_INQUIRER_CHOICES = [
   {
     title:
-      'Transforms the deprecated automatically injected url property on top level pages to using withRouter',
+      'Transform the deprecated automatically injected url property on top level pages to using withRouter',
     value: 'url-to-withrouter',
     version: '6.0',
   },
