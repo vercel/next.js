@@ -8,7 +8,6 @@
     "directory": "packages/next-codemod"
   },
   "dependencies": {
-    "chalk": "4.1.2",
     "cheerio": "1.0.0-rc.9",
     "commander": "12.1.0",
     "compare-versions": "6.1.1",
