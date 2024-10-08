@@ -406,7 +406,7 @@ export function transformDynamicProps(
           const propPassedAsArg = args.find(
             (arg) => j.Identifier.check(arg) && arg.name === argName
           )
-          const comment = ` '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
+          const comment = ` Next.js Dynamic Async API Codemod: '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
           insertCommentOnce(propPassedAsArg, j, comment)
 
           modified = true
