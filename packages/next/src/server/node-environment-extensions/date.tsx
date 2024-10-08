@@ -1,7 +1,7 @@
 /**
  * We extend `Date` during builds and revalidates to ensure that prerenders don't observe the clock as a source of IO
  * When dynamicIO is enabled. The current time is a form of IO even though it resolves synchronously. When dyanmicIO is
- * enabled we need to ensure that clock time is excluded from prerenders.
+ * enabled we need to ensure that clock time is excluded from prerenders unless it is cached.
  *
  * There is tension here because time is used for both output and introspection. While arbitrary we intend to reserve
  * `Date` for output use cases and `performance` for introspection use cases. If you want to measure
@@ -9,27 +9,7 @@
  *
  * The extensions here never error nor alter the underlying Date objects, strings, and numbers created and thus should be transparent to callers.
  */
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import {
-  isDynamicIOPrerender,
-  workUnitAsyncStorage,
-} from '../app-render/work-unit-async-storage.external'
-import { abortOnSynchronousDynamicDataAccess } from '../app-render/dynamic-rendering'
-
-function io(expression: string) {
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'prerender' &&
-    isDynamicIOPrerender(workUnitStore)
-  ) {
-    const workStore = workAsyncStorage.getStore()
-    const route = workStore ? workStore.route : ''
-    if (workStore) {
-      abortOnSynchronousDynamicDataAccess(route, expression, workUnitStore)
-    }
-  }
-}
+import { io } from './utils'
 
 function createNow(originalNow: typeof Date.now) {
   return {
