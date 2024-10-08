@@ -1,9 +1,7 @@
-use std::path::MAIN_SEPARATOR;
-
 use anyhow::Result;
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{
@@ -112,18 +110,18 @@ impl BaseLoaderTreeBuilder {
         self.inner_assets
             .insert(format!("MODULE_{i}").into(), module);
 
-        let module_path = module.ident().path().to_string().await?;
+        let module_path = module.ident().path().await?.clone_value();
+        let module_path_str = module_path.to_string();
 
-        let project_root_with_trailing_sep =
-            format!("{}{}", self.project_root.to_string().await?, MAIN_SEPARATOR);
-
-        let relative_path = module_path
-            .strip_prefix(&project_root_with_trailing_sep)
-            .unwrap_or(module_path.as_str());
+        let relative_path = self
+            .project_root
+            .await?
+            .get_path_to(&module_path)
+            .unwrap_or(module_path_str.as_str());
 
         Ok(format!(
             "[() => {identifier}, {path}, {relative_path}]",
-            path = StringifyJs(&module_path),
+            path = StringifyJs(&module_path_str.as_str()),
             relative_path = StringifyJs(&relative_path),
         ))
     }
