@@ -30,13 +30,15 @@ async function loadHighestNPMVersionMatching(query: string) {
   return versions[versions.length - 1]
 }
 
+const codeSnippet = (code: string) => chalk.grey(`${code}`)
+
 const MIGRATION_INSTRUCTIONS = `\
 The codemods are applied, please review the changes of transformed files and follow the instructions to complete the migration:
 
-- Search for comment "Next.js Dynamic Async API Codemod:", and read the instructions in comment and migrate them manually.
+- Search for comment "${chalk.white('Next.js Dynamic Async API Codemod:')}", and read the instructions in comment and migrate them manually.
   For example:
 
-  Codemod output:
+  Codemod output:${codeSnippet(`
   \`\`\`
   import { cookies } from 'next/headers'
   export function foo() {
@@ -44,15 +46,15 @@ The codemods are applied, please review the changes of transformed files and fol
     Any asynchronous properties of 'props' must be awaited when accessed. */
     cookies())
   }
-  \`\`\`
+  \`\`\``)}
 
-  Manual migration:
+  Manual migration:${codeSnippet(`
   \`\`\`
   import { cookies } from 'next/headers'
   export async function foo() {
     callback(await cookies())
   }
-  \`\`\`
+  \`\`\``)}
   And update the usage of \`foo()\` to make sure it's awaited if necessary.    
 
   
@@ -60,22 +62,22 @@ The codemods are applied, please review the changes of transformed files and fol
   They're \`UnsafeUnwrappedCookies\`, \`UnsafeUnwrappedHeaders\` and \`UnsafeUnwrappedDraftMode\`
   For example: await the API calls and populate the async scope:
 
-  Codemod output:
+  Codemod output:${codeSnippet(`
   \`\`\`
   import { cookies, type UnsafeUnwrappedCookies } from 'next/headers'
   export function foo() {
     callback(cookies() as UnsafeUnwrappedCookies)
   }
-  \`\`\`
+  \`\`\``)}
 
-  Manual migration:
+  Manual migration:${codeSnippet(`
   \`\`\`
   import { cookies } from 'next/headers'
   export async function foo() {
     const cookies = await cookies()
     callback(cookies)
   }
-  \`\`\`
+  \`\`\``)}
 
 And update the usage of \`foo()\` to make sure it's awaited if necessary.
 
@@ -87,7 +89,7 @@ After finished the manual migration, please check if you have any of the followi
 For the above cases, you need to find them and manually update migrate if necessary.
 
 ${'' /* TODO: change the url to upgrading/next-15 once the guide is out */}
-Checkout Next.js migration guide for more details! https://nextjs.org/docs/pages/building-your-application/upgrading/
+Checkout Next.js migration guide for more details! ${chalk.underline('https://nextjs.org/docs/pages/building-your-application/upgrading/')}
 `
 function printMigrationInstructionsAfterCodemod() {
   console.log(`Migration Instructions\n\n${MIGRATION_INSTRUCTIONS}`)
