@@ -409,6 +409,7 @@ export function createPatchedFetcher(
          * - Fetch cache configs are not set. Specifically:
          *    - A page fetch cache mode is not set (export const fetchCache=...)
          *    - A fetch cache mode is not set in the fetch call (fetch(url, { cache: ... }))
+         *      or the fetch cache mode is set to 'default'
          *    - A fetch revalidate value is not set in the fetch call (fetch(url, { revalidate: ... }))
          * - OR the fetch comes after a configuration that triggered dynamic rendering (e.g., reading cookies())
          *   and the fetch was considered uncacheable (e.g., POST method or has authorization headers)
@@ -417,7 +418,10 @@ export function createPatchedFetcher(
           // eslint-disable-next-line eqeqeq
           pageFetchCacheMode == undefined &&
           // eslint-disable-next-line eqeqeq
-          currentFetchCacheConfig == undefined &&
+          (currentFetchCacheConfig == undefined ||
+            // when considering whether to opt into the default "no-cache" fetch semantics,
+            // a "default" cache config should be treated the same as no cache config
+            currentFetchCacheConfig === 'default') &&
           // eslint-disable-next-line eqeqeq
           currentFetchRevalidate == undefined
         const autoNoCache =
