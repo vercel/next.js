@@ -343,7 +343,6 @@ pub enum InfoMessage {
 
 #[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
     condition_names: Option<Vec<RcStr>>,

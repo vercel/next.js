@@ -4,9 +4,9 @@ import { execSync } from 'child_process'
 import path from 'path'
 import { compareVersions } from 'compare-versions'
 import chalk from 'chalk'
-import { availableCodemods } from '../lib/codemods'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { runTransform } from './transform'
+import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
@@ -37,8 +37,6 @@ export async function runUpgrade(
   const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
-  await detectWorkspace(appPackageJson)
-
   let targetNextPackageJson: {
     version: string
     peerDependencies: Record<string, string>
@@ -53,7 +51,7 @@ export async function runUpgrade(
     )
   }
 
-  const installedNextVersion = await getInstalledNextVersion()
+  const installedNextVersion = getInstalledNextVersion()
 
   const targetNextVersion = targetNextPackageJson.version
 
@@ -125,41 +123,21 @@ export async function runUpgrade(
   )
 }
 
-async function detectWorkspace(appPackageJson: any): Promise<void> {
-  let isWorkspace =
-    appPackageJson.workspaces ||
-    fs.existsSync(path.resolve(process.cwd(), 'pnpm-workspace.yaml'))
-
-  if (!isWorkspace) return
-
-  console.log(
-    `${chalk.red('⚠️')} You seem to be in the root of a monorepo. ${chalk.blue('@next/upgrade')} should be run in a specific app directory within the monorepo.`
-  )
-
-  const response = await prompts(
-    {
-      type: 'confirm',
-      name: 'value',
-      message: 'Do you still want to continue?',
-      initial: false,
-    },
-    { onCancel: () => process.exit(0) }
-  )
-
-  if (!response.value) {
-    process.exit(0)
+function getInstalledNextVersion(): string {
+  try {
+    return require(
+      require.resolve('next/package.json', {
+        paths: [process.cwd()],
+      })
+    ).version
+  } catch (error) {
+    throw new Error(
+      `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      {
+        cause: error,
+      }
+    )
   }
-}
-
-async function getInstalledNextVersion(): Promise<string> {
-  const installedNextPackageJsonDir = require.resolve('next/package.json', {
-    paths: [process.cwd()],
-  })
-  const installedNextPackageJson = JSON.parse(
-    fs.readFileSync(installedNextPackageJsonDir, 'utf8')
-  )
-
-  return installedNextPackageJson.version
 }
 
 /*
@@ -174,21 +152,17 @@ async function getInstalledNextVersion(): Promise<string> {
  *    showing the current dev command as the initial value.
  */
 async function suggestTurbopack(packageJson: any): Promise<void> {
-  const devScript = packageJson.scripts['dev']
+  const devScript: string = packageJson.scripts['dev']
   if (devScript.includes('--turbo')) return
 
   const responseTurbopack = await prompts(
     {
       type: 'confirm',
       name: 'enable',
-      message: 'Turbopack is now the stable default for dev mode. Enable it?',
+      message: 'Enable Turbopack for next dev?',
       initial: true,
     },
-    {
-      onCancel: () => {
-        process.exit(0)
-      },
-    }
+    { onCancel }
   )
 
   if (!responseTurbopack.enable) {
@@ -203,12 +177,19 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
     return
   }
 
-  const responseCustomDevScript = await prompts({
-    type: 'text',
-    name: 'customDevScript',
-    message: 'Please add `--turbo` to your dev command:',
-    initial: devScript,
-  })
+  console.log(
+    `${chalk.yellow('⚠')} Could not find "${chalk.bold('next dev')}" in your dev script.`
+  )
+
+  const responseCustomDevScript = await prompts(
+    {
+      type: 'text',
+      name: 'customDevScript',
+      message: 'Please manually add "--turbo" to your dev command.',
+      initial: devScript,
+    },
+    { onCancel }
+  )
 
   packageJson.scripts['dev'] =
     responseCustomDevScript.customDevScript || devScript
@@ -218,7 +199,7 @@ async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string
 ): Promise<string[]> {
-  const initialVersionIndex = availableCodemods.findIndex(
+  const initialVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
     (versionCodemods) =>
       compareVersions(versionCodemods.version, initialNextVersion) > 0
   )
@@ -226,17 +207,18 @@ async function suggestCodemods(
     return []
   }
 
-  let targetVersionIndex = availableCodemods.findIndex(
+  let targetVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
     (versionCodemods) =>
       compareVersions(versionCodemods.version, targetNextVersion) > 0
   )
   if (targetVersionIndex === -1) {
-    targetVersionIndex = availableCodemods.length
+    targetVersionIndex = TRANSFORMER_INQUIRER_CHOICES.length
   }
 
-  const relevantCodemods = availableCodemods
-    .slice(initialVersionIndex, targetVersionIndex)
-    .flatMap((versionCodemods) => versionCodemods.codemods)
+  const relevantCodemods = TRANSFORMER_INQUIRER_CHOICES.slice(
+    initialVersionIndex,
+    targetVersionIndex
+  )
 
   if (relevantCodemods.length === 0) {
     return []
@@ -249,17 +231,14 @@ async function suggestCodemods(
       message: `The following ${chalk.blue('codemods')} are recommended for your upgrade. Select the ones to apply.`,
       choices: relevantCodemods.map((codemod) => {
         return {
-          title: `${codemod.title} ${chalk.grey(`(${codemod.value})`)}`,
-          value: codemod.value,
+          title: `(v${version}) ${value}`,
+          description: title,
+          value,
           selected: true,
         }
       }),
     },
-    {
-      onCancel: () => {
-        process.exit(0)
-      },
-    }
+    { onCancel }
   )
 
   return codemods

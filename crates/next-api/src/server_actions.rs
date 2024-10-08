@@ -25,7 +25,7 @@ use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     file_source::FileSource,
-    module::Module,
+    module::{Module, Modules},
     output::OutputAsset,
     reference::primary_referenced_modules,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -47,7 +47,7 @@ use turbopack_ecmascript::{
 /// loader.
 pub(crate) async fn create_server_actions_manifest(
     rsc_entry: Vc<Box<dyn Module>>,
-    server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
+    server_reference_modules: Vc<Modules>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     page_name: &str,
@@ -171,7 +171,7 @@ async fn build_manifest(
 #[turbo_tasks::function]
 async fn get_actions(
     rsc_entry: Vc<Box<dyn Module>>,
-    server_reference_modules: Vc<Vec<Vc<Box<dyn Module>>>>,
+    server_reference_modules: Vc<Modules>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<AllActions>> {
     async move {

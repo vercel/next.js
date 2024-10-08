@@ -210,6 +210,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
     use async_trait::async_trait;
 
     use super::*;
@@ -272,6 +273,7 @@ mod tests {
                 ]
             }
         );
+
         Ok(())
     }
 }

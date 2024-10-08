@@ -1709,6 +1709,7 @@ pub fn mark_finished() {
 
 /// Marks the current task as stateful. This prevents the tasks from being
 /// dropped without persisting the state.
+///
 /// Returns a [`SerializationInvalidator`] that can be used to invalidate the
 /// serialization of the current task cells
 pub fn mark_stateful() -> SerializationInvalidator {

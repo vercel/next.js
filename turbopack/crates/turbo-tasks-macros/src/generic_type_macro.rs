@@ -108,7 +108,7 @@ struct ReplaceGenericsVisitor<'a> {
     generics: &'a std::collections::HashSet<String>,
 }
 
-impl<'a> VisitMut for ReplaceGenericsVisitor<'a> {
+impl VisitMut for ReplaceGenericsVisitor<'_> {
     fn visit_type_mut(&mut self, node: &mut Type) {
         if let Type::Path(type_path) = node {
             if type_path.qself.is_none()

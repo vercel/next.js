@@ -2708,7 +2708,7 @@ impl JsValue {
         fn visit_async_until_settled_box<'a, F, R, E>(
             value: JsValue,
             visitor: &'a mut F,
-        ) -> PinnedAsyncUntilSettledBox<E>
+        ) -> PinnedAsyncUntilSettledBox<'a, E>
         where
             R: 'a + Future<Output = Result<(JsValue, bool), E>> + Send,
             F: 'a + FnMut(JsValue) -> R + Send,
@@ -2744,7 +2744,7 @@ impl JsValue {
         R: 'a + Future<Output = Result<(Self, bool), E>>,
         F: 'a + FnMut(JsValue) -> R,
     {
-        fn visit_async_box<'a, F, R, E>(value: JsValue, visitor: &'a mut F) -> PinnedAsyncBox<E>
+        fn visit_async_box<'a, F, R, E>(value: JsValue, visitor: &'a mut F) -> PinnedAsyncBox<'a, E>
         where
             R: 'a + Future<Output = Result<(JsValue, bool), E>>,
             F: 'a + FnMut(JsValue) -> R,

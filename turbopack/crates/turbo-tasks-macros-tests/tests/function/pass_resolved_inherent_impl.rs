@@ -1,4 +1,5 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 #![allow(dead_code)]
 
 use turbo_tasks::{ResolvedVc, Vc};
