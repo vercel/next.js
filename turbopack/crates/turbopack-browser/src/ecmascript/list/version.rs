@@ -9,7 +9,7 @@ type VersionTraitRef = TraitRef<Box<dyn Version>>;
 /// The version of a [`EcmascriptDevChunkListContent`].
 ///
 /// [`EcmascriptDevChunkListContent`]: super::content::EcmascriptDevChunkListContent
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(serialization = "none", shared)]
 pub(super) struct EcmascriptDevChunkListVersion {
     /// A map from chunk path to its version.
     #[turbo_tasks(trace_ignore)]

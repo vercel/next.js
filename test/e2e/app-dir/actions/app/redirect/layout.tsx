@@ -12,6 +12,7 @@ export default function Page({ children }) {
     <div>
       <form action={dispatch}>
         <input type="text" name="name" />
+        <input type="checkbox" name="revalidate" /> Revalidate
         <button type="submit">Submit</button>
         {errors.name && <p id="error">{errors.name}</p>}
       </form>

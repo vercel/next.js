@@ -11,7 +11,7 @@ import {
   insertCommentOnce,
 } from './utils'
 
-const DYNAMIC_IMPORT_WARN_COMMENT = ` The APIs under 'next/headers' are async now, need to be manually awaited. `
+const DYNAMIC_IMPORT_WARN_COMMENT = ` Next.js Dynamic Async API Codemod: The APIs under 'next/headers' are async now, need to be manually awaited. `
 
 function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
   let modified = false
@@ -187,7 +187,7 @@ export function transformDynamicAPI(
                   root,
                   filePath,
                   insertedTypes,
-                  ` TODO: please manually await this call, if it's a server component, you can turn it to async function `
+                  ` Next.js Dynamic Async API Codemod: Manually await this call, if it's a Server Component `
                 )
               }
             } else {
@@ -198,11 +198,47 @@ export function transformDynamicAPI(
                 root,
                 filePath,
                 insertedTypes,
-                ' TODO: please manually await this call, codemod cannot transform due to undetermined async scope '
+                ' Next.js Dynamic Async API Codemod: please manually await this call, codemod cannot transform due to undetermined async scope '
               )
             }
             modified = true
           }
+        }
+      })
+
+    // Handle type usage of async API, e.g. `type Cookie = ReturnType<typeof cookies>`
+    // convert it to `type Cookie = Awaited<ReturnType<typeof cookies>>`
+    root
+      .find(j.TSTypeReference, {
+        typeName: {
+          type: 'Identifier',
+          name: 'ReturnType',
+        },
+      })
+      .forEach((path) => {
+        const typeParam = path.node.typeParameters?.params[0]
+
+        // Check if the ReturnType is for 'cookies'
+        if (
+          typeParam &&
+          j.TSTypeQuery.check(typeParam) &&
+          j.Identifier.check(typeParam.exprName) &&
+          typeParam.exprName.name === asyncRequestApiName
+        ) {
+          // Replace ReturnType<typeof cookies> with Awaited<ReturnType<typeof cookies>>
+          const awaitedTypeReference = j.tsTypeReference(
+            j.identifier('Awaited'),
+            j.tsTypeParameterInstantiation([
+              j.tsTypeReference(
+                j.identifier('ReturnType'),
+                j.tsTypeParameterInstantiation([typeParam])
+              ),
+            ])
+          )
+
+          j(path).replaceWith(awaitedTypeReference)
+
+          modified = true
         }
       })
   }

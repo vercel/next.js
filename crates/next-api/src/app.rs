@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
-use indexmap::IndexSet;
+use indexmap::{IndexMap, IndexSet};
 use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
     app_structure::{
         get_entrypoints, AppPageLoaderTree, Entrypoint as AppEntrypoint,
-        Entrypoints as AppEntrypoints, MetadataItem,
+        Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem,
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
@@ -18,9 +18,7 @@ use next_core::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
-    next_client_reference::{
-        client_reference_graph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
-    },
+    next_client_reference::{client_reference_graph, NextEcmascriptClientReferenceTransition},
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -69,6 +67,7 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 use crate::{
     dynamic_imports::{
         collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
+        VisitedDynamicImportModules,
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
@@ -628,7 +627,7 @@ pub fn app_entry_point_to_route(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Html,
-                                loader_tree,
+                                loader_tree: *loader_tree,
                             },
                             app_project,
                             page: page.clone(),
@@ -639,7 +638,7 @@ pub fn app_entry_point_to_route(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Rsc,
-                                loader_tree,
+                                loader_tree: *loader_tree,
                             },
                             app_project,
                             page,
@@ -657,7 +656,10 @@ pub fn app_entry_point_to_route(
             original_name: page.to_string(),
             endpoint: Vc::upcast(
                 AppEndpoint {
-                    ty: AppEndpointType::Route { path, root_layouts },
+                    ty: AppEndpointType::Route {
+                        path: *path,
+                        root_layouts: *root_layouts,
+                    },
                     app_project,
                     page,
                 }
@@ -703,7 +705,7 @@ enum AppEndpointType {
     },
     Route {
         path: Vc<FileSystemPath>,
-        root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+        root_layouts: Vc<FileSystemPathVec>,
     },
     Metadata {
         metadata: MetadataItem,
@@ -735,7 +737,7 @@ impl AppEndpoint {
     async fn app_route_entry(
         &self,
         path: Vc<FileSystemPath>,
-        root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+        root_layouts: Vc<FileSystemPathVec>,
         next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
         let root_layouts = root_layouts.await?;
@@ -745,7 +747,7 @@ impl AppEndpoint {
             let mut config = NextSegmentConfig::default();
 
             for layout in root_layouts.iter().rev() {
-                let source = Vc::upcast(FileSource::new(*layout));
+                let source = Vc::upcast(FileSource::new(**layout));
                 let layout_config = parse_segment_config_from_source(source);
                 config.apply_parent_config(&*layout_config.await?);
             }
@@ -864,7 +866,6 @@ impl AppEndpoint {
                 let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
                 let client_references = client_reference_graph(Vc::cell(vec![rsc_entry_asset]));
-                let client_reference_types = client_references.types();
 
                 let ssr_chunking_context = if process_ssr {
                     Some(match runtime {
@@ -880,21 +881,32 @@ impl AppEndpoint {
                     None
                 };
 
-                let client_dynamic_imports = collect_next_dynamic_imports(
-                    client_references
+                let client_dynamic_imports = {
+                    let mut client_dynamic_imports = IndexMap::new();
+                    let mut visited_modules = VisitedDynamicImportModules::empty();
+
+                    for refs in client_references
                         .await?
-                        .client_references
-                        .iter()
-                        .filter_map(|r| match r.ty() {
-                            ClientReferenceType::EcmascriptClientReference(entry) => Some(entry),
-                            ClientReferenceType::CssClientReference(_) => None,
-                        })
-                        .map(|entry| async move { Ok(Vc::upcast(entry.await?.ssr_module)) })
-                        .try_join()
-                        .await?,
-                    Vc::upcast(this.app_project.client_module_context()),
-                )
-                .await?;
+                        .client_references_by_server_component
+                        .values()
+                    {
+                        let result = collect_next_dynamic_imports(
+                            refs.clone(),
+                            Vc::upcast(this.app_project.client_module_context()),
+                            visited_modules,
+                        )
+                        .await?;
+                        client_dynamic_imports.extend(
+                            result
+                                .client_dynamic_imports
+                                .iter()
+                                .map(|(k, v)| (*k, v.clone())),
+                        );
+                        visited_modules = result.visited_modules;
+                    }
+
+                    client_dynamic_imports
+                };
 
                 let client_references_chunks = get_app_client_references_chunks(
                     client_references,
@@ -1025,7 +1037,7 @@ impl AppEndpoint {
                 }
 
                 (
-                    Some(get_app_server_reference_modules(client_reference_types)),
+                    Some(get_app_server_reference_modules(client_references.types())),
                     Some(client_dynamic_imports),
                     Some(client_references),
                 )
@@ -1199,10 +1211,13 @@ impl AppEndpoint {
 
                 // create react-loadable-manifest for next/dynamic
                 let mut dynamic_import_modules = collect_next_dynamic_imports(
-                    [Vc::upcast(app_entry.rsc_entry)],
+                    vec![Vc::upcast(app_entry.rsc_entry)],
                     Vc::upcast(this.app_project.client_module_context()),
+                    VisitedDynamicImportModules::empty(),
                 )
-                .await?;
+                .await?
+                .client_dynamic_imports
+                .clone();
                 dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     Vc::upcast(client_chunking_context),
@@ -1351,10 +1366,13 @@ impl AppEndpoint {
                 // create react-loadable-manifest for next/dynamic
                 let availability_info = Value::new(AvailabilityInfo::Root);
                 let mut dynamic_import_modules = collect_next_dynamic_imports(
-                    [Vc::upcast(app_entry.rsc_entry)],
+                    vec![Vc::upcast(app_entry.rsc_entry)],
                     Vc::upcast(this.app_project.client_module_context()),
+                    VisitedDynamicImportModules::empty(),
                 )
-                .await?;
+                .await?
+                .client_dynamic_imports
+                .clone();
                 dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                 let dynamic_import_entries = collect_chunk_group(
                     Vc::upcast(client_chunking_context),

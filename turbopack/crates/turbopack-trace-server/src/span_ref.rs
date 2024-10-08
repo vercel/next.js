@@ -403,7 +403,7 @@ impl<'a> SpanRef<'a> {
     }
 }
 
-impl<'a> Debug for SpanRef<'a> {
+impl Debug for SpanRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpanRef")
             .field("id", &self.id())

@@ -301,7 +301,7 @@ pub fn event_map_to_list(
         .collect()
 }
 
-impl<'a> Debug for SpanGraphRef<'a> {
+impl Debug for SpanGraphRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpanGraphRef")
             .field("id", &self.id())
@@ -324,7 +324,7 @@ pub enum SpanGraphEventRef<'a> {
     Child { graph: SpanGraphRef<'a> },
 }
 
-impl<'a> SpanGraphEventRef<'a> {
+impl SpanGraphEventRef<'_> {
     pub fn corrected_total_time(&self) -> u64 {
         match self {
             SpanGraphEventRef::SelfTime { duration } => *duration,

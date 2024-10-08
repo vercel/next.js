@@ -303,6 +303,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
+        internal_disableSyncDynamicAPIWarnings: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
         linkNoTouchStart: z.boolean().optional(),
@@ -390,6 +391,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             resolveExtensions: z.array(z.string()).optional(),
             useSwcCss: z.boolean().optional(),
             treeShaking: z.boolean().optional(),
+            persistentCaching: z.boolean().optional(),
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
           })

@@ -2,13 +2,12 @@ import {
   HeadersAdapter,
   type ReadonlyHeaders,
 } from '../../server/web/spec-extension/adapters/headers'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
-import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
+import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
-  isDynamicIOPrerender,
-  prerenderAsyncStorage,
-  type PrerenderStore,
-} from '../app-render/prerender-async-storage.external'
+  workUnitAsyncStorage,
+  type PrerenderStoreModern,
+} from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   abortAndThrowOnSynchronousDynamicDataAccess,
@@ -18,6 +17,7 @@ import {
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeResolvedReactPromise } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
 /**
  * In this version of Next.js `headers()` returns a Promise however you can still reference the properties of the underlying Headers instance
@@ -55,70 +55,71 @@ export type UnsafeUnwrappedHeaders = ReadonlyHeaders
  * Read more: [Next.js Docs: `headers`](https://nextjs.org/docs/app/api-reference/functions/headers)
  */
 export function headers(): Promise<ReadonlyHeaders> {
-  const requestStore = getExpectedRequestStore('headers')
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (staticGenerationStore) {
-    if (staticGenerationStore.forceStatic) {
+  if (workStore) {
+    if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
       // headers object without tracking
       const underlyingHeaders = HeadersAdapter.seal(new Headers({}))
       return makeUntrackedExoticHeaders(underlyingHeaders)
     }
 
-    if (staticGenerationStore.isUnstableCacheCallback) {
-      throw new Error(
-        `Route ${staticGenerationStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-      )
-    } else if (staticGenerationStore.dynamicShouldError) {
+    if (workUnitStore) {
+      if (workUnitStore.type === 'cache') {
+        throw new Error(
+          `Route ${workStore.route} used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        )
+      } else if (workUnitStore.type === 'unstable-cache') {
+        throw new Error(
+          `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      }
+    }
+    if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
-        `Route ${staticGenerationStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
 
-    if (prerenderStore) {
-      // We are in PPR and/or dynamicIO mode and prerendering
-
-      if (isDynamicIOPrerender(prerenderStore)) {
-        // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
-        // When resolving headers for a prerender with dynamic IO we return a forever promise
-        // along with property access tracked synchronous headers.
-
+    if (workUnitStore) {
+      if (workUnitStore.type === 'prerender') {
+        // dynamicIO Prerender
         // We don't track dynamic access here because access will be tracked when you access
         // one of the properties of the headers object.
         return makeDynamicallyTrackedExoticHeaders(
-          staticGenerationStore.route,
-          prerenderStore
+          workStore.route,
+          workUnitStore
         )
-      } else {
+      } else if (workUnitStore.type === 'prerender-ppr') {
+        // PPR Prerender (no dynamicIO)
         // We are prerendering with PPR. We need track dynamic access here eagerly
         // to keep continuity with how headers has worked in PPR without dynamicIO.
         // TODO consider switching the semantic to throw on property access instead
         postponeWithTracking(
-          staticGenerationStore.route,
+          workStore.route,
           'headers',
-          prerenderStore.dynamicTracking
+          workUnitStore.dynamicTracking
         )
+      } else if (workUnitStore.type === 'prerender-legacy') {
+        // Legacy Prerender
+        // We are in a legacy static generation mode while prerendering
+        // We track dynamic access here so we don't need to wrap the headers in
+        // individual property access tracking.
+        throwToInterruptStaticGeneration('headers', workStore, workUnitStore)
       }
-    } else if (staticGenerationStore.isStaticGeneration) {
-      // We are in a legacy static generation mode while prerendering
-      // We track dynamic access here so we don't need to wrap the headers in
-      // individual property access tracking.
-      throwToInterruptStaticGeneration('headers', staticGenerationStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using headers inside a cache context
-    trackDynamicDataInDynamicRender(staticGenerationStore)
+    trackDynamicDataInDynamicRender(workStore, workUnitStore)
   }
 
-  if (
-    process.env.NODE_ENV === 'development' &&
-    !staticGenerationStore?.isPrefetchRequest
-  ) {
+  const requestStore = getExpectedRequestStore('headers')
+  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     return makeUntrackedExoticHeadersWithDevWarnings(
       requestStore.headers,
-      staticGenerationStore?.route
+      workStore?.route
     )
   } else {
     return makeUntrackedExoticHeaders(requestStore.headers)
@@ -130,7 +131,7 @@ const CachedHeaders = new WeakMap<CacheLifetime, Promise<ReadonlyHeaders>>()
 
 function makeDynamicallyTrackedExoticHeaders(
   route: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyHeaders> {
   const cachedHeaders = CachedHeaders.get(prerenderStore)
   if (cachedHeaders) {
@@ -425,19 +426,35 @@ function describeNameArg(arg: unknown) {
   return typeof arg === 'string' ? `'${arg}'` : '...'
 }
 
-function warnForSyncIteration(route?: string) {
-  const prefix = route ? ` In route ${route} ` : ''
-  console.error(
-    `${prefix}headers were iterated implicitly with something like \`for...of headers())\` or \`[...headers()]\`, or explicitly with \`headers()[Symbol.iterator]()\`. \`headers()\` now returns a Promise and the return value should be awaited before attempting to iterate over headers. In this version of Next.js iterating headers without awaiting first is still supported to facilitate migration but in a future version you will be required to await the result. If this \`headers()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
-  )
-}
+const noop = () => {}
 
-function warnForSyncAccess(route: undefined | string, expression: string) {
-  const prefix = route ? ` In route ${route} a ` : 'A '
-  console.error(
-    `${prefix}header property was accessed directly with \`${expression}\`. \`headers()\` now returns a Promise and the return value should be awaited before accessing properties of the underlying headers instance. In this version of Next.js direct access to \`${expression}\` is still supported to facilitate migration but in a future version you will be required to await the result. If this \`headers()\` use is inside an async function await the return value before accessing attempting iteration. If this use is inside a synchronous function then convert the function to async or await the call from outside this function and pass the result in.`
-  )
-}
+const warnForSyncIteration = process.env
+  .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : createDedupedByCallsiteServerErrorLoggerDev(
+      function getSyncIterationMessage(route?: string) {
+        const prefix = route ? ` In route ${route} ` : ''
+        return (
+          `${prefix}headers were iterated over. ` +
+          `\`headers()\` should be awaited before using its value. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      }
+    )
+
+const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
+      route: undefined | string,
+      expression: string
+    ) {
+      const prefix = route ? ` In route ${route} a ` : 'A '
+      return (
+        `${prefix}header property was accessed directly with \`${expression}\`. ` +
+        `\`headers()\` should be awaited before using its value. ` +
+        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+      )
+    })
 
 type HeadersExtensions = {
   [K in keyof ReadonlyHeaders]: unknown

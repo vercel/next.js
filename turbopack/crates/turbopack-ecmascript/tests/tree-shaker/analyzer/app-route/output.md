@@ -108,13 +108,13 @@ const routeModule = new AppRouteRouteModule({
 ## Item 10: Stmt 5, `VarDeclarator(0)`
 
 ```js
-const { requestAsyncStorage, staticGenerationAsyncStorage, serverHooks } = routeModule;
+const { requestAsyncStorage, workAsyncStorage, serverHooks } = routeModule;
 
 ```
 
-- Declares: `requestAsyncStorage`, `staticGenerationAsyncStorage`, `serverHooks`
+- Declares: `requestAsyncStorage`, `workAsyncStorage`, `serverHooks`
 - Reads: `routeModule`
-- Write: `requestAsyncStorage`, `staticGenerationAsyncStorage`, `serverHooks`
+- Write: `requestAsyncStorage`, `workAsyncStorage`, `serverHooks`
 
 ## Item 11: Stmt 6, `VarDeclarator(0)`
 
@@ -132,7 +132,7 @@ const originalPathname = 'VAR_ORIGINAL_PATHNAME';
 function patchFetch() {
     return _patchFetch({
         serverHooks,
-        staticGenerationAsyncStorage
+        workAsyncStorage
     });
 }
 
@@ -140,9 +140,9 @@ function patchFetch() {
 
 - Hoisted
 - Declares: `patchFetch`
-- Reads (eventual): `_patchFetch`, `serverHooks`, `staticGenerationAsyncStorage`
+- Reads (eventual): `_patchFetch`, `serverHooks`, `workAsyncStorage`
 - Write: `patchFetch`
-- Write (eventual): `serverHooks`, `staticGenerationAsyncStorage`
+- Write (eventual): `serverHooks`, `workAsyncStorage`
 
 # Phase 1
 ```mermaid
@@ -166,7 +166,7 @@ graph TD
     Item15;
     Item15["export requestAsyncStorage"];
     Item16;
-    Item16["export staticGenerationAsyncStorage"];
+    Item16["export workAsyncStorage"];
     Item17;
     Item17["export serverHooks"];
     Item18;
@@ -202,7 +202,7 @@ graph TD
     Item15;
     Item15["export requestAsyncStorage"];
     Item16;
-    Item16["export staticGenerationAsyncStorage"];
+    Item16["export workAsyncStorage"];
     Item17;
     Item17["export serverHooks"];
     Item18;
@@ -253,7 +253,7 @@ graph TD
     Item15;
     Item15["export requestAsyncStorage"];
     Item16;
-    Item16["export staticGenerationAsyncStorage"];
+    Item16["export workAsyncStorage"];
     Item17;
     Item17["export serverHooks"];
     Item18;
@@ -308,7 +308,7 @@ graph TD
     Item15;
     Item15["export requestAsyncStorage"];
     Item16;
-    Item16["export staticGenerationAsyncStorage"];
+    Item16["export workAsyncStorage"];
     Item17;
     Item17["export serverHooks"];
     Item18;
@@ -364,7 +364,7 @@ graph TD
     N12["Items: [ItemId(Export((&quot;routeModule&quot;, #2), &quot;routeModule&quot;))]"];
     N13["Items: [ItemId(5, VarDeclarator(0))]"];
     N14["Items: [ItemId(Export((&quot;serverHooks&quot;, #2), &quot;serverHooks&quot;))]"];
-    N15["Items: [ItemId(Export((&quot;staticGenerationAsyncStorage&quot;, #2), &quot;staticGenerationAsyncStorage&quot;))]"];
+    N15["Items: [ItemId(Export((&quot;workAsyncStorage&quot;, #2), &quot;workAsyncStorage&quot;))]"];
     N16["Items: [ItemId(7, Normal)]"];
     N17["Items: [ItemId(Export((&quot;patchFetch&quot;, #2), &quot;patchFetch&quot;))]"];
     N18["Items: [ItemId(Export((&quot;requestAsyncStorage&quot;, #2), &quot;requestAsyncStorage&quot;))]"];
@@ -411,15 +411,15 @@ graph TD
         "patchFetch",
     ): 17,
     Export(
-        "staticGenerationAsyncStorage",
-    ): 15,
-    Export(
         "requestAsyncStorage",
     ): 18,
     Export(
         "routeModule",
     ): 12,
     Exports: 19,
+    Export(
+        "workAsyncStorage",
+    ): 15,
     Export(
         "originalPathname",
     ): 1,
@@ -438,11 +438,8 @@ export { originalPathname as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as originalPathname } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 export { originalPathname };
 
@@ -519,14 +516,14 @@ import 'VAR_USERLAND';
 ```
 ## Part 10
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+import { e as AppRouteRouteModule } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -5
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+import { d as RouteKind } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+import { c as userland } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -542,15 +539,6 @@ import "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
-};
-import { e as AppRouteRouteModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-import { d as RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { c as userland } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
 };
 const routeModule = new AppRouteRouteModule({
     definition: {
@@ -591,28 +579,22 @@ import "__TURBOPACK_PART__" assert {
 ```
 ## Part 12
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
-};
 import { f as routeModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+    __turbopack_part__: -10
 };
 export { routeModule };
 
 ```
 ## Part 13
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
-};
 import { f as routeModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+    __turbopack_part__: -10
 };
-const { requestAsyncStorage, staticGenerationAsyncStorage, serverHooks } = routeModule;
+const { requestAsyncStorage, workAsyncStorage, serverHooks } = routeModule;
 export { requestAsyncStorage as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { staticGenerationAsyncStorage as h } from "__TURBOPACK_VAR__" assert {
+export { workAsyncStorage as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 export { serverHooks as i } from "__TURBOPACK_VAR__" assert {
@@ -622,33 +604,30 @@ export { serverHooks as i } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 14
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 import { i as serverHooks } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: -13
 };
 export { serverHooks };
 
 ```
 ## Part 15
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as workAsyncStorage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
-import { h as staticGenerationAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-export { staticGenerationAsyncStorage };
+export { workAsyncStorage };
 
 ```
 ## Part 16
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+import { h as workAsyncStorage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { b as _patchFetch } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -2
+};
+import { i as serverHooks } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 14
@@ -656,19 +635,10 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
-import { h as staticGenerationAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import { b as _patchFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { i as serverHooks } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 function patchFetch() {
     return _patchFetch({
         serverHooks,
-        staticGenerationAsyncStorage
+        workAsyncStorage
     });
 }
 export { patchFetch as j } from "__TURBOPACK_VAR__" assert {
@@ -678,22 +648,16 @@ export { patchFetch as j } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 17
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 16
-};
 import { j as patchFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 16
+    __turbopack_part__: -16
 };
 export { patchFetch };
 
 ```
 ## Part 18
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 import { g as requestAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: -13
 };
 export { requestAsyncStorage };
 
@@ -709,8 +673,8 @@ export { routeModule } from "__TURBOPACK_PART__" assert {
 export { serverHooks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export serverHooks"
 };
-export { staticGenerationAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export staticGenerationAsyncStorage"
+export { workAsyncStorage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export workAsyncStorage"
 };
 export { patchFetch } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export patchFetch"
@@ -752,15 +716,15 @@ import "__TURBOPACK_PART__" assert {
         "serverHooks",
     ): 15,
     Export(
-        "staticGenerationAsyncStorage",
-    ): 16,
-    Export(
         "requestAsyncStorage",
     ): 17,
     Export(
         "routeModule",
     ): 11,
     Exports: 19,
+    Export(
+        "workAsyncStorage",
+    ): 16,
     Export(
         "originalPathname",
     ): 1,
@@ -779,11 +743,8 @@ export { originalPathname as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as originalPathname } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 export { originalPathname };
 
@@ -860,14 +821,14 @@ import 'VAR_USERLAND';
 ```
 ## Part 10
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+import { e as AppRouteRouteModule } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -5
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+import { d as RouteKind } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+import { c as userland } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -880,15 +841,6 @@ import "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
-};
-import { e as AppRouteRouteModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-import { d as RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { c as userland } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
 };
 const routeModule = new AppRouteRouteModule({
     definition: {
@@ -909,28 +861,22 @@ export { routeModule as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
-};
 import { f as routeModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+    __turbopack_part__: -10
 };
 export { routeModule };
 
 ```
 ## Part 12
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
-};
 import { f as routeModule } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+    __turbopack_part__: -10
 };
-const { requestAsyncStorage, staticGenerationAsyncStorage, serverHooks } = routeModule;
+const { requestAsyncStorage, workAsyncStorage, serverHooks } = routeModule;
 export { requestAsyncStorage as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { staticGenerationAsyncStorage as h } from "__TURBOPACK_VAR__" assert {
+export { workAsyncStorage as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 export { serverHooks as i } from "__TURBOPACK_VAR__" assert {
@@ -940,25 +886,19 @@ export { serverHooks as i } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 13
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
-};
-import { h as staticGenerationAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
+import { h as workAsyncStorage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -12
 };
 import { b as _patchFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -2
 };
 import { i as serverHooks } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
+    __turbopack_part__: -12
 };
 function patchFetch() {
     return _patchFetch({
         serverHooks,
-        staticGenerationAsyncStorage
+        workAsyncStorage
     });
 }
 export { patchFetch as j } from "__TURBOPACK_VAR__" assert {
@@ -968,44 +908,32 @@ export { patchFetch as j } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 14
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 import { j as patchFetch } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+    __turbopack_part__: -13
 };
 export { patchFetch };
 
 ```
 ## Part 15
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
-};
 import { i as serverHooks } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
+    __turbopack_part__: -12
 };
 export { serverHooks };
 
 ```
 ## Part 16
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
+import { h as workAsyncStorage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -12
 };
-import { h as staticGenerationAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
-};
-export { staticGenerationAsyncStorage };
+export { workAsyncStorage };
 
 ```
 ## Part 17
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
-};
 import { g as requestAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
+    __turbopack_part__: -12
 };
 export { requestAsyncStorage };
 
@@ -1044,8 +972,8 @@ export { patchFetch } from "__TURBOPACK_PART__" assert {
 export { serverHooks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export serverHooks"
 };
-export { staticGenerationAsyncStorage } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export staticGenerationAsyncStorage"
+export { workAsyncStorage } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export workAsyncStorage"
 };
 export { requestAsyncStorage } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export requestAsyncStorage"

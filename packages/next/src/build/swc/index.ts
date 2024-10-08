@@ -26,7 +26,7 @@ import type {
   ExternalObject,
   NapiPartialProjectOptions,
   NapiProjectOptions,
-  TurboTasks,
+  NextTurboTasks,
 } from './generated-native'
 import type {
   Binding,
@@ -1054,8 +1054,10 @@ async function loadWasm(importPath = '') {
             Log.error('Wasm binding does not support trace yet')
           },
           createTurboTasks: function (
+            _outputPath: string,
+            _persistentCaching: boolean,
             _memoryLimit?: number | undefined
-          ): ExternalObject<TurboTasks> {
+          ): ExternalObject<NextTurboTasks> {
             throw new Error(
               '`turbo.createTurboTasks` is not supported by the wasm bindings.'
             )
@@ -1227,15 +1229,23 @@ function loadNative(importPath?: string) {
       initHeapProfiler: bindings.initHeapProfiler,
       teardownHeapProfiler: bindings.teardownHeapProfiler,
       turbo: {
-        startTrace(options = {}, turboTasks: ExternalObject<TurboTasks>) {
+        startTrace(options = {}, turboTasks: ExternalObject<NextTurboTasks>) {
           initHeapProfiler()
           return (customBindings ?? bindings).runTurboTracing(
             toBuffer({ exact: true, ...options }),
             turboTasks
           )
         },
-        createTurboTasks(memoryLimit?: number): ExternalObject<TurboTasks> {
-          return bindings.createTurboTasks(memoryLimit)
+        createTurboTasks(
+          outputPath: string,
+          persistentCaching: boolean,
+          memoryLimit?: number
+        ): ExternalObject<NextTurboTasks> {
+          return bindings.createTurboTasks(
+            outputPath,
+            persistentCaching,
+            memoryLimit
+          )
         },
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath) {

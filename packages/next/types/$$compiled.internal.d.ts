@@ -21,7 +21,15 @@ declare module 'next/dist/compiled/react-server-dom-turbopack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
 declare module 'next/dist/compiled/react-server-dom-turbopack/static.edge'
-declare module 'next/dist/client/app-call-server'
+declare module 'next/dist/client/app-call-server' {
+  export function callServer(
+    actionId: string,
+    actionArgs: unknown[]
+  ): Promise<unknown>
+}
+declare module 'next/dist/client/app-find-source-map-url' {
+  export function findSourceMapURL(filename: string): string | null
+}
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/browserslist'
@@ -527,6 +535,11 @@ declare module 'next/dist/compiled/zod' {
   export = z
 }
 
+declare module 'next/dist/compiled/zod-validation-error' {
+  import * as zve from 'zod-validation-error'
+  export = zve
+}
+
 declare module 'mini-css-extract-plugin'
 declare module 'next/dist/compiled/loader-utils3'
 
@@ -561,6 +574,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
     ModuleFilenameHelpers,
   } from 'webpack'
   export type {
+    javascript,
     LoaderDefinitionFunction,
     LoaderContext,
     ModuleGraph,

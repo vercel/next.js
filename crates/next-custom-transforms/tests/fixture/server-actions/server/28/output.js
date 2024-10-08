@@ -2,7 +2,7 @@
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 let a, f;
 function Comp(b, c, ...g) {
-    return registerServerReference("1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$RSC_SERVER_ACTION_2).bind(null, encryptActionBoundArgs("1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
+    return registerServerReference($$RSC_SERVER_ACTION_2, "1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
         b,
         c,
         g
@@ -24,7 +24,7 @@ export async function $$RSC_SERVER_ACTION_2($$ACTION_CLOSURE_BOUND, d) {
         window
     });
     console.log(a, $$ACTION_ARG_0, action2);
-    var action2 = registerServerReference("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$RSC_SERVER_ACTION_0).bind(null, encryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
+    var action2 = registerServerReference($$RSC_SERVER_ACTION_0, "6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
         $$ACTION_ARG_1,
         d,
         f,
@@ -32,7 +32,7 @@ export async function $$RSC_SERVER_ACTION_2($$ACTION_CLOSURE_BOUND, d) {
     ]));
     return [
         action2,
-        registerServerReference("90b5db271335765a4b0eab01f044b381b5ebd5cd", $$RSC_SERVER_ACTION_1).bind(null, encryptActionBoundArgs("90b5db271335765a4b0eab01f044b381b5ebd5cd", [
+        registerServerReference($$RSC_SERVER_ACTION_1, "90b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("90b5db271335765a4b0eab01f044b381b5ebd5cd", [
             action2,
             $$ACTION_ARG_1,
             d

@@ -1,6 +1,6 @@
 import { usePathname } from 'next/navigation'
 
-export function ReadPathName() {
+export function ReadPathname() {
   const pathname = usePathname()
   return (
     <div id="pathname" data-pathname={pathname}>

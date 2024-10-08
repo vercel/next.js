@@ -54,6 +54,7 @@ pub enum TypeofWindow {
 }
 
 /// Configuration options for the decorators transform.
+///
 /// This is not part of Typescript transform: while there are typescript
 /// specific transforms (legay decorators), there is an ecma decorator transform
 /// as well for the JS.
