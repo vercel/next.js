@@ -45,9 +45,15 @@ export async function runUpgrade(
   const res = await fetch(`https://registry.npmjs.org/next/${revision}`)
   if (res.status === 200) {
     targetNextPackageJson = await res.json()
-  } else {
+  }
+  const validRevision =
+    targetNextPackageJson !== null &&
+    typeof targetNextPackageJson === 'object' &&
+    'version' in targetNextPackageJson &&
+    'peerDependencies' in targetNextPackageJson
+  if (!validRevision) {
     throw new Error(
-      `${chalk.yellow(`next@${revision}`)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
+      `${chalk.yellow(`next@${revision}`)} does not exist. Make sure you entered a valid Next.js version or dist-tag. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
     )
   }
 
