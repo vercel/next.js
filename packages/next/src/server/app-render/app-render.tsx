@@ -58,7 +58,7 @@ import {
   isRedirectError,
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
-import { addImplicitTags } from '../lib/patch-fetch'
+import { getImplicitTags } from '../lib/patch-fetch'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
@@ -1128,8 +1128,6 @@ async function renderToHTMLOrFlightImpl(
       ])
     }
 
-    addImplicitTags(workStore, requestStore)
-
     if (response.collectedTags) {
       metadata.fetchTags = response.collectedTags.join(',')
     }
@@ -1239,8 +1237,6 @@ async function renderToHTMLOrFlightImpl(
         ...(workStore.pendingRevalidateWrites || []),
       ])
     }
-
-    addImplicitTags(workStore, requestStore)
 
     // Create the new render result for the response.
     return new RenderResult(stream, options)
@@ -1874,6 +1870,11 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           tags: null,
         }
+        // This cycle is a bit unfortunate.
+        prospectiveRenderPrerenderStore.tags = getImplicitTags(
+          workStore,
+          prospectiveRenderPrerenderStore
+        )
 
         let reactServerIsDynamic = false
         function onError(err: unknown) {
@@ -1964,6 +1965,11 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           tags: null,
         }
+        // This cycle is a bit unfortunate.
+        finalRenderPrerenderStore.tags = getImplicitTags(
+          workStore,
+          finalRenderPrerenderStore
+        )
 
         function onPostpone(reason: string) {
           if (
@@ -2025,6 +2031,8 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           tags: null,
         }
+        // This cycle is a bit unfortunate.
+        ssrPrerenderStore.tags = getImplicitTags(workStore, ssrPrerenderStore)
         let SSRIsDynamic = false
         function SSROnError(err: unknown, errorInfo: ErrorInfo) {
           if (
@@ -2237,6 +2245,11 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           tags: null,
         }
+        // This cycle is a bit unfortunate.
+        prospectiveRenderPrerenderStore.tags = getImplicitTags(
+          workStore,
+          prospectiveRenderPrerenderStore
+        )
 
         const firstAttemptRSCPayload = await workUnitAsyncStorage.run(
           prospectiveRenderPrerenderStore,
@@ -2317,6 +2330,11 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           tags: null,
         }
+        // This cycle is a bit unfortunate.
+        finalRenderPrerenderStore.tags = getImplicitTags(
+          workStore,
+          finalRenderPrerenderStore
+        )
 
         const SSRController = new AbortController()
         const ssrPrerenderStore: PrerenderStore = {
@@ -2334,6 +2352,8 @@ async function prerenderToStream(
           revalidate: INFINITE_CACHE,
           tags: null,
         }
+        // This cycle is a bit unfortunate.
+        ssrPrerenderStore.tags = getImplicitTags(workStore, ssrPrerenderStore)
 
         const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
           finalRenderPrerenderStore,
@@ -2513,6 +2533,11 @@ async function prerenderToStream(
         revalidate: INFINITE_CACHE,
         tags: null,
       }
+      // This cycle is a bit unfortunate.
+      reactServerPrerenderStore.tags = getImplicitTags(
+        workStore,
+        reactServerPrerenderStore
+      )
       const RSCPayload = await workUnitAsyncStorage.run(
         reactServerPrerenderStore,
         getRSCPayload,
@@ -2541,6 +2566,8 @@ async function prerenderToStream(
         revalidate: INFINITE_CACHE,
         tags: null,
       }
+      // This cycle is a bit unfortunate.
+      ssrPrerenderStore.tags = getImplicitTags(workStore, ssrPrerenderStore)
 
       const prerender = require('react-dom/static.edge')
         .prerender as (typeof import('react-dom/static.edge'))['prerender']
@@ -2707,6 +2734,12 @@ async function prerenderToStream(
         revalidate: INFINITE_CACHE,
         tags: null,
       }
+      // This cycle is a bit unfortunate.
+      prerenderLegacyStore.tags = getImplicitTags(
+        workStore,
+        prerenderLegacyStore
+      )
+
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation
       const RSCPayload = await workUnitAsyncStorage.run(
@@ -2863,6 +2896,9 @@ async function prerenderToStream(
       revalidate: INFINITE_CACHE,
       tags: null,
     }
+    // This cycle is a bit unfortunate.
+    prerenderLegacyStore.tags = getImplicitTags(workStore, prerenderLegacyStore)
+
     const errorRSCPayload = await workUnitAsyncStorage.run(
       prerenderLegacyStore,
       getErrorRSCPayload,

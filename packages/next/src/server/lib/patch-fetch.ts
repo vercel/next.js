@@ -138,34 +138,20 @@ const getDerivedTags = (pathname: string): string[] => {
   return derivedTags
 }
 
-export function addImplicitTags(
+export function getImplicitTags(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore | undefined
 ) {
+  // TODO: Cache the result
   const newTags: string[] = []
   const { page, fallbackRouteParams } = workStore
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.size > 0
 
-  // Init the tags array if it doesn't exist.
-  let collectedTags: null | string[] = null
-  if (
-    workUnitStore &&
-    (workUnitStore.type === 'cache' ||
-      workUnitStore.type === 'prerender' ||
-      workUnitStore.type === 'prerender-legacy')
-  ) {
-    // Collect tags onto parent caches or parent prerenders.
-    collectedTags = workUnitStore.tags ?? (workUnitStore.tags = [])
-  }
-
   // Add the derived tags from the page.
   const derivedTags = getDerivedTags(page)
   for (let tag of derivedTags) {
     tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
-    if (collectedTags !== null && collectedTags.includes(tag)) {
-      collectedTags.push(tag)
-    }
     newTags.push(tag)
   }
 
@@ -184,9 +170,6 @@ export function addImplicitTags(
   // want to add the pathname as a tag, as it will be invalid.
   if (renderedPathname && !hasFallbackRouteParams) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${renderedPathname}`
-    if (collectedTags !== null && collectedTags.includes(tag)) {
-      collectedTags.push(tag)
-    }
     newTags.push(tag)
   }
 
@@ -339,7 +322,7 @@ export function createPatchedFetcher(
           }
         }
 
-        const implicitTags = addImplicitTags(workStore, workUnitStore)
+        const implicitTags = getImplicitTags(workStore, workUnitStore)
 
         // Inside unstable-cache we treat it the same as force-no-store on the page.
         const pageFetchCacheMode =

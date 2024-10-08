@@ -2,7 +2,7 @@ import type { IncrementalCache } from '../../lib/incremental-cache'
 
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import {
-  addImplicitTags,
+  getImplicitTags,
   validateRevalidate,
   validateTags,
 } from '../../lib/patch-fetch'
@@ -187,9 +187,7 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
-        // of this function is potentially a little confusing
-        const implicitTags = addImplicitTags(workStore, workUnitStore)
+        const implicitTags = getImplicitTags(workStore, workUnitStore)
 
         const isNestedUnstableCache =
           workUnitStore && workUnitStore.type === 'unstable-cache'
@@ -301,10 +299,8 @@ export function unstable_cache<T extends Callback>(
         if (!incrementalCache.isOnDemandRevalidate) {
           // We aren't doing an on demand revalidation so we check use the cache if valid
 
-          // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
-          // of this function is potentially a little confusing
           const implicitTags =
-            workStore && addImplicitTags(workStore, workUnitStore)
+            workStore && getImplicitTags(workStore, workUnitStore)
 
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,

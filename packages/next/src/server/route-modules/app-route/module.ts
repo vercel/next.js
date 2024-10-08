@@ -20,7 +20,7 @@ import {
   type WorkStoreContext,
 } from '../../async-storage/with-work-store'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
-import { addImplicitTags, patchFetch } from '../../lib/patch-fetch'
+import { getImplicitTags, patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
@@ -360,6 +360,12 @@ export class AppRouteRouteModule extends RouteModule<
               revalidate: defaultRevalidate,
               tags: null,
             })
+          // This cycle is a bit unfortunate.
+          prospectiveRoutePrerenderStore.tags = getImplicitTags(
+            workStore,
+            prospectiveRoutePrerenderStore
+          )
+
           let prospectiveResult
           try {
             prospectiveResult = this.workUnitAsyncStorage.run(
@@ -429,6 +435,11 @@ export class AppRouteRouteModule extends RouteModule<
             revalidate: defaultRevalidate,
             tags: null,
           })
+          // This cycle is a bit unfortunate.
+          finalRoutePrerenderStore.tags = getImplicitTags(
+            workStore,
+            finalRoutePrerenderStore
+          )
 
           let responseHandled = false
           res = await new Promise((resolve, reject) => {
@@ -494,13 +505,17 @@ export class AppRouteRouteModule extends RouteModule<
             finalController.abort()
           }
         } else {
+          prerenderStore = {
+            type: 'prerender-legacy',
+            pathname,
+            revalidate: defaultRevalidate,
+            tags: null,
+          }
+          // This cycle is a bit unfortunate.
+          prerenderStore.tags = getImplicitTags(workStore, prerenderStore)
+
           res = await workUnitAsyncStorage.run(
-            (prerenderStore = {
-              type: 'prerender-legacy',
-              pathname,
-              revalidate: defaultRevalidate,
-              tags: null,
-            }),
+            prerenderStore,
             handler,
             request,
             handlerContext
@@ -559,7 +574,6 @@ export class AppRouteRouteModule extends RouteModule<
       ...Object.values(workStore.pendingRevalidates || {}),
     ])
 
-    addImplicitTags(workStore, workUnitStore)
     if (prerenderStore) {
       ;(context.renderOpts as any).collectedTags =
         prerenderStore.tags?.join(',')
