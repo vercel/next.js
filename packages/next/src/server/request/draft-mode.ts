@@ -1,10 +1,9 @@
-import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
+import { getExpectedRequestStore } from '../../server/app-render/work-unit-async-storage.external'
 
 import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
 
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
-import { prerenderAsyncStorage } from '../../server/app-render/prerender-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
@@ -37,15 +36,14 @@ export type UnsafeUnwrappedDraftMode = DraftMode
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
   const workStore = workAsyncStorage.getStore()
-  const prerenderStore = prerenderAsyncStorage.getStore()
-  const cacheStore = cacheAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (
-    (cacheStore &&
-      (cacheStore.type === 'cache' || cacheStore.type === 'unstable-cache')) ||
-    (prerenderStore &&
-      (prerenderStore.type === 'prerender' ||
-        prerenderStore.type === 'prerender-legacy'))
+    workUnitStore &&
+    (workUnitStore.type === 'cache' ||
+      workUnitStore.type === 'unstable-cache' ||
+      workUnitStore.type === 'prerender' ||
+      workUnitStore.type === 'prerender-legacy')
   ) {
     // Return empty draft mode
     if (
@@ -169,11 +167,11 @@ class DraftMode {
   }
   public enable() {
     const store = workAsyncStorage.getStore()
-    const cacheStore = cacheAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
     if (store) {
       // We we have a store we want to track dynamic data access to ensure we
       // don't statically generate routes that manipulate draft mode.
-      trackDynamicDataAccessed(store, cacheStore, 'draftMode().enable()')
+      trackDynamicDataAccessed(store, workUnitStore, 'draftMode().enable()')
     }
     if (this._provider !== null) {
       this._provider.enable()
@@ -181,11 +179,11 @@ class DraftMode {
   }
   public disable() {
     const store = workAsyncStorage.getStore()
-    const cacheStore = cacheAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
     if (store) {
       // We we have a store we want to track dynamic data access to ensure we
       // don't statically generate routes that manipulate draft mode.
-      trackDynamicDataAccessed(store, cacheStore, 'draftMode().disable()')
+      trackDynamicDataAccessed(store, workUnitStore, 'draftMode().disable()')
     }
     if (this._provider !== null) {
       this._provider.disable()

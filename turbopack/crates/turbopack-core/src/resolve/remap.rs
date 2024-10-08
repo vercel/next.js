@@ -71,7 +71,10 @@ pub enum ReplacedSubpathValue {
 }
 
 impl AliasTemplate for SubpathValue {
-    type Output<'a> = Result<ReplacedSubpathValue> where Self: 'a;
+    type Output<'a>
+        = Result<ReplacedSubpathValue>
+    where
+        Self: 'a;
 
     fn convert(&self) -> Result<ReplacedSubpathValue> {
         Ok(match self {

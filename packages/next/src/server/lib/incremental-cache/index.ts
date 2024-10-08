@@ -199,7 +199,8 @@ export class IncrementalCache implements IncrementalCacheType {
   ): Revalidate {
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
-    if (dev) return new Date().getTime() - 1000
+    if (dev)
+      return Math.floor(performance.timeOrigin + performance.now() - 1000)
 
     // if an entry isn't present in routes we fallback to a default
     // of revalidating after 1 second unless it's a fallback request.
@@ -433,7 +434,11 @@ export class IncrementalCache implements IncrementalCacheType {
       }
 
       revalidate = revalidate || cacheData.value.revalidate
-      const age = (Date.now() - (cacheData.lastModified || 0)) / 1000
+      const age =
+        (performance.timeOrigin +
+          performance.now() -
+          (cacheData.lastModified || 0)) /
+        1000
 
       const isStale = age > revalidate
       const data = cacheData.value.data
@@ -445,7 +450,8 @@ export class IncrementalCache implements IncrementalCacheType {
           data,
           revalidate: revalidate,
         },
-        revalidateAfter: Date.now() + revalidate * 1000,
+        revalidateAfter:
+          performance.timeOrigin + performance.now() + revalidate * 1000,
         isFallback,
       } satisfies IncrementalCacheEntry
     }
@@ -461,12 +467,13 @@ export class IncrementalCache implements IncrementalCacheType {
     } else {
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
-        cacheData?.lastModified || Date.now(),
+        cacheData?.lastModified || performance.timeOrigin + performance.now(),
         this.dev ? ctx.kind !== IncrementalCacheKind.FETCH : false,
         ctx.isFallback
       )
       isStale =
-        revalidateAfter !== false && revalidateAfter < Date.now()
+        revalidateAfter !== false &&
+        revalidateAfter < performance.timeOrigin + performance.now()
           ? true
           : undefined
     }

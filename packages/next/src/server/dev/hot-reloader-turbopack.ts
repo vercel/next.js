@@ -176,6 +176,7 @@ export async function createHotReloaderTurbopack(
       browserslistQuery: supportedBrowsers.join(', '),
     },
     {
+      persistentCaching: opts.nextConfig.experimental.turbo?.persistentCaching,
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
     }
   )

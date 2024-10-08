@@ -10,10 +10,10 @@ import {
 
 import {
   isDynamicIOPrerender,
-  prerenderAsyncStorage,
-  type PrerenderStore,
+  workUnitAsyncStorage,
+  type WorkUnitStore,
   type PrerenderStoreModern,
-} from '../app-render/prerender-async-storage.external'
+} from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeResolvedReactPromise, describeStringPropertyAccess } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
@@ -94,7 +94,7 @@ export function createPrerenderParamsForClientSegment(
   underlyingParams: Params,
   workStore: WorkStore
 ): Promise<Params> {
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const prerenderStore = workUnitAsyncStorage.getStore()
   if (prerenderStore && prerenderStore.type === 'prerender') {
     if (isDynamicIOPrerender(prerenderStore)) {
       const fallbackParams = workStore.fallbackRouteParams
@@ -132,7 +132,7 @@ function createPrerenderParams(
 
     if (hasSomeFallbackParams) {
       // params need to be treated as dynamic because we have at least one fallback param
-      const prerenderStore = prerenderAsyncStorage.getStore()
+      const prerenderStore = workUnitAsyncStorage.getStore()
       if (prerenderStore && prerenderStore.type === 'prerender') {
         if (isDynamicIOPrerender(prerenderStore)) {
           // We are in a dynamicIO (PPR or otherwise) prerender
@@ -249,7 +249,7 @@ function makeErroringExoticParams(
   underlyingParams: Params,
   fallbackParams: FallbackRouteParams,
   workStore: WorkStore,
-  prerenderStore: undefined | PrerenderStore
+  prerenderStore: undefined | WorkUnitStore
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -311,7 +311,11 @@ function makeErroringExoticParams(
                   prerenderStore.dynamicTracking
                 )
               } else {
-                throwToInterruptStaticGeneration(expression, workStore)
+                throwToInterruptStaticGeneration(
+                  expression,
+                  workStore,
+                  undefined
+                )
               }
             },
             enumerable: true,
@@ -332,7 +336,11 @@ function makeErroringExoticParams(
                   prerenderStore.dynamicTracking
                 )
               } else {
-                throwToInterruptStaticGeneration(expression, workStore)
+                throwToInterruptStaticGeneration(
+                  expression,
+                  workStore,
+                  undefined
+                )
               }
             },
             set(newValue) {

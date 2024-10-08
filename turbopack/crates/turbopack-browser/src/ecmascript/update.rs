@@ -5,6 +5,7 @@ use turbopack_core::{chunk::ModuleId, code_builder::Code};
 
 use super::{content::EcmascriptDevChunkContent, version::EcmascriptDevChunkVersion};
 
+#[allow(clippy::large_enum_variant)]
 pub(super) enum EcmascriptChunkUpdate {
     None,
     Partial(EcmascriptChunkPartialUpdate),

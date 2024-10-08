@@ -1,4 +1,5 @@
 #![feature(min_specialization)]
+#![allow(clippy::needless_return)] // clippy bug causes false positive
 
 use std::sync::Arc;
 
@@ -26,5 +27,6 @@ async fn main() -> Result<()> {
             println!("{}", file);
         }
     }
+
     Ok(())
 }

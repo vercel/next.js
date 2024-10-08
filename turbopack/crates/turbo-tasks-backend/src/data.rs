@@ -1,11 +1,32 @@
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     event::{Event, EventListener},
+    registry,
     util::SharedError,
-    CellId, KeyValuePair, SharedReference, TaskId, ValueTypeId,
+    CellId, KeyValuePair, TaskId, TypedSharedReference, ValueTypeId,
 };
 
-use crate::backend::indexed::Indexed;
+use crate::backend::{indexed::Indexed, TaskDataCategory};
+
+// this traits are needed for the transient variants of `CachedDataItem`
+// transient variants are never cloned or compared
+macro_rules! transient_traits {
+    ($name:ident) => {
+        impl Clone for $name {
+            fn clone(&self) -> Self {
+                // this impl is needed for the transient variants of `CachedDataItem`
+                // transient variants are never cloned
+                panic!(concat!(stringify!($name), " cannot be cloned"));
+            }
+        }
+
+        impl PartialEq for $name {
+            fn eq(&self, _other: &Self) -> bool {
+                panic!(concat!(stringify!($name), " cannot be compared"));
+            }
+        }
+    };
+}
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CellRef {
@@ -52,6 +73,10 @@ impl RootState {
     }
 }
 
+transient_traits!(RootState);
+
+impl Eq for RootState {}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ActiveType {
     RootTask,
@@ -60,12 +85,6 @@ pub enum ActiveType {
     /// propagating the dirty container or is read strongly consistent. This state is reset when
     /// all this sub graph becomes clean again.
     CachedActiveUntilClean,
-}
-
-impl Clone for RootState {
-    fn clone(&self) -> Self {
-        panic!("RootState cannot be cloned");
-    }
 }
 
 #[derive(Debug)]
@@ -81,22 +100,18 @@ pub enum InProgressState {
     },
 }
 
-impl Clone for InProgressState {
-    fn clone(&self) -> Self {
-        panic!("InProgressState cannot be cloned");
-    }
-}
+transient_traits!(InProgressState);
+
+impl Eq for InProgressState {}
 
 #[derive(Debug)]
 pub struct InProgressCellState {
     pub event: Event,
 }
 
-impl Clone for InProgressCellState {
-    fn clone(&self) -> Self {
-        panic!("InProgressCell cannot be cloned");
-    }
-}
+transient_traits!(InProgressCellState);
+
+impl Eq for InProgressCellState {}
 
 impl InProgressCellState {
     pub fn new(task_id: TaskId, cell: CellId) -> Self {
@@ -108,14 +123,14 @@ impl InProgressCellState {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AggregationNumber {
     pub base: u32,
     pub distance: u32,
     pub effective: u32,
 }
 
-#[derive(Debug, Clone, KeyValuePair)]
+#[derive(Debug, Clone, KeyValuePair, Serialize, Deserialize)]
 pub enum CachedDataItem {
     // Output
     Output {
@@ -143,7 +158,7 @@ pub enum CachedDataItem {
     // Cells
     CellData {
         cell: CellId,
-        value: SharedReference,
+        value: TypedSharedReference,
     },
     CellTypeMaxIndex {
         cell_type: ValueTypeId,
@@ -207,14 +222,17 @@ pub enum CachedDataItem {
     },
 
     // Transient Root Type
+    #[serde(skip)]
     AggregateRoot {
         value: RootState,
     },
 
     // Transient In Progress state
+    #[serde(skip)]
     InProgress {
         value: InProgressState,
     },
+    #[serde(skip)]
     InProgressCell {
         cell: CellId,
         value: InProgressCellState,
@@ -237,6 +255,7 @@ pub enum CachedDataItem {
     },
 
     // Transient Error State
+    #[serde(skip)]
     Error {
         value: SharedError,
     },
@@ -275,6 +294,10 @@ impl CachedDataItem {
             CachedDataItem::OutdatedChild { .. } => false,
             CachedDataItem::Error { .. } => false,
         }
+    }
+
+    pub fn is_optional(&self) -> bool {
+        matches!(self, CachedDataItem::CellData { .. })
     }
 
     pub fn new_scheduled(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
@@ -332,6 +355,39 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedCellDependency { .. } => false,
             CachedDataItemKey::OutdatedChild { .. } => false,
             CachedDataItemKey::Error { .. } => false,
+        }
+    }
+
+    pub fn category(&self) -> TaskDataCategory {
+        match self {
+            CachedDataItemKey::Output { .. }
+            | CachedDataItemKey::Collectible { .. }
+            | CachedDataItemKey::Child { .. }
+            | CachedDataItemKey::CellData { .. }
+            | CachedDataItemKey::CellTypeMaxIndex { .. }
+            | CachedDataItemKey::OutputDependency { .. }
+            | CachedDataItemKey::CellDependency { .. }
+            | CachedDataItemKey::CollectiblesDependency { .. }
+            | CachedDataItemKey::OutputDependent { .. }
+            | CachedDataItemKey::CellDependent { .. }
+            | CachedDataItemKey::CollectiblesDependent { .. }
+            | CachedDataItemKey::InProgress { .. }
+            | CachedDataItemKey::InProgressCell { .. }
+            | CachedDataItemKey::OutdatedCollectible { .. }
+            | CachedDataItemKey::OutdatedOutputDependency { .. }
+            | CachedDataItemKey::OutdatedCellDependency { .. }
+            | CachedDataItemKey::OutdatedChild { .. }
+            | CachedDataItemKey::Error { .. } => TaskDataCategory::Data,
+
+            CachedDataItemKey::AggregationNumber { .. }
+            | CachedDataItemKey::Dirty { .. }
+            | CachedDataItemKey::DirtyWhenPersisted { .. }
+            | CachedDataItemKey::Follower { .. }
+            | CachedDataItemKey::Upper { .. }
+            | CachedDataItemKey::AggregatedDirtyContainer { .. }
+            | CachedDataItemKey::AggregatedCollectible { .. }
+            | CachedDataItemKey::AggregatedDirtyContainerCount { .. }
+            | CachedDataItemKey::AggregateRoot { .. } => TaskDataCategory::Meta,
         }
     }
 }
@@ -404,6 +460,9 @@ impl CachedDataItemValue {
     pub fn is_persistent(&self) -> bool {
         match self {
             CachedDataItemValue::Output { value } => !value.is_transient(),
+            CachedDataItemValue::CellData { value } => {
+                registry::get_value_type(value.0).is_serializable()
+            }
             _ => true,
         }
     }
@@ -411,11 +470,8 @@ impl CachedDataItemValue {
 
 #[derive(Debug)]
 pub struct CachedDataUpdate {
-    // TODO persistence
-    #[allow(dead_code)]
     pub task: TaskId,
-    #[allow(dead_code)]
     pub key: CachedDataItemKey,
-    #[allow(dead_code)]
     pub value: Option<CachedDataItemValue>,
+    pub old_value: Option<CachedDataItemValue>,
 }

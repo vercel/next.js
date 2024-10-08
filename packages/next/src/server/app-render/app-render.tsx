@@ -12,7 +12,7 @@ import type {
   InitialRSCPayload,
 } from './types'
 import type { WorkStore } from '../../client/components/work-async-storage.external'
-import type { RequestStore } from '../../client/components/request-async-storage.external'
+import type { RequestStore } from '../../server/app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
@@ -150,9 +150,9 @@ import {
 } from '../app-render/app-render-prerender-utils'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
-  prerenderAsyncStorage,
+  workUnitAsyncStorage,
   type PrerenderStore,
-} from './prerender-async-storage.external'
+} from './work-unit-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 
@@ -921,7 +921,7 @@ async function renderToHTMLOrFlightImpl(
   ) {
     req.originalRequest.on('end', () => {
       const staticGenStore = ComponentMod.workAsyncStorage.getStore()
-      const prerenderStore = prerenderAsyncStorage.getStore()
+      const prerenderStore = workUnitAsyncStorage.getStore()
       const isPPR =
         prerenderStore && prerenderStore.type === 'prerender'
           ? !!prerenderStore.dynamicTracking?.dynamicAccesses?.length
@@ -1128,7 +1128,7 @@ async function renderToHTMLOrFlightImpl(
       ])
     }
 
-    addImplicitTags(workStore, requestStore, undefined, undefined)
+    addImplicitTags(workStore, requestStore)
 
     if (workStore.tags) {
       metadata.fetchTags = workStore.tags.join(',')
@@ -1237,7 +1237,7 @@ async function renderToHTMLOrFlightImpl(
       ])
     }
 
-    addImplicitTags(workStore, requestStore, undefined, undefined)
+    addImplicitTags(workStore, requestStore)
 
     if (workStore.tags) {
       metadata.fetchTags = workStore.tags.join(',')
@@ -1300,7 +1300,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
   }
 
   return withRequestStore(
-    renderOpts.ComponentMod.requestAsyncStorage,
+    renderOpts.ComponentMod.workUnitAsyncStorage,
     {
       req,
       url,
@@ -1309,8 +1309,12 @@ export const renderToHTMLOrFlight: AppPageRender = (
       isHmrRefresh,
       serverComponentsHmrCache,
     },
-    (requestStore) =>
-      withWorkStore(
+    (requestStore) => {
+      if (requestStore.type !== 'request') {
+        // TODO: Refactor to not need a RequestStore for prerenders.
+        throw new Error('This should never happen.')
+      }
+      return withWorkStore(
         renderOpts.ComponentMod.workAsyncStorage,
         {
           page: renderOpts.routeModule.definition.page,
@@ -1333,6 +1337,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
             postponedState
           )
       )
+    }
   )
 }
 
@@ -1881,7 +1886,7 @@ async function prerenderToStream(
 
         // We're not going to use the result of this render because the only time it could be used
         // is if it completes in a microtask and that's likely very rare for any non-trivial app
-        const firstAttemptRSCPayload = await prerenderAsyncStorage.run(
+        const firstAttemptRSCPayload = await workUnitAsyncStorage.run(
           prospectiveRenderPrerenderStore,
           getRSCPayload,
           tree,
@@ -1892,7 +1897,7 @@ async function prerenderToStream(
         let didError = false
         let prospectiveRenderError: unknown = null
         ;(
-          prerenderAsyncStorage.run(
+          workUnitAsyncStorage.run(
             // The store to scope
             prospectiveRenderPrerenderStore,
             // The function to run
@@ -1961,7 +1966,7 @@ async function prerenderToStream(
             reactServerIsDynamic = true
           }
         }
-        const finalAttemptRSCPayload = await prerenderAsyncStorage.run(
+        const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
           finalRenderPrerenderStore,
           getRSCPayload,
           tree,
@@ -1972,7 +1977,7 @@ async function prerenderToStream(
           await createReactServerPrerenderResult(
             prerenderAndAbortInSequentialTasks(
               () =>
-                prerenderAsyncStorage.run(
+                workUnitAsyncStorage.run(
                   // The store to scope
                   finalRenderPrerenderStore,
                   // The function to run
@@ -2047,7 +2052,7 @@ async function prerenderToStream(
           .prerender as (typeof import('react-dom/static.edge'))['prerender']
         const { prelude, postponed } = await prerenderAndAbortInSequentialTasks(
           () =>
-            prerenderAsyncStorage.run(
+            workUnitAsyncStorage.run(
               ssrPrerenderStore,
               prerender,
               <App
@@ -2214,7 +2219,7 @@ async function prerenderToStream(
           dynamicTracking,
         }
 
-        const firstAttemptRSCPayload = await prerenderAsyncStorage.run(
+        const firstAttemptRSCPayload = await workUnitAsyncStorage.run(
           prospectiveRenderPrerenderStore,
           getRSCPayload,
           tree,
@@ -2238,7 +2243,7 @@ async function prerenderToStream(
         }
 
         try {
-          const prospectiveStream = prerenderAsyncStorage.run(
+          const prospectiveStream = workUnitAsyncStorage.run(
             // The store to scope
             prospectiveRenderPrerenderStore,
             // The function to run
@@ -2305,7 +2310,7 @@ async function prerenderToStream(
           dynamicTracking,
         }
 
-        const finalAttemptRSCPayload = await prerenderAsyncStorage.run(
+        const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
           finalRenderPrerenderStore,
           getRSCPayload,
           tree,
@@ -2341,7 +2346,7 @@ async function prerenderToStream(
           htmlStream = await prerenderAndAbortInSequentialTasks(
             () => {
               const teedStream = (
-                prerenderAsyncStorage.run(
+                workUnitAsyncStorage.run(
                   // The store to scope
                   finalRenderPrerenderStore,
                   // The function to run
@@ -2361,7 +2366,7 @@ async function prerenderToStream(
 
               const renderToReadableStream = require('react-dom/server.edge')
                 .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
-              const pendingHTMLStream = prerenderAsyncStorage.run(
+              const pendingHTMLStream = workUnitAsyncStorage.run(
                 ssrPrerenderStore,
                 renderToReadableStream,
                 <App
@@ -2480,7 +2485,7 @@ async function prerenderToStream(
         controller: null,
         dynamicTracking,
       }
-      const RSCPayload = await prerenderAsyncStorage.run(
+      const RSCPayload = await workUnitAsyncStorage.run(
         reactServerPrerenderStore,
         getRSCPayload,
         tree,
@@ -2489,7 +2494,7 @@ async function prerenderToStream(
       )
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResultFromRender(
-          prerenderAsyncStorage.run(
+          workUnitAsyncStorage.run(
             reactServerPrerenderStore,
             ComponentMod.renderToReadableStream,
             // ... the arguments for the function to run
@@ -2511,7 +2516,7 @@ async function prerenderToStream(
 
       const prerender = require('react-dom/static.edge')
         .prerender as (typeof import('react-dom/static.edge'))['prerender']
-      const { prelude, postponed } = await prerenderAsyncStorage.run(
+      const { prelude, postponed } = await workUnitAsyncStorage.run(
         ssrPrerenderStore,
         prerender,
         <App
@@ -2665,7 +2670,7 @@ async function prerenderToStream(
       }
       // This is a regular static generation. We don't do dynamic tracking because we rely on
       // the old-school dynamic error handling to bail out of static generation
-      const RSCPayload = await prerenderAsyncStorage.run(
+      const RSCPayload = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
         getRSCPayload,
         tree,
@@ -2674,7 +2679,7 @@ async function prerenderToStream(
       )
       const reactServerResult = (reactServerPrerenderResult =
         await createReactServerPrerenderResultFromRender(
-          prerenderAsyncStorage.run(
+          workUnitAsyncStorage.run(
             prerenderLegacyStore,
             ComponentMod.renderToReadableStream,
             RSCPayload,
