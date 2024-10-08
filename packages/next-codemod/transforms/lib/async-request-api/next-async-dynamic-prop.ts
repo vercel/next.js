@@ -264,7 +264,6 @@ export function transformDynamicProps(
   filePath: string
 ) {
   const isMatched = MATCHED_FILE_PATTERNS.test(filePath)
-  console.log('filePath', filePath)
   if (!isMatched) {
     return null
   }
