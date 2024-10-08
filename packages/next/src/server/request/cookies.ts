@@ -6,7 +6,6 @@ import {
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import {
-  isDynamicIOPrerender,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
@@ -81,31 +80,24 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
 
     if (workUnitStore) {
       if (workUnitStore.type === 'prerender') {
-        // We are in PPR and/or dynamicIO mode and prerendering
-
-        if (isDynamicIOPrerender(workUnitStore)) {
-          // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
-          // When resolving cookies for a prerender with dynamic IO we return a forever promise
-          // along with property access tracked synchronous cookies.
-
-          // We don't track dynamic access here because access will be tracked when you access
-          // one of the properties of the cookies object.
-          return makeDynamicallyTrackedExoticCookies(
-            workStore.route,
-            workUnitStore
-          )
-        } else {
-          // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how cookies has worked in PPR without dynamicIO.
-          // TODO consider switching the semantic to throw on property access instead
-          postponeWithTracking(
-            workStore.route,
-            callingExpression,
-            workUnitStore.dynamicTracking
-          )
-        }
+        // dynamicIO Prerender
+        // We don't track dynamic access here because access will be tracked when you access
+        // one of the properties of the cookies object.
+        return makeDynamicallyTrackedExoticCookies(
+          workStore.route,
+          workUnitStore
+        )
+      } else if (workUnitStore.type === 'prerender-ppr') {
+        // PPR Prerender (no dynamicIO)
+        // We are prerendering with PPR. We need track dynamic access here eagerly
+        // to keep continuity with how cookies has worked in PPR without dynamicIO.
+        postponeWithTracking(
+          workStore.route,
+          callingExpression,
+          workUnitStore.dynamicTracking
+        )
       } else if (workUnitStore.type === 'prerender-legacy') {
-        // We are in a legacy static generation mode while prerendering
+        // Legacy Prerender
         // We track dynamic access here so we don't need to wrap the cookies in
         // individual property access tracking.
         throwToInterruptStaticGeneration(

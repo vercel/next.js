@@ -303,6 +303,7 @@ export class AppRouteRouteModule extends RouteModule<
       workUnitStore.type === 'request'
         ? workUnitStore.url.pathname
         : workUnitStore.type === 'prerender' ||
+            workUnitStore.type === 'prerender-ppr' ||
             workUnitStore.type === 'prerender-legacy'
           ? workUnitStore.pathname
           : undefined
@@ -328,12 +329,14 @@ export class AppRouteRouteModule extends RouteModule<
          * Functionally though IO should still take longer than the time it takes to unwrap the response body
          * so our heuristic of excluding any IO should be preserved.
          */
+        const prospectiveController = new AbortController()
         let prospectiveRenderIsDynamic = false
         const cacheSignal = new CacheSignal()
         let dynamicTracking = createDynamicTrackingState(undefined)
 
         const prospectiveRoutePrerenderStore: PrerenderStore = {
           type: 'prerender',
+          renderSignal: prospectiveController.signal,
           pathname,
           cacheSignal,
           // During prospective render we don't use a controller
@@ -397,14 +400,15 @@ export class AppRouteRouteModule extends RouteModule<
         // TODO start passing this controller to the route handler. We should expose
         // it so the handler to abort inflight requests and other operations if we abort
         // the prerender.
-        const controller = new AbortController()
+        const finalController = new AbortController()
         dynamicTracking = createDynamicTrackingState(undefined)
 
         const finalRoutePrerenderStore: PrerenderStore = {
           type: 'prerender',
+          renderSignal: finalController.signal,
           pathname,
           cacheSignal: null,
-          controller,
+          controller: finalController,
           dynamicTracking,
         }
 
@@ -446,7 +450,7 @@ export class AppRouteRouteModule extends RouteModule<
               scheduleImmediate(() => {
                 if (!bodyHandled) {
                   bodyHandled = true
-                  controller.abort()
+                  finalController.abort()
                   reject(createDynamicIOError(workStore.route))
                 }
               })
@@ -457,19 +461,19 @@ export class AppRouteRouteModule extends RouteModule<
           scheduleImmediate(() => {
             if (!responseHandled) {
               responseHandled = true
-              controller.abort()
+              finalController.abort()
               reject(createDynamicIOError(workStore.route))
             }
           })
         })
-        if (controller.signal.aborted) {
+        if (finalController.signal.aborted) {
           // We aborted from within the execution
           throw createDynamicIOError(workStore.route)
         } else {
           // We didn't abort during the execution. We can abort now as a matter of semantics
           // though at the moment nothing actually consumes this signal so it won't halt any
           // inflight work.
-          controller.abort()
+          finalController.abort()
         }
       } else if (isStaticGeneration) {
         res = await workUnitAsyncStorage.run(
