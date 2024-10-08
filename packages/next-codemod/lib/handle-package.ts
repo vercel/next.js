@@ -56,19 +56,20 @@ export function uninstallPackage(
   execa.sync(pkgManager, [command, packageToUninstall], { stdio: 'inherit' })
 }
 
-export function installPackage(
-  packageToInstall: string | string[],
-  pkgManager?: PackageManager
+export function installPackages(
+  packageToInstall: string[],
+  options: { packageManager?: PackageManager; silent?: boolean } = {}
 ) {
-  pkgManager ??= getPkgManager(process.cwd())
-  if (!pkgManager) throw new Error('Failed to find package manager')
+  const { packageManager = getPkgManager(process.cwd()), silent = false } =
+    options
 
-  if (Array.isArray(packageToInstall)) {
-    packageToInstall = packageToInstall.join(' ')
-  }
+  if (!packageManager) throw new Error('Failed to find package manager')
 
   try {
-    execa.sync(pkgManager, ['add', packageToInstall], { stdio: 'inherit' })
+    execa.sync(packageManager, ['add', ...packageToInstall], {
+      // Keeping stderr since it'll likely be relevant later when it fails.
+      stdio: silent ? ['ignore', 'ignore', 'inherit'] : 'inherit',
+    })
   } catch (error) {
     throw new Error(
       `Failed to install "${packageToInstall}". Please install it manually.`,

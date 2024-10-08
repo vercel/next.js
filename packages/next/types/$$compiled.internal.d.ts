@@ -523,8 +523,8 @@ declare module 'next/dist/compiled/@opentelemetry/api' {
 }
 
 declare module 'next/dist/compiled/zod' {
-  import * as m from 'zod'
-  export = m
+  import * as z from 'zod'
+  export = z
 }
 
 declare module 'mini-css-extract-plugin'
