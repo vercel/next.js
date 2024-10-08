@@ -213,10 +213,6 @@ impl AggregatedDataUpdate {
                         result.dirty_container_update = Some((task_id, -1));
                     }
                 }
-                println!(
-                    "AggregatedDirtyContainerCount: {:?} {} -> {}",
-                    task_id, old, new
-                );
                 (new != 0).then_some(new)
             });
             if let Some((_, count)) = result.dirty_container_update.as_ref() {
