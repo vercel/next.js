@@ -116,4 +116,10 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'next-async-request-api',
     version: '15.0.0-canary.171',
   },
+  {
+    title:
+      'Transforms `experimental-edge` to `edge` in the `runtime` route segment configuration within the App Router',
+    value: 'app-dir-runtime-config-experimental-edge',
+    version: '15.0.0-canary.179',
+  },
 ]
