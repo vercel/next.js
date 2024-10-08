@@ -529,9 +529,13 @@ pub trait Backend: Sync + Send {
 
     #[allow(unused_variables)]
     fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    #[allow(unused_variables)]
+    fn stopping(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
     #[allow(unused_variables)]
     fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    #[allow(unused_variables)]
+    fn idle_end(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
