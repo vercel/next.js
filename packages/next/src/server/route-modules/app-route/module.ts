@@ -309,6 +309,8 @@ export class AppRouteRouteModule extends RouteModule<
           ? workUnitStore.pathname
           : undefined
 
+    let prerenderStore: null | PrerenderStore = null
+
     let res: unknown
     try {
       if (isStaticGeneration && dynamicIOEnabled) {
@@ -335,18 +337,19 @@ export class AppRouteRouteModule extends RouteModule<
         const cacheSignal = new CacheSignal()
         let dynamicTracking = createDynamicTrackingState(undefined)
 
-        const prospectiveRoutePrerenderStore: PrerenderStore = {
-          type: 'prerender',
-          renderSignal: prospectiveController.signal,
-          pathname,
-          cacheSignal,
-          // During prospective render we don't use a controller
-          // because we need to let all caches fill.
-          controller: null,
-          dynamicTracking,
-          revalidate: INFINITE_CACHE,
-          tags: null,
-        }
+        const prospectiveRoutePrerenderStore: PrerenderStore = (prerenderStore =
+          {
+            type: 'prerender',
+            renderSignal: prospectiveController.signal,
+            pathname,
+            cacheSignal,
+            // During prospective render we don't use a controller
+            // because we need to let all caches fill.
+            controller: null,
+            dynamicTracking,
+            revalidate: INFINITE_CACHE,
+            tags: null,
+          })
         let prospectiveResult
         try {
           prospectiveResult = this.workUnitAsyncStorage.run(
@@ -406,7 +409,7 @@ export class AppRouteRouteModule extends RouteModule<
         const finalController = new AbortController()
         dynamicTracking = createDynamicTrackingState(undefined)
 
-        const finalRoutePrerenderStore: PrerenderStore = {
+        const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           renderSignal: finalController.signal,
           pathname,
@@ -415,7 +418,7 @@ export class AppRouteRouteModule extends RouteModule<
           dynamicTracking,
           revalidate: INFINITE_CACHE,
           tags: null,
-        }
+        })
 
         let responseHandled = false
         res = await new Promise((resolve, reject) => {
@@ -482,12 +485,12 @@ export class AppRouteRouteModule extends RouteModule<
         }
       } else if (isStaticGeneration) {
         res = await workUnitAsyncStorage.run(
-          {
+          (prerenderStore = {
             type: 'prerender-legacy',
             pathname,
             revalidate: INFINITE_CACHE,
             tags: null,
-          },
+          }),
           handler,
           request,
           handlerContext
@@ -546,7 +549,12 @@ export class AppRouteRouteModule extends RouteModule<
     ])
 
     addImplicitTags(workStore, workUnitStore)
-    ;(context.renderOpts as any).fetchTags = workStore.tags?.join(',')
+    if (prerenderStore) {
+      ;(context.renderOpts as any).collectedTags =
+        prerenderStore.tags?.join(',')
+      ;(context.renderOpts as any).collectedRevalidate =
+        prerenderStore.revalidate
+    }
 
     // It's possible cookies were set in the handler, so we need
     // to merge the modified cookies and the returned response
