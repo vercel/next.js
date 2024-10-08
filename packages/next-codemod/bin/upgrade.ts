@@ -31,53 +31,53 @@ async function loadHighestNPMVersionMatching(query: string) {
 }
 
 const MIGRATION_INSTRUCTIONS = `\
-The codemods are applied, please review the changes of transformed files and follow the instructions below to complete the migration:
+The codemods are applied, please review the changes of transformed files and follow the instructions to complete the migration:
 
-There're some codemod transform still require you to manually migrate, please follow the instructions below:
-  - Search for comment "Next.js Dynamic Async API Codemod:", and read the instructions in comment and migrate them manually.
-    For example:
+- Search for comment "Next.js Dynamic Async API Codemod:", and read the instructions in comment and migrate them manually.
+  For example:
 
-    Codemod output:
-    \`\`\`
-    import { cookies } from 'next/headers'
-    export function foo() {
-      callback(/* Next.js Dynamic Async API Codemod: 'props' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. */
-      cookies())
-    }
-    \`\`\`
+  Codemod output:
+  \`\`\`
+  import { cookies } from 'next/headers'
+  export function foo() {
+    callback(/* Next.js Dynamic Async API Codemod: 'props' is passed as an argument. 
+    Any asynchronous properties of 'props' must be awaited when accessed. */
+    cookies())
+  }
+  \`\`\`
 
-    Manual migration:
-    \`\`\`
-    import { cookies } from 'next/headers'
-    export async function foo() {
-      callback(await cookies())
-    }
-    \`\`\`
-    And update the usage of \`foo()\` to make sure it's awaited if necessary.    
+  Manual migration:
+  \`\`\`
+  import { cookies } from 'next/headers'
+  export async function foo() {
+    callback(await cookies())
+  }
+  \`\`\`
+  And update the usage of \`foo()\` to make sure it's awaited if necessary.    
 
-    
-  - Search for \`UnsafeUnwrappedCookies\`, \`UnsafeUnwrappedHeaders\` and \`UnsafeUnwrappedDraftMode\` type, replace the type casting with awaiting the API calls, and populate the async scope.
-    For example: await the API calls and populate the async scope:
+  
+- Search for Dynamic API type cast, replace the type casting with awaiting the API calls, and populate the async scope.
+  They're \`UnsafeUnwrappedCookies\`, \`UnsafeUnwrappedHeaders\` and \`UnsafeUnwrappedDraftMode\`
+  For example: await the API calls and populate the async scope:
 
-    Codemod output:
-    \`\`\`
-    import { cookies, type UnsafeUnwrappedCookies } from 'next/headers'
-    export function foo() {
-      callback(cookies() as UnsafeUnwrappedCookies)
-    }
-    \`\`\`
+  Codemod output:
+  \`\`\`
+  import { cookies, type UnsafeUnwrappedCookies } from 'next/headers'
+  export function foo() {
+    callback(cookies() as UnsafeUnwrappedCookies)
+  }
+  \`\`\`
 
-    Manual migration:
-    \`\`\`
-    import { cookies } from 'next/headers'
-    export async function foo() {
-      const cookies = await cookies()
-      callback(cookies)
-    }
-    \`\`\`
+  Manual migration:
+  \`\`\`
+  import { cookies } from 'next/headers'
+  export async function foo() {
+    const cookies = await cookies()
+    callback(cookies)
+  }
+  \`\`\`
 
-    And update the usage of \`foo()\` to make sure it's awaited if necessary.
-
+And update the usage of \`foo()\` to make sure it's awaited if necessary.
 
 After finished the manual migration, please check if you have any of the following cases that require manual migration:
   - If they're any functions are not located in entry files but receiving the async \`params\` or \`searchParams\`.
