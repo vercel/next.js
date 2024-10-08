@@ -199,6 +199,7 @@ export async function getSourceMapFromCompilation(
 export async function getSource(
   filename: string,
   options: {
+    distDirectory: string
     isAppDirectory: boolean
     isServer: boolean
     isEdgeServer: boolean
@@ -207,6 +208,13 @@ export async function getSource(
     edgeServerStats(): webpack.Stats | null
   }
 ): Promise<Source | undefined> {
+  if (filename.startsWith('/_next/static')) {
+    filename = path.join(
+      options.distDirectory,
+      filename.replace(/^\/_next\//, '')
+    )
+  }
+
   if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
     const sourceMap = await getSourceMapFromFile(filename)
 
@@ -271,12 +279,14 @@ export async function getSource(
 }
 
 export function getOverlayMiddleware(options: {
+  distDirectory: string
   rootDirectory: string
   stats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const { rootDirectory, stats, serverStats, edgeServerStats } = options
+  const { distDirectory, rootDirectory, stats, serverStats, edgeServerStats } =
+    options
 
   return async function (
     req: IncomingMessage,
@@ -323,6 +333,7 @@ export function getOverlayMiddleware(options: {
 
       try {
         source = await getSource(frame.file, {
+          distDirectory,
           isAppDirectory,
           isServer,
           isEdgeServer,
@@ -388,11 +399,12 @@ export function getOverlayMiddleware(options: {
 }
 
 export function getSourceMapMiddleware(options: {
+  distDirectory: string
   stats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const { stats, serverStats, edgeServerStats } = options
+  const { distDirectory, stats, serverStats, edgeServerStats } = options
 
   return async function (
     req: IncomingMessage,
@@ -412,6 +424,7 @@ export function getSourceMapMiddleware(options: {
 
       try {
         source = await getSource(filename, {
+          distDirectory,
           isAppDirectory: true,
           isServer: true, // TODO: figure out how to set this
           isEdgeServer: false, // TODO: figure out how to set this

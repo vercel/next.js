@@ -1503,12 +1503,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.middlewares = [
       getOverlayMiddleware({
+        distDirectory: this.distDir,
         rootDirectory: this.dir,
         stats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),
       getSourceMapMiddleware({
+        distDirectory: this.distDir,
         stats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
