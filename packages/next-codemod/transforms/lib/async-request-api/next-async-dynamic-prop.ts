@@ -151,7 +151,7 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
-const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout)\.(t|j)sx?$/
+const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
 
 function modifyTypes(
   paramTypeAnnotation: any,
