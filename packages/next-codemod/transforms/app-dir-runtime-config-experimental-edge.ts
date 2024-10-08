@@ -8,7 +8,7 @@ export default function transformer(file: FileInfo, api: API) {
     return file.source
   }
 
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
 
   const runtimeExport = root.find(j.ExportNamedDeclaration, {
