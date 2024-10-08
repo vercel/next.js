@@ -92,7 +92,9 @@ ${'' /* TODO: change the url to upgrading/next-15 once the guide is out */}
 Checkout Next.js migration guide for more details! ${chalk.underline('https://nextjs.org/docs/pages/building-your-application/upgrading/')}
 `
 function printMigrationInstructionsAfterCodemod() {
-  console.log(`Migration Instructions\n\n${MIGRATION_INSTRUCTIONS}`)
+  console.log(
+    `${chalk.bold(chalk.white('Migration Instructions'))}\n\n${MIGRATION_INSTRUCTIONS}`
+  )
 }
 
 export async function runUpgrade(
@@ -142,10 +144,6 @@ export async function runUpgrade(
     ),
   ])
 
-  if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
-    await suggestTurbopack(appPackageJson)
-  }
-
   const codemods = await suggestCodemods(
     installedNextVersion,
     targetNextVersion
@@ -182,6 +180,10 @@ export async function runUpgrade(
 
   for (const codemod of codemods) {
     await runTransform(codemod, process.cwd(), { force: true })
+  }
+
+  if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
+    await suggestTurbopack(appPackageJson)
   }
 
   printMigrationInstructionsAfterCodemod()
