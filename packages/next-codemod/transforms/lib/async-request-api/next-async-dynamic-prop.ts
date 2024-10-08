@@ -50,6 +50,10 @@ function awaitMemberAccessOfProp(
   memberAccess.forEach((memberAccessPath) => {
     const member = memberAccessPath.value
 
+    if (isParentPromiseAllCallExpression(memberAccessPath, j)) {
+      return
+    }
+
     // check if it's already awaited
     if (memberAccessPath.parentPath?.value.type === 'AwaitExpression') {
       return
@@ -82,6 +86,26 @@ function isParentUseCallExpression(path: ASTPath<any>, j: API['jscodeshift']) {
     // function name is `use`
     j.Identifier.check(path.parent.value.callee) &&
     path.parent.value.callee.name === 'use'
+  ) {
+    return true
+  }
+  return false
+}
+
+function isParentPromiseAllCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  const argsParent = path.parent
+  const callParent = argsParent?.parent
+  if (
+    j.ArrayExpression.check(argsParent.value) &&
+    j.CallExpression.check(callParent.value) &&
+    j.MemberExpression.check(callParent.value.callee) &&
+    j.Identifier.check(callParent.value.callee.object) &&
+    callParent.value.callee.object.name === 'Promise' &&
+    j.Identifier.check(callParent.value.callee.property) &&
+    callParent.value.callee.property.name === 'all'
   ) {
     return true
   }
