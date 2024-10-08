@@ -31,6 +31,10 @@ export function checkGitStatus(force) {
   }
 }
 
+export function onCancel() {
+  process.exit(1)
+}
+
 export const TRANSFORMER_INQUIRER_CHOICES = [
   {
     title:
