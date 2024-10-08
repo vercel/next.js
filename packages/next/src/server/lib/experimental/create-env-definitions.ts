@@ -10,10 +10,15 @@ export async function createEnvDefinitions({
   loadedEnvFiles: LoadedEnvFiles
 }) {
   const envLines = []
+  const seenKeys = new Set()
+  // env files are in order of priority
   for (const { path, env } of loadedEnvFiles) {
     for (const key in env) {
-      envLines.push(`      /** Loaded from \`${path}\` */`)
-      envLines.push(`      ${key}?: string`)
+      if (!seenKeys.has(key)) {
+        envLines.push(`      /** Loaded from \`${path}\` */`)
+        envLines.push(`      ${key}?: string`)
+        seenKeys.add(key)
+      }
     }
   }
   const envStr = envLines.join('\n')
