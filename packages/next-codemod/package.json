@@ -35,6 +35,7 @@
   "bin": "./bin/next-codemod.js",
   "devDependencies": {
     "@types/find-up": "4.0.0",
-    "@types/jscodeshift": "0.11.0"
+    "@types/jscodeshift": "0.11.0",
+    "@types/prompts": "2.4.2"
   }
 }
