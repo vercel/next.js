@@ -4,10 +4,9 @@ import { execSync } from 'child_process'
 import path from 'path'
 import { compareVersions } from 'compare-versions'
 import chalk from 'chalk'
-import { availableCodemods } from '../lib/codemods'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { runTransform } from './transform'
-import { onCancel } from '../lib/utils'
+import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
@@ -200,7 +199,7 @@ async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string
 ): Promise<string[]> {
-  const initialVersionIndex = availableCodemods.findIndex(
+  const initialVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
     (versionCodemods) =>
       compareVersions(versionCodemods.version, initialNextVersion) > 0
   )
@@ -208,17 +207,18 @@ async function suggestCodemods(
     return []
   }
 
-  let targetVersionIndex = availableCodemods.findIndex(
+  let targetVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
     (versionCodemods) =>
       compareVersions(versionCodemods.version, targetNextVersion) > 0
   )
   if (targetVersionIndex === -1) {
-    targetVersionIndex = availableCodemods.length
+    targetVersionIndex = TRANSFORMER_INQUIRER_CHOICES.length
   }
 
-  const relevantCodemods = availableCodemods
-    .slice(initialVersionIndex, targetVersionIndex)
-    .flatMap((versionCodemods) => versionCodemods.codemods)
+  const relevantCodemods = TRANSFORMER_INQUIRER_CHOICES.slice(
+    initialVersionIndex,
+    targetVersionIndex
+  )
 
   if (relevantCodemods.length === 0) {
     return []
@@ -229,10 +229,11 @@ async function suggestCodemods(
       type: 'multiselect',
       name: 'codemods',
       message: `\nThe following ${chalk.blue('codemods')} are recommended for your upgrade. Would you like to apply them?`,
-      choices: relevantCodemods.map((codemod) => {
+      choices: relevantCodemods.reverse().map(({ title, value, version }) => {
         return {
-          title: `${codemod.title} ${chalk.grey(`(${codemod.value})`)}`,
-          value: codemod.value,
+          title: `(v${version}) ${value}`,
+          description: title,
+          value,
           selected: true,
         }
       }),
