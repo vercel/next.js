@@ -1,4 +1,4 @@
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { FallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -10,12 +10,14 @@ import {
 
 import {
   isDynamicIOPrerender,
-  prerenderAsyncStorage,
-  type PrerenderStore,
-} from '../app-render/prerender-async-storage.external'
+  workUnitAsyncStorage,
+  type WorkUnitStore,
+  type PrerenderStoreModern,
+} from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeResolvedReactPromise, describeStringPropertyAccess } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
 export type Params = Record<string, string | Array<string> | undefined>
 
@@ -49,16 +51,16 @@ export type UnsafeUnwrappedParams<P> =
 
 export function createPrerenderParamsFromClient(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ) {
-  return createPrerenderParams(underlyingParams, staticGenerationStore)
+  return createPrerenderParams(underlyingParams, workStore)
 }
 
 export function createRenderParamsFromClient(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ) {
-  return createRenderParams(underlyingParams, staticGenerationStore)
+  return createRenderParams(underlyingParams, workStore)
 }
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
@@ -68,34 +70,34 @@ export const createServerParamsForMetadata = createServerParamsForServerSegment
 // routes always runs in RSC context so it is equivalent to a Server Page Component
 export function createServerParamsForRoute(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ) {
-  if (staticGenerationStore.isStaticGeneration) {
-    return createPrerenderParams(underlyingParams, staticGenerationStore)
+  if (workStore.isStaticGeneration) {
+    return createPrerenderParams(underlyingParams, workStore)
   } else {
-    return createRenderParams(underlyingParams, staticGenerationStore)
+    return createRenderParams(underlyingParams, workStore)
   }
 }
 
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ): Promise<Params> {
-  if (staticGenerationStore.isStaticGeneration) {
-    return createPrerenderParams(underlyingParams, staticGenerationStore)
+  if (workStore.isStaticGeneration) {
+    return createPrerenderParams(underlyingParams, workStore)
   } else {
-    return createRenderParams(underlyingParams, staticGenerationStore)
+    return createRenderParams(underlyingParams, workStore)
   }
 }
 
 export function createPrerenderParamsForClientSegment(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ): Promise<Params> {
-  const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
+  const prerenderStore = workUnitAsyncStorage.getStore()
+  if (prerenderStore && prerenderStore.type === 'prerender') {
     if (isDynamicIOPrerender(prerenderStore)) {
-      const fallbackParams = staticGenerationStore.fallbackRouteParams
+      const fallbackParams = workStore.fallbackRouteParams
       if (fallbackParams) {
         for (let key in underlyingParams) {
           if (fallbackParams.has(key)) {
@@ -116,9 +118,9 @@ export function createPrerenderParamsForClientSegment(
 
 function createPrerenderParams(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ): Promise<Params> {
-  const fallbackParams = staticGenerationStore.fallbackRouteParams
+  const fallbackParams = workStore.fallbackRouteParams
   if (fallbackParams) {
     let hasSomeFallbackParams = false
     for (const key in underlyingParams) {
@@ -130,13 +132,13 @@ function createPrerenderParams(
 
     if (hasSomeFallbackParams) {
       // params need to be treated as dynamic because we have at least one fallback param
-      const prerenderStore = prerenderAsyncStorage.getStore()
-      if (prerenderStore) {
+      const prerenderStore = workUnitAsyncStorage.getStore()
+      if (prerenderStore && prerenderStore.type === 'prerender') {
         if (isDynamicIOPrerender(prerenderStore)) {
           // We are in a dynamicIO (PPR or otherwise) prerender
           return makeAbortingExoticParams(
             underlyingParams,
-            staticGenerationStore.route,
+            workStore.route,
             prerenderStore
           )
         }
@@ -147,7 +149,7 @@ function createPrerenderParams(
       return makeErroringExoticParams(
         underlyingParams,
         fallbackParams,
-        staticGenerationStore,
+        workStore,
         prerenderStore
       )
     }
@@ -159,15 +161,12 @@ function createPrerenderParams(
 
 function createRenderParams(
   underlyingParams: Params,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ): Promise<Params> {
-  if (
-    process.env.NODE_ENV === 'development' &&
-    !staticGenerationStore.isPrefetchRequest
-  ) {
+  if (process.env.NODE_ENV === 'development' && !workStore.isPrefetchRequest) {
     return makeDynamicallyTrackedExoticParamsWithDevWarnings(
       underlyingParams,
-      staticGenerationStore
+      workStore
     )
   } else {
     return makeUntrackedExoticParams(underlyingParams)
@@ -180,7 +179,7 @@ const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 function makeAbortingExoticParams(
   underlyingParams: Params,
   route: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -249,8 +248,8 @@ function makeAbortingExoticParams(
 function makeErroringExoticParams(
   underlyingParams: Params,
   fallbackParams: FallbackRouteParams,
-  staticGenerationStore: StaticGenerationStore,
-  prerenderStore: undefined | PrerenderStore
+  workStore: WorkStore,
+  prerenderStore: undefined | WorkUnitStore
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -305,16 +304,17 @@ function makeErroringExoticParams(
               // fallback shells
               // TODO remove this comment when dynamicIO is the default since there
               // will be no `dynamic = "error"`
-              if (prerenderStore) {
+              if (prerenderStore && prerenderStore.type === 'prerender') {
                 postponeWithTracking(
-                  staticGenerationStore.route,
+                  workStore.route,
                   expression,
                   prerenderStore.dynamicTracking
                 )
               } else {
                 throwToInterruptStaticGeneration(
                   expression,
-                  staticGenerationStore
+                  workStore,
+                  undefined
                 )
               }
             },
@@ -329,16 +329,17 @@ function makeErroringExoticParams(
               // fallback shells
               // TODO remove this comment when dynamicIO is the default since there
               // will be no `dynamic = "error"`
-              if (prerenderStore) {
+              if (prerenderStore && prerenderStore.type === 'prerender') {
                 postponeWithTracking(
-                  staticGenerationStore.route,
+                  workStore.route,
                   expression,
                   prerenderStore.dynamicTracking
                 )
               } else {
                 throwToInterruptStaticGeneration(
                   expression,
-                  staticGenerationStore
+                  workStore,
+                  undefined
                 )
               }
             },
@@ -414,7 +415,7 @@ function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
 
 function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   underlyingParams: Params,
-  store: StaticGenerationStore
+  store: WorkStore
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -495,30 +496,45 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   return proxiedPromise
 }
 
-function warnForSyncAccess(route: undefined | string, expression: string) {
-  const prefix = route ? ` In route ${route} a ` : 'A '
-  console.error(
-    `${prefix}param property was accessed directly with ${expression}. \`params\` is now a Promise and should be awaited before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to await \`params\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
-  )
-}
+const noop = () => {}
 
-function warnForEnumeration(
-  route: undefined | string,
-  missingProperties: Array<string>
-) {
-  const prefix = route ? ` In route ${route} ` : ''
-  if (missingProperties.length) {
-    const describedMissingProperties =
-      describeListOfPropertyNames(missingProperties)
-    console.error(
-      `${prefix}params are being enumerated incompletely with \`{...params}\`, \`Object.keys(params)\`, or similar. The following properties were not copied: ${describedMissingProperties}. \`params\` is now a Promise, however in the current version of Next.js direct access to the underlying params object is still supported to facilitate migration to the new type. param names that conflict with Promise properties cannot be accessed directly and must be accessed by first awaiting the \`params\` promise.`
-    )
-  } else {
-    console.error(
-      `${prefix}params are being enumerated with \`{...params}\`, \`Object.keys(params)\`, or similar. \`params\` is now a Promise, however in the current version of Next.js direct access to the underlying params object is still supported to facilitate migration to the new type. You should update your code to await \`params\` before accessing its properties.`
-    )
-  }
-}
+const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
+      route: undefined | string,
+      expression: string
+    ) {
+      const prefix = route ? ` In route ${route} a ` : 'A '
+      return (
+        `${prefix}param property was accessed directly with ${expression}. ` +
+        `\`params\` should be awaited before accessing its properties. ` +
+        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+      )
+    })
+
+const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : createDedupedByCallsiteServerErrorLoggerDev(function getEnumerationMessage(
+      route: undefined | string,
+      missingProperties: Array<string>
+    ) {
+      const prefix = route ? ` In route ${route} ` : ''
+      if (missingProperties.length) {
+        const describedMissingProperties =
+          describeListOfPropertyNames(missingProperties)
+        return (
+          `${prefix}params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
+          `\`params\` should be awaited before accessing its properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      } else {
+        return (
+          `${prefix}params are being enumerated. ` +
+          `\`params\` should be awaited before accessing its properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      }
+    })
 
 function describeListOfPropertyNames(properties: Array<string>) {
   switch (properties.length) {

@@ -10,8 +10,8 @@ use turbo_tasks_fs::{rope::Rope, File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
+        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
+        ChunkType, ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -489,12 +489,9 @@ impl ChunkType for CssChunkType {
         else {
             bail!("Chunk item is not an css chunk item but reporting chunk type css");
         };
-        Ok(Vc::cell(
-            chunk_item
-                .content()
-                .await
-                .map_or(0, |content| content.inner_code.len()),
-        ))
+        Ok(Vc::cell(chunk_item.content().await.map_or(0, |content| {
+            round_chunk_item_size(content.inner_code.len())
+        })))
     }
 }
 

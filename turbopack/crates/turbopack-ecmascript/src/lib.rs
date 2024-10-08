@@ -5,6 +5,7 @@
 #![feature(iter_intersperse)]
 #![feature(int_roundings)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 #![recursion_limit = "256"]
 
 pub mod analyzer;

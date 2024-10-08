@@ -1,8 +1,4 @@
-import {
-  //   unstable_cache,
-  revalidatePath,
-  revalidateTag,
-} from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
@@ -23,24 +19,6 @@ export default async function Page() {
       next: { revalidate: 3600, tags: ['thankyounext', 'justputit'] },
     }
   ).then((res) => res.text())
-
-  // TODO: make this work + add test
-  //   const cachedData = await unstable_cache(
-  //     async () => {
-  //       const fetchedRandom = await fetch(
-  //         'https://next-data-api-endpoint.vercel.app/api/random'
-  //       ).then((res) => res.json())
-  //       return {
-  //         now: Date.now(),
-  //         random: Math.random(),
-  //         fetchedRandom,
-  //       }
-  //     },
-  //     ['random'],
-  //     {
-  //       tags: ['thankyounext'],
-  //     }
-  //   )()
 
   return (
     <>
@@ -77,7 +55,6 @@ export default async function Page() {
           set cookie
         </button>
       </form>
-      {/* <p>revalidate 10 (tags: thankyounext): {JSON.stringify(cachedData)}</p> */}
       <form>
         <button
           id="revalidate-thankyounext"

@@ -29,7 +29,7 @@ function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
   })
 
   importPaths.forEach((path) => {
-    insertCommentOnce(path, j, DYNAMIC_IMPORT_WARN_COMMENT)
+    insertCommentOnce(path.node, j, DYNAMIC_IMPORT_WARN_COMMENT)
     modified = true
   })
   return modified
@@ -76,7 +76,6 @@ export function transformDynamicAPI(
           return
         }
         let parentFunctionPath = findClosetParentFunctionScope(path, j)
-
         // We found the parent scope is not a function
         let parentFunctionNode
         if (parentFunctionPath) {
@@ -206,9 +205,45 @@ export function transformDynamicAPI(
           }
         }
       })
+
+    // Handle type usage of async API, e.g. `type Cookie = ReturnType<typeof cookies>`
+    // convert it to `type Cookie = Awaited<ReturnType<typeof cookies>>`
+    root
+      .find(j.TSTypeReference, {
+        typeName: {
+          type: 'Identifier',
+          name: 'ReturnType',
+        },
+      })
+      .forEach((path) => {
+        const typeParam = path.node.typeParameters?.params[0]
+
+        // Check if the ReturnType is for 'cookies'
+        if (
+          typeParam &&
+          j.TSTypeQuery.check(typeParam) &&
+          j.Identifier.check(typeParam.exprName) &&
+          typeParam.exprName.name === asyncRequestApiName
+        ) {
+          // Replace ReturnType<typeof cookies> with Awaited<ReturnType<typeof cookies>>
+          const awaitedTypeReference = j.tsTypeReference(
+            j.identifier('Awaited'),
+            j.tsTypeParameterInstantiation([
+              j.tsTypeReference(
+                j.identifier('ReturnType'),
+                j.tsTypeParameterInstantiation([typeParam])
+              ),
+            ])
+          )
+
+          j(path).replaceWith(awaitedTypeReference)
+
+          modified = true
+        }
+      })
   }
 
-  const isClientComponent = determineClientDirective(root, j, source)
+  const isClientComponent = determineClientDirective(root, j)
 
   // Only transform the valid calls in server or shared components
   if (isClientComponent) return null
@@ -308,10 +343,7 @@ function castTypesOrAddComment(
     }
   } else {
     // Otherwise for JS file, leave a message to the user to manually handle the transformation
-    path.node.comments = [
-      j.commentBlock(customMessage),
-      ...(path.node.comments || []),
-    ]
+    insertCommentOnce(path.node, j, customMessage)
   }
 }
 

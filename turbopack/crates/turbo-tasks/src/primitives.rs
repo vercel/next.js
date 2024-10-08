@@ -1,4 +1,4 @@
-use std::{future::IntoFuture, ops::Deref};
+use std::{future::IntoFuture, ops::Deref, time::Duration};
 
 use anyhow::Result;
 use futures::TryFutureExt;
@@ -71,6 +71,7 @@ __turbo_tasks_internal_primitive!(i128);
 __turbo_tasks_internal_primitive!(usize);
 __turbo_tasks_internal_primitive!(isize);
 __turbo_tasks_internal_primitive!(serde_json::Value);
+__turbo_tasks_internal_primitive!(Duration);
 __turbo_tasks_internal_primitive!(Vec<u8>);
 
 __turbo_tasks_internal_primitive!(Vec<bool>);

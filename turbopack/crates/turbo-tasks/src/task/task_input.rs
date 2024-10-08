@@ -1,9 +1,11 @@
-use std::{any::Any, fmt::Debug, future::Future, hash::Hash};
+use std::{any::Any, fmt::Debug, future::Future, hash::Hash, time::Duration};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::{MagicAny, RcStr, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc};
+use crate::{
+    MagicAny, RcStr, ResolvedVc, TaskId, TransientInstance, TransientValue, Value, ValueTypeId, Vc,
+};
 
 /// Trait to implement in order for a type to be accepted as a
 /// [`#[turbo_tasks::function]`][crate::function] argument.
@@ -40,7 +42,8 @@ impl_task_input! {
     usize,
     RcStr,
     TaskId,
-    ValueTypeId
+    ValueTypeId,
+    Duration
 }
 
 impl<T> TaskInput for Vec<T>
@@ -104,6 +107,25 @@ where
 
     async fn resolve(&self) -> Result<Self> {
         Vc::resolve(*self).await
+    }
+}
+
+// `TaskInput` isn't needed/used for a bare `ResolvedVc`, as we'll expose `ResolvedVc` arguments as
+// `Vc`, but it is useful for structs that contain `ResolvedVc` and want to derive `TaskInput`.
+impl<T> TaskInput for ResolvedVc<T>
+where
+    T: Send,
+{
+    fn is_resolved(&self) -> bool {
+        true
+    }
+
+    fn is_transient(&self) -> bool {
+        self.node.is_transient()
+    }
+
+    async fn resolve(&self) -> Result<Self> {
+        Ok(*self)
     }
 }
 

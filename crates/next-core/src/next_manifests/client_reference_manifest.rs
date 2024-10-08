@@ -104,16 +104,6 @@ impl ClientReferenceManifest {
                         (Vec::new(), false)
                     };
 
-                entry_manifest.client_modules.module_exports.insert(
-                    get_client_reference_module_key(&server_path, "*"),
-                    ManifestNodeEntry {
-                        name: "*".into(),
-                        id: (&*client_module_id).into(),
-                        chunks: client_chunks_paths,
-                        r#async: client_is_async,
-                    },
-                );
-
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
                     let ssr_chunk_item = ecmascript_client_reference
                         .ssr_module
@@ -154,6 +144,19 @@ impl ClientReferenceManifest {
                         (Vec::new(), false)
                     };
 
+                    entry_manifest.client_modules.module_exports.insert(
+                        get_client_reference_module_key(&server_path, "*"),
+                        ManifestNodeEntry {
+                            name: "*".into(),
+                            id: (&*client_module_id).into(),
+                            chunks: client_chunks_paths,
+                            // This should of course be client_is_async, but SSR can become async
+                            // due to ESM externals, and the ssr_manifest_node is currently ignored
+                            // by React.
+                            r#async: client_is_async || ssr_is_async,
+                        },
+                    );
+
                     let mut ssr_manifest_node = ManifestNode::default();
                     ssr_manifest_node.module_exports.insert(
                         "*".into(),
@@ -161,7 +164,8 @@ impl ClientReferenceManifest {
                             name: "*".into(),
                             id: (&*ssr_module_id).into(),
                             chunks: ssr_chunks_paths,
-                            r#async: ssr_is_async,
+                            // See above
+                            r#async: client_is_async || ssr_is_async,
                         },
                     );
 

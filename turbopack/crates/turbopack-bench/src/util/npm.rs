@@ -24,7 +24,7 @@ impl<'a> NpmPackage<'a> {
     }
 }
 
-impl<'a> std::fmt::Display for NpmPackage<'a> {
+impl std::fmt::Display for NpmPackage<'_> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         fmt.write_fmt(format_args!("{}@{}", self.name, self.version))
     }

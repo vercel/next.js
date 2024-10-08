@@ -45,7 +45,7 @@ export async function runTransform(
       type: 'text',
       name: 'path',
       message: 'On which files or directory should the codemods be applied?',
-      default: '.',
+      initial: '.',
     })
 
     directory = res.path

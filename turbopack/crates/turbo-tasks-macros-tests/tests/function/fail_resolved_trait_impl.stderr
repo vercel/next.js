@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `IntegersVec: ResolvedValue` is not satisfied
-  --> tests/function/fail_resolved_trait_impl.rs:19:29
+  --> tests/function/fail_resolved_trait_impl.rs:20:29
    |
-19 |     #[turbo_tasks::function(resolved)]
+20 |     #[turbo_tasks::function(resolved)]
    |                             ^^^^^^^^ the trait `ResolvedValue` is not implemented for `IntegersVec`
    |
    = help: the following other types implement trait `ResolvedValue`:

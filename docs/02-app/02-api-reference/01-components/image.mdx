@@ -490,6 +490,25 @@ Other properties on the `<Image />` component will be passed to the underlying
 
 In addition to props, you can configure the Image Component in `next.config.js`. The following options are available:
 
+## `localPatterns`
+
+You can optionally configure `localPatterns` in your `next.config.js` file in order to allow specific paths to be optimized and block all others paths.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/images/**',
+        search: '',
+      },
+    ],
+  },
+}
+```
+
+> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `/assets/images/` and must not have a query string. Attempting to optimize any other path will respond with 400 Bad Request.
+
 ### `remotePatterns`
 
 To protect your application from malicious users, configuration is required in order to use external images. This ensures that only external images from your account can be served from the Next.js Image Optimization API. These external images can be configured with the `remotePatterns` property in your `next.config.js` file, as shown below:

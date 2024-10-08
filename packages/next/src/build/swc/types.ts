@@ -6,7 +6,10 @@ export interface Binding {
   isWasm: boolean
   turbo: {
     startTrace(options: any, turboTasks: ExternalObject<TurboTasks>): any
-    createTurboTasks(memoryLimit?: number): ExternalObject<TurboTasks>
+    createTurboTasks(
+      outputPath: string,
+      memoryLimit?: number
+    ): ExternalObject<TurboTasks>
     createProject(
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions
@@ -321,6 +324,11 @@ export interface ProjectOptions {
   projectPath: string
 
   /**
+   * The path to the .next directory.
+   */
+  distDir: string
+
+  /**
    * The next.config.js contents.
    */
   nextConfig: NextConfigComplete
@@ -346,7 +354,10 @@ export interface ProjectOptions {
   /**
    * Whether to watch the filesystem for file changes.
    */
-  watch: boolean
+  watch: {
+    enable: boolean
+    pollIntervalMs?: number
+  }
 
   /**
    * The mode in which Next.js is running.

@@ -1,4 +1,4 @@
-use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
@@ -10,7 +10,7 @@ use next_api::{
     entrypoints::Entrypoints,
     project::{
         DefineEnv, DraftModeOptions, Instrumentation, Middleware, PartialProjectOptions, Project,
-        ProjectContainer, ProjectOptions,
+        ProjectContainer, ProjectOptions, WatchOptions,
     },
     route::{Endpoint, Route},
 };
@@ -24,7 +24,6 @@ use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
-use turbo_tasks_memory::MemoryBackend;
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -44,8 +43,8 @@ use url::Url;
 use super::{
     endpoint::ExternalEndpoint,
     utils::{
-        get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask,
-        TurbopackResult, VcArc,
+        create_turbo_tasks, get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue,
+        NextBackend, RootTask, TurbopackResult, VcArc,
     },
 };
 use crate::register;
@@ -79,6 +78,16 @@ impl From<NapiDraftModeOptions> for DraftModeOptions {
 }
 
 #[napi(object)]
+pub struct NapiWatchOptions {
+    /// Whether to watch the filesystem for file changes.
+    pub enable: bool,
+
+    /// Enable polling at a certain interval if the native file watching doesn't work (e.g.
+    /// docker).
+    pub poll_interval_ms: Option<f64>,
+}
+
+#[napi(object)]
 pub struct NapiProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.
@@ -89,10 +98,10 @@ pub struct NapiProjectOptions {
 
     /// next.config's distDir. Project initialization occurs eariler than
     /// deserializing next.config, so passing it as separate option.
-    pub dist_dir: Option<String>,
+    pub dist_dir: String,
 
-    /// Whether to watch he filesystem for file changes.
-    pub watch: bool,
+    /// Filesystem watcher options.
+    pub watch: NapiWatchOptions,
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: String,
@@ -137,8 +146,8 @@ pub struct NapiPartialProjectOptions {
     /// deserializing next.config, so passing it as separate option.
     pub dist_dir: Option<Option<String>>,
 
-    /// Whether to watch he filesystem for file changes.
-    pub watch: Option<bool>,
+    /// Filesystem watcher options.
+    pub watch: Option<NapiWatchOptions>,
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<String>,
@@ -183,12 +192,24 @@ pub struct NapiTurboEngineOptions {
     pub memory_limit: Option<f64>,
 }
 
+impl From<NapiWatchOptions> for WatchOptions {
+    fn from(val: NapiWatchOptions) -> Self {
+        WatchOptions {
+            enable: val.enable,
+            poll_interval: val
+                .poll_interval_ms
+                .filter(|interval| !interval.is_nan() && interval.is_finite() && *interval > 0.0)
+                .map(|interval| Duration::from_secs_f64(interval / 1000.0)),
+        }
+    }
+}
+
 impl From<NapiProjectOptions> for ProjectOptions {
     fn from(val: NapiProjectOptions) -> Self {
         ProjectOptions {
             root_path: val.root_path.into(),
             project_path: val.project_path.into(),
-            watch: val.watch,
+            watch: val.watch.into(),
             next_config: val.next_config.into(),
             js_config: val.js_config.into(),
             env: val
@@ -211,7 +232,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
         PartialProjectOptions {
             root_path: val.root_path.map(From::from),
             project_path: val.project_path.map(From::from),
-            watch: val.watch,
+            watch: val.watch.map(From::from),
             next_config: val.next_config.map(From::from),
             js_config: val.js_config.map(From::from),
             env: val.env.map(|env| {
@@ -251,7 +272,7 @@ impl From<NapiDefineEnv> for DefineEnv {
 }
 
 pub struct ProjectInstance {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: Arc<TurboTasks<NextBackend>>,
     container: Vc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
@@ -287,10 +308,7 @@ pub async fn project_new(
         let subscriber = Registry::default();
 
         let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
-        let dist_dir = options
-            .dist_dir
-            .as_ref()
-            .map_or_else(|| ".next".to_string(), |d| d.to_string());
+        let dist_dir = options.dist_dir.clone();
 
         let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);
         std::fs::create_dir_all(&internal_dir)
@@ -316,27 +334,30 @@ pub async fn project_new(
         subscriber.init();
     }
 
-    let turbo_tasks = TurboTasks::new(MemoryBackend::new(
-        turbo_engine_options
-            .memory_limit
-            .map(|m| m as usize)
-            .unwrap_or(usize::MAX),
-    ));
-    let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
-    if let Some(stats_path) = stats_path {
-        let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
-        exit.on_exit(async move {
-            tokio::task::spawn_blocking(move || {
-                let mut file = std::fs::File::create(&stats_path)
-                    .with_context(|| format!("failed to create or open {stats_path:?}"))?;
-                serde_json::to_writer(&file, &task_stats)
-                    .context("failed to serialize or write task statistics")?;
-                file.flush().context("failed to flush file")
-            })
-            .await
-            .unwrap()
-            .unwrap();
-        });
+    let memory_limit = turbo_engine_options
+        .memory_limit
+        .map(|m| m as usize)
+        .unwrap_or(usize::MAX);
+    let turbo_tasks = create_turbo_tasks(PathBuf::from(&options.dist_dir), memory_limit)?;
+    #[cfg(not(feature = "new-backend"))]
+    {
+        use std::io::Write;
+        let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
+        if let Some(stats_path) = stats_path {
+            let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
+            exit.on_exit(async move {
+                tokio::task::spawn_blocking(move || {
+                    let mut file = std::fs::File::create(&stats_path)
+                        .with_context(|| format!("failed to create or open {stats_path:?}"))?;
+                    serde_json::to_writer(&file, &task_stats)
+                        .context("failed to serialize or write task statistics")?;
+                    file.flush().context("failed to flush file")
+                })
+                .await
+                .unwrap()
+                .unwrap();
+            });
+        }
     }
     let options: ProjectOptions = options.into();
     let container = turbo_tasks
@@ -480,7 +501,7 @@ impl NapiRoute {
     fn from_route(
         pathname: String,
         value: Route,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
     ) -> Self {
         let convert_endpoint = |endpoint: Vc<Box<dyn Endpoint>>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
@@ -547,7 +568,7 @@ struct NapiMiddleware {
 impl NapiMiddleware {
     fn from_middleware(
         value: &Middleware,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
     ) -> Result<Self> {
         Ok(NapiMiddleware {
             endpoint: External::new(ExternalEndpoint(VcArc::new(
@@ -567,7 +588,7 @@ struct NapiInstrumentation {
 impl NapiInstrumentation {
     fn from_instrumentation(
         value: &Instrumentation,
-        turbo_tasks: &Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
     ) -> Result<Self> {
         Ok(NapiInstrumentation {
             node_js: External::new(ExternalEndpoint(VcArc::new(
@@ -910,6 +931,7 @@ impl From<UpdateInfo> for NapiUpdateInfo {
 }
 
 /// Subscribes to lifecycle events of the compilation.
+///
 /// Emits an [UpdateMessage::Start] event when any computation starts.
 /// Emits an [UpdateMessage::End] event when there was no computation for the
 /// specified time (`aggregation_ms`). The [UpdateMessage::End] event contains

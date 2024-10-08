@@ -27,12 +27,16 @@ describe('revalidateTag-rsc', () => {
     await browser.refresh()
     const randomNumber2 = await browser.elementById('data').text()
     expect(randomNumber).toEqual(randomNumber2)
-
     await browser.elementByCss('#revalidate-via-page').click()
     await browser.waitForElementByCss('#home')
     await browser.elementByCss('#home').click()
     await browser.waitForElementByCss('#data')
-    const randomNumber3 = await browser.elementById('data').text()
-    expect(randomNumber3).not.toEqual(randomNumber)
+    await retry(async () => {
+      // need to refresh to evict client router cache
+      await browser.refresh()
+      await browser.waitForElementByCss('#data')
+      const randomNumber3 = await browser.elementById('data').text()
+      expect(randomNumber3).not.toEqual(randomNumber)
+    })
   })
 })

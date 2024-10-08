@@ -155,7 +155,7 @@ pub trait AsyncBencherExtension<A: AsyncExecutor> {
         TF: Future<Output = ()>;
 }
 
-impl<'a, 'b, A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'a, 'b, A, WallTime> {
+impl<A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'_, '_, A, WallTime> {
     fn try_iter_custom<R, F>(&mut self, routine: R)
     where
         R: Fn(u64, WallTime) -> F,
