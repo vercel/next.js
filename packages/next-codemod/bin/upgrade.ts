@@ -228,7 +228,7 @@ async function suggestCodemods(
     {
       type: 'multiselect',
       name: 'codemods',
-      message: `\nThe following ${chalk.blue('codemods')} are recommended for your upgrade. Would you like to apply them?`,
+      message: `The following ${chalk.blue('codemods')} are recommended for your upgrade. Select the ones to apply.`,
       choices: relevantCodemods.reverse().map(({ title, value, version }) => {
         return {
           title: `(v${version}) ${value}`,
