@@ -37,7 +37,7 @@ const hashCache: Record<string, string> = {}
 /**
  * Collects build traces for the given build.
  *
- * If buildTraceContext is not provided, then the function will
+ * * @param {string[]} staticPages - List of pages that are known to be static (not requiring server-side imports)
  */
 export async function collectBuildTraces({
   dir,
@@ -66,6 +66,11 @@ export async function collectBuildTraces({
   const startTime = Date.now()
   debug('starting build traces')
   const bindings = await loadBindings()
+
+  console.log(
+    'running trace for context',
+    JSON.stringify(buildTraceContext, null, 2)
+  )
 
   const { outputFileTracingIncludes = {}, outputFileTracingExcludes = {} } =
     config
@@ -119,8 +124,6 @@ async function runTurboTrace(
 ) {
   console.log('starting turbo tasks for trace')
 
-  // this function must unconditionally initialize turboTasksForTrace
-  // since later code assumes it is initialized
   const turboTasksForTrace = bindings.turbo.createTurboTasks(
     distDir,
     (config.memoryLimit ?? TURBO_TRACE_DEFAULT_MEMORY_LIMIT) * 1024 * 1024
@@ -251,7 +254,6 @@ async function doNextBuild(
   // Under standalone mode, we need to trace the extra IPC server and
   // worker files.
   const isStandalone = config.output === 'standalone'
-  const nextServerEntry = require.resolve('next/dist/server/next-server')
   const sharedEntriesSet = [
     ...(config.experimental.turbotrace
       ? []
@@ -261,20 +263,6 @@ async function doNextBuild(
           })
         )),
   ]
-
-  const { cacheHandler } = config
-
-  // ensure we trace any dependencies needed for custom
-  // incremental cache handler
-  if (cacheHandler) {
-    sharedEntriesSet.push(
-      require.resolve(
-        path.isAbsolute(cacheHandler)
-          ? cacheHandler
-          : path.join(dir, cacheHandler)
-      )
-    )
-  }
 
   const serverEntries = [
     ...sharedEntriesSet,
@@ -377,7 +365,6 @@ async function doNextBuild(
 
   const routeIgnoreFn = makeIgnoreFn(routesIgnores)
 
-  const traceContext = path.join(nextServerEntry, '..', '..')
   const serverTracedFiles = new Set<string>()
   const minimalServerTracedFiles = new Set<string>()
 
@@ -399,6 +386,11 @@ async function doNextBuild(
   }
 
   if (config.experimental.turbotrace) {
+    const nextServerEntry = require.resolve('next/dist/server/next-server')
+    const traceContext = path.join(nextServerEntry, '..', '..', '..')
+
+    console.log('got ignores', sharedEntriesSet)
+
     const turboTasksForTrace = await runTurboTrace(
       config.experimental.turbotrace,
       bindings,
@@ -448,6 +440,16 @@ async function doNextBuild(
       ...(buildTraceContext?.chunksTrace?.action.input || []),
       ...serverEntries,
       ...minimalServerEntries,
+      // cacheHandle is special-cased since it is not supported in turbo trace yet
+      ...(config.cacheHandler
+        ? [
+            require.resolve(
+              path.isAbsolute(config.cacheHandler)
+                ? config.cacheHandler
+                : path.join(dir, config.cacheHandler)
+            ),
+          ]
+        : []),
     ]
     const result = await nodeFileTrace(chunksToTrace, {
       base: outputFileTracingRoot,
