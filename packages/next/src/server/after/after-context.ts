@@ -57,21 +57,15 @@ export class AfterContext {
 
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
-      // NOTE: We're creating a promise here, which means that
-      // we will propagate any AsyncLocalStorage contexts we're currently in
-      // to the callbacks that'll execute later.
-      // This includes e.g. `workUnitAsyncStorage` and React's `requestStorage` (which backs `React.cache()`).
       this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
       this.waitUntil(this.runCallbacksOnClosePromise)
     }
 
-    // We bind the store to the current execution context. That's because
-    // after(() => x())
-    // is the same as
-    // after(x())
-    // which should be equivalent to
-    // await x()
-    // in every regard except timing.
+    // Bind the callback to the current execution context (i.e. preserve all currently available ALS-es).
+    // We do this because we want all of these to be equivalent in every regard except timing:
+    //   after(() => x())
+    //   after(x())
+    //   await x()
     const wrappedCallback = bindSnapshot(async () => {
       try {
         await callback()
@@ -97,6 +91,7 @@ export class AfterContext {
 
     const workStore = workAsyncStorage.getStore()
 
+    // TODO(after): Change phase in workUnitStore to disable e.g. `cookies().set()`
     return withExecuteRevalidates(workStore, () => {
       this.callbackQueue.start()
       return this.callbackQueue.onIdle()
