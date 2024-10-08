@@ -6,31 +6,13 @@
  * The extensions here never error nor alter the random generation itself and thus should be transparent to callers.
  */
 
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import {
-  isDynamicIOPrerender,
-  workUnitAsyncStorage,
-} from '../app-render/work-unit-async-storage.external'
-import { abortOnSynchronousDynamicDataAccess } from '../app-render/dynamic-rendering'
+import { io } from './utils'
 
-const originalRandom = Math.random
+const _random = Math.random
 
 Math.random = function random() {
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'prerender' &&
-    isDynamicIOPrerender(workUnitStore)
-  ) {
-    const workStore = workAsyncStorage.getStore()
-    const route = workStore ? workStore.route : ''
-    const expression = '`Math.random()`'
-    if (workStore) {
-      abortOnSynchronousDynamicDataAccess(route, expression, workUnitStore)
-    }
-  }
-
-  return originalRandom.apply(null, arguments as any)
+  io('`Math.random()`')
+  return _random.apply(null, arguments as any)
 
   // We bind here to alter the `toString` printing to match `Math.random`'s native `toString`.
   // eslint-disable-next-line no-extra-bind

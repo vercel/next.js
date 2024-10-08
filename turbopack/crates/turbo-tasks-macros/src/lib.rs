@@ -49,6 +49,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
 
 /// Derives the `turbo_tasks::KeyValuePair` trait for a enum. Each variant need to have a `value`
 /// field which becomes part of the value enum and all remaining fields become part of the key.
+///
 /// Assuming the enum is called `Abc` it exposes `AbcKey` and `AbcValue` types for it too. The key
 /// enum will have `Debug, Clone, PartialEq, Eq, Hash` derived and the value enum will have `Debug,
 /// Clone` derived. It's expected that all fields implement these traits.

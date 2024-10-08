@@ -1,4 +1,5 @@
 #![feature(trivial_bounds)]
+#![allow(clippy::needless_return)] // clippy false positive
 
 use std::{
     collections::BTreeMap,

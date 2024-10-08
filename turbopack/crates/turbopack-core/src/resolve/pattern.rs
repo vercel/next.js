@@ -1182,7 +1182,7 @@ enum MatchResult<'a> {
     },
 }
 
-impl<'a> MatchResult<'a> {
+impl MatchResult<'_> {
     /// Returns true if the whole pattern matches the whole string
     fn is_match(&self) -> bool {
         match self {

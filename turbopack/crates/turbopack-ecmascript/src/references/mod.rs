@@ -2797,7 +2797,7 @@ fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(RcStr)) {
     }
 }
 
-impl<'a> VisitAstPath for ModuleReferencesVisitor<'a> {
+impl VisitAstPath for ModuleReferencesVisitor<'_> {
     fn visit_export_all<'ast: 'r, 'r>(
         &mut self,
         export: &'ast ExportAll,

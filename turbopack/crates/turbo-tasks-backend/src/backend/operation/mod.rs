@@ -135,7 +135,7 @@ pub struct TaskGuard<'a> {
     backend: &'a TurboTasksBackend,
 }
 
-impl<'a> Debug for TaskGuard<'a> {
+impl Debug for TaskGuard<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut d = f.debug_struct("TaskGuard");
         d.field("task_id", &self.task_id);
@@ -149,7 +149,7 @@ impl<'a> Debug for TaskGuard<'a> {
     }
 }
 
-impl<'a> TaskGuard<'a> {
+impl TaskGuard<'_> {
     pub fn id(&self) -> TaskId {
         self.task_id
     }
