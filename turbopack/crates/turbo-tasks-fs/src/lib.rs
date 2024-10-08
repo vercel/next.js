@@ -58,8 +58,8 @@ use tokio::{
 };
 use tracing::Instrument;
 use turbo_tasks::{
-    mark_session_dependent, trace::TraceRawVcs, Completion, Invalidator, RcStr, ReadRef,
-    ResolvedVc, ValueToString, Vc,
+    mark_session_dependent, mark_stateful, trace::TraceRawVcs, Completion, Invalidator, RcStr,
+    ReadRef, ResolvedVc, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -203,8 +203,10 @@ pub struct DiskFileSystem {
     #[serde(skip)]
     mutex_map: MutexMap<PathBuf>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[serde(skip)]
     invalidator_map: Arc<InvalidatorMap>,
     #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[serde(skip)]
     dir_invalidator_map: Arc<InvalidatorMap>,
     /// Lock that makes invalidation atomic. It will keep a write lock during
     /// watcher invalidation and a read lock during other operations.
@@ -305,26 +307,36 @@ impl DiskFileSystem {
         });
     }
 
-    pub fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
-        self.start_watching_internal(false, poll_interval)
+    pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
+        self.start_watching_internal(false, poll_interval).await
     }
 
-    pub fn start_watching_with_invalidation_reason(
+    pub async fn start_watching_with_invalidation_reason(
         &self,
         poll_interval: Option<Duration>,
     ) -> Result<()> {
-        self.start_watching_internal(true, poll_interval)
+        self.start_watching_internal(true, poll_interval).await
     }
 
-    fn start_watching_internal(
+    #[tracing::instrument(level = "info", name = "start filesystem watching", skip_all, fields(path = %self.root))]
+    async fn start_watching_internal(
         &self,
         report_invalidation_reason: bool,
         poll_interval: Option<Duration>,
     ) -> Result<()> {
-        let _span = tracing::info_span!("start filesystem watching", path = &*self.root).entered();
         let invalidator_map = self.invalidator_map.clone();
         let dir_invalidator_map = self.dir_invalidator_map.clone();
         let root_path = self.root_path().to_path_buf();
+
+        // create the directory for the filesystem on disk, if it doesn't exist
+        retry_future(|| {
+            let path = root_path.as_path();
+            fs::create_dir_all(&root_path).instrument(tracing::info_span!(
+                "create root directory",
+                path = display(path.display())
+            ))
+        })
+        .await?;
 
         let report_invalidation_reason =
             report_invalidation_reason.then(|| (self.name.clone(), root_path.clone()));
@@ -415,9 +427,7 @@ impl DiskFileSystem {
     ///   ignore specific subpaths from each.
     #[turbo_tasks::function]
     pub async fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
-        mark_session_dependent();
-        // create the directory for the filesystem on disk, if it doesn't exist
-        fs::create_dir_all(&root).await?;
+        mark_stateful();
 
         let instance = DiskFileSystem {
             name,
