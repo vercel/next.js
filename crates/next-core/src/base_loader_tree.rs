@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{
@@ -111,17 +111,17 @@ impl BaseLoaderTreeBuilder {
             .insert(format!("MODULE_{i}").into(), module);
 
         let module_path = module.ident().path().await?.clone_value();
-        let module_path_str = module_path.to_string();
+        let module_path_str = module.ident().path().to_string().await?;
 
         let relative_path = self
             .project_root
             .await?
             .get_path_to(&module_path)
-            .unwrap_or(module_path_str.as_str());
+            .unwrap_or(&module_path_str);
 
         Ok(format!(
             "[() => {identifier}, {path}, {relative_path}]",
-            path = StringifyJs(&module_path_str.as_str()),
+            path = StringifyJs(&module_path_str),
             relative_path = StringifyJs(&relative_path),
         ))
     }
