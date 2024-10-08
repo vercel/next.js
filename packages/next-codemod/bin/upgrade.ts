@@ -17,10 +17,10 @@ type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 async function loadHighestNPMVersionMatching(query: string) {
   const versionsJSON = execSync(
     `npm --silent view "${query}" --json --field version`,
-    { encoding: 'utf-8' }
+    { encoding: 'utf-8', stdio: 'ignore' }
   )
   const versions = JSON.parse(versionsJSON)
-  if (versions.length < 1) {
+  if (!versions || versions.length < 1) {
     throw new Error(
       `Found no React versions matching "${query}". This is a bug in the upgrade tool.`
     )
