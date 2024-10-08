@@ -151,7 +151,7 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
-const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout)\.(t|j)sx?$/
+const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
 
 function modifyTypes(
   paramTypeAnnotation: any,
@@ -264,6 +264,7 @@ export function transformDynamicProps(
   filePath: string
 ) {
   const isMatched = MATCHED_FILE_PATTERNS.test(filePath)
+  console.log('filePath', filePath)
   if (!isMatched) {
     return null
   }

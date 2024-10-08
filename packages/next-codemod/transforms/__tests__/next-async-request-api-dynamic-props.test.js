@@ -43,7 +43,12 @@ describe('next-async-request-api - dynamic-props', () => {
 
     // Override test fixture input filename with `page.tsx` to always match the expected output,
     // otherwise fallback to the original filename.
-    const overrideFilename = /[\\/]origin-name-/.test(inputPath) ? inputPath : 'page.tsx'
+    const overrideFilename = /[\\/]origin-name-\d{2}-/.test(inputPath) 
+      // extract the <name> from `origin-name-<name>-<number>.input.js`
+      ? inputPath
+        .replace(/origin-name-(\d{2})-/, '')
+        .replace(/\.input\./, '.')
+      : 'page.tsx'
     
     it(`transforms correctly ${prefix}`, () => {
       runInlineTest(
