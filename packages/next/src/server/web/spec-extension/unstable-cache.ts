@@ -2,7 +2,7 @@ import type { IncrementalCache } from '../../lib/incremental-cache'
 
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import {
-  addImplicitTags,
+  getImplicitTags,
   validateRevalidate,
   validateTags,
 } from '../../lib/patch-fetch'
@@ -152,54 +152,50 @@ export function unstable_cache<T extends Callback>(
       if (workStore) {
         workStore.nextFetchId = fetchIdx + 1
 
-        const isNestedCache =
-          workUnitStore &&
-          (workUnitStore.type === 'unstable-cache' ||
-            workUnitStore.type === 'cache')
-
         // We are in an App Router context. We try to return the cached entry if it exists and is valid
         // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
         // the background. If the entry is missing or invalid we generate a new entry and return it.
 
         // We update the store's revalidate property if the option.revalidate is a higher precedence
-        if (!isNestedCache) {
+        if (
+          workUnitStore &&
+          (workUnitStore.type === 'cache' ||
+            workUnitStore.type === 'prerender' ||
+            workUnitStore.type === 'prerender-ppr' ||
+            workUnitStore.type === 'prerender-legacy')
+        ) {
+          // options.revalidate === undefined doesn't affect timing.
+          // options.revalidate === false doesn't shrink timing. it stays at the maximum.
           if (typeof options.revalidate === 'number') {
-            if (
-              typeof workStore.revalidate === 'number' &&
-              workStore.revalidate < options.revalidate
-            ) {
+            if (workUnitStore.revalidate < options.revalidate) {
               // The store is already revalidating on a shorter time interval, leave it alone
             } else {
-              workStore.revalidate = options.revalidate
+              workUnitStore.revalidate = options.revalidate
             }
-          } else if (
-            options.revalidate === false &&
-            typeof workStore.revalidate === 'undefined'
-          ) {
-            // The store has not defined revalidate type so we can use the false option
-            workStore.revalidate = options.revalidate
           }
 
           // We need to accumulate the tags for this invocation within the store
-          if (!workStore.tags) {
-            workStore.tags = tags.slice()
+          const collectedTags = workUnitStore.tags
+          if (collectedTags === null) {
+            workUnitStore.tags = tags.slice()
           } else {
             for (const tag of tags) {
               // @TODO refactor tags to be a set to avoid this O(n) lookup
-              if (!workStore.tags.includes(tag)) {
-                workStore.tags.push(tag)
+              if (!collectedTags.includes(tag)) {
+                collectedTags.push(tag)
               }
             }
           }
         }
-        // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
-        // of this function is potentially a little confusing
-        const implicitTags = addImplicitTags(workStore, workUnitStore)
 
+        const implicitTags = getImplicitTags(workStore, workUnitStore)
+
+        const isNestedUnstableCache =
+          workUnitStore && workUnitStore.type === 'unstable-cache'
         if (
           // when we are nested inside of other unstable_cache's
           // we should bypass cache similar to fetches
-          !isNestedCache &&
+          !isNestedUnstableCache &&
           workStore.fetchCache !== 'force-no-store' &&
           !workStore.isOnDemandRevalidate &&
           !incrementalCache.isOnDemandRevalidate &&
@@ -304,10 +300,8 @@ export function unstable_cache<T extends Callback>(
         if (!incrementalCache.isOnDemandRevalidate) {
           // We aren't doing an on demand revalidation so we check use the cache if valid
 
-          // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
-          // of this function is potentially a little confusing
           const implicitTags =
-            workStore && addImplicitTags(workStore, workUnitStore)
+            workStore && getImplicitTags(workStore, workUnitStore)
 
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,

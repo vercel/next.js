@@ -5,6 +5,7 @@ import type { IncrementalCache } from '../../server/lib/incremental-cache'
 
 import { join } from 'path'
 import {
+  INFINITE_CACHE,
   NEXT_BODY_SUFFIX,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_META_SUFFIX,
@@ -119,12 +120,13 @@ export async function exportAppRoute(
 
     const blob = await response.blob()
     const revalidate =
-      typeof context.renderOpts.store?.revalidate === 'undefined'
+      typeof (context.renderOpts as any).collectedRevalidate === 'undefined' ||
+      (context.renderOpts as any).collectedRevalidate >= INFINITE_CACHE
         ? false
-        : context.renderOpts.store.revalidate
+        : (context.renderOpts as any).collectedRevalidate
 
     const headers = toNodeOutgoingHttpHeaders(response.headers)
-    const cacheTags = (context.renderOpts as any).fetchTags
+    const cacheTags = (context.renderOpts as any).collectedTags
 
     if (cacheTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
