@@ -200,7 +200,6 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
     } else {
       // Final all type imports to 'react'
       const reactImport = reactImportDeclaration.filter((path) => {
-        console.log(path.node)
         return true
       })
 
