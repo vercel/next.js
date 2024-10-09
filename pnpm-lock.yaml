@@ -1520,6 +1520,9 @@ importers:
       execa:
         specifier: 4.0.3
         version: 4.0.3
+      find-up:
+        specifier: 4.1.0
+        version: 4.1.0
       globby:
         specifier: 11.0.1
         version: 11.0.1
@@ -1536,6 +1539,9 @@ importers:
         specifier: 2.4.2
         version: 2.4.2
     devDependencies:
+      '@types/find-up':
+        specifier: 4.0.0
+        version: 4.0.0
       '@types/jscodeshift':
         specifier: 0.11.0
         version: 0.11.0
@@ -5023,6 +5029,10 @@ packages:
 
   '@types/express@4.17.2':
     resolution: {integrity: sha512-5mHFNyavtLoJmnusB8OKJ5bshSzw+qkMIBAobLrIM48HJvunFva9mOa6aBwh64lBFyNwBbs0xiEFuj4eU/NjCA==}
+
+  '@types/find-up@4.0.0':
+    resolution: {integrity: sha512-QlRNKeOPFWKisbNtKVOOGXw3AeLbkw8UmT/EyEGM6brfqpYffKBcch7f1y40NYN9O90aK2+K0xBMDJfOAsg2qg==}
+    deprecated: This is a stub types definition. find-up provides its own type definitions, so you do not need this installed.
 
   '@types/fontkit@2.0.0':
     resolution: {integrity: sha512-Qe+6szpPLTNsqkDFs2MScJyB51d5Hpobyg/T0QoUWO53WuNOTNLsV8fkE4QQPOJbhOMN5wlwmNeDdsh/e6Uqdg==}
@@ -19581,6 +19591,10 @@ snapshots:
       '@types/body-parser': 1.17.1
       '@types/express-serve-static-core': 4.17.33
       '@types/serve-static': 1.13.3
+
+  '@types/find-up@4.0.0':
+    dependencies:
+      find-up: 4.1.0
 
   '@types/fontkit@2.0.0':
     dependencies:
