@@ -6,6 +6,7 @@ import { isThenable } from '../../shared/lib/is-thenable'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { withExecuteRevalidates } from './revalidation-utils'
 import { bindSnapshot } from '../../client/components/async-local-storage'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
@@ -52,6 +53,13 @@ export class AfterContext {
     if (!this.onClose) {
       throw new InvariantError(
         'unstable_after: Missing `onClose` implementation'
+      )
+    }
+
+    const store = workUnitAsyncStorage.getStore()
+    if (!store) {
+      throw new InvariantError(
+        'Missing workUnitAsyncStorage in AfterContext.addCallback'
       )
     }
 
