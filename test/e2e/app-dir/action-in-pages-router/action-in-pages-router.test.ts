@@ -32,9 +32,16 @@ describe('app-dir - action-in-pages-router', () => {
     }
 
     it('should not contain server action in manifest', async () => {
-      expect(
-        await next.hasFile('.next/server/server-reference-manifest.json')
-      ).toBe(false)
+      if (process.env.TURBOPACK) {
+        const manifest = JSON.parse(
+          await next.readFile('.next/server/server-reference-manifest.json')
+        )
+        expect(Object.keys(manifest.node)).toBe(0)
+      } else {
+        expect(
+          await next.hasFile('.next/server/server-reference-manifest.json')
+        ).toBe(false)
+      }
     })
   }
 })
