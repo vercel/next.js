@@ -555,6 +555,27 @@ impl IssueSource {
     }
 }
 
+impl IssueSource {
+    /// Returns bytes offsets corresponding the source range in the format used by swc's Spans.
+    pub async fn to_swc_offsets(&self) -> Result<Option<(usize, usize)>> {
+        Ok(match self.range {
+            Some(range) => match &*range.await? {
+                SourceRange::ByteOffset(start, end) => Some((*start + 1, *end + 1)),
+                SourceRange::LineColumn(start, end) => {
+                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                        let start = find_offset(lines.as_ref(), *start) + 1;
+                        let end = find_offset(lines.as_ref(), *end) + 1;
+                        Some((start, end))
+                    } else {
+                        None
+                    }
+                }
+            },
+            _ => None,
+        })
+    }
+}
+
 async fn source_pos(
     source: Vc<Box<dyn Source>>,
     origin: Vc<FileSystemPath>,
@@ -1029,4 +1050,9 @@ fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
             }
         }
     }
+}
+
+fn find_offset(lines: &[FileLine], pos: SourcePos) -> usize {
+    let line = &lines[pos.line];
+    line.bytes_offset + pos.column
 }

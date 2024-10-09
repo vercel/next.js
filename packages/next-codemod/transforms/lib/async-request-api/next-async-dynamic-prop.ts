@@ -435,6 +435,13 @@ export function transformDynamicProps(
 
           modified = true
         }
+      } else {
+        // When the prop argument is not destructured, we need to add comments to the spread properties
+        if (j.Identifier.check(currentParam)) {
+          commentSpreadProps(path, currentParam.name, j)
+          modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
+          modified = true
+        }
       }
     }
 
@@ -811,4 +818,31 @@ function findAllTypes(
     })
 
   return types
+}
+
+function commentSpreadProps(
+  path: ASTPath<FunctionScope>,
+  propsIdentifierName: string,
+  j: API['jscodeshift']
+) {
+  const functionBody = findFunctionBody(path)
+  const functionBodyCollection = j(functionBody)
+  // Find all the usage of spreading properties of `props`
+  const jsxSpreadProperties = functionBodyCollection.find(
+    j.JSXSpreadAttribute,
+    { argument: { name: propsIdentifierName } }
+  )
+  const objSpreadProperties = functionBodyCollection.find(j.SpreadElement, {
+    argument: { name: propsIdentifierName },
+  })
+  const comment = ` Next.js Dynamic Async API Codemod: '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
+
+  // Add comment before it
+  jsxSpreadProperties.forEach((spread) => {
+    insertCommentOnce(spread.value, j, comment)
+  })
+
+  objSpreadProperties.forEach((spread) => {
+    insertCommentOnce(spread.value, j, comment)
+  })
 }
