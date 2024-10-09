@@ -188,6 +188,8 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
       source: {
         value: 'react',
       },
+      // Skip the type only react imports
+      importKind: 'value',
     })
 
     if (reactImportDeclaration.size() > 0) {
@@ -197,14 +199,8 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
       importNode.specifiers.push(j.importSpecifier(j.identifier('use')))
     } else {
       // Final all type imports to 'react'
-      const reactImport = root.find(j.ImportDeclaration, {
-        source: {
-          value: 'react',
-        },
-      })
-
-      if (reactImport.size() > 0) {
-        reactImport
+      if (reactImportDeclaration.size() > 0) {
+        reactImportDeclaration
           .get()
           .node.specifiers.push(j.importSpecifier(j.identifier('use')))
       } else {
