@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde_json::json;
-use turbo_tasks::Vc;
+use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -8,18 +8,20 @@ use turbopack_core::{
     module::Module,
     output::OutputAsset,
     reference::all_modules_and_affecting_sources,
+    source_map::SourceMapAsset,
 };
 
 #[turbo_tasks::value(shared)]
 pub struct NftJsonAsset {
     entry: Vc<Box<dyn Module>>,
+    chunk: Option<Vc<Box<dyn OutputAsset>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl NftJsonAsset {
     #[turbo_tasks::function]
-    pub fn new(entry: Vc<Box<dyn Module>>) -> Vc<Self> {
-        NftJsonAsset { entry }.cell()
+    pub fn new(entry: Vc<Box<dyn Module>>, chunk: Option<Vc<Box<dyn OutputAsset>>>) -> Vc<Self> {
+        NftJsonAsset { entry, chunk }.cell()
     }
 }
 
@@ -27,7 +29,14 @@ impl NftJsonAsset {
 impl OutputAsset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let path = self.entry.ident().path().await?;
+        // TODO pass this as a parameter to NftJsonAsset
+        let path = if let Some(chunk) = self.chunk {
+            chunk.ident()
+        } else {
+            self.entry.ident()
+        }
+        .path()
+        .await?;
         Ok(AssetIdent::from_path(
             path.fs
                 .root()
@@ -39,24 +48,50 @@ impl OutputAsset for NftJsonAsset {
 #[turbo_tasks::value_impl]
 impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<AssetContent>> {
-        let parent_dir = self.entry.ident().path().parent().await?;
-        // For clippy -- This explicit deref is necessary
-        let entry_path = &*self.entry.ident().path().await?;
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        // The listed files should be relative to this directory
+        let parent_dir = self.ident().path().parent().await?;
+        println!("parent_dir: {:?}", parent_dir.path);
+
+        let this = &*self.await?;
         let mut result = Vec::new();
-        if let Some(self_path) = parent_dir.get_relative_path_to(entry_path) {
-            let set = all_modules_and_affecting_sources(self.entry);
-            for asset in set.await?.iter() {
-                let path = asset.ident().path().await?;
+        let set = all_modules_and_affecting_sources(this.entry);
+        for asset in set.await? {
+            let path = asset.ident().path().await?;
+            if let Some(rel_path) = parent_dir.get_relative_path_to(&path) {
+                // if rel_path != self_path {
+                result.push(rel_path);
+            } else {
+                println!(
+                    "skipped module! {}",
+                    asset.ident().path().to_string().await?
+                );
+            }
+        }
+
+        if let Some(chunk) = this.chunk {
+            for referenced_chunk in chunk.references().await? {
+                // TODO or should it skip sourcemaps by checking path.endsWith(".map")?
+                if (Vc::try_resolve_downcast_type::<SourceMapAsset>(*referenced_chunk).await?)
+                    .is_some()
+                {
+                    continue;
+                }
+
+                let path = referenced_chunk.ident().path().await?;
                 if let Some(rel_path) = parent_dir.get_relative_path_to(&path) {
-                    if rel_path != self_path {
-                        result.push(rel_path);
-                    }
+                    result.push(rel_path);
+                } else {
+                    println!(
+                        "skipped chunk! {}",
+                        referenced_chunk.ident().path().to_string().await?
+                    );
                 }
             }
-            result.sort();
-            result.dedup();
         }
+
+        result.sort();
+        result.dedup();
         let json = json!({
           "version": 1,
           "files": result

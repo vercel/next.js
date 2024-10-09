@@ -45,6 +45,7 @@ use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     module_options::{transition_rule::TransitionRule, ModuleOptionsContext, RuleCondition},
+    nft_json::NftJsonAsset,
     resolve_options_context::ResolveOptionsContext,
     transition::{ContextTransition, FullContextTransition, Transition, TransitionOptions},
     ModuleAssetContext,
@@ -1401,6 +1402,22 @@ impl AppEndpoint {
                 .instrument(tracing::trace_span!("server node entrypoint"))
                 .await?);
                 server_assets.insert(rsc_chunk);
+
+                // println!(
+                //     "rsc_chunk: {:?} {:?}",
+                //     rsc_chunk.ident().to_string().await?,
+                //     rsc_chunk
+                //         .references()
+                //         .await?
+                //         .iter()
+                //         .map(|a| a.ident().to_string())
+                //         .try_join()
+                //         .await?
+                // );
+                server_assets.insert(Vc::upcast(NftJsonAsset::new(
+                    app_entry.rsc_entry,
+                    Some(rsc_chunk),
+                )));
 
                 let app_paths_manifest_output = create_app_paths_manifest(
                     node_root,

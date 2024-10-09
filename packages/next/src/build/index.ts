@@ -18,6 +18,7 @@ import { Worker } from '../lib/worker'
 import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
+// @ts-ignore
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
 import { Sema } from 'next/dist/compiled/async-sema'
 import path from 'path'
@@ -2558,7 +2559,7 @@ export default async function build(
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
-      if (!isGenerateMode && !buildTracesPromise) {
+      if (!isGenerateMode && !buildTracesPromise && !turboNextBuild) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,

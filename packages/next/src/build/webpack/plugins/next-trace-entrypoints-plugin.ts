@@ -132,6 +132,7 @@ export interface BuildTraceContext {
 }
 
 export function getHash(content: string | Buffer): string {
+  // @ts-ignore
   return crypto.createHash('sha1').update(content).digest('hex')
 }
 
