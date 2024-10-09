@@ -14,7 +14,6 @@ import {
   type OriginalStackFrameResponse,
 } from './shared'
 export { getServerError } from '../internal/helpers/node-stack-frames'
-export { parseStack } from '../internal/helpers/parse-stack'
 import { createStackFrame } from '../internal/helpers/create-stack-frame'
 
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -26,17 +25,13 @@ type Source = {
   compilation: webpack.Compilation | undefined
 }
 
-function getModuleId(compilation: webpack.Compilation, module: webpack.Module) {
-  return compilation.chunkGraph.getModuleId(module)
-}
-
 function getModuleById(
   id: string | undefined,
   compilation: webpack.Compilation
 ) {
-  return [...compilation.modules].find(
-    (searchModule) => getModuleId(compilation, searchModule) === id
-  )
+  const { chunkGraph, modules } = compilation
+
+  return [...modules].find((module) => chunkGraph.getModuleId(module) === id)
 }
 
 function findModuleNotFoundFromError(errorMessage: string | undefined) {
@@ -201,19 +196,13 @@ export async function getSource(
   filename: string,
   options: {
     distDirectory: string
-    isAppDirectory: boolean
-    isServer: boolean
-    isEdgeServer: boolean
-    stats(): webpack.Stats | null
-    serverStats(): webpack.Stats | null
-    edgeServerStats(): webpack.Stats | null
+    getCompilations: () => webpack.Compilation[]
   }
 ): Promise<Source | undefined> {
+  const { distDirectory, getCompilations } = options
+
   if (filename.startsWith('/_next/static')) {
-    filename = path.join(
-      options.distDirectory,
-      filename.replace(/^\/_next\//, '')
-    )
+    filename = path.join(distDirectory, filename.replace(/^\/_next\//, ''))
   }
 
   if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
@@ -222,57 +211,16 @@ export async function getSource(
     return sourceMap ? { sourceMap, compilation: undefined } : undefined
   }
 
-  const { isAppDirectory, isEdgeServer, isServer } = options
-
   const moduleId: string = filename.replace(
     /^(webpack-internal:\/\/\/|file:\/\/|webpack:\/\/(_N_E\/)?)/,
     ''
   )
 
-  // Try Client Compilation first. In `pages` we leverage `isClientError` to
-  // check. In `app` it depends on if it's a server / client component and when
-  // the code throws. E.g. during HTML rendering it's the server/edge
-  // compilation.
-  if ((!isEdgeServer && !isServer) || isAppDirectory) {
-    const compilation = options.stats()?.compilation
+  for (const compilation of getCompilations()) {
+    const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
 
-    if (compilation) {
-      const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
-
-      if (sourceMap) {
-        return { sourceMap, compilation }
-      }
-    }
-  }
-
-  // Try Server Compilation. In `pages` this could be something imported in
-  // getServerSideProps/getStaticProps as the code for those is tree-shaken. In
-  // `app` this finds server components and code that was imported from a server
-  // component. It also covers when client component code throws during HTML
-  // rendering.
-  if (isServer || isAppDirectory) {
-    const compilation = options.serverStats()?.compilation
-
-    if (compilation) {
-      const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
-
-      if (sourceMap) {
-        return { sourceMap, compilation }
-      }
-    }
-  }
-
-  // Try Edge Server Compilation. Both cases are the same as Server Compilation,
-  // main difference is that it covers `runtime: 'edge'` pages/app routes.
-  if (isEdgeServer || isAppDirectory) {
-    const compilation = options.edgeServerStats()?.compilation
-
-    if (compilation) {
-      const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
-
-      if (sourceMap) {
-        return { sourceMap, compilation }
-      }
+    if (sourceMap) {
+      return { sourceMap, compilation }
     }
   }
 
@@ -282,12 +230,17 @@ export async function getSource(
 export function getOverlayMiddleware(options: {
   distDirectory: string
   rootDirectory: string
-  stats: () => webpack.Stats | null
+  clientStats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const { distDirectory, rootDirectory, stats, serverStats, edgeServerStats } =
-    options
+  const {
+    distDirectory,
+    rootDirectory,
+    clientStats,
+    serverStats,
+    edgeServerStats,
+  } = options
 
   return async function (
     req: IncomingMessage,
@@ -328,12 +281,47 @@ export function getOverlayMiddleware(options: {
       try {
         source = await getSource(frame.file, {
           distDirectory,
-          isAppDirectory,
-          isServer,
-          isEdgeServer,
-          stats,
-          serverStats,
-          edgeServerStats,
+          getCompilations: () => {
+            const compilations: webpack.Compilation[] = []
+
+            // Try Client Compilation first. In `pages` we leverage
+            // `isClientError` to check. In `app` it depends on if it's a server
+            // / client component and when the code throws. E.g. during HTML
+            // rendering it's the server/edge compilation.
+            if ((!isEdgeServer && !isServer) || isAppDirectory) {
+              const compilation = clientStats()?.compilation
+
+              if (compilation) {
+                compilations.push(compilation)
+              }
+            }
+
+            // Try Server Compilation. In `pages` this could be something
+            // imported in getServerSideProps/getStaticProps as the code for
+            // those is tree-shaken. In `app` this finds server components and
+            // code that was imported from a server component. It also covers
+            // when client component code throws during HTML rendering.
+            if (isServer || isAppDirectory) {
+              const compilation = serverStats()?.compilation
+
+              if (compilation) {
+                compilations.push(compilation)
+              }
+            }
+
+            // Try Edge Server Compilation. Both cases are the same as Server
+            // Compilation, main difference is that it covers `runtime: 'edge'`
+            // pages/app routes.
+            if (isEdgeServer || isAppDirectory) {
+              const compilation = edgeServerStats()?.compilation
+
+              if (compilation) {
+                compilations.push(compilation)
+              }
+            }
+
+            return compilations
+          },
         })
       } catch (err) {
         console.log('Failed to get source map:', err)
@@ -397,11 +385,11 @@ export function getOverlayMiddleware(options: {
 
 export function getSourceMapMiddleware(options: {
   distDirectory: string
-  stats: () => webpack.Stats | null
+  clientStats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
 }) {
-  const { distDirectory, stats, serverStats, edgeServerStats } = options
+  const { distDirectory, clientStats, serverStats, edgeServerStats } = options
 
   return async function (
     req: IncomingMessage,
@@ -422,12 +410,21 @@ export function getSourceMapMiddleware(options: {
       try {
         source = await getSource(filename, {
           distDirectory,
-          isAppDirectory: true,
-          isServer: true, // TODO: figure out how to set this
-          isEdgeServer: false, // TODO: figure out how to set this
-          stats,
-          serverStats,
-          edgeServerStats,
+          getCompilations: () => {
+            const compilations: webpack.Compilation[] = []
+
+            for (const stats of [
+              clientStats(),
+              serverStats(),
+              edgeServerStats(),
+            ]) {
+              if (stats?.compilation) {
+                compilations.push(stats.compilation)
+              }
+            }
+
+            return compilations
+          },
         })
       } catch (error) {
         console.log('Failed to get source map:', error)
