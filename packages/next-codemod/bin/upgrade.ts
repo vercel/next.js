@@ -21,9 +21,10 @@ async function loadHighestNPMVersionMatching(query: string) {
   )
   const versionOrVersions = JSON.parse(versionsJSON)
   if (versionOrVersions.length < 1) {
-    throw new Error(
-      `Found no React versions matching "${query}". This is a bug in the upgrade tool.`
+    console.error(
+      `${pc.red('⨯')} Found no React versions matching "${query}". This is a bug in the upgrade tool.`
     )
+    process.exit(1)
   }
   // npm-view returns an array if there are multiple versions matching the query.
   if (Array.isArray(versionOrVersions)) {
@@ -56,9 +57,10 @@ export async function runUpgrade(
     'version' in targetNextPackageJson &&
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
-    throw new Error(
-      `${pc.yellow(`next@${revision}`)} does not exist. Make sure you entered a valid Next.js version or dist-tag. Check available versions at ${pc.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
+    console.error(
+      `${pc.red('⨯')} ${pc.yellow(`next@${revision}`)} does not exist. Make sure you entered a valid Next.js version or dist-tag. Check available versions at ${pc.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
     )
+    process.exit(1)
   }
 
   const installedNextVersion = getInstalledNextVersion()
@@ -138,12 +140,10 @@ function getInstalledNextVersion(): string {
       })
     ).version
   } catch (error) {
-    throw new Error(
-      `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
-      {
-        cause: error,
-      }
+    console.error(
+      `${pc.red('⨯')} Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`
     )
+    process.exit(1)
   }
 }
 
