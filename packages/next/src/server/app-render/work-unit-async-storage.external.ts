@@ -64,8 +64,19 @@ export type PrerenderStoreModern = {
   readonly cacheSignal: null | CacheSignal
 
   /**
+   * This signal is used to clean up the prerender once it is complete.
+   */
+  readonly renderSignal: AbortSignal
+
+  /**
    * During some prerenders we want to track dynamic access.
    */
+  readonly dynamicTracking: null | DynamicTrackingState
+}
+
+export type PrerenderStorePPR = {
+  type: 'prerender-ppr'
+  pathname: string | undefined
   readonly dynamicTracking: null | DynamicTrackingState
 }
 
@@ -74,14 +85,10 @@ export type PrerenderStoreLegacy = {
   pathname: string | undefined
 }
 
-export type PrerenderStore = PrerenderStoreLegacy | PrerenderStoreModern
-
-export function isDynamicIOPrerender(workUnitStore: WorkUnitStore): boolean {
-  return (
-    workUnitStore.type === 'prerender' &&
-    !!(workUnitStore.controller || workUnitStore.cacheSignal)
-  )
-}
+export type PrerenderStore =
+  | PrerenderStoreLegacy
+  | PrerenderStorePPR
+  | PrerenderStoreModern
 
 export type UseCacheStore = {
   type: 'cache'
@@ -114,6 +121,7 @@ export function getExpectedRequestStore(
     }
     if (
       workUnitStore.type === 'prerender' ||
+      workUnitStore.type === 'prerender-ppr' ||
       workUnitStore.type === 'prerender-legacy'
     ) {
       // This should not happen because we should have checked it already.

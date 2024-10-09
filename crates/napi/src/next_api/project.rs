@@ -22,7 +22,7 @@ use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
+use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, UpdateInfo, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
@@ -44,7 +44,7 @@ use super::{
     endpoint::ExternalEndpoint,
     utils::{
         create_turbo_tasks, get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue,
-        NextBackend, RootTask, TurbopackResult, VcArc,
+        NextTurboTasks, RootTask, TurbopackResult, VcArc,
     },
 };
 use crate::register;
@@ -188,6 +188,8 @@ pub struct NapiDefineEnv {
 
 #[napi(object)]
 pub struct NapiTurboEngineOptions {
+    /// Use the new backend with persistent caching enabled.
+    pub persistent_caching: Option<bool>,
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
 }
@@ -272,7 +274,7 @@ impl From<NapiDefineEnv> for DefineEnv {
 }
 
 pub struct ProjectInstance {
-    turbo_tasks: Arc<TurboTasks<NextBackend>>,
+    turbo_tasks: NextTurboTasks,
     container: Vc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
@@ -338,13 +340,20 @@ pub async fn project_new(
         .memory_limit
         .map(|m| m as usize)
         .unwrap_or(usize::MAX);
-    let turbo_tasks = create_turbo_tasks(PathBuf::from(&options.dist_dir), memory_limit)?;
-    #[cfg(not(feature = "new-backend"))]
-    {
+    let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
+    let turbo_tasks = create_turbo_tasks(
+        PathBuf::from(&options.dist_dir),
+        persistent_caching,
+        memory_limit,
+    )?;
+    if !persistent_caching {
         use std::io::Write;
         let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
         if let Some(stats_path) = stats_path {
-            let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
+            let Some(backend) = turbo_tasks.memory_backend() else {
+                return Err(anyhow!("task statistics require a memory backend").into());
+            };
+            let task_stats = backend.task_statistics().enable().clone();
             exit.on_exit(async move {
                 tokio::task::spawn_blocking(move || {
                     let mut file = std::fs::File::create(&stats_path)
@@ -498,11 +507,7 @@ struct NapiRoute {
 }
 
 impl NapiRoute {
-    fn from_route(
-        pathname: String,
-        value: Route,
-        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
-    ) -> Self {
+    fn from_route(pathname: String, value: Route, turbo_tasks: &NextTurboTasks) -> Self {
         let convert_endpoint = |endpoint: Vc<Box<dyn Endpoint>>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -566,10 +571,7 @@ struct NapiMiddleware {
 }
 
 impl NapiMiddleware {
-    fn from_middleware(
-        value: &Middleware,
-        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
-    ) -> Result<Self> {
+    fn from_middleware(value: &Middleware, turbo_tasks: &NextTurboTasks) -> Result<Self> {
         Ok(NapiMiddleware {
             endpoint: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -586,10 +588,7 @@ struct NapiInstrumentation {
 }
 
 impl NapiInstrumentation {
-    fn from_instrumentation(
-        value: &Instrumentation,
-        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
-    ) -> Result<Self> {
+    fn from_instrumentation(value: &Instrumentation, turbo_tasks: &NextTurboTasks) -> Result<Self> {
         Ok(NapiInstrumentation {
             node_js: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
