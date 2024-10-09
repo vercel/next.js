@@ -745,6 +745,9 @@ export async function printTreeView(
     })
   )
 
+  const staticFunctionInfo = lists.app && stats.router.app
+    ? 'generateStaticParams'
+    : 'getStaticProps'
   print()
   print(
     textTable(
@@ -757,13 +760,13 @@ export async function printTreeView(
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `prerendered as static HTML (uses ${cyan('getStaticProps')})`,
+          `prerendered as static HTML (uses ${cyan(staticFunctionInfo)})`
         ],
         usedSymbols.has('ISR') && [
           '',
           '(ISR)',
           `incremental static regeneration (uses revalidate in ${cyan(
-            'getStaticProps'
+            staticFunctionInfo
           )})`,
         ],
         usedSymbols.has('◐') && [
