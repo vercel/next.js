@@ -221,20 +221,6 @@ function commentOnMatchedReExports(
           }
         }
       }
-      // if (j.Literal.check(path.value.source)) {
-
-      // } else if (path.value.source === null) {
-      //   for (const specifier of specifiers) {
-      //     if (
-      //       j.ExportSpecifier.check(specifier) &&
-      //       // Find matched named exports and default export
-      //       (TARGET_NAMED_EXPORTS.has(specifier.exported.name) ||
-      //         specifier.exported.name === 'default')
-      //     ) {
-
-      //     }
-      //   }
-      // }
     }
   })
   return modified
