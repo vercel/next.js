@@ -63,7 +63,16 @@ export async function runUpgrade(
 
   const installedNextVersion = getInstalledNextVersion()
 
+  console.log(`Current Next.js version: v${installedNextVersion}`)
+
   const targetNextVersion = targetNextPackageJson.version
+
+  if (compareVersions(installedNextVersion, targetNextVersion) >= 0) {
+    console.log(
+      `${pc.green('✓')} Current Next.js version is already on or higher than the target version "v${targetNextVersion}".`
+    )
+    return
+  }
 
   // We're resolving a specific version here to avoid including "ugly" version queries
   // in the manifest.

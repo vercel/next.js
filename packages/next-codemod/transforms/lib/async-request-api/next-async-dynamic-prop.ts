@@ -22,6 +22,7 @@ import {
 } from './utils'
 
 const PAGE_PROPS = 'props'
+const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
 
 function findFunctionBody(path: ASTPath<FunctionScope>) {
   let functionBody = path.node.body
@@ -175,14 +176,64 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
-const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
+function commentOnMatchedReExports(
+  root: Collection<any>,
+  j: API['jscodeshift']
+): boolean {
+  let modified = false
+  root.find(j.ExportNamedDeclaration).forEach((path) => {
+    if (j.ExportSpecifier.check(path.value.specifiers[0])) {
+      const specifiers = path.value.specifiers
+      for (const specifier of specifiers) {
+        if (
+          j.ExportSpecifier.check(specifier) &&
+          // Find matched named exports and default export
+          (TARGET_NAMED_EXPORTS.has(specifier.exported.name) ||
+            specifier.exported.name === 'default')
+        ) {
+          if (j.Literal.check(path.value.source)) {
+            const localName = specifier.local.name
+
+            const commentInserted = insertCommentOnce(
+              specifier,
+              j,
+              ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+            )
+            modified ||= commentInserted
+          } else if (path.value.source === null) {
+            const localIdentifier = specifier.local
+            const localName = localIdentifier.name
+            // search if local identifier is from imports
+            const importDeclaration = root
+              .find(j.ImportDeclaration)
+              .filter((importPath) => {
+                return importPath.value.specifiers.some(
+                  (importSpecifier) => importSpecifier.local.name === localName
+                )
+              })
+            if (importDeclaration.size() > 0) {
+              const commentInserted = insertCommentOnce(
+                specifier,
+                j,
+                ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+              )
+              modified ||= commentInserted
+            }
+          }
+        }
+      }
+    }
+  })
+  return modified
+}
 
 function modifyTypes(
   paramTypeAnnotation: any,
   propsIdentifier: Identifier,
   root: Collection<any>,
   j: API['jscodeshift']
-) {
+): boolean {
+  let modified = false
   if (paramTypeAnnotation && paramTypeAnnotation.typeAnnotation) {
     const typeAnnotation = paramTypeAnnotation.typeAnnotation
     if (typeAnnotation.type === 'TSTypeLiteral') {
@@ -220,6 +271,7 @@ function modifyTypes(
                 member.typeAnnotation.typeAnnotation,
               ])
             )
+            modified = true
           }
         }
       })
@@ -270,6 +322,7 @@ function modifyTypes(
                       member.typeAnnotation.typeAnnotation,
                     ])
                   )
+                  modified = true
                 }
               }
             })
@@ -279,7 +332,9 @@ function modifyTypes(
     }
 
     propsIdentifier.typeAnnotation = paramTypeAnnotation
+    modified = true
   }
+  return modified
 }
 
 export function transformDynamicProps(
@@ -380,7 +435,8 @@ export function transformDynamicProps(
             modified = true
           }
         } else {
-          modified = awaitMemberAccessOfProp(argName, path, j)
+          const awaited = awaitMemberAccessOfProp(argName, path, j)
+          modified ||= awaited
         }
 
         // cases of passing down `props` into any function
@@ -407,9 +463,8 @@ export function transformDynamicProps(
             (arg) => j.Identifier.check(arg) && arg.name === argName
           )
           const comment = ` Next.js Dynamic Async API Codemod: '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
-          insertCommentOnce(propPassedAsArg, j, comment)
-
-          modified = true
+          const inserted = insertCommentOnce(propPassedAsArg, j, comment)
+          modified ||= inserted
         })
 
         if (modified) {
@@ -438,9 +493,14 @@ export function transformDynamicProps(
       } else {
         // When the prop argument is not destructured, we need to add comments to the spread properties
         if (j.Identifier.check(currentParam)) {
-          commentSpreadProps(path, currentParam.name, j)
-          modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
-          modified = true
+          const commented = commentSpreadProps(path, currentParam.name, j)
+          const modifiedTypes = modifyTypes(
+            currentParam.typeAnnotation,
+            propsIdentifier,
+            root,
+            j
+          )
+          modified ||= commented || modifiedTypes
         }
       }
     }
@@ -754,6 +814,9 @@ export function transformDynamicProps(
     insertReactUseImport(root, j)
   }
 
+  const commented = commentOnMatchedReExports(root, j)
+  modified ||= commented
+
   return modified ? root.toSource() : null
 }
 
@@ -824,7 +887,8 @@ function commentSpreadProps(
   path: ASTPath<FunctionScope>,
   propsIdentifierName: string,
   j: API['jscodeshift']
-) {
+): boolean {
+  let modified = false
   const functionBody = findFunctionBody(path)
   const functionBodyCollection = j(functionBody)
   // Find all the usage of spreading properties of `props`
@@ -839,10 +903,14 @@ function commentSpreadProps(
 
   // Add comment before it
   jsxSpreadProperties.forEach((spread) => {
-    insertCommentOnce(spread.value, j, comment)
+    const inserted = insertCommentOnce(spread.value, j, comment)
+    if (inserted) modified = true
   })
 
   objSpreadProperties.forEach((spread) => {
-    insertCommentOnce(spread.value, j, comment)
+    const inserted = insertCommentOnce(spread.value, j, comment)
+    if (inserted) modified = true
   })
+
+  return modified
 }
