@@ -101,7 +101,7 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
   },
   {
     title:
-      'Transforms dynamic imports that return the named export itself to a module like object',
+      'Transform `next/dynamic` imports accessing named exports to return an object with a `default` property',
     value: 'next-dynamic-access-named-export',
     version: '15.0.0-canary.44',
   },
