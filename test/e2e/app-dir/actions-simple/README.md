@@ -1,22 +1,28 @@
 The main purpose of this end-to-end test app is to allow manual testing of
-server action source mapping within the React DevTools.
+server component and server action source mapping in DevTools.
 
-Until we have properly implemented `findSourceMapURL` in Next.js, this demo only
-works with Turbopack. This is because we can mock `findSourceMapURL` for the
-test app, as Turbopack generates source map files, whereas Webpack uses
-`eval-source-map`.
+## Server Components
 
-For client bundles, the source map files are served directly through
-`/_next/static/chunks`, and for server bundles, the source map files are read
-from disk and served through the `/source-maps-turbopack` route handler.
+To check the source mapping of server components, follow these steps:
+
+1. Run `pnpm next dev test/e2e/app-dir/actions-simple`.
+2. Go to [http://localhost:3000]().
+3. Open the Console panel of the Chrome DevTools.
+4. Look at the component stack of the replayed console warning. It should
+   contain the server source filenames.
+5. Clicking on any filename for a component stack frame should open the actual
+   server sources in the DevTools Sources panel.
+
+## Server Actions
 
 To check the source mapping of server actions, follow these steps:
 
-1. Run `pnpm next dev --turbo test/e2e/app-dir/actions-simple`.
+1. Run `pnpm next dev test/e2e/app-dir/actions-simple`.
 2. Go to [http://localhost:3000]() or [http://localhost:3000/client]().
 3. Open the Components panel of the React DevTools.
 4. Select the `Form` element.
 5. In the props section, right-click on the `action` prop and select "Go to
    definition" (sometimes it needs two tries).
 6. You should end up in the Chrome DevTools Sources panel with the `actions.ts`
-   file open and the cursor at `foo()`.
+   file open and the cursor either at `foo()` (for `/`), or `bar()` (for
+   `/client`).
