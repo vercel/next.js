@@ -7,7 +7,7 @@ import type {
 } from '../../server/app-render/work-unit-async-storage.external'
 import type { RenderOpts } from '../app-render/types'
 import type { WithStore } from './with-store'
-import { NextRequest } from '../web/spec-extension/request'
+import { isNextRequest, type NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
 
 import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
@@ -134,15 +134,14 @@ export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
     draftMode?: DraftModeProvider
   } = {}
 
-  const nextRequest =
-    req instanceof NextRequest
-      ? req
-      : NextRequestAdapter.fromBaseNextRequest(
-          req,
-          res && isNodeNextResponse(res)
-            ? signalFromNodeResponse(res.destination)
-            : undefined
-        )
+  const nextRequest = isNextRequest(req)
+    ? req
+    : NextRequestAdapter.fromBaseNextRequest(
+        req,
+        res && isNodeNextResponse(res)
+          ? signalFromNodeResponse(res.destination)
+          : undefined
+      )
 
   const store: RequestStore = {
     type: 'request',

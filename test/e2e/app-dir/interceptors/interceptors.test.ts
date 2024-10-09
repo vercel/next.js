@@ -307,20 +307,51 @@ describe('interceptors', () => {
     })
   })
 
-  it('should intercept requests for route handlers', async () => {
-    await next.browser('/api/nested')
-    const cliOutput = next.cliOutput.slice(cliOutputLength)
+  it('should intercept requests for route handlers with GET', async () => {
+    await next.fetch('/api/nested')
 
-    expect(cliOutput.replace(timeStampRegExp, '')).toMatch(outdent`
+    await retry(() => {
+      const cliOutput = next.cliOutput.slice(cliOutputLength)
+
+      expect(cliOutput.replace(timeStampRegExp, '')).toMatch(outdent`
+        RootInterceptor, start
+        URL: http://localhost:${next.appPort}/api/nested
+        RootInterceptor, finish
+        ApiInterceptor, start
+        ApiInterceptor, finish
+        ApiNestedInterceptor, start
+        ApiNestedInterceptor, finish
+        GET http://localhost:${next.appPort}/api/nested
+        After
+      `)
+    })
+  })
+
+  it('should intercept requests for route handlers with POST', async () => {
+    await next.fetch('/api/nested', {
+      method: 'POST',
+      body: JSON.stringify({ foo: 42 }),
+      headers: { 'content-type': 'application/json' },
+    })
+
+    await retry(() => {
+      const cliOutput = next.cliOutput.slice(cliOutputLength)
+
+      // Ensure that the request body can be read in each inteceptor, and in the
+      // route handler.
+      expect(cliOutput.replace(timeStampRegExp, '')).toMatch(outdent`
       RootInterceptor, start
       URL: http://localhost:${next.appPort}/api/nested
       RootInterceptor, finish
       ApiInterceptor, start
+      ApiInterceptor /api/nested { foo: 42 }
       ApiInterceptor, finish
       ApiNestedInterceptor, start
+      ApiNestedInterceptor /api/nested { foo: 42 }
       ApiNestedInterceptor, finish
-      GET http://localhost:${next.appPort}/api/nested
+      POST http://localhost:${next.appPort}/api/nested { foo: 42 }
       After
     `)
+    })
   })
 })

@@ -5,3 +5,9 @@ export async function GET(request: NextRequest) {
 
   return Response.json({ hello: 'world' })
 }
+
+export async function POST(request: NextRequest) {
+  console.log('POST', request.url, await request.json())
+
+  return Response.json({ hello: 'world' })
+}

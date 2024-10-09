@@ -3,6 +3,7 @@ import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
 import { RequestCookies } from './cookies'
+import type { BaseNextRequest } from '../../base-http'
 
 export const INTERNALS = Symbol('internal request')
 
@@ -22,7 +23,7 @@ export class NextRequest extends Request {
     const url =
       typeof input !== 'string' && 'url' in input ? input.url : String(input)
     validateURL(url)
-    if (input instanceof Request) super(input, init)
+    if (typeof input === 'object') super(input, init)
     else super(url, init)
     const nextUrl = new NextURL(url, {
       headers: toNodeOutgoingHttpHeaders(this.headers),
@@ -88,6 +89,10 @@ export class NextRequest extends Request {
   public get url() {
     return this[INTERNALS].url
   }
+
+  public clone() {
+    return new NextRequest(super.clone())
+  }
 }
 
 export interface RequestInit extends globalThis.RequestInit {
@@ -97,4 +102,15 @@ export interface RequestInit extends globalThis.RequestInit {
     trailingSlash?: boolean
   }
   signal?: AbortSignal
+}
+
+/**
+ * When `NextRequest` is used accross bundle boundaries, an `instanceof` check
+ * will not work. Instead, this helper function can be used to discriminate
+ * between `NextRequest` and `BaseNextRequest`.
+ */
+export function isNextRequest(
+  req: NextRequest | BaseNextRequest
+): req is NextRequest {
+  return 'nextUrl' in req
 }

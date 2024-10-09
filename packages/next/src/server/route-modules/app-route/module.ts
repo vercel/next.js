@@ -942,17 +942,7 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
           return (
             target[requestCloneSymbol] ||
             (target[requestCloneSymbol] = () =>
-              new Proxy(
-                // This is vaguely unsafe but it's required since NextRequest does not implement
-                // clone. The reason we might expect this to work in this context is the Proxy will
-                // respond with static-amenable values anyway somewhat restoring the interface.
-                // @TODO we need to rethink NextRequest and NextURL because they are not sufficientlly
-                // sophisticated to adequately represent themselves in all contexts. A better approach is
-                // to probably embed the static generation logic into the class itself removing the need
-                // for any kind of proxying
-                target.clone() as NextRequest,
-                nextRequestHandlers
-              ))
+              new Proxy(target.clone(), nextRequestHandlers))
           )
         default:
           // The receiver arg is intentionally the same as the target to fix an issue with

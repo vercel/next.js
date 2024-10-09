@@ -86,7 +86,7 @@ export class NextRequestAdapter {
     let body: BodyInit | null = null
     if (request.method !== 'GET' && request.method !== 'HEAD' && request.body) {
       // @ts-expect-error - this is handled by undici, when streams/web land use it instead
-      body = request.body
+      body = getRequestMeta(request, 'clonableBody')?.cloneBodyStream()
     }
 
     return new NextRequest(createUrl(request, { isEdge: false }), {

@@ -77,7 +77,10 @@ export async function createInterceptor(
     }
 
     if (!interceptorPromise) {
-      interceptorPromise = interceptRequest(request)
+      // We need to ensure that every interceptor gets a fresh request clone, so
+      // that it can consume the request body without affecting subsequent
+      // inteceptors, a route handler, or an action handler.
+      interceptorPromise = interceptRequest(request.clone())
     }
 
     return interceptorPromise
