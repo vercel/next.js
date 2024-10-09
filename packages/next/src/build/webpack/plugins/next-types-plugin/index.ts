@@ -163,7 +163,6 @@ if ('generateStaticParams' in entry) {
   checkFields<Diff<{ __tag__: 'generateStaticParams', __return_type__: any[] | Promise<any[]> }, { __tag__: 'generateStaticParams', __return_type__: ReturnType<MaybeField<TEntry, 'generateStaticParams'>> }>>()
 }
 
-type SegmentParams = {[param: string]: string | string[] | undefined}
 export interface PageProps {
   params?: Promise<SegmentParams>
   searchParams?: Promise<any>
@@ -189,6 +188,9 @@ type Diff<Base, T extends Base, Message extends string = ''> = 0 extends (1 & T)
 type FirstArg<T extends Function> = T extends (...args: [infer T, any]) => any ? unknown extends T ? any : T : never
 type SecondArg<T extends Function> = T extends (...args: [any, infer T]) => any ? unknown extends T ? any : T : never
 type MaybeField<T, K extends string> = T extends { [k in K]: infer G } ? G extends Function ? G : never : never
+type SegmentParams<T extends Object = any> = T extends Record<string, any>
+  ? { [K in keyof T]: T[K] extends string ? string | string[] | undefined : never }
+  : T
 
 ${
   options.type === 'route'
