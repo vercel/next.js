@@ -13,7 +13,7 @@ import {
   type PrerenderStorePPR,
   type PrerenderStoreLegacy,
   type PrerenderStoreModern,
-} from '../app-render/work-unit-async-storage.external'
+} from '../../client/components/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeResolvedReactPromise, describeStringPropertyAccess } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'

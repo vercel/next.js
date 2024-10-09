@@ -3,8 +3,8 @@ import type { DraftModeProvider } from '../../server/async-storage/draft-mode-pr
 import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
 import type { ReadonlyHeaders } from '../../server/web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/adapters/request-cookies'
-import type { CacheSignal } from './cache-signal'
-import type { DynamicTrackingState } from './dynamic-rendering'
+import type { CacheSignal } from '../../server/app-render/cache-signal'
+import type { DynamicTrackingState } from '../../server/app-render/dynamic-rendering'
 
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorage } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
