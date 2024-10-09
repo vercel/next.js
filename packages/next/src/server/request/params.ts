@@ -1,4 +1,4 @@
-import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { FallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'

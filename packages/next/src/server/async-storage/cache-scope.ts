@@ -1,4 +1,4 @@
-import { createAsyncLocalStorage } from '../../server/app-render/async-local-storage'
+import { createAsyncLocalStorage } from '../app-render/async-local-storage'
 
 export interface CacheScopeStore {
   cache?: Map<string, any>
