@@ -50,6 +50,10 @@ function awaitMemberAccessOfProp(
   memberAccess.forEach((memberAccessPath) => {
     const member = memberAccessPath.value
 
+    if (isParentPromiseAllCallExpression(memberAccessPath, j)) {
+      return
+    }
+
     // check if it's already awaited
     if (memberAccessPath.parentPath?.value.type === 'AwaitExpression') {
       return
@@ -82,6 +86,26 @@ function isParentUseCallExpression(path: ASTPath<any>, j: API['jscodeshift']) {
     // function name is `use`
     j.Identifier.check(path.parent.value.callee) &&
     path.parent.value.callee.name === 'use'
+  ) {
+    return true
+  }
+  return false
+}
+
+function isParentPromiseAllCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  const argsParent = path.parent
+  const callParent = argsParent?.parent
+  if (
+    j.ArrayExpression.check(argsParent.value) &&
+    j.CallExpression.check(callParent.value) &&
+    j.MemberExpression.check(callParent.value.callee) &&
+    j.Identifier.check(callParent.value.callee.object) &&
+    callParent.value.callee.object.name === 'Promise' &&
+    j.Identifier.check(callParent.value.callee.property) &&
+    callParent.value.callee.property.name === 'all'
   ) {
     return true
   }
@@ -382,7 +406,7 @@ export function transformDynamicProps(
           const propPassedAsArg = args.find(
             (arg) => j.Identifier.check(arg) && arg.name === argName
           )
-          const comment = ` '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
+          const comment = ` Next.js Dynamic Async API Codemod: '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
           insertCommentOnce(propPassedAsArg, j, comment)
 
           modified = true
@@ -409,6 +433,13 @@ export function transformDynamicProps(
           // Override the first param to `props`
           params[propsArgumentIndex] = propsIdentifier
 
+          modified = true
+        }
+      } else {
+        // When the prop argument is not destructured, we need to add comments to the spread properties
+        if (j.Identifier.check(currentParam)) {
+          commentSpreadProps(path, currentParam.name, j)
+          modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
           modified = true
         }
       }
@@ -787,4 +818,31 @@ function findAllTypes(
     })
 
   return types
+}
+
+function commentSpreadProps(
+  path: ASTPath<FunctionScope>,
+  propsIdentifierName: string,
+  j: API['jscodeshift']
+) {
+  const functionBody = findFunctionBody(path)
+  const functionBodyCollection = j(functionBody)
+  // Find all the usage of spreading properties of `props`
+  const jsxSpreadProperties = functionBodyCollection.find(
+    j.JSXSpreadAttribute,
+    { argument: { name: propsIdentifierName } }
+  )
+  const objSpreadProperties = functionBodyCollection.find(j.SpreadElement, {
+    argument: { name: propsIdentifierName },
+  })
+  const comment = ` Next.js Dynamic Async API Codemod: '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
+
+  // Add comment before it
+  jsxSpreadProperties.forEach((spread) => {
+    insertCommentOnce(spread.value, j, comment)
+  })
+
+  objSpreadProperties.forEach((spread) => {
+    insertCommentOnce(spread.value, j, comment)
+  })
 }

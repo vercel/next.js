@@ -3,7 +3,7 @@ import fs from 'fs'
 import { execSync } from 'child_process'
 import path from 'path'
 import { compareVersions } from 'compare-versions'
-import chalk from 'chalk'
+import pc from 'picocolors'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
@@ -19,14 +19,19 @@ async function loadHighestNPMVersionMatching(query: string) {
     `npm --silent view "${query}" --json --field version`,
     { encoding: 'utf-8' }
   )
-  const versions = JSON.parse(versionsJSON)
-  if (versions.length < 1) {
-    throw new Error(
-      `Found no React versions matching "${query}". This is a bug in the upgrade tool.`
+  const versionOrVersions = JSON.parse(versionsJSON)
+  if (versionOrVersions.length < 1) {
+    console.error(
+      `${pc.red('⨯')} Found no React versions matching "${query}". This is a bug in the upgrade tool.`
     )
+    process.exit(1)
   }
-
-  return versions[versions.length - 1]
+  // npm-view returns an array if there are multiple versions matching the query.
+  if (Array.isArray(versionOrVersions)) {
+    // The last entry will be the latest version published.
+    return versionOrVersions[versionOrVersions.length - 1]
+  }
+  return versionOrVersions
 }
 
 export async function runUpgrade(
@@ -45,10 +50,17 @@ export async function runUpgrade(
   const res = await fetch(`https://registry.npmjs.org/next/${revision}`)
   if (res.status === 200) {
     targetNextPackageJson = await res.json()
-  } else {
-    throw new Error(
-      `${chalk.yellow(`next@${revision}`)} does not exist. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
+  }
+  const validRevision =
+    targetNextPackageJson !== null &&
+    typeof targetNextPackageJson === 'object' &&
+    'version' in targetNextPackageJson &&
+    'peerDependencies' in targetNextPackageJson
+  if (!validRevision) {
+    console.error(
+      `${pc.red('⨯')} ${pc.yellow(`next@${revision}`)} does not exist. Make sure you entered a valid Next.js version or dist-tag. Check available versions at ${pc.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
     )
+    process.exit(1)
   }
 
   const installedNextVersion = getInstalledNextVersion()
@@ -60,21 +72,9 @@ export async function runUpgrade(
   // E.g. in peerDependencies we could have `^18.2.0 || ^19.0.0 || 20.0.0-canary`
   // If we'd just `npm add` that, the manifest would read the same version query.
   // This is basically a `npm --save-exact react@$versionQuery` that works for every package manager.
-  const [
-    targetReactVersion,
-    targetReactTypesVersion,
-    targetReactDOMTypesVersion,
-  ] = await Promise.all([
-    loadHighestNPMVersionMatching(
-      `react@${targetNextPackageJson.peerDependencies['react']}`
-    ),
-    loadHighestNPMVersionMatching(
-      `@types/react@${targetNextPackageJson.peerDependencies['react']}`
-    ),
-    loadHighestNPMVersionMatching(
-      `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
-    ),
-  ])
+  const targetReactVersion = await loadHighestNPMVersionMatching(
+    `react@${targetNextPackageJson.peerDependencies['react']}`
+  )
 
   if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
     await suggestTurbopack(appPackageJson)
@@ -101,12 +101,21 @@ export async function runUpgrade(
     reactDependencies.push(`@types/react@npm:types-react@rc`)
     reactDependencies.push(`@types/react-dom@npm:types-react-dom@rc`)
   } else {
+    const [targetReactTypesVersion, targetReactDOMTypesVersion] =
+      await Promise.all([
+        loadHighestNPMVersionMatching(
+          `@types/react@${targetNextPackageJson.peerDependencies['react']}`
+        ),
+        loadHighestNPMVersionMatching(
+          `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
+        ),
+      ])
     reactDependencies.push(`@types/react@${targetReactTypesVersion}`)
     reactDependencies.push(`@types/react-dom@${targetReactDOMTypesVersion}`)
   }
 
   console.log(
-    `Upgrading your project to ${chalk.blue('Next.js ' + targetNextVersion)}...\n`
+    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
   )
 
   installPackages([nextDependency, ...reactDependencies], {
@@ -119,7 +128,7 @@ export async function runUpgrade(
   }
 
   console.log(
-    `\n${chalk.green('✔')} Your Next.js project has been upgraded successfully. ${chalk.bold('Time to ship! 🚢')}`
+    `\n${pc.green('✔')} Your Next.js project has been upgraded successfully. ${pc.bold('Time to ship! 🚢')}`
   )
 }
 
@@ -131,12 +140,10 @@ function getInstalledNextVersion(): string {
       })
     ).version
   } catch (error) {
-    throw new Error(
-      `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
-      {
-        cause: error,
-      }
+    console.error(
+      `${pc.red('⨯')} Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`
     )
+    process.exit(1)
   }
 }
 
@@ -178,7 +185,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
   }
 
   console.log(
-    `${chalk.yellow('⚠')} Could not find "${chalk.bold('next dev')}" in your dev script.`
+    `${pc.yellow('⚠')} Could not find "${pc.bold('next dev')}" in your dev script.`
   )
 
   const responseCustomDevScript = await prompts(
@@ -228,7 +235,7 @@ async function suggestCodemods(
     {
       type: 'multiselect',
       name: 'codemods',
-      message: `\nThe following ${chalk.blue('codemods')} are recommended for your upgrade. Would you like to apply them?`,
+      message: `The following ${pc.blue('codemods')} are recommended for your upgrade. Select the ones to apply.`,
       choices: relevantCodemods.reverse().map(({ title, value, version }) => {
         return {
           title: `(v${version}) ${value}`,

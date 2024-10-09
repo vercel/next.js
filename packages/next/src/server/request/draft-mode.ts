@@ -43,6 +43,7 @@ export function draftMode(): Promise<DraftMode> {
     (workUnitStore.type === 'cache' ||
       workUnitStore.type === 'unstable-cache' ||
       workUnitStore.type === 'prerender' ||
+      workUnitStore.type === 'prerender-ppr' ||
       workUnitStore.type === 'prerender-legacy')
   ) {
     // Return empty draft mode
