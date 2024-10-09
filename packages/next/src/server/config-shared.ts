@@ -155,6 +155,11 @@ export interface ExperimentalTurboOptions {
   memoryLimit?: number
 
   /**
+   * Enable persistent caching for the turbopack dev server and build.
+   */
+  persistentCaching?: boolean
+
+  /**
    * Enable tree shaking for the turbopack dev server and build.
    */
   treeShaking?: boolean
@@ -944,6 +949,10 @@ export interface NextConfig extends Record<string, any> {
    * were not detected on a per-page basis.
    */
   outputFileTracingIncludes?: Record<string, string[]>
+
+  watchOptions?: {
+    pollIntervalMs?: number
+  }
 }
 
 export const defaultConfig: NextConfig = {
@@ -997,7 +1006,7 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
-  swrDelta: undefined,
+  swrDelta: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,

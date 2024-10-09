@@ -16,9 +16,13 @@ import {
   turnFunctionReturnTypeToAsync,
   wrapParentheseIfNeeded,
   type FunctionScope,
+  insertCommentOnce,
+  TARGET_ROUTE_EXPORTS,
+  getVariableDeclaratorId,
 } from './utils'
 
 const PAGE_PROPS = 'props'
+const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
 
 function findFunctionBody(path: ASTPath<FunctionScope>) {
   let functionBody = path.node.body
@@ -47,6 +51,10 @@ function awaitMemberAccessOfProp(
   memberAccess.forEach((memberAccessPath) => {
     const member = memberAccessPath.value
 
+    if (isParentPromiseAllCallExpression(memberAccessPath, j)) {
+      return
+    }
+
     // check if it's already awaited
     if (memberAccessPath.parentPath?.value.type === 'AwaitExpression') {
       return
@@ -68,6 +76,41 @@ function awaitMemberAccessOfProp(
     }
   }
   return hasAwaited
+}
+
+function isParentUseCallExpression(path: ASTPath<any>, j: API['jscodeshift']) {
+  if (
+    // member access parentPath is argument
+    j.CallExpression.check(path.parent.value) &&
+    // member access is first argument
+    path.parent.value.arguments[0] === path.value &&
+    // function name is `use`
+    j.Identifier.check(path.parent.value.callee) &&
+    path.parent.value.callee.name === 'use'
+  ) {
+    return true
+  }
+  return false
+}
+
+function isParentPromiseAllCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  const argsParent = path.parent
+  const callParent = argsParent?.parent
+  if (
+    j.ArrayExpression.check(argsParent.value) &&
+    j.CallExpression.check(callParent.value) &&
+    j.MemberExpression.check(callParent.value.callee) &&
+    j.Identifier.check(callParent.value.callee.object) &&
+    callParent.value.callee.object.name === 'Promise' &&
+    j.Identifier.check(callParent.value.callee.property) &&
+    callParent.value.callee.property.name === 'all'
+  ) {
+    return true
+  }
+  return false
 }
 
 function applyUseAndRenameAccessedProp(
@@ -92,6 +135,11 @@ function applyUseAndRenameAccessedProp(
   const accessedNames: string[] = []
   // rename each member access
   memberAccess.forEach((memberAccessPath) => {
+    // If the member access expression is first argument of `use()`, we skip
+    if (isParentUseCallExpression(memberAccessPath, j)) {
+      return
+    }
+
     const member = memberAccessPath.value
     const memberProperty = member.property
     if (j.Identifier.check(memberProperty)) {
@@ -128,11 +176,177 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
+function commentOnMatchedReExports(
+  root: Collection<any>,
+  j: API['jscodeshift']
+): boolean {
+  let modified = false
+  root.find(j.ExportNamedDeclaration).forEach((path) => {
+    if (j.ExportSpecifier.check(path.value.specifiers[0])) {
+      const specifiers = path.value.specifiers
+      for (const specifier of specifiers) {
+        if (
+          j.ExportSpecifier.check(specifier) &&
+          // Find matched named exports and default export
+          (TARGET_NAMED_EXPORTS.has(specifier.exported.name) ||
+            specifier.exported.name === 'default')
+        ) {
+          if (j.Literal.check(path.value.source)) {
+            const localName = specifier.local.name
+
+            const commentInserted = insertCommentOnce(
+              specifier,
+              j,
+              ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+            )
+            modified ||= commentInserted
+          } else if (path.value.source === null) {
+            const localIdentifier = specifier.local
+            const localName = localIdentifier.name
+            // search if local identifier is from imports
+            const importDeclaration = root
+              .find(j.ImportDeclaration)
+              .filter((importPath) => {
+                return importPath.value.specifiers.some(
+                  (importSpecifier) => importSpecifier.local.name === localName
+                )
+              })
+            if (importDeclaration.size() > 0) {
+              const commentInserted = insertCommentOnce(
+                specifier,
+                j,
+                ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+              )
+              modified ||= commentInserted
+            }
+          }
+        }
+      }
+    }
+  })
+  return modified
+}
+
+function modifyTypes(
+  paramTypeAnnotation: any,
+  propsIdentifier: Identifier,
+  root: Collection<any>,
+  j: API['jscodeshift']
+): boolean {
+  let modified = false
+  if (paramTypeAnnotation && paramTypeAnnotation.typeAnnotation) {
+    const typeAnnotation = paramTypeAnnotation.typeAnnotation
+    if (typeAnnotation.type === 'TSTypeLiteral') {
+      const typeLiteral = typeAnnotation
+
+      // Find the type property for `params`
+      typeLiteral.members.forEach((member) => {
+        if (
+          member.type === 'TSPropertySignature' &&
+          member.key.type === 'Identifier' &&
+          TARGET_PROP_NAMES.has(member.key.name)
+        ) {
+          // if it's already a Promise, don't wrap it again, return
+          if (
+            member.typeAnnotation &&
+            member.typeAnnotation.typeAnnotation &&
+            member.typeAnnotation.typeAnnotation.type === 'TSTypeReference' &&
+            member.typeAnnotation.typeAnnotation.typeName.type ===
+              'Identifier' &&
+            member.typeAnnotation.typeAnnotation.typeName.name === 'Promise'
+          ) {
+            return
+          }
+
+          // Wrap the `params` type in Promise<>
+          if (
+            member.typeAnnotation &&
+            member.typeAnnotation.typeAnnotation &&
+            j.TSType.check(member.typeAnnotation.typeAnnotation)
+          ) {
+            member.typeAnnotation.typeAnnotation = j.tsTypeReference(
+              j.identifier('Promise'),
+              j.tsTypeParameterInstantiation([
+                // @ts-ignore
+                member.typeAnnotation.typeAnnotation,
+              ])
+            )
+            modified = true
+          }
+        }
+      })
+    } else if (typeAnnotation.type === 'TSTypeReference') {
+      // If typeAnnotation is a type or interface, change the properties to Promise<type of property>
+      // e.g. interface PageProps { params: { slug: string } } => interface PageProps { params: Promise<{ slug: string }> }
+      const typeReference = typeAnnotation
+      if (typeReference.typeName.type === 'Identifier') {
+        // Find the actual type of the type reference
+        const foundTypes = findAllTypes(root, j, typeReference.typeName.name)
+
+        // Deal with interfaces
+        if (foundTypes.interfaces.length > 0) {
+          const interfaceDeclaration = foundTypes.interfaces[0]
+          if (
+            interfaceDeclaration.type === 'TSInterfaceDeclaration' &&
+            interfaceDeclaration.body?.type === 'TSInterfaceBody'
+          ) {
+            const typeBody = interfaceDeclaration.body.body
+            // if it's already a Promise, don't wrap it again, return
+            // traverse the typeReference's properties, if any is in propNames, wrap it in Promise<> if needed
+            typeBody.forEach((member) => {
+              if (
+                member.type === 'TSPropertySignature' &&
+                member.key.type === 'Identifier' &&
+                TARGET_PROP_NAMES.has(member.key.name)
+              ) {
+                // if it's already a Promise, don't wrap it again, return
+                if (
+                  member.typeAnnotation &&
+                  member.typeAnnotation.typeAnnotation &&
+                  member.typeAnnotation?.typeAnnotation?.typeName?.name ===
+                    'Promise'
+                ) {
+                  return
+                }
+
+                // Wrap the prop type in Promise<>
+                if (
+                  member.typeAnnotation &&
+                  member.typeAnnotation.typeAnnotation &&
+                  // check if member name is in propNames
+                  TARGET_PROP_NAMES.has(member.key.name)
+                ) {
+                  member.typeAnnotation.typeAnnotation = j.tsTypeReference(
+                    j.identifier('Promise'),
+                    j.tsTypeParameterInstantiation([
+                      member.typeAnnotation.typeAnnotation,
+                    ])
+                  )
+                  modified = true
+                }
+              }
+            })
+          }
+        }
+      }
+    }
+
+    propsIdentifier.typeAnnotation = paramTypeAnnotation
+    modified = true
+  }
+  return modified
+}
+
 export function transformDynamicProps(
   source: string,
   api: API,
-  _filePath: string
+  filePath: string
 ) {
+  const isMatched = MATCHED_FILE_PATTERNS.test(filePath)
+  if (!isMatched) {
+    return null
+  }
+
   let modified = false
   let modifiedPropArgument = false
   const j = api.jscodeshift.withParser('tsx')
@@ -143,8 +357,6 @@ export function transformDynamicProps(
   // e.g. destruct `params` { slug } = params
   // e.g. destruct `searchParams `{ search } = searchParams
   let insertedDestructPropNames = new Set<string>()
-  // Rename props to `prop` argument for the function
-  let insertedRenamedPropFunctionNames = new Set<string>()
 
   function processAsyncPropOfEntryFile(isClientComponent: boolean) {
     // find `params` and `searchParams` in file, and transform the access to them
@@ -154,21 +366,30 @@ export function transformDynamicProps(
     ) {
       const decl = path.value
       const params = decl.params
-      const functionName = decl.id?.name || 'default'
+      let functionName = decl.id?.name
+      // If it's const <id> = function () {}, locate the <id> to get function name
+      if (!decl.id) {
+        functionName = getVariableDeclaratorId(path, j)?.name
+      }
       // target properties mapping, only contains `params` and `searchParams`
       const propertiesMap = new Map<string, any>()
       let allProperties: ObjectPattern['properties'] = []
-
+      const isRoute = !isDefaultExport && TARGET_ROUTE_EXPORTS.has(functionName)
       // generateMetadata API has 2 params
       if (functionName === 'generateMetadata') {
         if (params.length > 2 || params.length === 0) return
+      } else if (isRoute) {
+        if (params.length !== 2) return
       } else {
-        // Page/Layout/Route handlers have 1 param
+        // Page/Layout default export have 1 param
         if (params.length !== 1) return
       }
       const propsIdentifier = generateUniqueIdentifier(PAGE_PROPS, path, j)
 
-      const currentParam = params[0]
+      const propsArgumentIndex = isRoute ? 1 : 0
+
+      const currentParam = params[propsArgumentIndex]
+      if (!currentParam) return
 
       // Argument destructuring case
       if (currentParam.type === 'ObjectPattern') {
@@ -188,12 +409,11 @@ export function transformDynamicProps(
         if (!foundTargetProp) return
 
         allProperties = currentParam.properties
-
         currentParam.properties.forEach((prop) => {
           if (
             // Could be `Property` or `ObjectProperty`
-            'key' in prop &&
-            prop.key.type === 'Identifier' &&
+            (j.Property.check(prop) || j.ObjectProperty.check(prop)) &&
+            j.Identifier.check(prop.key) &&
             TARGET_PROP_NAMES.has(prop.key.name)
           ) {
             const value = 'value' in prop ? prop.value : null
@@ -201,116 +421,6 @@ export function transformDynamicProps(
           }
         })
 
-        const paramTypeAnnotation = currentParam.typeAnnotation
-        if (paramTypeAnnotation && paramTypeAnnotation.typeAnnotation) {
-          const typeAnnotation = paramTypeAnnotation.typeAnnotation
-          if (typeAnnotation.type === 'TSTypeLiteral') {
-            const typeLiteral = typeAnnotation
-
-            // Find the type property for `params`
-            typeLiteral.members.forEach((member) => {
-              if (
-                member.type === 'TSPropertySignature' &&
-                member.key.type === 'Identifier' &&
-                propertiesMap.has(member.key.name)
-              ) {
-                // if it's already a Promise, don't wrap it again, return
-                if (
-                  member.typeAnnotation &&
-                  member.typeAnnotation.typeAnnotation &&
-                  member.typeAnnotation.typeAnnotation.type ===
-                    'TSTypeReference' &&
-                  member.typeAnnotation.typeAnnotation.typeName.type ===
-                    'Identifier' &&
-                  member.typeAnnotation.typeAnnotation.typeName.name ===
-                    'Promise'
-                ) {
-                  return
-                }
-
-                // Wrap the `params` type in Promise<>
-                if (
-                  member.typeAnnotation &&
-                  member.typeAnnotation.typeAnnotation &&
-                  j.TSType.check(member.typeAnnotation.typeAnnotation)
-                ) {
-                  member.typeAnnotation.typeAnnotation = j.tsTypeReference(
-                    j.identifier('Promise'),
-                    j.tsTypeParameterInstantiation([
-                      // @ts-ignore
-                      member.typeAnnotation.typeAnnotation,
-                    ])
-                  )
-                }
-              }
-            })
-          } else if (typeAnnotation.type === 'TSTypeReference') {
-            // If typeAnnotation is a type or interface, change the properties to Promise<type of property>
-            // e.g. interface PageProps { params: { slug: string } } => interface PageProps { params: Promise<{ slug: string }> }
-            const typeReference = typeAnnotation
-            if (typeReference.typeName.type === 'Identifier') {
-              // Find the actual type of the type reference
-              const foundTypes = findAllTypes(
-                root,
-                j,
-                typeReference.typeName.name
-              )
-
-              // Deal with interfaces
-              if (foundTypes.interfaces.length > 0) {
-                const interfaceDeclaration = foundTypes.interfaces[0]
-                if (
-                  interfaceDeclaration.type === 'TSInterfaceDeclaration' &&
-                  interfaceDeclaration.body?.type === 'TSInterfaceBody'
-                ) {
-                  const typeBody = interfaceDeclaration.body.body
-                  // if it's already a Promise, don't wrap it again, return
-                  // traverse the typeReference's properties, if any is in propNames, wrap it in Promise<> if needed
-                  typeBody.forEach((member) => {
-                    if (
-                      member.type === 'TSPropertySignature' &&
-                      member.key.type === 'Identifier' &&
-                      TARGET_PROP_NAMES.has(member.key.name)
-                    ) {
-                      // if it's already a Promise, don't wrap it again, return
-                      if (
-                        member.typeAnnotation &&
-                        member.typeAnnotation.typeAnnotation &&
-                        member.typeAnnotation?.typeAnnotation?.typeName
-                          ?.name === 'Promise'
-                      ) {
-                        return
-                      }
-
-                      // Wrap the prop type in Promise<>
-                      if (
-                        member.typeAnnotation &&
-                        member.typeAnnotation.typeAnnotation &&
-                        // check if member name is in propNames
-                        TARGET_PROP_NAMES.has(member.key.name)
-                      ) {
-                        member.typeAnnotation.typeAnnotation =
-                          j.tsTypeReference(
-                            j.identifier('Promise'),
-                            j.tsTypeParameterInstantiation([
-                              member.typeAnnotation.typeAnnotation,
-                            ])
-                          )
-                      }
-                    }
-                  })
-                }
-              }
-            }
-          }
-
-          propsIdentifier.typeAnnotation = paramTypeAnnotation
-        }
-
-        // Override the first param to `props`
-        params[0] = propsIdentifier
-
-        modified = true
         modifiedPropArgument = true
       } else if (currentParam.type === 'Identifier') {
         // case of accessing the props.params.<name>:
@@ -325,7 +435,8 @@ export function transformDynamicProps(
             modified = true
           }
         } else {
-          modified = awaitMemberAccessOfProp(argName, path, j)
+          const awaited = awaitMemberAccessOfProp(argName, path, j)
+          modified ||= awaited
         }
 
         // cases of passing down `props` into any function
@@ -351,28 +462,46 @@ export function transformDynamicProps(
           const propPassedAsArg = args.find(
             (arg) => j.Identifier.check(arg) && arg.name === argName
           )
-          // insert a comment to the argument
-          const comment = j.commentBlock(
-            ` '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `,
-            true,
-            false
-          )
-          propPassedAsArg.comments = [
-            comment,
-            ...(propPassedAsArg.comments || []),
-          ]
-          modified = true
+          const comment = ` Next.js Dynamic Async API Codemod: '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
+          const inserted = insertCommentOnce(propPassedAsArg, j, comment)
+          modified ||= inserted
         })
+
+        if (modified) {
+          modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
+        }
       }
 
       if (modifiedPropArgument) {
-        resolveAsyncProp(
+        const isModified = resolveAsyncProp(
           path,
           propertiesMap,
           propsIdentifier.name,
           allProperties,
           isDefaultExport
         )
+        if (isModified) {
+          // Make TS happy
+          if (j.ObjectPattern.check(currentParam)) {
+            modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
+          }
+          // Override the first param to `props`
+          params[propsArgumentIndex] = propsIdentifier
+
+          modified = true
+        }
+      } else {
+        // When the prop argument is not destructured, we need to add comments to the spread properties
+        if (j.Identifier.check(currentParam)) {
+          const commented = commentSpreadProps(path, currentParam.name, j)
+          const modifiedTypes = modifyTypes(
+            currentParam.typeAnnotation,
+            propsIdentifier,
+            root,
+            j
+          )
+          modified ||= commented || modifiedTypes
+        }
       }
     }
 
@@ -383,7 +512,9 @@ export function transformDynamicProps(
       propsIdentifierName: string,
       allProperties: ObjectPattern['properties'],
       isDefaultExport: boolean
-    ) {
+    ): boolean {
+      // Rename props to `prop` argument for the function
+      const insertedRenamedPropFunctionNames = new Set<string>()
       const node = path.value
 
       // If it's sync default export, and it's also server component, make the function async
@@ -393,6 +524,31 @@ export function transformDynamicProps(
             node.async = true
             turnFunctionReturnTypeToAsync(node, j)
           }
+        }
+      }
+
+      // If it's arrow function and function body is not block statement, check if the properties are used there
+      if (
+        j.ArrowFunctionExpression.check(path.node) &&
+        !j.BlockStatement.check(path.node.body)
+      ) {
+        const objectExpression = path.node.body
+        let hasUsedProps = false
+        j(objectExpression)
+          .find(j.Identifier)
+          .forEach((identifierPath) => {
+            const idName = identifierPath.value.name
+            if (propertiesMap.has(idName)) {
+              hasUsedProps = true
+              return
+            }
+          })
+
+        // Turn the function body to block statement, return the object expression
+        if (hasUsedProps) {
+          path.node.body = j.blockStatement([
+            j.returnStatement(objectExpression),
+          ])
         }
       }
 
@@ -471,9 +627,30 @@ export function transformDynamicProps(
         }
       }
 
+      let modifiedPropertyCount = 0
       for (const [matchedPropName, paramsProperty] of propertiesMap) {
         if (!TARGET_PROP_NAMES.has(matchedPropName)) {
           continue
+        }
+
+        // In client component, if the param is already wrapped with `use()`, skip the transformation
+        if (isClientComponent) {
+          let shouldSkip = false
+          const propPaths = j(path).find(j.Identifier, {
+            name: matchedPropName,
+          })
+
+          for (const propPath of propPaths.paths()) {
+            if (isParentUseCallExpression(propPath, j)) {
+              // Skip transformation
+              shouldSkip = true
+              break
+            }
+          }
+
+          if (shouldSkip) {
+            continue
+          }
         }
 
         const propRenamedId = j.Identifier.check(paramsProperty)
@@ -483,16 +660,25 @@ export function transformDynamicProps(
 
         // if propName is not used in lower scope, and it stars with unused prefix `_`,
         // also skip the transformation
-        const hasDeclared = path.scope.declares(propName)
-        if (!hasDeclared && propName.startsWith('_')) continue
+
+        const functionBodyPath = path.get('body')
+        const hasUsedInBody =
+          j(functionBodyPath)
+            .find(j.Identifier, {
+              name: propName,
+            })
+            .size() > 0
+
+        if (!hasUsedInBody && propName.startsWith('_')) continue
+
+        modifiedPropertyCount++
 
         const propNameIdentifier = j.identifier(matchedPropName)
         const propsIdentifier = j.identifier(propsIdentifierName)
-        const accessedPropId = j.memberExpression(
+        const accessedPropIdExpr = j.memberExpression(
           propsIdentifier,
           propNameIdentifier
         )
-
         // Check param property value, if it's destructed, we need to destruct it as well
         // e.g.
         // input: Page({ params: { slug } })
@@ -535,7 +721,7 @@ export function transformDynamicProps(
           const paramAssignment = j.variableDeclaration('const', [
             j.variableDeclarator(
               j.identifier(propName),
-              j.awaitExpression(accessedPropId)
+              j.awaitExpression(accessedPropIdExpr)
             ),
           ])
           if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
@@ -553,14 +739,14 @@ export function transformDynamicProps(
             ) {
               node.async = true
               turnFunctionReturnTypeToAsync(node, j)
-
               // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
               const paramAssignment = j.variableDeclaration('const', [
                 j.variableDeclarator(
                   j.identifier(propName),
-                  j.awaitExpression(accessedPropId)
+                  j.awaitExpression(accessedPropIdExpr)
                 ),
               ])
+
               if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
                 functionBody.unshift(paramAssignment)
                 insertedRenamedPropFunctionNames.add(uid)
@@ -570,7 +756,7 @@ export function transformDynamicProps(
             const paramAssignment = j.variableDeclaration('const', [
               j.variableDeclarator(
                 j.identifier(propName),
-                j.callExpression(j.identifier('use'), [accessedPropId])
+                j.callExpression(j.identifier('use'), [accessedPropIdExpr])
               ),
             ])
             if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
@@ -581,6 +767,8 @@ export function transformDynamicProps(
           }
         }
       }
+
+      return modifiedPropertyCount > 0
     }
 
     const defaultExportsDeclarations = root.find(j.ExportDefaultDeclaration)
@@ -616,7 +804,7 @@ export function transformDynamicProps(
     })
   }
 
-  const isClientComponent = determineClientDirective(root, j, source)
+  const isClientComponent = determineClientDirective(root, j)
 
   // Apply to `params` and `searchParams`
   processAsyncPropOfEntryFile(isClientComponent)
@@ -625,6 +813,9 @@ export function transformDynamicProps(
   if (needsReactUseImport) {
     insertReactUseImport(root, j)
   }
+
+  const commented = commentOnMatchedReExports(root, j)
+  modified ||= commented
 
   return modified ? root.toSource() : null
 }
@@ -690,4 +881,36 @@ function findAllTypes(
     })
 
   return types
+}
+
+function commentSpreadProps(
+  path: ASTPath<FunctionScope>,
+  propsIdentifierName: string,
+  j: API['jscodeshift']
+): boolean {
+  let modified = false
+  const functionBody = findFunctionBody(path)
+  const functionBodyCollection = j(functionBody)
+  // Find all the usage of spreading properties of `props`
+  const jsxSpreadProperties = functionBodyCollection.find(
+    j.JSXSpreadAttribute,
+    { argument: { name: propsIdentifierName } }
+  )
+  const objSpreadProperties = functionBodyCollection.find(j.SpreadElement, {
+    argument: { name: propsIdentifierName },
+  })
+  const comment = ` Next.js Dynamic Async API Codemod: '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
+
+  // Add comment before it
+  jsxSpreadProperties.forEach((spread) => {
+    const inserted = insertCommentOnce(spread.value, j, comment)
+    if (inserted) modified = true
+  })
+
+  objSpreadProperties.forEach((spread) => {
+    const inserted = insertCommentOnce(spread.value, j, comment)
+    if (inserted) modified = true
+  })
+
+  return modified
 }

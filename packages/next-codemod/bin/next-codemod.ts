@@ -46,11 +46,16 @@ program
   .description(
     'Upgrade Next.js apps to desired versions with a single command.'
   )
-
   .argument(
     '[revision]',
-    'NPM dist tag or exact version to upgrade to (e.g. "latest" or "15.0.0-canary.167"). Prompts to choose a dist tag if omitted.'
+    'Specify the target Next.js version using an NPM dist tag (e.g. "latest", "canary", "rc") or an exact version number (e.g. "15.0.0").',
+    packageJson.version.includes('-canary.')
+      ? 'canary'
+      : packageJson.version.includes('-rc.')
+        ? 'rc'
+        : 'latest'
   )
+  .usage('[revision] [options]')
   .option('--verbose', 'Verbose output', false)
   .action(runUpgrade)
 

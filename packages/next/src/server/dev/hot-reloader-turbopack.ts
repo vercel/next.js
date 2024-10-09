@@ -150,9 +150,13 @@ export async function createHotReloaderTurbopack(
         opts.nextConfig.experimental.turbo?.root ||
         opts.nextConfig.outputFileTracingRoot ||
         dir,
+      distDir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(dir, nextConfig),
-      watch: dev,
+      watch: {
+        enable: dev,
+        pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
+      },
       dev,
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
@@ -172,6 +176,7 @@ export async function createHotReloaderTurbopack(
       browserslistQuery: supportedBrowsers.join(', '),
     },
     {
+      persistentCaching: opts.nextConfig.experimental.turbo?.persistentCaching,
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
     }
   )

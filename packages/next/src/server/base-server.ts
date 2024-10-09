@@ -124,10 +124,6 @@ import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './lib/i18n-provider'
 import { sendResponse } from './send-response'
 import {
-  handleBadRequestResponse,
-  handleInternalServerErrorResponse,
-} from './route-modules/helpers/response-handlers'
-import {
   fromNodeOutgoingHttpHeaders,
   normalizeNextQueryParam,
   toNodeOutgoingHttpHeaders,
@@ -1016,6 +1012,14 @@ export default abstract class Server<
           : '80'
       req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest?.socket?.remoteAddress
+
+      // Validate that if i18n isn't configured or the passed parameters are not
+      // valid it should be removed from the query.
+      if (!this.i18nProvider?.validateQuery(parsedUrl.query)) {
+        delete parsedUrl.query.__nextLocale
+        delete parsedUrl.query.__nextDefaultLocale
+        delete parsedUrl.query.__nextInferredLocaleFromDefault
+      }
 
       // This should be done before any normalization of the pathname happens as
       // it captures the initial URL.
@@ -2579,7 +2583,7 @@ export default abstract class Server<
             Log.error(err)
 
             // Otherwise, send a 500 response.
-            await sendResponse(req, res, handleInternalServerErrorResponse())
+            await sendResponse(req, res, new Response(null, { status: 500 }))
 
             return null
           }
@@ -2589,7 +2593,7 @@ export default abstract class Server<
         ) {
           // An OPTIONS request to a page handler is invalid.
           if (req.method === 'OPTIONS' && !is404Page) {
-            await sendResponse(req, res, handleBadRequestResponse())
+            await sendResponse(req, res, new Response(null, { status: 400 }))
             return null
           }
 
@@ -3030,7 +3034,8 @@ export default abstract class Server<
           if (
             !cache &&
             !isPrefetchRSCRequest &&
-            routeModule?.definition.kind === RouteKind.APP_PAGE
+            routeModule?.definition.kind === RouteKind.APP_PAGE &&
+            !isServerAction
           ) {
             req.headers[RSC_HEADER] = '1'
             req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
@@ -3567,7 +3572,7 @@ export default abstract class Server<
       shouldEnsure: false,
     })
     if (result) {
-      getTracer().getRootSpanAttributes()?.set('next.route', pathname)
+      getTracer().setRootSpanAttribute('next.route', pathname)
       try {
         return await this.renderToResponseWithComponents(ctx, result)
       } catch (err) {

@@ -27,6 +27,10 @@ class FakeAsyncLocalStorage<Store extends {}>
   enterWith(): void {
     throw sharedAsyncLocalStorageNotAvailableError
   }
+
+  static bind<T>(fn: T): T {
+    return fn
+  }
 }
 
 const maybeGlobalAsyncLocalStorage =
@@ -39,6 +43,13 @@ export function createAsyncLocalStorage<
     return new maybeGlobalAsyncLocalStorage()
   }
   return new FakeAsyncLocalStorage()
+}
+
+export function bindSnapshot<T>(fn: T): T {
+  if (maybeGlobalAsyncLocalStorage) {
+    return maybeGlobalAsyncLocalStorage.bind(fn)
+  }
+  return FakeAsyncLocalStorage.bind(fn)
 }
 
 export function createSnapshot(): <R, TArgs extends any[]>(

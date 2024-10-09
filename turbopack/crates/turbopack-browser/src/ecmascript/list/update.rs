@@ -39,7 +39,7 @@ enum ChunkUpdate {
     Deleted,
 }
 
-impl<'a> ChunkListUpdate<'a> {
+impl ChunkListUpdate<'_> {
     /// Returns `true` if this update is empty.
     fn is_empty(&self) -> bool {
         let ChunkListUpdate { chunks, merged } = self;

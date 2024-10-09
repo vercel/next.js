@@ -111,25 +111,19 @@ export { a as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 a = ()=>{};
 
 ```
 ## Part 2
 ```js
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 console.log(a);
 
@@ -175,25 +169,19 @@ export { a as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 a = ()=>{};
 
 ```
 ## Part 2
 ```js
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 console.log(a);
 

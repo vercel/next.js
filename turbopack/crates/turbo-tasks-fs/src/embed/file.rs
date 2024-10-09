@@ -23,7 +23,7 @@ pub async fn content_from_relative_path(
         root_path.to_string_lossy().into(),
         vec![],
     );
-    disk_fs.await?.start_watching()?;
+    disk_fs.await?.start_watching(None)?;
 
     let fs_path = disk_fs.root().join(path.into());
     Ok(fs_path.read())

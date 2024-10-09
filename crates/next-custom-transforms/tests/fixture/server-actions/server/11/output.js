@@ -5,4 +5,4 @@ import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     $$RSC_SERVER_ACTION_0
 ]);
-registerServerReference("c18c215a6b7cdc64bf709f3a714ffdef1bf9651d", $$RSC_SERVER_ACTION_0);
+registerServerReference($$RSC_SERVER_ACTION_0, "c18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null);

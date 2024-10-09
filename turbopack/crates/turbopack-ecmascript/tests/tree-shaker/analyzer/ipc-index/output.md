@@ -2077,17 +2077,11 @@ export { getProperError as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
 import { b as parseStackTrace } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+    __turbopack_part__: -1
 };
 import { c as getProperError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -2
 };
 function structuredError(e) {
     e = getProperError(e);
@@ -2104,17 +2098,11 @@ export { structuredError as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import { d as structuredError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: -3
 };
 import { a as createConnection } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 function createIpc(port) {
     const socket = createConnection(port, "127.0.0.1");
@@ -2249,11 +2237,8 @@ export { createIpc as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import { d as structuredError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: -3
 };
 export { structuredError };
 
@@ -2313,11 +2298,11 @@ export { PORT as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 10
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+import { e as createIpc } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+import { f as PORT } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -9
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2339,12 +2324,6 @@ import "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
-};
-import { e as createIpc } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { f as PORT } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
 };
 const IPC = createIpc(parseInt(PORT, 10));
 export { IPC as g } from "__TURBOPACK_VAR__" assert {
@@ -2354,8 +2333,8 @@ export { IPC as g } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+import { g as IPC } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -10
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2381,9 +2360,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { g as IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
-};
 process.on("uncaughtException", (err)=>{
     IPC.sendError(err);
 });
@@ -2391,14 +2367,11 @@ process.on("uncaughtException", (err)=>{
 ```
 ## Part 12
 ```js
+import { g as IPC } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -10
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
-};
-import { g as IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
 };
 export { IPC };
 
@@ -2456,8 +2429,8 @@ export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 14
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2489,16 +2462,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("error", "stderr", true);
 
 ```
 ## Part 15
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2533,16 +2503,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("warn", "stderr", true);
 
 ```
 ## Part 16
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2580,16 +2547,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("count", "stdout", true);
 
 ```
 ## Part 17
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2630,16 +2594,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("trace", "stderr", false);
 
 ```
 ## Part 18
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2683,16 +2644,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("log", "stdout", true);
 
 ```
 ## Part 19
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2739,16 +2697,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("group", "stdout", true);
 
 ```
 ## Part 20
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2798,16 +2753,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("groupCollapsed", "stdout", true);
 
 ```
 ## Part 21
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2860,16 +2812,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("table", "stdout", true);
 
 ```
 ## Part 22
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2925,16 +2874,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("debug", "stdout", true);
 
 ```
 ## Part 23
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -2993,16 +2939,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("info", "stdout", true);
 
 ```
 ## Part 24
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -3064,16 +3007,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("dir", "stdout", true);
 
 ```
 ## Part 25
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -3138,16 +3078,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("dirxml", "stdout", true);
 
 ```
 ## Part 26
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -3215,16 +3152,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("timeEnd", "stdout", true);
 
 ```
 ## Part 27
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -3295,16 +3229,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("timeLog", "stdout", true);
 
 ```
 ## Part 28
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -3378,16 +3309,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("timeStamp", "stdout", true);
 
 ```
 ## Part 29
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -3463,9 +3391,6 @@ import "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
-};
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
 };
 improveConsole("assert", "stderr", true);
 
@@ -3671,17 +3596,11 @@ export { getProperError as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
 import { b as parseStackTrace } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+    __turbopack_part__: -1
 };
 import { c as getProperError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: -2
 };
 function structuredError(e) {
     e = getProperError(e);
@@ -3698,28 +3617,19 @@ export { structuredError as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import { d as structuredError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: -3
 };
 export { structuredError };
 
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { d as structuredError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
+    __turbopack_part__: -3
 };
 import { a as createConnection } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 function createIpc(port) {
     const socket = createConnection(port, "127.0.0.1");
@@ -3895,11 +3805,11 @@ export { PORT as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 10
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+import { e as createIpc } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -5
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
+import { f as PORT } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -9
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -3909,12 +3819,6 @@ import "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
-};
-import { e as createIpc } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-import { f as PORT } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
 };
 const IPC = createIpc(parseInt(PORT, 10));
 export { IPC as g } from "__TURBOPACK_VAR__" assert {
@@ -3924,8 +3828,8 @@ export { IPC as g } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+import { g as IPC } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -10
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -3939,9 +3843,6 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
-import { g as IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
-};
 process.on("uncaughtException", (err)=>{
     IPC.sendError(err);
 });
@@ -3949,14 +3850,11 @@ process.on("uncaughtException", (err)=>{
 ```
 ## Part 12
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+import { g as IPC } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -10
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
-};
-import { g as IPC } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
 };
 export { IPC };
 
@@ -4002,8 +3900,8 @@ export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 14
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4023,16 +3921,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("error", "stderr", true);
 
 ```
 ## Part 15
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4055,16 +3950,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 14
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("warn", "stderr", true);
 
 ```
 ## Part 16
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4090,16 +3982,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("count", "stdout", true);
 
 ```
 ## Part 17
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4128,16 +4017,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 16
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("trace", "stderr", false);
 
 ```
 ## Part 18
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4169,16 +4055,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("log", "stdout", true);
 
 ```
 ## Part 19
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4213,16 +4096,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 18
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("group", "stdout", true);
 
 ```
 ## Part 20
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4260,16 +4140,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 19
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("groupCollapsed", "stdout", true);
 
 ```
 ## Part 21
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4310,16 +4187,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 20
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("table", "stdout", true);
 
 ```
 ## Part 22
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4363,16 +4237,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 21
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("debug", "stdout", true);
 
 ```
 ## Part 23
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4419,16 +4290,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 22
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("info", "stdout", true);
 
 ```
 ## Part 24
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4478,16 +4346,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 23
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("dir", "stdout", true);
 
 ```
 ## Part 25
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4540,16 +4405,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 24
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("dirxml", "stdout", true);
 
 ```
 ## Part 26
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4605,16 +4467,13 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 25
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("timeEnd", "stdout", true);
 
 ```
 ## Part 27
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
@@ -4673,14 +4532,14 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 26
 };
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("timeLog", "stdout", true);
 
 ```
 ## Part 28
 ```js
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -4741,17 +4600,14 @@ import "__TURBOPACK_PART__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 16
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 improveConsole("timeStamp", "stdout", true);
 
 ```
 ## Part 29
 ```js
+import { h as improveConsole } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 28
 };
@@ -4814,12 +4670,6 @@ import "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import { h as improveConsole } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
 };
 improveConsole("assert", "stderr", true);
 

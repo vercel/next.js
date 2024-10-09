@@ -150,7 +150,7 @@ pub async fn resolve_node_pre_gyp_files(
                         {
                             sources.insert(
                                 format!("{native_binding_path}/{key}").into(),
-                                Vc::upcast(FileSource::new(dylib)),
+                                Vc::upcast(FileSource::new(*dylib)),
                             );
                         }
                     }
@@ -179,17 +179,17 @@ pub async fn resolve_node_pre_gyp_files(
                         DirectoryEntry::File(dylib) => {
                             sources.insert(
                                 format!("deps/lib/{key}").into(),
-                                Vc::upcast(FileSource::new(dylib)),
+                                Vc::upcast(FileSource::new(*dylib)),
                             );
                         }
                         DirectoryEntry::Symlink(dylib) => {
                             let realpath_with_links = dylib.realpath_with_links().await?;
                             for &symlink in realpath_with_links.symlinks.iter() {
-                                affecting_paths.push(symlink);
+                                affecting_paths.push(*symlink);
                             }
                             sources.insert(
                                 format!("deps/lib/{key}").into(),
-                                Vc::upcast(FileSource::new(realpath_with_links.path)),
+                                Vc::upcast(FileSource::new(*realpath_with_links.path)),
                             );
                         }
                         _ => {}

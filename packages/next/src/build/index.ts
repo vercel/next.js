@@ -131,7 +131,7 @@ import {
   // getSupportedBrowsers,
 } from './utils'
 import type { PageInfo, PageInfos, PrerenderedRoute } from './utils'
-import type { AppSegmentConfig } from './app-segments/app-segment-config'
+import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -462,7 +462,12 @@ async function writeClientSsgManifest(
 
 interface FunctionsConfigManifest {
   version: number
-  functions: Record<string, Record<string, string | number>>
+  functions: Record<
+    string,
+    {
+      maxDuration?: number | undefined
+    }
+  >
 }
 
 async function writeFunctionsConfigManifest(
@@ -501,6 +506,8 @@ async function writeImagesManifest(
   const images = { ...config.images }
   const { deviceSizes, imageSizes } = images
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+
+  // By default, remotePatterns will allow no remote images ([])
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
     // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol,
@@ -509,6 +516,15 @@ async function writeImagesManifest(
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
     search: p.search,
   }))
+
+  // By default, localPatterns will allow all local images (undefined)
+  if (config?.images?.localPatterns) {
+    images.localPatterns = config.images.localPatterns.map((p) => ({
+      // Modifying the manifest should also modify matchLocalPattern()
+      pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+      search: p.search,
+    }))
+  }
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
     version: 1,
@@ -1368,9 +1384,12 @@ export default async function build(
               config.experimental?.turbo?.root ||
               config.outputFileTracingRoot ||
               dir,
+            distDir,
             nextConfig: config,
             jsConfig: await getTurbopackJsConfig(dir, config),
-            watch: false,
+            watch: {
+              enable: false,
+            },
             dev,
             env: process.env as Record<string, string>,
             defineEnv: createDefineEnv({
@@ -1390,6 +1409,7 @@ export default async function build(
             browserslistQuery: supportedBrowsers.join(', '),
           },
           {
+            persistentCaching: config.experimental.turbo?.persistentCaching,
             memoryLimit: config.experimental.turbo?.memoryLimit,
           }
         )
@@ -1473,7 +1493,15 @@ export default async function build(
           'Building'
         )
         const promises: Promise<any>[] = []
-        const sema = new Sema(10)
+
+        // Concurrency will start at INITIAL_CONCURRENCY and
+        // slowly ramp up to CONCURRENCY by increasing the
+        // concurrency by 1 every time a task is completed.
+        const INITIAL_CONCURRENCY = 5
+        const CONCURRENCY = 10
+
+        const sema = new Sema(INITIAL_CONCURRENCY)
+        let remainingRampup = CONCURRENCY - INITIAL_CONCURRENCY
         const enqueue = (fn: () => Promise<void>) => {
           promises.push(
             (async () => {
@@ -1482,6 +1510,10 @@ export default async function build(
                 await fn()
               } finally {
                 sema.release()
+                if (remainingRampup > 0) {
+                  remainingRampup--
+                  sema.release()
+                }
                 progress()
               }
             })()
@@ -2067,9 +2099,15 @@ export default async function build(
                     })
                   : undefined
 
-                if (staticInfo?.extraConfig) {
-                  functionsConfigManifest.functions[page] =
-                    staticInfo.extraConfig
+                // If there's any thing that would contribute to the functions
+                // configuration, we need to add it to the manifest.
+                if (
+                  typeof staticInfo?.runtime !== 'undefined' ||
+                  typeof staticInfo?.maxDuration !== 'undefined'
+                ) {
+                  functionsConfigManifest.functions[page] = {
+                    maxDuration: staticInfo?.maxDuration,
+                  }
                 }
 
                 const pageRuntime = middlewareManifest.functions[

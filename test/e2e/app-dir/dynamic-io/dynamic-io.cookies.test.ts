@@ -14,7 +14,7 @@ describe('dynamic-io', () => {
 
   if (WITH_PPR) {
     it('should partially prerender pages that use async cookies', async () => {
-      let $ = await next.render$('/cookies/static-behavior/async_boundary', {})
+      let $ = await next.render$('/cookies/static-behavior/async', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -24,45 +24,23 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at buildtime')
         expect($('#x-sentinel').text()).toBe('hello')
       }
-
-      $ = await next.render$('/cookies/static-behavior/async_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
     })
 
     it('should partially prerender pages that use sync cookies', async () => {
-      let $ = await next.render$('/cookies/static-behavior/sync_boundary', {})
+      let $ = await next.render$('/cookies/static-behavior/sync', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#x-sentinel').text()).toBe('hello')
       } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/cookies/static-behavior/sync_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
+        expect($('#layout').text()).toBe('at buildtime')
+        expect($('#page').text()).toBe('at buildtime')
         expect($('#x-sentinel').text()).toBe('hello')
       }
     })
   } else {
     it('should produce dynamic pages when using async or sync cookies', async () => {
-      let $ = await next.render$('/cookies/static-behavior/sync_boundary', {})
+      let $ = await next.render$('/cookies/static-behavior/sync', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -73,29 +51,7 @@ describe('dynamic-io', () => {
         expect($('#x-sentinel').text()).toBe('hello')
       }
 
-      $ = await next.render$('/cookies/static-behavior/sync_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/cookies/static-behavior/async_boundary', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/cookies/static-behavior/async_root', {})
+      $ = await next.render$('/cookies/static-behavior/async', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -201,7 +157,7 @@ describe('dynamic-io', () => {
     )
     expect($('#for-of-x-sentinel-rand').text()).toContain('x-sentinel-rand')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain('for...of cookies()')
+      expect(cookieWarnings[i++]).toContain('cookies were iterated over')
     }
 
     // ...spread iteration
@@ -211,7 +167,7 @@ describe('dynamic-io', () => {
     )
     expect($('#spread-x-sentinel-rand').text()).toContain('x-sentinel-rand')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain('[...cookies()]')
+      expect(cookieWarnings[i++]).toContain('cookies were iterated over')
     }
 
     // cookies().size
