@@ -3,6 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('interceptors', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
 
   describe('with experimental.interceptors not set to true', () => {

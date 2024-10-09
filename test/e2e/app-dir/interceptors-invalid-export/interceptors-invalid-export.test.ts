@@ -6,6 +6,7 @@ describe('interceptors', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
+    skipDeployment: true,
   })
 
   describe('with an invalid export', () => {
