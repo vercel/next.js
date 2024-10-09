@@ -71,7 +71,7 @@ impl LmdbBackingStorage {
             .set_max_dbs(5)
             // value must be less than max 32 bit int size
             // since we compile for i686
-            .set_map_size(4 * 1024 * 1024 * 1024 - 1)
+            .set_map_size(3 * 1024 * 1024 * 1024)
             .open(path)?;
         let infra_db = env.create_db(Some("infra"), DatabaseFlags::INTEGER_KEY)?;
         let data_db = env.create_db(Some("data"), DatabaseFlags::INTEGER_KEY)?;
