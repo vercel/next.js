@@ -19,10 +19,10 @@ import {
   insertCommentOnce,
   TARGET_ROUTE_EXPORTS,
   getVariableDeclaratorId,
+  NEXTJS_ENTRY_FILES,
 } from './utils'
 
 const PAGE_PROPS = 'props'
-const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
 
 function findFunctionBody(path: ASTPath<FunctionScope>) {
   let functionBody = path.node.body
@@ -342,8 +342,8 @@ export function transformDynamicProps(
   api: API,
   filePath: string
 ) {
-  const isMatched = MATCHED_FILE_PATTERNS.test(filePath)
-  if (!isMatched) {
+  const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
+  if (!isEntryFile) {
     return null
   }
 

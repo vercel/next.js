@@ -9,6 +9,9 @@ import type {
   FunctionExpression,
 } from 'jscodeshift'
 
+export const NEXTJS_ENTRY_FILES =
+  /([\\/]|^)(page|layout|route|default)\.(t|j)sx?$/
+
 export type FunctionScope =
   | FunctionDeclaration
   | FunctionExpression
