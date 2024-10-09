@@ -343,6 +343,7 @@ export function transformDynamicProps(
   filePath: string
 ) {
   const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
+  console.log('isEntryFile', isEntryFile, filePath)
   if (!isEntryFile) {
     return null
   }
