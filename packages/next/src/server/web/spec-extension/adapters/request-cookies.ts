@@ -1,8 +1,12 @@
-import type { RequestCookies } from '../cookies'
+import { RequestCookies } from '../cookies'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
 import { workAsyncStorage } from '../../../app-render/work-async-storage.external'
+import {
+  getExpectedRequestStore,
+  type RequestStore,
+} from '../../../app-render/work-unit-async-storage.external'
 
 /**
  * @internal
@@ -139,6 +143,7 @@ export class MutableRequestCookiesAdapter {
           // headers have been set.
           case 'delete':
             return function (...args: [string] | [ResponseCookie]) {
+              ensureCookiesAreStillMutable('cookies().delete')
               modifiedCookies.add(
                 typeof args[0] === 'string' ? args[0] : args[0].name
               )
@@ -154,6 +159,7 @@ export class MutableRequestCookiesAdapter {
                 | [key: string, value: string, cookie?: Partial<ResponseCookie>]
                 | [options: ResponseCookie]
             ) {
+              ensureCookiesAreStillMutable('cookies().set')
               modifiedCookies.add(
                 typeof args[0] === 'string' ? args[0] : args[0].name
               )
@@ -169,4 +175,33 @@ export class MutableRequestCookiesAdapter {
       },
     })
   }
+}
+
+export function areCookiesMutableInCurrentPhase(requestStore: RequestStore) {
+  return requestStore.phase === 'action'
+}
+
+/** Ensure that cookies() starts throwing on mutation
+ * if we changed phases and can no longer mutate.
+ *
+ * This can happen when going:
+ *   'render' -> 'after'
+ *   'action' -> 'render'
+ * */
+function ensureCookiesAreStillMutable(callingExpression: string) {
+  const requestStore = getExpectedRequestStore(callingExpression)
+  if (!areCookiesMutableInCurrentPhase(requestStore)) {
+    // TODO: maybe we can give a more precise error message based on callingExpression?
+    throw new ReadonlyRequestCookiesError()
+  }
+}
+
+export function responseCookiesToRequestCookies(
+  responseCookies: ResponseCookies
+): RequestCookies {
+  const requestCookies = new RequestCookies(new Headers())
+  for (const cookie of responseCookies.getAll()) {
+    requestCookies.set(cookie)
+  }
+  return requestCookies
 }

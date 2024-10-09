@@ -38,7 +38,9 @@ export type RequestStore = {
   }
 
   readonly headers: ReadonlyHeaders
-  readonly cookies: ReadonlyRequestCookies
+  // This is mutable because we need to reassign it when transitioning from the action phase to the render phase.
+  // The cookie object itself is deliberately read only and thus can't be updated.
+  cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
   readonly isHmrRefresh?: boolean
