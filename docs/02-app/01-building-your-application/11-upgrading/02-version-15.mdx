@@ -178,7 +178,7 @@ const { isEnabled } = draftMode()
 type Params = { slug: string }
 
 export function generateMetadata({ params }: { params: Params }) {
-  const slug = params.slug
+  const { slug } = params
 }
 
 export default async function Layout({
@@ -188,14 +188,14 @@ export default async function Layout({
   children: React.ReactNode
   params: Params
 }) {
-  const slug = params.slug
+  const { slug } = params
 }
 
 // After
 type Params = Promise<{ slug: string }>
 
 export async function generateMetadata({ params }: { params: Params }) {
-  const slug = (await params).slug
+  const { slug } = await params
 }
 
 export default async function Layout({
@@ -205,29 +205,28 @@ export default async function Layout({
   children: React.ReactNode
   params: Params
 }) {
-  const slug = (await params).slug
+  const { slug } = await props
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
 // Before
 export function generateMetadata({ params }) {
-  const slug = params.slug
+  const { slug } = params
 }
 
-export default async function Layout({ params }) {
-  const slug = params.slug
+export default async function Layout({ children, params }) {
+  const { slug } = params
 }
 
 // After
 export async function generateMetadata({ params }) {
-  const slug = (await params).slug
+  const { slug } = await params
 }
 
-export default async function Layout({ params }) {
-  const slug = (await params).slug
+export default async function Layout({ children, params }) {
+  const { slug } = await params
 }
-
 ```
 
 #### Synchronous Layout
@@ -243,7 +242,7 @@ export default function Layout({
   children: React.ReactNode
   params: Params
 }) {
-  const slug = params.slug
+  const { slug } = params
 }
 
 // After
@@ -251,27 +250,26 @@ import { use } from 'react'
 
 type Params = Promise<{ slug: string }>
 
-export default function Layout({
-  children,
-  params,
-}: {
+export default function Layout(props: {
   children: React.ReactNode
   params: Params
 }) {
-  const slug = use(params).slug
+  const params = use(props.params)
+  const slug = params.slug
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
 // Before
-export default function Layout({ params }) {
-  const slug = params.slug
+export default function Layout({ children, params }) {
+  const { slug } = params
 }
 
 // After
 import { use } from 'react'
-export default async function Layout({ params }) {
-  const slug = use(params).slug
+export default async function Layout(props) {
+  const params = use(props.params)
+  const slug = params.slug
 }
 
 ```
@@ -290,8 +288,8 @@ export function generateMetadata({
   params: Params
   searchParams: SearchParams
 }) {
-  const slug = params.slug
-  const query = searchParams.query
+  const { slug } = params
+  const { query } = searchParams
 }
 
 export default async function Page({
@@ -301,58 +299,60 @@ export default async function Page({
   params: Params
   searchParams: SearchParams
 }) {
-  const slug = params.slug
-  const query = searchParams.query
+  const { slug } = params
+  const { query } = searchParams
 }
 
 // After
 type Params = Promise<{ slug: string }>
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
 
-export async function generateMetadata({
-  params,
-  searchParams,
-}: {
+export async function generateMetadata(props: {
   params: Params
   searchParams: SearchParams
 }) {
-  const slug = (await params).slug
-  const query = (await searchParams).query
+  const params = await props.params
+  const searchParams = await props.searchParams
+  const slug = params.slug
+  const query = searchParams.query
 }
 
-export default async function Page({
-  params,
-  searchParams,
-}: {
+export default async function Page(props: {
   params: Params
   searchParams: SearchParams
 }) {
-  const slug = (await params).slug
-  const query = (await searchParams).query
+  const params = await props.params
+  const searchParams = await props.searchParams
+  const slug = params.slug
+  const query = searchParams.query
 }
 ```
 
 ```jsx filename="app/page.js" switcher
 // Before
 export function generateMetadata({ params, searchParams }) {
-  const slug = params.slug
-  const query = searchParams.query
+  const { slug } = params
+  const { query } = searchParams
 }
 
 export default function Page({ params, searchParams }) {
+  const { slug } = params
+  const { query } = searchParams
+}
+
+// After
+export async function generateMetadata(props) {
+  const params = await props.params
+  const searchParams = await props.searchParams
   const slug = params.slug
   const query = searchParams.query
 }
 
-// After
-export async function generateMetadata({ params, searchParams }) {
-  const slug = (await params).slug
-  const query = (await searchParams).query
-}
-
-export async function Page({ params, searchParams }) {
-  const slug = (await params).slug
-  const query = (await searchParams).query
+export async function Page(props) {
+  const params = await props.params
+  const searchParams = await props.searchParams
+  const slug = params.slug
+  const query = searchParams.query
 }
 ```
 
@@ -372,8 +372,8 @@ export default function Page({
   params: Params
   searchParams: SearchParams
 }) {
-  const slug = params.slug
-  const query = searchParams.query
+  const { slug } = params
+  const { query } = searchParams
 }
 
 // After
@@ -382,31 +382,32 @@ import { use } from 'react'
 type Params = Promise<{ slug: string }>
 type SearchParams = { [key: string]: string | string[] | undefined }
 
-export default function Page({
-  params,
-  searchParams,
-}: {
+export default function Page(props: {
   params: Params
   searchParams: SearchParams
 }) {
-  const slug = use(params).slug
-  const query = use(searchParams).query
+  const params = use(props.params)
+  const searchParams = use(props.searchParams)
+  const slug = params.slug
+  const query = searchParams.query
 }
 ```
 
 ```jsx
 // Before
 export default function Page({ params, searchParams }) {
-  const slug = params.slug
-  const query = searchParams.query
+  const { slug } = params
+  const { query } = searchParams
 }
 
 // After
 import { use } from "react"
 
-export default function Page({ params, searchParams }) {
-  const slug = use(params).slug
-  const query = use(searchParams).query
+export default function Page(props) {
+  const params = use(props.params)
+  const searchParams = use(props.searchParams)
+  const slug = params.slug
+  const query = searchParams.query
 }
 
 ```
@@ -417,27 +418,31 @@ export default function Page({ params, searchParams }) {
 // Before
 type Params = { slug: string }
 
-export async function GET(request: Request, { params }: { params: Params }) {
+export async function GET(request: Request, segmentData: { params: Params }) {
+  const params = segmentData.params
   const slug = params.slug
 }
 
 // After
 type Params = Promise<{ slug: string }>
 
-export async function GET(request: Request, { params }: { params: Params }) {
-  const slug = (await params).slug
+export async function GET(request: Request, segmentData: { params: Params }) {
+  const params = await segmentData.params
+  const slug = params.slug
 }
 ```
 
 ```js filename="app/api/route.js"
 // Before
-export async function GET(request, { params }) {
+export async function GET(request, segmentData) {
+  const params = segmentData.params
   const slug = params.slug
 }
 
 // After
-export async function GET(request, { params }) {
-  const slug = (await params).slug
+export async function GET(request, segmentData) {
+  const params = await segmentData.params
+  const slug = params.slug
 }
 ```
 
