@@ -795,8 +795,11 @@ impl TurboTasksBackendInner {
     }
 
     fn get_task_description(&self, task: TaskId) -> std::string::String {
-        let task_type = self.lookup_task_type(task).expect("Task not found");
-        task_type.to_string()
+        if let Some(task_type) = self.lookup_task_type(task) {
+            task_type.to_string()
+        } else {
+            format!("{task:?} transient")
+        }
     }
 
     fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId> {
