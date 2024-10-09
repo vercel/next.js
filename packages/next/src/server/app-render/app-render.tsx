@@ -1824,6 +1824,8 @@ async function prerenderToStream(
     return res
   }
 
+  let prerenderStore: PrerenderStore | null = null
+
   try {
     if (renderOpts.experimental.dynamicIO) {
       if (renderOpts.experimental.isRoutePPREnabled) {
@@ -1847,22 +1849,23 @@ async function prerenderToStream(
         let flightController = new AbortController()
         const cacheSignal = new CacheSignal()
 
-        const prospectiveRenderPrerenderStore: PrerenderStore = {
-          type: 'prerender',
-          pathname: ctx.requestStore.url.pathname,
-          renderSignal: flightController.signal,
-          cacheSignal,
-          // During the prospective render we don't want to synchronously abort on dynamic access
-          // because it could prevent us from discovering all caches in siblings. So we omit the controller
-          // from the prerender store this time.
-          controller: null,
-          // With PPR during Prerender we don't need to track individual dynamic reasons
-          // because we will always do a final render after caches have filled and we
-          // will track it again there
-          dynamicTracking: null,
-          revalidate: INFINITE_CACHE,
-          tags: null,
-        }
+        const prospectiveRenderPrerenderStore: PrerenderStore =
+          (prerenderStore = {
+            type: 'prerender',
+            pathname: ctx.requestStore.url.pathname,
+            renderSignal: flightController.signal,
+            cacheSignal,
+            // During the prospective render we don't want to synchronously abort on dynamic access
+            // because it could prevent us from discovering all caches in siblings. So we omit the controller
+            // from the prerender store this time.
+            controller: null,
+            // With PPR during Prerender we don't need to track individual dynamic reasons
+            // because we will always do a final render after caches have filled and we
+            // will track it again there
+            dynamicTracking: null,
+            revalidate: INFINITE_CACHE,
+            tags: null,
+          })
         // This cycle is a bit unfortunate.
         prospectiveRenderPrerenderStore.tags = getImplicitTags(
           workStore,
@@ -1945,7 +1948,7 @@ async function prerenderToStream(
           renderOpts.isDebugDynamicAccesses
         )
 
-        const finalRenderPrerenderStore: PrerenderStore = {
+        const finalRenderPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           pathname: ctx.requestStore.url.pathname,
           renderSignal: flightController.signal,
@@ -1957,7 +1960,7 @@ async function prerenderToStream(
           dynamicTracking,
           revalidate: INFINITE_CACHE,
           tags: null,
-        }
+        })
         // This cycle is a bit unfortunate.
         finalRenderPrerenderStore.tags = getImplicitTags(
           workStore,
@@ -2225,19 +2228,20 @@ async function prerenderToStream(
         )
 
         const cacheSignal = new CacheSignal()
-        const prospectiveRenderPrerenderStore: PrerenderStore = {
-          type: 'prerender',
-          pathname: ctx.requestStore.url.pathname,
-          renderSignal: flightController.signal,
-          cacheSignal,
-          // When PPR is off we can synchronously abort the prospective render because we will
-          // always hit this path on the final render and thus we can skip the final render and just
-          // consider the route dynamic.
-          controller: flightController,
-          dynamicTracking,
-          revalidate: INFINITE_CACHE,
-          tags: null,
-        }
+        const prospectiveRenderPrerenderStore: PrerenderStore =
+          (prerenderStore = {
+            type: 'prerender',
+            pathname: ctx.requestStore.url.pathname,
+            renderSignal: flightController.signal,
+            cacheSignal,
+            // When PPR is off we can synchronously abort the prospective render because we will
+            // always hit this path on the final render and thus we can skip the final render and just
+            // consider the route dynamic.
+            controller: flightController,
+            dynamicTracking,
+            revalidate: INFINITE_CACHE,
+            tags: null,
+          })
         // This cycle is a bit unfortunate.
         prospectiveRenderPrerenderStore.tags = getImplicitTags(
           workStore,
@@ -2312,7 +2316,7 @@ async function prerenderToStream(
         reactServerIsSynchronouslyDynamic = false
         let SSRIsDynamic = false
 
-        const finalRenderPrerenderStore: PrerenderStore = {
+        const finalRenderPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           pathname: ctx.requestStore.url.pathname,
           renderSignal: flightController.signal,
@@ -2322,7 +2326,7 @@ async function prerenderToStream(
           dynamicTracking,
           revalidate: INFINITE_CACHE,
           tags: null,
-        }
+        })
         // This cycle is a bit unfortunate.
         finalRenderPrerenderStore.tags = getImplicitTags(
           workStore,
@@ -2519,13 +2523,13 @@ async function prerenderToStream(
       let dynamicTracking = createDynamicTrackingState(
         renderOpts.isDebugDynamicAccesses
       )
-      const reactServerPrerenderStore: PrerenderStore = {
+      const reactServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-ppr',
         pathname: ctx.requestStore.url.pathname,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
         tags: null,
-      }
+      })
       // This cycle is a bit unfortunate.
       reactServerPrerenderStore.tags = getImplicitTags(
         workStore,
@@ -2721,12 +2725,12 @@ async function prerenderToStream(
         }
       }
     } else {
-      const prerenderLegacyStore: PrerenderStore = {
+      const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-legacy',
         pathname: ctx.requestStore.url.pathname,
         revalidate: INFINITE_CACHE,
         tags: null,
-      }
+      })
       // This cycle is a bit unfortunate.
       prerenderLegacyStore.tags = getImplicitTags(
         workStore,
@@ -2883,12 +2887,12 @@ async function prerenderToStream(
       '/_not-found/page'
     )
 
-    const prerenderLegacyStore: PrerenderStore = {
+    const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
       type: 'prerender-legacy',
       pathname: ctx.requestStore.url.pathname,
       revalidate: INFINITE_CACHE,
       tags: null,
-    }
+    })
     // This cycle is a bit unfortunate.
     prerenderLegacyStore.tags = getImplicitTags(workStore, prerenderLegacyStore)
 
@@ -2962,9 +2966,9 @@ async function prerenderToStream(
           validateRootLayout,
         }),
         dynamicTracking: null,
-        // TODO: What should error state have as revalidate?
-        collectedRevalidate: 0,
-        collectedTags: null,
+        collectedRevalidate:
+          prerenderStore !== null ? prerenderStore.revalidate : INFINITE_CACHE,
+        collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
       }
     } catch (finalErr: any) {
       if (process.env.NODE_ENV === 'development' && isNotFoundError(finalErr)) {
