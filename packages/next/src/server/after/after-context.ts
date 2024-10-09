@@ -61,9 +61,12 @@ export class AfterContext {
     }
 
     const workUnitStore = workUnitAsyncStorage.getStore()
-    if (workUnitStore) {
-      this.workUnitStores.add(workUnitStore)
+    if (!workUnitStore) {
+      throw new InvariantError(
+        'Missing workUnitStore in AfterContext.addCallback'
+      )
     }
+    this.workUnitStores.add(workUnitStore)
 
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
@@ -104,6 +107,9 @@ export class AfterContext {
     }
 
     const workStore = workAsyncStorage.getStore()
+    if (!workStore) {
+      throw new InvariantError('Missing workStore in AfterContext.runCallbacks')
+    }
 
     return withExecuteRevalidates(workStore, () => {
       this.callbackQueue.start()
