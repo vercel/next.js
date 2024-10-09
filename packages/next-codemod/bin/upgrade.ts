@@ -21,10 +21,9 @@ async function loadHighestNPMVersionMatching(query: string) {
   )
   const versionOrVersions = JSON.parse(versionsJSON)
   if (versionOrVersions.length < 1) {
-    console.error(
-      `${pc.red('⨯')} Found no React versions matching "${query}". This is a bug in the upgrade tool.`
+    throw new Error(
+      `Found no React versions matching "${query}". This is a bug in the upgrade tool.`
     )
-    process.exit(1)
   }
   // npm-view returns an array if there are multiple versions matching the query.
   if (Array.isArray(versionOrVersions)) {
@@ -57,15 +56,23 @@ export async function runUpgrade(
     'version' in targetNextPackageJson &&
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
-    console.error(
-      `${pc.red('⨯')} Invalid revision provided: "${revision}". Please provide a valid Next.js version or dist-tag (e.g. "latest", "canary", "rc", or "15.0.0").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
+    throw new Error(
+      `${pc.yellow(`next@${revision}`)} does not exist. Make sure you entered a valid Next.js version or dist-tag. Check available versions at ${pc.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
     )
-    process.exit(1)
   }
 
   const installedNextVersion = getInstalledNextVersion()
 
+  console.log(`Current Next.js version: v${installedNextVersion}`)
+
   const targetNextVersion = targetNextPackageJson.version
+
+  if (compareVersions(installedNextVersion, targetNextVersion) >= 0) {
+    console.log(
+      `${pc.green('✓')} Current Next.js version is already on or higher than the target version "v${targetNextVersion}".`
+    )
+    return
+  }
 
   // We're resolving a specific version here to avoid including "ugly" version queries
   // in the manifest.
@@ -127,6 +134,12 @@ export async function runUpgrade(
     await runTransform(codemod, process.cwd(), { force: true })
   }
 
+  // Release https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
+  // PR https://github.com/vercel/next.js/pull/65058
+  if (compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0) {
+    await suggestReactCodemods(packageManager)
+  }
+
   console.log(
     `\n${pc.green('✔')} Your Next.js project has been upgraded successfully. ${pc.bold('Time to ship! 🚢')}`
   )
@@ -140,11 +153,12 @@ function getInstalledNextVersion(): string {
       })
     ).version
   } catch (error) {
-    console.error(
-      // TODO: Better monorepo handling
-      `${pc.red('⨯')} Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`
+    throw new Error(
+      `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      {
+        cause: error,
+      }
     )
-    process.exit(1)
   }
 }
 
@@ -250,4 +264,32 @@ async function suggestCodemods(
   )
 
   return codemods
+}
+
+async function suggestReactCodemods(packageManager: PackageManager) {
+  const { runReactCodemod } = await prompts(
+    {
+      type: 'toggle',
+      name: 'runReactCodemod',
+      message: 'Do you want to run the React codemod?',
+      initial: true,
+      active: 'Yes',
+      inactive: 'No',
+    },
+    { onCancel }
+  )
+
+  if (runReactCodemod) {
+    const commandMap = {
+      yarn: 'yarn dlx',
+      pnpm: 'pnpx',
+      bun: 'bunx',
+      npm: 'npx',
+    }
+    const command = commandMap[packageManager] || 'npx'
+
+    execSync(`${command} codemod@latest react/19/migration-recipe`, {
+      stdio: 'inherit',
+    })
+  }
 }
