@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { SizeLimit } from '../../types'
-import type { RequestStore } from '../../client/components/work-unit-async-storage.external'
+import type { RequestStore } from '../../server/app-render/work-unit-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'

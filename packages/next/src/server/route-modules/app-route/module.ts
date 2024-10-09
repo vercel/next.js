@@ -45,7 +45,7 @@ import {
   workUnitAsyncStorage,
   type WorkUnitStore,
   type PrerenderStore,
-} from '../../../client/components/work-unit-async-storage.external'
+} from '../../app-render/work-unit-async-storage.external'
 import {
   actionAsyncStorage,
   type ActionStore,

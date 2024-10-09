@@ -8,14 +8,14 @@ import { workAsyncStorage } from '../../client/components/work-async-storage.ext
 import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
-} from '../../client/components/work-unit-async-storage.external'
+} from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   abortAndThrowOnSynchronousDynamicDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../../server/app-render/dynamic-rendering'
-import { getExpectedRequestStore } from '../../client/components/work-unit-async-storage.external'
+import { getExpectedRequestStore } from '../../server/app-render/work-unit-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeResolvedReactPromise } from './utils'

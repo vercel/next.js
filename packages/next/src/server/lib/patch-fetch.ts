@@ -19,7 +19,7 @@ import type {
   WorkUnitAsyncStorage,
   WorkUnitStore,
   RequestStore,
-} from '../../client/components/work-unit-async-storage.external'
+} from '../../server/app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,

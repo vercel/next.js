@@ -13,7 +13,7 @@ import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
 import { withRequestStore } from '../async-storage/with-request-store'
-import { workUnitAsyncStorage } from '../../client/components/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../../server/app-render/work-unit-async-storage.external'
 import {
   withWorkStore,
   type WorkStoreContext,
