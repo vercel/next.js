@@ -181,14 +181,8 @@ function commentOnMatchedReExports(
   j: API['jscodeshift']
 ) {
   let modified = false
-  root
-    .find(j.ExportNamedDeclaration)
-    .filter(
-      (path) =>
-        j.ExportSpecifier.check(path.value.specifiers[0]) &&
-        j.Literal.check(path.value.source)
-    )
-    .forEach((path) => {
+  root.find(j.ExportNamedDeclaration).forEach((path) => {
+    if (j.ExportSpecifier.check(path.value.specifiers[0])) {
       const specifiers = path.value.specifiers
       for (const specifier of specifiers) {
         if (
@@ -197,15 +191,52 @@ function commentOnMatchedReExports(
           (TARGET_NAMED_EXPORTS.has(specifier.exported.name) ||
             specifier.exported.name === 'default')
         ) {
-          insertCommentOnce(
-            specifier,
-            j,
-            ` Next.js Dynamic Async API Codemod: \`${specifier.exported.name}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
-          )
-          modified = true
+          if (j.Literal.check(path.value.source)) {
+            const localName = specifier.local.name
+            insertCommentOnce(
+              specifier,
+              j,
+              ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+            )
+            modified = true
+          } else if (path.value.source === null) {
+            const localIdentifier = specifier.local
+            const localName = localIdentifier.name
+            // search if local identifier is from imports
+            const importDeclaration = root
+              .find(j.ImportDeclaration)
+              .filter((importPath) => {
+                return importPath.value.specifiers.some(
+                  (importSpecifier) => importSpecifier.local.name === localName
+                )
+              })
+            if (importDeclaration.size() > 0) {
+              insertCommentOnce(
+                specifier,
+                j,
+                ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+              )
+              modified = true
+            }
+          }
         }
       }
-    })
+      // if (j.Literal.check(path.value.source)) {
+
+      // } else if (path.value.source === null) {
+      //   for (const specifier of specifiers) {
+      //     if (
+      //       j.ExportSpecifier.check(specifier) &&
+      //       // Find matched named exports and default export
+      //       (TARGET_NAMED_EXPORTS.has(specifier.exported.name) ||
+      //         specifier.exported.name === 'default')
+      //     ) {
+
+      //     }
+      //   }
+      // }
+    }
+  })
   return modified
 }
 
