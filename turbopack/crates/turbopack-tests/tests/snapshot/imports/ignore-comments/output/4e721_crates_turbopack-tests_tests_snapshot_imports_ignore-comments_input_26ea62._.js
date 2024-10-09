@@ -29,7 +29,6 @@ const __TURBOPACK__import$2e$meta__ = {
         return `file://${__turbopack_resolve_absolute_path__("turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js")}`;
     }
 };
-"__TURBOPACK__ecmascript__hoisting__location__";
 __turbopack_require__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)")(__turbopack_import__).then(console.log);
 __turbopack_require__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.mjs [test] (ecmascript, async loader)")(__turbopack_import__).then(console.log);
 console.log(__turbopack_require__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)"));

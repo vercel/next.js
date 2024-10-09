@@ -9,6 +9,9 @@ import type {
   FunctionExpression,
 } from 'jscodeshift'
 
+export const NEXTJS_ENTRY_FILES =
+  /([\\/]|^)(page|layout|route|default)\.(t|j)sx?$/
+
 export type FunctionScope =
   | FunctionDeclaration
   | FunctionExpression
@@ -427,16 +430,17 @@ export function insertCommentOnce(
   node: ASTPath<any>['node'],
   j: API['j'],
   comment: string
-) {
+): boolean {
   if (node.comments) {
     const hasComment = node.comments.some(
       (commentNode) => commentNode.value === comment
     )
     if (hasComment) {
-      return
+      return false
     }
   }
   node.comments = [j.commentBlock(comment), ...(node.comments || [])]
+  return true
 }
 
 export function getVariableDeclaratorId(

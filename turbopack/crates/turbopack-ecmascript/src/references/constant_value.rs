@@ -45,9 +45,6 @@ impl CodeGenerateable for ConstantValue {
             };
         });
 
-        Ok(CodeGeneration {
-            visitors: vec![visitor],
-        }
-        .cell())
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }

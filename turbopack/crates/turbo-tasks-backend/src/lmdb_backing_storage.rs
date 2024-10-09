@@ -61,6 +61,12 @@ pub struct LmdbBackingStorage {
 impl LmdbBackingStorage {
     pub fn new(path: &Path) -> Result<Self> {
         create_dir_all(path)?;
+
+        #[cfg(target_arch = "x86")]
+        const MAP_SIZE: usize = usize::MAX;
+        #[cfg(not(target_arch = "x86"))]
+        const MAP_SIZE: usize = 40 * 1024 * 1024 * 1024;
+
         let env = Environment::new()
             .set_flags(
                 EnvironmentFlags::WRITE_MAP
@@ -69,7 +75,7 @@ impl LmdbBackingStorage {
             )
             .set_max_readers((available_parallelism().map_or(16, |v| v.get()) * 8) as u32)
             .set_max_dbs(5)
-            .set_map_size(40 * 1024 * 1024 * 1024)
+            .set_map_size(MAP_SIZE)
             .open(path)?;
         let infra_db = env.create_db(Some("infra"), DatabaseFlags::INTEGER_KEY)?;
         let data_db = env.create_db(Some("data"), DatabaseFlags::INTEGER_KEY)?;

@@ -20,14 +20,28 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   }
 }
 
-const originalGetRandomValues = webCrypto.getRandomValues
-webCrypto.getRandomValues = function getRandomValues() {
-  io('`crypto.getRandomValues()`')
-  return originalGetRandomValues.apply(webCrypto, arguments as any)
+const getRandomValuesExpression = '`crypto.getRandomValues()`'
+try {
+  const _getRandomValues = webCrypto.getRandomValues
+  webCrypto.getRandomValues = function getRandomValues() {
+    io(getRandomValuesExpression)
+    return _getRandomValues.apply(webCrypto, arguments as any)
+  }
+} catch {
+  console.error(
+    `Failed to install ${getRandomValuesExpression} extension. When using \`experimental.dynamicIO\` calling this function will not correctly trigger dynamic behavior.`
+  )
 }
 
-const _randomUUID = webCrypto.randomUUID
-webCrypto.randomUUID = function randomUUID() {
-  io('`crypto.randomUUID()`')
-  return _randomUUID.apply(webCrypto, arguments as any)
-} as typeof _randomUUID
+const randomUUIDExpression = '`crypto.randomUUID()`'
+try {
+  const _randomUUID = webCrypto.randomUUID
+  webCrypto.randomUUID = function randomUUID() {
+    io(randomUUIDExpression)
+    return _randomUUID.apply(webCrypto, arguments as any)
+  } as typeof _randomUUID
+} catch {
+  console.error(
+    `Failed to install ${getRandomValuesExpression} extension. When using \`experimental.dynamicIO\` calling this function will not correctly trigger dynamic behavior.`
+  )
+}
