@@ -174,9 +174,9 @@ const WEBPACK_LAYERS = {
     appPages: [
       // app router pages and layouts
       WEBPACK_LAYERS_NAMES.reactServerComponents,
-      WEBPACK_LAYERS_NAMES.actionBrowser,
-      WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.serverSideRendering,
+      WEBPACK_LAYERS_NAMES.appPagesBrowser,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
     ],
   },
 }
