@@ -12,7 +12,7 @@ import type {
   InitialRSCPayload,
 } from './types'
 import type { WorkStore } from '../../client/components/work-async-storage.external'
-import type { RequestStore } from '../../server/app-render/work-unit-async-storage.external'
+import type { RequestStore } from '../../client/components/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'
@@ -152,7 +152,7 @@ import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
   workUnitAsyncStorage,
   type PrerenderStore,
-} from './work-unit-async-storage.external'
+} from '../../client/components/work-unit-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 
