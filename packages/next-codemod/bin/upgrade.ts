@@ -19,14 +19,18 @@ async function loadHighestNPMVersionMatching(query: string) {
     `npm --silent view "${query}" --json --field version`,
     { encoding: 'utf-8' }
   )
-  const versions = JSON.parse(versionsJSON)
-  if (versions.length < 1) {
+  const versionOrVersions = JSON.parse(versionsJSON)
+  if (versionOrVersions.length < 1) {
     throw new Error(
       `Found no React versions matching "${query}". This is a bug in the upgrade tool.`
     )
   }
-
-  return versions[versions.length - 1]
+  // npm-view returns an array if there are multiple versions matching the query.
+  if (Array.isArray(versionOrVersions)) {
+    // The last entry will be the latest version published.
+    return versionOrVersions[versionOrVersions.length - 1]
+  }
+  return versionOrVersions
 }
 
 export async function runUpgrade(
@@ -53,34 +57,31 @@ export async function runUpgrade(
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
     throw new Error(
-      `${pc.yellow(`next@${revision}`)} does not exist. Make sure you entered a valid Next.js version or dist-tag. Check available versions at ${pc.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
+      `Invalid revision provided: "${revision}". Please provide a valid Next.js version or dist-tag (e.g. "latest", "canary", "rc", or "15.0.0").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
     )
   }
 
   const installedNextVersion = getInstalledNextVersion()
 
+  console.log(`Current Next.js version: v${installedNextVersion}`)
+
   const targetNextVersion = targetNextPackageJson.version
+
+  if (compareVersions(installedNextVersion, targetNextVersion) >= 0) {
+    console.log(
+      `${pc.green('✓')} Current Next.js version is already on or higher than the target version "v${targetNextVersion}".`
+    )
+    return
+  }
 
   // We're resolving a specific version here to avoid including "ugly" version queries
   // in the manifest.
   // E.g. in peerDependencies we could have `^18.2.0 || ^19.0.0 || 20.0.0-canary`
   // If we'd just `npm add` that, the manifest would read the same version query.
   // This is basically a `npm --save-exact react@$versionQuery` that works for every package manager.
-  const [
-    targetReactVersion,
-    targetReactTypesVersion,
-    targetReactDOMTypesVersion,
-  ] = await Promise.all([
-    loadHighestNPMVersionMatching(
-      `react@${targetNextPackageJson.peerDependencies['react']}`
-    ),
-    loadHighestNPMVersionMatching(
-      `@types/react@${targetNextPackageJson.peerDependencies['react']}`
-    ),
-    loadHighestNPMVersionMatching(
-      `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
-    ),
-  ])
+  const targetReactVersion = await loadHighestNPMVersionMatching(
+    `react@${targetNextPackageJson.peerDependencies['react']}`
+  )
 
   if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
     await suggestTurbopack(appPackageJson)
@@ -107,6 +108,15 @@ export async function runUpgrade(
     reactDependencies.push(`@types/react@npm:types-react@rc`)
     reactDependencies.push(`@types/react-dom@npm:types-react-dom@rc`)
   } else {
+    const [targetReactTypesVersion, targetReactDOMTypesVersion] =
+      await Promise.all([
+        loadHighestNPMVersionMatching(
+          `@types/react@${targetNextPackageJson.peerDependencies['react']}`
+        ),
+        loadHighestNPMVersionMatching(
+          `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
+        ),
+      ])
     reactDependencies.push(`@types/react@${targetReactTypesVersion}`)
     reactDependencies.push(`@types/react-dom@${targetReactDOMTypesVersion}`)
   }

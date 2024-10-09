@@ -1,9 +1,8 @@
 use anyhow::{anyhow, bail, Result};
-use lazy_static::lazy_static;
 use strsim::jaro;
 use swc_core::{
-    common::DUMMY_SP,
-    ecma::ast::{self, Expr, ExprStmt, Ident, Lit, ModuleItem, Program, Script, Stmt},
+    common::{BytePos, Span, DUMMY_SP},
+    ecma::ast::{Decl, Expr, ExprStmt, Ident, Stmt},
     quote,
 };
 use turbo_tasks::{RcStr, Value, ValueToString, Vc};
@@ -33,7 +32,7 @@ use crate::{
     analyzer::imports::ImportAnnotations,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor, magic_identifier,
+    magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
     tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
     utils::module_id_to_lit,
@@ -248,8 +247,6 @@ impl CodeGenerateable for EsmAssetReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let mut visitors = Vec::new();
-
         let this = &*self.await?;
         let chunking_type = self.chunking_type().await?;
         let resolved = self.resolve_reference().await?;
@@ -258,37 +255,46 @@ impl CodeGenerateable for EsmAssetReference {
         // unresolvable
         if resolved.is_unresolveable_ref() {
             let request = request_to_string(this.request).await?.to_string();
-            visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-                insert_hoisted_stmt(program, Stmt::Expr(ExprStmt {
-                        expr: Box::new(throw_module_not_found_expr(
-                          &request
-                        )),
-                        span: DUMMY_SP,
-                    }));
-            }));
-
-            return Ok(CodeGeneration { visitors }.into());
+            let stmt = Stmt::Expr(ExprStmt {
+                expr: Box::new(throw_module_not_found_expr(&request)),
+                span: DUMMY_SP,
+            });
+            return Ok(CodeGeneration::hoisted_stmt(
+                format!("throw {request}").into(),
+                stmt,
+            ));
         }
 
         // only chunked references can be imported
-        if chunking_type.is_some() {
+        let result = if chunking_type.is_some() {
             let referenced_asset = self.get_referenced_asset().await?;
             let import_externals = this.import_externals;
             if let Some(ident) = referenced_asset.get_ident().await? {
+                let span = this
+                    .issue_source
+                    .await?
+                    .to_swc_offsets()
+                    .await?
+                    .map_or(DUMMY_SP, |(start, end)| {
+                        Span::new(BytePos(start as u32), BytePos(end as u32))
+                    });
                 match &*referenced_asset {
                     ReferencedAsset::Some(asset) => {
                         let id = asset
                             .as_chunk_item(Vc::upcast(chunking_context))
                             .id()
                             .await?;
-                        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-                            let stmt = quote!(
-                                "var $name = __turbopack_import__($id);" as Stmt,
-                                name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
-                                id: Expr = module_id_to_lit(&id),
-                            );
-                            insert_hoisted_stmt(program, stmt);
-                        }));
+                        Some((
+                            ident.clone().into(),
+                            var_decl_with_span(
+                                quote!(
+                                    "var $name = __turbopack_import__($id);" as Stmt,
+                                    name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                                    id: Expr = module_id_to_lit(&id),
+                                ),
+                                span,
+                            ),
+                        ))
                     }
                     ReferencedAsset::External(request, ExternalType::EcmaScriptModule) => {
                         if !*chunking_context
@@ -303,23 +309,25 @@ impl CodeGenerateable for EsmAssetReference {
                                 request
                             );
                         }
-                        let request = request.clone();
-                        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-                            let stmt = if import_externals {
-                                quote!(
-                                    "var $name = __turbopack_external_import__($id);" as Stmt,
-                                    name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
-                                    id: Expr = Expr::Lit(request.to_string().into())
-                                )
-                            } else {
-                                quote!(
-                                    "var $name = __turbopack_external_require__($id, true);" as Stmt,
-                                    name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
-                                    id: Expr = Expr::Lit(request.to_string().into())
-                                )
-                            };
-                            insert_hoisted_stmt(program, stmt);
-                        }));
+                        Some((
+                            ident.clone().into(),
+                            var_decl_with_span(
+                                if import_externals {
+                                    quote!(
+                                        "var $name = __turbopack_external_import__($id);" as Stmt,
+                                        name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                                        id: Expr = Expr::Lit(request.clone().to_string().into())
+                                    )
+                                } else {
+                                    quote!(
+                                        "var $name = __turbopack_external_require__($id, true);" as Stmt,
+                                        name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                                        id: Expr = Expr::Lit(request.clone().to_string().into())
+                                    )
+                                },
+                                span,
+                            ),
+                        ))
                     }
                     ReferencedAsset::External(
                         request,
@@ -337,15 +345,17 @@ impl CodeGenerateable for EsmAssetReference {
                                 request
                             );
                         }
-                        let request = request.clone();
-                        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-                            let stmt = quote!(
-                                "var $name = __turbopack_external_require__($id, true);" as Stmt,
-                                name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
-                                id: Expr = Expr::Lit(request.to_string().into())
-                            );
-                            insert_hoisted_stmt(program, stmt);
-                        }));
+                        Some((
+                            ident.clone().into(),
+                            var_decl_with_span(
+                                quote!(
+                                    "var $name = __turbopack_external_require__($id, true);" as Stmt,
+                                    name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                                    id: Expr = Expr::Lit(request.clone().to_string().into())
+                                ),
+                                span,
+                            ),
+                        ))
                     }
                     #[allow(unreachable_patterns)]
                     ReferencedAsset::External(request, ty) => {
@@ -355,85 +365,29 @@ impl CodeGenerateable for EsmAssetReference {
                             request
                         )
                     }
-                    ReferencedAsset::None => {}
+                    ReferencedAsset::None => None,
                 }
+            } else {
+                None
             }
-        }
+        } else {
+            None
+        };
 
-        Ok(CodeGeneration { visitors }.into())
+        if let Some((key, stmt)) = result {
+            Ok(CodeGeneration::hoisted_stmt(key, stmt))
+        } else {
+            Ok(CodeGeneration::empty())
+        }
     }
 }
 
-lazy_static! {
-    static ref ESM_HOISTING_LOCATION: &'static str = Box::leak(Box::new(magic_identifier::mangle(
-        "ecmascript hoisting location"
-    )));
-}
-
-pub(crate) fn insert_hoisted_stmt(program: &mut Program, stmt: Stmt) {
-    match program {
-        Program::Module(ast::Module { body, .. }) => {
-            let pos = body.iter().position(|item| {
-                if let ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                    expr: box Expr::Lit(Lit::Str(s)),
-                    ..
-                })) = item
-                {
-                    &*s.value == *ESM_HOISTING_LOCATION
-                } else {
-                    false
-                }
-            });
-            if let Some(pos) = pos {
-                let has_stmt = body[0..pos].iter().any(|item| {
-                    if let ModuleItem::Stmt(item_stmt) = item {
-                        stmt == *item_stmt
-                    } else {
-                        false
-                    }
-                });
-                if !has_stmt {
-                    body.insert(pos, ModuleItem::Stmt(stmt));
-                }
-            } else {
-                body.splice(
-                    0..0,
-                    [
-                        ModuleItem::Stmt(stmt),
-                        ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                            expr: Box::new(Expr::Lit(Lit::Str((*ESM_HOISTING_LOCATION).into()))),
-                            span: DUMMY_SP,
-                        })),
-                    ],
-                );
-            }
-        }
-        Program::Script(Script { body, .. }) => {
-            let pos = body.iter().position(|item| {
-                if let Stmt::Expr(ExprStmt {
-                    expr: box Expr::Lit(Lit::Str(s)),
-                    ..
-                }) = item
-                {
-                    &*s.value == *ESM_HOISTING_LOCATION
-                } else {
-                    false
-                }
-            });
-            if let Some(pos) = pos {
-                body.insert(pos, stmt);
-            } else {
-                body.insert(
-                    0,
-                    Stmt::Expr(ExprStmt {
-                        expr: Box::new(Expr::Lit(Lit::Str((*ESM_HOISTING_LOCATION).into()))),
-                        span: DUMMY_SP,
-                    }),
-                );
-                body.insert(0, stmt);
-            }
-        }
-    }
+fn var_decl_with_span(mut decl: Stmt, span: Span) -> Stmt {
+    match &mut decl {
+        Stmt::Decl(Decl::Var(decl)) => decl.span = span,
+        _ => panic!("Expected Stmt::Decl::Var"),
+    };
+    decl
 }
 
 #[turbo_tasks::value(shared)]
