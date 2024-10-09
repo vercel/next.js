@@ -8,6 +8,13 @@ export default function Page() {
     <main>
       <ServerComponent />
       <Form action={foo} />
+      <Form
+        action={async () => {
+          'use server'
+
+          return 'result'
+        }}
+      />
       <Link href="/client">client component page</Link>
     </main>
   )
