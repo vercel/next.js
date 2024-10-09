@@ -1313,14 +1313,26 @@ impl TurboTasksBackendInner {
                 );
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
-            for collectible in iter_many!(task, AggregatedCollectible { collectible } count if collectible.collectible_type == collectible_type && count > 0 => collectible.cell)
-            {
+            for collectible in iter_many!(
+                task,
+                AggregatedCollectible {
+                    collectible
+                } count if collectible.collectible_type == collectible_type && count > 0 => {
+                    collectible.cell
+                }
+            ) {
                 *collectibles
                     .entry(RawVc::TaskCell(collectible.task, collectible.cell))
                     .or_insert(0) += 1;
             }
-            for (collectible, count) in iter_many!(task, Collectible { collectible } count if collectible.collectible_type == collectible_type => (collectible.cell, count))
-            {
+            for (collectible, count) in iter_many!(
+                task,
+                Collectible {
+                    collectible
+                } count if collectible.collectible_type == collectible_type => {
+                    (collectible.cell, count)
+                }
+            ) {
                 *collectibles
                     .entry(RawVc::TaskCell(collectible.task, collectible.cell))
                     .or_insert(0) += count;
