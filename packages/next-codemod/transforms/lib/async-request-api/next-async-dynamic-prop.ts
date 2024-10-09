@@ -22,6 +22,7 @@ import {
 } from './utils'
 
 const PAGE_PROPS = 'props'
+const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
 
 function findFunctionBody(path: ASTPath<FunctionScope>) {
   let functionBody = path.node.body
@@ -175,7 +176,38 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
-const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
+function commentOnMatchedReExports(
+  root: Collection<any>,
+  j: API['jscodeshift']
+) {
+  let modified = false
+  root
+    .find(j.ExportNamedDeclaration)
+    .filter(
+      (path) =>
+        j.ExportSpecifier.check(path.value.specifiers[0]) &&
+        j.Literal.check(path.value.source)
+    )
+    .forEach((path) => {
+      const specifiers = path.value.specifiers
+      for (const specifier of specifiers) {
+        if (
+          j.ExportSpecifier.check(specifier) &&
+          // Find matched named exports and default export
+          (TARGET_NAMED_EXPORTS.has(specifier.exported.name) ||
+            specifier.exported.name === 'default')
+        ) {
+          insertCommentOnce(
+            specifier,
+            j,
+            ` Next.js Dynamic Async API Codemod: \`${specifier.exported.name}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+          )
+          modified = true
+        }
+      }
+    })
+  return modified
+}
 
 function modifyTypes(
   paramTypeAnnotation: any,
@@ -752,6 +784,10 @@ export function transformDynamicProps(
   // Add import { use } from 'react' if needed and not already imported
   if (needsReactUseImport) {
     insertReactUseImport(root, j)
+  }
+
+  if (commentOnMatchedReExports(root, j)) {
+    modified = true
   }
 
   return modified ? root.toSource() : null
