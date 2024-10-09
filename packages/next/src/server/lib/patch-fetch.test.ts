@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
-import type { WorkUnitStore } from '../../server/app-render/work-unit-async-storage.external'
+import type { WorkUnitStore } from '../../client/components/work-unit-async-storage.external'
 import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { createPatchedFetcher } from './patch-fetch'
