@@ -158,7 +158,7 @@ impl BackingStorage for LmdbBackingStorage {
         get(self).unwrap_or_default()
     }
 
-    #[tracing::instrument(level = "trace", skip_all, fields(operations = operations.len(), task_cache_updates = task_cache_updates.len(), data_updates = data_updates.len()))]
+    #[tracing::instrument(level = "trace", skip_all, fields(operations = operations.len()))]
     fn save_snapshot(
         &self,
         session_id: SessionId,
@@ -184,15 +184,19 @@ impl BackingStorage for LmdbBackingStorage {
             // Start organizing the updates in parallel
             s.spawn(|_| {
                 let task_meta_updates = {
-                    let _span =
-                        tracing::trace_span!("organize task meta", updates = meta_updates.len())
-                            .entered();
+                    let _span = tracing::trace_span!(
+                        "organize task meta",
+                        updates = meta_updates.iter().map(|m| m.len()).sum::<usize>()
+                    )
+                    .entered();
                     organize_task_data(meta_updates)
                 };
                 let items_result = {
-                    let _span =
-                        tracing::trace_span!("restore task meta", tasks = task_meta_updates.len())
-                            .entered();
+                    let _span = tracing::trace_span!(
+                        "restore task meta",
+                        tasks = task_meta_updates.iter().map(|m| m.len()).sum::<usize>()
+                    )
+                    .entered();
                     restore_task_data(self, self.meta_db, task_meta_updates)
                 };
                 task_meta_items_result = items_result.and_then(|items| {
@@ -202,15 +206,19 @@ impl BackingStorage for LmdbBackingStorage {
             });
             s.spawn(|_| {
                 let task_data_updates = {
-                    let _span =
-                        tracing::trace_span!("organize task data", updates = data_updates.len())
-                            .entered();
+                    let _span = tracing::trace_span!(
+                        "organize task data",
+                        updates = data_updates.iter().map(|m| m.len()).sum::<usize>()
+                    )
+                    .entered();
                     organize_task_data(data_updates)
                 };
                 let items_result = {
-                    let _span =
-                        tracing::trace_span!("restore task data", tasks = task_data_updates.len())
-                            .entered();
+                    let _span = tracing::trace_span!(
+                        "restore task data",
+                        tasks = task_data_updates.iter().map(|m| m.len()).sum::<usize>()
+                    )
+                    .entered();
                     restore_task_data(self, self.data_db, task_data_updates)
                 };
                 task_data_items_result = items_result.and_then(|items| {
@@ -235,9 +243,11 @@ impl BackingStorage for LmdbBackingStorage {
                 as_u32(tx.get(self.infra_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID)))
                     .unwrap_or(1);
             {
-                let _span =
-                    tracing::trace_span!("update task cache", items = task_cache_updates.len())
-                        .entered();
+                let _span = tracing::trace_span!(
+                    "update task cache",
+                    items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
+                )
+                .entered();
                 for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
                     let task_id = *task_id;
                     let task_type_bytes = pot::to_vec(&*task_type).with_context(|| {
