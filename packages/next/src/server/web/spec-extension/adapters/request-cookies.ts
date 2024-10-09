@@ -53,6 +53,7 @@ export class RequestCookiesAdapter {
 }
 
 const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for('next.mutated.cookies')
+const SYMBOL_COOKIE_SET_UNCHECKED = Symbol.for('next.cookies.setUnchecked')
 
 export function getModifiedCookieValues(
   cookies: ResponseCookies
@@ -65,6 +66,25 @@ export function getModifiedCookieValues(
   }
 
   return modified
+}
+
+type SetCookieArgs =
+  | [key: string, value: string, cookie?: Partial<ResponseCookie>]
+  | [options: ResponseCookie]
+
+/** Allows setting mutable cookies during render.  */
+export function setMutableCookieUnchecked(
+  mutableCookies: ResponseCookies,
+  ...args: SetCookieArgs
+) {
+  const setUnchecked: ResponseCookies['set'] =
+    // @ts-expect-error
+    mutableCookies[SYMBOL_COOKIE_SET_UNCHECKED]
+  if (setUnchecked) {
+    return setUnchecked(...args)
+  } else {
+    return mutableCookies.set(...args)
+  }
 }
 
 export function appendMutableCookies(
@@ -132,12 +152,27 @@ export class MutableRequestCookiesAdapter {
       }
     }
 
+    const setUnchecked = (target: ResponseCookies, ...args: SetCookieArgs) => {
+      modifiedCookies.add(typeof args[0] === 'string' ? args[0] : args[0].name)
+      try {
+        return target.set(...args)
+      } finally {
+        updateResponseCookies()
+      }
+    }
+
     return new Proxy(responseCookies, {
       get(target, prop, receiver) {
         switch (prop) {
           // A special symbol to get the modified cookie values
           case SYMBOL_MODIFY_COOKIE_VALUES:
             return modifiedValues
+          // A special symbol to get an unchecked version of .set()
+          // that allows setting cookies during render
+          case SYMBOL_COOKIE_SET_UNCHECKED:
+            return function (...args: SetCookieArgs) {
+              setUnchecked(target, ...args)
+            }
 
           // TODO: Throw error if trying to set a cookie after the response
           // headers have been set.
@@ -154,21 +189,11 @@ export class MutableRequestCookiesAdapter {
               }
             }
           case 'set':
-            return function (
-              ...args:
-                | [key: string, value: string, cookie?: Partial<ResponseCookie>]
-                | [options: ResponseCookie]
-            ) {
+            return function (...args: SetCookieArgs) {
               ensureCookiesAreStillMutable('cookies().set')
-              modifiedCookies.add(
-                typeof args[0] === 'string' ? args[0] : args[0].name
-              )
-              try {
-                return target.set(...args)
-              } finally {
-                updateResponseCookies()
-              }
+              setUnchecked(target, ...args)
             }
+
           default:
             return ReflectAdapter.get(target, prop, receiver)
         }
