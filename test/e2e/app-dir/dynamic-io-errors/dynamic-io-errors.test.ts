@@ -366,6 +366,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/interceptors-static-route',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
