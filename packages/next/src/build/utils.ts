@@ -2274,6 +2274,12 @@ export function isWebpackBundledLayer(
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
 }
 
+export function isWebpackAppPagesLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
+}
+
 export function collectMeta({
   status,
   headers,

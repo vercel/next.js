@@ -21,7 +21,7 @@
  */
 
 import type { WorkStore } from '../../client/components/work-async-storage.external'
-import type { WorkUnitStore } from '../../server/app-render/work-unit-async-storage.external'
+import type { WorkUnitStore } from '../../client/components/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
@@ -32,7 +32,7 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
   type PrerenderStoreModern,
-} from './work-unit-async-storage.external'
+} from '../../client/components/work-unit-async-storage.external'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
