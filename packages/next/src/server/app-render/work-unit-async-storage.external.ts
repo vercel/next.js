@@ -9,9 +9,15 @@ import type { DynamicTrackingState } from './dynamic-rendering'
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorage } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { ServerComponentsHmrCache } from '../../server/response-cache'
+import type { NextRequest } from '../web/exports'
 
 export type RequestStore = {
   type: 'request'
+
+  /**
+   * The NextRequest may be provided to userland code, e.g. for interceptors.
+   */
+  readonly nextRequest: NextRequest
 
   /**
    * The URL of the request. This only specifies the pathname and the search

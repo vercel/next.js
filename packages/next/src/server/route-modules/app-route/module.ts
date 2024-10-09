@@ -76,6 +76,8 @@ import {
 } from '../../../client/components/redirect'
 import { isNotFoundError } from '../../../client/components/not-found'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
+import { callInterceptors } from '../../app-render/call-interceptors'
+import type { ModuleTuple } from '../../../build/webpack/loaders/metadata/types'
 
 export class WrappedNextRouterError {
   constructor(
@@ -151,6 +153,7 @@ export interface AppRouteRouteModuleOptions
   extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
+  readonly interceptors: ModuleTuple[]
 }
 
 /**
@@ -186,6 +189,7 @@ export class AppRouteRouteModule extends RouteModule<
 
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
+  public readonly interceptors: ModuleTuple[]
 
   private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
   private readonly hasNonStaticMethods: boolean
@@ -196,11 +200,13 @@ export class AppRouteRouteModule extends RouteModule<
     definition,
     resolvedPagePath,
     nextConfigOutput,
+    interceptors,
   }: AppRouteRouteModuleOptions) {
     super({ userland, definition })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
+    this.interceptors = interceptors
 
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
@@ -308,6 +314,12 @@ export class AppRouteRouteModule extends RouteModule<
           ? workUnitStore.pathname
           : undefined
 
+    const handleRequest = async () => {
+      await callInterceptors({ interceptors: this.interceptors, request })
+
+      return handler(request, handlerContext)
+    }
+
     let res: unknown
     try {
       if (isStaticGeneration && dynamicIOEnabled) {
@@ -348,9 +360,7 @@ export class AppRouteRouteModule extends RouteModule<
         try {
           prospectiveResult = this.workUnitAsyncStorage.run(
             prospectiveRoutePrerenderStore,
-            handler,
-            request,
-            handlerContext
+            handleRequest
           )
         } catch (err) {
           if (isPrerenderInterruptedError(err)) {
@@ -418,9 +428,7 @@ export class AppRouteRouteModule extends RouteModule<
             try {
               const result = await (this.workUnitAsyncStorage.run(
                 finalRoutePrerenderStore,
-                handler,
-                request,
-                handlerContext
+                handleRequest
               ) as Promise<Response>)
               if (responseHandled) {
                 // we already rejected in the followup task
@@ -481,12 +489,10 @@ export class AppRouteRouteModule extends RouteModule<
             type: 'prerender-legacy',
             pathname,
           },
-          handler,
-          request,
-          handlerContext
+          handleRequest
         )
       } else {
-        res = await handler(request, handlerContext)
+        res = await handleRequest()
       }
     } catch (err) {
       if (isRedirectError(err)) {
@@ -936,17 +942,7 @@ function proxyNextRequest(request: NextRequest, workStore: WorkStore) {
           return (
             target[requestCloneSymbol] ||
             (target[requestCloneSymbol] = () =>
-              new Proxy(
-                // This is vaguely unsafe but it's required since NextRequest does not implement
-                // clone. The reason we might expect this to work in this context is the Proxy will
-                // respond with static-amenable values anyway somewhat restoring the interface.
-                // @TODO we need to rethink NextRequest and NextURL because they are not sufficientlly
-                // sophisticated to adequately represent themselves in all contexts. A better approach is
-                // to probably embed the static generation logic into the class itself removing the need
-                // for any kind of proxying
-                target.clone() as NextRequest,
-                nextRequestHandlers
-              ))
+              new Proxy(target.clone(), nextRequestHandlers))
           )
         default:
           // The receiver arg is intentionally the same as the target to fix an issue with

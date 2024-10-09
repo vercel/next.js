@@ -26,6 +26,7 @@ use crate::{
         },
         AppPage, AppPath, PageSegment, PageType,
     },
+    next_config::NextConfig,
     next_import_map::get_next_package,
 };
 
@@ -51,6 +52,8 @@ pub struct AppDirModules {
     pub default: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<Vc<FileSystemPath>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interceptor: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Metadata::is_empty", default)]
     pub metadata: Metadata,
 }
@@ -67,6 +70,7 @@ impl AppDirModules {
             not_found: self.not_found,
             default: None,
             route: None,
+            interceptor: self.interceptor,
             metadata: self.metadata.clone(),
         }
     }
@@ -257,20 +261,20 @@ pub async fn find_app_dir(project_path: Vc<FileSystemPath>) -> Result<Vc<OptionA
 #[turbo_tasks::function]
 async fn get_directory_tree(
     dir: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<RcStr>>,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<DirectoryTree>> {
     let span = {
         let dir = dir.to_string().await?.to_string();
         tracing::info_span!("read app directory tree", name = dir)
     };
-    get_directory_tree_internal(dir, page_extensions)
+    get_directory_tree_internal(dir, next_config)
         .instrument(span)
         .await
 }
 
 async fn get_directory_tree_internal(
     dir: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<RcStr>>,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<DirectoryTree>> {
     let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
         // the file watcher might invalidate things in the wrong order,
@@ -282,7 +286,7 @@ async fn get_directory_tree_internal(
         }
         .cell());
     };
-    let page_extensions_value = page_extensions.await?;
+    let page_extensions_value = next_config.page_extensions().await?;
 
     let mut subdirectories = BTreeMap::new();
     let mut modules = AppDirModules::default();
@@ -312,6 +316,11 @@ async fn get_directory_tree_internal(
                             "not-found" => modules.not_found = Some(*file),
                             "default" => modules.default = Some(*file),
                             "route" => modules.route = Some(*file),
+                            "interceptor" => {
+                                if *next_config.enable_interceptors().await? {
+                                    modules.interceptor = Some(*file)
+                                }
+                            }
                             _ => {}
                         }
                     }
@@ -367,7 +376,7 @@ async fn get_directory_tree_internal(
             DirectoryEntry::Directory(dir) => {
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
-                    let result = get_directory_tree(*dir, page_extensions);
+                    let result = get_directory_tree(*dir, next_config);
                     subdirectories.insert(basename.clone(), result);
                 }
             }
@@ -499,6 +508,7 @@ pub enum Entrypoint {
         page: AppPage,
         path: ResolvedVc<FileSystemPath>,
         root_layouts: ResolvedVc<FileSystemPathVec>,
+        interceptors: ResolvedVc<FileSystemPathVec>,
     },
     AppMetadata {
         page: AppPage,
@@ -627,6 +637,7 @@ fn add_app_route(
     page: AppPage,
     path: ResolvedVc<FileSystemPath>,
     root_layouts: ResolvedVc<FileSystemPathVec>,
+    interceptors: ResolvedVc<FileSystemPathVec>,
 ) {
     let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
@@ -635,6 +646,7 @@ fn add_app_route(
                 page,
                 path,
                 root_layouts,
+                interceptors,
             });
             return;
         }
@@ -705,12 +717,13 @@ fn add_app_metadata_route(
 #[turbo_tasks::function]
 pub fn get_entrypoints(
     app_dir: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<RcStr>>,
+    next_config: Vc<NextConfig>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(
         app_dir,
-        get_directory_tree(app_dir, page_extensions),
-        get_global_metadata(app_dir, page_extensions),
+        get_directory_tree(app_dir, next_config),
+        get_global_metadata(app_dir, next_config),
+        Default::default(),
         Default::default(),
     )
 }
@@ -721,6 +734,7 @@ fn directory_tree_to_entrypoints(
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
     root_layouts: Vc<FileSystemPathVec>,
+    interceptors: Vc<FileSystemPathVec>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints_internal(
         app_dir,
@@ -729,6 +743,7 @@ fn directory_tree_to_entrypoints(
         directory_tree,
         AppPage::new(),
         root_layouts,
+        interceptors,
     )
 }
 
@@ -1059,6 +1074,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     root_layouts: ResolvedVc<FileSystemPathVec>,
+    interceptors: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
     let span = tracing::info_span!("build layout trees", name = display(&app_page));
     directory_tree_to_entrypoints_internal_untraced(
@@ -1068,6 +1084,7 @@ async fn directory_tree_to_entrypoints_internal(
         directory_tree,
         app_page,
         root_layouts,
+        interceptors,
     )
     .instrument(span)
     .await
@@ -1080,6 +1097,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
     root_layouts: ResolvedVc<FileSystemPathVec>,
+    interceptors: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
     let mut result = IndexMap::new();
 
@@ -1097,6 +1115,14 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         ResolvedVc::cell(layouts)
     } else {
         root_layouts
+    };
+
+    let interceptors = if let Some(interceptor) = modules.interceptor {
+        let mut preceding_interceptors = interceptors.await?.clone_value();
+        preceding_interceptors.push(interceptor.to_resolved().await?);
+        ResolvedVc::cell(preceding_interceptors)
+    } else {
+        interceptors
     };
 
     if modules.page.is_some() {
@@ -1130,6 +1156,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_page.complete(PageType::Route)?,
             route.to_resolved().await?,
             root_layouts,
+            interceptors,
         );
     }
 
@@ -1239,6 +1266,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 subdirectory,
                 child_app_page.clone(),
                 *root_layouts,
+                *interceptors,
             )
             .await?;
 
@@ -1303,8 +1331,16 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     ref page,
                     path,
                     root_layouts,
+                    interceptors,
                 } => {
-                    add_app_route(app_dir, &mut result, page.clone(), path, root_layouts);
+                    add_app_route(
+                        app_dir,
+                        &mut result,
+                        page.clone(),
+                        path,
+                        root_layouts,
+                        interceptors,
+                    );
                 }
                 Entrypoint::AppMetadata { ref page, metadata } => {
                     add_app_metadata_route(app_dir, &mut result, page.clone(), metadata);
@@ -1319,7 +1355,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
 #[turbo_tasks::function]
 pub async fn get_global_metadata(
     app_dir: Vc<FileSystemPath>,
-    page_extensions: Vc<Vec<RcStr>>,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<GlobalMetadata>> {
     let DirectoryContent::Entries(entries) = &*app_dir.read_dir().await? else {
         bail!("app_dir must be a directory")
@@ -1334,7 +1370,7 @@ pub async fn get_global_metadata(
         let Some(GlobalMetadataFileMatch {
             metadata_type,
             dynamic,
-        }) = match_global_metadata_file(basename, &page_extensions.await?)
+        }) = match_global_metadata_file(basename, &next_config.page_extensions().await?)
         else {
             continue;
         };

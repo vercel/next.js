@@ -1,0 +1,24 @@
+import { ReactNode } from 'react'
+import { createTimeStamp, logWithTime, setTimeout } from '../time-utils'
+import Link from 'next/link'
+
+export default async function NestedLayout({
+  children,
+}: {
+  children: ReactNode
+}) {
+  await logWithTime('NestedLayout', () => setTimeout(200))
+
+  return (
+    <main>
+      <h2 suppressHydrationWarning>Nested Layout {createTimeStamp()}</h2>
+      <Link href="/nested/foo" prefetch={false}>
+        foo
+      </Link>{' '}
+      <Link href="/nested/bar" prefetch={false}>
+        bar
+      </Link>
+      {children}
+    </main>
+  )
+}

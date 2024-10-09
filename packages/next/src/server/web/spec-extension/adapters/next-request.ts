@@ -7,6 +7,7 @@ import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
 import { isNodeNextRequest, isWebNextRequest } from '../../../base-http/helpers'
+import { stripInternalSearchParams } from '../../../internal-utils'
 
 export const ResponseAbortedName = 'ResponseAborted'
 export class ResponseAborted extends Error {
@@ -56,7 +57,7 @@ export function signalFromNodeResponse(response: Writable): AbortSignal {
 export class NextRequestAdapter {
   public static fromBaseNextRequest(
     request: BaseNextRequest,
-    signal: AbortSignal
+    signal?: AbortSignal
   ): NextRequest {
     if (
       // The type check here ensures that `req` is correctly typed, and the
@@ -79,32 +80,16 @@ export class NextRequestAdapter {
 
   public static fromNodeNextRequest(
     request: NodeNextRequest,
-    signal: AbortSignal
+    signal?: AbortSignal
   ): NextRequest {
     // HEAD and GET requests can not have a body.
     let body: BodyInit | null = null
     if (request.method !== 'GET' && request.method !== 'HEAD' && request.body) {
       // @ts-expect-error - this is handled by undici, when streams/web land use it instead
-      body = request.body
+      body = getRequestMeta(request, 'clonableBody')?.cloneBodyStream()
     }
 
-    let url: URL
-    if (request.url.startsWith('http')) {
-      url = new URL(request.url)
-    } else {
-      // Grab the full URL from the request metadata.
-      const base = getRequestMeta(request, 'initURL')
-      if (!base || !base.startsWith('http')) {
-        // Because the URL construction relies on the fact that the URL provided
-        // is absolute, we need to provide a base URL. We can't use the request
-        // URL because it's relative, so we use a dummy URL instead.
-        url = new URL(request.url, 'http://n')
-      } else {
-        url = new URL(request.url, base)
-      }
-    }
-
-    return new NextRequest(url, {
+    return new NextRequest(createUrl(request, { isEdge: false }), {
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -116,7 +101,7 @@ export class NextRequestAdapter {
 
       // body can not be passed if request was aborted
       // or we get a Request body was disturbed error
-      ...(signal.aborted
+      ...(signal?.aborted
         ? {}
         : {
             body,
@@ -131,7 +116,7 @@ export class NextRequestAdapter {
       body = request.body
     }
 
-    return new NextRequest(request.url, {
+    return new NextRequest(createUrl(request, { isEdge: true }), {
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -150,4 +135,28 @@ export class NextRequestAdapter {
           }),
     })
   }
+}
+
+function createUrl(
+  request: BaseNextRequest,
+  options: { isEdge: boolean }
+): URL {
+  let url: URL
+
+  if (request.url.startsWith('http')) {
+    url = new URL(request.url)
+  } else {
+    // Grab the full URL from the request metadata.
+    const base = getRequestMeta(request, 'initURL')
+    if (!base || !base.startsWith('http')) {
+      // Because the URL construction relies on the fact that the URL provided
+      // is absolute, we need to provide a base URL. We can't use the request
+      // URL because it's relative, so we use a dummy URL instead.
+      url = new URL(request.url, 'http://n')
+    } else {
+      url = new URL(request.url, base)
+    }
+  }
+
+  return stripInternalSearchParams(url, options)
 }

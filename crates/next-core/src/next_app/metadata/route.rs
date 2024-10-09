@@ -107,6 +107,8 @@ pub async fn get_app_metadata_route_entry(
         project_root,
         Some(segment_config),
         next_config,
+        // TODO(interceptors): Do we need to support interceptors for metadata routes?
+        Default::default(),
     )
 }
 

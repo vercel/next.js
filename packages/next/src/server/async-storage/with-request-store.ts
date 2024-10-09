@@ -7,7 +7,7 @@ import type {
 } from '../../server/app-render/work-unit-async-storage.external'
 import type { RenderOpts } from '../app-render/types'
 import type { WithStore } from './with-store'
-import type { NextRequest } from '../web/spec-extension/request'
+import { isNextRequest, type NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
 
 import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
@@ -24,6 +24,11 @@ import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import type { ServerComponentsHmrCache } from '../response-cache'
+import {
+  NextRequestAdapter,
+  signalFromNodeResponse,
+} from '../web/spec-extension/adapters/next-request'
+import { isNodeNextResponse } from '../base-http/helpers'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -129,8 +134,18 @@ export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
     draftMode?: DraftModeProvider
   } = {}
 
+  const nextRequest = isNextRequest(req)
+    ? req
+    : NextRequestAdapter.fromBaseNextRequest(
+        req,
+        res && isNodeNextResponse(res)
+          ? signalFromNodeResponse(res.destination)
+          : undefined
+      )
+
   const store: RequestStore = {
     type: 'request',
+    nextRequest,
     // Rather than just using the whole `url` here, we pull the parts we want
     // to ensure we don't use parts of the URL that we shouldn't. This also
     // lets us avoid requiring an empty string for `search` in the type.

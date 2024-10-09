@@ -18,6 +18,7 @@ pub struct BaseLoaderTreeBuilder {
     pub imports: Vec<RcStr>,
     pub module_asset_context: Vc<ModuleAssetContext>,
     pub server_component_transition: Vc<Box<dyn Transition>>,
+    project_root: Vc<FileSystemPath>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -29,6 +30,7 @@ pub enum AppDirModuleType {
     Loading,
     Template,
     NotFound,
+    Interceptor,
 }
 
 impl AppDirModuleType {
@@ -41,6 +43,7 @@ impl AppDirModuleType {
             AppDirModuleType::Loading => "loading",
             AppDirModuleType::Template => "template",
             AppDirModuleType::NotFound => "not-found",
+            AppDirModuleType::Interceptor => "interceptor",
         }
     }
 }
@@ -49,6 +52,7 @@ impl BaseLoaderTreeBuilder {
     pub fn new(
         module_asset_context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
+        project_root: Vc<FileSystemPath>,
     ) -> Self {
         BaseLoaderTreeBuilder {
             inner_assets: IndexMap::new(),
@@ -56,6 +60,7 @@ impl BaseLoaderTreeBuilder {
             imports: Vec::new(),
             module_asset_context,
             server_component_transition,
+            project_root,
         }
     }
 
@@ -105,11 +110,19 @@ impl BaseLoaderTreeBuilder {
         self.inner_assets
             .insert(format!("MODULE_{i}").into(), module);
 
-        let module_path = module.ident().path().to_string().await?;
+        let module_path = module.ident().path().await?.clone_value();
+        let module_path_str = module.ident().path().to_string().await?;
+
+        let relative_path = self
+            .project_root
+            .await?
+            .get_path_to(&module_path)
+            .unwrap_or(&module_path_str);
 
         Ok(format!(
-            "[() => {identifier}, {path}]",
-            path = StringifyJs(&module_path),
+            "[() => {identifier}, {path}, {relative_path}]",
+            path = StringifyJs(&module_path_str),
+            relative_path = StringifyJs(&relative_path),
         ))
     }
 }

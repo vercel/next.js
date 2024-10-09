@@ -548,6 +548,10 @@ export interface ExperimentalConfig {
    * unless explicitly cached.
    */
   dynamicIO?: boolean
+
+  // If enabled, interceptor.js/interceptor.ts files in the app directory will
+  // be loaded as request interceptor modules.
+  interceptors?: boolean
 }
 
 export type ExportPathMap = {
@@ -1098,6 +1102,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
+    interceptors: false,
   },
   bundlePagesRouterDependencies: false,
 }

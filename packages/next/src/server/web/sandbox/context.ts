@@ -415,7 +415,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
               ? input.url
               : String(input)
           validateURL(url)
-          super(url, init)
+          super(input, init)
           this.next = init?.next
         }
       }

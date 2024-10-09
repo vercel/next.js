@@ -33,6 +33,7 @@ import type { PageExtensions } from '../../../page-extensions-type'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../../client/components/parallel-route-default'
 import type { Compilation } from 'webpack'
 import { createAppRouteCode } from './create-app-route-code'
+import { createImportDeclarations } from './create-import-declarations'
 
 export type AppLoaderOptions = {
   name: string
@@ -48,6 +49,7 @@ export type AppLoaderOptions = {
   isDev?: true
   basePath: string
   flyingShuttle?: boolean
+  interceptors?: true
   nextConfigOutput?: NextConfig['output']
   nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
@@ -60,6 +62,7 @@ const FILE_TYPES = {
   error: 'error',
   loading: 'loading',
   'not-found': 'not-found',
+  interceptor: 'interceptor',
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
@@ -70,10 +73,7 @@ const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
 const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
 const defaultLayoutPath = 'next/dist/client/components/default-layout'
 
-type DirResolver = (pathToResolve: string) => string
-type PathResolver = (
-  pathname: string
-) => Promise<string | undefined> | string | undefined
+type PathResolver = (pathname: string) => Promise<string | undefined>
 export type MetadataResolver = (
   dir: string,
   filename: string,
@@ -106,29 +106,32 @@ async function createTreeCodeFromPath(
   pagePath: string,
   {
     page,
-    resolveDir,
+    resolveAppRoute,
     resolver,
     resolveParallelSegments,
     metadataResolver,
+    createRelativePath,
     pageExtensions,
     basePath,
     buildInfo,
     flyingShuttle,
     collectedDeclarations,
+    enableInterceptors,
   }: {
     page: string
     flyingShuttle?: boolean
     buildInfo: ReturnType<typeof getModuleBuildInfo>
-    resolveDir: DirResolver
+    resolveAppRoute: (pathname: string) => string
     resolver: PathResolver
     metadataResolver: MetadataResolver
     resolveParallelSegments: (
       pathname: string
     ) => [key: string, segment: string | string[]][]
-    loaderContext: webpack.LoaderContext<AppLoaderOptions>
+    createRelativePath: (absolutePath: string) => string
     pageExtensions: PageExtensions
     basePath: string
     collectedDeclarations: [string, string][]
+    enableInterceptors?: boolean
   }
 ): Promise<{
   treeCode: string
@@ -152,9 +155,7 @@ async function createTreeCodeFromPath(
   async function resolveAdjacentParallelSegments(
     segmentPath: string
   ): Promise<string[]> {
-    const absoluteSegmentPath = await resolveDir(
-      `${appDirPrefix}${segmentPath}`
-    )
+    const absoluteSegmentPath = resolveAppRoute(`${appDirPrefix}${segmentPath}`)
 
     if (!absoluteSegmentPath) {
       return []
@@ -209,7 +210,7 @@ async function createTreeCodeFromPath(
     // For default not-found, don't traverse the directory to find metadata.
     const resolvedRouteDir = isDefaultNotFound
       ? ''
-      : await resolveDir(routerDirPath)
+      : resolveAppRoute(routerDirPath)
 
     if (resolvedRouteDir) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
@@ -276,19 +277,21 @@ async function createTreeCodeFromPath(
       // Fill in the loader tree for all of the special files types (layout, default, etc) at this level
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
-        Object.values(FILE_TYPES).map(async (file) => {
-          return [
-            file,
-            await resolver(
-              `${appDirPrefix}${
-                // TODO-APP: parallelSegmentPath sometimes ends in `/` but sometimes it doesn't. This should be consistent.
-                parallelSegmentPath.endsWith('/')
-                  ? parallelSegmentPath
-                  : parallelSegmentPath + '/'
-              }${file}`
-            ),
-          ] as const
-        })
+        Object.values(FILE_TYPES)
+          .filter((file) => file !== 'interceptor' || enableInterceptors)
+          .map(async (file) => {
+            return [
+              file,
+              await resolver(
+                `${appDirPrefix}${
+                  // TODO-APP: parallelSegmentPath sometimes ends in `/` but sometimes it doesn't. This should be consistent.
+                  parallelSegmentPath.endsWith('/')
+                    ? parallelSegmentPath
+                    : parallelSegmentPath + '/'
+                }${file}`
+              ),
+            ] as const
+          })
       )
 
       const definedFilePaths = filePaths.filter(([, filePath]) => {
@@ -378,7 +381,9 @@ async function createTreeCodeFromPath(
           .map(([file, filePath]) => {
             const varName = `module${nestedCollectedDeclarations.length}`
             nestedCollectedDeclarations.push([varName, filePath])
-            return `'${file}': [${varName}, ${JSON.stringify(filePath)}],`
+            return `'${file}': [${varName}, ${JSON.stringify(filePath)}, ${JSON.stringify(
+              createRelativePath(filePath)
+            )}],`
           })
           .join('\n')}
         ${createMetadataExportsCode(metadata)}
@@ -478,9 +483,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     preferredRegion,
     basePath,
     flyingShuttle,
+    interceptors,
     middlewareConfig: middlewareConfigBase64,
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
+
+  // Loader options are stringified.
+  const enableInterceptors = (interceptors as 'true' | undefined) === 'true'
+  const useEarlyImport =
+    (nextConfigExperimentalUseEarlyImport as 'true' | undefined) === 'true'
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
   const collectedDeclarations: [string, string][] = []
@@ -564,13 +575,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     return Object.entries(matched)
   }
 
-  const resolveDir: DirResolver = (pathToResolve) => {
-    return createAbsolutePath(appDir, pathToResolve)
-  }
+  const resolveAppRoute = (pathToResolve: string) =>
+    createAbsolutePath(appDir, pathToResolve)
 
-  const resolveAppRoute: PathResolver = (pathToResolve) => {
-    return createAbsolutePath(appDir, pathToResolve)
-  }
+  const createRelativePath = (absolutePath: string) =>
+    path.relative(this._compiler?.context || appDir, absolutePath)
 
   // Cached checker to see if a file exists in a given directory.
   // This can be more efficient than checking them with `fs.stat` one by one
@@ -657,24 +666,29 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       page: loaderOptions.page,
       name,
       pagePath,
+      createRelativePath,
+      resolver,
       resolveAppRoute,
       pageExtensions,
       nextConfigOutput,
+      enableInterceptors,
+      useEarlyImport,
     })
   }
 
   let treeCodeResult = await createTreeCodeFromPath(pagePath, {
     page,
-    resolveDir,
+    createRelativePath,
+    resolveAppRoute,
     resolver,
     metadataResolver,
     resolveParallelSegments,
-    loaderContext: this,
     pageExtensions,
     basePath,
     collectedDeclarations,
     buildInfo,
     flyingShuttle,
+    enableInterceptors,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -702,7 +716,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
         if (rootLayoutPath) {
           message += `We tried to create ${bold(
-            path.relative(this._compiler?.context ?? '', rootLayoutPath)
+            createRelativePath(rootLayoutPath)
           )} for you but something went wrong.`
         } else {
           message +=
@@ -716,16 +730,17 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       if (this._compilation) filesInDirMapMap.get(this._compilation)?.clear()
       treeCodeResult = await createTreeCodeFromPath(pagePath, {
         page,
-        resolveDir,
+        resolveAppRoute,
         resolver,
         metadataResolver,
         resolveParallelSegments,
-        loaderContext: this,
+        createRelativePath,
         pageExtensions,
         basePath,
         collectedDeclarations,
         buildInfo,
         flyingShuttle,
+        enableInterceptors,
       })
     }
   }
@@ -749,25 +764,9 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     }
   )
 
-  const header =
-    nextConfigExperimentalUseEarlyImport &&
-    process.env.NODE_ENV === 'production'
-      ? // Evaluate the imported modules early in the generated code
-        collectedDeclarations
-          .map(([varName, modulePath]) => {
-            return `import * as ${varName}_ from ${JSON.stringify(
-              modulePath
-            )};\nconst ${varName} = () => ${varName}_;\n`
-          })
-          .join('')
-      : // Lazily evaluate the imported modules in the generated code
-        collectedDeclarations
-          .map(([varName, modulePath]) => {
-            return `const ${varName} = () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-              modulePath
-            )});\n`
-          })
-          .join('')
+  const header = createImportDeclarations(collectedDeclarations, {
+    useEarlyImport,
+  })
 
   return header + code
 }

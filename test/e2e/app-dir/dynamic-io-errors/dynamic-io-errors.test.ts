@@ -361,6 +361,52 @@ function runTests(options: { withMinification: boolean }) {
         })
       }
     })
+
+    describe('Interceptors', () => {
+      const { next, isNextDev, skipped } = nextTestSetup({
+        files: __dirname + '/fixtures/interceptors-static-route',
+        skipStart: true,
+        skipDeployment: true,
+      })
+
+      if (skipped) {
+        return
+      }
+
+      if (isNextDev) {
+        it('does not run in dev', () => {})
+        return
+      }
+
+      beforeEach(async () => {
+        if (!withMinification) {
+          await next.patchFile('next.config.js', (content) =>
+            content.replace(
+              'serverMinification: true,',
+              'serverMinification: false,'
+            )
+          )
+        }
+      })
+
+      it('should error the build if an interceptor is used without a Suspense boundary', async () => {
+        try {
+          await next.start()
+        } catch {
+          // we expect the build to fail
+        }
+        const expectError = createExpectError(next.cliOutput)
+
+        expectError(
+          'Error: Route / performed an IO operation that was not cached and no Suspense boundary was found to define a fallback UI.'
+        )
+        expectError('Error occurred prerendering page "/"')
+        expectError(
+          'Error: Route / has one or more dynamic components without a defined fallback UI.'
+        )
+        expectError('exiting the build.')
+      })
+    })
   })
 }
 

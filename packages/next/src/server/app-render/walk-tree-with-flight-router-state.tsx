@@ -21,6 +21,7 @@ import {
   addSearchParamsIfPageSegment,
 } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
+import { createInterceptor } from './create-interceptor'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -41,6 +42,7 @@ export async function walkTreeWithFlightRouterState({
   getMetadataReady,
   ctx,
   preloadCallbacks,
+  interceptors = [],
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTreeToFilter: LoaderTree
@@ -56,6 +58,7 @@ export async function walkTreeWithFlightRouterState({
   getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
+  interceptors?: (() => Promise<void>)[]
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -63,13 +66,14 @@ export async function walkTreeWithFlightRouterState({
     isPrefetch,
     getDynamicParamFromSegment,
     componentMod: { tree: loaderTree },
+    requestStore,
   } = ctx
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
 
   const parallelRoutesKeys = Object.keys(parallelRoutes)
 
-  const { layout } = modules
+  const { layout, interceptor } = modules
   const isLayout = typeof layout !== 'undefined'
 
   /**
@@ -161,6 +165,7 @@ export async function walkTreeWithFlightRouterState({
           rootLayoutIncluded,
           getMetadataReady,
           preloadCallbacks,
+          interceptors,
         }
       )
 
@@ -174,6 +179,10 @@ export async function walkTreeWithFlightRouterState({
       ]
     }
   }
+
+  const segmentInterceptor =
+    interceptor &&
+    (await createInterceptor(interceptor, requestStore.nextRequest))
 
   // If we are not rendering on this level we need to check if the current
   // segment has a layout. If so, we need to track all the used CSS to make
@@ -227,6 +236,9 @@ export async function walkTreeWithFlightRouterState({
       rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
       getMetadataReady,
       preloadCallbacks,
+      interceptors: segmentInterceptor
+        ? [...interceptors, segmentInterceptor]
+        : interceptors,
     })
 
     for (const subPath of subPaths) {

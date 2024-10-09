@@ -151,7 +151,7 @@ export async function adapter(
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeUrl, true).toString(),
+    input: stripInternalSearchParams(normalizeUrl, { isEdge: true }).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,

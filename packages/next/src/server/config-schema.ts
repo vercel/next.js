@@ -303,6 +303,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
+        interceptors: z.boolean().optional(),
         internal_disableSyncDynamicAPIWarnings: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),

@@ -53,3 +53,12 @@ export function throwWithStaticGenerationBailoutErrorWithDynamicError(
     `Route ${route} with \`dynamic = "error"\` couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
   )
 }
+
+export function throwWithStaticGenerationBailoutErrorWithDynamicForceStatic(
+  route: string,
+  expression: string
+): never {
+  throw new StaticGenBailoutError(
+    `Route ${route} with \`dynamic = "force-static"\` couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+  )
+}
