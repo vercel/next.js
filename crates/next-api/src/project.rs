@@ -1274,7 +1274,7 @@ impl Project {
             }
             None => match *self.next_mode().await? {
                 NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
-                NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
+                NextMode::Build => Ok(Vc::upcast(DevModuleIdStrategy::new())),
             },
         }
     }
