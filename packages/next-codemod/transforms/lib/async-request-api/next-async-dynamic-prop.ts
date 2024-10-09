@@ -835,7 +835,7 @@ function commentSpreadProps(
   const objSpreadProperties = functionBodyCollection.find(j.SpreadElement, {
     argument: { name: propsIdentifierName },
   })
-  const comment = ` Next.js Dynamic Async API Codemod: '${propsIdentifierName}' is spread as props. Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
+  const comment = ` Next.js Dynamic Async API Codemod: '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
 
   // Add comment before it
   jsxSpreadProperties.forEach((spread) => {
