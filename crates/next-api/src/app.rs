@@ -18,7 +18,10 @@ use next_core::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
-    next_client_reference::{client_reference_graph, NextEcmascriptClientReferenceTransition},
+    next_client_reference::{
+        client_reference_graph, find_server_entries, NextEcmascriptClientReferenceTransition,
+        ServerEntries, VisitedClientReferenceGraphNodes,
+    },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -837,8 +840,6 @@ impl AppEndpoint {
 
         let rsc_entry = app_entry.rsc_entry;
 
-        let rsc_entry_asset = Vc::upcast(rsc_entry);
-
         let client_chunking_context = this.app_project.project().client_chunking_context();
 
         let (app_server_reference_modules, client_dynamic_imports, client_references) =
@@ -865,7 +866,33 @@ impl AppEndpoint {
                 }
                 let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
-                let client_references = client_reference_graph(Vc::cell(vec![rsc_entry_asset]));
+                let client_references = {
+                    let ServerEntries {
+                        server_component_entries,
+                        server_utils,
+                    } = &*find_server_entries(rsc_entry).await?;
+
+                    let mut client_references = client_reference_graph(
+                        server_utils.clone(),
+                        VisitedClientReferenceGraphNodes::empty(),
+                    )
+                    .await?
+                    .clone_value();
+
+                    for module in server_component_entries
+                        .iter()
+                        .map(|m| Vc::upcast::<Box<dyn Module>>(*m))
+                        .chain(std::iter::once(rsc_entry))
+                    {
+                        let current_client_references =
+                            client_reference_graph(vec![module], client_references.visited_nodes)
+                                .await?;
+
+                        client_references.extend(&current_client_references);
+                    }
+                    client_references
+                };
+                let client_references_cell = client_references.clone().cell();
 
                 let ssr_chunking_context = if process_ssr {
                     Some(match runtime {
@@ -886,7 +913,6 @@ impl AppEndpoint {
                     let mut visited_modules = VisitedDynamicImportModules::empty();
 
                     for refs in client_references
-                        .await?
                         .client_references_by_server_component
                         .values()
                     {
@@ -909,7 +935,7 @@ impl AppEndpoint {
                 };
 
                 let client_references_chunks = get_app_client_references_chunks(
-                    client_references,
+                    client_references_cell,
                     client_chunking_context,
                     Value::new(client_shared_availability_info),
                     ssr_chunking_context,
@@ -1009,7 +1035,7 @@ impl AppEndpoint {
                     node_root,
                     client_relative_path,
                     app_entry.original_name.clone(),
-                    client_references,
+                    client_references_cell,
                     client_references_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
@@ -1037,7 +1063,9 @@ impl AppEndpoint {
                 }
 
                 (
-                    Some(get_app_server_reference_modules(client_references.types())),
+                    Some(get_app_server_reference_modules(
+                        client_references_cell.types(),
+                    )),
                     Some(client_dynamic_imports),
                     Some(client_references),
                 )
@@ -1274,8 +1302,7 @@ impl AppEndpoint {
                     let mut current_chunks = OutputAssets::empty();
                     let mut current_availability_info = AvailabilityInfo::Root;
                     if let Some(client_references) = client_references {
-                        let client_references = client_references.await?;
-                        let span = tracing::trace_span!("server utils",);
+                        let span = tracing::trace_span!("server utils");
                         async {
                             let utils_module = IncludeModulesModule::new(
                                 AssetIdent::from_path(this.app_project.project().project_path())
