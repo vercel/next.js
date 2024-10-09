@@ -154,7 +154,7 @@ export function generateMetadata(props: { params: { slug: string } }) {
 }
 ```
 
-> **Good to know:** When this codemod identifies a spot that might require manual intervention, but we aren't able to determine the exact fix, it will add a comment to the code to inform the user that it needs to be manually updated. These comments are prefixed with **Next.js Dynamic Async API Codemod**. Your build will error until these comments are explicitly removed.
+> **Good to know:** When this codemod identifies a spot that might require manual intervention, but we aren't able to determine the exact fix, it will add a comment or typecast to the code to inform the user that it needs to be manually updated. These comments are prefixed with **Next.js Dynamic Async API Codemod**, and typecasts are prefixed with `UnsafeUnwrapped`. Your build will error until these comments are explicitly removed.
 
 #### Replace `geo` and `ip` properties of `NextRequest` with `@vercel/functions`
 
