@@ -172,6 +172,13 @@ impl AggregatedDataUpdate {
         } = self;
         let mut result = Self::default();
         if let Some((dirty_container_id, count)) = dirty_container_update {
+            // When a dirty container count is increased and the task is considered as active
+            // `AggregateRoot` we need to schedule the dirty tasks in the new dirty container
+            if *count > 0 && task.has_key(&CachedDataItemKey::AggregateRoot {}) {
+                queue.push(AggregationUpdateJob::FindAndScheduleDirty {
+                    task_ids: vec![*dirty_container_id],
+                })
+            }
             let mut added = false;
             let mut removed = false;
             update!(
@@ -192,11 +199,6 @@ impl AggregatedDataUpdate {
             );
             let mut count_update = 0;
             if added {
-                if task.has_key(&CachedDataItemKey::AggregateRoot {}) {
-                    queue.push(AggregationUpdateJob::FindAndScheduleDirty {
-                        task_ids: vec![*dirty_container_id],
-                    })
-                }
                 count_update += 1;
             } else if removed {
                 count_update -= 1;
