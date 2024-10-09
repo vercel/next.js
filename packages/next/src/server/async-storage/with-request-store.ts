@@ -4,7 +4,7 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import type {
   RequestStore,
   WorkUnitStore,
-} from '../../server/app-render/work-unit-async-storage.external'
+} from '../../client/components/work-unit-async-storage.external'
 import type { RenderOpts } from '../app-render/types'
 import type { WithStore } from './with-store'
 import type { NextRequest } from '../web/spec-extension/request'

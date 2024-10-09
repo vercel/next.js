@@ -6,7 +6,7 @@ import { isThenable } from '../../shared/lib/is-thenable'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import { withExecuteRevalidates } from './revalidation-utils'
 import { bindSnapshot } from '../../client/components/async-local-storage'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../../client/components/work-unit-async-storage.external'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined

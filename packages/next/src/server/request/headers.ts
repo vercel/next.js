@@ -3,11 +3,11 @@ import {
   type ReadonlyHeaders,
 } from '../../server/web/spec-extension/adapters/headers'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
+import { getExpectedRequestStore } from '../../client/components/work-unit-async-storage.external'
 import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
-} from '../app-render/work-unit-async-storage.external'
+} from '../../client/components/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   abortAndThrowOnSynchronousDynamicDataAccess,
