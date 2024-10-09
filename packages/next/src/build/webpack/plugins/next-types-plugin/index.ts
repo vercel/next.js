@@ -56,6 +56,10 @@ ${
 
 type TEntry = typeof import('${relativePath}.js')
 
+type SegmentParams<T extends Object = any> = T extends Record<string, any>
+  ? { [K in keyof T]: T[K] extends string ? string | string[] | undefined : never }
+  : T
+
 // Check that the entry is a valid entry
 checkFields<Diff<{
   ${
@@ -188,9 +192,6 @@ type Diff<Base, T extends Base, Message extends string = ''> = 0 extends (1 & T)
 type FirstArg<T extends Function> = T extends (...args: [infer T, any]) => any ? unknown extends T ? any : T : never
 type SecondArg<T extends Function> = T extends (...args: [any, infer T]) => any ? unknown extends T ? any : T : never
 type MaybeField<T, K extends string> = T extends { [k in K]: infer G } ? G extends Function ? G : never : never
-type SegmentParams<T extends Object = any> = T extends Record<string, any>
-  ? { [K in keyof T]: T[K] extends string ? string | string[] | undefined : never }
-  : T
 
 ${
   options.type === 'route'
