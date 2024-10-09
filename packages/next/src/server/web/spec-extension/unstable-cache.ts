@@ -161,6 +161,7 @@ export function unstable_cache<T extends Callback>(
           workUnitStore &&
           (workUnitStore.type === 'cache' ||
             workUnitStore.type === 'prerender' ||
+            workUnitStore.type === 'prerender-ppr' ||
             workUnitStore.type === 'prerender-legacy')
         ) {
           // options.revalidate === undefined doesn't affect timing.
