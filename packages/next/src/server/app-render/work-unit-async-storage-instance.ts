@@ -1,5 +1,7 @@
 import { createAsyncLocalStorage } from '../../client/components/async-local-storage'
 import type { WorkUnitAsyncStorage } from './work-unit-async-storage.external'
 
-export const workUnitAsyncStorage: WorkUnitAsyncStorage =
-  createAsyncLocalStorage()
+export const workUnitAsyncStorage: WorkUnitAsyncStorage = (() => {
+  console.trace('creating workUnitAsyncStorage')
+  return createAsyncLocalStorage()
+})()
