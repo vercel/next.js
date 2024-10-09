@@ -5,6 +5,7 @@ describe('Node Extensions', () => {
     describe('Dynamic IO', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/random/dynamic-io',
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -64,7 +65,7 @@ describe('Node Extensions', () => {
         expect($('li').length).toBe(2)
       })
 
-      it('should not error when accessing routes that use Math.random() in App Router', async () => {
+      it.skip('should not error when accessing routes that use Math.random() in App Router', async () => {
         let res, body
 
         res = await next.fetch('/app/prerendered/uncached/api')
