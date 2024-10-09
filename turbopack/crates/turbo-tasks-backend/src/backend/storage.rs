@@ -16,6 +16,107 @@ use crate::{
     utils::dash_map_multi::{get_multiple_mut, RefMut},
 };
 
+const META_UNRESTORED: u32 = 1 << 31;
+const DATA_UNRESTORED: u32 = 1 << 30;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TaskDataCategory {
+    Meta,
+    Data,
+    All,
+}
+
+impl TaskDataCategory {
+    pub fn flag(&self) -> u32 {
+        match self {
+            TaskDataCategory::Meta => META_UNRESTORED,
+            TaskDataCategory::Data => DATA_UNRESTORED,
+            TaskDataCategory::All => META_UNRESTORED | DATA_UNRESTORED,
+        }
+    }
+}
+
+impl IntoIterator for TaskDataCategory {
+    type Item = TaskDataCategory;
+
+    type IntoIter = TaskDataCategoryIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            TaskDataCategory::Meta => TaskDataCategoryIterator::Meta,
+            TaskDataCategory::Data => TaskDataCategoryIterator::Data,
+            TaskDataCategory::All => TaskDataCategoryIterator::All,
+        }
+    }
+}
+
+pub enum TaskDataCategoryIterator {
+    All,
+    Meta,
+    Data,
+    None,
+}
+
+impl Iterator for TaskDataCategoryIterator {
+    type Item = TaskDataCategory;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            TaskDataCategoryIterator::All => {
+                *self = TaskDataCategoryIterator::Data;
+                Some(TaskDataCategory::Meta)
+            }
+            TaskDataCategoryIterator::Meta => {
+                *self = TaskDataCategoryIterator::None;
+                Some(TaskDataCategory::Meta)
+            }
+            TaskDataCategoryIterator::Data => {
+                *self = TaskDataCategoryIterator::None;
+                Some(TaskDataCategory::Data)
+            }
+            TaskDataCategoryIterator::None => None,
+        }
+    }
+}
+
+pub struct PersistanceState {
+    value: u32,
+}
+
+impl Default for PersistanceState {
+    fn default() -> Self {
+        Self {
+            value: META_UNRESTORED | DATA_UNRESTORED,
+        }
+    }
+}
+
+impl PersistanceState {
+    pub fn set_restored(&mut self, category: TaskDataCategory) {
+        self.value &= !category.flag();
+    }
+
+    pub fn add_persisting_item(&mut self) {
+        self.value += 1;
+    }
+
+    pub fn add_persisting_items(&mut self, count: u32) {
+        self.value += count;
+    }
+
+    pub fn finish_persisting_items(&mut self, count: u32) {
+        self.value -= count;
+    }
+
+    pub fn is_restored(&self, category: TaskDataCategory) -> bool {
+        self.value & category.flag() == 0
+    }
+
+    pub fn is_fully_persisted(&self) -> bool {
+        self.value & !TaskDataCategory::All.flag() == 0
+    }
+}
+
 const INDEX_THRESHOLD: usize = 1024;
 
 type IndexedMap<T> = AutoMap<
@@ -27,8 +128,14 @@ pub enum InnerStorage<T: KeyValuePair>
 where
     T::Key: Indexed,
 {
-    Plain { map: AutoMap<T::Key, T::Value> },
-    Indexed { map: IndexedMap<T> },
+    Plain {
+        map: AutoMap<T::Key, T::Value>,
+        persistance_state: PersistanceState,
+    },
+    Indexed {
+        map: IndexedMap<T>,
+        persistance_state: PersistanceState,
+    },
 }
 
 impl<T: KeyValuePair> InnerStorage<T>
@@ -38,11 +145,38 @@ where
     fn new() -> Self {
         Self::Plain {
             map: AutoMap::new(),
+            persistance_state: PersistanceState::default(),
+        }
+    }
+
+    pub fn persistance_state(&self) -> &PersistanceState {
+        match self {
+            InnerStorage::Plain {
+                persistance_state, ..
+            } => persistance_state,
+            InnerStorage::Indexed {
+                persistance_state, ..
+            } => persistance_state,
+        }
+    }
+
+    pub fn persistance_state_mut(&mut self) -> &mut PersistanceState {
+        match self {
+            InnerStorage::Plain {
+                persistance_state, ..
+            } => persistance_state,
+            InnerStorage::Indexed {
+                persistance_state, ..
+            } => persistance_state,
         }
     }
 
     fn check_threshold(&mut self) {
-        let InnerStorage::Plain { map: plain_map } = self else {
+        let InnerStorage::Plain {
+            map: plain_map,
+            persistance_state,
+        } = self
+        else {
             return;
         };
         if plain_map.len() >= INDEX_THRESHOLD {
@@ -51,7 +185,10 @@ where
                 let index = key.index();
                 map.entry(index).or_default().insert(key, value);
             }
-            *self = InnerStorage::Indexed { map };
+            *self = InnerStorage::Indexed {
+                map,
+                persistance_state: take(persistance_state),
+            };
         }
     }
 

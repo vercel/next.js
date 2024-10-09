@@ -66,6 +66,44 @@ describe('app-dir static/dynamic handling', () => {
     }
   })
 
+  it('should correctly handle "default" cache statuses', async () => {
+    const res = await next.fetch('/default-config-fetch')
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const data = $('#data').text()
+
+    expect(data).toBeTruthy()
+
+    const res2 = await next.fetch('/default-config-fetch')
+    const html2 = await res2.text()
+    const data2 = cheerio.load(html2)('#data').text()
+
+    if (isNextDev) {
+      expect(data).not.toBe(data2)
+    } else {
+      // "default" cache does not impact ISR handling on a page, similar to the above test
+      // case for no fetch config
+      const pageCache = (
+        res.headers.get('x-vercel-cache') || res.headers.get('x-nextjs-cache')
+      ).toLowerCase()
+
+      expect(pageCache).toBeTruthy()
+      expect(pageCache).not.toBe('MISS')
+      expect(data).toBe(data2)
+    }
+
+    // route handlers should not automatically cache fetches with "default" cache
+    const routeRes = await next.fetch('/default-config-fetch/api')
+    const initialRouteData = (await routeRes.json()).data
+
+    const nextRes = await next.fetch('/default-config-fetch/api')
+    const newRouteData = (await nextRes.json()).data
+
+    expect(initialRouteData).not.toEqual(newRouteData)
+  })
+
   it('should still cache even though the `traceparent` header was different', async () => {
     const res = await next.fetch('/strip-header-traceparent')
     expect(res.status).toBe(200)
@@ -715,6 +753,9 @@ describe('app-dir static/dynamic handling', () => {
         [
           "(new)/custom/page.js",
           "(new)/custom/page_client-reference-manifest.js",
+          "(new)/default-config-fetch/api/route.js",
+          "(new)/default-config-fetch/page.js",
+          "(new)/default-config-fetch/page_client-reference-manifest.js",
           "(new)/no-config-fetch/page.js",
           "(new)/no-config-fetch/page_client-reference-manifest.js",
           "_not-found.html",
@@ -753,6 +794,8 @@ describe('app-dir static/dynamic handling', () => {
           "default-cache-search-params/page_client-reference-manifest.js",
           "default-cache/page.js",
           "default-cache/page_client-reference-manifest.js",
+          "default-config-fetch.html",
+          "default-config-fetch.rsc",
           "dynamic-error/[id]/page.js",
           "dynamic-error/[id]/page_client-reference-manifest.js",
           "dynamic-no-gen-params-ssr/[slug]/page.js",
@@ -1185,6 +1228,22 @@ describe('app-dir static/dynamic handling', () => {
             ],
             "initialRevalidateSeconds": false,
             "srcRoute": "/blog/[author]/[slug]",
+          },
+          "/default-config-fetch": {
+            "dataRoute": "/default-config-fetch.rsc",
+            "experimentalBypassFor": [
+              {
+                "key": "Next-Action",
+                "type": "header",
+              },
+              {
+                "key": "content-type",
+                "type": "header",
+                "value": "multipart/form-data;.*",
+              },
+            ],
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/default-config-fetch",
           },
           "/force-cache": {
             "dataRoute": "/force-cache.rsc",

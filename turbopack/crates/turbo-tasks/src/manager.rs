@@ -271,6 +271,9 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     /// should prefer the extension trait's version of this method.
     fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState));
 
+    /// Returns true if the system is idle.
+    fn is_idle(&self) -> bool;
+
     /// Returns a reference to the backend.
     fn backend(&self) -> &B;
 }
@@ -848,6 +851,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         {
             *self.start.lock().unwrap() = Some(Instant::now());
             self.event_start.notify(usize::MAX);
+            self.backend.idle_end(self);
         }
     }
 
@@ -1052,6 +1056,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn stop_and_wait(&self) {
+        self.backend.stopping(self);
         self.stopped.store(true, Ordering::Release);
         {
             let listener = self.event.listen_with_note(|| "wait for stop".to_string());
@@ -1563,6 +1568,10 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
         CURRENT_GLOBAL_TASK_STATE
             .with(move |ts| func(ts.write().unwrap().backend_state.downcast_mut().unwrap()))
     }
+
+    fn is_idle(&self) -> bool {
+        self.currently_scheduled_tasks.load(Ordering::Acquire) == 0
+    }
 }
 
 pub(crate) fn current_task(from: &str) -> TaskId {
@@ -1660,6 +1669,10 @@ pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T
     TURBO_TASKS.with(|arc| func(arc))
 }
 
+pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -> T {
+    TURBO_TASKS.sync_scope(tt, f)
+}
+
 pub fn with_turbo_tasks_for_testing<T>(
     tt: Arc<dyn TurboTasksApi>,
     current_task: TaskId,
@@ -1736,12 +1749,13 @@ pub fn emit<T: VcValueTrait + Send>(collectible: Vc<T>) {
 }
 
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
+    let turbo_tasks = turbo_tasks();
     let span = trace_span!("blocking operation").or_current();
     let (result, duration, alloc_info) = tokio::task::spawn_blocking(|| {
         let _guard = span.entered();
         let start = Instant::now();
         let start_allocations = TurboMalloc::allocation_counters();
-        let r = func();
+        let r = turbo_tasks_scope(turbo_tasks, func);
         (r, start.elapsed(), start_allocations.until_now())
     })
     .await
