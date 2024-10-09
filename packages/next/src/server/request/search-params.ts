@@ -10,12 +10,11 @@ import {
 } from '../app-render/dynamic-rendering'
 
 import {
-  isDynamicIOPrerender,
-  prerenderAsyncStorage,
-  type PrerenderStore,
+  workUnitAsyncStorage,
+  type PrerenderStoreLegacy,
+  type PrerenderStorePPR,
   type PrerenderStoreModern,
-} from '../app-render/prerender-async-storage.external'
-import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
+} from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
@@ -90,13 +89,12 @@ export function createPrerenderSearchParamsForClientPage(
     return Promise.resolve({})
   }
 
-  const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
-    if (isDynamicIOPrerender(prerenderStore)) {
-      // We're prerendering in a mode that aborts (dynamicIO) and should stall
-      // the promise to ensure the RSC side is considered dynamic
-      return makeHangingPromise()
-    }
+  const prerenderStore = workUnitAsyncStorage.getStore()
+  if (prerenderStore && prerenderStore.type === 'prerender') {
+    // dynamicIO Prerender
+    // We're prerendering in a mode that aborts (dynamicIO) and should stall
+    // the promise to ensure the RSC side is considered dynamic
+    return makeHangingPromise()
   }
   // We're prerendering in a mode that does not aborts. We resolve the promise without
   // any tracking because we're just transporting a value from server to client where the tracking
@@ -113,17 +111,23 @@ function createPrerenderSearchParams(
     return Promise.resolve({})
   }
 
-  const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore && prerenderStore.type === 'prerender') {
-    if (prerenderStore.controller || prerenderStore.cacheSignal) {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    if (workUnitStore.type === 'prerender') {
       // We are in a dynamicIO (PPR or otherwise) prerender
-      return makeAbortingExoticSearchParams(workStore.route, prerenderStore)
+      return makeAbortingExoticSearchParams(workStore.route, workUnitStore)
+    } else if (
+      workUnitStore.type === 'prerender-legacy' ||
+      workUnitStore.type === 'prerender-ppr'
+    ) {
+      // We are in a legacy static generation and need to interrupt the prerender
+      // when search params are accessed.
+      return makeErroringExoticSearchParams(workStore, workUnitStore)
     }
   }
-
-  // We are in a legacy static generation and need to interrupt the prerender
-  // when search params are accessed.
-  return makeErroringExoticSearchParams(workStore, prerenderStore)
+  throw new InvariantError(
+    'createPrerenderSearchParams called without a prerenderStore in scope. This is a bug in Next.js'
+  )
 }
 
 function createRenderSearchParams(
@@ -259,7 +263,7 @@ function makeAbortingExoticSearchParams(
 
 function makeErroringExoticSearchParams(
   workStore: WorkStore,
-  prerenderStore: undefined | PrerenderStore
+  prerenderStore: PrerenderStoreLegacy | PrerenderStorePPR
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(workStore)
   if (cachedSearchParams) {
@@ -312,15 +316,20 @@ function makeErroringExoticSearchParams(
               workStore.route,
               expression
             )
-          } else if (prerenderStore && prerenderStore.type === 'prerender') {
+          } else if (prerenderStore.type === 'prerender-ppr') {
+            // PPR Prerender (no dynamicIO)
             postponeWithTracking(
               workStore.route,
               expression,
               prerenderStore.dynamicTracking
             )
           } else {
-            const cacheStore = cacheAsyncStorage.getStore()
-            throwToInterruptStaticGeneration(expression, workStore, cacheStore)
+            // Legacy Prerender
+            throwToInterruptStaticGeneration(
+              expression,
+              workStore,
+              prerenderStore
+            )
           }
           return
         }
@@ -332,15 +341,20 @@ function makeErroringExoticSearchParams(
               workStore.route,
               expression
             )
-          } else if (prerenderStore && prerenderStore.type === 'prerender') {
+          } else if (prerenderStore.type === 'prerender-ppr') {
+            // PPR Prerender (no dynamicIO)
             postponeWithTracking(
               workStore.route,
               expression,
               prerenderStore.dynamicTracking
             )
           } else {
-            const cacheStore = cacheAsyncStorage.getStore()
-            throwToInterruptStaticGeneration(expression, workStore, cacheStore)
+            // Legacy Prerender
+            throwToInterruptStaticGeneration(
+              expression,
+              workStore,
+              prerenderStore
+            )
           }
           return
         }
@@ -355,18 +369,19 @@ function makeErroringExoticSearchParams(
                 workStore.route,
                 expression
               )
-            } else if (prerenderStore && prerenderStore.type === 'prerender') {
+            } else if (prerenderStore.type === 'prerender-ppr') {
+              // PPR Prerender (no dynamicIO)
               postponeWithTracking(
                 workStore.route,
                 expression,
                 prerenderStore.dynamicTracking
               )
             } else {
-              const cacheStore = cacheAsyncStorage.getStore()
+              // Legacy Prerender
               throwToInterruptStaticGeneration(
                 expression,
                 workStore,
-                cacheStore
+                prerenderStore
               )
             }
           }
@@ -389,15 +404,20 @@ function makeErroringExoticSearchParams(
             workStore.route,
             expression
           )
-        } else if (prerenderStore && prerenderStore.type === 'prerender') {
+        } else if (prerenderStore.type === 'prerender-ppr') {
+          // PPR Prerender (no dynamicIO)
           postponeWithTracking(
             workStore.route,
             expression,
             prerenderStore.dynamicTracking
           )
         } else {
-          const cacheStore = cacheAsyncStorage.getStore()
-          throwToInterruptStaticGeneration(expression, workStore, cacheStore)
+          // Legacy Prerender
+          throwToInterruptStaticGeneration(
+            expression,
+            workStore,
+            prerenderStore
+          )
         }
         return false
       }
@@ -411,15 +431,16 @@ function makeErroringExoticSearchParams(
           workStore.route,
           expression
         )
-      } else if (prerenderStore && prerenderStore.type === 'prerender') {
+      } else if (prerenderStore.type === 'prerender-ppr') {
+        // PPR Prerender (no dynamicIO)
         postponeWithTracking(
           workStore.route,
           expression,
           prerenderStore.dynamicTracking
         )
       } else {
-        const cacheStore = cacheAsyncStorage.getStore()
-        throwToInterruptStaticGeneration(expression, workStore, cacheStore)
+        // Legacy Prerender
+        throwToInterruptStaticGeneration(expression, workStore, prerenderStore)
       }
     },
   })
@@ -475,8 +496,8 @@ function makeUntrackedExoticSearchParams(
       default: {
         Object.defineProperty(promise, prop, {
           get() {
-            const cacheStore = cacheAsyncStorage.getStore()
-            trackDynamicDataInDynamicRender(store, cacheStore)
+            const workUnitStore = workUnitAsyncStorage.getStore()
+            trackDynamicDataInDynamicRender(store, workUnitStore)
             return underlyingSearchParams[prop]
           },
           set(value) {
@@ -525,8 +546,8 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
             expression
           )
         }
-        const cacheStore = cacheAsyncStorage.getStore()
-        trackDynamicDataInDynamicRender(store, cacheStore)
+        const workUnitStore = workUnitAsyncStorage.getStore()
+        trackDynamicDataInDynamicRender(store, workUnitStore)
       }
       return ReflectAdapter.get(target, prop, receiver)
     },

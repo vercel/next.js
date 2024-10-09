@@ -15,20 +15,15 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
 import type {
-  RequestAsyncStorage,
+  WorkUnitAsyncStorage,
+  WorkUnitStore,
   RequestStore,
-} from '../../client/components/request-async-storage.external'
-import type { PrerenderStore } from '../app-render/prerender-async-storage.external'
-import {
-  cacheAsyncStorage,
-  type CacheStore,
-} from '../../server/app-render/cache-async-storage.external'
+} from '../../server/app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedFetchData,
 } from '../response-cache'
-import type { PrerenderAsyncStorage } from '../app-render/prerender-async-storage.external'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -144,9 +139,7 @@ const getDerivedTags = (pathname: string): string[] => {
 
 export function addImplicitTags(
   workStore: WorkStore,
-  requestStore: RequestStore | undefined,
-  prerenderStore: PrerenderStore | undefined,
-  cacheStore: CacheStore | undefined
+  workUnitStore: WorkUnitStore | undefined
 ) {
   const newTags: string[] = []
   const { page, fallbackRouteParams } = workStore
@@ -155,8 +148,8 @@ export function addImplicitTags(
 
   // Ini the tags array if it doesn't exist.
   if (
-    !cacheStore ||
-    (cacheStore.type !== 'cache' && cacheStore.type !== 'unstable-cache')
+    !workUnitStore ||
+    (workUnitStore.type !== 'cache' && workUnitStore.type !== 'unstable-cache')
   ) {
     workStore.tags ??= []
   }
@@ -166,8 +159,9 @@ export function addImplicitTags(
   for (let tag of derivedTags) {
     tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
     if (
-      !cacheStore ||
-      (cacheStore.type !== 'cache' && cacheStore.type !== 'unstable-cache')
+      !workUnitStore ||
+      (workUnitStore.type !== 'cache' &&
+        workUnitStore.type !== 'unstable-cache')
     ) {
       if (!workStore.tags?.includes(tag)) {
         workStore.tags?.push(tag)
@@ -177,23 +171,22 @@ export function addImplicitTags(
   }
 
   const renderedPathname =
-    requestStore !== undefined
-      ? requestStore.url.pathname
-      : prerenderStore !== undefined
-        ? prerenderStore.pathname
-        : undefined
+    workUnitStore !== undefined
+      ? workUnitStore.type === 'request'
+        ? workUnitStore.url.pathname
+        : workUnitStore.type === 'prerender' ||
+            workUnitStore.type === 'prerender-ppr' ||
+            workUnitStore.type === 'prerender-legacy'
+          ? workUnitStore.pathname
+          : undefined
+      : undefined
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
   if (renderedPathname && !hasFallbackRouteParams) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${renderedPathname}`
-    if (
-      !cacheStore ||
-      (cacheStore.type !== 'cache' && cacheStore.type !== 'unstable-cache')
-    ) {
-      if (!workStore.tags?.includes(tag)) {
-        workStore.tags?.push(tag)
-      }
+    if (!workStore.tags?.includes(tag)) {
+      workStore.tags?.push(tag)
     }
     newTags.push(tag)
   }
@@ -228,24 +221,19 @@ function trackFetchMetric(
 
   workStore.fetchMetrics.push({
     ...ctx,
-    end: Date.now(),
+    end: performance.timeOrigin + performance.now(),
     idx: workStore.nextFetchId || 0,
   })
 }
 
 interface PatchableModule {
   workAsyncStorage: WorkAsyncStorage
-  requestAsyncStorage: RequestAsyncStorage
-  prerenderAsyncStorage: PrerenderAsyncStorage
+  workUnitAsyncStorage: WorkUnitAsyncStorage
 }
 
 export function createPatchedFetcher(
   originFetch: Fetcher,
-  {
-    workAsyncStorage,
-    requestAsyncStorage,
-    prerenderAsyncStorage,
-  }: PatchableModule
+  { workAsyncStorage, workUnitAsyncStorage }: PatchableModule
 ): PatchedFetcher {
   // Create the patched fetch function. We don't set the type here, as it's
   // verified as the return value of this function.
@@ -263,7 +251,7 @@ export function createPatchedFetcher(
       url = undefined
     }
     const fetchUrl = url?.href ?? ''
-    const fetchStart = Date.now()
+    const fetchStart = performance.timeOrigin + performance.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
     // Do create a new span trace for internal fetches in the
@@ -272,7 +260,7 @@ export function createPatchedFetcher(
     const hideSpan = process.env.NEXT_OTEL_FETCH_DISABLED === '1'
 
     const workStore = workAsyncStorage.getStore()
-    const prerenderStore = prerenderAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
 
     const result = getTracer().trace(
       isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
@@ -292,9 +280,6 @@ export function createPatchedFetcher(
         if (isInternal) {
           return originFetch(input, init)
         }
-
-        const requestStore = requestAsyncStorage.getStore()
-        const cacheStore = cacheAsyncStorage.getStore()
 
         // If the workStore is not available, we can't do any
         // special treatment of fetch, therefore fallback to the original
@@ -337,8 +322,9 @@ export function createPatchedFetcher(
         )
 
         if (
-          !cacheStore ||
-          (cacheStore.type !== 'cache' && cacheStore.type !== 'unstable-cache')
+          !workUnitStore ||
+          (workUnitStore.type !== 'cache' &&
+            workUnitStore.type !== 'unstable-cache')
         ) {
           if (Array.isArray(tags)) {
             if (!workStore.tags) {
@@ -352,16 +338,11 @@ export function createPatchedFetcher(
           }
         }
 
-        const implicitTags = addImplicitTags(
-          workStore,
-          requestStore,
-          prerenderStore,
-          cacheStore
-        )
+        const implicitTags = addImplicitTags(workStore, workUnitStore)
 
         // Inside unstable-cache we treat it the same as force-no-store on the page.
         const pageFetchCacheMode =
-          cacheStore && cacheStore.type === 'unstable-cache'
+          workUnitStore && workUnitStore.type === 'unstable-cache'
             ? 'force-no-store'
             : workStore.fetchCache
         const isUsingNoStore = !!workStore.isUnstableNoStore
@@ -429,6 +410,7 @@ export function createPatchedFetcher(
          * - Fetch cache configs are not set. Specifically:
          *    - A page fetch cache mode is not set (export const fetchCache=...)
          *    - A fetch cache mode is not set in the fetch call (fetch(url, { cache: ... }))
+         *      or the fetch cache mode is set to 'default'
          *    - A fetch revalidate value is not set in the fetch call (fetch(url, { revalidate: ... }))
          * - OR the fetch comes after a configuration that triggered dynamic rendering (e.g., reading cookies())
          *   and the fetch was considered uncacheable (e.g., POST method or has authorization headers)
@@ -437,7 +419,10 @@ export function createPatchedFetcher(
           // eslint-disable-next-line eqeqeq
           pageFetchCacheMode == undefined &&
           // eslint-disable-next-line eqeqeq
-          currentFetchCacheConfig == undefined &&
+          (currentFetchCacheConfig == undefined ||
+            // when considering whether to opt into the default "no-cache" fetch semantics,
+            // a "default" cache config should be treated the same as no cache config
+            currentFetchCacheConfig === 'default') &&
           // eslint-disable-next-line eqeqeq
           currentFetchRevalidate == undefined
         const autoNoCache =
@@ -535,16 +520,16 @@ export function createPatchedFetcher(
                   finalRevalidate < workStore.revalidate))))
         ) {
           if (
-            !cacheStore ||
-            (cacheStore.type !== 'cache' &&
-              cacheStore.type !== 'unstable-cache')
+            !workUnitStore ||
+            (workUnitStore.type !== 'cache' &&
+              workUnitStore.type !== 'unstable-cache')
           ) {
             // If we were setting the revalidate value to 0, we should try to
             // postpone instead first.
             if (finalRevalidate === 0) {
               markCurrentScopeAsDynamic(
                 workStore,
-                cacheStore,
+                workUnitStore,
                 `revalidate: 0 fetch ${input} ${workStore.route}`
               )
             }
@@ -559,6 +544,11 @@ export function createPatchedFetcher(
 
         let cacheKey: string | undefined
         const { incrementalCache } = workStore
+
+        const requestStore: undefined | RequestStore =
+          workUnitStore !== undefined && workUnitStore.type === 'request'
+            ? workUnitStore
+            : undefined
 
         if (
           incrementalCache &&
@@ -652,8 +642,8 @@ export function createPatchedFetcher(
               cacheKey &&
               (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
             ) {
-              if (prerenderStore) {
-                // We are prerendering at build time or revalidate time so we need to
+              if (workUnitStore && workUnitStore.type === 'prerender') {
+                // We are prerendering at build time or revalidate time with dynamicIO so we need to
                 // buffer the response so we can guarantee it can be read in a microtask
 
                 const bodyBuffer = await res.arrayBuffer()
@@ -783,7 +773,7 @@ export function createPatchedFetcher(
               // We sometimes use the cache to dedupe fetches that do not specify a cache configuration
               // In these cases we want to make sure we still exclude them from prerenders if dynamicIO is on
               // so we introduce an artificial Task boundary here.
-              if (prerenderStore) {
+              if (workUnitStore && workUnitStore.type === 'prerender') {
                 await waitAtLeastOneReactRenderTask()
               }
             }
@@ -857,7 +847,7 @@ export function createPatchedFetcher(
             // If enabled, we should bail out of static generation.
             markCurrentScopeAsDynamic(
               workStore,
-              cacheStore,
+              workUnitStore,
               `no-store fetch ${input} ${workStore.route}`
             )
           }
@@ -874,16 +864,16 @@ export function createPatchedFetcher(
               // If enabled, we should bail out of static generation.
               markCurrentScopeAsDynamic(
                 workStore,
-                cacheStore,
+                workUnitStore,
                 `revalidate: 0 fetch ${input} ${workStore.route}`
               )
             }
 
             if (!workStore.forceStatic || next.revalidate !== 0) {
               if (
-                !cacheStore ||
-                (cacheStore.type !== 'cache' &&
-                  cacheStore.type !== 'unstable-cache')
+                !workUnitStore ||
+                (workUnitStore.type !== 'cache' &&
+                  workUnitStore.type !== 'unstable-cache')
               ) {
                 workStore.revalidate = next.revalidate
               }
@@ -964,12 +954,12 @@ export function createPatchedFetcher(
     )
 
     if (
-      prerenderStore &&
-      prerenderStore.type === 'prerender' &&
-      prerenderStore.cacheSignal
+      workUnitStore &&
+      workUnitStore.type === 'prerender' &&
+      workUnitStore.cacheSignal
     ) {
       // During static generation we track cache reads so we can reason about when they fill
-      const cacheSignal = prerenderStore.cacheSignal
+      const cacheSignal = workUnitStore.cacheSignal
       cacheSignal.beginRead()
       try {
         return await result

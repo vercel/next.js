@@ -1,9 +1,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
-import type { RequestStore } from '../../client/components/request-async-storage.external'
+import type { WorkUnitStore } from '../../server/app-render/work-unit-async-storage.external'
 import type { WorkStore } from '../../client/components/work-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { createPatchedFetcher } from './patch-fetch'
-import type { PrerenderStore } from '../app-render/prerender-async-storage.external'
 
 describe('createPatchedFetcher', () => {
   it('should not buffer a streamed response', async () => {
@@ -24,13 +23,12 @@ describe('createPatchedFetcher', () => {
 
     const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
 
-    const prerenderAsyncStorage = new AsyncLocalStorage<PrerenderStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
 
     const patchedFetch = createPatchedFetcher(mockFetch, {
-      // requestAsyncStorage does not need to provide a store for this test.
-      requestAsyncStorage: new AsyncLocalStorage<RequestStore>(),
+      // workUnitAsyncStorage does not need to provide a store for this test.
       workAsyncStorage,
-      prerenderAsyncStorage,
+      workUnitAsyncStorage,
     })
 
     let resolveIncrementalCacheSet: () => void

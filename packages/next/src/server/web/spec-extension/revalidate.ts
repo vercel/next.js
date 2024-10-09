@@ -5,7 +5,7 @@ import {
   NEXT_CACHE_SOFT_TAG_MAX_LENGTH,
 } from '../../../lib/constants'
 import { workAsyncStorage } from '../../../client/components/work-async-storage.external'
-import { cacheAsyncStorage } from '../../../server/app-render/cache-async-storage.external'
+import { workUnitAsyncStorage } from '../../../server/app-render/work-unit-async-storage.external'
 
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
@@ -49,13 +49,13 @@ function revalidate(tag: string, expression: string) {
     )
   }
 
-  const cacheStore = cacheAsyncStorage.getStore()
-  if (cacheStore) {
-    if (cacheStore.type === 'cache') {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    if (workUnitStore.type === 'cache') {
       throw new Error(
         `Route ${store.route} used "${expression}" inside a "use cache" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
-    } else if (cacheStore.type === 'unstable-cache') {
+    } else if (workUnitStore.type === 'unstable-cache') {
       throw new Error(
         `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
@@ -64,7 +64,7 @@ function revalidate(tag: string, expression: string) {
 
   // a route that makes use of revalidation APIs should be considered dynamic
   // as otherwise it would be impossible to revalidate
-  trackDynamicDataAccessed(store, cacheStore, expression)
+  trackDynamicDataAccessed(store, workUnitStore, expression)
 
   if (!store.revalidatedTags) {
     store.revalidatedTags = []

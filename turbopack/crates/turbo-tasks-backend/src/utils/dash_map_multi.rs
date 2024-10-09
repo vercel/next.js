@@ -24,14 +24,10 @@ where
     },
 }
 
-unsafe impl<'a, K: Eq + Hash + Sync, V: Sync, S: BuildHasher> Send for RefMut<'a, K, V, S> {}
-unsafe impl<'a, K: Eq + Hash + Sync, V: Sync, S: BuildHasher> Sync for RefMut<'a, K, V, S> {}
+unsafe impl<K: Eq + Hash + Sync, V: Sync, S: BuildHasher> Send for RefMut<'_, K, V, S> {}
+unsafe impl<K: Eq + Hash + Sync, V: Sync, S: BuildHasher> Sync for RefMut<'_, K, V, S> {}
 
-impl<'a, K: Eq + Hash, V, S: BuildHasher> RefMut<'a, K, V, S> {
-    pub fn key(&self) -> &K {
-        self.pair().0
-    }
-
+impl<K: Eq + Hash, V, S: BuildHasher> RefMut<'_, K, V, S> {
     pub fn value(&self) -> &V {
         self.pair().1
     }
@@ -57,7 +53,7 @@ impl<'a, K: Eq + Hash, V, S: BuildHasher> RefMut<'a, K, V, S> {
     }
 }
 
-impl<'a, K: Eq + Hash, V, S: BuildHasher> Deref for RefMut<'a, K, V, S> {
+impl<K: Eq + Hash, V, S: BuildHasher> Deref for RefMut<'_, K, V, S> {
     type Target = V;
 
     fn deref(&self) -> &V {
@@ -65,7 +61,7 @@ impl<'a, K: Eq + Hash, V, S: BuildHasher> Deref for RefMut<'a, K, V, S> {
     }
 }
 
-impl<'a, K: Eq + Hash, V, S: BuildHasher> DerefMut for RefMut<'a, K, V, S> {
+impl<K: Eq + Hash, V, S: BuildHasher> DerefMut for RefMut<'_, K, V, S> {
     fn deref_mut(&mut self) -> &mut V {
         self.value_mut()
     }

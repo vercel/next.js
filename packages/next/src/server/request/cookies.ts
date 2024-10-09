@@ -6,18 +6,16 @@ import {
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
 import {
-  isDynamicIOPrerender,
-  prerenderAsyncStorage,
+  workUnitAsyncStorage,
   type PrerenderStoreModern,
-} from '../app-render/prerender-async-storage.external'
-import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
+} from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   abortAndThrowOnSynchronousDynamicDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../../server/app-render/dynamic-rendering'
-import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
+import { getExpectedRequestStore } from '../../server/app-render/work-unit-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeResolvedReactPromise } from './utils'
@@ -53,8 +51,7 @@ export type UnsafeUnwrappedCookies = ReadonlyRequestCookies
 export function cookies(): Promise<ReadonlyRequestCookies> {
   const callingExpression = 'cookies'
   const workStore = workAsyncStorage.getStore()
-  const prerenderStore = prerenderAsyncStorage.getStore()
-  const cacheStore = cacheAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
     if (workStore.forceStatic) {
@@ -64,12 +61,12 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       return makeUntrackedExoticCookies(underlyingCookies)
     }
 
-    if (cacheStore) {
-      if (cacheStore.type === 'cache') {
+    if (workUnitStore) {
+      if (workUnitStore.type === 'cache') {
         throw new Error(
           `Route ${workStore.route} used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
         )
-      } else if (cacheStore.type === 'unstable-cache') {
+      } else if (workUnitStore.type === 'unstable-cache') {
         throw new Error(
           `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
         )
@@ -81,45 +78,38 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       )
     }
 
-    if (prerenderStore) {
-      if (prerenderStore.type === 'prerender') {
-        // We are in PPR and/or dynamicIO mode and prerendering
-
-        if (isDynamicIOPrerender(prerenderStore)) {
-          // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
-          // When resolving cookies for a prerender with dynamic IO we return a forever promise
-          // along with property access tracked synchronous cookies.
-
-          // We don't track dynamic access here because access will be tracked when you access
-          // one of the properties of the cookies object.
-          return makeDynamicallyTrackedExoticCookies(
-            workStore.route,
-            prerenderStore
-          )
-        } else {
-          // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how cookies has worked in PPR without dynamicIO.
-          // TODO consider switching the semantic to throw on property access instead
-          postponeWithTracking(
-            workStore.route,
-            callingExpression,
-            prerenderStore.dynamicTracking
-          )
-        }
-      } else if (prerenderStore.type === 'prerender-legacy') {
-        // We are in a legacy static generation mode while prerendering
+    if (workUnitStore) {
+      if (workUnitStore.type === 'prerender') {
+        // dynamicIO Prerender
+        // We don't track dynamic access here because access will be tracked when you access
+        // one of the properties of the cookies object.
+        return makeDynamicallyTrackedExoticCookies(
+          workStore.route,
+          workUnitStore
+        )
+      } else if (workUnitStore.type === 'prerender-ppr') {
+        // PPR Prerender (no dynamicIO)
+        // We are prerendering with PPR. We need track dynamic access here eagerly
+        // to keep continuity with how cookies has worked in PPR without dynamicIO.
+        postponeWithTracking(
+          workStore.route,
+          callingExpression,
+          workUnitStore.dynamicTracking
+        )
+      } else if (workUnitStore.type === 'prerender-legacy') {
+        // Legacy Prerender
         // We track dynamic access here so we don't need to wrap the cookies in
         // individual property access tracking.
         throwToInterruptStaticGeneration(
           callingExpression,
           workStore,
-          cacheStore
+          workUnitStore
         )
       }
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using cookies inside a cache context
-    trackDynamicDataInDynamicRender(workStore, cacheStore)
+    trackDynamicDataInDynamicRender(workStore, workUnitStore)
   }
 
   // cookies is being called in a dynamic context

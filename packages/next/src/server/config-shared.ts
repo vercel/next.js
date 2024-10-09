@@ -155,6 +155,11 @@ export interface ExperimentalTurboOptions {
   memoryLimit?: number
 
   /**
+   * Enable persistent caching for the turbopack dev server and build.
+   */
+  persistentCaching?: boolean
+
+  /**
    * Enable tree shaking for the turbopack dev server and build.
    */
   treeShaking?: boolean

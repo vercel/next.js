@@ -6,7 +6,9 @@ use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, sour
 use super::NextDynamicEntryModule;
 
 /// This transition is used to create the marker asset for a next/dynamic
-/// import. This will get picked up during module processing and will be used to
+/// import.
+///
+/// This will get picked up during module processing and will be used to
 /// create the dynamic entry, and the dynamic manifest entry.
 #[turbo_tasks::value]
 pub struct NextDynamicTransition {

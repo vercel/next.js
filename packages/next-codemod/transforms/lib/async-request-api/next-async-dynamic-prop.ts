@@ -50,6 +50,10 @@ function awaitMemberAccessOfProp(
   memberAccess.forEach((memberAccessPath) => {
     const member = memberAccessPath.value
 
+    if (isParentPromiseAllCallExpression(memberAccessPath, j)) {
+      return
+    }
+
     // check if it's already awaited
     if (memberAccessPath.parentPath?.value.type === 'AwaitExpression') {
       return
@@ -71,6 +75,41 @@ function awaitMemberAccessOfProp(
     }
   }
   return hasAwaited
+}
+
+function isParentUseCallExpression(path: ASTPath<any>, j: API['jscodeshift']) {
+  if (
+    // member access parentPath is argument
+    j.CallExpression.check(path.parent.value) &&
+    // member access is first argument
+    path.parent.value.arguments[0] === path.value &&
+    // function name is `use`
+    j.Identifier.check(path.parent.value.callee) &&
+    path.parent.value.callee.name === 'use'
+  ) {
+    return true
+  }
+  return false
+}
+
+function isParentPromiseAllCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  const argsParent = path.parent
+  const callParent = argsParent?.parent
+  if (
+    j.ArrayExpression.check(argsParent.value) &&
+    j.CallExpression.check(callParent.value) &&
+    j.MemberExpression.check(callParent.value.callee) &&
+    j.Identifier.check(callParent.value.callee.object) &&
+    callParent.value.callee.object.name === 'Promise' &&
+    j.Identifier.check(callParent.value.callee.property) &&
+    callParent.value.callee.property.name === 'all'
+  ) {
+    return true
+  }
+  return false
 }
 
 function applyUseAndRenameAccessedProp(
@@ -95,6 +134,11 @@ function applyUseAndRenameAccessedProp(
   const accessedNames: string[] = []
   // rename each member access
   memberAccess.forEach((memberAccessPath) => {
+    // If the member access expression is first argument of `use()`, we skip
+    if (isParentUseCallExpression(memberAccessPath, j)) {
+      return
+    }
+
     const member = memberAccessPath.value
     const memberProperty = member.property
     if (j.Identifier.check(memberProperty)) {
@@ -131,7 +175,7 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
-const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout)\.(t|j)sx?$/
+const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
 
 function modifyTypes(
   paramTypeAnnotation: any,
@@ -313,8 +357,8 @@ export function transformDynamicProps(
         currentParam.properties.forEach((prop) => {
           if (
             // Could be `Property` or `ObjectProperty`
-            'key' in prop &&
-            prop.key.type === 'Identifier' &&
+            (j.Property.check(prop) || j.ObjectProperty.check(prop)) &&
+            j.Identifier.check(prop.key) &&
             TARGET_PROP_NAMES.has(prop.key.name)
           ) {
             const value = 'value' in prop ? prop.value : null
@@ -322,12 +366,6 @@ export function transformDynamicProps(
           }
         })
 
-        modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
-
-        // Override the first param to `props`
-        params[propsArgumentIndex] = propsIdentifier
-
-        modified = true
         modifiedPropArgument = true
       } else if (currentParam.type === 'Identifier') {
         // case of accessing the props.params.<name>:
@@ -368,7 +406,7 @@ export function transformDynamicProps(
           const propPassedAsArg = args.find(
             (arg) => j.Identifier.check(arg) && arg.name === argName
           )
-          const comment = ` '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
+          const comment = ` Next.js Dynamic Async API Codemod: '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
           insertCommentOnce(propPassedAsArg, j, comment)
 
           modified = true
@@ -380,13 +418,30 @@ export function transformDynamicProps(
       }
 
       if (modifiedPropArgument) {
-        resolveAsyncProp(
+        const isModified = resolveAsyncProp(
           path,
           propertiesMap,
           propsIdentifier.name,
           allProperties,
           isDefaultExport
         )
+        if (isModified) {
+          // Make TS happy
+          if (j.ObjectPattern.check(currentParam)) {
+            modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
+          }
+          // Override the first param to `props`
+          params[propsArgumentIndex] = propsIdentifier
+
+          modified = true
+        }
+      } else {
+        // When the prop argument is not destructured, we need to add comments to the spread properties
+        if (j.Identifier.check(currentParam)) {
+          commentSpreadProps(path, currentParam.name, j)
+          modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
+          modified = true
+        }
       }
     }
 
@@ -397,7 +452,7 @@ export function transformDynamicProps(
       propsIdentifierName: string,
       allProperties: ObjectPattern['properties'],
       isDefaultExport: boolean
-    ) {
+    ): boolean {
       // Rename props to `prop` argument for the function
       const insertedRenamedPropFunctionNames = new Set<string>()
       const node = path.value
@@ -512,9 +567,30 @@ export function transformDynamicProps(
         }
       }
 
+      let modifiedPropertyCount = 0
       for (const [matchedPropName, paramsProperty] of propertiesMap) {
         if (!TARGET_PROP_NAMES.has(matchedPropName)) {
           continue
+        }
+
+        // In client component, if the param is already wrapped with `use()`, skip the transformation
+        if (isClientComponent) {
+          let shouldSkip = false
+          const propPaths = j(path).find(j.Identifier, {
+            name: matchedPropName,
+          })
+
+          for (const propPath of propPaths.paths()) {
+            if (isParentUseCallExpression(propPath, j)) {
+              // Skip transformation
+              shouldSkip = true
+              break
+            }
+          }
+
+          if (shouldSkip) {
+            continue
+          }
         }
 
         const propRenamedId = j.Identifier.check(paramsProperty)
@@ -524,16 +600,25 @@ export function transformDynamicProps(
 
         // if propName is not used in lower scope, and it stars with unused prefix `_`,
         // also skip the transformation
-        const hasDeclared = path.scope.declares(propName)
-        if (!hasDeclared && propName.startsWith('_')) continue
+
+        const functionBodyPath = path.get('body')
+        const hasUsedInBody =
+          j(functionBodyPath)
+            .find(j.Identifier, {
+              name: propName,
+            })
+            .size() > 0
+
+        if (!hasUsedInBody && propName.startsWith('_')) continue
+
+        modifiedPropertyCount++
 
         const propNameIdentifier = j.identifier(matchedPropName)
         const propsIdentifier = j.identifier(propsIdentifierName)
-        const accessedPropId = j.memberExpression(
+        const accessedPropIdExpr = j.memberExpression(
           propsIdentifier,
           propNameIdentifier
         )
-
         // Check param property value, if it's destructed, we need to destruct it as well
         // e.g.
         // input: Page({ params: { slug } })
@@ -576,7 +661,7 @@ export function transformDynamicProps(
           const paramAssignment = j.variableDeclaration('const', [
             j.variableDeclarator(
               j.identifier(propName),
-              j.awaitExpression(accessedPropId)
+              j.awaitExpression(accessedPropIdExpr)
             ),
           ])
           if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
@@ -598,7 +683,7 @@ export function transformDynamicProps(
               const paramAssignment = j.variableDeclaration('const', [
                 j.variableDeclarator(
                   j.identifier(propName),
-                  j.awaitExpression(accessedPropId)
+                  j.awaitExpression(accessedPropIdExpr)
                 ),
               ])
 
@@ -611,7 +696,7 @@ export function transformDynamicProps(
             const paramAssignment = j.variableDeclaration('const', [
               j.variableDeclarator(
                 j.identifier(propName),
-                j.callExpression(j.identifier('use'), [accessedPropId])
+                j.callExpression(j.identifier('use'), [accessedPropIdExpr])
               ),
             ])
             if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
@@ -622,6 +707,8 @@ export function transformDynamicProps(
           }
         }
       }
+
+      return modifiedPropertyCount > 0
     }
 
     const defaultExportsDeclarations = root.find(j.ExportDefaultDeclaration)
@@ -731,4 +818,31 @@ function findAllTypes(
     })
 
   return types
+}
+
+function commentSpreadProps(
+  path: ASTPath<FunctionScope>,
+  propsIdentifierName: string,
+  j: API['jscodeshift']
+) {
+  const functionBody = findFunctionBody(path)
+  const functionBodyCollection = j(functionBody)
+  // Find all the usage of spreading properties of `props`
+  const jsxSpreadProperties = functionBodyCollection.find(
+    j.JSXSpreadAttribute,
+    { argument: { name: propsIdentifierName } }
+  )
+  const objSpreadProperties = functionBodyCollection.find(j.SpreadElement, {
+    argument: { name: propsIdentifierName },
+  })
+  const comment = ` Next.js Dynamic Async API Codemod: '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
+
+  // Add comment before it
+  jsxSpreadProperties.forEach((spread) => {
+    insertCommentOnce(spread.value, j, comment)
+  })
+
+  objSpreadProperties.forEach((spread) => {
+    insertCommentOnce(spread.value, j, comment)
+  })
 }

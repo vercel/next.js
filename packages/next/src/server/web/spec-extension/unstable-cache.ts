@@ -7,15 +7,13 @@ import {
   validateTags,
 } from '../../lib/patch-fetch'
 import { workAsyncStorage } from '../../../client/components/work-async-storage.external'
-import { requestAsyncStorage } from '../../../client/components/request-async-storage.external'
+import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedFetchData,
 } from '../../response-cache'
-import { prerenderAsyncStorage } from '../../app-render/prerender-async-storage.external'
-import type { UnstableCacheStore } from '../../app-render/cache-async-storage.external'
-import { cacheAsyncStorage } from '../../app-render/cache-async-storage.external'
+import type { UnstableCacheStore } from '../../app-render/work-unit-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
 
@@ -100,8 +98,7 @@ export function unstable_cache<T extends Callback>(
 
   const cachedCb = async (...args: any[]) => {
     const workStore = workAsyncStorage.getStore()
-    const requestStore = requestAsyncStorage.getStore()
-    const cacheStore = cacheAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
 
     // We must be able to find the incremental cache otherwise we throw
     const maybeIncrementalCache:
@@ -116,10 +113,9 @@ export function unstable_cache<T extends Callback>(
     }
     const incrementalCache = maybeIncrementalCache
 
-    const prerenderStore = prerenderAsyncStorage.getStore()
     const cacheSignal =
-      prerenderStore && prerenderStore.type === 'prerender'
-        ? prerenderStore.cacheSignal
+      workUnitStore && workUnitStore.type === 'prerender'
+        ? workUnitStore.cacheSignal
         : null
     if (cacheSignal) {
       cacheSignal.beginRead()
@@ -129,6 +125,10 @@ export function unstable_cache<T extends Callback>(
       // router)  and if there's no static generation store, we aren't in app
       // router. Default to an empty pathname and search params when there's no
       // request store or static generation store available.
+      const requestStore =
+        workUnitStore && workUnitStore.type === 'request'
+          ? workUnitStore
+          : undefined
       const pathname = requestStore?.url.pathname ?? workStore?.route ?? ''
       const searchParams = new URLSearchParams(requestStore?.url.search ?? '')
 
@@ -153,8 +153,9 @@ export function unstable_cache<T extends Callback>(
         workStore.nextFetchId = fetchIdx + 1
 
         const isNestedCache =
-          cacheStore &&
-          (cacheStore.type === 'unstable-cache' || cacheStore.type === 'cache')
+          workUnitStore &&
+          (workUnitStore.type === 'unstable-cache' ||
+            workUnitStore.type === 'cache')
 
         // We are in an App Router context. We try to return the cached entry if it exists and is valid
         // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
@@ -193,12 +194,7 @@ export function unstable_cache<T extends Callback>(
         }
         // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
         // of this function is potentially a little confusing
-        const implicitTags = addImplicitTags(
-          workStore,
-          requestStore,
-          prerenderStore,
-          cacheStore
-        )
+        const implicitTags = addImplicitTags(workStore, workUnitStore)
 
         if (
           // when we are nested inside of other unstable_cache's
@@ -247,26 +243,27 @@ export function unstable_cache<T extends Callback>(
                   type: 'unstable-cache',
                 }
                 // We run the cache function asynchronously and save the result when it completes
-                workStore.pendingRevalidates[invocationKey] = cacheAsyncStorage
-                  .run(innerCacheStore, cb, ...args)
-                  .then((result) => {
-                    return cacheNewResult(
-                      result,
-                      incrementalCache,
-                      cacheKey,
-                      tags,
-                      options.revalidate,
-                      fetchIdx,
-                      fetchUrl
+                workStore.pendingRevalidates[invocationKey] =
+                  workUnitAsyncStorage
+                    .run(innerCacheStore, cb, ...args)
+                    .then((result) => {
+                      return cacheNewResult(
+                        result,
+                        incrementalCache,
+                        cacheKey,
+                        tags,
+                        options.revalidate,
+                        fetchIdx,
+                        fetchUrl
+                      )
+                    })
+                    // @TODO This error handling seems wrong. We swallow the error?
+                    .catch((err) =>
+                      console.error(
+                        `revalidating cache with key: ${invocationKey}`,
+                        err
+                      )
                     )
-                  })
-                  // @TODO This error handling seems wrong. We swallow the error?
-                  .catch((err) =>
-                    console.error(
-                      `revalidating cache with key: ${invocationKey}`,
-                      err
-                    )
-                  )
               }
               // We had a valid cache entry so we return it here
               return cachedResponse
@@ -278,7 +275,11 @@ export function unstable_cache<T extends Callback>(
           type: 'unstable-cache',
         }
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        const result = await cacheAsyncStorage.run(innerCacheStore, cb, ...args)
+        const result = await workUnitAsyncStorage.run(
+          innerCacheStore,
+          cb,
+          ...args
+        )
 
         if (!workStore.isDraftMode) {
           cacheNewResult(
@@ -306,8 +307,7 @@ export function unstable_cache<T extends Callback>(
           // @TODO check on this API. addImplicitTags mutates the store and returns the implicit tags. The naming
           // of this function is potentially a little confusing
           const implicitTags =
-            workStore &&
-            addImplicitTags(workStore, requestStore, prerenderStore, cacheStore)
+            workStore && addImplicitTags(workStore, workUnitStore)
 
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,
@@ -342,7 +342,11 @@ export function unstable_cache<T extends Callback>(
           type: 'unstable-cache',
         }
         // If we got this far then we had an invalid cache entry and need to generate a new one
-        const result = await cacheAsyncStorage.run(innerCacheStore, cb, ...args)
+        const result = await workUnitAsyncStorage.run(
+          innerCacheStore,
+          cb,
+          ...args
+        )
         cacheNewResult(
           result,
           incrementalCache,

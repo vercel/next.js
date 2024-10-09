@@ -4,13 +4,16 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
 use crate::{
-    backend::operation::{
-        aggregation_update::{
-            get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
-            AggregationUpdateQueue,
+    backend::{
+        operation::{
+            aggregation_update::{
+                get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
+                AggregationUpdateQueue,
+            },
+            invalidate::make_task_dirty,
+            ExecuteContext, Operation,
         },
-        invalidate::make_task_dirty,
-        ExecuteContext, Operation,
+        TaskDataCategory,
     },
     data::{CachedDataItemKey, CellRef},
 };
@@ -43,7 +46,7 @@ impl CleanupOldEdgesOperation {
         task_id: TaskId,
         outdated: Vec<OutdatedEdge>,
         data_update: Option<AggregationUpdateJob>,
-        ctx: ExecuteContext<'_>,
+        mut ctx: ExecuteContext<'_>,
     ) {
         let mut queue = AggregationUpdateQueue::new();
         queue.extend(data_update);
@@ -52,12 +55,12 @@ impl CleanupOldEdgesOperation {
             outdated,
             queue,
         }
-        .execute(&ctx);
+        .execute(&mut ctx);
     }
 }
 
 impl Operation for CleanupOldEdgesOperation {
-    fn execute(mut self, ctx: &ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -69,7 +72,7 @@ impl Operation for CleanupOldEdgesOperation {
                     if let Some(edge) = outdated.pop() {
                         match edge {
                             OutdatedEdge::Child(child_id) => {
-                                let mut task = ctx.task(task_id);
+                                let mut task = ctx.task(task_id, TaskDataCategory::All);
                                 task.remove(&CachedDataItemKey::Child { task: child_id });
                                 if is_aggregating_node(get_aggregation_number(&task)) {
                                     queue.push(AggregationUpdateJob::InnerLostFollower {
@@ -89,14 +92,14 @@ impl Operation for CleanupOldEdgesOperation {
                                 cell,
                             }) => {
                                 {
-                                    let mut task = ctx.task(cell_task_id);
+                                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
                                     task.remove(&CachedDataItemKey::CellDependent {
                                         cell,
                                         task: task_id,
                                     });
                                 }
                                 {
-                                    let mut task = ctx.task(task_id);
+                                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
                                     task.remove(&CachedDataItemKey::CellDependency {
                                         target: CellRef {
                                             task: cell_task_id,
@@ -107,13 +110,13 @@ impl Operation for CleanupOldEdgesOperation {
                             }
                             OutdatedEdge::OutputDependency(output_task_id) => {
                                 {
-                                    let mut task = ctx.task(output_task_id);
+                                    let mut task = ctx.task(output_task_id, TaskDataCategory::Data);
                                     task.remove(&CachedDataItemKey::OutputDependent {
                                         task: task_id,
                                     });
                                 }
                                 {
-                                    let mut task = ctx.task(task_id);
+                                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
                                     task.remove(&CachedDataItemKey::OutputDependency {
                                         target: output_task_id,
                                     });

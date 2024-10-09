@@ -7,6 +7,7 @@ use crate::{
     backend::{
         operation::{ExecuteContext, InvalidateOperation},
         storage::get_many,
+        TaskDataCategory,
     },
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, OutputValue},
 };
@@ -17,9 +18,9 @@ impl UpdateOutputOperation {
     pub fn run(
         task_id: TaskId,
         output: Result<Result<RawVc>, Option<Cow<'static, str>>>,
-        ctx: ExecuteContext<'_>,
+        mut ctx: ExecuteContext<'_>,
     ) {
-        let mut task = ctx.task(task_id);
+        let mut task = ctx.task(task_id, TaskDataCategory::Data);
         let old_error = task.remove(&CachedDataItemKey::Error {});
         let current_output = task.get(&CachedDataItemKey::Output {});
         let output_value = match output {
