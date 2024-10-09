@@ -58,7 +58,7 @@ export async function runUpgrade(
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
     console.error(
-      `${pc.red('⨯')} ${pc.yellow(`next@${revision}`)} does not exist. Make sure you entered a valid Next.js version or dist-tag. Check available versions at ${pc.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
+      `${pc.red('⨯')} Invalid revision provided: "${revision}". Please provide a valid Next.js version or dist-tag (e.g. "latest", "canary", "rc", or "15.0.0").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
     )
     process.exit(1)
   }
@@ -141,6 +141,7 @@ function getInstalledNextVersion(): string {
     ).version
   } catch (error) {
     console.error(
+      // TODO: Better monorepo handling
       `${pc.red('⨯')} Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`
     )
     process.exit(1)
