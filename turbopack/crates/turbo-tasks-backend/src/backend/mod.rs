@@ -353,14 +353,8 @@ impl TurboTasksBackendInner {
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
 
-            let is_dirty = get!(task, Dirty)
-                .map(|dirty_state| {
-                    dirty_state
-                        .clean_in_session
-                        .map(|clean_in_session| clean_in_session != self.session_id)
-                        .unwrap_or(true)
-                })
-                .unwrap_or(false);
+            let is_dirty =
+                get!(task, Dirty).map_or(false, |dirty_state| dirty_state.get(self.session_id));
 
             // Check the dirty count of the root node
             let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
