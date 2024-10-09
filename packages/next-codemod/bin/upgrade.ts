@@ -130,7 +130,7 @@ export async function runUpgrade(
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
   console.log(
-    `Please check Next.js 15 migration guide to finished the migration. https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15`
+    `Please review the local changes and read the Next.js 15 migration guide to complete the migration. https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15`
   )
 }
 
