@@ -24,4 +24,20 @@ describe('worker-restart', () => {
       'Error: Farm is ended, no more calls can be done to it'
     )
   })
+
+  it('should fail the build if a worker process is killed', async () => {
+    const { stdout, stderr } = await nextBuild(
+      __dirname + '/fixtures/worker-kill',
+      [],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+    expect(output).toContain(
+      'Static worker exited with code: null and signal: SIGKILL'
+    )
+  })
 })
