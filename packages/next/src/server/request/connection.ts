@@ -1,8 +1,5 @@
 import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import {
-  isDynamicIOPrerender,
-  workUnitAsyncStorage,
-} from '../app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
@@ -44,31 +41,24 @@ export function connection(): Promise<void> {
       )
     }
 
-    if (workUnitStore && workUnitStore.type === 'prerender') {
-      // We are in PPR and/or dynamicIO mode and prerendering
-
-      if (isDynamicIOPrerender(workUnitStore)) {
-        // We use the controller and cacheSignal as an indication we are in dynamicIO mode.
-        // When resolving headers for a prerender with dynamic IO we return a forever promise
-        // along with property access tracked synchronous headers.
-
-        // We don't track dynamic access here because access will be tracked when you access
-        // one of the properties of the headers object.
+    if (workUnitStore) {
+      if (workUnitStore.type === 'prerender') {
+        // dynamicIO Prerender
+        // We return a promise that never resolves to allow the prender to stall at this point
         return makeHangingPromise()
-      } else {
-        // We are prerendering with PPR. We need track dynamic access here eagerly
-        // to keep continuity with how headers has worked in PPR without dynamicIO.
-        // TODO consider switching the semantic to throw on property access intead
+      } else if (workUnitStore.type === 'prerender-ppr') {
+        // PPR Prerender (no dynamicIO)
+        // We use React's postpone API to interrupt rendering here to create a dynamic hole
         postponeWithTracking(
           workStore.route,
           'connection',
           workUnitStore.dynamicTracking
         )
+      } else if (workUnitStore.type === 'prerender-legacy') {
+        // Legacy Prerender
+        // We throw an error here to interrupt prerendering to mark the route as dynamic
+        throwToInterruptStaticGeneration('connection', workStore, workUnitStore)
       }
-    } else if (workStore.isStaticGeneration) {
-      // We are in a legacy static generation mode while prerendering
-      // We treat this function call as a bailout of static generation
-      throwToInterruptStaticGeneration('connection', workStore, workUnitStore)
     }
     // We fall through to the dynamic context below but we still track dynamic access
     // because in dev we can still error for things like using headers inside a cache context
