@@ -184,6 +184,46 @@ export function GET(req: NextRequest) {
 }
 ```
 
+#### Transform `next/dynamic` imports accessing named exports to return an object with a `default` property
+
+##### `next-dynamic-access-named-export`
+
+```bash filename="Terminal"
+npx @next/codemod@latest next-dynamic-access-named-export .
+```
+
+This codemod transforms dynamic imports using `next/dynamic` to ensure they return an object with a `default` property when accessing named exports. This aligns the behavior with `React.lazy` and addresses issues with accessing named exports from client components in server components.
+
+For example:
+
+```js
+import dynamic from 'next/dynamic'
+
+const ComponentA = dynamic(() =>
+  import('../components/a').then((mod) => mod.default)
+)
+
+const ComponentB = dynamic(() =>
+  import('../components/b').then((mod) => mod.ComponentB)
+)
+```
+
+Transforms into:
+
+```js
+import dynamic from 'next/dynamic'
+
+const ComponentA = dynamic(() =>
+  import('../components/a').then((mod) => ({ default: mod.default }))
+)
+
+const ComponentB = dynamic(() =>
+  import('../components/b').then((mod) => ({ default: mod.ComponentB }))
+)
+```
+
+> **Good to know**: This codemod only affects dynamic imports using `next/dynamic` and access named exports.
+
 ### 14.0
 
 #### Migrate `ImageResponse` imports
