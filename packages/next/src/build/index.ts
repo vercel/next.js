@@ -3112,100 +3112,104 @@ export default async function build(
               }
             }
 
-            if (!hasRevalidateZero && isDynamicRoute(page)) {
-              // When PPR fallbacks aren't used, we need to include it here. If
-              // they are enabled, then it'll already be included in the
-              // prerendered routes.
-              if (!isRoutePPREnabled || !config.experimental.pprFallbacks) {
-                dynamicRoutes.push(page)
+            if (
+              isDynamicRoute(page) &&
+              // When PPR is not enabled, we only want to include the dynamic
+              // route if it doesn't have a revalidate of 0.
+              ((!isRoutePPREnabled && !hasRevalidateZero) ||
+                // If the route has PPR enabled, but doesn't have PPR fallbacks
+                // enabled, we need to include it here because we don't
+                // prerender the fallback (and it won't be included from above).
+                (isRoutePPREnabled && !config.experimental.pprFallbacks))
+            ) {
+              dynamicRoutes.push(page)
+            }
+
+            for (const route of dynamicRoutes) {
+              const normalizedRoute = normalizePagePath(route)
+
+              const { metadata, revalidate } =
+                exportResult.byPath.get(route) ?? {}
+
+              let dataRoute: string | null = null
+              if (!isAppRouteHandler) {
+                dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
               }
 
-              for (const route of dynamicRoutes) {
-                const normalizedRoute = normalizePagePath(route)
-
-                const { metadata, revalidate } =
-                  exportResult.byPath.get(route) ?? {}
-
-                let dataRoute: string | null = null
-                if (!isAppRouteHandler) {
-                  dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
-                }
-
-                let prefetchDataRoute: string | undefined
-                if (!isAppRouteHandler && isAppPPREnabled) {
-                  prefetchDataRoute = path.posix.join(
-                    `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-                  )
-                }
-
-                pageInfos.set(route, {
-                  ...(pageInfos.get(route) as PageInfo),
-                  isDynamicAppRoute: true,
-                  // if PPR is turned on and the route contains a dynamic segment,
-                  // we assume it'll be partially prerendered
-                  hasPostponed: isRoutePPREnabled,
-                })
-
-                const fallbackMode =
-                  fallbackModes.get(originalAppPath) ?? FallbackMode.NOT_FOUND
-
-                // When we're configured to serve a prerender, we should use the
-                // fallback revalidate from the export result. If it can't be
-                // found, mark that we should keep the shell forever (`false`).
-                let fallbackRevalidate: Revalidate | undefined =
-                  isRoutePPREnabled && fallbackMode === FallbackMode.PRERENDER
-                    ? revalidate ?? false
-                    : undefined
-
-                const fallback: Fallback = fallbackModeToFallbackField(
-                  fallbackMode,
-                  route
+              let prefetchDataRoute: string | undefined
+              if (!isAppRouteHandler && isAppPPREnabled) {
+                prefetchDataRoute = path.posix.join(
+                  `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                 )
+              }
 
-                const meta =
-                  metadata &&
-                  isRoutePPREnabled &&
-                  fallbackMode === FallbackMode.PRERENDER
-                    ? collectMeta(metadata)
-                    : {}
+              pageInfos.set(route, {
+                ...(pageInfos.get(route) as PageInfo),
+                isDynamicAppRoute: true,
+                // if PPR is turned on and the route contains a dynamic segment,
+                // we assume it'll be partially prerendered
+                hasPostponed: isRoutePPREnabled,
+              })
 
-                prerenderManifest.dynamicRoutes[route] = {
-                  experimentalPPR: isRoutePPREnabled,
-                  renderingMode: isAppPPREnabled
-                    ? isRoutePPREnabled
-                      ? RenderingMode.PARTIALLY_STATIC
-                      : RenderingMode.STATIC
-                    : undefined,
-                  experimentalBypassFor: bypassFor,
-                  routeRegex: normalizeRouteRegex(
-                    getNamedRouteRegex(route, false).re.source
-                  ),
-                  dataRoute,
-                  fallback,
-                  fallbackRevalidate,
-                  fallbackStatus: meta.status,
-                  fallbackHeaders: meta.headers,
-                  dataRouteRegex: !dataRoute
-                    ? null
-                    : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          dataRoute.replace(/\.rsc$/, ''),
-                          false
-                        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
-                      ),
-                  prefetchDataRoute,
-                  prefetchDataRouteRegex: !prefetchDataRoute
-                    ? undefined
-                    : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
-                          false
-                        ).re.source.replace(
-                          /\(\?:\\\/\)\?\$$/,
-                          '\\.prefetch\\.rsc$'
-                        )
-                      ),
-                }
+              const fallbackMode =
+                fallbackModes.get(originalAppPath) ?? FallbackMode.NOT_FOUND
+
+              // When we're configured to serve a prerender, we should use the
+              // fallback revalidate from the export result. If it can't be
+              // found, mark that we should keep the shell forever (`false`).
+              let fallbackRevalidate: Revalidate | undefined =
+                isRoutePPREnabled && fallbackMode === FallbackMode.PRERENDER
+                  ? revalidate ?? false
+                  : undefined
+
+              const fallback: Fallback = fallbackModeToFallbackField(
+                fallbackMode,
+                route
+              )
+
+              const meta =
+                metadata &&
+                isRoutePPREnabled &&
+                fallbackMode === FallbackMode.PRERENDER
+                  ? collectMeta(metadata)
+                  : {}
+
+              prerenderManifest.dynamicRoutes[route] = {
+                experimentalPPR: isRoutePPREnabled,
+                renderingMode: isAppPPREnabled
+                  ? isRoutePPREnabled
+                    ? RenderingMode.PARTIALLY_STATIC
+                    : RenderingMode.STATIC
+                  : undefined,
+                experimentalBypassFor: bypassFor,
+                routeRegex: normalizeRouteRegex(
+                  getNamedRouteRegex(route, false).re.source
+                ),
+                dataRoute,
+                fallback,
+                fallbackRevalidate,
+                fallbackStatus: meta.status,
+                fallbackHeaders: meta.headers,
+                dataRouteRegex: !dataRoute
+                  ? null
+                  : normalizeRouteRegex(
+                      getNamedRouteRegex(
+                        dataRoute.replace(/\.rsc$/, ''),
+                        false
+                      ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
+                    ),
+                prefetchDataRoute,
+                prefetchDataRouteRegex: !prefetchDataRoute
+                  ? undefined
+                  : normalizeRouteRegex(
+                      getNamedRouteRegex(
+                        prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
+                        false
+                      ).re.source.replace(
+                        /\(\?:\\\/\)\?\$$/,
+                        '\\.prefetch\\.rsc$'
+                      )
+                    ),
               }
             }
           })
