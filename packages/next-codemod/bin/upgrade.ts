@@ -125,8 +125,12 @@ export async function runUpgrade(
     await runTransform(codemod, process.cwd(), { force: true })
   }
 
+  console.log() // new line
+  if (codemods.length > 0) {
+    console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
+  }
   console.log(
-    `\n${pc.green('✔')} Your Next.js project has been upgraded successfully. ${pc.bold('Time to ship! 🚢')}`
+    `Please check Next.js 15 migration guide to finished the migration. https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15`
   )
 }
 
