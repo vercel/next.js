@@ -3,7 +3,7 @@ import fs from 'fs'
 import { execSync } from 'child_process'
 import path from 'path'
 import { compareVersions } from 'compare-versions'
-import chalk from 'chalk'
+import pc from 'picocolors'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
@@ -53,7 +53,7 @@ export async function runUpgrade(
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
     throw new Error(
-      `${chalk.yellow(`next@${revision}`)} does not exist. Make sure you entered a valid Next.js version or dist-tag. Check available versions at ${chalk.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
+      `${pc.yellow(`next@${revision}`)} does not exist. Make sure you entered a valid Next.js version or dist-tag. Check available versions at ${pc.underline('https://www.npmjs.com/package/next?activeTab=versions')}.`
     )
   }
 
@@ -112,7 +112,7 @@ export async function runUpgrade(
   }
 
   console.log(
-    `Upgrading your project to ${chalk.blue('Next.js ' + targetNextVersion)}...\n`
+    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
   )
 
   installPackages([nextDependency, ...reactDependencies], {
@@ -125,7 +125,7 @@ export async function runUpgrade(
   }
 
   console.log(
-    `\n${chalk.green('✔')} Your Next.js project has been upgraded successfully. ${chalk.bold('Time to ship! 🚢')}`
+    `\n${pc.green('✔')} Your Next.js project has been upgraded successfully. ${pc.bold('Time to ship! 🚢')}`
   )
 }
 
@@ -184,7 +184,7 @@ async function suggestTurbopack(packageJson: any): Promise<void> {
   }
 
   console.log(
-    `${chalk.yellow('⚠')} Could not find "${chalk.bold('next dev')}" in your dev script.`
+    `${pc.yellow('⚠')} Could not find "${pc.bold('next dev')}" in your dev script.`
   )
 
   const responseCustomDevScript = await prompts(
@@ -234,7 +234,7 @@ async function suggestCodemods(
     {
       type: 'multiselect',
       name: 'codemods',
-      message: `The following ${chalk.blue('codemods')} are recommended for your upgrade. Select the ones to apply.`,
+      message: `The following ${pc.blue('codemods')} are recommended for your upgrade. Select the ones to apply.`,
       choices: relevantCodemods.reverse().map(({ title, value, version }) => {
         return {
           title: `(v${version}) ${value}`,
