@@ -1464,6 +1464,7 @@ function renderModelDestructive(
         (value = Array.from(value.entries())),
         "$K" + outlineModel(request, value).toString(16)
       );
+    if (value instanceof Error) return "$Z";
     if (value instanceof ArrayBuffer)
       return serializeTypedArray(request, "A", new Uint8Array(value));
     if (value instanceof Int8Array)

@@ -1564,6 +1564,7 @@ function renderModelDestructive(
         (value = Array.from(value.entries())),
         "$K" + outlineModel(request, value).toString(16)
       );
+    if (value instanceof Error) return "$Z";
     if (value instanceof ArrayBuffer)
       return serializeTypedArray(request, "A", new Uint8Array(value));
     if (value instanceof Int8Array)
@@ -2958,12 +2959,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_229 = [];
+    var JSCompiler_object_inline_chunks_233 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_229.push(chunk);
+      JSCompiler_object_inline_chunks_233.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_229, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_233, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);
