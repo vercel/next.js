@@ -77,15 +77,21 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         } else {
             source
         };
-        let client_module = this
-            .client_transition
-            .process(client_source, module_asset_context, reference_type.clone())
-            .module();
+        let client_module = this.client_transition.process(
+            client_source,
+            module_asset_context,
+            reference_type.clone(),
+        );
+        let ProcessResult::Module(client_module) = *client_module.await? else {
+            return Ok(ProcessResult::Ignore.cell());
+        };
 
         let ssr_module = this
             .ssr_transition
-            .process(source, module_asset_context, reference_type)
-            .module();
+            .process(source, module_asset_context, reference_type);
+        let ProcessResult::Module(ssr_module) = *ssr_module.await? else {
+            return Ok(ProcessResult::Ignore.cell());
+        };
 
         let Some(client_module) =
             Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
