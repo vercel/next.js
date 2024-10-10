@@ -1390,7 +1390,7 @@ impl TurboTasksBackendInner {
                 collectible_type,
                 cell,
             },
-            -(count as i32),
+            -(i32::try_from(count).unwrap()),
             self.execute_context(turbo_tasks),
         );
     }
