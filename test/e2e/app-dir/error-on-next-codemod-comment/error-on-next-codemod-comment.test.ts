@@ -40,7 +40,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/page.tsx
-          Error:   x You have unresolved @next/codemod comment needs to be removed, please address and remove it to proceed build.
+          Error:   x You have unresolved @next/codemod comments that need to be reviewed, please address and remove them to proceed with the build.
             | Action: " remove jsx of next line"
              ,-[2:1]
            1 | export default function Page() {
