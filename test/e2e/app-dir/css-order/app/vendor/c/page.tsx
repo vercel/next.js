@@ -5,7 +5,7 @@ export default function Page() {
   return (
     <div>
       <SideEffectsFalseComponent id="vendor-side-effects-false">
-        side effects: array
+        side effects: false
       </SideEffectsFalseComponent>
       <Nav />
     </div>

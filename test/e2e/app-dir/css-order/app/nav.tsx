@@ -91,18 +91,61 @@ export default function Nav() {
           </Link>
         </li>
         <li>
+          <Link href={'/vendor/e'} id="vendor-e">
+            Vendor Side Effects All CSS Array - Client Components
+          </Link>
+        </li>
+        <li>
+          <Link href={'/vendor/f'} id="vendor-f">
+            Vendor Side Effects All CSS Array - Server Component With Client
+            Subcomponent
+          </Link>
+        </li>
+        <li>
           <Link href={'/vendor/b'} id="vendor-b">
             Vendor Side Effects True
           </Link>
         </li>
         <li>
+          <Link href={'/vendor/g'} id="vendor-g">
+            Vendor Side Effects True - Client Components
+          </Link>
+        </li>
+        <li>
+          <Link href={'/vendor/h'} id="vendor-h">
+            Vendor Side Effects True - Server Component With Client Subcomponent
+          </Link>
+        </li>
+        <li>
           <Link href={'/vendor/c'} id="vendor-c">
+            Vendor Side Effects False - Client Components
+          </Link>
+        </li>
+        <li>
+          <Link href={'/vendor/i'} id="vendor-i">
             Vendor Side Effects False
+          </Link>
+        </li>
+        <li>
+          <Link href={'/vendor/j'} id="vendor-j">
+            Vendor Side Effects False - Server Component With Client
+            Subcomponent
           </Link>
         </li>
         <li>
           <Link href={'/vendor/d'} id="vendor-d">
             Vendor Side Effects Global CSS Only Array
+          </Link>
+        </li>
+        <li>
+          <Link href={'/vendor/k'} id="vendor-k">
+            Vendor Side Effects Global CSS Only Array - Client Components
+          </Link>
+        </li>
+        <li>
+          <Link href={'/vendor/l'} id="vendor-l">
+            Vendor Side Effects Global CSS Only Array - Server Component With
+            Client Subcomponent
           </Link>
         </li>
       </ul>

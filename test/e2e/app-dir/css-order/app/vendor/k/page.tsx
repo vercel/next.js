@@ -5,7 +5,7 @@ export default function Page() {
   return (
     <div>
       <SideEffectsArrayGlobalComponentClient id="vendor-side-effects-global-array-client">
-        side effects: global css array - client
+        side effects: global css array
       </SideEffectsArrayGlobalComponentClient>
       <Nav />
     </div>

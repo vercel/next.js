@@ -227,9 +227,47 @@ const SIDE_EFFECTS_PAGES: Record<
      */
     skip: ['turbo'],
   },
+  'vendor-side-effects-array-client': {
+    url: '/vendor/e',
+    selector: '#vendor-side-effects-array-client',
+    background: 'rgb(254, 254, 0)',
+    color: 'rgb(254, 254, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-array-server-client': {
+    url: '/vendor/f',
+    selector: '#vendor-side-effects-array-server-client-subcomponent',
+    background: 'rgb(0, 254, 0)',
+    color: 'rgb(254, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
   'vendor-side-effects-true': {
     url: '/vendor/b',
     selector: '#vendor-side-effects-true',
+    background: 'rgb(0, 253, 0)',
+    color: 'rgb(253, 0, 0)',
+  },
+  'vendor-side-effects-true-client': {
+    url: '/vendor/g',
+    selector: '#vendor-side-effects-true-client',
+    background: 'rgb(253, 253, 0)',
+    color: 'rgb(253, 253, 0)',
+  },
+  'vendor-side-effects-true-server-client': {
+    url: '/vendor/h',
+    selector: '#vendor-side-effects-true-server-client-subcomponent',
     background: 'rgb(0, 253, 0)',
     color: 'rgb(253, 0, 0)',
   },
@@ -247,9 +285,63 @@ const SIDE_EFFECTS_PAGES: Record<
      */
     skip: ['turbo'],
   },
+  'vendor-side-effects-false-client': {
+    url: '/vendor/i',
+    selector: '#vendor-side-effects-false-client',
+    background: 'rgb(252, 252, 0)',
+    color: 'rgb(252, 252, 0)',
+    /**
+     * Turbopack has buttoned up a webpack bug.
+     * Packages *should* side-effect css modules, but webpack doesn't retain
+     * the proper import order context of css modules in libraries within
+     * node_modules when side-effects is set to true.
+     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-false-server-client': {
+    url: '/vendor/j',
+    selector: '#vendor-side-effects-false-server-client-subcomponent',
+    background: 'rgb(0, 253, 0)',
+    color: 'rgb(253, 0, 0)',
+    /**
+     * Turbopack has buttoned up a webpack bug.
+     * Packages *should* side-effect css modules, but webpack doesn't retain
+     * the proper import order context of css modules in libraries within
+     * node_modules when side-effects is set to true.
+     * Related webpack bug: https://github.com/webpack/webpack/issues/7094
+     */
+    skip: ['turbo'],
+  },
   'vendor-side-effects-global-array': {
     url: '/vendor/d',
     selector: '#vendor-side-effects-global-array',
+    background: 'rgb(0, 250, 0)',
+    color: 'rgb(250, 0, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-global-array-client': {
+    url: '/vendor/k',
+    selector: '#vendor-side-effects-global-array-client',
+    background: 'rgb(250, 250, 0)',
+    color: 'rgb(250, 250, 0)',
+    /**
+     * TURBOPACK: This should be supported by turbo but does not appear to be today,
+     * because the emitted rules are not in the correct order when this is set.
+     * Results are inconsistent so we cannot reliably test against without
+     * removing this skip...
+     */
+    skip: ['turbo'],
+  },
+  'vendor-side-effects-global-array-server-client': {
+    url: '/vendor/k',
+    selector: '#vendor-side-effects-global-array-server-client',
     background: 'rgb(0, 250, 0)',
     color: 'rgb(250, 0, 0)',
     /**
