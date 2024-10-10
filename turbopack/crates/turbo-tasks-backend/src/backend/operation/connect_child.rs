@@ -102,6 +102,18 @@ impl ConnectChildOperation {
             }
             drop(parent_task);
 
+            {
+                let mut task = ctx.task(child_task_id, TaskDataCategory::Data);
+                if !task.has_key(&CachedDataItemKey::Output {}) {
+                    let description = ctx.backend.get_task_desc_fn(child_task_id);
+                    let should_schedule = task.add(CachedDataItem::new_scheduled(description));
+                    drop(task);
+                    if should_schedule {
+                        ctx.schedule(child_task_id);
+                    }
+                }
+            }
+
             ConnectChildOperation::UpdateAggregation {
                 aggregation_update: queue,
             }
