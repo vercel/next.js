@@ -64,6 +64,14 @@ export class CacheHandler {
   public resetRequestCache(): void {}
 }
 
+export const NEXT_CACHE_HANDLER_SYMBOL = Symbol.for(
+  '__next_internal_cache_handler__'
+)
+
+// TODO(after): this is a temporary workaround.
+// Remove this when vercel builder is updated to provide '@next/request-context'. Same time as waitUntil
+const VERCEL_REQUEST_CONTEXT_SYMBOL = Symbol.for('@vercel/request-context')
+
 export class IncrementalCache implements IncrementalCacheType {
   readonly dev?: boolean
   readonly disableForTestmode?: boolean
@@ -121,13 +129,19 @@ export class IncrementalCache implements IncrementalCacheType {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
     if (!CurCacheHandler) {
-      if (fs && serverDistDir) {
+      const _globalThis: any = globalThis
+      const globalCacheHandler =
+        _globalThis[NEXT_CACHE_HANDLER_SYMBOL] ??
+        _globalThis[VERCEL_REQUEST_CONTEXT_SYMBOL]?.get()?.NextFetchCache
+
+      if (globalCacheHandler) {
+        CurCacheHandler = globalCacheHandler
+      } else if (fs && serverDistDir) {
         if (debug) {
           console.log('using filesystem cache handler')
         }
         CurCacheHandler = FileSystemCache
-      }
-      if (
+      } else if (
         FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
         minimalMode &&
         fetchCache
