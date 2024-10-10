@@ -2,7 +2,7 @@ import { constants as FS, promises as fs } from 'fs'
 import path from 'path'
 import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { getRawSourceMap } from '../internal/helpers/get-raw-source-map'
+import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import {
   badRequest,
@@ -16,6 +16,7 @@ import {
 import { createStackFrame } from '../internal/helpers/create-stack-frame'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
+export { getSourceMapFromFile }
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
@@ -157,16 +158,6 @@ export async function createOriginalStackFrame({
     originalCodeFrame: getOriginalCodeFrame(traced, sourceContent),
     sourcePackage: findSourcePackage(traced),
   }
-}
-
-export async function getSourceMapFromFile(
-  filename: string
-): Promise<RawSourceMap | undefined> {
-  const fileContent = await fs
-    .readFile(filename, 'utf-8')
-    .catch(() => undefined)
-
-  return fileContent ? getRawSourceMap(filename, fileContent) : undefined
 }
 
 export async function getSourceMapFromCompilation(
@@ -395,8 +386,8 @@ export function getSourceMapMiddleware(options: {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
-    next: Function
-  ) {
+    next: () => void
+  ): Promise<void> {
     const { pathname, searchParams } = new URL(`http://n${req.url}`)
 
     if (pathname !== '/__nextjs_source-map') {
@@ -437,7 +428,6 @@ export function getSourceMapMiddleware(options: {
     }
 
     if (!source) {
-      console.log('NO SOURCE MAP', filename)
       return noContent(res)
     }
 

@@ -5,14 +5,17 @@ import {
   getOriginalCodeFrame,
   internalServerError,
   json,
+  jsonString,
   noContent,
   type OriginalStackFrameResponse,
 } from './shared'
 
 import fs, { constants as FS } from 'fs/promises'
+import path from 'path'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
+import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
 export async function batchedTraceSource(
@@ -126,5 +129,43 @@ export function getOverlayMiddleware(project: Project) {
     }
 
     return next()
+  }
+}
+
+export function getSourceMapMiddleware(project: Project) {
+  return async function (
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: () => void
+  ): Promise<void> {
+    const { pathname, searchParams } = new URL(req.url!, 'http://n')
+
+    if (pathname !== '/__nextjs_source-map') {
+      return next()
+    }
+
+    const filename = searchParams.get('filename')
+
+    if (!filename) {
+      return badRequest(res)
+    }
+
+    try {
+      const sourceMapString = await project.getSourceMap(filename)
+
+      if (sourceMapString) {
+        return jsonString(res, sourceMapString)
+      }
+
+      if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
+        const sourceMap = await getSourceMapFromFile(filename)
+
+        if (sourceMap) {
+          return json(res, sourceMap)
+        }
+      }
+    } catch {}
+
+    noContent(res)
   }
 }
