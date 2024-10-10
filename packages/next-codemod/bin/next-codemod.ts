@@ -33,7 +33,11 @@ const program = new Command(packageJson.name)
   .helpOption('-h, --help', 'Display this help message.')
   .option('-f, --force', 'Bypass Git safety checks and forcibly run codemods')
   .option('-d, --dry', 'Dry run (no changes are made to files)')
-  .option('-p, --print', 'Print transformed files to your terminal')
+  .option(
+    '-p, --print',
+    'Print transformed files to stdout, useful for development'
+  )
+  .option('--verbose', 'Show more information about the transform process')
   .option(
     '-j, --jscodeshift',
     '(Advanced) Pass options directly to jscodeshift'
