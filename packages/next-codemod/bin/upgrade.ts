@@ -81,7 +81,7 @@ export async function runUpgrade(
       type: 'confirm',
       name: 'isPagesOnlyAndWantReact18',
       message:
-        'Are you using Pages Router only (no App Router) and want to upgrade up until React 18?',
+        'Are you using Pages Router only (no App Router) and want to stay on React 18?',
       initial: false,
       active: 'Yes',
       inactive: 'No',
@@ -98,7 +98,7 @@ export async function runUpgrade(
     ? await loadHighestNPMVersionMatching(
         `react@${targetNextPackageJson.peerDependencies['react']}`
       )
-    : '18.3.0'
+    : '18.3.1'
 
   if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
     await suggestTurbopack(appPackageJson)
@@ -339,7 +339,7 @@ async function suggestReactTypesCodemods(packageManager: PackageManager) {
     const command = commandMap[packageManager] || 'npx'
 
     // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
-    execSync(`${command} types-react-codemod@latest preset-19 .`, {
+    execSync(`${command} types-react-codemod@latest --yes preset-19 .`, {
       stdio: 'inherit',
     })
   }
