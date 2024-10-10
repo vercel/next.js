@@ -21,6 +21,7 @@ use swc_core::{
 };
 
 use crate::{
+    linter::linter,
     transforms::{
         cjs_finder::contains_cjs,
         dynamic::{next_dynamic, NextDynamicMode},
@@ -28,7 +29,6 @@ use crate::{
         lint_error_comment::lint_error_comment,
         react_server_components,
     },
-    util::linter,
 };
 
 #[derive(Clone, Debug, Deserialize)]
