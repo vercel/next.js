@@ -583,8 +583,10 @@ impl AggregationUpdateQueue {
         if let Some(task_id) = popped {
             let mut task = ctx.task(task_id, TaskDataCategory::Meta);
             let session_id = ctx.session_id();
+            // Task need to be scheduled if it's dirty or doesn't have output
             let dirty = get!(task, Dirty).map_or(false, |d| d.get(session_id));
-            if dirty {
+            let should_schedule = dirty || !task.has_key(&CachedDataItemKey::Output {});
+            if should_schedule {
                 let description = ctx.backend.get_task_desc_fn(task_id);
                 if task.add(CachedDataItem::new_scheduled(description)) {
                     ctx.turbo_tasks.schedule(task_id);
