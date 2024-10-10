@@ -74,14 +74,31 @@ export async function runUpgrade(
     return
   }
 
+  // If the app is a pure Pages Router (no app dir) and the user wants to stay on React 18,
+  // we can skip the upgrading React and suggesting relevant codemods.
+  const { isPagesOnlyAndWantReact18 } = await prompts(
+    {
+      type: 'confirm',
+      name: 'isPagesOnlyAndWantReact18',
+      message:
+        'Are you using Pages Router only (no App Router) and want to upgrade up until React 18?',
+      initial: false,
+      active: 'Yes',
+      inactive: 'No',
+    },
+    { onCancel }
+  )
+
   // We're resolving a specific version here to avoid including "ugly" version queries
   // in the manifest.
   // E.g. in peerDependencies we could have `^18.2.0 || ^19.0.0 || 20.0.0-canary`
   // If we'd just `npm add` that, the manifest would read the same version query.
   // This is basically a `npm --save-exact react@$versionQuery` that works for every package manager.
-  const targetReactVersion = await loadHighestNPMVersionMatching(
-    `react@${targetNextPackageJson.peerDependencies['react']}`
-  )
+  const targetReactVersion = !isPagesOnlyAndWantReact18
+    ? await loadHighestNPMVersionMatching(
+        `react@${targetNextPackageJson.peerDependencies['react']}`
+      )
+    : '18.3.0'
 
   if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
     await suggestTurbopack(appPackageJson)
@@ -134,9 +151,8 @@ export async function runUpgrade(
     await runTransform(codemod, process.cwd(), { force: true })
   }
 
-  // Release https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
-  // PR https://github.com/vercel/next.js/pull/65058
-  if (compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0) {
+  // The following React codemods are for React 19
+  if (!isPagesOnlyAndWantReact18) {
     await suggestReactCodemods(packageManager)
     await suggestReactTypesCodemods(packageManager)
   }
