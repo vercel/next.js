@@ -365,6 +365,11 @@ exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
+exports.__COMPILER_RUNTIME = {
+  c: function (size) {
+    return ReactSharedInternals.H.useMemoCache(size);
+  }
+};
 exports.act = function () {
   throw Error("act(...) is not supported in production builds of React.");
 };
@@ -562,4 +567,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.0.0-experimental-2d16326d-20240930";
+exports.version = "19.0.0-experimental-70fb1363-20241010";

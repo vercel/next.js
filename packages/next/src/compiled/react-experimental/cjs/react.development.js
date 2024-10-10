@@ -771,6 +771,11 @@
     exports.Suspense = REACT_SUSPENSE_TYPE;
     exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
       ReactSharedInternals;
+    exports.__COMPILER_RUNTIME = {
+      c: function (size) {
+        return resolveDispatcher().useMemoCache(size);
+      }
+    };
     exports.act = function (callback) {
       var prevActQueue = ReactSharedInternals.actQueue,
         prevActScopeDepth = actScopeDepth;
@@ -1232,7 +1237,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.0.0-experimental-2d16326d-20240930";
+    exports.version = "19.0.0-experimental-70fb1363-20241010";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
