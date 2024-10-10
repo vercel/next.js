@@ -16,7 +16,7 @@ let currDataLayerName: string = 'dataLayer'
 export function GoogleAnalytics(props: GAParams) {
   const { gaId, debugMode, dataLayerName, nonce } = props
 
-  if (currDataLayerName === undefined) {
+  if (dataLayerName) {
     currDataLayerName = dataLayerName
   }
 
