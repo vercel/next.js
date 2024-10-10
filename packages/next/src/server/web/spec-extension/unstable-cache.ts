@@ -1,11 +1,7 @@
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
 import { CACHE_ONE_YEAR } from '../../../lib/constants'
-import {
-  getImplicitTags,
-  validateRevalidate,
-  validateTags,
-} from '../../lib/patch-fetch'
+import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import {
@@ -188,7 +184,10 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        const implicitTags = getImplicitTags(workStore, workUnitStore)
+        const implicitTags =
+          !workUnitStore || workUnitStore.type === 'unstable-cache'
+            ? []
+            : workUnitStore.implicitTags
 
         const isNestedUnstableCache =
           workUnitStore && workUnitStore.type === 'unstable-cache'
@@ -299,9 +298,10 @@ export function unstable_cache<T extends Callback>(
 
         if (!incrementalCache.isOnDemandRevalidate) {
           // We aren't doing an on demand revalidation so we check use the cache if valid
-
           const implicitTags =
-            workStore && getImplicitTags(workStore, workUnitStore)
+            !workUnitStore || workUnitStore.type === 'unstable-cache'
+              ? []
+              : workUnitStore.implicitTags
 
           const cacheEntry = await incrementalCache.get(cacheKey, {
             kind: IncrementalCacheKind.FETCH,
