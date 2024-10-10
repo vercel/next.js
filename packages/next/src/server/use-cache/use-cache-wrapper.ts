@@ -14,10 +14,7 @@ import {
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import type {
-  CacheStore,
-  UseCacheStore,
-} from '../app-render/work-unit-async-storage.external'
+import type { UseCacheStore } from '../app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
@@ -39,6 +36,8 @@ type CacheEntry = {
   // we also don't want to reuse a stale entry for too long so stale entries
   // should be considered expired/missing in such CacheHandlers.
   stale: boolean
+  tags: string[]
+  revalidate: number
 }
 
 interface CacheHandler {
@@ -49,18 +48,20 @@ interface CacheHandler {
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
 
 // TODO: Move default implementation to be injectable.
-const defaultCacheStorage: Map<string, ReadableStream> = new Map()
+const defaultCacheStorage: Map<string, CacheEntry> = new Map()
 cacheHandlerMap.set('default', {
-  async get(cacheKey: string | ArrayBuffer) {
+  async get(cacheKey: string | ArrayBuffer): Promise<CacheEntry> {
     // TODO: Implement proper caching.
     if (typeof cacheKey === 'string') {
-      const value = defaultCacheStorage.get(cacheKey)
-      if (value !== undefined) {
-        const [returnStream, newSaved] = value.tee()
-        defaultCacheStorage.set(cacheKey, newSaved)
+      const entry = defaultCacheStorage.get(cacheKey)
+      if (entry !== undefined) {
+        const [returnStream, newSaved] = entry.value.tee()
+        entry.value = newSaved
         return {
           value: returnStream,
           stale: false,
+          revalidate: entry.revalidate,
+          tags: entry.tags,
         }
       }
     } else {
@@ -69,13 +70,13 @@ cacheHandlerMap.set('default', {
     return undefined
   },
   async set(cacheKey: string | ArrayBuffer, promise: Promise<CacheEntry>) {
-    const { value } = await promise
+    const entry = await promise
     // TODO: Implement proper caching.
     if (typeof cacheKey === 'string') {
-      defaultCacheStorage.set(cacheKey, value)
+      defaultCacheStorage.set(cacheKey, entry)
     } else {
       // TODO: Handle binary keys.
-      await value.cancel()
+      await entry.value.cancel()
     }
   },
 })
@@ -142,7 +143,7 @@ function generateCacheEntryWithCacheContext(
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
-    revalidate: INFINITE_CACHE,
+    revalidate: INFINITE_CACHE, // TODO: Adjust this default to lower.
     explicitRevalidate: undefined,
     tags: null,
   }
@@ -161,7 +162,7 @@ function generateCacheEntryWithCacheContext(
 
 async function collectResult(
   savedStream: ReadableStream,
-  _innerCacheStore: CacheStore,
+  innerCacheStore: UseCacheStore,
   errors: Array<unknown> // This is a live array that gets pushed into.
 ): Promise<CacheEntry> {
   // We create a buffered stream that collects all chunks until the end to
@@ -196,15 +197,26 @@ async function collectResult(
       }
     },
   })
+
+  const collectedTags = innerCacheStore.tags
+  // If cacheLife() was used to set an explicit revalidate time we use that.
+  // Otherwise, we use the lowest of all inner fetch()/unstable_cache() or nested "use cache".
+  // If they're lower than our default.
+  const collectedRevalidate =
+    innerCacheStore.explicitRevalidate !== undefined
+      ? innerCacheStore.explicitRevalidate
+      : innerCacheStore.revalidate
   return {
     value: bufferStream,
     stale: false, // TODO: rm
+    tags: collectedTags === null ? [] : collectedTags,
+    revalidate: collectedRevalidate,
   }
 }
 
 async function generateCacheEntryImpl(
   workStore: WorkStore,
-  innerCacheStore: CacheStore,
+  innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
