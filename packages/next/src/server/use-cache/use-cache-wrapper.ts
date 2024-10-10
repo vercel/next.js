@@ -151,6 +151,7 @@ function generateCacheEntryWithCacheContext(
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
+    implicitTags: outerWorkUnitStore === undefined || outerWorkUnitStore.type === 'unstable-cache' ? [] : outerWorkUnitStore.implicitTags,
     revalidate: defaultCacheLife.revalidate,
     explicitRevalidate: undefined,
     tags: null,
