@@ -405,40 +405,42 @@ export function getSourceMapMiddleware(options: {
 
     const filename = searchParams.get('filename')
 
-    if (filename) {
-      let source: Source | undefined
-
-      try {
-        source = await getSource(filename, {
-          distDirectory,
-          getCompilations: () => {
-            const compilations: webpack.Compilation[] = []
-
-            for (const stats of [
-              clientStats(),
-              serverStats(),
-              edgeServerStats(),
-            ]) {
-              if (stats?.compilation) {
-                compilations.push(stats.compilation)
-              }
-            }
-
-            return compilations
-          },
-        })
-      } catch (error) {
-        console.log('Failed to get source map:', error)
-
-        return internalServerError(res)
-      }
-
-      if (!source) {
-        console.log('NO SOURCE MAP', filename)
-        return noContent(res)
-      }
-
-      return json(res, source.sourceMap)
+    if (!filename) {
+      return badRequest(res)
     }
+
+    let source: Source | undefined
+
+    try {
+      source = await getSource(filename, {
+        distDirectory,
+        getCompilations: () => {
+          const compilations: webpack.Compilation[] = []
+
+          for (const stats of [
+            clientStats(),
+            serverStats(),
+            edgeServerStats(),
+          ]) {
+            if (stats?.compilation) {
+              compilations.push(stats.compilation)
+            }
+          }
+
+          return compilations
+        },
+      })
+    } catch (error) {
+      console.log('Failed to get source map:', error)
+
+      return internalServerError(res)
+    }
+
+    if (!source) {
+      console.log('NO SOURCE MAP', filename)
+      return noContent(res)
+    }
+
+    return json(res, source.sourceMap)
   }
 }
