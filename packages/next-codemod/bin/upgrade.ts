@@ -138,6 +138,7 @@ export async function runUpgrade(
   // PR https://github.com/vercel/next.js/pull/65058
   if (compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0) {
     await suggestReactCodemods(packageManager)
+    await suggestReactTypesCodemods(packageManager)
   }
 
   console.log(
@@ -289,6 +290,34 @@ async function suggestReactCodemods(packageManager: PackageManager) {
     const command = commandMap[packageManager] || 'npx'
 
     execSync(`${command} codemod@latest react/19/migration-recipe`, {
+      stdio: 'inherit',
+    })
+  }
+}
+
+async function suggestReactTypesCodemods(packageManager: PackageManager) {
+  const { runReactTypesCodemod } = await prompts(
+    {
+      type: 'toggle',
+      name: 'runReactTypesCodemod',
+      message: 'Do you want to run the React Types codemod?',
+      initial: true,
+      active: 'Yes',
+      inactive: 'No',
+    },
+    { onCancel }
+  )
+
+  if (runReactTypesCodemod) {
+    const commandMap = {
+      yarn: 'yarn dlx',
+      pnpm: 'pnpx',
+      bun: 'bunx',
+      npm: 'npx',
+    }
+    const command = commandMap[packageManager] || 'npx'
+
+    execSync(`${command} types-react-codemod@latest preset-19 .`, {
       stdio: 'inherit',
     })
   }
