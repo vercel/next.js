@@ -1,14 +1,13 @@
 import { DetachedPromise } from '../../lib/detached-promise'
 import { AsyncLocalStorage } from 'async_hooks'
 
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { AfterContext } from './after-context'
 
 describe('AfterContext', () => {
   // 'async-local-storage.ts' needs `AsyncLocalStorage` on `globalThis` at import time,
   // so we have to do some contortions here to set it up before running anything else
-  type WASMod =
-    typeof import('../../client/components/work-async-storage.external')
+  type WASMod = typeof import('../app-render/work-async-storage.external')
   type AfterMod = typeof import('./after')
   type AfterContextMod = typeof import('./after-context')
 
@@ -20,9 +19,7 @@ describe('AfterContext', () => {
     // @ts-expect-error
     globalThis.AsyncLocalStorage = AsyncLocalStorage
 
-    const WASMod = await import(
-      '../../client/components/work-async-storage.external'
-    )
+    const WASMod = await import('../app-render/work-async-storage.external')
     workAsyncStorage = WASMod.workAsyncStorage
 
     const AfterContextMod = await import('./after-context')
@@ -486,6 +483,52 @@ describe('AfterContext', () => {
     expect(store1).toBeTruthy()
     expect(store2).toBeTruthy()
     expect(store1 === workStore).toBe(true)
+    expect(store2 === store1).toBe(true)
+  })
+
+  it('preserves the ALS context the callback was created in', async () => {
+    type TestStore = string
+    const testStorage = new AsyncLocalStorage<TestStore>()
+
+    const waitUntil = jest.fn()
+
+    let onCloseCallback: (() => void) | undefined = undefined
+    const onClose = jest.fn((cb) => {
+      onCloseCallback = cb
+    })
+
+    const afterContext = new AfterContext({
+      waitUntil,
+      onClose,
+    })
+
+    const workStore = createMockWorkStore(afterContext)
+    const run = createRun(afterContext, workStore)
+
+    // ==================================
+
+    const stores = new DetachedPromise<
+      [TestStore | undefined, TestStore | undefined]
+    >()
+
+    await testStorage.run('value', () =>
+      run(async () => {
+        const store1 = testStorage.getStore()
+        after(() => {
+          const store2 = testStorage.getStore()
+          stores.resolve([store1, store2])
+        })
+      })
+    )
+
+    // the response is done.
+    onCloseCallback!()
+
+    const [store1, store2] = await stores.promise
+    // if we use .toBe, the proxy from createMockWorkStore throws because jest checks '$$typeof'
+    expect(store1).toBeDefined()
+    expect(store2).toBeDefined()
+    expect(store1 === 'value').toBe(true)
     expect(store2 === store1).toBe(true)
   })
 })

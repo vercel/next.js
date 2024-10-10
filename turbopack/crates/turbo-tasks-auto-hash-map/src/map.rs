@@ -410,7 +410,7 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
     }
 }
 
-impl<'a, K, V> Clone for Iter<'a, K, V> {
+impl<K, V> Clone for Iter<'_, K, V> {
     fn clone(&self) -> Self {
         match self {
             Iter::List(iter) => Iter::List(iter.clone()),
@@ -590,7 +590,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher, const I: usize> OccupiedEntry<'a, K, V
     }
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntry<'a, K, V, H, I> {
+impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntry<'_, K, V, H, I> {
     /// see [HashMap::OccupiedEntry::remove](https://doc.rust-lang.org/std/collections/hash_map/enum.OccupiedEntry.html#method.remove)
     pub fn remove(self) -> V {
         match self {
@@ -663,9 +663,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher, const I: usize> OccupiedRawEntry<'a, K
     }
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher + Default, const I: usize>
-    OccupiedRawEntry<'a, K, V, H, I>
-{
+impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedRawEntry<'_, K, V, H, I> {
     /// see [HashMap::OccupiedEntry::remove](https://doc.rust-lang.org/std/collections/hash_map/enum.OccupiedEntry.html#method.remove)
     pub fn remove(self) -> V {
         match self {

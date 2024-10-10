@@ -1,4 +1,6 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
 use turbo_tasks::Vc;
@@ -13,8 +15,11 @@ async fn basic() {
         assert_eq!(output1.await?.value, 123);
 
         let input = Value { value: 42 }.cell();
-        let output2 = func(input);
+        let output2 = func_transient(input);
         assert_eq!(output2.await?.value, 42);
+
+        let output3 = func_persistent(output1);
+        assert_eq!(output3.await?.value, 123);
 
         anyhow::Ok(())
     })
@@ -28,13 +33,22 @@ struct Value {
 }
 
 #[turbo_tasks::function]
-async fn func(input: Vc<Value>) -> Result<Vc<Value>> {
+async fn func_transient(input: Vc<Value>) -> Result<Vc<Value>> {
+    println!("func_transient");
+    let value = input.await?.value;
+    Ok(Value { value }.cell())
+}
+
+#[turbo_tasks::function]
+async fn func_persistent(input: Vc<Value>) -> Result<Vc<Value>> {
+    println!("func_persistent");
     let value = input.await?.value;
     Ok(Value { value }.cell())
 }
 
 #[turbo_tasks::function]
 async fn func_without_args() -> Result<Vc<Value>> {
+    println!("func_without_args");
     let value = 123;
     Ok(Value { value }.cell())
 }

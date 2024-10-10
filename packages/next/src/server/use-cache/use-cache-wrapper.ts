@@ -12,8 +12,8 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client.edge'
 
-import type { WorkStore } from '../../client/components/work-async-storage.external'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import type { UseCacheStore } from '../app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
@@ -24,6 +24,7 @@ import {
   getClientReferenceManifestSingleton,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
+import { INFINITE_CACHE } from '../../lib/constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -135,7 +136,11 @@ function generateCacheEntryWithCacheContext(
   fn: any
 ) {
   // Initialize the Store for this Cache entry.
-  const cacheStore: UseCacheStore = { type: 'cache' }
+  const cacheStore: UseCacheStore = {
+    type: 'cache',
+    revalidate: INFINITE_CACHE,
+    tags: null,
+  }
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,

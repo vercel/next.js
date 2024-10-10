@@ -42,8 +42,8 @@ export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 /**
  * A manifest entry type for the react-loadable-manifest.json.
  *
- * The whole manifest.json is a type of `Record<pathName, LoadableManifest>`
- * where pathName is a string-based key points to the path of the page contains
+ * The whole manifest.json is a type of `Record<pathname, LoadableManifest>`
+ * where pathname is a string-based key points to the path of the page contains
  * each dynamic imports.
  */
 export interface LoadableManifest {
