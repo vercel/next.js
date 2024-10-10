@@ -44,6 +44,13 @@ const program = new Command(packageJson.name)
   )
   .action(runTransform)
   .allowUnknownOption()
+  // This is needed for options for subcommands to be passed correctly.
+  // Because by default the options are not positional, which will pass options
+  // to the main command "@next/codemod" even if it was passed after subcommands,
+  // e.g. "@next/codemod upgrade --verbose" will be treated as "next-codemod --verbose upgrade"
+  // By enabling this, it will respect the position of the options and pass it to subcommands.
+  // x-ref: https://github.com/tj/commander.js/pull/1427
+  .enablePositionalOptions()
 
 program
   .command('upgrade')
