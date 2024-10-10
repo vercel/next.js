@@ -44,7 +44,7 @@ where
             let action = trimmed_text.replace(COMMENT_PREFIX, "");
             let err_message = format!(
                 "You have unresolved @next/codemod comments that need to be reviewed, please \
-                 address and remove them to proceed with build.\nAction: \"{}\"",
+                 address and remove them to proceed with the build.\nAction: \"{}\"",
                 action
             );
             report(span, &err_message);

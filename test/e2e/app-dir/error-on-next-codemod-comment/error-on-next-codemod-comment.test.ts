@@ -24,7 +24,19 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       await assertHasRedbox(browser)
 
       if (process.env.TURBOPACK) {
-        // TODO: support turbopack
+        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          "./app/page.tsx:2:2
+          Ecmascript file had an error
+            1 | export default function Page() {
+          > 2 |   // Next.js Dynamic Async API Codemod: remove jsx of next line
+              |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            3 |   return <p>hello world</p>
+            4 | }
+            5 |
+
+          You have unresolved @next/codemod comments that need to be reviewed, please address and remove them to proceed with the build.
+          Action: " remove jsx of next line""
+        `)
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/page.tsx
@@ -62,7 +74,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       const res = await next.build()
       expect(res.exitCode).toBe(1)
       expect(res.cliOutput).toContain(
-        'You have unresolved @next/codemod comment needs to be removed, please address and remove it to proceed build.'
+        'You have unresolved @next/codemod comments that need to be reviewed, please address and remove them to proceed with the build.'
       )
     })
   }
