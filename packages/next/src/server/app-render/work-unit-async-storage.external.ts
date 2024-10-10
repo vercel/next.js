@@ -106,7 +106,8 @@ export type PrerenderStore =
 export type UseCacheStore = {
   type: 'cache'
   // Collected revalidate times and tags for this cache entry during the cache render.
-  revalidate: number // in seconds. INFINITE_CACHE and higher means never revalidate.
+  revalidate: number // implicit revalidate time from inner caches / fetches
+  explicitRevalidate: undefined | number // explicit revalidate time from cacheLife() calls
   tags: null | string[]
 }
 
