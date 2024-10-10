@@ -94,11 +94,11 @@ export async function runUpgrade(
   // E.g. in peerDependencies we could have `^18.2.0 || ^19.0.0 || 20.0.0-canary`
   // If we'd just `npm add` that, the manifest would read the same version query.
   // This is basically a `npm --save-exact react@$versionQuery` that works for every package manager.
-  const targetReactVersion = !isPagesOnlyAndWantReact18
-    ? await loadHighestNPMVersionMatching(
+  const targetReactVersion = isPagesOnlyAndWantReact18
+    ? '18.3.1'
+    : await loadHighestNPMVersionMatching(
         `react@${targetNextPackageJson.peerDependencies['react']}`
       )
-    : '18.3.1'
 
   if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
     await suggestTurbopack(appPackageJson)
