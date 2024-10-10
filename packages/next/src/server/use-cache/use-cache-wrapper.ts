@@ -14,7 +14,10 @@ import {
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import type { UseCacheStore } from '../app-render/work-unit-async-storage.external'
+import type {
+  UseCacheStore,
+  WorkUnitStore,
+} from '../app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
@@ -83,6 +86,7 @@ cacheHandlerMap.set('default', {
 
 function generateCacheEntry(
   workStore: WorkStore,
+  outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -97,6 +101,7 @@ function generateCacheEntry(
   return runInCleanSnapshot(
     generateCacheEntryWithRestoredWorkStore,
     workStore,
+    outerWorkUnitStore,
     clientReferenceManifest,
     cacheHandler,
     serializedCacheKey,
@@ -107,6 +112,7 @@ function generateCacheEntry(
 
 function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
+  outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -124,6 +130,7 @@ function generateCacheEntryWithRestoredWorkStore(
     workStore,
     generateCacheEntryWithCacheContext,
     workStore,
+    outerWorkUnitStore,
     clientReferenceManifest,
     cacheHandler,
     serializedCacheKey,
@@ -134,6 +141,7 @@ function generateCacheEntryWithRestoredWorkStore(
 
 function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
+  outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -151,6 +159,7 @@ function generateCacheEntryWithCacheContext(
     cacheStore,
     generateCacheEntryImpl,
     workStore,
+    outerWorkUnitStore,
     cacheStore,
     clientReferenceManifest,
     cacheHandler,
@@ -160,8 +169,29 @@ function generateCacheEntryWithCacheContext(
   )
 }
 
+function propagateCacheLifeAndTags(
+  workUnitStore: WorkUnitStore | undefined,
+  entry: CacheEntry
+): void {
+  if (
+    workUnitStore &&
+    (workUnitStore.type === 'cache' ||
+      workUnitStore.type === 'prerender' ||
+      workUnitStore.type === 'prerender-ppr' ||
+      workUnitStore.type === 'prerender-legacy')
+  ) {
+    // Propagate tags and revalidate upwards
+    const outerTags = workUnitStore.tags ?? (workUnitStore.tags = [])
+    outerTags.push(...entry.tags)
+    if (workUnitStore.revalidate > entry.revalidate) {
+      workUnitStore.revalidate = entry.revalidate
+    }
+  }
+}
+
 async function collectResult(
   savedStream: ReadableStream,
+  outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   errors: Array<unknown> // This is a live array that gets pushed into.
 ): Promise<CacheEntry> {
@@ -206,16 +236,21 @@ async function collectResult(
     innerCacheStore.explicitRevalidate !== undefined
       ? innerCacheStore.explicitRevalidate
       : innerCacheStore.revalidate
-  return {
+
+  const entry = {
     value: bufferStream,
     stale: false, // TODO: rm
     tags: collectedTags === null ? [] : collectedTags,
     revalidate: collectedRevalidate,
   }
+  // Propagate tags/revalidate to the parent context.
+  propagateCacheLifeAndTags(outerWorkUnitStore, entry)
+  return entry
 }
 
 async function generateCacheEntryImpl(
   workStore: WorkStore,
+  outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
@@ -254,7 +289,12 @@ async function generateCacheEntryImpl(
 
   const [returnStream, savedStream] = stream.tee()
 
-  const cacheEntry = collectResult(savedStream, innerCacheStore, errors)
+  const cacheEntry = collectResult(
+    savedStream,
+    outerWorkUnitStore,
+    innerCacheStore,
+    errors
+  )
 
   if (!workStore.pendingRevalidateWrites) {
     workStore.pendingRevalidateWrites = []
@@ -343,37 +383,24 @@ export function cache(kind: string, id: string, fn: any) {
 
         stream = await generateCacheEntry(
           workStore,
+          workUnitStore,
           clientReferenceManifestSingleton,
           cacheHandler,
           serializedCacheKey,
           encodedArguments,
           fn
         )
-
-        // TODO: Propagate tags/revalidate
       } else {
         stream = entry.value
 
-        if (
-          workUnitStore &&
-          (workUnitStore.type === 'cache' ||
-            workUnitStore.type === 'prerender' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy')
-        ) {
-          // Propagate tags and revalidate upwards
-          const outerTags = workUnitStore.tags ?? (workUnitStore.tags = [])
-          outerTags.push(...entry.tags)
-          if (workUnitStore.revalidate > entry.revalidate) {
-            workUnitStore.revalidate = entry.revalidate
-          }
-        }
+        propagateCacheLifeAndTags(workUnitStore, entry)
 
         if (entry.stale) {
           // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
           // then we should warm up the cache with a fresh revalidated entry.
           const ignoredStream = await generateCacheEntry(
             workStore,
+            workUnitStore,
             clientReferenceManifestSingleton,
             cacheHandler,
             serializedCacheKey,
