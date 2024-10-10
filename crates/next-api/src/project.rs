@@ -619,6 +619,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn should_create_webpack_stats(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.env.read("TURBOPACK_STATS".into()).await?.is_some(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn execution_context(self: Vc<Self>) -> Result<Vc<ExecutionContext>> {
         let node_root = self.node_root();
         let next_mode = self.next_mode().await?;
