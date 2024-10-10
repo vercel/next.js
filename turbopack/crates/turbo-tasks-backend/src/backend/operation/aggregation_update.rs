@@ -133,8 +133,14 @@ impl AggregatedDataUpdate {
             if dirty_container_count > 0 {
                 dirty = true;
             }
-            for collectible in iter_many!(task, AggregatedCollectible { collectible } count if count > 0 => collectible)
-            {
+            for collectible in iter_many!(
+                task,
+                AggregatedCollectible {
+                    collectible
+                } count if count > 0 => {
+                    collectible
+                }
+            ) {
                 collectibles_update.push((collectible, 1));
             }
         }
@@ -249,7 +255,15 @@ impl AggregatedDataUpdate {
             );
             if added || removed {
                 let ty = collectible.collectible_type;
-                let dependent: SmallVec<[TaskId; 4]> = get_many!(task, CollectiblesDependent { collectible_type, task } if *collectible_type == ty => *task);
+                let dependent: SmallVec<[TaskId; 4]> = get_many!(
+                    task,
+                    CollectiblesDependent {
+                        collectible_type,
+                        task,
+                    } if collectible_type == ty => {
+                        task
+                    }
+                );
                 if !dependent.is_empty() {
                     queue.push(AggregationUpdateJob::Invalidate {
                         task_ids: dependent,
