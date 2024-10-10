@@ -1,14 +1,14 @@
 import type { AsyncLocalStorage } from 'async_hooks'
-import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
-import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
-import type { ReadonlyHeaders } from '../../server/web/spec-extension/adapters/headers'
-import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/adapters/request-cookies'
+import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
+import type { ResponseCookies } from '../web/spec-extension/cookies'
+import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
+import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
 import type { DynamicTrackingState } from './dynamic-rendering'
 
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorage } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
-import type { ServerComponentsHmrCache } from '../../server/response-cache'
+import type { ServerComponentsHmrCache } from '../response-cache'
 
 export type RequestStore = {
   type: 'request'
@@ -36,6 +36,9 @@ export type RequestStore = {
   readonly draftMode: DraftModeProvider
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
+
+  // DEV-only
+  usedDynamic?: boolean
 }
 
 /**
@@ -72,17 +75,27 @@ export type PrerenderStoreModern = {
    * During some prerenders we want to track dynamic access.
    */
   readonly dynamicTracking: null | DynamicTrackingState
+
+  // Collected revalidate times and tags for this document during the prerender.
+  revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
+  tags: null | string[]
 }
 
 export type PrerenderStorePPR = {
   type: 'prerender-ppr'
   pathname: string | undefined
   readonly dynamicTracking: null | DynamicTrackingState
+  // Collected revalidate times and tags for this document during the prerender.
+  revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
+  tags: null | string[]
 }
 
 export type PrerenderStoreLegacy = {
   type: 'prerender-legacy'
   pathname: string | undefined
+  // Collected revalidate times and tags for this document during the prerender.
+  revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
+  tags: null | string[]
 }
 
 export type PrerenderStore =
@@ -92,7 +105,9 @@ export type PrerenderStore =
 
 export type UseCacheStore = {
   type: 'cache'
-  // TODO: Inside this scope we'll track tags and life times of this scope.
+  // Collected revalidate times and tags for this cache entry during the cache render.
+  revalidate: number // in seconds. INFINITE_CACHE and higher means never revalidate.
+  tags: null | string[]
 }
 
 export type UnstableCacheStore = {

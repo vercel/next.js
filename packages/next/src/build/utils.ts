@@ -1335,14 +1335,11 @@ export async function buildAppStaticPaths({
         const params: Params[] = []
 
         if (current.generateStaticParams) {
+          // fetchCache can be used to inform the fetch() defaults used inside
+          // of generateStaticParams. revalidate and dynamic options don't come into
+          // play within generateStaticParams.
           if (typeof current.config?.fetchCache !== 'undefined') {
             store.fetchCache = current.config.fetchCache
-          }
-          if (typeof current.config?.revalidate !== 'undefined') {
-            store.revalidate = current.config.revalidate
-          }
-          if (current.config?.dynamic === 'force-dynamic') {
-            store.forceDynamic = true
           }
 
           if (parentsParams.length > 0) {
@@ -2275,6 +2272,12 @@ export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
+}
+
+export function isWebpackAppPagesLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
 }
 
 export function collectMeta({

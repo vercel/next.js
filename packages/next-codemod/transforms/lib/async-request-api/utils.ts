@@ -9,6 +9,9 @@ import type {
   FunctionExpression,
 } from 'jscodeshift'
 
+export const NEXTJS_ENTRY_FILES =
+  /([\\/]|^)(page|layout|route|default)\.(t|j)sx?$/
+
 export type FunctionScope =
   | FunctionDeclaration
   | FunctionExpression
@@ -185,6 +188,8 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
       source: {
         value: 'react',
       },
+      // Skip the type only react imports
+      importKind: 'value',
     })
 
     if (reactImportDeclaration.size() > 0) {
@@ -194,14 +199,8 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
       importNode.specifiers.push(j.importSpecifier(j.identifier('use')))
     } else {
       // Final all type imports to 'react'
-      const reactImport = root.find(j.ImportDeclaration, {
-        source: {
-          value: 'react',
-        },
-      })
-
-      if (reactImport.size() > 0) {
-        reactImport
+      if (reactImportDeclaration.size() > 0) {
+        reactImportDeclaration
           .get()
           .node.specifiers.push(j.importSpecifier(j.identifier('use')))
       } else {
@@ -427,16 +426,17 @@ export function insertCommentOnce(
   node: ASTPath<any>['node'],
   j: API['j'],
   comment: string
-) {
+): boolean {
   if (node.comments) {
     const hasComment = node.comments.some(
       (commentNode) => commentNode.value === comment
     )
     if (hasComment) {
-      return
+      return false
     }
   }
   node.comments = [j.commentBlock(comment), ...(node.comments || [])]
+  return true
 }
 
 export function getVariableDeclaratorId(

@@ -63,7 +63,16 @@ export async function runUpgrade(
 
   const installedNextVersion = getInstalledNextVersion()
 
+  console.log(`Current Next.js version: v${installedNextVersion}`)
+
   const targetNextVersion = targetNextPackageJson.version
+
+  if (compareVersions(installedNextVersion, targetNextVersion) >= 0) {
+    console.log(
+      `${pc.green('✓')} Current Next.js version is already on or higher than the target version "v${targetNextVersion}".`
+    )
+    return
+  }
 
   // We're resolving a specific version here to avoid including "ugly" version queries
   // in the manifest.
@@ -125,8 +134,12 @@ export async function runUpgrade(
     await runTransform(codemod, process.cwd(), { force: true })
   }
 
+  console.log() // new line
+  if (codemods.length > 0) {
+    console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
+  }
   console.log(
-    `\n${pc.green('✔')} Your Next.js project has been upgraded successfully. ${pc.bold('Time to ship! 🚢')}`
+    `Please review the local changes and read the Next.js 15 migration guide to complete the migration. https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15`
   )
 }
 

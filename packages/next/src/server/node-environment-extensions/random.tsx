@@ -8,14 +8,19 @@
 
 import { io } from './utils'
 
-const _random = Math.random
+const expression = '`Math.random()`'
+try {
+  const _random = Math.random
+  Math.random = function random() {
+    io(expression)
+    return _random.apply(null, arguments as any)
 
-Math.random = function random() {
-  io('`Math.random()`')
-  return _random.apply(null, arguments as any)
-
-  // We bind here to alter the `toString` printing to match `Math.random`'s native `toString`.
-  // eslint-disable-next-line no-extra-bind
-}.bind(null)
-
-Object.defineProperty(Math.random, 'name', { value: 'random' })
+    // We bind here to alter the `toString` printing to match `Math.random`'s native `toString`.
+    // eslint-disable-next-line no-extra-bind
+  }.bind(null)
+  Object.defineProperty(Math.random, 'name', { value: 'random' })
+} catch {
+  console.error(
+    `Failed to install ${expression} extension. When using \`experimental.dynamicIO\` calling this function will not correctly trigger dynamic behavior.`
+  )
+}
