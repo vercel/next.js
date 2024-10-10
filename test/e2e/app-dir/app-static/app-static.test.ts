@@ -1648,7 +1648,7 @@ describe('app-dir static/dynamic handling', () => {
             ],
             "initialHeaders": {
               "content-type": "application/json",
-              "x-next-cache-tags": "thankyounext,_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr",
+              "x-next-cache-tags": "_N_T_/layout,_N_T_/route-handler/layout,_N_T_/route-handler/revalidate-360-isr/layout,_N_T_/route-handler/revalidate-360-isr/route,_N_T_/route-handler/revalidate-360-isr,thankyounext",
             },
             "initialRevalidateSeconds": 10,
             "srcRoute": "/route-handler/revalidate-360-isr",

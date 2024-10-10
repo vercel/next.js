@@ -19,6 +19,7 @@ import {
   insertCommentOnce,
   TARGET_ROUTE_EXPORTS,
   getVariableDeclaratorId,
+  NEXTJS_ENTRY_FILES,
 } from './utils'
 
 const PAGE_PROPS = 'props'
@@ -175,14 +176,64 @@ function applyUseAndRenameAccessedProp(
   return modified
 }
 
-const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
+function commentOnMatchedReExports(
+  root: Collection<any>,
+  j: API['jscodeshift']
+): boolean {
+  let modified = false
+  root.find(j.ExportNamedDeclaration).forEach((path) => {
+    if (j.ExportSpecifier.check(path.value.specifiers[0])) {
+      const specifiers = path.value.specifiers
+      for (const specifier of specifiers) {
+        if (
+          j.ExportSpecifier.check(specifier) &&
+          // Find matched named exports and default export
+          (TARGET_NAMED_EXPORTS.has(specifier.exported.name) ||
+            specifier.exported.name === 'default')
+        ) {
+          if (j.Literal.check(path.value.source)) {
+            const localName = specifier.local.name
+
+            const commentInserted = insertCommentOnce(
+              specifier,
+              j,
+              ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+            )
+            modified ||= commentInserted
+          } else if (path.value.source === null) {
+            const localIdentifier = specifier.local
+            const localName = localIdentifier.name
+            // search if local identifier is from imports
+            const importDeclaration = root
+              .find(j.ImportDeclaration)
+              .filter((importPath) => {
+                return importPath.value.specifiers.some(
+                  (importSpecifier) => importSpecifier.local.name === localName
+                )
+              })
+            if (importDeclaration.size() > 0) {
+              const commentInserted = insertCommentOnce(
+                specifier,
+                j,
+                ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+              )
+              modified ||= commentInserted
+            }
+          }
+        }
+      }
+    }
+  })
+  return modified
+}
 
 function modifyTypes(
   paramTypeAnnotation: any,
   propsIdentifier: Identifier,
   root: Collection<any>,
   j: API['jscodeshift']
-) {
+): boolean {
+  let modified = false
   if (paramTypeAnnotation && paramTypeAnnotation.typeAnnotation) {
     const typeAnnotation = paramTypeAnnotation.typeAnnotation
     if (typeAnnotation.type === 'TSTypeLiteral') {
@@ -220,6 +271,7 @@ function modifyTypes(
                 member.typeAnnotation.typeAnnotation,
               ])
             )
+            modified = true
           }
         }
       })
@@ -270,6 +322,7 @@ function modifyTypes(
                       member.typeAnnotation.typeAnnotation,
                     ])
                   )
+                  modified = true
                 }
               }
             })
@@ -279,7 +332,9 @@ function modifyTypes(
     }
 
     propsIdentifier.typeAnnotation = paramTypeAnnotation
+    modified = true
   }
+  return modified
 }
 
 export function transformDynamicProps(
@@ -287,8 +342,8 @@ export function transformDynamicProps(
   api: API,
   filePath: string
 ) {
-  const isMatched = MATCHED_FILE_PATTERNS.test(filePath)
-  if (!isMatched) {
+  const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
+  if (!isEntryFile) {
     return null
   }
 
@@ -380,7 +435,8 @@ export function transformDynamicProps(
             modified = true
           }
         } else {
-          modified = awaitMemberAccessOfProp(argName, path, j)
+          const awaited = awaitMemberAccessOfProp(argName, path, j)
+          modified ||= awaited
         }
 
         // cases of passing down `props` into any function
@@ -407,9 +463,8 @@ export function transformDynamicProps(
             (arg) => j.Identifier.check(arg) && arg.name === argName
           )
           const comment = ` Next.js Dynamic Async API Codemod: '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
-          insertCommentOnce(propPassedAsArg, j, comment)
-
-          modified = true
+          const inserted = insertCommentOnce(propPassedAsArg, j, comment)
+          modified ||= inserted
         })
 
         if (modified) {
@@ -434,6 +489,18 @@ export function transformDynamicProps(
           params[propsArgumentIndex] = propsIdentifier
 
           modified = true
+        }
+      } else {
+        // When the prop argument is not destructured, we need to add comments to the spread properties
+        if (j.Identifier.check(currentParam)) {
+          const commented = commentSpreadProps(path, currentParam.name, j)
+          const modifiedTypes = modifyTypes(
+            currentParam.typeAnnotation,
+            propsIdentifier,
+            root,
+            j
+          )
+          modified ||= commented || modifiedTypes
         }
       }
     }
@@ -586,10 +653,10 @@ export function transformDynamicProps(
           }
         }
 
-        const propRenamedId = j.Identifier.check(paramsProperty)
+        const paramsPropertyName = j.Identifier.check(paramsProperty)
           ? paramsProperty.name
           : null
-        const propName = propRenamedId || matchedPropName
+        const paramPropertyName = paramsPropertyName || matchedPropName
 
         // if propName is not used in lower scope, and it stars with unused prefix `_`,
         // also skip the transformation
@@ -598,11 +665,36 @@ export function transformDynamicProps(
         const hasUsedInBody =
           j(functionBodyPath)
             .find(j.Identifier, {
-              name: propName,
+              name: paramPropertyName,
             })
             .size() > 0
 
-        if (!hasUsedInBody && propName.startsWith('_')) continue
+        if (!hasUsedInBody && paramPropertyName.startsWith('_')) continue
+
+        // Search the usage of propName in the function body,
+        // if they're all awaited or wrapped with use(), skip the transformation
+        const propUsages = j(functionBodyPath).find(j.Identifier, {
+          name: paramPropertyName,
+        })
+
+        // if there's usage of the propName, then do the check
+        if (propUsages.size()) {
+          let hasMissingAwaited = false
+          propUsages.forEach((propUsage) => {
+            // If the parent is not AwaitExpression, it's not awaited
+            const isAwaited =
+              propUsage.parentPath?.value.type === 'AwaitExpression'
+            const isAwaitedByUse = isParentUseCallExpression(propUsage, j)
+            if (!isAwaited && !isAwaitedByUse) {
+              hasMissingAwaited = true
+              return
+            }
+          })
+          // If all the usages of parm are awaited, skip the transformation
+          if (!hasMissingAwaited) {
+            continue
+          }
+        }
 
         modifiedPropertyCount++
 
@@ -616,7 +708,7 @@ export function transformDynamicProps(
         // e.g.
         // input: Page({ params: { slug } })
         // output: const { slug } = await props.params; rather than const props = await props.params;
-        const uid = functionName + ':' + propName
+        const uid = functionName + ':' + paramPropertyName
 
         if (paramsProperty?.type === 'ObjectPattern') {
           const objectPattern = paramsProperty
@@ -653,7 +745,7 @@ export function transformDynamicProps(
           // If it's async function, add await to the async props.<propName>
           const paramAssignment = j.variableDeclaration('const', [
             j.variableDeclarator(
-              j.identifier(propName),
+              j.identifier(paramPropertyName),
               j.awaitExpression(accessedPropIdExpr)
             ),
           ])
@@ -675,7 +767,7 @@ export function transformDynamicProps(
               // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
               const paramAssignment = j.variableDeclaration('const', [
                 j.variableDeclarator(
-                  j.identifier(propName),
+                  j.identifier(paramPropertyName),
                   j.awaitExpression(accessedPropIdExpr)
                 ),
               ])
@@ -688,7 +780,7 @@ export function transformDynamicProps(
           } else {
             const paramAssignment = j.variableDeclaration('const', [
               j.variableDeclarator(
-                j.identifier(propName),
+                j.identifier(paramPropertyName),
                 j.callExpression(j.identifier('use'), [accessedPropIdExpr])
               ),
             ])
@@ -746,6 +838,9 @@ export function transformDynamicProps(
   if (needsReactUseImport) {
     insertReactUseImport(root, j)
   }
+
+  const commented = commentOnMatchedReExports(root, j)
+  modified ||= commented
 
   return modified ? root.toSource() : null
 }
@@ -811,4 +906,36 @@ function findAllTypes(
     })
 
   return types
+}
+
+function commentSpreadProps(
+  path: ASTPath<FunctionScope>,
+  propsIdentifierName: string,
+  j: API['jscodeshift']
+): boolean {
+  let modified = false
+  const functionBody = findFunctionBody(path)
+  const functionBodyCollection = j(functionBody)
+  // Find all the usage of spreading properties of `props`
+  const jsxSpreadProperties = functionBodyCollection.find(
+    j.JSXSpreadAttribute,
+    { argument: { name: propsIdentifierName } }
+  )
+  const objSpreadProperties = functionBodyCollection.find(j.SpreadElement, {
+    argument: { name: propsIdentifierName },
+  })
+  const comment = ` Next.js Dynamic Async API Codemod: '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
+
+  // Add comment before it
+  jsxSpreadProperties.forEach((spread) => {
+    const inserted = insertCommentOnce(spread.value, j, comment)
+    if (inserted) modified = true
+  })
+
+  objSpreadProperties.forEach((spread) => {
+    const inserted = insertCommentOnce(spread.value, j, comment)
+    if (inserted) modified = true
+  })
+
+  return modified
 }

@@ -101,7 +101,7 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
   },
   {
     title:
-      'Transforms dynamic imports that return the named export itself to a module like object',
+      'Transform `next/dynamic` imports accessing named exports to return an object with a `default` property',
     value: 'next-dynamic-access-named-export',
     version: '15.0.0-canary.44',
   },
@@ -118,7 +118,7 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
   },
   {
     title:
-      'Transforms `experimental-edge` to `edge` in the `runtime` route segment configuration within the App Router',
+      'Transform App Router Route Segment Config `runtime` value from `experimental-edge` to `edge`',
     value: 'app-dir-runtime-config-experimental-edge',
     version: '15.0.0-canary.179',
   },

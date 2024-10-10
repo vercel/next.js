@@ -1,8 +1,8 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { SizeLimit } from '../../types'
-import type { RequestStore } from '../../server/app-render/work-unit-async-storage.external'
+import type { RequestStore } from '../app-render/work-unit-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
-import type { AppPageModule } from '../../server/route-modules/app-page/module'
+import type { AppPageModule } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 import {
@@ -19,7 +19,7 @@ import {
   type RedirectType,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
   filterReqHeaders,

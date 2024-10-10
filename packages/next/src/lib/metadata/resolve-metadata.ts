@@ -52,7 +52,7 @@ import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type {
   Params,
   CreateServerParamsForMetadata,
