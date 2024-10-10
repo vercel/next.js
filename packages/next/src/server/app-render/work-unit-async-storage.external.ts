@@ -10,6 +10,13 @@ import type { DynamicTrackingState } from './dynamic-rendering'
 import { workUnitAsyncStorage } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 import type { ServerComponentsHmrCache } from '../response-cache'
 
+type WorkUnitPhase = 'action' | 'render' | 'after'
+
+type PhasePartial = {
+  /** NOTE: Will be mutated as phases change */
+  phase: WorkUnitPhase
+}
+
 export type RequestStore = {
   type: 'request'
 
@@ -41,7 +48,7 @@ export type RequestStore = {
 
   // DEV-only
   usedDynamic?: boolean
-}
+} & PhasePartial
 
 /**
  * The Prerender store is for tracking information related to prerenders.
@@ -81,7 +88,7 @@ export type PrerenderStoreModern = {
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
   tags: null | string[]
-}
+} & PhasePartial
 
 export type PrerenderStorePPR = {
   type: 'prerender-ppr'
@@ -90,7 +97,7 @@ export type PrerenderStorePPR = {
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
   tags: null | string[]
-}
+} & PhasePartial
 
 export type PrerenderStoreLegacy = {
   type: 'prerender-legacy'
@@ -98,7 +105,7 @@ export type PrerenderStoreLegacy = {
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
   tags: null | string[]
-}
+} & PhasePartial
 
 export type PrerenderStore =
   | PrerenderStoreLegacy
@@ -112,11 +119,11 @@ export type UseCacheStore = {
   revalidate: number // implicit revalidate time from inner caches / fetches
   explicitRevalidate: undefined | number // explicit revalidate time from cacheLife() calls
   tags: null | string[]
-}
+} & PhasePartial
 
 export type UnstableCacheStore = {
   type: 'unstable-cache'
-}
+} & PhasePartial
 
 /**
  * The Cache store is for tracking information inside a "use cache" or unstable_cache context.

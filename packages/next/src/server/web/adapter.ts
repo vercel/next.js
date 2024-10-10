@@ -267,6 +267,7 @@ export async function adapter(
                   {
                     req: request,
                     res: undefined,
+                    phase: 'action',
                     url: request.nextUrl,
                     renderOpts: {
                       onUpdateCookies: (cookies) => {
