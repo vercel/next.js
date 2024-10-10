@@ -38,12 +38,6 @@ impl ConnectChildOperation {
             task: child_task_id,
             value: (),
         }) {
-            // When task is added to a AggregateRoot is need to be scheduled,
-            // indirect connections are handled by the aggregation update.
-            let mut should_schedule = false;
-            if parent_task.has_key(&CachedDataItemKey::AggregateRoot {}) {
-                should_schedule = true;
-            }
             // Update the task aggregation
             let mut queue = AggregationUpdateQueue::new();
 
@@ -107,18 +101,6 @@ impl ConnectChildOperation {
                 });
             }
             drop(parent_task);
-
-            {
-                let mut task = ctx.task(child_task_id, TaskDataCategory::Data);
-                should_schedule = should_schedule || !task.has_key(&CachedDataItemKey::Output {});
-                if should_schedule {
-                    let description = ctx.backend.get_task_desc_fn(child_task_id);
-                    should_schedule = task.add(CachedDataItem::new_scheduled(description));
-                }
-            }
-            if should_schedule {
-                ctx.schedule(child_task_id);
-            }
 
             ConnectChildOperation::UpdateAggregation {
                 aggregation_update: queue,
