@@ -517,22 +517,6 @@ async function generateDynamicFlightRenderResult(
       onError,
     }
   )
-  await waitAtLeastOneReactRenderTask()
-
-  if (
-    ctx.workStore.pendingRevalidates ||
-    ctx.workStore.revalidatedTags ||
-    ctx.workStore.pendingRevalidateWrites
-  ) {
-    const promises = Promise.all([
-      ctx.workStore.incrementalCache?.revalidateTag(
-        ctx.workStore.revalidatedTags || []
-      ),
-      ...Object.values(ctx.workStore.pendingRevalidates || {}),
-      ...(ctx.workStore.pendingRevalidateWrites || []),
-    ])
-    ctx.renderOpts.waitUntil = (p) => promises.then(() => p)
-  }
 
   return new FlightRenderResult(flightReadableStream, {
     fetchMetrics: ctx.workStore.fetchMetrics,
