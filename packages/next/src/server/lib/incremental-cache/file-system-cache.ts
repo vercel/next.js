@@ -32,6 +32,9 @@ type TagsManifest = {
   items: { [tag: string]: { revalidatedAt: number } }
 }
 let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
+
+// TODO: this should be in memory only do not write to disk
+// and can re-use this in the new default cache handler
 let tagsManifest: TagsManifest | undefined
 
 export default class FileSystemCache implements CacheHandler {
