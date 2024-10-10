@@ -20,7 +20,7 @@ pub struct MakeChunkGroupResult {
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    chunk_group_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
     let ChunkContentResult {
@@ -30,7 +30,7 @@ pub async fn make_chunk_group(
         forward_edges_inherit_async,
         local_back_edges_inherit_async,
         available_async_modules_back_edges_inherit_async,
-    } = chunk_content(chunking_context, entries, availability_info).await?;
+    } = chunk_content(chunking_context, chunk_group_entries, availability_info).await?;
 
     // Find all local chunk items that are self async
     let self_async_children = chunk_items

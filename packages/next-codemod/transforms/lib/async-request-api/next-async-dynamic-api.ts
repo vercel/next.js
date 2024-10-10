@@ -9,6 +9,7 @@ import {
   findClosetParentFunctionScope,
   wrapParentheseIfNeeded,
   insertCommentOnce,
+  NEXTJS_ENTRY_FILES,
 } from './utils'
 
 const DYNAMIC_IMPORT_WARN_COMMENT = ` Next.js Dynamic Async API Codemod: The APIs under 'next/headers' are async now, need to be manually awaited. `
@@ -44,6 +45,7 @@ export function transformDynamicAPI(
   api: API,
   filePath: string
 ) {
+  const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
   const j = api.jscodeshift.withParser('tsx')
   const root = j(source)
   let modified = false
@@ -119,7 +121,8 @@ export function transformDynamicAPI(
         } else {
           // Determine if the function is an export
           const closetScopePath = closetScope.get()
-          const isFromExport = isMatchedFunctionExported(closetScopePath, j)
+          const isEntryFileExport =
+            isEntryFile && isMatchedFunctionExported(closetScopePath, j)
           const closestFunctionNode = closetScope.size()
             ? closetScopePath.node
             : null
@@ -130,7 +133,7 @@ export function transformDynamicAPI(
           // e.g. export const MyComponent = function() {}
           let exportFunctionNode
 
-          if (isFromExport) {
+          if (isEntryFileExport) {
             if (
               closestFunctionNode &&
               isFunctionType(closestFunctionNode.type)
@@ -144,7 +147,7 @@ export function transformDynamicAPI(
 
           let canConvertToAsync = false
           // check if current path is under the default export function
-          if (isFromExport) {
+          if (isEntryFileExport) {
             // if default export function is not async, convert it to async, and await the api call
             if (!isCallAwaited) {
               // If the scoped function is async function

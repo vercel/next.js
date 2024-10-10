@@ -130,6 +130,7 @@ import {
 } from './web/utils'
 import {
   CACHE_ONE_YEAR,
+  INFINITE_CACHE,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
 } from '../lib/constants'
@@ -2526,7 +2527,7 @@ export default abstract class Server<
               context.renderOpts as any
             ).fetchMetrics
 
-            const cacheTags = (context.renderOpts as any).fetchTags
+            const cacheTags = (context.renderOpts as any).collectedTags
 
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
@@ -2544,7 +2545,13 @@ export default abstract class Server<
                 headers['content-type'] = blob.type
               }
 
-              const revalidate = context.renderOpts.store?.revalidate ?? false
+              const revalidate =
+                typeof (context.renderOpts as any).collectedRevalidate ===
+                  'undefined' ||
+                (context.renderOpts as any).collectedRevalidate >=
+                  INFINITE_CACHE
+                  ? false
+                  : (context.renderOpts as any).collectedRevalidate
 
               // Create the cache entry for the response.
               const cacheEntry: ResponseCacheEntry = {

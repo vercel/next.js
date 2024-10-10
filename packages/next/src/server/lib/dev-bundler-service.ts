@@ -14,8 +14,8 @@ export class DevBundlerService {
   // can't leverage LRU type directly here as it
   // isn't a direct dependency
   public appIsrManifestInner: {
-    get(key: string): number | false
-    set(key: string, value: number | false): void
+    get(key: string): boolean
+    set(key: string, value: boolean): void
     del(key: string): void
     keys(): string[]
   }
@@ -92,17 +92,15 @@ export class DevBundlerService {
   }
 
   public get appIsrManifest() {
-    const serializableManifest: Record<string, false | number> = {}
+    const serializableManifest: Record<string, boolean> = {}
 
     for (const key of this.appIsrManifestInner.keys() as string[]) {
-      serializableManifest[key] = this.appIsrManifestInner.get(key) as
-        | false
-        | number
+      serializableManifest[key] = this.appIsrManifestInner.get(key) as boolean
     }
     return serializableManifest
   }
 
-  public setAppIsrStatus(key: string, value: false | number | null) {
+  public setAppIsrStatus(key: string, value: boolean | null) {
     if (value === null) {
       this.appIsrManifestInner.del(key)
     } else {
