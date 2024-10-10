@@ -11,9 +11,9 @@ export { prerender } from 'react-server-dom-webpack/static.edge'
 
 import LayoutRouter from '../../client/components/layout-router'
 import RenderFromTemplateContext from '../../client/components/render-from-template-context'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
-import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
+import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { ClientPageRoot } from '../../client/components/client-page'
 import { ClientSegmentRoot } from '../../client/components/client-segment'
 import {

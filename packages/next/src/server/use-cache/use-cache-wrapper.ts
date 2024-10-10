@@ -12,8 +12,8 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client.edge'
 
-import type { WorkStore } from '../../client/components/work-async-storage.external'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import type { UseCacheStore } from '../app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'

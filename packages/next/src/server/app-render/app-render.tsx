@@ -11,8 +11,8 @@ import type {
   FlightData,
   InitialRSCPayload,
 } from './types'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
-import type { RequestStore } from '../../server/app-render/work-unit-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { RequestStore } from '../app-render/work-unit-async-storage.external'
 import type { NextParsedUrlQuery } from '../request-meta'
 import type { LoaderTree } from '../lib/app-dir-module'
 import type { AppPageModule } from '../route-modules/app-page/module'

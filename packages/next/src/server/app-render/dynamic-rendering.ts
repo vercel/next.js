@@ -20,8 +20,8 @@
  * read that data outside the cache and pass it in as an argument to the cached function.
  */
 
-import type { WorkStore } from '../../client/components/work-async-storage.external'
-import type { WorkUnitStore } from '../../server/app-render/work-unit-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
@@ -33,7 +33,7 @@ import {
   type PrerenderStoreLegacy,
   type PrerenderStoreModern,
 } from './work-unit-async-storage.external'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,

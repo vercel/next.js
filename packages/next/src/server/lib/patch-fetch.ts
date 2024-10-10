@@ -1,7 +1,7 @@
 import type {
   WorkAsyncStorage,
   WorkStore,
-} from '../../client/components/work-async-storage.external'
+} from '../app-render/work-async-storage.external'
 
 import { AppRenderSpan, NextNodeServerSpan } from './trace/constants'
 import { getTracer, SpanKind } from './trace/tracer'
@@ -19,7 +19,7 @@ import type {
   WorkUnitAsyncStorage,
   WorkUnitStore,
   RequestStore,
-} from '../../server/app-render/work-unit-async-storage.external'
+} from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,

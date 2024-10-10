@@ -3,9 +3,9 @@ import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { isThenable } from '../../shared/lib/is-thenable'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { withExecuteRevalidates } from './revalidation-utils'
-import { bindSnapshot } from '../../client/components/async-local-storage'
+import { bindSnapshot } from '../app-render/async-local-storage'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined

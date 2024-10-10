@@ -40,7 +40,7 @@ import { DynamicServerError } from '../../../client/components/hooks-server-cont
 import {
   workAsyncStorage,
   type WorkStore,
-} from '../../../client/components/work-async-storage.external'
+} from '../../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
   type WorkUnitStore,
@@ -49,7 +49,7 @@ import {
 import {
   actionAsyncStorage,
   type ActionStore,
-} from '../../../client/components/action-async-storage.external'
+} from '../../app-render/action-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
