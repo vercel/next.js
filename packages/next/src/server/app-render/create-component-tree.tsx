@@ -20,7 +20,7 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
-import { workUnitAsyncStorage } from '../../client/components/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 
 /**
  * Use the provided loader tree to create the React Component tree.
