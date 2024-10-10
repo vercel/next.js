@@ -20,6 +20,7 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
+import { workUnitAsyncStorage } from '../../client/components/work-unit-async-storage.external'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -240,20 +241,27 @@ async function createComponentTreeInternal({
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
-    ctx.defaultRevalidate = layoutOrPageMod.revalidate as number
+    const defaultRevalidate = layoutOrPageMod.revalidate as number
 
-    if (
-      typeof workStore.revalidate === 'undefined' ||
-      (typeof workStore.revalidate === 'number' &&
-        workStore.revalidate > ctx.defaultRevalidate)
-    ) {
-      workStore.revalidate = ctx.defaultRevalidate
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (workUnitStore) {
+      if (
+        workUnitStore.type === 'prerender' ||
+        workUnitStore.type === 'prerender-legacy' ||
+        workUnitStore.type === 'prerender-ppr' ||
+        workUnitStore.type === 'cache'
+      ) {
+        if (workUnitStore.revalidate > defaultRevalidate) {
+          workUnitStore.revalidate = defaultRevalidate
+        }
+      }
     }
 
     if (
       !workStore.forceStatic &&
       workStore.isStaticGeneration &&
-      ctx.defaultRevalidate === 0 &&
+      defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
       !experimental.isRoutePPREnabled

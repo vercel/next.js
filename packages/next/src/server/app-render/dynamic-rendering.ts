@@ -160,7 +160,7 @@ export function markCurrentScopeAsDynamic(
         workUnitStore.dynamicTracking
       )
     } else if (workUnitStore.type === 'prerender-legacy') {
-      store.revalidate = 0
+      workUnitStore.revalidate = 0
 
       // We aren't prerendering but we are generating a static page. We need to bail out of static generation
       const err = new DynamicServerError(
@@ -170,10 +170,14 @@ export function markCurrentScopeAsDynamic(
       store.dynamicUsageStack = err.stack
 
       throw err
+    } else if (
+      process.env.NODE_ENV === 'development' &&
+      workUnitStore &&
+      workUnitStore.type === 'request'
+    ) {
+      workUnitStore.usedDynamic = true
     }
-    // We fall through in all other cases to just tracking that something dynamic happened on the work store
   }
-  store.revalidate = 0
 }
 
 /**
@@ -243,7 +247,7 @@ export function trackDynamicDataAccessed(
       )
     } else if (workUnitStore.type === 'prerender-legacy') {
       // legacy Prerender
-      store.revalidate = 0
+      workUnitStore.revalidate = 0
 
       const err = new DynamicServerError(
         `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
@@ -252,9 +256,13 @@ export function trackDynamicDataAccessed(
       store.dynamicUsageStack = err.stack
 
       throw err
+    } else if (
+      process.env.NODE_ENV === 'development' &&
+      workUnitStore &&
+      workUnitStore.type === 'request'
+    ) {
+      workUnitStore.usedDynamic = true
     }
-  } else {
-    store.revalidate = 0
   }
 }
 
@@ -267,16 +275,14 @@ export function trackDynamicDataAccessed(
 export function throwToInterruptStaticGeneration(
   expression: string,
   store: WorkStore,
-  // We don't actually use this store but making it part of the function signature enforces
-  // that it is only called in contexts where we are in fact performing a legacy prerender
-  _prerenderStore: PrerenderStoreLegacy
+  prerenderStore: PrerenderStoreLegacy
 ): never {
   // We aren't prerendering but we are generating a static page. We need to bail out of static generation
   const err = new DynamicServerError(
     `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
   )
 
-  store.revalidate = 0
+  prerenderStore.revalidate = 0
 
   store.dynamicUsageDescription = expression
   store.dynamicUsageStack = err.stack
@@ -292,7 +298,7 @@ export function throwToInterruptStaticGeneration(
  * @internal
  */
 export function trackDynamicDataInDynamicRender(
-  store: WorkStore,
+  _store: WorkStore,
   workUnitStore: void | WorkUnitStore
 ) {
   if (workUnitStore) {
@@ -305,8 +311,19 @@ export function trackDynamicDataInDynamicRender(
       // forbidden inside a cache scope.
       return
     }
+    if (
+      workUnitStore.type === 'prerender' ||
+      workUnitStore.type === 'prerender-legacy'
+    ) {
+      workUnitStore.revalidate = 0
+    }
+    if (
+      process.env.NODE_ENV === 'development' &&
+      workUnitStore.type === 'request'
+    ) {
+      workUnitStore.usedDynamic = true
+    }
   }
-  store.revalidate = 0
 }
 
 // Despite it's name we don't actually abort unless we have a controller to call abort on

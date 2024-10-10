@@ -2,7 +2,6 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import type { DynamicServerError } from './hooks-server-context'
 import type { FetchMetrics } from '../../server/base-http'
-import type { Revalidate } from '../../server/lib/revalidate'
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
@@ -39,7 +38,6 @@ export interface WorkStore {
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
 
-  revalidate?: Revalidate
   forceStatic?: boolean
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
@@ -52,8 +50,6 @@ export interface WorkStore {
 
   nextFetchId?: number
   pathWasRevalidated?: boolean
-
-  tags?: string[]
 
   revalidatedTags?: string[]
   fetchMetrics?: FetchMetrics
