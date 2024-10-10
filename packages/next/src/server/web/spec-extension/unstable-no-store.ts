@@ -1,5 +1,5 @@
 import { workAsyncStorage } from '../../../client/components/work-async-storage.external'
-import { workUnitAsyncStorage } from '../../../client/components/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../../../server/app-render/work-unit-async-storage.external'
 import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
 
 /**

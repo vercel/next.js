@@ -7,13 +7,13 @@ import {
   validateTags,
 } from '../../lib/patch-fetch'
 import { workAsyncStorage } from '../../../client/components/work-async-storage.external'
-import { workUnitAsyncStorage } from '../../../client/components/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedFetchData,
 } from '../../response-cache'
-import type { UnstableCacheStore } from '../../../client/components/work-unit-async-storage.external'
+import type { UnstableCacheStore } from '../../app-render/work-unit-async-storage.external'
 
 type Callback = (...args: any[]) => Promise<any>
 
