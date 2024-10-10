@@ -125,6 +125,10 @@ pub trait Chunk: Asset {
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }
+
+    fn chunk_items(self: Vc<Self>) -> Vc<ChunkItems> {
+        ChunkItems(vec![]).cell()
+    }
 }
 
 /// Aggregated information about a chunk content that can be used by the runtime
@@ -201,10 +205,10 @@ pub struct ChunkContentResult {
 
 pub async fn chunk_content(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    chunk_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<ChunkContentResult> {
-    chunk_content_internal_parallel(chunking_context, entries, availability_info).await
+    chunk_content_internal_parallel(chunking_context, chunk_entries, availability_info).await
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, Debug)]
@@ -565,10 +569,10 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
 
 async fn chunk_content_internal_parallel(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    chunk_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<ChunkContentResult> {
-    let root_edges = entries
+    let root_edges = chunk_entries
         .into_iter()
         .map(|entry| async move {
             let entry = entry.resolve().await?;
@@ -719,7 +723,7 @@ pub fn round_chunk_item_size(size: usize) -> usize {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkItems(Vec<Vc<Box<dyn ChunkItem>>>);
+pub struct ChunkItems(pub Vec<Vc<Box<dyn ChunkItem>>>);
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {

@@ -4069,6 +4069,7 @@ dependencies = [
  "futures",
  "indexmap 1.9.3",
  "next-core",
+ "regex",
  "serde",
  "serde_json",
  "shadow-rs",
@@ -5016,9 +5017,9 @@ dependencies = [
 
 [[package]]
 name = "pot"
-version = "3.0.0"
+version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df842bdb3b0553a411589e64aaa1a7d0c0259f72fabcedfaa841683ae3019d80"
+checksum = "bf741fa415952eb20f27fbc210dc85f31cc7cdc80aa3ce81d5e27d28a6f45dc2"
 dependencies = [
  "byteorder",
  "half 2.4.1",
@@ -6111,9 +6112,9 @@ dependencies = [
 
 [[package]]
 name = "shadow-rs"
-version = "0.35.0"
+version = "0.35.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fca0e9bdc073d7173ba993fb7886477af5df75588b57afcb4b96f21911ab0bfa"
+checksum = "2311e39772c00391875f40e34d43efef247b23930143a70ca5fbec9505937420"
 dependencies = [
  "const_format",
  "is_debug",

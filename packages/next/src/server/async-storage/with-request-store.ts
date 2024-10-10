@@ -4,7 +4,7 @@ import type { AsyncLocalStorage } from 'async_hooks'
 import type {
   RequestStore,
   WorkUnitStore,
-} from '../../server/app-render/work-unit-async-storage.external'
+} from '../app-render/work-unit-async-storage.external'
 import type { RenderOpts } from '../app-render/types'
 import type { WithStore } from './with-store'
 import type { NextRequest } from '../web/spec-extension/request'
@@ -67,6 +67,7 @@ export type RequestContext = RequestResponsePair & {
   renderOpts?: WrapperRenderOpts
   isHmrRefresh?: boolean
   serverComponentsHmrCache?: ServerComponentsHmrCache
+  implicitTags?: string[] | undefined
 }
 
 type RequestResponsePair =
@@ -113,6 +114,7 @@ export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
     renderOpts,
     isHmrRefresh,
     serverComponentsHmrCache,
+    implicitTags,
   }: RequestContext,
   callback: (store: RequestStore) => Result
 ): Result => {
@@ -131,6 +133,7 @@ export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
 
   const store: RequestStore = {
     type: 'request',
+    implicitTags: implicitTags ?? [],
     // Rather than just using the whole `url` here, we pull the parts we want
     // to ensure we don't use parts of the URL that we shouldn't. This also
     // lets us avoid requiring an empty string for `search` in the type.

@@ -2,9 +2,9 @@ import {
   type ReadonlyRequestCookies,
   type ResponseCookies,
   RequestCookiesAdapter,
-} from '../../server/web/spec-extension/adapters/request-cookies'
-import { RequestCookies } from '../../server/web/spec-extension/cookies'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+} from '../web/spec-extension/adapters/request-cookies'
+import { RequestCookies } from '../web/spec-extension/cookies'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
@@ -14,9 +14,9 @@ import {
   abortAndThrowOnSynchronousDynamicDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
-} from '../../server/app-render/dynamic-rendering'
-import { getExpectedRequestStore } from '../../server/app-render/work-unit-async-storage.external'
-import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
+} from '../app-render/dynamic-rendering'
+import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
+import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeResolvedReactPromise } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'

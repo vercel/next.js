@@ -28,13 +28,9 @@ use std::{
     borrow::Cow,
     cmp::min,
     collections::HashSet,
-    fmt::{
-        Debug, Display, Formatter, Write as _, {self},
-    },
+    fmt::{self, Debug, Display, Formatter, Write as _},
     fs::FileType,
-    io::{
-        BufRead, ErrorKind, {self},
-    },
+    io::{self, BufRead, ErrorKind},
     mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
     sync::Arc,
@@ -1856,6 +1852,8 @@ mod mime_option_serde {
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
 pub struct FileMeta {
+    // Size of the file
+    // len: u64,
     permissions: Permissions,
     #[serde(with = "mime_option_serde")]
     #[turbo_tasks(trace_ignore)]
@@ -1995,6 +1993,14 @@ impl FileContent {
 
 #[turbo_tasks::value_impl]
 impl FileContent {
+    #[turbo_tasks::function]
+    pub async fn len(self: Vc<Self>) -> Result<Vc<Option<u64>>> {
+        Ok(Vc::cell(match &*self.await? {
+            FileContent::Content(file) => Some(file.content.len() as u64),
+            FileContent::NotFound => None,
+        }))
+    }
+
     #[turbo_tasks::function]
     pub async fn parse_json(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
         let this = self.await?;

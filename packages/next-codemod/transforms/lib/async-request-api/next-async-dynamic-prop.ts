@@ -19,10 +19,10 @@ import {
   insertCommentOnce,
   TARGET_ROUTE_EXPORTS,
   getVariableDeclaratorId,
+  NEXTJS_ENTRY_FILES,
 } from './utils'
 
 const PAGE_PROPS = 'props'
-const MATCHED_FILE_PATTERNS = /([\\/]|^)(page|layout|route)\.(t|j)sx?$/
 
 function findFunctionBody(path: ASTPath<FunctionScope>) {
   let functionBody = path.node.body
@@ -50,6 +50,15 @@ function awaitMemberAccessOfProp(
   // await each member access
   memberAccess.forEach((memberAccessPath) => {
     const member = memberAccessPath.value
+
+    const memberProperty = member.property
+    const isAccessingMatchedProperty =
+      j.Identifier.check(memberProperty) &&
+      TARGET_PROP_NAMES.has(memberProperty.name)
+
+    if (!isAccessingMatchedProperty) {
+      return
+    }
 
     if (isParentPromiseAllCallExpression(memberAccessPath, j)) {
       return
@@ -342,8 +351,8 @@ export function transformDynamicProps(
   api: API,
   filePath: string
 ) {
-  const isMatched = MATCHED_FILE_PATTERNS.test(filePath)
-  if (!isMatched) {
+  const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
+  if (!isEntryFile) {
     return null
   }
 
@@ -653,10 +662,10 @@ export function transformDynamicProps(
           }
         }
 
-        const propRenamedId = j.Identifier.check(paramsProperty)
+        const paramsPropertyName = j.Identifier.check(paramsProperty)
           ? paramsProperty.name
           : null
-        const propName = propRenamedId || matchedPropName
+        const paramPropertyName = paramsPropertyName || matchedPropName
 
         // if propName is not used in lower scope, and it stars with unused prefix `_`,
         // also skip the transformation
@@ -665,11 +674,36 @@ export function transformDynamicProps(
         const hasUsedInBody =
           j(functionBodyPath)
             .find(j.Identifier, {
-              name: propName,
+              name: paramPropertyName,
             })
             .size() > 0
 
-        if (!hasUsedInBody && propName.startsWith('_')) continue
+        if (!hasUsedInBody && paramPropertyName.startsWith('_')) continue
+
+        // Search the usage of propName in the function body,
+        // if they're all awaited or wrapped with use(), skip the transformation
+        const propUsages = j(functionBodyPath).find(j.Identifier, {
+          name: paramPropertyName,
+        })
+
+        // if there's usage of the propName, then do the check
+        if (propUsages.size()) {
+          let hasMissingAwaited = false
+          propUsages.forEach((propUsage) => {
+            // If the parent is not AwaitExpression, it's not awaited
+            const isAwaited =
+              propUsage.parentPath?.value.type === 'AwaitExpression'
+            const isAwaitedByUse = isParentUseCallExpression(propUsage, j)
+            if (!isAwaited && !isAwaitedByUse) {
+              hasMissingAwaited = true
+              return
+            }
+          })
+          // If all the usages of parm are awaited, skip the transformation
+          if (!hasMissingAwaited) {
+            continue
+          }
+        }
 
         modifiedPropertyCount++
 
@@ -683,7 +717,7 @@ export function transformDynamicProps(
         // e.g.
         // input: Page({ params: { slug } })
         // output: const { slug } = await props.params; rather than const props = await props.params;
-        const uid = functionName + ':' + propName
+        const uid = functionName + ':' + paramPropertyName
 
         if (paramsProperty?.type === 'ObjectPattern') {
           const objectPattern = paramsProperty
@@ -720,7 +754,7 @@ export function transformDynamicProps(
           // If it's async function, add await to the async props.<propName>
           const paramAssignment = j.variableDeclaration('const', [
             j.variableDeclarator(
-              j.identifier(propName),
+              j.identifier(paramPropertyName),
               j.awaitExpression(accessedPropIdExpr)
             ),
           ])
@@ -742,7 +776,7 @@ export function transformDynamicProps(
               // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
               const paramAssignment = j.variableDeclaration('const', [
                 j.variableDeclarator(
-                  j.identifier(propName),
+                  j.identifier(paramPropertyName),
                   j.awaitExpression(accessedPropIdExpr)
                 ),
               ])
@@ -755,7 +789,7 @@ export function transformDynamicProps(
           } else {
             const paramAssignment = j.variableDeclaration('const', [
               j.variableDeclarator(
-                j.identifier(propName),
+                j.identifier(paramPropertyName),
                 j.callExpression(j.identifier('use'), [accessedPropIdExpr])
               ),
             ])

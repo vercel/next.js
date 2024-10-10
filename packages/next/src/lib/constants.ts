@@ -32,6 +32,11 @@ export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
 // in seconds
 export const CACHE_ONE_YEAR = 31536000
 
+// in seconds, represents revalidate=false. I.e. never revaliate.
+// We use this value since it can be represented as a V8 SMI for optimal performance.
+// It can also be serialized as JSON if it ever leaks accidentally as an actual value.
+export const INFINITE_CACHE = 0xfffffffe
+
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
 export const MIDDLEWARE_LOCATION_REGEXP = `(?:src/)?${MIDDLEWARE_FILENAME}`
