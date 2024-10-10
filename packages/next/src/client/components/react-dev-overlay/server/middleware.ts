@@ -13,8 +13,9 @@ import {
   noContent,
   type OriginalStackFrameResponse,
 } from './shared'
-export { getServerError } from '../internal/helpers/node-stack-frames'
 import { createStackFrame } from '../internal/helpers/create-stack-frame'
+export { getServerError } from '../internal/helpers/node-stack-frames'
+export { parseStack } from '../internal/helpers/parse-stack'
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
