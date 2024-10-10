@@ -14,7 +14,10 @@ import {
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import type { UseCacheStore } from '../app-render/work-unit-async-storage.external'
+import type {
+  CacheStore,
+  UseCacheStore,
+} from '../app-render/work-unit-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
@@ -40,7 +43,7 @@ type CacheEntry = {
 
 interface CacheHandler {
   get(cacheKey: string | ArrayBuffer): Promise<undefined | CacheEntry>
-  set(cacheKey: string | ArrayBuffer, value: ReadableStream): Promise<void>
+  set(cacheKey: string | ArrayBuffer, value: Promise<CacheEntry>): Promise<void>
 }
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
@@ -65,7 +68,8 @@ cacheHandlerMap.set('default', {
     }
     return undefined
   },
-  async set(cacheKey: string | ArrayBuffer, value: ReadableStream) {
+  async set(cacheKey: string | ArrayBuffer, promise: Promise<CacheEntry>) {
+    const { value } = await promise
     // TODO: Implement proper caching.
     if (typeof cacheKey === 'string') {
       defaultCacheStorage.set(cacheKey, value)
@@ -146,6 +150,7 @@ function generateCacheEntryWithCacheContext(
     cacheStore,
     generateCacheEntryImpl,
     workStore,
+    cacheStore,
     clientReferenceManifest,
     cacheHandler,
     serializedCacheKey,
@@ -154,8 +159,52 @@ function generateCacheEntryWithCacheContext(
   )
 }
 
+async function collectResult(
+  savedStream: ReadableStream,
+  _innerCacheStore: CacheStore,
+  errors: Array<unknown> // This is a live array that gets pushed into.
+): Promise<CacheEntry> {
+  // We create a buffered stream that collects all chunks until the end to
+  // ensure that RSC has finished rendering and therefore we have collected
+  // all tags. In the future the RSC API might allow for the equivalent of
+  // the allReady Promise that exists on SSR streams.
+  //
+  // If something errored or rejected anywhere in the render, we close
+  // the stream as errored. This lets a CacheHandler choose to save the
+  // partial result up until that point for future hits for a while to avoid
+  // unnecessary retries or not to retry. We use the end of the stream for
+  // this to avoid another complicated side-channel. A receiver has to consider
+  // that the stream might also error for other reasons anyway such as losing
+  // connection.
+
+  const buffer: any[] = []
+  const reader = savedStream.getReader()
+  for (let entry; !(entry = await reader.read()).done; ) {
+    buffer.push(entry.value)
+  }
+
+  let idx = 0
+  const bufferStream = new ReadableStream({
+    pull(controller) {
+      if (idx < buffer.length) {
+        controller.enqueue(buffer[idx++])
+      } else if (errors.length > 0) {
+        // TODO: Should we use AggregateError here?
+        controller.error(errors[0])
+      } else {
+        controller.close()
+      }
+    },
+  })
+  return {
+    value: bufferStream,
+    stale: false, // TODO: rm
+  }
+}
+
 async function generateCacheEntryImpl(
   workStore: WorkStore,
+  innerCacheStore: CacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
   serializedCacheKey: string | ArrayBuffer,
@@ -175,8 +224,7 @@ async function generateCacheEntryImpl(
   // Invoke the inner function to load a new result.
   const result = fn.apply(null, args)
 
-  let didError = false
-  let firstError: any = null
+  let errors: Array<unknown> = []
 
   const stream = renderToReadableStream(
     result,
@@ -184,52 +232,23 @@ async function generateCacheEntryImpl(
     {
       environmentName: 'Cache',
       temporaryReferences,
-      onError(error: any) {
+      onError(error: unknown) {
         // Report the error.
         console.error(error)
-        if (!didError) {
-          didError = true
-          firstError = error
-        }
+        errors.push(error)
       },
     }
   )
 
   const [returnStream, savedStream] = stream.tee()
 
-  // We create a stream that passed through the RSC render of the response.
-  // It always runs to completion but at the very end, if something errored
-  // or rejected anywhere in the render. We close the stream as errored.
-  // This lets a CacheHandler choose to save the errored result for future
-  // hits for a while to avoid unnecessary retries or not to retry.
-  // We use the end of the stream for this to avoid another complicated
-  // side-channel. A receiver has to consider that the stream might also
-  // error for other reasons anyway such as losing connection.
-  const reader = savedStream.getReader()
-  const erroringSavedStream = new ReadableStream({
-    pull(controller) {
-      return reader.read().then(({ done, value }) => {
-        if (done) {
-          if (didError) {
-            controller.error(firstError)
-          } else {
-            controller.close()
-          }
-          return
-        }
-        controller.enqueue(value)
-      })
-    },
-    cancel(reason: any) {
-      reader.cancel(reason)
-    },
-  })
+  const cacheEntry = collectResult(savedStream, innerCacheStore, errors)
 
   if (!workStore.pendingRevalidateWrites) {
     workStore.pendingRevalidateWrites = []
   }
 
-  const promise = cacheHandler.set(serializedCacheKey, erroringSavedStream)
+  const promise = cacheHandler.set(serializedCacheKey, cacheEntry)
 
   workStore.pendingRevalidateWrites.push(promise)
 
