@@ -517,6 +517,7 @@ impl Debug for DiskFileSystem {
 impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn read(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<FileContent>> {
+        mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
         self.register_invalidator(&full_path)?;
 
