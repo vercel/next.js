@@ -1418,6 +1418,9 @@ impl AppEndpoint {
                 server_assets.insert(Vc::upcast(NftJsonAsset::new(
                     app_entry.rsc_entry,
                     Some(rsc_chunk),
+                    true,
+                    this.app_project.project().output_fs(),
+                    this.app_project.project().project_fs(),
                 )));
 
                 let app_paths_manifest_output = create_app_paths_manifest(

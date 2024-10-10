@@ -877,7 +877,13 @@ impl PageEndpoint {
                 )
                 .await?;
 
-                let nft = Vc::upcast(NftJsonAsset::new(ssr_module, Some(ssr_entry_chunk)));
+                let nft = Vc::upcast(NftJsonAsset::new(
+                    ssr_module,
+                    Some(ssr_entry_chunk),
+                    true,
+                    this.pages_project.project().output_fs(),
+                    this.pages_project.project().project_fs(),
+                ));
 
                 Ok(SsrChunk::NodeJs {
                     entry: ssr_entry_chunk,

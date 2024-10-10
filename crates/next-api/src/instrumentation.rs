@@ -219,6 +219,9 @@ impl InstrumentationEndpoint {
             output_assets.push(Vc::upcast(NftJsonAsset::new(
                 self.entry_module(),
                 Some(chunk),
+                true,
+                this.project.output_fs(),
+                this.project.project_fs(),
             )));
             Ok(Vc::cell(output_assets))
         }

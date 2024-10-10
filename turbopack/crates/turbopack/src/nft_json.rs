@@ -1,13 +1,14 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use serde_json::json;
-use turbo_tasks::{ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystem};
+use tracing::Instrument;
+use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks_fs::{DiskFileSystem, File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     module::Module,
     output::OutputAsset,
-    reference::all_modules_and_affecting_sources,
+    reference::{all_assets_from_entries, all_modules_and_affecting_sources},
     source_map::SourceMapAsset,
 };
 
@@ -15,13 +16,62 @@ use turbopack_core::{
 pub struct NftJsonAsset {
     entry: Vc<Box<dyn Module>>,
     chunk: Option<Vc<Box<dyn OutputAsset>>>,
+    only_externals: bool,
+    output_fs: Vc<DiskFileSystem>,
+    project_fs: Vc<DiskFileSystem>,
 }
 
 #[turbo_tasks::value_impl]
 impl NftJsonAsset {
     #[turbo_tasks::function]
-    pub fn new(entry: Vc<Box<dyn Module>>, chunk: Option<Vc<Box<dyn OutputAsset>>>) -> Vc<Self> {
-        NftJsonAsset { entry, chunk }.cell()
+    pub fn new(
+        entry: Vc<Box<dyn Module>>,
+        chunk: Option<Vc<Box<dyn OutputAsset>>>,
+        only_externals: bool,
+        output_fs: Vc<DiskFileSystem>,
+        project_fs: Vc<DiskFileSystem>,
+    ) -> Vc<Self> {
+        NftJsonAsset {
+            entry,
+            chunk,
+            only_externals,
+            output_fs,
+            project_fs,
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl NftJsonAsset {
+    #[turbo_tasks::function]
+    async fn get_output_specifier(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+        let this = self.await?;
+        let path_fs = path.fs().resolve().await?;
+        let path_ref = path.await?;
+        let nft_folder = self.ident().path().parent().await?;
+        Ok(if path_fs == Vc::upcast(this.output_fs.resolve().await?) {
+            // e.g. a referenced chunk
+            Vc::cell(nft_folder.get_relative_path_to(&path_ref).unwrap())
+        } else if path_fs == Vc::upcast(this.project_fs.resolve().await?) {
+            let project_fs = this.project_fs.await?;
+            let output_fs = this.output_fs.await?;
+
+            if let Some(subdir) = output_fs.root.strip_prefix(&*project_fs.root) {
+                let nft_in_project_fs = this
+                    .project_fs
+                    .root()
+                    .join(subdir.into())
+                    .join(nft_folder.path.clone())
+                    .await?;
+                Vc::cell(nft_in_project_fs.get_relative_path_to(&path_ref).unwrap())
+            } else {
+                bail!("TODO output fs not inside project fs");
+            }
+        } else {
+            println!("Unknown filesystem for {}", path.to_string().await?);
+            Vc::cell("".into())
+        })
     }
 }
 
@@ -49,28 +99,24 @@ impl OutputAsset for NftJsonAsset {
 impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        // The listed files should be relative to this directory
-        let parent_dir = self.ident().path().parent().await?;
-        println!("parent_dir: {:?}", parent_dir.path);
+        // println!(
+        //     "parent_dir: {:?}",
+        //     self.ident().path().parent().to_string().await?
+        // );
 
         let this = &*self.await?;
         let mut result = Vec::new();
-        let set = all_modules_and_affecting_sources(this.entry);
-        for asset in set.await? {
-            let path = asset.ident().path().await?;
-            if let Some(rel_path) = parent_dir.get_relative_path_to(&path) {
-                // if rel_path != self_path {
-                result.push(rel_path);
-            } else {
-                println!(
-                    "skipped module! {}",
-                    asset.ident().path().to_string().await?
-                );
-            }
+        let set = async { all_modules_and_affecting_sources(this.entry).await }
+            .instrument(tracing::info_span!("NftJsonAsset tracing"))
+            .await?;
+        for asset in set {
+            let specifier = self.get_output_specifier(asset.ident().path()).await?;
+            result.push(specifier);
         }
 
         if let Some(chunk) = this.chunk {
-            for referenced_chunk in chunk.references().await? {
+            let chunk = chunk.resolve().await?;
+            for referenced_chunk in all_assets_from_entries(Vc::cell(vec![chunk])).await? {
                 // TODO or should it skip sourcemaps by checking path.endsWith(".map")?
                 if (Vc::try_resolve_downcast_type::<SourceMapAsset>(*referenced_chunk).await?)
                     .is_some()
@@ -78,15 +124,14 @@ impl Asset for NftJsonAsset {
                     continue;
                 }
 
-                let path = referenced_chunk.ident().path().await?;
-                if let Some(rel_path) = parent_dir.get_relative_path_to(&path) {
-                    result.push(rel_path);
-                } else {
-                    println!(
-                        "skipped chunk! {}",
-                        referenced_chunk.ident().path().to_string().await?
-                    );
+                if chunk == referenced_chunk.resolve().await? {
+                    continue;
                 }
+
+                let specifier = self
+                    .get_output_specifier(referenced_chunk.ident().path())
+                    .await?;
+                result.push(specifier);
             }
         }
 
