@@ -1,3 +1,5 @@
+import type { CacheHandler } from '../lib/incremental-cache'
+
 export function getBuiltinRequestContext():
   | BuiltinRequestContextValue
   | undefined {
@@ -27,5 +29,8 @@ export type BuiltinRequestContext = {
   get(): BuiltinRequestContextValue | undefined
 }
 
-export type BuiltinRequestContextValue = { waitUntil?: WaitUntil }
+export type BuiltinRequestContextValue = {
+  waitUntil?: WaitUntil
+  NextCacheHandler?: typeof CacheHandler
+}
 export type WaitUntil = (promise: Promise<any>) => void

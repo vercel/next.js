@@ -23,6 +23,7 @@ import {
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
 import { SharedRevalidateTimings } from './shared-revalidate-timings'
+import { getBuiltinRequestContext } from '../../after/builtin-request-context'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -63,14 +64,6 @@ export class CacheHandler {
 
   public resetRequestCache(): void {}
 }
-
-export const NEXT_CACHE_HANDLER_SYMBOL = Symbol.for(
-  '__next_internal_cache_handler__'
-)
-
-// TODO(after): this is a temporary workaround.
-// Remove this when vercel builder is updated to provide '@next/request-context'. Same time as waitUntil
-const VERCEL_REQUEST_CONTEXT_SYMBOL = Symbol.for('@vercel/request-context')
 
 export class IncrementalCache implements IncrementalCacheType {
   readonly dev?: boolean
@@ -129,10 +122,7 @@ export class IncrementalCache implements IncrementalCacheType {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
     if (!CurCacheHandler) {
-      const _globalThis: any = globalThis
-      const globalCacheHandler =
-        _globalThis[NEXT_CACHE_HANDLER_SYMBOL] ??
-        _globalThis[VERCEL_REQUEST_CONTEXT_SYMBOL]?.get()?.NextFetchCache
+      const globalCacheHandler = getBuiltinRequestContext()?.NextCacheHandler
 
       if (globalCacheHandler) {
         CurCacheHandler = globalCacheHandler
