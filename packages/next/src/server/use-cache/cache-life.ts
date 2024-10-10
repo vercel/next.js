@@ -17,9 +17,16 @@ export type CacheLife = {
 
 const cacheLifeProfileMap: Map<string, CacheLife> = new Map()
 
-cacheLifeProfileMap.set('default', {
-  revalidate: 24 * 60 * 60, // one day
-})
+// The default revalidates relatively frequently but doesn't expire to ensure it's always
+// able to serve fast results but by default doesn't hang.
+
+export const defaultCacheLife = {
+  stale: 5 * 60,
+  revalidate: 15 * 60,
+  expire: Infinity,
+}
+
+cacheLifeProfileMap.set('default', defaultCacheLife)
 
 type CacheLifeProfiles = 'default' // TODO: Generate from the config
 

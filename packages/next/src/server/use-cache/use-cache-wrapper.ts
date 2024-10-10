@@ -27,7 +27,7 @@ import {
   getClientReferenceManifestSingleton,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
-import { INFINITE_CACHE } from '../../lib/constants'
+import { defaultCacheLife } from './cache-life'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -151,7 +151,7 @@ function generateCacheEntryWithCacheContext(
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
-    revalidate: INFINITE_CACHE, // TODO: Adjust this default to lower.
+    revalidate: defaultCacheLife.revalidate,
     explicitRevalidate: undefined,
     tags: null,
   }
