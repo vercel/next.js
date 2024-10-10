@@ -21,8 +21,8 @@ const cacheLifeProfileMap: Map<string, CacheLife> = new Map()
 // able to serve fast results but by default doesn't hang.
 
 export const defaultCacheLife = {
-  stale: 5 * 60,
-  revalidate: 15 * 60,
+  stale: Number(process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME),
+  revalidate: 15 * 60, // Note: This is a new take on the defaults.
   expire: Infinity,
 }
 
