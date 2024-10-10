@@ -547,6 +547,14 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize> Entry<'
             Entry::Vacant(entry) => entry.insert(default()),
         }
     }
+
+    /// see [HashMap::Entry::or_insert](https://doc.rust-lang.org/std/collections/hash_map/enum.Entry.html#method.or_insert)
+    pub fn or_insert(self, default: V) -> &'a mut V {
+        match self {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => entry.insert(default),
+        }
+    }
 }
 
 impl<'a, K: Eq + Hash, V: Default, H: BuildHasher + Default + 'a, const I: usize>

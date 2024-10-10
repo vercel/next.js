@@ -52,7 +52,7 @@ export const runtime = 'edge'
 
 #### Migrate to async Dynamic APIs
 
-APIs that opted into dynamic rendering that previously supported synchronous access are now asynchronous. You can read more about this breaking change in the [upgrade guide](/docs/app/building-your-application/upgrading/version-15)
+APIs that opted into dynamic rendering that previously supported synchronous access are now asynchronous. You can read more about this breaking change in the [upgrade guide](/docs/app/building-your-application/upgrading/version-15).
 
 ##### `next-async-request-api`
 
@@ -117,7 +117,7 @@ export default function Page({
   searchParams,
 }: {
   params: { slug: string }
-  searchParams: { [key: string]: string | undefined }
+  searchParams: { [key: string]: string | string[] | undefined }
 }) {
   const { value } = searchParams
   if (value === 'foo') {
@@ -138,7 +138,7 @@ Transforms into:
 // page.tsx
 export default function Page(props: {
   params: { slug: string }
-  searchParams: { [key: string]: string | undefined }
+  searchParams: { [key: string]: string | string[] | undefined }
 }) {
   const { value } = await props.searchParams
   if (value === 'foo') {
