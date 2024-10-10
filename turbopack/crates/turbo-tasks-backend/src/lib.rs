@@ -4,6 +4,7 @@
 
 mod backend;
 mod backing_storage;
+mod built_info;
 mod data;
 mod lmdb_backing_storage;
 mod utils;

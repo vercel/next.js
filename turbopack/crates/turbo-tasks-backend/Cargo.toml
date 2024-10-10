@@ -46,3 +46,4 @@ turbo-tasks-testing = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
+built = { version = "0.7.4", features = ["git2"] }

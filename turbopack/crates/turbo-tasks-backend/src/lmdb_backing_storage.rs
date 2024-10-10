@@ -2,12 +2,14 @@ mod extended_key;
 
 use std::{
     collections::{hash_map::Entry, HashMap},
+    env,
     error::Error,
-    fs::create_dir_all,
+    fs::{create_dir_all, metadata, read_dir, remove_dir_all},
     mem::{transmute, ManuallyDrop},
     path::Path,
     sync::Arc,
     thread::available_parallelism,
+    time::Duration,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -21,6 +23,7 @@ use turbo_tasks::{backend::CachedTaskType, KeyValuePair, SessionId, TaskId};
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
     backing_storage::{BackingStorage, ReadTransaction},
+    built_info::{GIT_COMMIT_HASH_SHORT, GIT_DIRTY},
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate},
     utils::chunked_vec::ChunkedVec,
 };
@@ -28,6 +31,11 @@ use crate::{
 const META_KEY_OPERATIONS: u32 = 0;
 const META_KEY_NEXT_FREE_TASK_ID: u32 = 1;
 const META_KEY_SESSION_ID: u32 = 2;
+
+/// Specifies many databases that have a different version than the current one are retained.
+/// For example if MAX_OTHER_DB_VERSIONS is 2, there can be at most 3 databases in the directory,
+/// the current one and two older/newer ones.
+const MAX_OTHER_DB_VERSIONS: usize = 2;
 
 struct IntKey([u8; 4]);
 
@@ -59,8 +67,74 @@ pub struct LmdbBackingStorage {
 }
 
 impl LmdbBackingStorage {
-    pub fn new(path: &Path) -> Result<Self> {
-        create_dir_all(path)?;
+    pub fn new(base_path: &Path) -> Result<Self> {
+        // Database versioning. Pass `TURBO_TASKS_IGNORE_GIT_DIRTY` at compile time to ignore a
+        // dirty git repository. Pass `TURBO_TASKS_DISABLE_VERSION` at runtime to ignore a
+        // dirty git repository.
+        let version =
+            if option_env!("TURBO_TASKS_IGNORE_GIT_DIRTY").is_none() && GIT_DIRTY == Some(true) {
+                if env::var("TURBO_TASKS_DISABLE_VERSION").ok().is_some() {
+                    println!(
+                        "WARNING: The git repository is dirty, but Persistent Caching is still \
+                         enabled. Manual removal of the persistent caching database might be \
+                         required depending on the changes made."
+                    );
+                    Some("version-ignored")
+                } else {
+                    println!(
+                        "WARNING: The git repository is dirty: Persistent Caching is disabled. \
+                         Force enable it with TURBO_TASKS_DISABLE_VERSION=1"
+                    );
+                    None
+                }
+            } else {
+                GIT_COMMIT_HASH_SHORT
+            };
+        let path;
+        if let Some(version) = version {
+            path = base_path.join(version);
+
+            // Remove old databases if needed
+            if let Ok(read_dir) = read_dir(base_path) {
+                let old_dbs = read_dir
+                    .filter_map(|entry| {
+                        let entry = entry.ok()?;
+                        if !entry.file_type().ok()?.is_dir() {
+                            return None;
+                        }
+                        let name = entry.file_name();
+                        let name = name.to_string_lossy();
+                        if name == version {
+                            return None;
+                        }
+                        Some(entry.path())
+                    })
+                    .collect::<Vec<_>>();
+                if old_dbs.len() > MAX_OTHER_DB_VERSIONS {
+                    let mut old_dbs = old_dbs
+                        .iter()
+                        .map(|p| {
+                            fn get_age(p: &Path) -> Result<Duration> {
+                                let m = metadata(p)?;
+                                Ok(m.accessed().or_else(|_| m.modified())?.elapsed()?)
+                            }
+                            (
+                                p,
+                                get_age(p).unwrap_or(Duration::from_secs(10 * 356 * 24 * 60 * 60)),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    old_dbs.sort_by_key(|(_, age)| *age);
+                    for (p, _) in old_dbs.into_iter().skip(MAX_OTHER_DB_VERSIONS) {
+                        let _ = remove_dir_all(p);
+                    }
+                }
+            }
+        } else {
+            let _ = remove_dir_all(base_path);
+            path = base_path.join("temp");
+        }
+        create_dir_all(&path).context("Creating database directory failed")?;
 
         #[cfg(target_arch = "x86")]
         const MAP_SIZE: usize = usize::MAX;
@@ -76,7 +150,7 @@ impl LmdbBackingStorage {
             .set_max_readers((available_parallelism().map_or(16, |v| v.get()) * 8) as u32)
             .set_max_dbs(5)
             .set_map_size(MAP_SIZE)
-            .open(path)?;
+            .open(&path)?;
         let infra_db = env.create_db(Some("infra"), DatabaseFlags::INTEGER_KEY)?;
         let data_db = env.create_db(Some("data"), DatabaseFlags::INTEGER_KEY)?;
         let meta_db = env.create_db(Some("meta"), DatabaseFlags::INTEGER_KEY)?;
