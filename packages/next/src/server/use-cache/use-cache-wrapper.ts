@@ -139,6 +139,7 @@ function generateCacheEntryWithCacheContext(
   const cacheStore: UseCacheStore = {
     type: 'cache',
     revalidate: INFINITE_CACHE,
+    explicitRevalidate: undefined,
     tags: null,
   }
   return workUnitAsyncStorage.run(

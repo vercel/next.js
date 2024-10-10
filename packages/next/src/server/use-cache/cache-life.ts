@@ -25,7 +25,7 @@ type CacheLifeProfiles = 'default' // TODO: Generate from the config
 
 function validateCacheLife(profile: CacheLife) {
   if (profile.stale !== undefined) {
-    if (profile.stale === false) {
+    if ((profile.stale as any) === false) {
       throw new Error(
         'Pass `Infinity` instead of `false` if you want to cache on the client forever ' +
           'without checking with the server.'
@@ -35,7 +35,7 @@ function validateCacheLife(profile: CacheLife) {
     }
   }
   if (profile.revalidate !== undefined) {
-    if (profile.revalidate === false) {
+    if ((profile.revalidate as any) === false) {
       throw new Error(
         'Pass `Infinity` instead of `false` if you do not want to revalidate by time.'
       )
@@ -44,7 +44,7 @@ function validateCacheLife(profile: CacheLife) {
     }
   }
   if (profile.expire !== undefined) {
-    if (profile.expire === false) {
+    if ((profile.expire as any) === false) {
       throw new Error(
         'Pass `Infinity` instead of `false` if you want to cache on the client forever ' +
           'without checking with the server.'
@@ -123,8 +123,12 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   }
 
   if (profile.revalidate !== undefined) {
-    if (workUnitStore.revalidate > profile.revalidate) {
-      workUnitStore.revalidate = profile.revalidate
+    // Track the explicit revalidate time.
+    if (
+      workUnitStore.explicitRevalidate === undefined ||
+      workUnitStore.explicitRevalidate > profile.revalidate
+    ) {
+      workUnitStore.explicitRevalidate = profile.revalidate
     }
   }
 }
