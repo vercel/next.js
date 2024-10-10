@@ -399,8 +399,18 @@ pub fn should_skip_tree_shaking(m: &Program, special_exports: &[RcStr]) -> bool 
             match item {
                 // Skip turbopack helpers.
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    with, specifiers, ..
+                    src,
+                    with,
+                    specifiers,
+                    ..
                 })) => {
+                    // We detect imports from next/dynamic in various places.
+                    // See collect_next_dynamic_imports. We need to preserve the import of
+                    // `next/dynamic`.
+                    if src.value == "next/dynamic" {
+                        return false;
+                    }
+
                     if let Some(with) = with.as_deref().and_then(|v| v.as_import_with()) {
                         for item in with.values.iter() {
                             if item.key.sym == *TURBOPACK_HELPER {
