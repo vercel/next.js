@@ -87,7 +87,7 @@ function validateCacheLife(profile: CacheLife) {
 export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
   if (!process.env.__NEXT_DYNAMIC_IO) {
     throw new Error(
-      'cacheTag() is only available with the experimental.dynamicIO config.'
+      'cacheLife() is only available with the experimental.dynamicIO config.'
     )
   }
 
