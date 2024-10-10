@@ -127,17 +127,20 @@ export async function runUpgrade(
   let shouldRunReactTypesCodemods = false
   let execCommand = 'npx'
   // The following React codemods are for React 19
-  if (!shouldStayOnReact18) {
+  if (
+    !shouldStayOnReact18 &&
+    compareVersions(targetReactVersion, '19.0.0-beta.0') >= 0
+  ) {
     shouldRunReactCodemods = await suggestReactCodemods()
     shouldRunReactTypesCodemods = await suggestReactTypesCodemods()
 
-    // const execCommandMap = {
-    //   yarn: 'yarn dlx',
-    //   pnpm: 'pnpx',
-    //   bun: 'bunx',
-    //   npm: 'npx',
-    // }
-    // execCommand = execCommandMap[packageManager]
+    const execCommandMap = {
+      yarn: 'yarn dlx',
+      pnpm: 'pnpx',
+      bun: 'bunx',
+      npm: 'npx',
+    }
+    execCommand = execCommandMap[packageManager]
   }
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
