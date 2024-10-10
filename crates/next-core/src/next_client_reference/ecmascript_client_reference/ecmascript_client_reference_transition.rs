@@ -7,7 +7,7 @@ use turbopack::{
 use turbopack_core::{
     context::ProcessResult,
     file_source::FileSource,
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     source::Source,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
@@ -80,15 +80,21 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let client_module = this.client_transition.process(
             client_source,
             module_asset_context,
-            reference_type.clone(),
+            Value::new(ReferenceType::Entry(
+                EntryReferenceSubType::AppClientComponent,
+            )),
         );
         let ProcessResult::Module(client_module) = *client_module.await? else {
             return Ok(ProcessResult::Ignore.cell());
         };
 
-        let ssr_module = this
-            .ssr_transition
-            .process(source, module_asset_context, reference_type);
+        let ssr_module = this.ssr_transition.process(
+            source,
+            module_asset_context,
+            Value::new(ReferenceType::Entry(
+                EntryReferenceSubType::AppClientComponent,
+            )),
+        );
         let ProcessResult::Module(ssr_module) = *ssr_module.await? else {
             return Ok(ProcessResult::Ignore.cell());
         };
