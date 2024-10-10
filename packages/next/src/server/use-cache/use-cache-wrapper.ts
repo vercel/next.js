@@ -182,7 +182,13 @@ function propagateCacheLifeAndTags(
   ) {
     // Propagate tags and revalidate upwards
     const outerTags = workUnitStore.tags ?? (workUnitStore.tags = [])
-    outerTags.push(...entry.tags)
+    const entryTags = entry.tags
+    for (let i = 0; i < entryTags.length; i++) {
+      const tag = entryTags[i]
+      if (!outerTags.includes(tag)) {
+        outerTags.push(tag)
+      }
+    }
     if (workUnitStore.revalidate > entry.revalidate) {
       workUnitStore.revalidate = entry.revalidate
     }
