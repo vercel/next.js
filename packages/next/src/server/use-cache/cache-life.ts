@@ -104,7 +104,7 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
       if (cacheLifeProfileMap.has(profile.trim())) {
         throw new Error(
           `Unknown cacheLife profile "${profile}" is not configured in next.config.js\n` +
-            `Did you mean "${profile}" without the spaces?`
+            `Did you mean "${profile.trim()}" without the spaces?`
         )
       }
       throw new Error(
