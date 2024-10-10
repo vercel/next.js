@@ -333,6 +333,8 @@ async fn import_mapping_to_result(
                     bail!("Cannot resolve external reference without request")
                 };
 
+                println!("RESOLVING EXTERNAL: {name} {ty:?}");
+
                 ResolveResultItem::External {
                     name,
                     typ: *ty,

@@ -702,14 +702,23 @@ impl ResolveResult {
                         Ok((
                             request,
                             match item {
-                                ResolveResultItem::Source(source) => asset_fn(source).await?,
+                                ResolveResultItem::Source(source)
+                                | ResolveResultItem::External {
+                                    source: Some(source),
+                                    ..
+                                } => asset_fn(source).await?,
                                 ResolveResultItem::External {
-                                    name: s, typ: ty, ..
-                                } => ModuleResolveResultItem::External {
-                                    name: s,
-                                    typ: ty,
+                                    name,
+                                    typ,
                                     source: None,
-                                },
+                                } => {
+                                    println!("external: {name} {typ:?} no source");
+                                    ModuleResolveResultItem::External {
+                                        name,
+                                        typ,
+                                        source: None,
+                                    }
+                                }
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
                                 ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),

@@ -50,6 +50,10 @@ impl ReferencedAsset {
     pub async fn get_ident(&self) -> Result<Option<String>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => Some(Self::get_ident_from_placeable(asset).await?),
+            // TODO: do we need to mangle the source?
+            // ReferencedAsset::External(request, ty, Some(output)) => {
+            //     Some(output.ident().to_string())
+            // }
             ReferencedAsset::External(request, ty, _) => Some(magic_identifier::mangle(&format!(
                 "{ty} external {request}"
             ))),
@@ -78,9 +82,11 @@ impl ReferencedAsset {
                 ModuleResolveResultItem::External {
                     name: request,
                     typ,
-                    source: _, // TODO(arlyon): handle source
+                    source,
                 } => {
-                    return Ok(ReferencedAsset::External(request.clone(), *typ, None).cell());
+                    return Ok(
+                        ReferencedAsset::External(request.clone(), *typ, source.clone()).cell(),
+                    );
                 }
                 &ModuleResolveResultItem::Module(module) => {
                     if let Some(placeable) =

@@ -912,14 +912,14 @@ pub async fn replace_externals(
     for item in result.primary.values_mut() {
         let ModuleResolveResultItem::External {
             name: request,
-            typ: ty,
-            source: None,
+            typ,
+            source,
         } = item
         else {
             continue;
         };
 
-        let external_type = match ty {
+        let external_type = match typ {
             ExternalType::CommonJs => CachedExternalType::CommonJs,
             ExternalType::EcmaScriptModule => {
                 if import_externals {
@@ -934,7 +934,7 @@ pub async fn replace_externals(
             }
         };
 
-        let module = CachedExternalModule::new(request.clone(), external_type)
+        let module = CachedExternalModule::new(request.clone(), external_type, source.clone())
             .resolve()
             .await?;
 

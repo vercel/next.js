@@ -240,6 +240,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         let starting_index = path.find("next/dist").unwrap();
         // Replace '/esm/' with '/' to match the CJS version of the file.
         let modified_path = path[starting_index..].replace("/esm/", "/");
+
         Ok(Vc::cell(Some(
             ResolveResult::primary(ResolveResultItem::External {
                 name: modified_path.into(),

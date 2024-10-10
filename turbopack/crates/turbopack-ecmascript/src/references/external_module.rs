@@ -9,6 +9,7 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    output::OutputAsset,
     reference::ModuleReferences,
 };
 
@@ -50,15 +51,21 @@ impl Display for CachedExternalType {
 pub struct CachedExternalModule {
     pub request: RcStr,
     pub external_type: CachedExternalType,
+    pub source: Option<Vc<Box<dyn OutputAsset>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl CachedExternalModule {
     #[turbo_tasks::function]
-    pub fn new(request: RcStr, external_type: CachedExternalType) -> Vc<Self> {
+    pub fn new(
+        request: RcStr,
+        external_type: CachedExternalType,
+        source: Option<Vc<Box<dyn OutputAsset>>>,
+    ) -> Vc<Self> {
         Self::cell(CachedExternalModule {
             request,
             external_type,
+            source,
         })
     }
 
@@ -103,7 +110,13 @@ impl Module for CachedExternalModule {
     fn ident(&self) -> Vc<AssetIdent> {
         let fs = VirtualFileSystem::new_with_name("externals".into());
 
-        AssetIdent::from_path(fs.root())
+        if let Some(asset) = self.source {
+            println!("external {}: {:?}", self.request, asset);
+        } else {
+            println!("external {}: none", self.request);
+        }
+
+        AssetIdent::from_path(fs.root().join(self.request.clone()))
             .with_layer(layer())
             .with_modifier(Vc::cell(self.request.clone()))
             .with_modifier(Vc::cell(self.external_type.to_string().into()))
