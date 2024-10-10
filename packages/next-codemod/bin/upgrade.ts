@@ -108,10 +108,27 @@ export async function runUpgrade(
     installedNextVersion,
     targetNextVersion
   )
+  const packageManager: PackageManager = getPkgManager(process.cwd())
+
+  let shouldRunReactCodemods = false
+  let shouldRunReactTypesCodemods = false
+  let execCommand = 'npx'
+  // The following React codemods are for React 19
+  if (!isPagesOnlyAndWantReact18) {
+    shouldRunReactCodemods = await suggestReactCodemods()
+    shouldRunReactTypesCodemods = await suggestReactTypesCodemods()
+
+    const execCommandMap = {
+      yarn: 'yarn dlx',
+      pnpm: 'pnpx',
+      bun: 'bunx',
+      npm: 'npx',
+    }
+    execCommand = execCommandMap[packageManager]
+  }
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
-  const packageManager: PackageManager = getPkgManager(process.cwd())
   const nextDependency = `next@${targetNextVersion}`
   const reactDependencies = [
     `react@${targetReactVersion}`,
@@ -151,10 +168,24 @@ export async function runUpgrade(
     await runTransform(codemod, process.cwd(), { force: true })
   }
 
-  // The following React codemods are for React 19
-  if (!isPagesOnlyAndWantReact18) {
-    await suggestReactCodemods(packageManager)
-    await suggestReactTypesCodemods(packageManager)
+  // To reduce user-side burden of selecting which codemods to run as it needs additional
+  // understanding of the codemods, we run all of the applicable codemods.
+  if (shouldRunReactCodemods) {
+    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
+    execSync(
+      // `--no-interactive` skips the interactive prompt that asks for confirmation
+      // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
+      `${execCommand} codemod@latest react/19/migration-recipe --no-interactive`,
+      { stdio: 'inherit' }
+    )
+  }
+  if (shouldRunReactTypesCodemods) {
+    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
+    // `--yes` skips prompts and applies all codemods automatically
+    // https://github.com/eps1lon/types-react-codemod/blob/8463103233d6b70aad3cd6bee1814001eae51b28/README.md?plain=1#L52
+    execSync(`${execCommand} types-react-codemod@latest --yes preset-19 .`, {
+      stdio: 'inherit',
+    })
   }
 
   console.log() // new line
@@ -287,7 +318,7 @@ async function suggestCodemods(
   return codemods
 }
 
-async function suggestReactCodemods(packageManager: PackageManager) {
+async function suggestReactCodemods(): Promise<boolean> {
   const { runReactCodemod } = await prompts(
     {
       type: 'toggle',
@@ -300,23 +331,10 @@ async function suggestReactCodemods(packageManager: PackageManager) {
     { onCancel }
   )
 
-  if (runReactCodemod) {
-    const commandMap = {
-      yarn: 'yarn dlx',
-      pnpm: 'pnpx',
-      bun: 'bunx',
-      npm: 'npx',
-    }
-    const command = commandMap[packageManager] || 'npx'
-
-    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
-    execSync(`${command} codemod@latest react/19/migration-recipe`, {
-      stdio: 'inherit',
-    })
-  }
+  return runReactCodemod
 }
 
-async function suggestReactTypesCodemods(packageManager: PackageManager) {
+async function suggestReactTypesCodemods(): Promise<boolean> {
   const { runReactTypesCodemod } = await prompts(
     {
       type: 'toggle',
@@ -329,18 +347,5 @@ async function suggestReactTypesCodemods(packageManager: PackageManager) {
     { onCancel }
   )
 
-  if (runReactTypesCodemod) {
-    const commandMap = {
-      yarn: 'yarn dlx',
-      pnpm: 'pnpx',
-      bun: 'bunx',
-      npm: 'npx',
-    }
-    const command = commandMap[packageManager] || 'npx'
-
-    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
-    execSync(`${command} types-react-codemod@latest --yes preset-19 .`, {
-      stdio: 'inherit',
-    })
-  }
+  return runReactTypesCodemod
 }
