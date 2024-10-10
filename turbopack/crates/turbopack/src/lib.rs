@@ -230,7 +230,9 @@ async fn apply_module_type(
                                     }
                                 }
                                 _ => bail!(
-                                    "Invalid module part for reexports only tree shaking mode"
+                                    "Invalid module part \"{}\" for reexports only tree shaking \
+                                     mode",
+                                    part.to_string().await?
                                 ),
                             }
                         } else if *module.get_exports().needs_facade().await? {
