@@ -276,7 +276,7 @@ async function suggestReactCodemods(packageManager: PackageManager) {
     {
       type: 'toggle',
       name: 'runReactCodemod',
-      message: 'Do you want to run the React codemod?',
+      message: 'Do you want to run the React 19 upgrade codemod?',
       initial: true,
       active: 'Yes',
       inactive: 'No',
