@@ -899,20 +899,6 @@ pub async fn get_server_module_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
-    ModuleOptionsContext {
-        ecmascript: EcmascriptOptionsContext {
-            enable_typescript_transform: Some(Default::default()),
-            esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
-            ..Default::default()
-        },
-        tree_shaking_mode: Some(TreeShakingMode::ModuleFragments),
-        ..Default::default()
-    }
-    .cell()
-}
-
-#[turbo_tasks::function]
 pub fn get_server_runtime_entries(
     _ty: Value<ServerContextType>,
     _mode: Vc<NextMode>,
