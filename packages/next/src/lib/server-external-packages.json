@@ -36,6 +36,7 @@
   "mdx-bundler",
   "mongodb",
   "mongoose",
+  "newrelic",
   "next-mdx-remote",
   "next-seo",
   "node-cron",
@@ -61,6 +62,5 @@
   "vscode-oniguruma",
   "webpack",
   "websocket",
-  "zeromq",
-  "newrelic"
+  "zeromq"
 ]
