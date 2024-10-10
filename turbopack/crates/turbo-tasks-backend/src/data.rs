@@ -414,6 +414,9 @@ impl CachedDataItemKey {
     }
 }
 
+/// Used by the [`get_mut`][crate::backend::storage::get_mut] macro to restrict mutable access to a
+/// subset of types. No mutable access should be allowed for persisted data, since that would break
+/// persisting.
 #[allow(non_upper_case_globals, dead_code)]
 pub mod allow_mut_access {
     pub const InProgress: () = ();
