@@ -1529,7 +1529,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 new.append(&mut self.extra_items);
 
                 // For "use cache" files, there's no need to do extra annotations.
-                if self.in_cache_file.is_none() {
+                if self.in_cache_file.is_none() && !self.exported_idents.is_empty() {
                     // Ensure that the exports are valid by appending a check
                     // import { ensureServerEntryExports } from 'private-next-rsc-action-validate'
                     // ensureServerEntryExports([action1, action2, ...])
