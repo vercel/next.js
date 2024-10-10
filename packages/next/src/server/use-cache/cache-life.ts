@@ -110,9 +110,11 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
       throw new Error(
         `Unknown cacheLife profile "${profile}" is not configured in next.config.js\n` +
           'module.exports = {\n' +
-          '  cacheLife: {' +
-          '    "...": ...' +
-          '  }' +
+          '  experimental: {\n' +
+          '    cacheLife: {\n' +
+          `      "${profile}": ...\n` +
+          '    }\n' +
+          '  }\n' +
           '}'
       )
     }
