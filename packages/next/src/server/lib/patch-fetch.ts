@@ -737,16 +737,28 @@ function createPatchedFetcher(
             const res: Response = await pendingRevalidate
             return res.clone()
           }
-          return (staticGenerationStore.pendingRevalidates[cacheKey] =
-            doOriginalFetch(true, cacheReasonOverride)
-              .then((res) => {
-                return res.clone()
-              })
-              .finally(async () => {
-                staticGenerationStore.pendingRevalidates ??= {}
-                delete staticGenerationStore.pendingRevalidates[cacheKey || '']
-                await handleUnlock()
-              }))
+          const pendingResponse = doOriginalFetch(true, cacheReasonOverride)
+          const nextRevalidate = pendingResponse
+            .then((res) => res.clone())
+            .finally(() => {
+              if (cacheKey) {
+                // If the pending revalidate is not present in the store, then
+                // we have nothing to delete.
+                if (!staticGenerationStore.pendingRevalidates?.[cacheKey]) {
+                  return
+                }
+
+                delete staticGenerationStore.pendingRevalidates[cacheKey]
+              }
+            })
+
+          // Attach the empty catch here so we don't get a "unhandled promise
+          // rejection" warning
+          nextRevalidate.catch(() => {})
+
+          staticGenerationStore.pendingRevalidates[cacheKey] = nextRevalidate
+
+          return pendingResponse
         } else {
           return doOriginalFetch(false, cacheReasonOverride).finally(
             handleUnlock
