@@ -88,7 +88,15 @@ impl LmdbBackingStorage {
                     None
                 }
             } else {
-                GIT_COMMIT_HASH_SHORT
+                if env::var("TURBO_TASKS_DISABLE_VERSION").ok().is_some() {
+                    println!(
+                        "WARNING: Persistent Caching versioning is disable. Manual removal of the \
+                         persistent caching database might be required."
+                    );
+                    Some("version-ignored")
+                } else {
+                    GIT_COMMIT_HASH_SHORT
+                }
             };
         let path;
         if let Some(version) = version {
