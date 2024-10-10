@@ -13,7 +13,7 @@ where
     comments: C,
 }
 
-pub fn lint_error_comment<C>(comments: C) -> impl Visit
+pub fn lint_codemod_comments<C>(comments: C) -> impl Visit
 where
     C: Comments,
 {
@@ -43,8 +43,8 @@ where
             };
             let action = trimmed_text.replace(COMMENT_PREFIX, "");
             let err_message = format!(
-                "You have unresolved @next/codemod comment needs to be removed, please address \
-                 and remove it to proceed build.\nAction: \"{}\"",
+                "You have unresolved @next/codemod comments that need to be reviewed, please \
+                 address and remove them to proceed with build.\nAction: \"{}\"",
                 action
             );
             report(span, &err_message);

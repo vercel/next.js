@@ -26,7 +26,7 @@ use crate::{
         cjs_finder::contains_cjs,
         dynamic::{next_dynamic, NextDynamicMode},
         fonts::next_font_loaders,
-        lint_error_comment::lint_error_comment,
+        lint_codemod_comments::lint_codemod_comments,
         react_server_components,
     },
 };
@@ -117,7 +117,7 @@ pub struct TransformOptions {
     pub debug_function_name: bool,
 
     #[serde(default)]
-    pub lint_error_comments: bool,
+    pub lint_codemod_comments: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -316,8 +316,8 @@ where
         ),
         as_folder(crate::transforms::pure::pure_magic(comments.clone())),
         Optional::new(
-            linter(lint_error_comment(comments)),
-            opts.lint_error_comments
+            linter(lint_codemod_comments(comments)),
+            opts.lint_codemod_comments
         ),
     )
 }

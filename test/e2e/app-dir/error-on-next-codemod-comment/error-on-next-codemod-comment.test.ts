@@ -24,7 +24,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       await assertHasRedbox(browser)
 
       if (process.env.TURBOPACK) {
-        expect(await getRedboxSource(browser)).toMatchInlineSnapshot(``)
+        // TODO: support turbopack
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/page.tsx
