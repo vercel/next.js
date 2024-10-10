@@ -1965,6 +1965,7 @@
             return (
               null != value._owner &&
                 outlineComponentInfo(request, value._owner),
+                doNotLimit.add(value.props),
               [
                 REACT_ELEMENT_TYPE,
                 value.type,
