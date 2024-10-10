@@ -8,7 +8,6 @@ use std::{
     path::Path,
     sync::Arc,
     thread::available_parallelism,
-    time::Instant,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -167,7 +166,6 @@ impl BackingStorage for LmdbBackingStorage {
         meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
         data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()> {
-        let start = Instant::now();
         let mut op_count = 0;
         let mut tx = self.env.begin_rw_txn()?;
         let mut task_meta_items_result = Ok(Vec::new());
