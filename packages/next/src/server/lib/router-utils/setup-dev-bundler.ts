@@ -989,13 +989,16 @@ async function startWatcher(opts: SetupOpts) {
             if (sourceMap) {
               try {
                 originalFrame = await createOriginalStackFrame({
-                  sourceMap,
+                  source: {
+                    type: 'bundle',
+                    sourceMap,
+                    compilation,
+                    moduleId,
+                    modulePath,
+                  },
                   frame,
-                  moduleId,
-                  modulePath,
                   rootDirectory: opts.dir,
                   errorMessage: err.message,
-                  compilation,
                 })
               } catch {}
             }

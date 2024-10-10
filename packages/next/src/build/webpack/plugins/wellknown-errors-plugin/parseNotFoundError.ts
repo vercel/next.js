@@ -51,14 +51,22 @@ async function getSourceFrame(
   try {
     const loc =
       input.loc || input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
-    const originalSource = (input.module as webpack.Module).originalSource()
+    const module = input.module as webpack.Module
+    const originalSource = module.originalSource()
     const sourceMap = originalSource?.map() ?? undefined
 
     if (sourceMap) {
+      const moduleId = compilation.chunkGraph.getModuleId(module)
+
       const result = await createOriginalStackFrame({
-        sourceMap,
+        source: {
+          type: 'bundle',
+          sourceMap,
+          compilation,
+          moduleId,
+          modulePath: fileName,
+        },
         rootDirectory: compilation.options.context!,
-        modulePath: fileName,
         frame: {
           arguments: [],
           file: fileName,
@@ -66,7 +74,6 @@ async function getSourceFrame(
           lineNumber: loc.start.line,
           column: loc.start.column,
         },
-        compilation,
       })
 
       return {

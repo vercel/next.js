@@ -22,10 +22,19 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type webpack from 'webpack'
 import type { RawSourceMap } from 'next/dist/compiled/source-map08'
 
-type Source = {
-  sourceMap: RawSourceMap
-  compilation: webpack.Compilation | undefined
-}
+type Source =
+  | {
+      type: 'file'
+      sourceMap: RawSourceMap
+      modulePath: string
+    }
+  | {
+      type: 'bundle'
+      sourceMap: RawSourceMap
+      compilation: webpack.Compilation
+      moduleId: string
+      modulePath: string
+    }
 
 function getModuleById(
   id: string | undefined,
@@ -84,38 +93,32 @@ function findOriginalSourcePositionAndContentFromCompilation(
 }
 
 export async function createOriginalStackFrame({
-  sourceMap,
-  moduleId,
-  modulePath,
+  source,
   rootDirectory,
   frame,
   errorMessage,
-  compilation,
 }: {
-  sourceMap: RawSourceMap
-  moduleId?: string
-  modulePath?: string
+  source: Source
   rootDirectory: string
   frame: StackFrame
   errorMessage?: string
-  compilation?: webpack.Compilation
 }): Promise<OriginalStackFrameResponse | undefined> {
   const { lineNumber, column } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (async () => {
     if (moduleNotFound) {
-      if (!compilation) {
+      if (source.type === 'file') {
         return undefined
       }
 
       return findOriginalSourcePositionAndContentFromCompilation(
-        moduleId,
+        source.moduleId,
         moduleNotFound,
-        compilation
+        source.compilation
       )
     }
     // This returns 1-based lines and 0-based columns
-    return await findOriginalSourcePositionAndContent(sourceMap, {
+    return await findOriginalSourcePositionAndContent(source.sourceMap, {
       line: lineNumber ?? 1,
       column,
     })
@@ -132,8 +135,8 @@ export async function createOriginalStackFrame({
     getSourcePath(
       // When sourcePosition.source is the loader path the modulePath is generally better.
       (sourcePosition.source.includes('|')
-        ? modulePath
-        : sourcePosition.source) || modulePath
+        ? source.modulePath
+        : sourcePosition.source) || source.modulePath
     )
   )
 
@@ -200,19 +203,29 @@ export async function getSource(
   if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
     const sourceMap = await getSourceMapFromFile(filename)
 
-    return sourceMap ? { sourceMap, compilation: undefined } : undefined
+    return sourceMap
+      ? {
+          type: 'file',
+          sourceMap,
+          modulePath: filename.replace(/^file:\/\//, ''),
+        }
+      : undefined
   }
 
-  const moduleId: string = filename.replace(
-    /^(webpack-internal:\/\/\/|file:\/\/|webpack:\/\/(_N_E\/)?)/,
-    ''
-  )
+  const moduleId: string = filename
+    .replace(
+      /^(rsc:\/\/React\/\w+\/)?(webpack-internal:\/\/\/|webpack:\/\/(_N_E\/)?)/,
+      ''
+    )
+    .replace(/\?\d+$/, '')
+
+  const modulePath = moduleId.replace(/^(\(.*\)\/?)/, '')
 
   for (const compilation of getCompilations()) {
     const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
 
     if (sourceMap) {
-      return { sourceMap, compilation }
+      return { type: 'bundle', sourceMap, compilation, moduleId, modulePath }
     }
   }
 
@@ -251,22 +264,14 @@ export function getOverlayMiddleware(options: {
 
       if (
         !(
-          /^(webpack-internal:\/\/\/|(file|webpack):\/\/)/.test(frame.file) &&
-          frame.lineNumber
+          /^(rsc:\/\/React\/\w+\/)?(webpack-internal:\/\/\/|(file|webpack):\/\/)/.test(
+            frame.file
+          ) && frame.lineNumber
         )
       ) {
         if (sourcePackage) return json(res, { sourcePackage })
         return badRequest(res)
       }
-
-      const moduleId: string = frame.file.replace(
-        /^(webpack-internal:\/\/\/|file:\/\/|webpack:\/\/(_N_E\/)?)/,
-        ''
-      )
-      const modulePath = frame.file.replace(
-        /^(webpack-internal:\/\/\/|file:\/\/|webpack:\/\/(_N_E\/)?)(\(.*\)\/?)/,
-        ''
-      )
 
       let source: Source | undefined
 
@@ -328,11 +333,8 @@ export function getOverlayMiddleware(options: {
       try {
         const originalStackFrameResponse = await createOriginalStackFrame({
           frame,
-          sourceMap: source.sourceMap,
-          moduleId,
-          modulePath,
+          source,
           rootDirectory,
-          compilation: source.compilation,
         })
 
         if (originalStackFrameResponse === null) {
