@@ -42,6 +42,7 @@ export type RequestStore = {
   // The cookie object itself is deliberately read only and thus can't be updated.
   cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies
+  readonly userspaceMutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache

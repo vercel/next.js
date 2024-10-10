@@ -1,8 +1,5 @@
 import type { IncomingMessage } from 'http'
-import {
-  setMutableCookieUnchecked,
-  type ReadonlyRequestCookies,
-} from '../web/spec-extension/adapters/request-cookies'
+import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { ResponseCookies } from '../web/spec-extension/cookies'
 import type { BaseNextRequest } from '../base-http'
 import type { NextRequest } from '../web/spec-extension/request'
@@ -61,7 +58,7 @@ export class DraftModeProvider {
       )
     }
 
-    setMutableCookieUnchecked(this._mutableCookies, {
+    this._mutableCookies.set({
       name: COOKIE_NAME_PRERENDER_BYPASS,
       value: this._previewModeId,
       httpOnly: true,
@@ -75,7 +72,7 @@ export class DraftModeProvider {
     // To delete a cookie, set `expires` to a date in the past:
     // https://tools.ietf.org/html/rfc6265#section-4.1.1
     // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
-    setMutableCookieUnchecked(this._mutableCookies, {
+    this._mutableCookies.set({
       name: COOKIE_NAME_PRERENDER_BYPASS,
       value: '',
       httpOnly: true,

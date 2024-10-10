@@ -122,7 +122,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     // We can't conditionally return different types here based on the context.
     // To avoid confusion, we always return the readonly type here.
     underlyingCookies =
-      requestStore.mutableCookies as unknown as ReadonlyRequestCookies
+      requestStore.userspaceMutableCookies as unknown as ReadonlyRequestCookies
   } else {
     underlyingCookies = requestStore.cookies
   }

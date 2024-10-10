@@ -14,7 +14,7 @@ import {
   MutableRequestCookiesAdapter,
   RequestCookiesAdapter,
   responseCookiesToRequestCookies,
-  setMutableCookieUnchecked,
+  wrapWithMutableAccessCheck,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
@@ -96,11 +96,7 @@ function mergeMiddlewareCookies(
 
     // Transfer cookies from ResponseCookies to RequestCookies
     for (const cookie of responseCookies.getAll()) {
-      if (existingCookies instanceof ResponseCookies) {
-        setMutableCookieUnchecked(existingCookies, cookie)
-      } else {
-        existingCookies.set(cookie)
-      }
+      existingCookies.set(cookie)
     }
   }
 }
@@ -171,6 +167,7 @@ function createRequestStoreImpl(
     headers?: ReadonlyHeaders
     cookies?: ReadonlyRequestCookies
     mutableCookies?: ResponseCookies
+    userspaceMutableCookies?: ResponseCookies
     draftMode?: DraftModeProvider
   } = {}
 
@@ -223,6 +220,15 @@ function createRequestStoreImpl(
         cache.mutableCookies = mutableCookies
       }
       return cache.mutableCookies
+    },
+    get userspaceMutableCookies() {
+      if (!cache.userspaceMutableCookies) {
+        const userspaceMutableCookies = wrapWithMutableAccessCheck(
+          this.mutableCookies
+        )
+        cache.userspaceMutableCookies = userspaceMutableCookies
+      }
+      return cache.userspaceMutableCookies
     },
     get draftMode() {
       if (!cache.draftMode) {
