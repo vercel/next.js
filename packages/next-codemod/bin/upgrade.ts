@@ -289,6 +289,7 @@ async function suggestReactCodemods(packageManager: PackageManager) {
     }
     const command = commandMap[packageManager] || 'npx'
 
+    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
     execSync(`${command} codemod@latest react/19/migration-recipe`, {
       stdio: 'inherit',
     })
@@ -317,6 +318,7 @@ async function suggestReactTypesCodemods(packageManager: PackageManager) {
     }
     const command = commandMap[packageManager] || 'npx'
 
+    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
     execSync(`${command} types-react-codemod@latest preset-19 .`, {
       stdio: 'inherit',
     })
