@@ -1,9 +1,8 @@
 import React, { Suspense } from 'react'
 import { Dynamic } from '../../../components/dynamic'
 
-export const revalidate = 60
-
-export default ({ params: { slug } }) => {
+export default async ({ params }) => {
+  const { slug } = await params
   return (
     <Suspense fallback={<Dynamic pathname={`/loading/${slug}`} fallback />}>
       <Dynamic pathname={`/loading/${slug}`} />

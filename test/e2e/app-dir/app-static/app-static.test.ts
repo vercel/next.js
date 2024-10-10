@@ -2250,9 +2250,9 @@ describe('app-dir static/dynamic handling', () => {
     for (let i = 0; i < 5; i++) {
       const res = await next.fetch('/articles/non-existent')
 
-      // Only the first request should be a 200 while using PPR. When the route
-      // shell is generated, the status code will switch to 404.
-      if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev && i === 0) {
+      // It should always return 200 while using PPR as we don't generate a
+      // route shell.
+      if (process.env.__NEXT_EXPERIMENTAL_PPR && !isNextDev) {
         expect(res.status).toBe(200)
       } else {
         expect(res.status).toBe(404)

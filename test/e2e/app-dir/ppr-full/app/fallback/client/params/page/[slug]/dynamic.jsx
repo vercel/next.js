@@ -1,7 +1,8 @@
-export default function Dynamic({ params }) {
+export default async function Dynamic(props) {
+  const { slug } = await props.params
   return (
-    <div data-file="app/fallback/client/params/[slug]/dynamic">
-      {params.slug}
+    <div data-file="app/fallback/client/params/[slug]/dynamic" data-slug={slug}>
+      {slug}
     </div>
   )
 }
