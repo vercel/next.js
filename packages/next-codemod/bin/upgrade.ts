@@ -131,7 +131,7 @@ export async function runUpgrade(
   })
 
   for (const codemod of codemods) {
-    await runTransform(codemod, process.cwd(), { force: true })
+    await runTransform(codemod, process.cwd(), { force: true, verbose })
   }
 
   console.log() // new line

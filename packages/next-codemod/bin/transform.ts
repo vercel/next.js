@@ -95,7 +95,7 @@ export async function runTransform(
 
   let args = []
 
-  const { dry, print, runInBand, jscodeshift } = options
+  const { dry, print, runInBand, jscodeshift, verbose } = options
 
   if (dry) {
     args.push('--dry')
@@ -106,8 +106,9 @@ export async function runTransform(
   if (runInBand) {
     args.push('--run-in-band')
   }
-
-  args.push('--verbose=2')
+  if (verbose) {
+    args.push('--verbose=2')
+  }
 
   args.push('--ignore-pattern=**/node_modules/**')
   args.push('--ignore-pattern=**/.next/**')
