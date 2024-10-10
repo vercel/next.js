@@ -86,15 +86,11 @@ export function getOverlayMiddleware(project: Project) {
   ): Promise<void> {
     const { pathname, searchParams } = new URL(req.url!, 'http://n')
 
-    const frame = {
-      file: searchParams.get('file') as string,
-      methodName: searchParams.get('methodName') ?? '<unknown>',
-      line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
-      column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
-      isServer: searchParams.get('isServer') === 'true',
-    } satisfies TurbopackStackFrame
-
     if (pathname === '/__nextjs_original-stack-frame') {
+      const frame = createStackFrame(searchParams)
+
+      if (!frame) return badRequest(res)
+
       let originalStackFrame: OriginalStackFrameResponse | null
       try {
         originalStackFrame = await createOriginalStackFrame(project, frame)
@@ -110,7 +106,9 @@ export function getOverlayMiddleware(project: Project) {
 
       return json(res, originalStackFrame)
     } else if (pathname === '/__nextjs_launch-editor') {
-      if (!frame.file) return badRequest(res)
+      const frame = createStackFrame(searchParams)
+
+      if (!frame) return badRequest(res)
 
       const fileExists = await fs.access(frame.file, FS.F_OK).then(
         () => true,
@@ -168,4 +166,25 @@ export function getSourceMapMiddleware(project: Project) {
 
     noContent(res)
   }
+}
+
+function createStackFrame(searchParams: URLSearchParams) {
+  const fileParam = searchParams.get('file')
+
+  if (!fileParam) {
+    return undefined
+  }
+
+  // rsc://React/Server/file://<filename>?42 => file://<filename>
+  const file = fileParam
+    .replace(/^rsc:\/\/React\/\w+\//, '')
+    .replace(/\?\d+$/, '')
+
+  return {
+    file,
+    methodName: searchParams.get('methodName') ?? '<unknown>',
+    line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+    column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+    isServer: searchParams.get('isServer') === 'true',
+  } satisfies TurbopackStackFrame
 }
