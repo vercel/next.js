@@ -50,7 +50,7 @@ const cacheHandlerMap: Map<string, CacheHandler> = new Map()
 // TODO: Move default implementation to be injectable.
 const defaultCacheStorage: Map<string, CacheEntry> = new Map()
 cacheHandlerMap.set('default', {
-  async get(cacheKey: string | ArrayBuffer): Promise<CacheEntry> {
+  async get(cacheKey: string | ArrayBuffer): Promise<undefined | CacheEntry> {
     // TODO: Implement proper caching.
     if (typeof cacheKey === 'string') {
       const entry = defaultCacheStorage.get(cacheKey)
@@ -88,7 +88,7 @@ function generateCacheEntry(
   serializedCacheKey: string | ArrayBuffer,
   encodedArguments: FormData | string,
   fn: any
-): Promise<any> {
+): Promise<ReadableStream> {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
   // generation cannot read anything from the context we're currently executing which
   // might include request specific things like cookies() inside a React.cache().
@@ -290,6 +290,8 @@ export function cache(kind: string, id: string, fn: any) {
         )
       }
 
+      const workUnitStore = workUnitAsyncStorage.getStore()
+
       // Because the Action ID is not yet unique per implementation of that Action we can't
       // safely reuse the results across builds yet. In the meantime we add the buildId to the
       // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
@@ -347,8 +349,26 @@ export function cache(kind: string, id: string, fn: any) {
           encodedArguments,
           fn
         )
+
+        // TODO: Propagate tags/revalidate
       } else {
         stream = entry.value
+
+        if (
+          workUnitStore &&
+          (workUnitStore.type === 'cache' ||
+            workUnitStore.type === 'prerender' ||
+            workUnitStore.type === 'prerender-ppr' ||
+            workUnitStore.type === 'prerender-legacy')
+        ) {
+          // Propagate tags and revalidate upwards
+          const outerTags = workUnitStore.tags ?? (workUnitStore.tags = [])
+          outerTags.push(...entry.tags)
+          if (workUnitStore.revalidate > entry.revalidate) {
+            workUnitStore.revalidate = entry.revalidate
+          }
+        }
+
         if (entry.stale) {
           // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
           // then we should warm up the cache with a fresh revalidated entry.
@@ -382,6 +402,7 @@ export function cache(kind: string, id: string, fn: any) {
           ? clientReferenceManifestSingleton.edgeRscModuleMapping
           : clientReferenceManifestSingleton.rscModuleMapping,
       }
+
       return createFromReadableStream(stream, {
         ssrManifest,
         temporaryReferences,
