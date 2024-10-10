@@ -513,8 +513,7 @@ impl CachedDataItemKey {
 
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            CachedDataItemKey::Output { .. }
-            | CachedDataItemKey::Collectible { .. }
+            CachedDataItemKey::Collectible { .. }
             | CachedDataItemKey::Child { .. }
             | CachedDataItemKey::CellData { .. }
             | CachedDataItemKey::CellTypeMaxIndex { .. }
@@ -533,7 +532,8 @@ impl CachedDataItemKey {
             | CachedDataItemKey::OutdatedChild { .. }
             | CachedDataItemKey::Error { .. } => TaskDataCategory::Data,
 
-            CachedDataItemKey::AggregationNumber { .. }
+            CachedDataItemKey::Output { .. }
+            | CachedDataItemKey::AggregationNumber { .. }
             | CachedDataItemKey::Dirty { .. }
             | CachedDataItemKey::Follower { .. }
             | CachedDataItemKey::Upper { .. }
