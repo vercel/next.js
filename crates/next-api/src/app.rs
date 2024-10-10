@@ -56,7 +56,6 @@ use turbopack_core::{
         availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
         EntryChunkGroupResult, EvaluatableAssets,
     },
-    context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
     issue::IssueSeverity,
@@ -1463,85 +1462,6 @@ impl AppEndpoint {
                     ),
                 );
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
-
-                // {
-                //     let server_nft_path = node_root.join("next-server.js.nft.json".into());
-                //     let server_minimal_nft_path =
-                //         node_root.join("next-minimal-server.js.nft.json".into());
-
-                //     let is_standalone = *this
-                //         .app_project
-                //         .project()
-                //         .next_config()
-                //         .is_standalone()
-                //         .await?;
-
-                //     let asset_context = self.await?.app_project.rsc_module_context();
-                //     // let asset_context = self.await?.app_project.ssr_module_options_context();
-                //     let resolve_to_module =
-                //         |req: RcStr| async {
-                //             asset_context
-                //             .resolve_asset(
-                //                 this.app_project.app_dir(),
-                //                 Request::parse_string(req),
-                //                 asset_context.resolve_options(
-                //                     this.app_project.app_dir(),
-                //                     Value::new(
-                //                         turbopack_core::reference_type::ReferenceType::Undefined,
-                //                     ),
-                //                 ),
-                //                 Value::new(
-                //                     turbopack_core::reference_type::ReferenceType::Undefined,
-                //                 ),
-                //             )
-                //             .first_module().await.map(|v| v.unwrap())
-                //         };
-
-                //     let mut server_entries =
-                //         vec![resolve_to_module("next/dist/server/next-server".into()).await?];
-                //     if is_standalone {
-                //         server_entries.push(
-                //             resolve_to_module("next/dist/server/lib/start-server".into()).await?,
-                //         );
-                //         server_entries
-                //             .push(resolve_to_module("next/dist/server/next".into()).await?);
-                //         server_entries
-                //
-                // .push(resolve_to_module("next/dist/server/require-hook".into()).await?);
-                //     }
-                //     let mut server_minimal_entries = vec![
-                //         resolve_to_module(
-                //             "next/dist/compiled/next-server/server.runtime.prod".into(),
-                //         )
-                //         .await?,
-                //     ];
-                //     if let Some(cache_handler) = &*this
-                //         .app_project
-                //         .project()
-                //         .next_config()
-                //         .cache_handler()
-                //         .await?
-                //     {
-                //         let module = resolve_to_module(cache_handler.clone()).await?;
-                //         server_entries.push(module);
-                //         server_minimal_entries.push(module);
-                //     }
-
-                //     server_assets.push(Vc::upcast(NftJsonAsset::new(
-                //         Vc::upcast(IncludeModulesModule::new(
-                //             AssetIdent::from_path(server_nft_path),
-                //             server_entries,
-                //         )),
-                //         None,
-                //     )));
-                //     server_assets.push(Vc::upcast(NftJsonAsset::new(
-                //         Vc::upcast(IncludeModulesModule::new(
-                //             AssetIdent::from_path(server_minimal_nft_path),
-                //             server_minimal_entries,
-                //         )),
-                //         None,
-                //     )));
-                // }
 
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,
