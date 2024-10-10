@@ -31,5 +31,15 @@ export interface CacheHandler {
 
   set(cacheKey: string | ArrayBuffer, entry: Promise<CacheEntry>): Promise<void>
 
+  // This is called when expireTags('') is called
+  // and should update tags manifest accordingly
   expireTags(...tags: string[]): Promise<void>
+
+  // This is called when an action request sends
+  // NEXT_CACHE_REVALIDATED_TAGS_HEADER and tells
+  // us these tags are expired and the manifest
+  // should be updated this differs since in a multi
+  // instance environment you don't propagate these
+  // as they are request specific
+  receiveExpiredTags(...tags: string[]): Promise<void>
 }
