@@ -37,6 +37,8 @@ export type RequestStore = {
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 
+  readonly implicitTags: string[]
+
   // DEV-only
   usedDynamic?: boolean
 }
@@ -53,7 +55,7 @@ export type RequestStore = {
  */
 export type PrerenderStoreModern = {
   type: 'prerender'
-  pathname: string | undefined
+  readonly implicitTags: string[]
   /**
    * This is the AbortController passed to React. It can be used to abort the prerender
    * if we encounter conditions that do not require further rendering
@@ -83,7 +85,7 @@ export type PrerenderStoreModern = {
 
 export type PrerenderStorePPR = {
   type: 'prerender-ppr'
-  pathname: string | undefined
+  readonly implicitTags: string[]
   readonly dynamicTracking: null | DynamicTrackingState
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
@@ -92,7 +94,7 @@ export type PrerenderStorePPR = {
 
 export type PrerenderStoreLegacy = {
   type: 'prerender-legacy'
-  pathname: string | undefined
+  readonly implicitTags: string[]
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
   tags: null | string[]
@@ -105,6 +107,7 @@ export type PrerenderStore =
 
 export type UseCacheStore = {
   type: 'cache'
+  readonly implicitTags: string[]
   // Collected revalidate times and tags for this cache entry during the cache render.
   revalidate: number // implicit revalidate time from inner caches / fetches
   explicitRevalidate: undefined | number // explicit revalidate time from cacheLife() calls
