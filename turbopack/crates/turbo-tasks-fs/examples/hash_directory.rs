@@ -1,3 +1,4 @@
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![feature(trivial_bounds)]
 
 use std::{
@@ -76,12 +77,12 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
             for entry in entries.values() {
                 match entry {
                     DirectoryEntry::File(path) => {
-                        let name = filename(*path).await?;
-                        hashes.insert(name, hash_file(*path).await?.clone_value());
+                        let name = filename(**path).await?;
+                        hashes.insert(name, hash_file(**path).await?.clone_value());
                     }
                     DirectoryEntry::Directory(path) => {
-                        let name = filename(*path).await?;
-                        hashes.insert(name, hash_directory(*path).await?.clone_value());
+                        let name = filename(**path).await?;
+                        hashes.insert(name, hash_directory(**path).await?.clone_value());
                     }
                     _ => {}
                 }

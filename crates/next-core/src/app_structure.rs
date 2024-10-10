@@ -10,8 +10,8 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, ValueToString,
-    Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -51,7 +51,7 @@ pub struct AppDirModules {
     pub default: Option<Vc<FileSystemPath>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<Vc<FileSystemPath>>,
-    #[serde(skip_serializing_if = "Metadata::is_empty")]
+    #[serde(skip_serializing_if = "Metadata::is_empty", default)]
     pub metadata: Metadata,
 }
 
@@ -137,13 +137,13 @@ impl From<MetadataWithAltItem> for MetadataItem {
 /// Metadata file that can be placed in any segment of the app directory.
 #[derive(Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
 pub struct Metadata {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub icon: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub apple: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub twitter: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub open_graph: Vec<MetadataWithAltItem>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sitemap: Option<MetadataItem>,
@@ -296,7 +296,6 @@ async fn get_directory_tree_internal(
         let entry = entry.resolve_symlink().await?;
         match entry {
             DirectoryEntry::File(file) => {
-                let file = file.resolve().await?;
                 // Do not process .d.ts files as routes
                 if basename.ends_with(".d.ts") {
                     continue;
@@ -304,15 +303,15 @@ async fn get_directory_tree_internal(
                 if let Some((stem, ext)) = basename.split_once('.') {
                     if page_extensions_value.iter().any(|e| e == ext) {
                         match stem {
-                            "page" => modules.page = Some(file),
-                            "layout" => modules.layout = Some(file),
-                            "error" => modules.error = Some(file),
-                            "global-error" => modules.global_error = Some(file),
-                            "loading" => modules.loading = Some(file),
-                            "template" => modules.template = Some(file),
-                            "not-found" => modules.not_found = Some(file),
-                            "default" => modules.default = Some(file),
-                            "route" => modules.route = Some(file),
+                            "page" => modules.page = Some(*file),
+                            "layout" => modules.layout = Some(*file),
+                            "error" => modules.error = Some(*file),
+                            "global-error" => modules.global_error = Some(*file),
+                            "loading" => modules.loading = Some(*file),
+                            "template" => modules.template = Some(*file),
+                            "not-found" => modules.not_found = Some(*file),
+                            "default" => modules.default = Some(*file),
+                            "route" => modules.route = Some(*file),
                             _ => {}
                         }
                     }
@@ -334,9 +333,9 @@ async fn get_directory_tree_internal(
                     "opengraph-image" => &mut metadata_open_graph,
                     "sitemap" => {
                         if dynamic {
-                            modules.metadata.sitemap = Some(MetadataItem::Dynamic { path: file });
+                            modules.metadata.sitemap = Some(MetadataItem::Dynamic { path: *file });
                         } else {
-                            modules.metadata.sitemap = Some(MetadataItem::Static { path: file });
+                            modules.metadata.sitemap = Some(MetadataItem::Static { path: *file });
                         }
                         continue;
                     }
@@ -344,7 +343,7 @@ async fn get_directory_tree_internal(
                 };
 
                 if dynamic {
-                    entry.push((number, MetadataWithAltItem::Dynamic { path: file }));
+                    entry.push((number, MetadataWithAltItem::Dynamic { path: *file }));
                     continue;
                 }
 
@@ -360,16 +359,15 @@ async fn get_directory_tree_internal(
                 entry.push((
                     number,
                     MetadataWithAltItem::Static {
-                        path: file,
+                        path: *file,
                         alt_path,
                     },
                 ));
             }
             DirectoryEntry::Directory(dir) => {
-                let dir = dir.resolve().await?;
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
-                    let result = get_directory_tree(dir, page_extensions);
+                    let result = get_directory_tree(*dir, page_extensions);
                     subdirectories.insert(basename.clone(), result);
                 }
             }
@@ -469,6 +467,17 @@ impl AppPageLoaderTree {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct FileSystemPathVec(Vec<ResolvedVc<FileSystemPath>>);
+
+#[turbo_tasks::value_impl]
+impl ValueDefault for FileSystemPathVec {
+    #[turbo_tasks::function]
+    fn value_default() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
+
 #[derive(
     Clone,
     PartialEq,
@@ -484,12 +493,12 @@ impl AppPageLoaderTree {
 pub enum Entrypoint {
     AppPage {
         pages: Vec<AppPage>,
-        loader_tree: Vc<AppPageLoaderTree>,
+        loader_tree: ResolvedVc<AppPageLoaderTree>,
     },
     AppRoute {
         page: AppPage,
-        path: Vc<FileSystemPath>,
-        root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+        path: ResolvedVc<FileSystemPath>,
+        root_layouts: ResolvedVc<FileSystemPathVec>,
     },
     AppMetadata {
         page: AppPage,
@@ -557,7 +566,7 @@ fn add_app_page(
     app_dir: Vc<FileSystemPath>,
     result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
-    loader_tree: Vc<AppPageLoaderTree>,
+    loader_tree: ResolvedVc<AppPageLoaderTree>,
 ) {
     let mut e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
@@ -616,8 +625,8 @@ fn add_app_route(
     app_dir: Vc<FileSystemPath>,
     result: &mut IndexMap<AppPath, Entrypoint>,
     page: AppPage,
-    path: Vc<FileSystemPath>,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    path: ResolvedVc<FileSystemPath>,
+    root_layouts: ResolvedVc<FileSystemPathVec>,
 ) {
     let e = match result.entry(page.clone().into()) {
         Entry::Occupied(e) => e,
@@ -711,7 +720,7 @@ fn directory_tree_to_entrypoints(
     app_dir: Vc<FileSystemPath>,
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: Vc<FileSystemPathVec>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints_internal(
         app_dir,
@@ -794,6 +803,9 @@ fn check_duplicate(
     }
 }
 
+#[turbo_tasks::value(transparent)]
+struct AppPageLoaderTreeOption(Option<ResolvedVc<AppPageLoaderTree>>);
+
 /// creates the loader tree for a specific route (pathname / [AppPath])
 #[turbo_tasks::function]
 async fn directory_tree_to_loader_tree(
@@ -804,7 +816,7 @@ async fn directory_tree_to_loader_tree(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
-) -> Result<Vc<Option<Vc<AppPageLoaderTree>>>> {
+) -> Result<Vc<AppPageLoaderTreeOption>> {
     let plain_tree = &*directory_tree.into_plain().await?;
 
     let tree = directory_tree_to_loader_tree_internal(
@@ -816,7 +828,7 @@ async fn directory_tree_to_loader_tree(
         for_app_path,
     )?;
 
-    Ok(Vc::cell(tree.map(|tree| tree.cell())))
+    Ok(Vc::cell(tree.map(AppPageLoaderTree::resolved_cell)))
 }
 
 fn directory_tree_to_loader_tree_internal(
@@ -1046,7 +1058,7 @@ async fn directory_tree_to_entrypoints_internal(
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
     let span = tracing::info_span!("build layout trees", name = display(&app_page));
     directory_tree_to_entrypoints_internal_untraced(
@@ -1067,7 +1079,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
-    root_layouts: Vc<Vec<Vc<FileSystemPath>>>,
+    root_layouts: ResolvedVc<FileSystemPathVec>,
 ) -> Result<Vc<Entrypoints>> {
     let mut result = IndexMap::new();
 
@@ -1080,9 +1092,9 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     // segment config. https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-option
     // Pass down layouts from each tree to apply segment config when adding route.
     let root_layouts = if let Some(layout) = modules.layout {
-        let mut layouts = (*root_layouts.await?).clone();
-        layouts.push(layout);
-        Vc::cell(layouts)
+        let mut layouts = root_layouts.await?.clone_value();
+        layouts.push(layout.to_resolved().await?);
+        ResolvedVc::cell(layouts)
     } else {
         root_layouts
     };
@@ -1104,7 +1116,10 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_dir,
             &mut result,
             app_page.complete(PageType::Page)?,
-            loader_tree.context("loader tree should be created for a page/default")?,
+            loader_tree
+                .context("loader tree should be created for a page/default")?
+                .to_resolved()
+                .await?,
         );
     }
 
@@ -1113,7 +1128,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_dir,
             &mut result,
             app_page.complete(PageType::Route)?,
-            route,
+            route.to_resolved().await?,
             root_layouts,
         );
     }
@@ -1191,7 +1206,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 },
                 modules: modules.without_leafs(),
                 global_metadata,
-            }.cell();
+            }.resolved_cell();
 
         {
             let app_page = app_page
@@ -1223,7 +1238,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 subdir_name.clone(),
                 subdirectory,
                 child_app_page.clone(),
-                root_layouts,
+                *root_layouts,
             )
             .await?;
 
@@ -1278,7 +1293,9 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             &mut result,
                             page.clone(),
                             loader_tree
-                                .context("loader tree should be created for a page/default")?,
+                                .context("loader tree should be created for a page/default")?
+                                .to_resolved()
+                                .await?,
                         );
                     }
                 }
@@ -1330,9 +1347,9 @@ pub async fn get_global_metadata(
         };
 
         if dynamic {
-            *entry = Some(MetadataItem::Dynamic { path: file });
+            *entry = Some(MetadataItem::Dynamic { path: *file });
         } else {
-            *entry = Some(MetadataItem::Static { path: file });
+            *entry = Some(MetadataItem::Static { path: *file });
         }
         // TODO(WEB-952) handle symlinks in app dir
     }

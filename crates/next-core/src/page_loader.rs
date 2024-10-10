@@ -111,7 +111,7 @@ impl PageLoaderAsset {
                 .map(|chunk| {
                     Vc::upcast(ProxiedAsset::new(
                         *chunk,
-                        FileSystemPath::rebase(chunk.ident().path(), *rebase_path, root_path),
+                        FileSystemPath::rebase(chunk.ident().path(), **rebase_path, root_path),
                     ))
                 })
                 .collect();
@@ -131,7 +131,10 @@ fn page_loader_chunk_reference_description() -> Vc<RcStr> {
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let root = self.rebase_prefix_path.await?.unwrap_or(self.server_root);
+        let root = self
+            .rebase_prefix_path
+            .await?
+            .map_or(self.server_root, |path| *path);
         Ok(AssetIdent::from_path(
             root.join(
                 format!(

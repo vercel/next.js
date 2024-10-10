@@ -32,7 +32,7 @@ import type {
 } from './types/metadata-interface'
 import { isNotFoundError } from '../../client/components/not-found'
 import type { MetadataContext } from './types/resolvers'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -49,6 +49,8 @@ export function createMetadataComponents({
   errorType,
   createServerParamsForMetadata,
   workStore,
+  MetadataBoundary,
+  ViewportBoundary,
 }: {
   tree: LoaderTree
   searchParams: Promise<ParsedUrlQuery>
@@ -58,12 +60,18 @@ export function createMetadataComponents({
   errorType?: 'not-found' | 'redirect'
   createServerParamsForMetadata: CreateServerParamsForMetadata
   workStore: WorkStore
+  MetadataBoundary: (props: { children: React.ReactNode }) => React.ReactNode
+  ViewportBoundary: (props: { children: React.ReactNode }) => React.ReactNode
 }): [React.ComponentType, () => Promise<void>] {
   function MetadataRoot() {
     return (
       <>
-        <Metadata />
-        <Viewport />
+        <MetadataBoundary>
+          <Metadata />
+        </MetadataBoundary>
+        <ViewportBoundary>
+          <Viewport />
+        </ViewportBoundary>
         {appUsingSizeAdjustment ? <meta name="next-size-adjust" /> : null}
       </>
     )

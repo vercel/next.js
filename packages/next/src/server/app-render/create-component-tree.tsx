@@ -20,6 +20,7 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -92,6 +93,7 @@ async function createComponentTreeInternal({
       NotFoundBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
+      OutletBoundary,
       ClientPageRoot,
       ClientSegmentRoot,
       createServerSearchParamsForServerPage,
@@ -239,20 +241,27 @@ async function createComponentTreeInternal({
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
-    ctx.defaultRevalidate = layoutOrPageMod.revalidate as number
+    const defaultRevalidate = layoutOrPageMod.revalidate as number
 
-    if (
-      typeof workStore.revalidate === 'undefined' ||
-      (typeof workStore.revalidate === 'number' &&
-        workStore.revalidate > ctx.defaultRevalidate)
-    ) {
-      workStore.revalidate = ctx.defaultRevalidate
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (workUnitStore) {
+      if (
+        workUnitStore.type === 'prerender' ||
+        workUnitStore.type === 'prerender-legacy' ||
+        workUnitStore.type === 'prerender-ppr' ||
+        workUnitStore.type === 'cache'
+      ) {
+        if (workUnitStore.revalidate > defaultRevalidate) {
+          workUnitStore.revalidate = defaultRevalidate
+        }
+      }
     }
 
     if (
       !workStore.forceStatic &&
       workStore.isStaticGeneration &&
-      ctx.defaultRevalidate === 0 &&
+      defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
       !experimental.isRoutePPREnabled
@@ -460,15 +469,10 @@ async function createComponentTreeInternal({
   if (!MaybeComponent) {
     return [
       actualSegment,
-      <Segment
-        key={cacheNodeKey}
-        isDynamicIO={experimental.dynamicIO}
-        isStaticGeneration={isStaticGeneration}
-        ready={getMetadataReady}
-      >
+      <React.Fragment key={cacheNodeKey}>
         {layerAssets}
         {parallelRouteProps.children}
-      </Segment>,
+      </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]
@@ -494,18 +498,13 @@ async function createComponentTreeInternal({
   ) {
     return [
       actualSegment,
-      <Segment
-        isDynamicIO={experimental.dynamicIO}
-        key={cacheNodeKey}
-        isStaticGeneration={isStaticGeneration}
-        ready={getMetadataReady}
-      >
+      <React.Fragment key={cacheNodeKey}>
         <Postpone
           reason='dynamic = "force-dynamic" was used'
           route={workStore.route}
         />
         {layerAssets}
-      </Segment>,
+      </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
     ]
@@ -570,15 +569,11 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
-        <MetadataOutlet ready={getMetadataReady} />
-        <Segment
-          isDynamicIO={experimental.dynamicIO}
-          isStaticGeneration={isStaticGeneration}
-          ready={getMetadataReady}
-        >
-          {pageElement}
-          {layerAssets}
-        </Segment>
+        {pageElement}
+        {layerAssets}
+        <OutletBoundary>
+          <MetadataOutlet ready={getMetadataReady} />
+        </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
@@ -644,49 +639,33 @@ async function createComponentTreeInternal({
           )
 
           segmentNode = (
-            <Segment
-              isDynamicIO={experimental.dynamicIO}
-              isStaticGeneration={isStaticGeneration}
-              ready={getMetadataReady}
+            <NotFoundBoundary
+              key={cacheNodeKey}
+              notFound={
+                <>
+                  {layerAssets}
+                  {notfoundClientSegment}
+                </>
+              }
             >
-              <NotFoundBoundary
-                notFound={
-                  <>
-                    {layerAssets}
-                    {notfoundClientSegment}
-                  </>
-                }
-              >
-                {layerAssets}
-                {clientSegment}
-              </NotFoundBoundary>
-            </Segment>
+              {layerAssets}
+              {clientSegment}
+            </NotFoundBoundary>
           )
         } else {
           segmentNode = (
-            <Segment
-              isDynamicIO={experimental.dynamicIO}
-              isStaticGeneration={isStaticGeneration}
-              ready={getMetadataReady}
-            >
-              <NotFoundBoundary>
-                {layerAssets}
-                {clientSegment}
-              </NotFoundBoundary>
-            </Segment>
+            <NotFoundBoundary key={cacheNodeKey}>
+              {layerAssets}
+              {clientSegment}
+            </NotFoundBoundary>
           )
         }
       } else {
         segmentNode = (
-          <Segment
-            key={cacheNodeKey}
-            isDynamicIO={experimental.dynamicIO}
-            isStaticGeneration={isStaticGeneration}
-            ready={getMetadataReady}
-          >
+          <React.Fragment key={cacheNodeKey}>
             {layerAssets}
             {clientSegment}
-          </Segment>
+          </React.Fragment>
         )
       }
     } else {
@@ -706,40 +685,30 @@ async function createComponentTreeInternal({
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
         segmentNode = (
-          <Segment
-            isDynamicIO={experimental.dynamicIO}
-            isStaticGeneration={isStaticGeneration}
-            ready={getMetadataReady}
-          >
-            <NotFoundBoundary
-              notFound={
-                NotFound ? (
-                  <>
-                    {layerAssets}
-                    <SegmentComponent params={params}>
-                      {notFoundStyles}
-                      <NotFound />
-                    </SegmentComponent>
-                  </>
-                ) : undefined
-              }
-            >
-              {layerAssets}
-              {serverSegment}
-            </NotFoundBoundary>
-          </Segment>
-        )
-      } else {
-        segmentNode = (
-          <Segment
+          <NotFoundBoundary
             key={cacheNodeKey}
-            isDynamicIO={experimental.dynamicIO}
-            isStaticGeneration={isStaticGeneration}
-            ready={getMetadataReady}
+            notFound={
+              NotFound ? (
+                <>
+                  {layerAssets}
+                  <SegmentComponent params={params}>
+                    {notFoundStyles}
+                    <NotFound />
+                  </SegmentComponent>
+                </>
+              ) : undefined
+            }
           >
             {layerAssets}
             {serverSegment}
-          </Segment>
+          </NotFoundBoundary>
+        )
+      } else {
+        segmentNode = (
+          <React.Fragment key={cacheNodeKey}>
+            {layerAssets}
+            {serverSegment}
+          </React.Fragment>
         )
       }
     }
@@ -766,29 +735,4 @@ async function MetadataOutlet({
     await r
   }
   return null
-}
-
-async function Segment({
-  isDynamicIO,
-  isStaticGeneration,
-  ready,
-  children,
-}: {
-  isDynamicIO: boolean
-  isStaticGeneration: boolean
-  ready?: () => Promise<void>
-  children: React.ReactNode
-}) {
-  if (isDynamicIO && isStaticGeneration && ready) {
-    // During static generation we wait for metadata to complete before rendering segments.
-    // This is slower but it allows us to ensure that metadata is finished before we start
-    // rendering the segment which can synchronously abort the render in certain circumstances
-    try {
-      await ready()
-    } catch {
-      // we'll let the MetadataOutlet component render with the page error to let the right
-      // error boundary catch this error
-    }
-  }
-  return children
 }

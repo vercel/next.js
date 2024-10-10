@@ -415,8 +415,10 @@ pub enum ResolveResultItem {
     Unresolveable,
 }
 
-/// This represents the key for a request that leads to a certain results during
-/// resolving. A primary factor is the actual request string, but there are
+/// Represents the key for a request that leads to a certain results during
+/// resolving.
+///
+/// A primary factor is the actual request string, but there are
 /// other factors like exports conditions that can affect resolting and become
 /// part of the key (assuming the condition is unknown at compile time)
 #[derive(Clone, Debug, Default, Hash)]
@@ -1010,11 +1012,11 @@ async fn type_exists(
 ) -> Result<Option<Vc<FileSystemPath>>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
     for path in result.symlinks.iter() {
-        refs.push(Vc::upcast(FileSource::new(*path)));
+        refs.push(Vc::upcast(FileSource::new(**path)));
     }
-    let path = result.path.resolve().await?;
+    let path = result.path;
     Ok(if *path.get_type().await? == ty {
-        Some(path)
+        Some(*path)
     } else {
         None
     })
@@ -1026,9 +1028,9 @@ async fn any_exists(
 ) -> Result<Option<(FileSystemEntryType, Vc<FileSystemPath>)>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
     for path in result.symlinks.iter() {
-        refs.push(Vc::upcast(FileSource::new(*path)));
+        refs.push(Vc::upcast(FileSource::new(**path)));
     }
-    let path = result.path.resolve().await?;
+    let path = result.path;
     let ty = *path.get_type().await?;
     Ok(
         if matches!(
@@ -1037,7 +1039,7 @@ async fn any_exists(
         ) {
             None
         } else {
-            Some((ty, path))
+            Some((ty, *path))
         },
     )
 }
@@ -1334,10 +1336,10 @@ pub async fn resolve_raw(
         let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
         Ok(ResolveResult::source_with_affecting_sources(
             RequestKey::new(request.into()),
-            Vc::upcast(FileSource::new(*path)),
+            Vc::upcast(FileSource::new(**path)),
             symlinks
                 .iter()
-                .copied()
+                .map(|symlink| **symlink)
                 .map(FileSource::new)
                 .map(Vc::upcast)
                 .collect(),
@@ -2583,7 +2585,7 @@ async fn resolved(
 
     if let Some(resolved_map) = options_value.resolved_map {
         let result = resolved_map
-            .lookup(*path, original_context, original_request)
+            .lookup(**path, original_context, original_request)
             .await?;
 
         let resolved_result = resolve_import_map_result(
@@ -2603,10 +2605,10 @@ async fn resolved(
 
     Ok(ResolveResult::source_with_affecting_sources(
         request_key,
-        Vc::upcast(FileSource::new_with_query(*path, query)),
+        Vc::upcast(FileSource::new_with_query(**path, query)),
         symlinks
             .iter()
-            .copied()
+            .map(|symlink| **symlink)
             .map(FileSource::new)
             .map(Vc::upcast)
             .collect(),
@@ -2940,7 +2942,7 @@ impl ValueToString for ModulePart {
             ModulePart::RenamedNamespace { export } => {
                 format!("export * as {}", export.await?).into()
             }
-            ModulePart::Internal(id) => format!("internal part {}", id).into(),
+            ModulePart::Internal(id) => format!("internal part {}", id,).into(),
             ModulePart::Locals => "locals".into(),
             ModulePart::Exports => "exports".into(),
             ModulePart::Facade => "facade".into(),

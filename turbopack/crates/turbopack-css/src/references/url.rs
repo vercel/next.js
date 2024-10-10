@@ -182,7 +182,7 @@ impl VisitMut for AssetReferenceReplacer<'_> {
     }
 }
 
-impl<'i> Visitor<'i> for AssetReferenceReplacer<'_> {
+impl Visitor<'_> for AssetReferenceReplacer<'_> {
     type Error = Infallible;
 
     fn visit_types(&self) -> lightningcss::visitor::VisitTypes {

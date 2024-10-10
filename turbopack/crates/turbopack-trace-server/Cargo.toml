@@ -18,7 +18,7 @@ flate2 = { version = "1.0.28" }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
 postcard = { workspace = true }
-rayon = "1"
+rayon = { workspace = true }
 rustc-demangle = "0.1"
 serde = { workspace = true }
 serde_json = { workspace = true }

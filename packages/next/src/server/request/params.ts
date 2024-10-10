@@ -1,4 +1,4 @@
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { FallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -9,14 +9,15 @@ import {
 } from '../app-render/dynamic-rendering'
 
 import {
-  isDynamicIOPrerender,
-  prerenderAsyncStorage,
-  type PrerenderStore,
+  workUnitAsyncStorage,
+  type PrerenderStorePPR,
+  type PrerenderStoreLegacy,
   type PrerenderStoreModern,
-} from '../app-render/prerender-async-storage.external'
+} from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeResolvedReactPromise, describeStringPropertyAccess } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
 export type Params = Record<string, string | Array<string> | undefined>
 
@@ -93,18 +94,16 @@ export function createPrerenderParamsForClientSegment(
   underlyingParams: Params,
   workStore: WorkStore
 ): Promise<Params> {
-  const prerenderStore = prerenderAsyncStorage.getStore()
+  const prerenderStore = workUnitAsyncStorage.getStore()
   if (prerenderStore && prerenderStore.type === 'prerender') {
-    if (isDynamicIOPrerender(prerenderStore)) {
-      const fallbackParams = workStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (let key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            // This params object has one of more fallback params so we need to consider
-            // the awaiting of this params object "dynamic". Since we are in dynamicIO mode
-            // we encode this as a promise that never resolves
-            return makeHangingPromise()
-          }
+    const fallbackParams = workStore.fallbackRouteParams
+    if (fallbackParams) {
+      for (let key in underlyingParams) {
+        if (fallbackParams.has(key)) {
+          // This params object has one of more fallback params so we need to consider
+          // the awaiting of this params object "dynamic". Since we are in dynamicIO mode
+          // we encode this as a promise that never resolves
+          return makeHangingPromise()
         }
       }
     }
@@ -131,25 +130,31 @@ function createPrerenderParams(
 
     if (hasSomeFallbackParams) {
       // params need to be treated as dynamic because we have at least one fallback param
-      const prerenderStore = prerenderAsyncStorage.getStore()
-      if (prerenderStore && prerenderStore.type === 'prerender') {
-        if (isDynamicIOPrerender(prerenderStore)) {
+      const workUnitStore = workUnitAsyncStorage.getStore()
+      if (workUnitStore) {
+        if (workUnitStore.type === 'prerender') {
           // We are in a dynamicIO (PPR or otherwise) prerender
           return makeAbortingExoticParams(
             underlyingParams,
             workStore.route,
-            prerenderStore
+            workUnitStore
           )
-        }
+        } else if (
+          workUnitStore.type === 'prerender-legacy' ||
+          workUnitStore.type === 'prerender-ppr'
+        )
+          // We aren't in a dynamicIO prerender but we do have fallback params at this
+          // level so we need to make an erroring exotic params object which will postpone
+          // if you access the fallback params
+          return makeErroringExoticParams(
+            underlyingParams,
+            fallbackParams,
+            workStore,
+            workUnitStore
+          )
       }
-      // We aren't in a dynamicIO prerender but we do have fallback params at this
-      // level so we need to make an erroring exotic params object which will postpone
-      // if you access the fallback params
-      return makeErroringExoticParams(
-        underlyingParams,
-        fallbackParams,
-        workStore,
-        prerenderStore
+      throw new InvariantError(
+        'createPrerenderParams called without a prerenderStore in scope. This is a bug in Next.js'
       )
     }
   }
@@ -248,7 +253,7 @@ function makeErroringExoticParams(
   underlyingParams: Params,
   fallbackParams: FallbackRouteParams,
   workStore: WorkStore,
-  prerenderStore: undefined | PrerenderStore
+  prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -303,14 +308,20 @@ function makeErroringExoticParams(
               // fallback shells
               // TODO remove this comment when dynamicIO is the default since there
               // will be no `dynamic = "error"`
-              if (prerenderStore && prerenderStore.type === 'prerender') {
+              if (prerenderStore.type === 'prerender-ppr') {
+                // PPR Prerender (no dynamicIO)
                 postponeWithTracking(
                   workStore.route,
                   expression,
                   prerenderStore.dynamicTracking
                 )
               } else {
-                throwToInterruptStaticGeneration(expression, workStore)
+                // Legacy Prerender
+                throwToInterruptStaticGeneration(
+                  expression,
+                  workStore,
+                  prerenderStore
+                )
               }
             },
             enumerable: true,
@@ -324,14 +335,20 @@ function makeErroringExoticParams(
               // fallback shells
               // TODO remove this comment when dynamicIO is the default since there
               // will be no `dynamic = "error"`
-              if (prerenderStore && prerenderStore.type === 'prerender') {
+              if (prerenderStore.type === 'prerender-ppr') {
+                // PPR Prerender (no dynamicIO)
                 postponeWithTracking(
                   workStore.route,
                   expression,
                   prerenderStore.dynamicTracking
                 )
               } else {
-                throwToInterruptStaticGeneration(expression, workStore)
+                // Legacy Prerender
+                throwToInterruptStaticGeneration(
+                  expression,
+                  workStore,
+                  prerenderStore
+                )
               }
             },
             set(newValue) {
@@ -491,46 +508,41 @@ const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : function warnForSyncAccess(route: undefined | string, expression: string) {
-      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
-        return
-      }
-
+  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
+      route: undefined | string,
+      expression: string
+    ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      console.error(
+      return (
         `${prefix}param property was accessed directly with ${expression}. ` +
-          `\`params\` should be awaited before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        `\`params\` should be awaited before accessing its properties. ` +
+        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
       )
-    }
+    })
 
 const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : function warnForEnumeration(
+  : createDedupedByCallsiteServerErrorLoggerDev(function getEnumerationMessage(
       route: undefined | string,
       missingProperties: Array<string>
     ) {
-      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
-        return
-      }
-
       const prefix = route ? ` In route ${route} ` : ''
       if (missingProperties.length) {
         const describedMissingProperties =
           describeListOfPropertyNames(missingProperties)
-        console.error(
+        return (
           `${prefix}params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
-            `\`params\` should be awaited before accessing its properties. ` +
-            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+          `\`params\` should be awaited before accessing its properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       } else {
-        console.error(
+        return (
           `${prefix}params are being enumerated. ` +
-            `\`params\` should be awaited before accessing its properties. ` +
-            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+          `\`params\` should be awaited before accessing its properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       }
-    }
+    })
 
 function describeListOfPropertyNames(properties: Array<string>) {
   switch (properties.length) {

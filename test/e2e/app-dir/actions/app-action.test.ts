@@ -659,8 +659,49 @@ describe('app-dir action handling', () => {
     })
   })
 
+  it('should invalidate the client router cache if the redirect action triggers a revalidation', async () => {
+    const browser = await next.browser('/redirect')
+    const input = await browser.elementByCss('input[name="name"]')
+    const revalidateCheckbox = await browser.elementByCss(
+      'input[name="revalidate"]'
+    )
+    const submit = await browser.elementByCss('button')
+    const initialRandom = await browser.elementById('random-number').text()
+    expect(initialRandom).toMatch(/\d+/)
+
+    expect(await browser.hasElementByCssSelector('#error')).toBe(false)
+
+    await input.fill('justputit')
+    await revalidateCheckbox.check()
+    await submit.click()
+
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#error')).toBe(false)
+    })
+
+    // go back to the page that was revalidated
+    await browser.elementByCss('[href="/redirect"]').click()
+
+    await browser.waitForElementByCss('#main-page')
+
+    const newRandom = await browser.elementById('random-number').text()
+    expect(newRandom).not.toBe(initialRandom)
+  })
+
   it('should reset the form state when the action redirects to itself', async () => {
     const browser = await next.browser('/self-redirect')
+    const requests = []
+    browser.on('request', async (req: Request) => {
+      const url = new URL(req.url())
+
+      if (url.pathname === '/self-redirect') {
+        const headers = await req.allHeaders()
+        if (headers['rsc']) {
+          requests.push(req)
+        }
+      }
+    })
+
     const input = await browser.elementByCss('input[name="name"]')
     const submit = await browser.elementByCss('button')
 
@@ -686,6 +727,13 @@ describe('app-dir action handling', () => {
     await retry(async () => {
       expect(await browser.hasElementByCssSelector('#error')).toBe(false)
     })
+
+    // This verifies the redirect & server response happens in a single roundtrip,
+    // if the redirect resource was static. In development, these responses are always
+    // dynamically generated, so we only expect a single request for build/deploy.
+    if (!isNextDev) {
+      expect(requests.length).toBe(0)
+    }
   })
 
   // This is disabled when deployed because the 404 page will be served as a static route

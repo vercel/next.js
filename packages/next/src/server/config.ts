@@ -122,7 +122,7 @@ function warnCustomizedOption(
 
   if (!silent && current !== defaultValue) {
     Log.warn(
-      `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}Please update your ${configFileName}.`
+      `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}It should be removed from your ${configFileName}.`
     )
   }
 }

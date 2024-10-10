@@ -88,6 +88,7 @@ import {
   getBabelLoader,
   getReactCompilerLoader,
 } from './get-babel-loader-config'
+import type { NextFlightLoaderOptions } from './webpack/loaders/next-flight-loader'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -130,7 +131,7 @@ const browserNonTranspileModules = [
 const precompileRegex = /[\\/]next[\\/]dist[\\/]compiled[\\/]/
 
 const asyncStoragesRegex =
-  /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](work-async-storage|action-async-storage|request-async-storage)/
+  /next[\\/]dist[\\/](esm[\\/])?server[\\/]app-render[\\/](work-async-storage|action-async-storage|work-unit-async-storage)/
 
 // Support for NODE_PATH
 const nodePathList = (process.env.NODE_PATH || '')
@@ -525,7 +526,7 @@ export default async function getBaseWebpackConfig(
     loader: 'next-flight-loader',
     options: {
       isEdgeServer,
-    },
+    } satisfies NextFlightLoaderOptions,
   }
 
   const appServerLayerLoaders = hasAppDir

@@ -12,10 +12,10 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client.edge'
 
-import type { WorkStore } from '../../client/components/work-async-storage.external'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import type { UseCacheStore } from '../app-render/cache-async-storage.external'
-import { cacheAsyncStorage } from '../app-render/cache-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import type { UseCacheStore } from '../app-render/work-unit-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -24,8 +24,9 @@ import {
   getClientReferenceManifestSingleton,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
+import { INFINITE_CACHE } from '../../lib/constants'
 
-import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 type CacheEntry = {
   value: ReadableStream
@@ -135,8 +136,12 @@ function generateCacheEntryWithCacheContext(
   fn: any
 ) {
   // Initialize the Store for this Cache entry.
-  const cacheStore: UseCacheStore = { type: 'cache' }
-  return cacheAsyncStorage.run(
+  const cacheStore: UseCacheStore = {
+    type: 'cache',
+    revalidate: INFINITE_CACHE,
+    tags: null,
+  }
+  return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
     workStore,
@@ -280,6 +285,11 @@ export function cache(kind: string, id: string, fn: any) {
       let entry: undefined | CacheEntry =
         await cacheHandler.get(serializedCacheKey)
 
+      // Get the clientReferenceManifestSingleton while we're still in the outer Context.
+      // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
+      const clientReferenceManifestSingleton =
+        getClientReferenceManifestSingleton()
+
       let stream
       if (
         entry === undefined ||
@@ -297,11 +307,6 @@ export function cache(kind: string, id: string, fn: any) {
         // Note: It is important that we await at least once before this because it lets us
         // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
 
-        // Get the clientReferenceManifestSingleton while we're still in the outer Context.
-        // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
-        const clientReferenceManifestSingleton =
-          getClientReferenceManifestSingleton()
-
         stream = await generateCacheEntry(
           workStore,
           clientReferenceManifestSingleton,
@@ -315,8 +320,6 @@ export function cache(kind: string, id: string, fn: any) {
         if (entry.stale) {
           // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
           // then we should warm up the cache with a fresh revalidated entry.
-          const clientReferenceManifestSingleton =
-            getClientReferenceManifestSingleton()
           const ignoredStream = await generateCacheEntry(
             workStore,
             clientReferenceManifestSingleton,
@@ -338,20 +341,14 @@ export function cache(kind: string, id: string, fn: any) {
       // the server, which is required to pick it up for replaying again on the client.
       const replayConsoleLogs = true
 
-      // TODO: We can't use the client reference manifest to resolve the modules
-      // on the server side - instead they need to be recovered as the module
-      // references (proxies) again.
-      // For now, we'll just use an empty module map.
-      const ssrModuleMap: {
-        [moduleExport: string]: ManifestNode
-      } = {}
-
       const ssrManifest = {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
         // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
         // which themselves will handle the preloading.
         moduleLoading: null,
-        moduleMap: ssrModuleMap,
+        moduleMap: isEdgeRuntime
+          ? clientReferenceManifestSingleton.edgeRscModuleMapping
+          : clientReferenceManifestSingleton.rscModuleMapping,
       }
       return createFromReadableStream(stream, {
         ssrManifest,

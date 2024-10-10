@@ -302,7 +302,7 @@ fn bench_hmr_internal(
                                         value = m.add(&value, &duration);
 
                                         iter += 1;
-                                        if verbose && iter != iters && iter.count_ones() == 1 {
+                                        if verbose && iter != iters && iter.is_power_of_two() {
                                             eprint!(
                                                 " [{:?} {:?}/{}{}]",
                                                 duration,

@@ -1,12 +1,20 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
-import type { ExternalObject, RefCell, TurboTasks } from './generated-native'
+import type {
+  ExternalObject,
+  NextTurboTasks,
+  RefCell,
+} from './generated-native'
 
 export interface Binding {
   isWasm: boolean
   turbo: {
-    startTrace(options: any, turboTasks: ExternalObject<TurboTasks>): any
-    createTurboTasks(memoryLimit?: number): ExternalObject<TurboTasks>
+    startTrace(options: any, turboTasks: ExternalObject<NextTurboTasks>): any
+    createTurboTasks(
+      outputPath: string,
+      persistentCaching: boolean,
+      memoryLimit?: number
+    ): ExternalObject<NextTurboTasks>
     createProject(
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions
@@ -104,6 +112,11 @@ export type TurbopackResult<T = {}> = T & {
 }
 
 export interface TurboEngineOptions {
+  /**
+   * Use the new backend with persistent caching enabled.
+   */
+  persistentCaching?: boolean
+
   /**
    * An upper bound of memory that turbopack will attempt to stay under.
    */
@@ -319,6 +332,11 @@ export interface ProjectOptions {
    * A path inside the root_path which contains the app/pages directories.
    */
   projectPath: string
+
+  /**
+   * The path to the .next directory.
+   */
+  distDir: string
 
   /**
    * The next.config.js contents.

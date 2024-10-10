@@ -1,10 +1,11 @@
-import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
+import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
 
-import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
+import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import { cacheAsyncStorage } from '../../server/app-render/cache-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 
 /**
  * In this version of Next.js `draftMode()` returns a Promise however you can still reference the properties of the underlying draftMode object
@@ -34,31 +35,58 @@ export type UnsafeUnwrappedDraftMode = DraftMode
 
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
-  const requestStore = getExpectedRequestStore(callingExpression)
   const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
 
+  if (
+    workUnitStore &&
+    (workUnitStore.type === 'cache' ||
+      workUnitStore.type === 'unstable-cache' ||
+      workUnitStore.type === 'prerender' ||
+      workUnitStore.type === 'prerender-ppr' ||
+      workUnitStore.type === 'prerender-legacy')
+  ) {
+    // Return empty draft mode
+    if (
+      process.env.NODE_ENV === 'development' &&
+      !workStore?.isPrefetchRequest
+    ) {
+      const route = workStore?.route
+      return createExoticDraftModeWithDevWarnings(null, route)
+    } else {
+      return createExoticDraftMode(null)
+    }
+  }
+
+  const requestStore = getExpectedRequestStore(callingExpression)
+
+  const cachedDraftMode = CachedDraftModes.get(requestStore.draftMode)
+  if (cachedDraftMode) {
+    return cachedDraftMode
+  }
+
+  let promise
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     const route = workStore?.route
-    return createExoticDraftModeWithDevWarnings(requestStore.draftMode, route)
+    promise = createExoticDraftModeWithDevWarnings(
+      requestStore.draftMode,
+      route
+    )
   } else {
-    return createExoticDraftMode(requestStore.draftMode)
+    promise = createExoticDraftMode(requestStore.draftMode)
   }
+  CachedDraftModes.set(requestStore.draftMode, promise)
+  return promise
 }
 
 interface CacheLifetime {}
 const CachedDraftModes = new WeakMap<CacheLifetime, Promise<DraftMode>>()
 
 function createExoticDraftMode(
-  underlyingProvider: DraftModeProvider
+  underlyingProvider: null | DraftModeProvider
 ): Promise<DraftMode> {
-  const cachedDraftMode = CachedDraftModes.get(underlyingProvider)
-  if (cachedDraftMode) {
-    return cachedDraftMode
-  }
-
   const instance = new DraftMode(underlyingProvider)
   const promise = Promise.resolve(instance)
-  CachedDraftModes.set(underlyingProvider, promise)
 
   Object.defineProperty(promise, 'isEnabled', {
     get() {
@@ -81,17 +109,11 @@ function createExoticDraftMode(
 }
 
 function createExoticDraftModeWithDevWarnings(
-  underlyingProvider: DraftModeProvider,
+  underlyingProvider: null | DraftModeProvider,
   route: undefined | string
 ): Promise<DraftMode> {
-  const cachedDraftMode = CachedDraftModes.get(underlyingProvider)
-  if (cachedDraftMode) {
-    return cachedDraftMode
-  }
-
   const instance = new DraftMode(underlyingProvider)
   const promise = Promise.resolve(instance)
-  CachedDraftModes.set(underlyingProvider, promise)
 
   Object.defineProperty(promise, 'isEnabled', {
     get() {
@@ -133,33 +155,40 @@ class DraftMode {
   /**
    * @internal - this declaration is stripped via `tsc --stripInternal`
    */
-  private readonly _provider: DraftModeProvider
+  private readonly _provider: null | DraftModeProvider
 
-  constructor(provider: DraftModeProvider) {
+  constructor(provider: null | DraftModeProvider) {
     this._provider = provider
   }
   get isEnabled() {
-    return this._provider.isEnabled
+    if (this._provider !== null) {
+      return this._provider.isEnabled
+    }
+    return false
   }
   public enable() {
     const store = workAsyncStorage.getStore()
-    const cacheStore = cacheAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
     if (store) {
       // We we have a store we want to track dynamic data access to ensure we
       // don't statically generate routes that manipulate draft mode.
-      trackDynamicDataAccessed(store, cacheStore, 'draftMode().enable()')
+      trackDynamicDataAccessed(store, workUnitStore, 'draftMode().enable()')
     }
-    return this._provider.enable()
+    if (this._provider !== null) {
+      this._provider.enable()
+    }
   }
   public disable() {
     const store = workAsyncStorage.getStore()
-    const cacheStore = cacheAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
     if (store) {
       // We we have a store we want to track dynamic data access to ensure we
       // don't statically generate routes that manipulate draft mode.
-      trackDynamicDataAccessed(store, cacheStore, 'draftMode().disable()')
+      trackDynamicDataAccessed(store, workUnitStore, 'draftMode().disable()')
     }
-    return this._provider.disable()
+    if (this._provider !== null) {
+      this._provider.disable()
+    }
   }
 }
 
@@ -167,11 +196,14 @@ const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : function warnForSyncAccess(route: undefined | string, expression: string) {
+  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessWarning(
+      route: undefined | string,
+      expression: string
+    ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      console.error(
+      return (
         `${prefix}\`draftMode()\` property was accessed directly with \`${expression}\`. ` +
-          `\`draftMode()\` should be awaited before using its value. ` +
-          `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
+        `\`draftMode()\` should be awaited before using its value. ` +
+        `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
       )
-    }
+    })

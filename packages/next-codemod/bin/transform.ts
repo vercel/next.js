@@ -3,7 +3,11 @@ import globby from 'globby'
 import prompts from 'prompts'
 import { join } from 'node:path'
 import { installPackages, uninstallPackage } from '../lib/handle-package'
-import { checkGitStatus, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import {
+  checkGitStatus,
+  onCancel,
+  TRANSFORMER_INQUIRER_CHOICES,
+} from '../lib/utils'
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {
   const shouldExpandFiles = filesBeforeExpansion.some((file) =>
@@ -41,22 +45,36 @@ export async function runTransform(
   }
 
   if (!path) {
-    const res = await prompts({
-      type: 'text',
-      name: 'path',
-      message: 'On which files or directory should the codemods be applied?',
-      default: '.',
-    })
+    const res = await prompts(
+      {
+        type: 'text',
+        name: 'path',
+        message: 'On which files or directory should the codemods be applied?',
+        initial: '.',
+      },
+      { onCancel }
+    )
 
     directory = res.path
   }
   if (!transform) {
-    const res = await prompts({
-      type: 'select',
-      name: 'transformer',
-      message: 'Which transform would you like to apply?',
-      choices: TRANSFORMER_INQUIRER_CHOICES,
-    })
+    const res = await prompts(
+      {
+        type: 'select',
+        name: 'transformer',
+        message: 'Which transform would you like to apply?',
+        choices: TRANSFORMER_INQUIRER_CHOICES.reverse().map(
+          ({ title, value, version }) => {
+            return {
+              title: `(v${version}) ${value}`,
+              description: title,
+              value,
+            }
+          }
+        ),
+      },
+      { onCancel }
+    )
 
     transformer = res.transformer
   }
@@ -77,7 +95,7 @@ export async function runTransform(
 
   let args = []
 
-  const { dry, print, runInBand, jscodeshift } = options
+  const { dry, print, runInBand, jscodeshift, verbose } = options
 
   if (dry) {
     args.push('--dry')
@@ -88,8 +106,9 @@ export async function runTransform(
   if (runInBand) {
     args.push('--run-in-band')
   }
-
-  args.push('--verbose=2')
+  if (verbose) {
+    args.push('--verbose=2')
+  }
 
   args.push('--ignore-pattern=**/node_modules/**')
   args.push('--ignore-pattern=**/.next/**')

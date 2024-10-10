@@ -183,7 +183,7 @@ describe('page features telemetry', () => {
             await fs.writeFile(
               path.join(__dirname, '../app/edge-ssr/page.js'),
               `
-          export const runtime = 'experimental-edge'
+          export const runtime = 'edge'
           export default function Page() {
             return <p>edge-ssr page</p>
           }

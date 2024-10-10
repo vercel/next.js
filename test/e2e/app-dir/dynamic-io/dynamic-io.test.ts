@@ -71,7 +71,7 @@ describe('dynamic-io', () => {
 
   if (WITH_PPR) {
     it('should partially prerender pages that take longer than a task to render', async () => {
-      let $ = await next.render$('/cases/task_boundary', {})
+      let $ = await next.render$('/cases/task', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -83,19 +83,10 @@ describe('dynamic-io', () => {
         // it gets revealed when the resume happens
         expect($('#inner').text()).toBe('at buildtime')
       }
-
-      $ = await next.render$('/cases/task_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      }
     })
   } else {
     it('should not prerender pages that take longer than a single task to render', async () => {
-      let $ = await next.render$('/cases/task_boundary', {})
+      let $ = await next.render$('/cases/task', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -106,15 +97,6 @@ describe('dynamic-io', () => {
         // The inner slot is computed during the prerender but is hidden
         // it gets revealed when the resume happens
         expect($('#inner').text()).toBe('at runtime')
-      }
-
-      $ = await next.render$('/cases/task_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
       }
     })
   }
@@ -132,7 +114,7 @@ describe('dynamic-io', () => {
 
   if (WITH_PPR) {
     it('should partially prerender pages that use at least one fetch without cache', async () => {
-      let $ = await next.render$('/cases/fetch_mixed_boundary', {})
+      let $ = await next.render$('/cases/fetch_mixed', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -142,19 +124,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at buildtime')
         expect($('#inner').text()).toBe('at buildtime')
       }
-
-      $ = await next.render$('/cases/fetch_mixed_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      }
     })
   } else {
     it('should not prerender pages that use at least one fetch without cache', async () => {
-      let $ = await next.render$('/cases/fetch_mixed_boundary', {})
+      let $ = await next.render$('/cases/fetch_mixed', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -163,15 +136,6 @@ describe('dynamic-io', () => {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#inner').text()).toBe('at runtime')
-      }
-
-      $ = await next.render$('/cases/fetch_mixed_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
       }
     })
   }
@@ -189,7 +153,7 @@ describe('dynamic-io', () => {
 
   if (WITH_PPR) {
     it('should partially prerender pages that do any uncached IO', async () => {
-      let $ = await next.render$('/cases/io_mixed_boundary', {})
+      let $ = await next.render$('/cases/io_mixed', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -199,19 +163,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at buildtime')
         expect($('#inner').text()).toBe('at buildtime')
       }
-
-      $ = await next.render$('/cases/io_mixed_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      }
     })
   } else {
     it('should not prerender pages that do any uncached IO', async () => {
-      let $ = await next.render$('/cases/io_mixed_boundary', {})
+      let $ = await next.render$('/cases/io_mixed', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -220,22 +175,13 @@ describe('dynamic-io', () => {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#inner').text()).toBe('at runtime')
-      }
-
-      $ = await next.render$('/cases/io_mixed_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
       }
     })
   }
 
   if (WITH_PPR) {
     it('should partially prerender pages that use `cookies()`', async () => {
-      let $ = await next.render$('/cases/dynamic_api_cookies_boundary', {})
+      let $ = await next.render$('/cases/dynamic_api_cookies', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -247,21 +193,10 @@ describe('dynamic-io', () => {
         expect($('#inner').text()).toBe('at buildtime')
         expect($('#value').text()).toBe('hello')
       }
-
-      $ = await next.render$('/cases/dynamic_api_cookies_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('hello')
-      }
     })
   } else {
     it('should not prerender pages that use `cookies()`', async () => {
-      let $ = await next.render$('/cases/dynamic_api_cookies_boundary', {})
+      let $ = await next.render$('/cases/dynamic_api_cookies', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -271,17 +206,6 @@ describe('dynamic-io', () => {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#inner').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/cases/dynamic_api_cookies_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
         expect($('#value').text()).toBe('hello')
       }
     })
@@ -289,7 +213,7 @@ describe('dynamic-io', () => {
 
   if (WITH_PPR) {
     it('should partially prerender pages that use `headers()`', async () => {
-      let $ = await next.render$('/cases/dynamic_api_headers_boundary')
+      let $ = await next.render$('/cases/dynamic_api_headers')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -301,21 +225,10 @@ describe('dynamic-io', () => {
         expect($('#inner').text()).toBe('at buildtime')
         expect($('#value').text()).toBe('hello')
       }
-
-      $ = await next.render$('/cases/dynamic_api_headers_root')
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('hello')
-      }
     })
   } else {
     it('should not prerender pages that use `headers()`', async () => {
-      let $ = await next.render$('/cases/dynamic_api_headers_boundary')
+      let $ = await next.render$('/cases/dynamic_api_headers')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -325,17 +238,6 @@ describe('dynamic-io', () => {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#inner').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/cases/dynamic_api_headers_root')
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
         expect($('#value').text()).toBe('hello')
       }
     })
@@ -343,7 +245,7 @@ describe('dynamic-io', () => {
 
   if (WITH_PPR) {
     it('should partially prerender pages that use `unstable_noStore()`', async () => {
-      let $ = await next.render$('/cases/dynamic_api_no_store_boundary', {})
+      let $ = await next.render$('/cases/dynamic_api_no_store', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -353,19 +255,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at buildtime')
         expect($('#inner').text()).toBe('at buildtime')
       }
-
-      $ = await next.render$('/cases/dynamic_api_no_store_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      }
     })
   } else {
     it('should not prerender pages that use `unstable_noStore()`', async () => {
-      let $ = await next.render$('/cases/dynamic_api_no_store_boundary', {})
+      let $ = await next.render$('/cases/dynamic_api_no_store', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -374,15 +267,6 @@ describe('dynamic-io', () => {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#inner').text()).toBe('at runtime')
-      }
-
-      $ = await next.render$('/cases/dynamic_api_no_store_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
       }
     })
   }
@@ -390,7 +274,7 @@ describe('dynamic-io', () => {
   if (WITH_PPR) {
     it('should partially prerender pages that use `searchParams` in Server Components', async () => {
       let $ = await next.render$(
-        '/cases/dynamic_api_search_params_server_boundary?sentinel=my+sentinel',
+        '/cases/dynamic_api_search_params_server?sentinel=my+sentinel',
         {}
       )
       if (isNextDev) {
@@ -404,25 +288,11 @@ describe('dynamic-io', () => {
         expect($('#inner').text()).toBe('at buildtime')
         expect($('#value').text()).toBe('my sentinel')
       }
-
-      $ = await next.render$(
-        '/cases/dynamic_api_search_params_server_root?sentinel=my+sentinel',
-        {}
-      )
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
-      }
     })
   } else {
     it('should not prerender pages that use `searchParams` in Server Components', async () => {
       let $ = await next.render$(
-        '/cases/dynamic_api_search_params_server_boundary?sentinel=my+sentinel',
+        '/cases/dynamic_api_search_params_server?sentinel=my+sentinel',
         {}
       )
       if (isNextDev) {
@@ -434,20 +304,6 @@ describe('dynamic-io', () => {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#inner').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
-      }
-
-      $ = await next.render$(
-        '/cases/dynamic_api_search_params_server_root?sentinel=my+sentinel',
-        {}
-      )
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
         expect($('#value').text()).toBe('my sentinel')
       }
     })
@@ -456,7 +312,7 @@ describe('dynamic-io', () => {
   if (WITH_PPR) {
     it('should partially prerender pages that use `searchParams` in Client Components', async () => {
       let $ = await next.render$(
-        '/cases/dynamic_api_search_params_client_boundary?sentinel=my+sentinel',
+        '/cases/dynamic_api_search_params_client?sentinel=my+sentinel',
         {}
       )
       if (isNextDev) {
@@ -472,25 +328,11 @@ describe('dynamic-io', () => {
         expect($('#inner').text()).toBe('at buildtime')
         expect($('#value').text()).toBe('my sentinel')
       }
-
-      $ = await next.render$(
-        '/cases/dynamic_api_search_params_client_root?sentinel=my+sentinel',
-        {}
-      )
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
-      }
     })
   } else {
     it('should not prerender pages that use `searchParams` in Client Components', async () => {
       let $ = await next.render$(
-        '/cases/dynamic_api_search_params_client_boundary?sentinel=my+sentinel',
+        '/cases/dynamic_api_search_params_client?sentinel=my+sentinel',
         {}
       )
       if (isNextDev) {
@@ -502,20 +344,6 @@ describe('dynamic-io', () => {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#inner').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
-      }
-
-      $ = await next.render$(
-        '/cases/dynamic_api_search_params_client_root?sentinel=my+sentinel',
-        {}
-      )
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#value').text()).toBe('my sentinel')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
         expect($('#value').text()).toBe('my sentinel')
       }
     })
@@ -578,11 +406,9 @@ describe('dynamic-io', () => {
       expect($('#page-children').text()).toBe('at runtime')
     } else {
       if (WITH_PPR) {
-        // When using a sync dynamic API like noStore the prerender aborts
-        // before the shell can complete
-        expect($('#layout').text()).toBe('at runtime')
+        expect($('#layout').text()).toBe('at buildtime')
         expect($('#page-slot').text()).toBe('at runtime')
-        expect($('#page-children').text()).toBe('at runtime')
+        expect($('#page-children').text()).toBe('at buildtime')
       } else {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page-slot').text()).toBe('at runtime')

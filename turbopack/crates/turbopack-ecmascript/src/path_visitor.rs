@@ -65,7 +65,7 @@ fn find_range<'a, 'b>(
     Some(&visitors[start..end])
 }
 
-impl<'a, 'b> ApplyVisitors<'a, 'b> {
+impl<'a> ApplyVisitors<'a, '_> {
     /// `visitors` must have an non-empty [AstPath].
     pub fn new(mut visitors: Vec<(&'a AstPath, &'a dyn VisitorFactory)>) -> Self {
         assert!(!visitors.is_empty());
