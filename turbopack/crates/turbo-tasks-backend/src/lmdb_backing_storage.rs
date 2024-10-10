@@ -71,33 +71,34 @@ impl LmdbBackingStorage {
         // Database versioning. Pass `TURBO_TASKS_IGNORE_GIT_DIRTY` at compile time to ignore a
         // dirty git repository. Pass `TURBO_TASKS_DISABLE_VERSION` at runtime to ignore a
         // dirty git repository.
-        let version =
-            if option_env!("TURBO_TASKS_IGNORE_GIT_DIRTY").is_none() && GIT_DIRTY == Some(true) {
-                if env::var("TURBO_TASKS_DISABLE_VERSION").ok().is_some() {
-                    println!(
-                        "WARNING: The git repository is dirty, but Persistent Caching is still \
-                         enabled. Manual removal of the persistent caching database might be \
-                         required depending on the changes made."
-                    );
-                    Some("version-ignored")
-                } else {
-                    println!(
-                        "WARNING: The git repository is dirty: Persistent Caching is disabled. \
-                         Force enable it with TURBO_TASKS_DISABLE_VERSION=1"
-                    );
-                    None
-                }
-            } else {
-                if env::var("TURBO_TASKS_DISABLE_VERSION").ok().is_some() {
-                    println!(
-                        "WARNING: Persistent Caching versioning is disable. Manual removal of the \
-                         persistent caching database might be required."
-                    );
-                    Some("version-ignored")
-                } else {
-                    GIT_COMMIT_HASH_SHORT
-                }
-            };
+        let git_dirty =
+            option_env!("TURBO_TASKS_IGNORE_GIT_DIRTY").is_none() && GIT_DIRTY == Some(true);
+        let disabled_versioning = env::var("TURBO_TASKS_DISABLE_VERSION").ok().is_some();
+        let version = match (disabled_versioning, git_dirty) {
+            (false, false) => GIT_COMMIT_HASH_SHORT,
+            (false, true) => {
+                println!(
+                    "WARNING: The git repository is dirty: Persistent Caching is disabled. Force \
+                     enable it with TURBO_TASKS_DISABLE_VERSION=1"
+                );
+                None
+            }
+            (true, false) => {
+                println!(
+                    "WARNING: Persistent Caching versioning is disable. Manual removal of the \
+                     persistent caching database might be required."
+                );
+                Some("version-disabled")
+            }
+            (true, true) => {
+                println!(
+                    "WARNING: The git repository is dirty, but Persistent Caching is still \
+                     enabled. Manual removal of the persistent caching database might be required \
+                     depending on the changes made."
+                );
+                Some("version-disabled")
+            }
+        };
         let path;
         if let Some(version) = version {
             path = base_path.join(version);
