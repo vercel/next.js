@@ -51,6 +51,15 @@ function awaitMemberAccessOfProp(
   memberAccess.forEach((memberAccessPath) => {
     const member = memberAccessPath.value
 
+    const memberProperty = member.property
+    const isAccessingMatchedProperty =
+      j.Identifier.check(memberProperty) &&
+      TARGET_PROP_NAMES.has(memberProperty.name)
+
+    if (!isAccessingMatchedProperty) {
+      return
+    }
+
     if (isParentPromiseAllCallExpression(memberAccessPath, j)) {
       return
     }
