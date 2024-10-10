@@ -741,13 +741,15 @@ function createPatchedFetcher(
           const nextRevalidate = pendingResponse
             .then((res) => res.clone())
             .finally(() => {
-              // If the pending revalidate is not present in the store, then
-              // we have nothing to delete.
-              if (!staticGenerationStore.pendingRevalidates?.[cacheKey]) {
-                return
-              }
+              if (cacheKey) {
+                // If the pending revalidate is not present in the store, then
+                // we have nothing to delete.
+                if (!staticGenerationStore.pendingRevalidates?.[cacheKey]) {
+                  return
+                }
 
-              delete staticGenerationStore.pendingRevalidates[cacheKey]
+                delete staticGenerationStore.pendingRevalidates[cacheKey]
+              }
             })
 
           // Attach the empty catch here so we don't get a "unhandled promise
