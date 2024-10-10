@@ -74,27 +74,40 @@ export async function runUpgrade(
     return
   }
 
-  // If the app is a pure Pages Router (no app dir) and the user wants to stay on React 18,
-  // we can skip the upgrading React and suggesting relevant codemods.
-  const { isPagesOnlyAndWantReact18 } = await prompts(
-    {
-      type: 'confirm',
-      name: 'isPagesOnlyAndWantReact18',
-      message:
-        'Are you using Pages Router only (no App Router) and want to stay on React 18?',
-      initial: false,
-      active: 'Yes',
-      inactive: 'No',
-    },
-    { onCancel }
-  )
+  const installedReactVersion = getInstalledReactVersion()
+  console.log(`Current React version: v${installedReactVersion}`)
+  let shouldStayOnReact18 = false
+  if (
+    // From release v14.3.0-canary.45, Next.js expects the React version to be 19.0.0-beta.0
+    // If the user is on a version higher than this but is still on React 18, we ask them
+    // if they still want to stay on React 18 after the upgrade.
+    // IF THE USER USES APP ROUTER, we expect them to upgrade React to > 19.0.0-beta.0,
+    // we should only let the user stay on React 18 if they are using pure Pages Router.
+    // x-ref(PR): https://github.com/vercel/next.js/pull/65058
+    // x-ref(release): https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
+    compareVersions(installedNextVersion, '14.3.0-canary.45') >= 0 &&
+    installedReactVersion.startsWith('18')
+  ) {
+    const shouldStayOnReact18Res = await prompts(
+      {
+        type: 'confirm',
+        name: 'shouldStayOnReact18',
+        message: `Are you using ${pc.underline('Pages Router only')} (no App Router) and want to stay on React 18?`,
+        initial: false,
+        active: 'Yes',
+        inactive: 'No',
+      },
+      { onCancel }
+    )
+    shouldStayOnReact18 = shouldStayOnReact18Res.shouldStayOnReact18
+  }
 
   // We're resolving a specific version here to avoid including "ugly" version queries
   // in the manifest.
   // E.g. in peerDependencies we could have `^18.2.0 || ^19.0.0 || 20.0.0-canary`
   // If we'd just `npm add` that, the manifest would read the same version query.
   // This is basically a `npm --save-exact react@$versionQuery` that works for every package manager.
-  const targetReactVersion = isPagesOnlyAndWantReact18
+  const targetReactVersion = shouldStayOnReact18
     ? '18.3.1'
     : await loadHighestNPMVersionMatching(
         `react@${targetNextPackageJson.peerDependencies['react']}`
@@ -114,17 +127,17 @@ export async function runUpgrade(
   let shouldRunReactTypesCodemods = false
   let execCommand = 'npx'
   // The following React codemods are for React 19
-  if (!isPagesOnlyAndWantReact18) {
+  if (!shouldStayOnReact18) {
     shouldRunReactCodemods = await suggestReactCodemods()
     shouldRunReactTypesCodemods = await suggestReactTypesCodemods()
 
-    const execCommandMap = {
-      yarn: 'yarn dlx',
-      pnpm: 'pnpx',
-      bun: 'bunx',
-      npm: 'npx',
-    }
-    execCommand = execCommandMap[packageManager]
+    // const execCommandMap = {
+    //   yarn: 'yarn dlx',
+    //   pnpm: 'pnpx',
+    //   bun: 'bunx',
+    //   npm: 'npx',
+    // }
+    // execCommand = execCommandMap[packageManager]
   }
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
@@ -207,6 +220,23 @@ function getInstalledNextVersion(): string {
   } catch (error) {
     throw new Error(
       `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      {
+        cause: error,
+      }
+    )
+  }
+}
+
+function getInstalledReactVersion(): string {
+  try {
+    return require(
+      require.resolve('react/package.json', {
+        paths: [process.cwd()],
+      })
+    ).version
+  } catch (error) {
+    throw new Error(
+      `Failed to get the installed React version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
