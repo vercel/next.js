@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, use } from 'react';
+import { useState, type JSX, use } from 'react';
 
-export default function Page(props: { params: Promise<{ slug: string }> }) {
+export default function Page(props: { params: Promise<{ slug: string }> }): JSX.Element {
   const params = use(props.params);
   const [text, setText] = useState('')
   // usage of `params`

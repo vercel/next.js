@@ -2,7 +2,7 @@ import type { RequestCookies } from '../cookies'
 
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
-import { workAsyncStorage } from '../../../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../../../app-render/work-async-storage.external'
 
 /**
  * @internal

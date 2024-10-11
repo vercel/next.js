@@ -176,6 +176,7 @@ export async function createHotReloaderTurbopack(
       browserslistQuery: supportedBrowsers.join(', '),
     },
     {
+      persistentCaching: opts.nextConfig.experimental.turbo?.persistentCaching,
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
     }
   )
@@ -559,7 +560,9 @@ export async function createHotReloaderTurbopack(
       2
     )
   )
-  const overlayMiddleware = getOverlayMiddleware(project)
+
+  const middlewares = [getOverlayMiddleware(project)]
+
   const versionInfoPromise = getVersionInfo(
     isTestMode || opts.telemetry.isEnabled
   )
@@ -609,7 +612,17 @@ export async function createHotReloaderTurbopack(
         }
       }
 
-      await overlayMiddleware(req, res)
+      for (const middleware of middlewares) {
+        let calledNext = false
+
+        await middleware(req, res, () => {
+          calledNext = true
+        })
+
+        if (!calledNext) {
+          return { finished: true }
+        }
+      }
 
       // Request was not finished.
       return { finished: undefined }

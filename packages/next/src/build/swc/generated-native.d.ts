@@ -4,6 +4,7 @@ import type { TurbopackResult } from './types'
 
 export type TurboTasks = { readonly __tag: unique symbol }
 export type ExternalEndpoint = { readonly __tag: unique symbol }
+export type NextTurboTasks = { readonly __tag: unique symbol }
 export type RefCell = { readonly __tag: unique symbol }
 export type NapiRouteHas = {
   type: string
@@ -172,6 +173,8 @@ export interface NapiDefineEnv {
   nodejs: Array<NapiEnvVar>
 }
 export interface NapiTurboEngineOptions {
+  /** Use the new backend with persistent caching enabled. */
+  persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
 }
@@ -246,6 +249,7 @@ export interface NapiUpdateInfo {
 }
 /**
  * Subscribes to lifecycle events of the compilation.
+ *
  * Emits an [UpdateMessage::Start] event when any computation starts.
  * Emits an [UpdateMessage::End] event when there was no computation for the
  * specified time (`aggregation_ms`). The [UpdateMessage::End] event contains
@@ -364,11 +368,12 @@ export interface NapiRewrite {
 }
 export function createTurboTasks(
   outputPath: string,
+  persistentCaching: boolean,
   memoryLimit?: number | undefined | null
-): ExternalObject<TurboTasks>
+): ExternalObject<NextTurboTasks>
 export function runTurboTracing(
   options: Buffer,
-  turboTasks: ExternalObject<TurboTasks>
+  turboTasks: ExternalObject<NextTurboTasks>
 ): Promise<Array<string>>
 export function getTargetTriple(): string
 export function initHeapProfiler(): ExternalObject<RefCell>

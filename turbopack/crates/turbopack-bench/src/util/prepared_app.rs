@@ -169,7 +169,7 @@ impl<'a> PreparedApp<'a> {
     }
 }
 
-impl<'a> Drop for PreparedApp<'a> {
+impl Drop for PreparedApp<'_> {
     fn drop(&mut self) {
         if let Some(mut server) = self.server.take() {
             stop_process(&mut server.0).expect("failed to stop process");

@@ -39,11 +39,11 @@ impl<T, F: Future<Output = T>> CaptureFuture<T, F> {
 }
 
 pub fn add_duration(duration: Duration) {
-    EXTRA.with(|cell| cell.lock().unwrap().0 += duration);
+    let _ = EXTRA.try_with(|cell| cell.lock().unwrap().0 += duration);
 }
 
 pub fn add_allocation_info(alloc_info: AllocationInfo) {
-    EXTRA.with(|cell| {
+    let _ = EXTRA.try_with(|cell| {
         let mut guard = cell.lock().unwrap();
         guard.1 += alloc_info.allocations;
         guard.2 += alloc_info.deallocations;

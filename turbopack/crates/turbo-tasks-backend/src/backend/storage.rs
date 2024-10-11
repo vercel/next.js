@@ -16,6 +16,107 @@ use crate::{
     utils::dash_map_multi::{get_multiple_mut, RefMut},
 };
 
+const META_UNRESTORED: u32 = 1 << 31;
+const DATA_UNRESTORED: u32 = 1 << 30;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TaskDataCategory {
+    Meta,
+    Data,
+    All,
+}
+
+impl TaskDataCategory {
+    pub fn flag(&self) -> u32 {
+        match self {
+            TaskDataCategory::Meta => META_UNRESTORED,
+            TaskDataCategory::Data => DATA_UNRESTORED,
+            TaskDataCategory::All => META_UNRESTORED | DATA_UNRESTORED,
+        }
+    }
+}
+
+impl IntoIterator for TaskDataCategory {
+    type Item = TaskDataCategory;
+
+    type IntoIter = TaskDataCategoryIterator;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            TaskDataCategory::Meta => TaskDataCategoryIterator::Meta,
+            TaskDataCategory::Data => TaskDataCategoryIterator::Data,
+            TaskDataCategory::All => TaskDataCategoryIterator::All,
+        }
+    }
+}
+
+pub enum TaskDataCategoryIterator {
+    All,
+    Meta,
+    Data,
+    None,
+}
+
+impl Iterator for TaskDataCategoryIterator {
+    type Item = TaskDataCategory;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            TaskDataCategoryIterator::All => {
+                *self = TaskDataCategoryIterator::Data;
+                Some(TaskDataCategory::Meta)
+            }
+            TaskDataCategoryIterator::Meta => {
+                *self = TaskDataCategoryIterator::None;
+                Some(TaskDataCategory::Meta)
+            }
+            TaskDataCategoryIterator::Data => {
+                *self = TaskDataCategoryIterator::None;
+                Some(TaskDataCategory::Data)
+            }
+            TaskDataCategoryIterator::None => None,
+        }
+    }
+}
+
+pub struct PersistanceState {
+    value: u32,
+}
+
+impl Default for PersistanceState {
+    fn default() -> Self {
+        Self {
+            value: META_UNRESTORED | DATA_UNRESTORED,
+        }
+    }
+}
+
+impl PersistanceState {
+    pub fn set_restored(&mut self, category: TaskDataCategory) {
+        self.value &= !category.flag();
+    }
+
+    pub fn add_persisting_item(&mut self) {
+        self.value += 1;
+    }
+
+    pub fn add_persisting_items(&mut self, count: u32) {
+        self.value += count;
+    }
+
+    pub fn finish_persisting_items(&mut self, count: u32) {
+        self.value -= count;
+    }
+
+    pub fn is_restored(&self, category: TaskDataCategory) -> bool {
+        self.value & category.flag() == 0
+    }
+
+    pub fn is_fully_persisted(&self) -> bool {
+        self.value & !TaskDataCategory::All.flag() == 0
+    }
+}
+
 const INDEX_THRESHOLD: usize = 1024;
 
 type IndexedMap<T> = AutoMap<
@@ -27,8 +128,14 @@ pub enum InnerStorage<T: KeyValuePair>
 where
     T::Key: Indexed,
 {
-    Plain { map: AutoMap<T::Key, T::Value> },
-    Indexed { map: IndexedMap<T> },
+    Plain {
+        map: AutoMap<T::Key, T::Value>,
+        persistance_state: PersistanceState,
+    },
+    Indexed {
+        map: IndexedMap<T>,
+        persistance_state: PersistanceState,
+    },
 }
 
 impl<T: KeyValuePair> InnerStorage<T>
@@ -38,11 +145,38 @@ where
     fn new() -> Self {
         Self::Plain {
             map: AutoMap::new(),
+            persistance_state: PersistanceState::default(),
+        }
+    }
+
+    pub fn persistance_state(&self) -> &PersistanceState {
+        match self {
+            InnerStorage::Plain {
+                persistance_state, ..
+            } => persistance_state,
+            InnerStorage::Indexed {
+                persistance_state, ..
+            } => persistance_state,
+        }
+    }
+
+    pub fn persistance_state_mut(&mut self) -> &mut PersistanceState {
+        match self {
+            InnerStorage::Plain {
+                persistance_state, ..
+            } => persistance_state,
+            InnerStorage::Indexed {
+                persistance_state, ..
+            } => persistance_state,
         }
     }
 
     fn check_threshold(&mut self) {
-        let InnerStorage::Plain { map: plain_map } = self else {
+        let InnerStorage::Plain {
+            map: plain_map,
+            persistance_state,
+        } = self
+        else {
             return;
         };
         if plain_map.len() >= INDEX_THRESHOLD {
@@ -51,7 +185,10 @@ where
                 let index = key.index();
                 map.entry(index).or_default().insert(key, value);
             }
-            *self = InnerStorage::Indexed { map };
+            *self = InnerStorage::Indexed {
+                map,
+                persistance_state: take(persistance_state),
+            };
         }
     }
 
@@ -99,6 +236,10 @@ where
 
     pub fn get(&self, key: &T::Key) -> Option<&T::Value> {
         self.get_map(key).and_then(|m| m.get(key))
+    }
+
+    pub fn get_mut(&mut self, key: &T::Key) -> Option<&mut T::Value> {
+        self.get_map_mut(key).get_mut(key)
     }
 
     pub fn has_key(&self, key: &T::Key) -> bool {
@@ -229,7 +370,7 @@ where
     inner: RefMut<'a, K, InnerStorage<T>, BuildHasherDefault<FxHasher>>,
 }
 
-impl<'a, K, T> Deref for StorageWriteGuard<'a, K, T>
+impl<K, T> Deref for StorageWriteGuard<'_, K, T>
 where
     T: KeyValuePair,
     T::Key: Indexed,
@@ -242,7 +383,7 @@ where
     }
 }
 
-impl<'a, K, T> DerefMut for StorageWriteGuard<'a, K, T>
+impl<K, T> DerefMut for StorageWriteGuard<'_, K, T>
 where
     T: KeyValuePair,
     T::Key: Indexed,
@@ -255,7 +396,9 @@ where
 
 macro_rules! get {
     ($task:ident, $key:ident $input:tt) => {
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
+        if let Some($crate::data::CachedDataItemValue::$key {
+            value,
+        }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
             Some(value)
         } else {
             None
@@ -266,42 +409,58 @@ macro_rules! get {
     };
 }
 
+macro_rules! get_mut {
+    ($task:ident, $key:ident $input:tt) => {
+        if let Some($crate::data::CachedDataItemValue::$key {
+            value,
+        }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input).as_mut() {
+            let () = $crate::data::allow_mut_access::$key;
+            Some(value)
+        } else {
+            None
+        }
+    };
+    ($task:ident, $key:ident) => {
+        $crate::backend::storage::get_mut!($task, $key {})
+    };
+}
+
+/// Creates an iterator over all [`CachedDataItemKey::$key`][crate::data::CachedDataItemKey]s in
+/// `$task` matching the given `$key_pattern`, optional `$value_pattern`, and optional `if $cond`.
+///
+/// Each element in the iterator is determined by `$iter_item`, which may use fields extracted by
+/// `$key_pattern` or `$value_pattern`.
 macro_rules! iter_many {
-    ($task:ident, $key:ident $input:tt => $value:ident) => {
+    ($task:ident, $key:ident $key_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {
         $task
             .iter($crate::data::indicies::$key)
-            .filter_map(|(key, _)| match *key {
-                $crate::data::CachedDataItemKey::$key $input => Some($value),
+            .filter_map(|(key, _)| match key {
+                &$crate::data::CachedDataItemKey::$key $key_pattern $(if $cond)? => Some(
+                    $iter_item
+                ),
                 _ => None,
             })
     };
-    ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
+    ($task:ident, $key:ident $input:tt $value_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {
         $task
             .iter($crate::data::indicies::$key)
             .filter_map(|(key, value)| match (key, value) {
-                (&$crate::data::CachedDataItemKey::$key $input, &$crate::data::CachedDataItemValue::$key { value: $value_ident }) => Some($value),
-                _ => None,
-            })
-    };
-    ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
-        $task
-            .iter($crate::data::indicies::$key)
-            .filter_map(|(key, value)| match (key, value) {
-                (&$crate::data::CachedDataItemKey::$key $input, &$crate::data::CachedDataItemValue::$key { value: $value_ident }) if $cond => Some($value),
+                (
+                    &$crate::data::CachedDataItemKey::$key $input,
+                    &$crate::data::CachedDataItemValue::$key { value: $value_pattern }
+                ) $(if $cond)? => Some($iter_item),
                 _ => None,
             })
     };
 }
 
+/// A thin wrapper around [`iter_many`] that calls [`Iterator::collect`].
+///
+/// Note that the return type of [`Iterator::collect`] may be ambiguous in certain contexts, so
+/// using this macro may require explicit type annotations on variables.
 macro_rules! get_many {
-    ($task:ident, $key:ident $input:tt => $value:ident) => {
-        $crate::backend::storage::iter_many!($task, $key $input => $value).collect()
-    };
-    ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
-        $crate::backend::storage::iter_many!($task, $key $input $value_ident => $value).collect()
-    };
-    ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
-        $crate::backend::storage::iter_many!($task, $key $input $value_ident if $cond => $value).collect()
+    ($($args:tt)*) => {
+        $crate::backend::storage::iter_many!($($args)*).collect()
     };
 }
 
@@ -352,7 +511,9 @@ macro_rules! update_count {
 
 macro_rules! remove {
     ($task:ident, $key:ident $input:tt) => {
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(&$crate::data::CachedDataItemKey::$key $input) {
+        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(
+            &$crate::data::CachedDataItemKey::$key $input
+        ) {
             Some(value)
         } else {
             None
@@ -365,6 +526,7 @@ macro_rules! remove {
 
 pub(crate) use get;
 pub(crate) use get_many;
+pub(crate) use get_mut;
 pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;

@@ -141,7 +141,7 @@ impl<'a, K> Iterator for Iter<'a, K> {
     }
 }
 
-impl<'a, K> Clone for Iter<'a, K> {
+impl<K> Clone for Iter<'_, K> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }
