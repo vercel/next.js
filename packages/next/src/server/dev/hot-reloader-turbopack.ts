@@ -60,6 +60,7 @@ import {
   isWellKnownError,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
+  isPersistentCachingEnabled,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -176,7 +177,7 @@ export async function createHotReloaderTurbopack(
       browserslistQuery: supportedBrowsers.join(', '),
     },
     {
-      persistentCaching: opts.nextConfig.experimental.turbo?.persistentCaching,
+      persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
     }
   )
