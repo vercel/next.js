@@ -121,17 +121,21 @@ export class IncrementalCache implements IncrementalCacheType {
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
-    if (!CurCacheHandler) {
-      const globalCacheHandler = getBuiltinRequestContext()?.NextCacheHandler
 
-      if (globalCacheHandler) {
-        CurCacheHandler = globalCacheHandler
-      } else if (fs && serverDistDir) {
+    const globalCacheHandler = getBuiltinRequestContext()?.NextCacheHandler
+
+    if (globalCacheHandler) {
+      CurCacheHandler = globalCacheHandler
+    }
+
+    if (!CurCacheHandler) {
+      if (fs && serverDistDir) {
         if (debug) {
           console.log('using filesystem cache handler')
         }
         CurCacheHandler = FileSystemCache
-      } else if (
+      }
+      if (
         FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
         minimalMode &&
         fetchCache
