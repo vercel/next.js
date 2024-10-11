@@ -834,11 +834,12 @@ function serializeThenable(request, task, thenable) {
       pingTask(request, newTask);
     },
     function (reason) {
-      reason = logRecoverableError(request, reason, newTask);
-      emitErrorChunk(request, newTask.id, reason);
-      newTask.status = 4;
-      request.abortableTasks.delete(newTask);
-      enqueueFlush(request);
+      0 === newTask.status &&
+        ((reason = logRecoverableError(request, reason, newTask)),
+        emitErrorChunk(request, newTask.id, reason),
+        (newTask.status = 4),
+        request.abortableTasks.delete(newTask),
+        enqueueFlush(request));
     }
   );
   return newTask.id;
@@ -1477,6 +1478,7 @@ function renderModelDestructive(
         (value = Array.from(value.entries())),
         "$K" + outlineModel(request, value).toString(16)
       );
+    if (value instanceof Error) return "$Z";
     if (value instanceof ArrayBuffer)
       return serializeTypedArray(request, "A", new Uint8Array(value));
     if (value instanceof Int8Array)
@@ -1535,6 +1537,7 @@ function renderModelDestructive(
             ))),
         request
       );
+    if (value instanceof Date) return "$D" + value.toJSON();
     request = getPrototypeOf(value);
     if (
       request !== ObjectPrototype &&
@@ -2773,12 +2776,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_212 = [];
+    var JSCompiler_object_inline_chunks_216 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_212.push(chunk);
+      JSCompiler_object_inline_chunks_216.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_212, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_216, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);
