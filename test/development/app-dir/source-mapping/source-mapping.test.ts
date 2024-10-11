@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('actions-simple', () => {
+describe('source-mapping', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

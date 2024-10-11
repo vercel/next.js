@@ -5,7 +5,7 @@ server component and server action source mapping in DevTools.
 
 To check the source mapping of server components, follow these steps:
 
-1. Run `pnpm next dev test/e2e/app-dir/actions-simple`.
+1. Run `pnpm next dev test/development/app-dir/source-mapping`.
 2. Go to [http://localhost:3000]().
 3. Open the Console panel of the Chrome DevTools.
 4. Look at the component stack of the replayed console warning. It should
@@ -17,7 +17,7 @@ To check the source mapping of server components, follow these steps:
 
 To check the source mapping of server actions, follow these steps:
 
-1. Run `pnpm next dev test/e2e/app-dir/actions-simple`.
+1. Run `pnpm next dev test/development/app-dir/source-mapping`.
 2. Go to [http://localhost:3000]() or [http://localhost:3000/client]().
 3. Open the Components panel of the React DevTools.
 4. Select the `Form` element.
