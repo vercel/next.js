@@ -5,14 +5,17 @@ import {
   getOriginalCodeFrame,
   internalServerError,
   json,
+  jsonString,
   noContent,
   type OriginalStackFrameResponse,
 } from './shared'
 
 import fs, { constants as FS } from 'fs/promises'
+import path from 'path'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
+import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
 export async function batchedTraceSource(
@@ -57,6 +60,27 @@ export async function batchedTraceSource(
   }
 }
 
+function createStackFrame(searchParams: URLSearchParams) {
+  const fileParam = searchParams.get('file')
+
+  if (!fileParam) {
+    return undefined
+  }
+
+  // rsc://React/Server/file://<filename>?42 => file://<filename>
+  const file = fileParam
+    .replace(/^rsc:\/\/React\/[^/]+\//, '')
+    .replace(/\?\d+$/, '')
+
+  return {
+    file,
+    methodName: searchParams.get('methodName') ?? '<unknown>',
+    line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+    column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+    isServer: searchParams.get('isServer') === 'true',
+  } satisfies TurbopackStackFrame
+}
+
 export async function createOriginalStackFrame(
   project: Project,
   frame: TurbopackStackFrame
@@ -83,15 +107,11 @@ export function getOverlayMiddleware(project: Project) {
   ): Promise<void> {
     const { pathname, searchParams } = new URL(req.url!, 'http://n')
 
-    const frame = {
-      file: searchParams.get('file') as string,
-      methodName: searchParams.get('methodName') ?? '<unknown>',
-      line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
-      column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
-      isServer: searchParams.get('isServer') === 'true',
-    } satisfies TurbopackStackFrame
-
     if (pathname === '/__nextjs_original-stack-frame') {
+      const frame = createStackFrame(searchParams)
+
+      if (!frame) return badRequest(res)
+
       let originalStackFrame: OriginalStackFrameResponse | null
       try {
         originalStackFrame = await createOriginalStackFrame(project, frame)
@@ -107,7 +127,9 @@ export function getOverlayMiddleware(project: Project) {
 
       return json(res, originalStackFrame)
     } else if (pathname === '/__nextjs_launch-editor') {
-      if (!frame.file) return badRequest(res)
+      const frame = createStackFrame(searchParams)
+
+      if (!frame) return badRequest(res)
 
       const fileExists = await fs.access(frame.file, FS.F_OK).then(
         () => true,
@@ -126,5 +148,45 @@ export function getOverlayMiddleware(project: Project) {
     }
 
     return next()
+  }
+}
+
+export function getSourceMapMiddleware(project: Project) {
+  return async function (
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: () => void
+  ): Promise<void> {
+    const { pathname, searchParams } = new URL(req.url!, 'http://n')
+
+    if (pathname !== '/__nextjs_source-map') {
+      return next()
+    }
+
+    const filename = searchParams.get('filename')
+
+    if (!filename) {
+      return badRequest(res)
+    }
+
+    try {
+      const sourceMapString = await project.getSourceMap(filename)
+
+      if (sourceMapString) {
+        return jsonString(res, sourceMapString)
+      }
+
+      if (filename.startsWith('file:') || filename.startsWith(path.sep)) {
+        const sourceMap = await getSourceMapFromFile(filename)
+
+        if (sourceMap) {
+          return json(res, sourceMap)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get source map:', error)
+    }
+
+    noContent(res)
   }
 }

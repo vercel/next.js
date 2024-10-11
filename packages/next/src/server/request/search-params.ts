@@ -22,6 +22,7 @@ import {
   describeStringPropertyAccess,
   describeHasCheckingStringProperty,
   throwWithStaticGenerationBailoutErrorWithDynamicError,
+  wellKnownProperties,
 } from './utils'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
@@ -588,52 +589,26 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
   })
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
-    switch (prop) {
-      // Object prototype
-      case 'hasOwnProperty':
-      case 'isPrototypeOf':
-      case 'propertyIsEnumerable':
-      case 'toString':
-      case 'valueOf':
-      case 'toLocaleString':
-
-      // Promise prototype
-      // fallthrough
-      case 'then':
-      case 'catch':
-      case 'finally':
-
-      // React Promise extension
-      // fallthrough
-      case 'status':
-
-      // Common tested properties
-      // fallthrough
-      case 'toJSON':
-      case '$$typeof':
-      case '__esModule': {
-        // These properties cannot be shadowed because they need to be the
-        // true underlying value for Promises to work correctly at runtime
-        unproxiedProperties.push(prop)
-        break
-      }
-      default: {
-        proxiedProperties.add(prop)
-        Object.defineProperty(promise, prop, {
-          get() {
-            return proxiedUnderlying[prop]
-          },
-          set(newValue) {
-            Object.defineProperty(promise, prop, {
-              value: newValue,
-              writable: true,
-              enumerable: true,
-            })
-          },
-          enumerable: true,
-          configurable: true,
-        })
-      }
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+      unproxiedProperties.push(prop)
+    } else {
+      proxiedProperties.add(prop)
+      Object.defineProperty(promise, prop, {
+        get() {
+          return proxiedUnderlying[prop]
+        },
+        set(newValue) {
+          Object.defineProperty(promise, prop, {
+            value: newValue,
+            writable: true,
+            enumerable: true,
+          })
+        },
+        enumerable: true,
+        configurable: true,
+      })
     }
   })
 
@@ -641,10 +616,11 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
     get(target, prop, receiver) {
       if (typeof prop === 'string') {
         if (
-          // We are accessing a property that was proxied to the promise instance
-          proxiedProperties.has(prop) ||
-          // We are accessing a property that doesn't exist on the promise nor the underlying
-          Reflect.has(target, prop) === false
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
         ) {
           const expression = describeStringPropertyAccess('searchParams', prop)
           warnForSyncAccess(store.route, expression)

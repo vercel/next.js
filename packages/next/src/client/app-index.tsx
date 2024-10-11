@@ -11,6 +11,7 @@ import { createFromReadableStream } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
+import { findSourceMapURL } from './app-find-source-map-url'
 import {
   type AppRouterActionQueue,
   createMutableActionQueue,
@@ -19,9 +20,6 @@ import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
-
-// Importing from dist so that we can define an alias if needed.
-import { findSourceMapURL } from 'next/dist/client/app-find-source-map-url'
 
 /// <reference types="react-dom/experimental" />
 

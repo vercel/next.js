@@ -1625,8 +1625,9 @@ export default async function build(
           )
         }
 
+        const time = process.hrtime(startTime)
         return {
-          duration: process.hrtime(startTime)[0],
+          duration: time[0] + time[1] / 1e9,
           buildTraceContext: undefined,
           shutdownPromise,
         }
@@ -1686,11 +1687,19 @@ export default async function build(
 
           buildTraceContext = rest.buildTraceContext
 
-          Log.event('Compiled successfully')
+          if (compilerDuration > 2) {
+            Log.event(
+              `Compiled successfully in ${Math.round(compilerDuration)}s`
+            )
+          } else {
+            Log.event(
+              `Compiled successfully in ${Math.round(compilerDuration * 1000)}ms`
+            )
+          }
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
-              durationInSeconds: compilerDuration,
+              durationInSeconds: Math.round(compilerDuration),
               totalAppPagesCount,
             })
           )

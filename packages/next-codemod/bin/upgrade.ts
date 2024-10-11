@@ -74,14 +74,44 @@ export async function runUpgrade(
     return
   }
 
+  const installedReactVersion = getInstalledReactVersion()
+  console.log(`Current React version: v${installedReactVersion}`)
+  let shouldStayOnReact18 = false
+  if (
+    // From release v14.3.0-canary.45, Next.js expects the React version to be 19.0.0-beta.0
+    // If the user is on a version higher than this but is still on React 18, we ask them
+    // if they still want to stay on React 18 after the upgrade.
+    // IF THE USER USES APP ROUTER, we expect them to upgrade React to > 19.0.0-beta.0,
+    // we should only let the user stay on React 18 if they are using pure Pages Router.
+    // x-ref(PR): https://github.com/vercel/next.js/pull/65058
+    // x-ref(release): https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
+    compareVersions(installedNextVersion, '14.3.0-canary.45') >= 0 &&
+    installedReactVersion.startsWith('18')
+  ) {
+    const shouldStayOnReact18Res = await prompts(
+      {
+        type: 'confirm',
+        name: 'shouldStayOnReact18',
+        message: `Are you using ${pc.underline('only the Pages Router')} (no App Router) and prefer to stay on React 18?`,
+        initial: false,
+        active: 'Yes',
+        inactive: 'No',
+      },
+      { onCancel }
+    )
+    shouldStayOnReact18 = shouldStayOnReact18Res.shouldStayOnReact18
+  }
+
   // We're resolving a specific version here to avoid including "ugly" version queries
   // in the manifest.
   // E.g. in peerDependencies we could have `^18.2.0 || ^19.0.0 || 20.0.0-canary`
   // If we'd just `npm add` that, the manifest would read the same version query.
   // This is basically a `npm --save-exact react@$versionQuery` that works for every package manager.
-  const targetReactVersion = await loadHighestNPMVersionMatching(
-    `react@${targetNextPackageJson.peerDependencies['react']}`
-  )
+  const targetReactVersion = shouldStayOnReact18
+    ? '18.3.1'
+    : await loadHighestNPMVersionMatching(
+        `react@${targetNextPackageJson.peerDependencies['react']}`
+      )
 
   if (compareVersions(targetNextVersion, '15.0.0-canary') >= 0) {
     await suggestTurbopack(appPackageJson)
@@ -91,10 +121,30 @@ export async function runUpgrade(
     installedNextVersion,
     targetNextVersion
   )
+  const packageManager: PackageManager = getPkgManager(process.cwd())
+
+  let shouldRunReactCodemods = false
+  let shouldRunReactTypesCodemods = false
+  let execCommand = 'npx'
+  // The following React codemods are for React 19
+  if (
+    !shouldStayOnReact18 &&
+    compareVersions(targetReactVersion, '19.0.0-beta.0') >= 0
+  ) {
+    shouldRunReactCodemods = await suggestReactCodemods()
+    shouldRunReactTypesCodemods = await suggestReactTypesCodemods()
+
+    const execCommandMap = {
+      yarn: 'yarn dlx',
+      pnpm: 'pnpx',
+      bun: 'bunx',
+      npm: 'npx',
+    }
+    execCommand = execCommandMap[packageManager]
+  }
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
-  const packageManager: PackageManager = getPkgManager(process.cwd())
   const nextDependency = `next@${targetNextVersion}`
   const reactDependencies = [
     `react@${targetReactVersion}`,
@@ -134,6 +184,26 @@ export async function runUpgrade(
     await runTransform(codemod, process.cwd(), { force: true, verbose })
   }
 
+  // To reduce user-side burden of selecting which codemods to run as it needs additional
+  // understanding of the codemods, we run all of the applicable codemods.
+  if (shouldRunReactCodemods) {
+    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
+    execSync(
+      // `--no-interactive` skips the interactive prompt that asks for confirmation
+      // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
+      `${execCommand} codemod@latest react/19/migration-recipe --no-interactive`,
+      { stdio: 'inherit' }
+    )
+  }
+  if (shouldRunReactTypesCodemods) {
+    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
+    // `--yes` skips prompts and applies all codemods automatically
+    // https://github.com/eps1lon/types-react-codemod/blob/8463103233d6b70aad3cd6bee1814001eae51b28/README.md?plain=1#L52
+    execSync(`${execCommand} types-react-codemod@latest --yes preset-19 .`, {
+      stdio: 'inherit',
+    })
+  }
+
   console.log() // new line
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
@@ -153,6 +223,23 @@ function getInstalledNextVersion(): string {
   } catch (error) {
     throw new Error(
       `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      {
+        cause: error,
+      }
+    )
+  }
+}
+
+function getInstalledReactVersion(): string {
+  try {
+    return require(
+      require.resolve('react/package.json', {
+        paths: [process.cwd()],
+      })
+    ).version
+  } catch (error) {
+    throw new Error(
+      `Failed to detect the installed React version in "${process.cwd()}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
@@ -262,4 +349,36 @@ async function suggestCodemods(
   )
 
   return codemods
+}
+
+async function suggestReactCodemods(): Promise<boolean> {
+  const { runReactCodemod } = await prompts(
+    {
+      type: 'toggle',
+      name: 'runReactCodemod',
+      message: 'Would you like to run the React 19 upgrade codemod?',
+      initial: true,
+      active: 'Yes',
+      inactive: 'No',
+    },
+    { onCancel }
+  )
+
+  return runReactCodemod
+}
+
+async function suggestReactTypesCodemods(): Promise<boolean> {
+  const { runReactTypesCodemod } = await prompts(
+    {
+      type: 'toggle',
+      name: 'runReactTypesCodemod',
+      message: 'Would you like to run the React 19 Types upgrade codemod?',
+      initial: true,
+      active: 'Yes',
+      inactive: 'No',
+    },
+    { onCancel }
+  )
+
+  return runReactTypesCodemod
 }
