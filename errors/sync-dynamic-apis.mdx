@@ -64,6 +64,31 @@ function Page({ params }) {
 }
 ```
 
+### Unmigratable Cases
+
+If Next.js codemod found anything that is not able to be migrated by the codemod, it will leave a comment with `@next-codemod-error` prefix and the suggested action, for example:
+In this case, you need to manually await the call to `cookies()`, and change the function to async. Then refactor the usages of the function to be properly awaited:
+
+```ts
+export function MyCookiesComponent() {
+  const c =
+    /* @next-codemod-error Manually await this call and refactor the function to be async */
+    cookies()
+  return c.get('name')
+}
+```
+
+### Enforced Migration with Linter
+
+If you didn't address the comments that starting with `@next-codemod-error` left by the codemod, Next.js will error in both dev and build to enforce you to address the issues.
+You can review the changes and follow the suggestion in the comments. You can either make the necessary changes and remove the comment, or replace the comment prefix `@next-codemod-error` with `@next-codemod-ignore`
+If there's no action to be taken, the comment prefix `@next-codemod-ignore` will bypass the build error.
+
+```diff
+- /* @next-codemod-error <suggested message> */
++ /* @next-codemod-ignore */
+```
+
 > **Good to know**:
 >
 > You can delay unwrapping the Promise (either with `await` or `React.use`) until you actually need to consume the value.
