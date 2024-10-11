@@ -27,7 +27,10 @@ use swc_core::{
             ForgivingRelativeSelector, PseudoClassSelectorChildren, PseudoElementSelectorChildren,
             RelativeSelector, SubclassSelector, TypeSelector, UrlValue,
         },
-        codegen::{writer::basic::BasicCssWriter, CodeGenerator},
+        codegen::{
+            writer::basic::{BasicCssWriter, BasicCssWriterConfig},
+            CodeGenerator,
+        },
         modules::{CssClassName, TransformConfig},
         visit::{VisitMut, VisitMutWith, VisitWith},
     },
@@ -124,17 +127,19 @@ impl StyleSheetLike<'_, '_> {
                     None
                 };
 
+                let targets = if handle_nesting {
+                    Targets {
+                        include: Features::Nesting,
+                        ..Default::default()
+                    }
+                } else {
+                    Default::default()
+                };
+
                 let result = ss.to_css(PrinterOptions {
-                    minify: false,
+                    minify: matches!(minify_type, MinifyType::Minify),
                     source_map: srcmap.as_mut(),
-                    targets: if handle_nesting {
-                        Targets {
-                            include: Features::Nesting,
-                            ..Default::default()
-                        }
-                    } else {
-                        Default::default()
-                    },
+                    targets,
                     analyze_dependencies: None,
                     ..Default::default()
                 })?;
@@ -248,8 +253,21 @@ impl StyleSheetLike<'_, '_> {
                 let mut srcmap = if enable_srcmap { Some(vec![]) } else { None };
 
                 let mut code_gen = CodeGenerator::new(
-                    BasicCssWriter::new(&mut code_string, srcmap.as_mut(), Default::default()),
-                    Default::default(),
+                    BasicCssWriter::new(
+                        &mut code_string,
+                        srcmap.as_mut(),
+                        if matches!(minify_type, MinifyType::Minify) {
+                            BasicCssWriterConfig {
+                                indent_width: 0,
+                                ..Default::default()
+                            }
+                        } else {
+                            Default::default()
+                        },
+                    ),
+                    swc_core::css::codegen::CodegenConfig {
+                        minify: matches!(minify_type, MinifyType::Minify),
+                    },
                 );
 
                 code_gen.emit(&stylesheet)?;
