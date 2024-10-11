@@ -43,7 +43,9 @@ impl<Node> GraphNode<Node> {
 }
 
 /// A [`GraphStore`] wrapper that skips nodes that have already been
-/// visited. This is necessary to avoid repeated work when traversing non-tree
+/// visited.
+///
+/// This is necessary to avoid repeated work when traversing non-tree
 /// graphs (i.e. where a node can have more than one incoming edge).
 #[derive(Debug)]
 pub struct SkipDuplicates<StoreImpl>

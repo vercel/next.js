@@ -76,7 +76,11 @@ export async function createOriginalStackFrame(
 }
 
 export function getOverlayMiddleware(project: Project) {
-  return async function (req: IncomingMessage, res: ServerResponse) {
+  return async function (
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: () => void
+  ): Promise<void> {
     const { pathname, searchParams } = new URL(req.url!, 'http://n')
 
     const frame = {
@@ -97,7 +101,8 @@ export function getOverlayMiddleware(project: Project) {
 
       if (!originalStackFrame) {
         res.statusCode = 404
-        return res.end('Unable to resolve sourcemap')
+        res.end('Unable to resolve sourcemap')
+        return
       }
 
       return json(res, originalStackFrame)
@@ -119,5 +124,7 @@ export function getOverlayMiddleware(project: Project) {
 
       noContent(res)
     }
+
+    return next()
   }
 }

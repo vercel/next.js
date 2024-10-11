@@ -4,7 +4,7 @@ use tracing::Instrument;
 use turbo_tasks::{RcStr, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
-    module::Module,
+    module::{Module, Modules},
     output::OutputAssets,
 };
 
@@ -313,7 +313,7 @@ pub async fn get_app_client_references_chunks(
 #[turbo_tasks::function]
 pub async fn get_app_server_reference_modules(
     app_client_reference_types: Vc<ClientReferenceTypes>,
-) -> Result<Vc<Vec<Vc<Box<dyn Module>>>>> {
+) -> Result<Vc<Modules>> {
     Ok(Vc::cell(
         app_client_reference_types
             .await?

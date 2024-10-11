@@ -71,6 +71,7 @@ use crate::{
     },
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
+    webpack_stats::generate_webpack_stats,
 };
 
 #[turbo_tasks::value]
@@ -1050,22 +1051,42 @@ impl PageEndpoint {
         };
 
         let pathname = this.pathname.await?;
-        let original_name = this.original_name.await?;
+        let original_name = &*this.original_name.await?;
 
         let client_assets = OutputAssets::new(client_assets);
 
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&pathname);
+        let node_root = this.pages_project.project().node_root();
         let next_font_manifest_output = create_font_manifest(
             this.pages_project.project().client_root(),
-            this.pages_project.project().node_root(),
+            node_root,
             this.pages_project.pages_dir(),
-            &original_name,
-            &get_asset_prefix_from_pathname(&pathname),
+            original_name,
+            &manifest_path_prefix,
             &pathname,
             client_assets,
             false,
         )
         .await?;
         server_assets.push(next_font_manifest_output);
+
+        if *this
+            .pages_project
+            .project()
+            .should_create_webpack_stats()
+            .await?
+        {
+            let webpack_stats =
+                generate_webpack_stats(original_name.to_owned(), &client_assets.await?).await?;
+            let stats_output: Vc<Box<dyn OutputAsset>> = Vc::upcast(VirtualOutputAsset::new(
+                node_root
+                    .join(format!("server/pages{manifest_path_prefix}/webpack-stats.json",).into()),
+                AssetContent::file(
+                    File::from(serde_json::to_string_pretty(&webpack_stats)?).into(),
+                ),
+            ));
+            server_assets.push(Vc::upcast(stats_output));
+        }
 
         let page_output = match *ssr_chunk.await? {
             SsrChunk::NodeJs {

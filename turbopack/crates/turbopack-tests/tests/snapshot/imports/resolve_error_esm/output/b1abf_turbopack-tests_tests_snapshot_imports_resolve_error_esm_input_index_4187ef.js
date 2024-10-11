@@ -11,7 +11,6 @@ __turbopack_esm__({});
     e.code = 'MODULE_NOT_FOUND';
     throw e;
 })();
-"__TURBOPACK__ecmascript__hoisting__location__";
 ;
 console.log(dne);
 console.log({}[dne]);

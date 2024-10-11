@@ -49,7 +49,6 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
-import { validateRevalidate } from '../server/lib/patch-fetch'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -599,7 +598,7 @@ async function exportAppImpl(
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
       if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = validateRevalidate(result.revalidate, path)
+        info.revalidate = result.revalidate
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata

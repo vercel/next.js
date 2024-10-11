@@ -1,7 +1,10 @@
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 import type { AsyncLocalStorage } from 'async_hooks'
-import type { RequestStore } from '../../client/components/request-async-storage.external'
+import type {
+  RequestStore,
+  WorkUnitStore,
+} from '../app-render/work-unit-async-storage.external'
 import type { RenderOpts } from '../app-render/types'
 import type { WithStore } from './with-store'
 import type { NextRequest } from '../web/spec-extension/request'
@@ -20,8 +23,6 @@ import {
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
 import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
-import { AfterContext } from '../after/after-context'
-import type { RequestLifecycleOpts } from '../base-server'
 import type { ServerComponentsHmrCache } from '../response-cache'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
@@ -41,11 +42,9 @@ function getMutableCookies(
   return MutableRequestCookiesAdapter.wrap(cookies, onUpdateCookies)
 }
 
-export type WrapperRenderOpts = RequestLifecycleOpts &
-  Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
-    experimental: Pick<RenderOpts['experimental'], 'after'>
-    previewProps?: __ApiPreviewProps
-  }
+export type WrapperRenderOpts = Partial<Pick<RenderOpts, 'onUpdateCookies'>> & {
+  previewProps?: __ApiPreviewProps
+}
 
 export type RequestContext = RequestResponsePair & {
   /**
@@ -65,9 +64,11 @@ export type RequestContext = RequestResponsePair & {
      */
     search?: string
   }
+  phase: RequestStore['phase']
   renderOpts?: WrapperRenderOpts
   isHmrRefresh?: boolean
   serverComponentsHmrCache?: ServerComponentsHmrCache
+  implicitTags?: string[] | undefined
 }
 
 type RequestResponsePair =
@@ -103,17 +104,19 @@ function mergeMiddlewareCookies(
   }
 }
 
-export const withRequestStore: WithStore<RequestStore, RequestContext> = <
+export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
   Result,
 >(
-  storage: AsyncLocalStorage<RequestStore>,
+  storage: AsyncLocalStorage<WorkUnitStore>,
   {
     req,
     url,
     res,
+    phase,
     renderOpts,
     isHmrRefresh,
     serverComponentsHmrCache,
+    implicitTags,
   }: RequestContext,
   callback: (store: RequestStore) => Result
 ): Result => {
@@ -131,6 +134,9 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
   } = {}
 
   const store: RequestStore = {
+    type: 'request',
+    phase,
+    implicitTags: implicitTags ?? [],
     // Rather than just using the whole `url` here, we pull the parts we want
     // to ensure we don't use parts of the URL that we shouldn't. This also
     // lets us avoid requiring an empty string for `search` in the type.
@@ -188,34 +194,11 @@ export const withRequestStore: WithStore<RequestStore, RequestContext> = <
       return cache.draftMode
     },
 
-    afterContext: createAfterContext(renderOpts),
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
   }
 
-  if (store.afterContext) {
-    return store.afterContext.run(store, () =>
-      storage.run(store, callback, store)
-    )
-  }
-
   return storage.run(store, callback, store)
-}
-
-function createAfterContext(
-  renderOpts: WrapperRenderOpts | undefined
-): AfterContext | undefined {
-  if (!isAfterEnabled(renderOpts)) {
-    return undefined
-  }
-  const { waitUntil, onClose } = renderOpts
-  return new AfterContext({ waitUntil, onClose })
-}
-
-function isAfterEnabled(
-  renderOpts: WrapperRenderOpts | undefined
-): renderOpts is WrapperRenderOpts {
-  return renderOpts?.experimental?.after ?? false
 }

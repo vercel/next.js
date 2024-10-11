@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "15.0.0-canary.177",
+  "version": "15.0.0-canary.183",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -8,11 +8,11 @@
     "directory": "packages/next-codemod"
   },
   "dependencies": {
-    "chalk": "4.1.2",
     "cheerio": "1.0.0-rc.9",
     "commander": "12.1.0",
     "compare-versions": "6.1.1",
     "execa": "4.0.3",
+    "find-up": "4.1.0",
     "globby": "11.0.1",
     "is-git-clean": "1.1.0",
     "jscodeshift": "17.0.0",
@@ -34,6 +34,8 @@
   },
   "bin": "./bin/next-codemod.js",
   "devDependencies": {
-    "@types/jscodeshift": "0.11.0"
+    "@types/find-up": "4.0.0",
+    "@types/jscodeshift": "0.11.0",
+    "@types/prompts": "2.4.2"
   }
 }

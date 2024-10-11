@@ -14,8 +14,9 @@ use super::{
 pub struct VisitedNodes<T>(pub HashSet<T>);
 
 /// [`GraphTraversal`] is a utility type that can be used to traverse a graph of
-/// nodes, where each node can have a variable number of outgoing edges. The
-/// traversal is done in parallel, and the order of the nodes in the traversal
+/// nodes, where each node can have a variable number of outgoing edges.
+///
+/// The traversal is done in parallel, and the order of the nodes in the traversal
 /// result is determined by the [`GraphStore`] parameter.
 pub trait GraphTraversal: GraphStore + Sized {
     fn visit<RootEdgesIt, VisitImpl, Abort, Impl>(

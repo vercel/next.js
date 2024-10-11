@@ -124,7 +124,7 @@ impl CodeGenerateable for Unreachable {
             }
         };
 
-        Ok(CodeGeneration { visitors }.cell())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 
@@ -133,7 +133,7 @@ struct ExtractDeclarations<'a> {
     in_nested_block_scope: bool,
 }
 
-impl<'a> VisitMut for ExtractDeclarations<'a> {
+impl VisitMut for ExtractDeclarations<'_> {
     fn visit_mut_var_decl(&mut self, decl: &mut VarDecl) {
         let VarDecl {
             span,

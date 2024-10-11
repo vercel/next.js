@@ -10,9 +10,10 @@ use crate::{
             },
             ExecuteContext, Operation,
         },
-        storage::get,
+        storage::{get, get_mut},
+        TaskDataCategory,
     },
-    data::{CachedDataItem, CachedDataItemKey},
+    data::{CachedDataItem, CachedDataItemKey, InProgressState},
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -24,19 +25,18 @@ pub enum InvalidateOperation {
     AggregationUpdate {
         queue: AggregationUpdateQueue,
     },
-    // TODO Add to dirty tasks list
     #[default]
     Done,
 }
 
 impl InvalidateOperation {
-    pub fn run(task_ids: SmallVec<[TaskId; 4]>, ctx: ExecuteContext<'_>) {
-        InvalidateOperation::MakeDirty { task_ids }.execute(&ctx)
+    pub fn run(task_ids: SmallVec<[TaskId; 4]>, mut ctx: ExecuteContext<'_>) {
+        InvalidateOperation::MakeDirty { task_ids }.execute(&mut ctx)
     }
 }
 
 impl Operation for InvalidateOperation {
-    fn execute(mut self, ctx: &ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -65,21 +65,40 @@ impl Operation for InvalidateOperation {
     }
 }
 
-pub fn make_task_dirty(task_id: TaskId, queue: &mut AggregationUpdateQueue, ctx: &ExecuteContext) {
+pub fn make_task_dirty(
+    task_id: TaskId,
+    queue: &mut AggregationUpdateQueue,
+    ctx: &mut ExecuteContext,
+) {
     if ctx.is_once_task(task_id) {
         return;
     }
 
-    let mut task = ctx.task(task_id);
+    let mut task = ctx.task(task_id, TaskDataCategory::All);
 
+    make_task_dirty_internal(&mut task, task_id, true, queue, ctx);
+}
+
+pub fn make_task_dirty_internal(
+    task: &mut super::TaskGuard,
+    task_id: TaskId,
+    make_stale: bool,
+    queue: &mut AggregationUpdateQueue,
+    ctx: &mut ExecuteContext,
+) {
+    if make_stale {
+        if let Some(InProgressState::InProgress { stale, .. }) = get_mut!(task, InProgress) {
+            *stale = true;
+        }
+    }
     if task.add(CachedDataItem::Dirty { value: () }) {
         let dirty_container = get!(task, AggregatedDirtyContainerCount)
             .copied()
             .unwrap_or_default();
         if dirty_container == 0 {
             queue.extend(AggregationUpdateJob::data_update(
-                &mut task,
-                AggregatedDataUpdate::dirty_container(task_id),
+                task,
+                AggregatedDataUpdate::new().dirty_container(task_id),
             ));
         }
         let root = task.has_key(&CachedDataItemKey::AggregateRoot {});

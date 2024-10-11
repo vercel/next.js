@@ -20,6 +20,7 @@ import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -240,20 +241,27 @@ async function createComponentTreeInternal({
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
-    ctx.defaultRevalidate = layoutOrPageMod.revalidate as number
+    const defaultRevalidate = layoutOrPageMod.revalidate as number
 
-    if (
-      typeof workStore.revalidate === 'undefined' ||
-      (typeof workStore.revalidate === 'number' &&
-        workStore.revalidate > ctx.defaultRevalidate)
-    ) {
-      workStore.revalidate = ctx.defaultRevalidate
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (workUnitStore) {
+      if (
+        workUnitStore.type === 'prerender' ||
+        workUnitStore.type === 'prerender-legacy' ||
+        workUnitStore.type === 'prerender-ppr' ||
+        workUnitStore.type === 'cache'
+      ) {
+        if (workUnitStore.revalidate > defaultRevalidate) {
+          workUnitStore.revalidate = defaultRevalidate
+        }
+      }
     }
 
     if (
       !workStore.forceStatic &&
       workStore.isStaticGeneration &&
-      ctx.defaultRevalidate === 0 &&
+      defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
       !experimental.isRoutePPREnabled
@@ -631,28 +639,25 @@ async function createComponentTreeInternal({
           )
 
           segmentNode = (
-            <>
-              <NotFoundBoundary
-                notFound={
-                  <>
-                    {layerAssets}
-                    {notfoundClientSegment}
-                  </>
-                }
-              >
-                {layerAssets}
-                {clientSegment}
-              </NotFoundBoundary>
-            </>
+            <NotFoundBoundary
+              key={cacheNodeKey}
+              notFound={
+                <>
+                  {layerAssets}
+                  {notfoundClientSegment}
+                </>
+              }
+            >
+              {layerAssets}
+              {clientSegment}
+            </NotFoundBoundary>
           )
         } else {
           segmentNode = (
-            <>
-              <NotFoundBoundary>
-                {layerAssets}
-                {clientSegment}
-              </NotFoundBoundary>
-            </>
+            <NotFoundBoundary key={cacheNodeKey}>
+              {layerAssets}
+              {clientSegment}
+            </NotFoundBoundary>
           )
         }
       } else {
@@ -680,24 +685,23 @@ async function createComponentTreeInternal({
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
         segmentNode = (
-          <>
-            <NotFoundBoundary
-              notFound={
-                NotFound ? (
-                  <>
-                    {layerAssets}
-                    <SegmentComponent params={params}>
-                      {notFoundStyles}
-                      <NotFound />
-                    </SegmentComponent>
-                  </>
-                ) : undefined
-              }
-            >
-              {layerAssets}
-              {serverSegment}
-            </NotFoundBoundary>
-          </>
+          <NotFoundBoundary
+            key={cacheNodeKey}
+            notFound={
+              NotFound ? (
+                <>
+                  {layerAssets}
+                  <SegmentComponent params={params}>
+                    {notFoundStyles}
+                    <NotFound />
+                  </SegmentComponent>
+                </>
+              ) : undefined
+            }
+          >
+            {layerAssets}
+            {serverSegment}
+          </NotFoundBoundary>
         )
       } else {
         segmentNode = (

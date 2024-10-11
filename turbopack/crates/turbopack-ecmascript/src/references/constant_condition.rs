@@ -53,6 +53,6 @@ impl CodeGenerateable for ConstantCondition {
         ]
         .into();
 
-        Ok(CodeGeneration { visitors }.cell())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

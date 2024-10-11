@@ -176,7 +176,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
             );
         }));
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 
@@ -287,7 +287,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             // but we can ignore that as it will be recomputed anyway.
         }));
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 
@@ -315,6 +315,6 @@ impl CodeGenerateable for CjsRequireCacheAccess {
             }
         }));
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

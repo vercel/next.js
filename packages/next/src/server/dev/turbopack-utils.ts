@@ -240,14 +240,16 @@ export function processIssues(
       continue
 
     const issueKey = getIssueKey(issue)
-    const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
 
     if (issue.severity !== 'warning') {
-      relevantIssues.add(formatted)
-
+      if (throwIssue) {
+        const formatted = formatIssue(issue)
+        relevantIssues.add(formatted)
+      }
       // if we throw the issue it will most likely get handed and logged elsewhere
-      if (logErrors && !throwIssue && isWellKnownError(issue)) {
+      else if (logErrors && isWellKnownError(issue)) {
+        const formatted = formatIssue(issue)
         Log.error(formatted)
       }
     }
@@ -368,6 +370,8 @@ export async function handleRouteType({
 
   hooks?: HandleRouteTypeHooks // dev
 }) {
+  const shouldCreateWebpackStats = process.env.TURBOPACK_STATS != null
+
   switch (route.type) {
     case 'page': {
       const clientKey = getEntryKey('pages', 'client', page)
@@ -421,6 +425,10 @@ export async function handleRouteType({
         await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
         await manifestLoader.loadLoadableManifest(page, 'pages')
+
+        if (shouldCreateWebpackStats) {
+          await manifestLoader.loadWebpackStats(page, 'pages')
+        }
 
         await manifestLoader.writeManifests({
           devRewrites,
@@ -559,6 +567,11 @@ export async function handleRouteType({
       await manifestLoader.loadActionManifest(page)
       await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
+
+      if (shouldCreateWebpackStats) {
+        await manifestLoader.loadWebpackStats(page, 'app')
+      }
+
       await manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
