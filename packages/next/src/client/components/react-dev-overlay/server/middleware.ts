@@ -221,13 +221,17 @@ export async function getSource(
       : undefined
   }
 
-  const moduleId: string = filename
+  // webpack-internal:///./src/hello.tsx => ./src/hello.tsx
+  // rsc://React/Server/webpack-internal:///(rsc)/./src/hello.tsx?42 => (rsc)/./src/hello.tsx
+  // webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
+  const moduleId = filename
     .replace(
       /^(rsc:\/\/React\/\w+\/)?(webpack-internal:\/\/\/|webpack:\/\/(_N_E\/)?)/,
       ''
     )
     .replace(/\?\d+$/, '')
 
+  // (rsc)/./src/hello.tsx => ./src/hello.tsx
   const modulePath = moduleId.replace(/^(\(.*\)\/?)/, '')
 
   for (const compilation of getCompilations()) {
