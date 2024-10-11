@@ -8,7 +8,6 @@ use std::{
     path::Path,
     sync::Arc,
     thread::available_parallelism,
-    time::Instant,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -158,7 +157,6 @@ impl BackingStorage for LmdbBackingStorage {
         get(self).unwrap_or_default()
     }
 
-    #[tracing::instrument(level = "trace", skip_all, fields(operations = operations.len()))]
     fn save_snapshot(
         &self,
         session_id: SessionId,
@@ -167,14 +165,7 @@ impl BackingStorage for LmdbBackingStorage {
         meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
         data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()> {
-        println!(
-            "Persisting {} operations, {} task cache updates, {} meta updates, {} data updates...",
-            operations.len(),
-            task_cache_updates.iter().map(|u| u.len()).sum::<usize>(),
-            meta_updates.iter().map(|u| u.len()).sum::<usize>(),
-            data_updates.iter().map(|u| u.len()).sum::<usize>()
-        );
-        let start = Instant::now();
+        let span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len(), db_operation_count = tracing::field::Empty);
         let mut op_count = 0;
         let mut tx = self.env.begin_rw_txn()?;
         let mut task_meta_items_result = Ok(Vec::new());
@@ -336,10 +327,7 @@ impl BackingStorage for LmdbBackingStorage {
             tx.commit()
                 .with_context(|| anyhow!("Unable to commit operations"))?;
         }
-        println!(
-            "Persisted {op_count} db entries after {:?}",
-            start.elapsed()
-        );
+        span.record("db_operation_count", op_count);
         Ok(())
     }
 
@@ -545,6 +533,7 @@ fn serialize_task_data(
                         let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
                         if let Err(err) = serde_path_to_error::serialize(item, &mut serializer) {
                             if item.is_optional() {
+                                #[cfg(feature = "verify_serialization")]
                                 println!("Skipping non-serializable optional item: {item:?}");
                             } else {
                                 error = Err(err).context({
