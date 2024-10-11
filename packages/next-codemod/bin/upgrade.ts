@@ -239,7 +239,7 @@ function getInstalledReactVersion(): string {
     ).version
   } catch (error) {
     throw new Error(
-      `Failed to get the installed React version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      `Failed to detect the installed React version in "${process.cwd()}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
@@ -356,7 +356,7 @@ async function suggestReactCodemods(): Promise<boolean> {
     {
       type: 'toggle',
       name: 'runReactCodemod',
-      message: 'Do you want to run the React 19 upgrade codemod?',
+      message: 'Would you like to run the React 19 upgrade codemod?',
       initial: true,
       active: 'Yes',
       inactive: 'No',
@@ -372,7 +372,7 @@ async function suggestReactTypesCodemods(): Promise<boolean> {
     {
       type: 'toggle',
       name: 'runReactTypesCodemod',
-      message: 'Do you want to run the React Types codemod?',
+      message: Would you like to run the React 19 Types upgrade codemod?',
       initial: true,
       active: 'Yes',
       inactive: 'No',
