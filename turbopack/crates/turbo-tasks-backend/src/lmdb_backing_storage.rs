@@ -157,7 +157,6 @@ impl BackingStorage for LmdbBackingStorage {
         get(self).unwrap_or_default()
     }
 
-    #[tracing::instrument(level = "trace", skip_all, fields(operations = operations.len()))]
     fn save_snapshot(
         &self,
         session_id: SessionId,
@@ -166,6 +165,7 @@ impl BackingStorage for LmdbBackingStorage {
         meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
         data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()> {
+        let span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len(), db_operation_count = tracing::field::Empty);
         let mut op_count = 0;
         let mut tx = self.env.begin_rw_txn()?;
         let mut task_meta_items_result = Ok(Vec::new());
@@ -327,6 +327,7 @@ impl BackingStorage for LmdbBackingStorage {
             tx.commit()
                 .with_context(|| anyhow!("Unable to commit operations"))?;
         }
+        span.record("db_operation_count", op_count);
         Ok(())
     }
 
