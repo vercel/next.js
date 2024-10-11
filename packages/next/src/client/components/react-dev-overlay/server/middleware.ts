@@ -350,7 +350,7 @@ export function getOverlayMiddleware(options: {
           rootDirectory,
         })
 
-        if (originalStackFrameResponse === null) {
+        if (!originalStackFrameResponse) {
           if (sourcePackage) return json(res, { sourcePackage })
           return noContent(res)
         }
