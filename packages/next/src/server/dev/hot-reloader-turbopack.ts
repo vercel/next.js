@@ -84,6 +84,7 @@ import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-serv
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getNodeDebugType } from '../lib/utils'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -936,10 +937,17 @@ export async function createHotReloaderTurbopack(
       }
 
       const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
-      const normalizedAppPage = normalizedPageToTurbopackStructureRoute(
-        page,
-        extname(routeDef.filename)
+      const isEntryMetadataRouteFile = isMetadataRouteFile(
+        routeDef.filename.replace(opts.appDir || '', ''),
+        nextConfig.pageExtensions,
+        true
       )
+      const normalizedAppPage = isEntryMetadataRouteFile
+        ? normalizedPageToTurbopackStructureRoute(
+            page,
+            extname(routeDef.filename)
+          )
+        : page
 
       const route = isInsideAppDir
         ? currentEntrypoints.app.get(normalizedAppPage)

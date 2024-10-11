@@ -86,7 +86,7 @@ import {
   ModuleBuildError,
   TurbopackInternalError,
 } from '../../dev/turbopack-utils'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
@@ -429,7 +429,15 @@ async function startWatcher(opts: SetupOpts) {
           pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
 
-        if (isAppPath && isMetadataRoute(pageName)) {
+        if (
+          isAppPath &&
+          appDir &&
+          isMetadataRouteFile(
+            fileName.replace(appDir, ''),
+            nextConfig.pageExtensions,
+            true
+          )
+        ) {
           const staticInfo = await getPageStaticInfo({
             pageFilePath: fileName,
             nextConfig: {},
