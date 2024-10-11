@@ -407,7 +407,7 @@ describe('app dir - rsc basics', () => {
         const hasRCScript = /\$RC=function/.test(chunk)
         if (hasRCScript) results.push('refresh-script')
 
-        const isFallbackResolved = chunk.includes('fallback')
+        const isFallbackResolved = chunk.includes('$test-fallback-sentinel')
         if (isFallbackResolved) results.push('fallback')
       })
 
