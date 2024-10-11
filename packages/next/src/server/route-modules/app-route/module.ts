@@ -20,7 +20,8 @@ import {
   type WorkStoreContext,
 } from '../../async-storage/with-work-store'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
-import { getImplicitTags, patchFetch } from '../../lib/patch-fetch'
+import { getImplicitTags } from '../../lib/implicit-tags'
+import { patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
@@ -279,6 +280,7 @@ export class AppRouteRouteModule extends RouteModule<
     actionStore: ActionStore,
     workStore: WorkStore,
     workUnitStore: WorkUnitStore,
+    implicitTags: string[],
     request: NextRequest,
     context: AppRouteRouteHandlerContext
   ) {
@@ -299,15 +301,6 @@ export class AppRouteRouteModule extends RouteModule<
           )
         : undefined,
     }
-
-    const pathname =
-      workUnitStore.type === 'request'
-        ? workUnitStore.url.pathname
-        : workUnitStore.type === 'prerender' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy'
-          ? workUnitStore.pathname
-          : undefined
 
     let prerenderStore: null | PrerenderStore = null
 
@@ -350,21 +343,17 @@ export class AppRouteRouteModule extends RouteModule<
           const prospectiveRoutePrerenderStore: PrerenderStore =
             (prerenderStore = {
               type: 'prerender',
+              phase: 'action',
+              implicitTags: implicitTags,
               renderSignal: prospectiveController.signal,
-              pathname,
               cacheSignal,
               // During prospective render we don't use a controller
               // because we need to let all caches fill.
               controller: null,
               dynamicTracking,
               revalidate: defaultRevalidate,
-              tags: null,
+              tags: [...implicitTags],
             })
-          // This cycle is a bit unfortunate.
-          prospectiveRoutePrerenderStore.tags = getImplicitTags(
-            workStore,
-            prospectiveRoutePrerenderStore
-          )
 
           let prospectiveResult
           try {
@@ -427,19 +416,15 @@ export class AppRouteRouteModule extends RouteModule<
 
           const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
             type: 'prerender',
+            phase: 'action',
+            implicitTags: implicitTags,
             renderSignal: finalController.signal,
-            pathname,
             cacheSignal: null,
             controller: finalController,
             dynamicTracking,
             revalidate: defaultRevalidate,
-            tags: null,
+            tags: [...implicitTags],
           })
-          // This cycle is a bit unfortunate.
-          finalRoutePrerenderStore.tags = getImplicitTags(
-            workStore,
-            finalRoutePrerenderStore
-          )
 
           let responseHandled = false
           res = await new Promise((resolve, reject) => {
@@ -507,12 +492,11 @@ export class AppRouteRouteModule extends RouteModule<
         } else {
           prerenderStore = {
             type: 'prerender-legacy',
-            pathname,
+            phase: 'action',
+            implicitTags: implicitTags,
             revalidate: defaultRevalidate,
-            tags: null,
+            tags: [...implicitTags],
           }
-          // This cycle is a bit unfortunate.
-          prerenderStore.tags = getImplicitTags(workStore, prerenderStore)
 
           res = await workUnitAsyncStorage.run(
             prerenderStore,
@@ -606,14 +590,23 @@ export class AppRouteRouteModule extends RouteModule<
     // Get the handler function for the given method.
     const handler = this.resolve(req.method)
 
+    const implicitTags = getImplicitTags(
+      this.definition.page,
+      req.nextUrl,
+      // App Routes don't support unknown route params.
+      null
+    )
+
     // Get the context for the request.
     const requestContext: RequestContext = {
       req,
       res: undefined,
       url: req.nextUrl,
+      phase: 'action',
       renderOpts: {
         previewProps: context.prerenderManifest.preview,
       },
+      implicitTags,
     }
 
     // Get the context for the static generation.
@@ -712,6 +705,7 @@ export class AppRouteRouteModule extends RouteModule<
                       actionStore,
                       workStore,
                       workUnitStore,
+                      implicitTags,
                       request,
                       context
                     )

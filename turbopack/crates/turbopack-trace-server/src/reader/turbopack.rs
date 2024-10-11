@@ -207,6 +207,7 @@ impl TurbopackFormat {
                     ts,
                     &mut self.outdated_spans,
                 );
+                store.complete_span(id);
             }
             TraceRow::Allocation {
                 ts: _,

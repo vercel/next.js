@@ -819,7 +819,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if (is_action_fn || cache_type.is_some()) && !f.function.is_async {
             HANDLER.with(|handler| {
                 handler
-                    .struct_span_err(f.function.span, "Server actions must be async functions")
+                    .struct_span_err(f.function.span, "Server Actions must be async functions")
                     .emit();
             });
         }
@@ -968,15 +968,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }],
                 ..Default::default()
             });
-
-            return;
         }
 
         if is_action_fn {
             if !f.function.is_async {
                 HANDLER.with(|handler| {
                     handler
-                        .struct_span_err(f.ident.span, "Server actions must be async functions")
+                        .struct_span_err(f.ident.span, "Server Actions must be async functions")
                         .emit();
                 });
             }
@@ -1388,7 +1386,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 self.rewrite_default_fn_expr_to_proxy_expr = None;
             }
 
-            if self.config.is_react_server_layer || !self.in_action_file {
+            if self.config.is_react_server_layer
+                || (!self.in_action_file && self.in_cache_file.is_none())
+            {
                 new.append(&mut self.hoisted_extra_items);
                 new.push(new_stmt);
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
@@ -1396,55 +1396,57 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        // If it's a "use server" file, all exports need to be annotated as actions.
-        if self.in_action_file {
-            // If it's compiled in the client layer, each export field needs to be
-            // wrapped by a reference creation call.
-            let create_ref_ident = private_ident!("createServerReference");
-            let call_server_ident = private_ident!("callServer");
-            let find_source_map_url_ident = private_ident!("findSourceMapURL");
+        // If it's compiled in the client layer, each export field needs to be
+        // wrapped by a reference creation call.
+        let create_ref_ident = private_ident!("createServerReference");
+        let call_server_ident = private_ident!("callServer");
+        let find_source_map_url_ident = private_ident!("findSourceMapURL");
 
-            if !self.config.is_react_server_layer {
-                // import {
-                //   createServerReference,
-                //   callServer,
-                //   findSourceMapURL
-                // } from 'private-next-rsc-action-client-wrapper'
-                // createServerReference("action_id")
-                new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    span: DUMMY_SP,
-                    specifiers: vec![
-                        ImportSpecifier::Named(ImportNamedSpecifier {
-                            span: DUMMY_SP,
-                            local: create_ref_ident.clone(),
-                            imported: None,
-                            is_type_only: false,
-                        }),
-                        ImportSpecifier::Named(ImportNamedSpecifier {
-                            span: DUMMY_SP,
-                            local: call_server_ident.clone(),
-                            imported: None,
-                            is_type_only: false,
-                        }),
-                        ImportSpecifier::Named(ImportNamedSpecifier {
-                            span: DUMMY_SP,
-                            local: find_source_map_url_ident.clone(),
-                            imported: None,
-                            is_type_only: false,
-                        }),
-                    ],
-                    src: Box::new(Str {
+        if (self.in_action_file || self.in_cache_file.is_some())
+            && !self.config.is_react_server_layer
+        {
+            // import {
+            //   createServerReference,
+            //   callServer,
+            //   findSourceMapURL
+            // } from 'private-next-rsc-action-client-wrapper'
+            // createServerReference("action_id")
+            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                span: DUMMY_SP,
+                specifiers: vec![
+                    ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
-                        value: "private-next-rsc-action-client-wrapper".into(),
-                        raw: None,
+                        local: create_ref_ident.clone(),
+                        imported: None,
+                        is_type_only: false,
                     }),
-                    type_only: false,
-                    with: None,
-                    phase: Default::default(),
-                })));
-                new.rotate_right(1);
-            }
+                    ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: call_server_ident.clone(),
+                        imported: None,
+                        is_type_only: false,
+                    }),
+                    ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: find_source_map_url_ident.clone(),
+                        imported: None,
+                        is_type_only: false,
+                    }),
+                ],
+                src: Box::new(Str {
+                    span: DUMMY_SP,
+                    value: "private-next-rsc-action-client-wrapper".into(),
+                    raw: None,
+                }),
+                type_only: false,
+                with: None,
+                phase: Default::default(),
+            })));
+            new.rotate_right(1);
+        }
 
+        // If it's a "use server" file, all exports need to be annotated as actions.
+        if self.in_action_file || self.in_cache_file.is_some() {
             for (ident, export_name) in self.exported_idents.iter() {
                 if !self.config.is_react_server_layer {
                     let action_id =
@@ -1507,7 +1509,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             }));
                         new.push(export_expr);
                     }
-                } else {
+                } else if self.in_cache_file.is_none() {
                     self.annotations.push(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
                         expr: Box::new(annotate_ident_as_server_reference(
@@ -1526,51 +1528,54 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if self.config.is_react_server_layer {
                 new.append(&mut self.extra_items);
 
-                // Ensure that the exports are valid by appending a check
-                // import { ensureServerEntryExports } from 'private-next-rsc-action-validate'
-                // ensureServerEntryExports([action1, action2, ...])
-                let ensure_ident = private_ident!("ensureServerEntryExports");
-                new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    span: DUMMY_SP,
-                    specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                // For "use cache" files, there's no need to do extra annotations.
+                if self.in_cache_file.is_none() && !self.exported_idents.is_empty() {
+                    // Ensure that the exports are valid by appending a check
+                    // import { ensureServerEntryExports } from 'private-next-rsc-action-validate'
+                    // ensureServerEntryExports([action1, action2, ...])
+                    let ensure_ident = private_ident!("ensureServerEntryExports");
+                    new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                         span: DUMMY_SP,
-                        local: ensure_ident.clone(),
-                        imported: None,
-                        is_type_only: false,
-                    })],
-                    src: Box::new(Str {
+                        specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                            span: DUMMY_SP,
+                            local: ensure_ident.clone(),
+                            imported: None,
+                            is_type_only: false,
+                        })],
+                        src: Box::new(Str {
+                            span: DUMMY_SP,
+                            value: "private-next-rsc-action-validate".into(),
+                            raw: None,
+                        }),
+                        type_only: false,
+                        with: None,
+                        phase: Default::default(),
+                    })));
+                    new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
-                        value: "private-next-rsc-action-validate".into(),
-                        raw: None,
-                    }),
-                    type_only: false,
-                    with: None,
-                    phase: Default::default(),
-                })));
-                new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                    span: DUMMY_SP,
-                    expr: Box::new(Expr::Call(CallExpr {
-                        span: DUMMY_SP,
-                        callee: Callee::Expr(Box::new(Expr::Ident(ensure_ident))),
-                        args: vec![ExprOrSpread {
-                            spread: None,
-                            expr: Box::new(Expr::Array(ArrayLit {
-                                span: DUMMY_SP,
-                                elems: self
-                                    .exported_idents
-                                    .iter()
-                                    .map(|(ident, _span)| {
-                                        Some(ExprOrSpread {
-                                            spread: None,
-                                            expr: Box::new(Expr::Ident(ident.clone())),
+                        expr: Box::new(Expr::Call(CallExpr {
+                            span: DUMMY_SP,
+                            callee: Callee::Expr(Box::new(Expr::Ident(ensure_ident))),
+                            args: vec![ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Array(ArrayLit {
+                                    span: DUMMY_SP,
+                                    elems: self
+                                        .exported_idents
+                                        .iter()
+                                        .map(|(ident, _span)| {
+                                            Some(ExprOrSpread {
+                                                spread: None,
+                                                expr: Box::new(Expr::Ident(ident.clone())),
+                                            })
                                         })
-                                    })
-                                    .collect(),
-                            })),
-                        }],
-                        ..Default::default()
-                    })),
-                })));
+                                        .collect(),
+                                })),
+                            }],
+                            ..Default::default()
+                        })),
+                    })));
+                }
 
                 // Append annotations to the end of the file.
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
@@ -1606,7 +1611,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         // import { cache as $cache } from "private-next-rsc-cache-wrapper";
-        if self.has_cache {
+        if self.has_cache && self.config.is_react_server_layer {
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
                 specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {

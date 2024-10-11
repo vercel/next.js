@@ -1,18 +1,41 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, mem::take};
 
 use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use turbo_tasks::{util::SharedError, RawVc, TaskId};
 
 use crate::{
     backend::{
-        operation::{ExecuteContext, InvalidateOperation},
-        storage::get_many,
+        operation::{
+            invalidate::{make_task_dirty, make_task_dirty_internal},
+            AggregationUpdateQueue, ExecuteContext, Operation,
+        },
+        storage::{get, get_many},
         TaskDataCategory,
     },
-    data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, OutputValue},
+    data::{
+        CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, InProgressState,
+        OutputValue,
+    },
 };
 
-pub struct UpdateOutputOperation;
+#[derive(Serialize, Deserialize, Clone, Default)]
+pub enum UpdateOutputOperation {
+    MakeDependentTasksDirty {
+        dependent_tasks: Vec<TaskId>,
+        children: Vec<TaskId>,
+        queue: AggregationUpdateQueue,
+    },
+    EnsureUnfinishedChildrenDirty {
+        children: Vec<TaskId>,
+        queue: AggregationUpdateQueue,
+    },
+    AggregationUpdate {
+        queue: AggregationUpdateQueue,
+    },
+    #[default]
+    Done,
+}
 
 impl UpdateOutputOperation {
     pub fn run(
@@ -21,6 +44,10 @@ impl UpdateOutputOperation {
         mut ctx: ExecuteContext<'_>,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        if let Some(InProgressState::InProgress { stale: true, .. }) = get!(task, InProgress) {
+            // Skip updating the output when the task is stale
+            return;
+        }
         let old_error = task.remove(&CachedDataItemKey::Error {});
         let current_output = task.get(&CachedDataItemKey::Output {});
         let output_value = match output {
@@ -76,12 +103,69 @@ impl UpdateOutputOperation {
             value: output_value,
         });
 
-        let dependent = get_many!(task, OutputDependent { task } _value => task);
+        let dependent_tasks = get_many!(task, OutputDependent { task } => task);
+        let children = get_many!(task, Child { task } => task);
+
+        let mut queue = AggregationUpdateQueue::new();
+
+        make_task_dirty_internal(&mut task, task_id, false, &mut queue, &mut ctx);
 
         drop(task);
         drop(old_content);
         drop(old_error);
 
-        InvalidateOperation::run(dependent, ctx);
+        UpdateOutputOperation::MakeDependentTasksDirty {
+            dependent_tasks,
+            children,
+            queue,
+        }
+        .execute(&mut ctx);
+    }
+}
+
+impl Operation for UpdateOutputOperation {
+    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
+        loop {
+            ctx.operation_suspend_point(&self);
+            match self {
+                UpdateOutputOperation::MakeDependentTasksDirty {
+                    ref mut dependent_tasks,
+                    ref mut children,
+                    ref mut queue,
+                } => {
+                    if let Some(dependent_task_id) = dependent_tasks.pop() {
+                        make_task_dirty(dependent_task_id, queue, ctx);
+                    }
+                    if dependent_tasks.is_empty() {
+                        self = UpdateOutputOperation::EnsureUnfinishedChildrenDirty {
+                            children: take(children),
+                            queue: take(queue),
+                        };
+                    }
+                }
+                UpdateOutputOperation::EnsureUnfinishedChildrenDirty {
+                    ref mut children,
+                    ref mut queue,
+                } => {
+                    if let Some(child_id) = children.pop() {
+                        let mut child_task = ctx.task(child_id, TaskDataCategory::Data);
+                        if !child_task.has_key(&CachedDataItemKey::Output {}) {
+                            make_task_dirty_internal(&mut child_task, child_id, false, queue, ctx);
+                        }
+                    }
+                    if children.is_empty() {
+                        self = UpdateOutputOperation::AggregationUpdate { queue: take(queue) };
+                    }
+                }
+                UpdateOutputOperation::AggregationUpdate { ref mut queue } => {
+                    if queue.process(ctx) {
+                        self = UpdateOutputOperation::Done;
+                    }
+                }
+                UpdateOutputOperation::Done => {
+                    return;
+                }
+            }
+        }
     }
 }

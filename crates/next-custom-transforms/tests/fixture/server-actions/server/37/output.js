@@ -9,5 +9,3 @@ async function Component() {
     const data = await fn();
     return <div>{data}</div>;
 }
-import { ensureServerEntryExports } from "private-next-rsc-action-validate";
-ensureServerEntryExports([]);

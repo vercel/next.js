@@ -240,14 +240,16 @@ export function processIssues(
       continue
 
     const issueKey = getIssueKey(issue)
-    const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
 
     if (issue.severity !== 'warning') {
-      relevantIssues.add(formatted)
-
+      if (throwIssue) {
+        const formatted = formatIssue(issue)
+        relevantIssues.add(formatted)
+      }
       // if we throw the issue it will most likely get handed and logged elsewhere
-      if (logErrors && !throwIssue && isWellKnownError(issue)) {
+      else if (logErrors && isWellKnownError(issue)) {
+        const formatted = formatIssue(issue)
         Log.error(formatted)
       }
     }
@@ -1156,4 +1158,16 @@ export function normalizedPageToTurbopackStructureRoute(
     entrypointKey = entrypointKey + '/route'
   }
   return entrypointKey
+}
+
+export function isPersistentCachingEnabled(
+  config: NextConfigComplete
+): boolean {
+  const unstableValue = config.experimental.turbo?.unstablePersistentCaching
+  if (typeof unstableValue === 'number' && unstableValue > 1) {
+    throw new Error(
+      'Persistent caching in this version of Turbopack is not as stable as expected. Upgrade to a newer version of Turbopack to use this feature with the expected stability.'
+    )
+  }
+  return !!unstableValue
 }

@@ -238,6 +238,10 @@ where
         self.get_map(key).and_then(|m| m.get(key))
     }
 
+    pub fn get_mut(&mut self, key: &T::Key) -> Option<&mut T::Value> {
+        self.get_map_mut(key).get_mut(key)
+    }
+
     pub fn has_key(&self, key: &T::Key) -> bool {
         self.get_map(key)
             .map(|m| m.contains_key(key))
@@ -392,7 +396,9 @@ where
 
 macro_rules! get {
     ($task:ident, $key:ident $input:tt) => {
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
+        if let Some($crate::data::CachedDataItemValue::$key {
+            value,
+        }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
             Some(value)
         } else {
             None
@@ -403,42 +409,58 @@ macro_rules! get {
     };
 }
 
+macro_rules! get_mut {
+    ($task:ident, $key:ident $input:tt) => {
+        if let Some($crate::data::CachedDataItemValue::$key {
+            value,
+        }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input).as_mut() {
+            let () = $crate::data::allow_mut_access::$key;
+            Some(value)
+        } else {
+            None
+        }
+    };
+    ($task:ident, $key:ident) => {
+        $crate::backend::storage::get_mut!($task, $key {})
+    };
+}
+
+/// Creates an iterator over all [`CachedDataItemKey::$key`][crate::data::CachedDataItemKey]s in
+/// `$task` matching the given `$key_pattern`, optional `$value_pattern`, and optional `if $cond`.
+///
+/// Each element in the iterator is determined by `$iter_item`, which may use fields extracted by
+/// `$key_pattern` or `$value_pattern`.
 macro_rules! iter_many {
-    ($task:ident, $key:ident $input:tt => $value:ident) => {
+    ($task:ident, $key:ident $key_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {
         $task
             .iter($crate::data::indicies::$key)
-            .filter_map(|(key, _)| match *key {
-                $crate::data::CachedDataItemKey::$key $input => Some($value),
+            .filter_map(|(key, _)| match key {
+                &$crate::data::CachedDataItemKey::$key $key_pattern $(if $cond)? => Some(
+                    $iter_item
+                ),
                 _ => None,
             })
     };
-    ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
+    ($task:ident, $key:ident $input:tt $value_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {
         $task
             .iter($crate::data::indicies::$key)
             .filter_map(|(key, value)| match (key, value) {
-                (&$crate::data::CachedDataItemKey::$key $input, &$crate::data::CachedDataItemValue::$key { value: $value_ident }) => Some($value),
-                _ => None,
-            })
-    };
-    ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
-        $task
-            .iter($crate::data::indicies::$key)
-            .filter_map(|(key, value)| match (key, value) {
-                (&$crate::data::CachedDataItemKey::$key $input, &$crate::data::CachedDataItemValue::$key { value: $value_ident }) if $cond => Some($value),
+                (
+                    &$crate::data::CachedDataItemKey::$key $input,
+                    &$crate::data::CachedDataItemValue::$key { value: $value_pattern }
+                ) $(if $cond)? => Some($iter_item),
                 _ => None,
             })
     };
 }
 
+/// A thin wrapper around [`iter_many`] that calls [`Iterator::collect`].
+///
+/// Note that the return type of [`Iterator::collect`] may be ambiguous in certain contexts, so
+/// using this macro may require explicit type annotations on variables.
 macro_rules! get_many {
-    ($task:ident, $key:ident $input:tt => $value:ident) => {
-        $crate::backend::storage::iter_many!($task, $key $input => $value).collect()
-    };
-    ($task:ident, $key:ident $input:tt $value_ident:ident => $value:expr) => {
-        $crate::backend::storage::iter_many!($task, $key $input $value_ident => $value).collect()
-    };
-    ($task:ident, $key:ident $input:tt $value_ident:ident if $cond:expr => $value:expr) => {
-        $crate::backend::storage::iter_many!($task, $key $input $value_ident if $cond => $value).collect()
+    ($($args:tt)*) => {
+        $crate::backend::storage::iter_many!($($args)*).collect()
     };
 }
 
@@ -489,7 +511,9 @@ macro_rules! update_count {
 
 macro_rules! remove {
     ($task:ident, $key:ident $input:tt) => {
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(&$crate::data::CachedDataItemKey::$key $input) {
+        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(
+            &$crate::data::CachedDataItemKey::$key $input
+        ) {
             Some(value)
         } else {
             None
@@ -502,6 +526,7 @@ macro_rules! remove {
 
 pub(crate) use get;
 pub(crate) use get_many;
+pub(crate) use get_mut;
 pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;
