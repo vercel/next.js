@@ -92,7 +92,7 @@ export async function runUpgrade(
       {
         type: 'confirm',
         name: 'shouldStayOnReact18',
-        message: `Are you using ${pc.underline('Pages Router only')} (no App Router) and want to stay on React 18?`,
+        message: `Are you using ${pc.underline('only the Pages Router')} (no App Router) and prefer to stay on React 18?`,
         initial: false,
         active: 'Yes',
         inactive: 'No',
