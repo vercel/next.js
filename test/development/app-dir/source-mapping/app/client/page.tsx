@@ -1,14 +1,14 @@
 'use client'
 
 import { Form } from '../form'
-import { foo } from '../actions'
+import { bar } from '../actions'
 import Link from 'next/link'
 
 export default function Page() {
   return (
     <main>
       <h1>client component page</h1>
-      <Form action={foo} />
+      <Form action={bar} />
       <Link href="/">server component page</Link>
     </main>
   )
