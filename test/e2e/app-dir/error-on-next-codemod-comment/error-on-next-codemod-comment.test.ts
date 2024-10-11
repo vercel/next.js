@@ -34,13 +34,13 @@ describe('app-dir - error-on-next-codemod-comment', () => {
             4 | }
             5 |
 
-          You have unresolved @next/codemod comment "remove jsx of next line" that needs review.
+          You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.
           After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can be taken."
         `)
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/page.tsx
-          Error:   x You have unresolved @next/codemod comment "remove jsx of next line" that needs review.
+          Error:   x You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.
             | After review, either remove the comment if you made the necessary changes or replace "@next-codemod-error" with "@next-codemod-ignore" to bypass the build error if no action at this line can
             | be taken.
             | 
@@ -118,7 +118,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       const res = await next.build()
       expect(res.exitCode).toBe(1)
       expect(res.cliOutput).toContain(
-        'You have unresolved @next/codemod comment "remove jsx of next line" that need to be reviewed, please address and remove them to proceed with the build'
+        'You have an unresolved @next/codemod comment "remove jsx of next line" that needs review.'
       )
     })
   }
