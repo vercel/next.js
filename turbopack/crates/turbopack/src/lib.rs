@@ -264,6 +264,11 @@ async fn apply_module_type(
             source,
             Vc::upcast(module_asset_context),
             *ty,
+            module_asset_context
+                .module_options_context()
+                .await?
+                .css
+                .minify_type,
             *use_swc_css,
             if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
                 reference_type.into_value()

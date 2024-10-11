@@ -37,7 +37,7 @@ use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::ChunkingContext,
+    chunk::{ChunkingContext, MinifyType},
     issue::{
         Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
         StyledString,
@@ -111,6 +111,7 @@ impl StyleSheetLike<'_, '_> {
         &self,
         cm: Arc<swc_core::common::SourceMap>,
         code: &str,
+        minify_type: MinifyType,
         enable_srcmap: bool,
         remove_imports: bool,
         handle_nesting: bool,
@@ -360,7 +361,8 @@ pub async fn process_css_with_placeholder(
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
-            let (result, _) = stylesheet.to_css(cm.clone(), &code, false, false, false)?;
+            let (result, _) =
+                stylesheet.to_css(cm.clone(), &code, MinifyType::NoMinify, false, false, false)?;
 
             let exports = result.exports.map(|exports| {
                 let mut exports = exports.into_iter().collect::<IndexMap<_, _>>();
@@ -389,6 +391,7 @@ pub async fn process_css_with_placeholder(
 pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
+    minify_type: MinifyType,
 ) -> Result<Vc<FinalCssResult>> {
     let result = result.await?;
     match &*result {
@@ -427,7 +430,8 @@ pub async fn finalize_css(
                 FileContent::Content(v) => v.content().to_str()?,
                 _ => bail!("this case should be filtered out while parsing"),
             };
-            let (result, srcmap) = stylesheet.to_css(cm.clone(), &code, true, true, true)?;
+            let (result, srcmap) =
+                stylesheet.to_css(cm.clone(), &code, minify_type, true, true, true)?;
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
@@ -453,6 +457,7 @@ pub trait ProcessCss: ParseCss {
     async fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        minify_type: MinifyType,
     ) -> Result<Vc<FinalCssResult>>;
 }
 

@@ -2,7 +2,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, ValueDefault, Vc};
 use turbopack_core::{
-    condition::ContextCondition, environment::Environment, resolve::options::ImportMapping,
+    chunk::MinifyType, condition::ContextCondition, environment::Environment,
+    resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
 pub use turbopack_mdx::MdxTransformOptions;
@@ -172,6 +173,8 @@ pub struct CssOptionsContext {
     /// the module graph, but neither asset types can be emitted directly.
     pub enable_raw_css: bool,
     pub use_swc_css: bool,
+
+    pub minify_type: MinifyType,
 
     pub placeholder_for_future_extensions: (),
 }
