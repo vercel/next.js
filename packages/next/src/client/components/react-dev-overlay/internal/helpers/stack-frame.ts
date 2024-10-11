@@ -132,7 +132,7 @@ function formatFrameSourceFile(file: string) {
   if (file === '<anonymous>') return ''
 
   for (const regex of replacementRegExes) {
-    file = file.replace(regex, '').replace(/\?\d+/, '')
+    file = file.replace(regex, '')
   }
 
   return file
