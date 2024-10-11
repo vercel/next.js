@@ -2,6 +2,7 @@ import { RequestCookies } from '../cookies'
 import {
   ReadonlyRequestCookiesError,
   RequestCookiesAdapter,
+  MutableRequestCookiesAdapter,
 } from './request-cookies'
 
 describe('RequestCookiesAdapter', () => {
@@ -50,5 +51,52 @@ describe('RequestCookiesAdapter', () => {
     // Ensure nothing was actually changed.
     expect(sealed.get('foo')).toEqual(undefined)
     expect(sealed.get('bar')).toEqual(undefined)
+  })
+})
+
+describe('MutableRequestCookiesAdapter', () => {
+  it('supports chained set calls and preserves wrapping', () => {
+    const headers = new Headers({})
+    const underlyingCookies = new RequestCookies(headers)
+    const onUpdateCookies = jest.fn<void, [string[]]>()
+
+    const wrappedCookies = MutableRequestCookiesAdapter.wrap(
+      underlyingCookies,
+      onUpdateCookies
+    )
+
+    const returned = wrappedCookies.set('foo', '1').set('bar', '2')
+
+    expect(returned).toBe(wrappedCookies)
+    expect(onUpdateCookies).toHaveBeenCalledWith([
+      expect.stringContaining('foo=1'),
+    ])
+    expect(onUpdateCookies).toHaveBeenCalledWith([
+      expect.stringContaining('foo=1'),
+      expect.stringContaining('bar=2'),
+    ])
+  })
+
+  it('supports chained delete calls and preserves wrapping', () => {
+    const headers = new Headers({})
+    const underlyingCookies = new RequestCookies(headers)
+    underlyingCookies.set('foo', '1').set('bar', '2')
+
+    const onUpdateCookies = jest.fn<void, [string[]]>()
+    const wrappedCookies = MutableRequestCookiesAdapter.wrap(
+      underlyingCookies,
+      onUpdateCookies
+    )
+
+    const returned = wrappedCookies.delete('foo').delete('bar')
+
+    expect(returned).toBe(wrappedCookies)
+    expect(onUpdateCookies).toHaveBeenCalledWith([
+      expect.stringContaining('foo=;'),
+    ])
+    expect(onUpdateCookies).toHaveBeenCalledWith([
+      expect.stringContaining('foo=;'),
+      expect.stringContaining('bar=;'),
+    ])
   })
 })
