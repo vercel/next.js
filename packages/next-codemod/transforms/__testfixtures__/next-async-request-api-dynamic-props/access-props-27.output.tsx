@@ -35,3 +35,22 @@ export function PATCH(req, ctx) {
     { /* @next-codemod-ignore */ ...ctx }
   )
 }
+
+export function PUT(req, ctx) {
+  console.log(
+    {
+      // @next-codemod-ignore
+      ...ctx
+    }
+  )
+}
+
+export function OPTIONS(req, ctx) {
+  console.log(
+    {
+      /* @next-codemod-error 'ctx' is used with spread syntax (...). Any asynchronous properties of 'ctx' must be awaited when accessed. */
+      // @next-codemod-incorrect-ignore
+      ...ctx
+    }
+  )
+}
