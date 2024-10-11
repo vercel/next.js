@@ -41,7 +41,7 @@ import {
 } from '../../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
-  type WorkUnitStore,
+  type RequestStore,
   type PrerenderStore,
 } from '../../app-render/work-unit-async-storage.external'
 import {
@@ -276,7 +276,10 @@ export class AppRouteRouteModule extends RouteModule<
     handler: AppRouteHandlerFn,
     actionStore: ActionStore,
     workStore: WorkStore,
-    workUnitStore: WorkUnitStore,
+    // @TODO refactor to not take this argument but instead construct the RequestStore
+    // inside this function. Right now we get passed a RequestStore even when
+    // we're going to do a prerender. We should probably just split do up into prexecute and execute
+    requestStore: RequestStore,
     implicitTags: string[],
     request: NextRequest,
     context: AppRouteRouteHandlerContext
@@ -503,7 +506,12 @@ export class AppRouteRouteModule extends RouteModule<
           )
         }
       } else {
-        res = await handler(request, handlerContext)
+        res = await workUnitAsyncStorage.run(
+          requestStore,
+          handler,
+          request,
+          handlerContext
+        )
       }
     } catch (err) {
       if (isRedirectError(err)) {
@@ -518,8 +526,10 @@ export class AppRouteRouteModule extends RouteModule<
 
         // Let's append any cookies that were added by the
         // cookie API.
-        if (workUnitStore.type === 'request') {
-          appendMutableCookies(headers, workUnitStore.mutableCookies)
+        // TODO leaving the gate here b/c it indicates that we we might not actually want to do this
+        // on every `do` call. During prerender there should be no mutableCookies because
+        if (requestStore.type === 'request') {
+          appendMutableCookies(headers, requestStore.mutableCookies)
         }
 
         // Return the redirect response.
@@ -567,8 +577,8 @@ export class AppRouteRouteModule extends RouteModule<
     // here.
     const headers = new Headers(res.headers)
     if (
-      workUnitStore.type === 'request' &&
-      appendMutableCookies(headers, workUnitStore.mutableCookies)
+      requestStore.type === 'request' &&
+      appendMutableCookies(headers, requestStore.mutableCookies)
     ) {
       return new Response(res.body, {
         status: res.status,

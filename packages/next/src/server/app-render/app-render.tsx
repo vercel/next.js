@@ -1194,6 +1194,7 @@ async function renderToHTMLOrFlightImpl(
           const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
           res.statusCode = 404
           const stream = await renderToStreamWithTracing(
+            requestStore,
             req,
             res,
             ctx,
@@ -1219,6 +1220,7 @@ async function renderToHTMLOrFlightImpl(
     }
 
     const stream = await renderToStreamWithTracing(
+      requestStore,
       req,
       res,
       ctx,
@@ -1345,6 +1347,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 }
 
 async function renderToStream(
+  requestStore: RequestStore,
   req: BaseNextRequest,
   res: BaseNextResponse,
   ctx: AppRenderContext,
@@ -1435,9 +1438,17 @@ async function renderToStream(
 
   try {
     // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
-    const RSCPayload = await getRSCPayload(tree, ctx, res.statusCode === 404)
+    const RSCPayload = await workUnitAsyncStorage.run(
+      requestStore,
+      getRSCPayload,
+      tree,
+      ctx,
+      res.statusCode === 404
+    )
     reactServerResult = new ReactServerResult(
-      ComponentMod.renderToReadableStream(
+      workUnitAsyncStorage.run(
+        requestStore,
+        ComponentMod.renderToReadableStream,
         RSCPayload,
         clientReferenceManifest.clientModules,
         {
@@ -1475,7 +1486,9 @@ async function renderToStream(
         const resume = require('react-dom/server.edge')
           .resume as (typeof import('react-dom/server.edge'))['resume']
 
-        const htmlStream = await resume(
+        const htmlStream = await workUnitAsyncStorage.run(
+          requestStore,
+          resume,
           <App
             reactServerStream={reactServerResult.tee()}
             preinitScripts={preinitScripts}
@@ -1512,7 +1525,9 @@ async function renderToStream(
     const renderToReadableStream = require('react-dom/server.edge')
       .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
 
-    const htmlStream = await renderToReadableStream(
+    const htmlStream = await workUnitAsyncStorage.run(
+      requestStore,
+      renderToReadableStream,
       <App
         reactServerStream={reactServerResult.tee()}
         preinitScripts={preinitScripts}
@@ -1634,9 +1649,17 @@ async function renderToStream(
       '/_not-found/page'
     )
 
-    const errorRSCPayload = await getErrorRSCPayload(tree, ctx, errorType)
+    const errorRSCPayload = await workUnitAsyncStorage.run(
+      requestStore,
+      getErrorRSCPayload,
+      tree,
+      ctx,
+      errorType
+    )
 
-    const errorServerStream = ComponentMod.renderToReadableStream(
+    const errorServerStream = workUnitAsyncStorage.run(
+      requestStore,
+      ComponentMod.renderToReadableStream,
       errorRSCPayload,
       clientReferenceManifest.clientModules,
       {
@@ -1651,23 +1674,27 @@ async function renderToStream(
     }
 
     try {
-      const fizzStream = await renderToInitialFizzStream({
-        ReactDOMServer: require('react-dom/server.edge'),
-        element: (
-          <AppWithoutContext
-            reactServerStream={errorServerStream}
-            preinitScripts={errorPreinitScripts}
-            clientReferenceManifest={clientReferenceManifest}
-            nonce={ctx.nonce}
-          />
-        ),
-        streamOptions: {
-          nonce: ctx.nonce,
-          // Include hydration scripts in the HTML
-          bootstrapScripts: [errorBootstrapScript],
-          formState,
-        },
-      })
+      const fizzStream = await workUnitAsyncStorage.run(
+        requestStore,
+        renderToInitialFizzStream,
+        {
+          ReactDOMServer: require('react-dom/server.edge'),
+          element: (
+            <AppWithoutContext
+              reactServerStream={errorServerStream}
+              preinitScripts={errorPreinitScripts}
+              clientReferenceManifest={clientReferenceManifest}
+              nonce={ctx.nonce}
+            />
+          ),
+          streamOptions: {
+            nonce: ctx.nonce,
+            // Include hydration scripts in the HTML
+            bootstrapScripts: [errorBootstrapScript],
+            formState,
+          },
+        }
+      )
 
       /**
        * Rules of Static & Dynamic HTML:
