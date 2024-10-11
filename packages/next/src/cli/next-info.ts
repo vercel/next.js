@@ -82,7 +82,11 @@ function getBinaryVersion(binaryName: string) {
       .toString()
       .trim()
   } catch {
-    return 'N/A'
+    try {
+      return childProcess.execSync(`${binaryName} --version`).toString().trim()
+    } catch {
+      return 'N/A'
+    }
   }
 }
 
