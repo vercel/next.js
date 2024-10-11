@@ -86,12 +86,17 @@ async function readPartialManifest<T>(
   type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
 ): Promise<T> {
   const page = pageName
-
+  const isSitemapRoute = /[\\/]sitemap(.xml)?\/route$/.test(page)
   let manifestPath = getManifestPath(page, distDir, name, type)
+
+  // Check the ambiguity of /sitemap and /sitemap.xml
+  if (isSitemapRoute && !existsSync(manifestPath)) {
+    manifestPath = getManifestPath(pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route'), distDir, name, type)
+  }
   // existsSync is faster than using the async version
   if(!existsSync(manifestPath) && page.endsWith('/route')) {
     // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
-    let metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page.replace(/\/sitemap\/route$/, '/sitemap.xml/route'))))
+    let metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page)))
     manifestPath = getManifestPath(metadataPage, distDir, name, type)
   }
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
