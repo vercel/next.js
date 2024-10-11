@@ -7,9 +7,11 @@ import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { DevAppNormalizers } from '../../normalizers/built/app'
 import {
   isMetadataRoute,
+  isMetadataRouteFile,
   isStaticMetadataRoute,
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
+import path from '../../../shared/lib/isomorphic/path'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
   private readonly normalizers: {
@@ -17,6 +19,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     pathname: Normalizer
     bundlePath: Normalizer
   }
+  private readonly appDir: string
 
   constructor(
     appDir: string,
@@ -25,6 +28,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   ) {
     super(appDir, reader)
 
+    this.appDir = appDir
     this.normalizers = new DevAppNormalizers(appDir, extensions)
   }
 
@@ -43,8 +47,18 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
 
       const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
+      const ext = path.extname(filename).slice(1)
+      const isEntryMetadataRouteFile = isMetadataRouteFile(
+        filename.replace(this.appDir, ''),
+        [ext],
+        true
+      )
 
-      if (isMetadataRoute(page) && !isStaticMetadataRoute(page)) {
+      if (
+        isMetadataRoute(page) &&
+        !isStaticMetadataRoute(page) &&
+        isEntryMetadataRouteFile
+      ) {
         // Matching dynamic metadata routes.
         // Add 2 possibilities for both single and multiple routes:
         {
@@ -59,7 +73,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           const metadataBundlePath = normalizeMetadataPageToRoute(
             bundlePath,
             false
-          ) // this.normalizers.bundlePath.normalize(dummyFilename)
+          )
 
           const matcher = new AppRouteRouteMatcher({
             kind: RouteKind.APP_ROUTE,
