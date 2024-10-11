@@ -1436,7 +1436,7 @@ pub async fn url_resolve(
     request: Vc<Request>,
     reference_type: Value<ReferenceType>,
     issue_source: Option<Vc<IssueSource>>,
-    issue_severity: Vc<IssueSeverity>,
+    is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     let resolve_options = origin.resolve_options(reference_type.clone());
     let rel_request = request.as_relative();
@@ -1467,7 +1467,7 @@ pub async fn url_resolve(
         origin.origin_path(),
         request,
         resolve_options,
-        issue_severity,
+        is_optional,
         issue_source,
     )
     .await
@@ -1747,7 +1747,7 @@ async fn resolve_internal_inline(
                 let relative = Request::relative(Value::new(new_pat), *query, *fragment, true);
 
                 if !has_alias {
-                    ResolvingIssue {
+                    emit_issue(ResolvingIssue {
                         severity: IssueSeverity::Error.cell(),
                         request_type: "server relative import: not implemented yet".to_string(),
                         request,
@@ -1759,9 +1759,8 @@ async fn resolve_internal_inline(
                                 .to_string(),
                         ),
                         source: None,
-                    }
-                    .cell()
-                    .emit();
+                    })
+                    .await?;
                 }
 
                 Box::pin(resolve_internal_inline(
@@ -1777,7 +1776,7 @@ async fn resolve_internal_inline(
                 fragment: _,
             } => {
                 if !has_alias {
-                    ResolvingIssue {
+                    emit_issue(ResolvingIssue {
                         severity: IssueSeverity::Error.cell(),
                         request_type: "windows import: not implemented yet".to_string(),
                         request,
@@ -1785,9 +1784,8 @@ async fn resolve_internal_inline(
                         resolve_options: options,
                         error_message: Some("windows imports are not implemented yet".to_string()),
                         source: None,
-                    }
-                    .cell()
-                    .emit();
+                    })
+                    .await?;
                 }
 
                 ResolveResult::unresolveable().into()
@@ -1831,7 +1829,7 @@ async fn resolve_internal_inline(
             }
             Request::Unknown { path } => {
                 if !has_alias {
-                    ResolvingIssue {
+                    emit_issue(ResolvingIssue {
                         severity: IssueSeverity::Error.cell(),
                         request_type: format!("unknown import: `{}`", path),
                         request,
@@ -1839,9 +1837,8 @@ async fn resolve_internal_inline(
                         resolve_options: options,
                         error_message: None,
                         source: None,
-                    }
-                    .cell()
-                    .emit();
+                    })
+                    .await?;
                 }
                 ResolveResult::unresolveable().into()
             }
@@ -2236,7 +2233,7 @@ async fn apply_in_package(
             ));
         }
 
-        ResolvingIssue {
+        emit_issue(ResolvingIssue {
             severity: IssueSeverity::Error.cell(),
             file_path: *package_json_path,
             request_type: format!("alias field ({field})"),
@@ -2244,9 +2241,8 @@ async fn apply_in_package(
             resolve_options: options,
             error_message: Some(format!("invalid alias field value: {}", value)),
             source: None,
-        }
-        .cell()
-        .emit();
+        })
+        .await?;
 
         return Ok(Some(
             ResolveResult::unresolveable_with_affecting_sources(refs).cell(),
@@ -2678,7 +2674,7 @@ async fn resolve_package_internal_with_imports_field(
     };
     // https://github.com/nodejs/node/blob/1b177932/lib/internal/modules/esm/resolve.js#L615-L619
     if specifier == "#" || specifier.starts_with("#/") || specifier.ends_with('/') {
-        ResolvingIssue {
+        emit_issue(ResolvingIssue {
             severity: IssueSeverity::Error.cell(),
             file_path,
             request_type: format!("package imports request: `{specifier}`"),
@@ -2686,9 +2682,8 @@ async fn resolve_package_internal_with_imports_field(
             resolve_options,
             error_message: None,
             source: None,
-        }
-        .cell()
-        .emit();
+        })
+        .await?;
         return Ok(ResolveResult::unresolveable().into());
     }
 
@@ -2717,9 +2712,14 @@ pub async fn handle_resolve_error(
     origin_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    severity: Vc<IssueSeverity>,
+    is_optional: bool,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
+    let severity = if is_optional || resolve_options.await?.loose_errors {
+        IssueSeverity::Warning.cell()
+    } else {
+        IssueSeverity::Error.cell()
+    };
     async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
         Ok(*result.resolve().await?.is_unresolveable().await?)
     }
@@ -2759,9 +2759,14 @@ pub async fn handle_resolve_source_error(
     origin_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    severity: Vc<IssueSeverity>,
+    is_optional: bool,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ResolveResult>> {
+    let severity = if is_optional || resolve_options.await?.loose_errors {
+        IssueSeverity::Warning.cell()
+    } else {
+        IssueSeverity::Error.cell()
+    };
     async fn is_unresolveable(result: Vc<ResolveResult>) -> Result<bool> {
         Ok(*result.resolve().await?.is_unresolveable().await?)
     }
@@ -2836,6 +2841,16 @@ fn emit_unresolveable_issue(
     }
     .cell()
     .emit();
+}
+
+async fn emit_issue(mut issue: ResolvingIssue) -> Result<()> {
+    if !(*issue.severity.await? == IssueSeverity::Error
+        && issue.resolve_options.await?.loose_errors)
+    {
+        issue.severity = IssueSeverity::Warning.cell();
+    }
+    issue.cell().emit();
+    Ok(())
 }
 
 // TODO this should become a TaskInput instead of a Vc

@@ -22,13 +22,13 @@ use turbopack_core::{
         ChunkingContext,
     },
     ident::AssetIdent,
-    issue::{IssueSeverity, IssueSource},
+    issue::IssueSource,
     module::Module,
     reference::{ModuleReference, ModuleReferences},
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
     source::Source,
 };
-use turbopack_resolve::ecmascript::{cjs_resolve, try_to_severity};
+use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
     chunk::{
@@ -165,7 +165,7 @@ impl RequireContextMap {
         recursive: bool,
         filter: Vc<Regex>,
         issue_source: Option<Vc<IssueSource>>,
-        issue_severity: Vc<IssueSeverity>,
+        is_optional: bool,
     ) -> Result<Vc<Self>> {
         let origin_path = &*origin.origin_path().parent().await?;
 
@@ -176,7 +176,7 @@ impl RequireContextMap {
         for (context_relative, path) in list {
             if let Some(origin_relative) = origin_path.get_relative_path_to(&*path.await?) {
                 let request = Request::parse(Value::new(origin_relative.clone().into()));
-                let result = cjs_resolve(origin, request, issue_source, issue_severity);
+                let result = cjs_resolve(origin, request, issue_source, is_optional);
 
                 map.insert(
                     context_relative.clone(),
@@ -228,7 +228,7 @@ impl RequireContextAssetReference {
             include_subdirs,
             filter,
             issue_source,
-            try_to_severity(in_try),
+            in_try,
         );
         let inner = RequireContextAsset {
             source,

@@ -20,7 +20,6 @@ use turbopack_core::{
         EvaluatableAsset,
     },
     context::AssetContext,
-    issue::IssueSeverity,
     module::Module,
     output::OutputAssets,
     reference::primary_referenced_modules,
@@ -318,7 +317,7 @@ async fn build_dynamic_imports_map_for_module(
             )),
             Request::parse(Value::new(Pattern::Constant(import.clone()))),
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
-            IssueSeverity::Error.cell(),
+            false,
             None,
         )
         .first_module()
