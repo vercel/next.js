@@ -902,23 +902,19 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
                 entries[entryKey].status = BUILDING
-
                 if (isInstrumentation) {
                   const normalizedBundlePath = bundlePath.replace('src/', '')
-                  // Add instrumentation edge server entry when there's other edge server entries
-                  if (Object.keys(entrypoints).length > 0) {
-                    entrypoints[normalizedBundlePath] = finalizeEntrypoint({
-                      compilerType: COMPILER_NAMES.edgeServer,
-                      name: normalizedBundlePath,
-                      value: getInstrumentationEntry({
-                        absolutePagePath: entryData.absolutePagePath,
-                        isEdgeServer: true,
-                        isDev: true,
-                      }),
-                      isServerComponent: true,
-                      hasAppDir,
-                    })
-                  }
+                  entrypoints[normalizedBundlePath] = finalizeEntrypoint({
+                    compilerType: COMPILER_NAMES.edgeServer,
+                    name: normalizedBundlePath,
+                    value: getInstrumentationEntry({
+                      absolutePagePath: entryData.absolutePagePath,
+                      isEdgeServer: true,
+                      isDev: true,
+                    }),
+                    isServerComponent: true,
+                    hasAppDir,
+                  })
                   return
                 }
                 const appDirLoader = isAppPath

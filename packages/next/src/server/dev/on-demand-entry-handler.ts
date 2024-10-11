@@ -222,12 +222,27 @@ interface ChildEntry extends EntryType {
   absoluteEntryFilePath?: string
 }
 
+const entryState: Map<
+  string,
+  {
+    edgeServerCount: number
+  }
+> = new Map()
+
+// Ensure the entries are based on the dir path when there're multiple next instances in the same process
+const getEntryState = (dir: string) => {
+  dir = normalizeOutputPath(dir)
+  const state = entryState.get(dir) || { edgeServerCount: 0 }
+  entryState.set(dir, state)
+  return state
+}
+
 const entriesMap: Map<
   string,
   {
     /**
-     * The key composed of the compiler name and the page. For example:
-     * `edge-server/about`
+     * The key composed of the compiler name, page type and the page. For example:
+     * `edge-server@page@/about`
      */
     [entryName: string]: Entry | ChildEntry
   }
@@ -236,6 +251,7 @@ const entriesMap: Map<
 // remove /server from end of output for server compiler
 const normalizeOutputPath = (dir: string) => dir.replace(/[/\\]server$/, '')
 
+// Ensure the entries are based on the dir path when there're multiple next instances in the same process
 export const getEntries = (
   dir: string
 ): NonNullable<ReturnType<(typeof entriesMap)['get']>> => {
@@ -829,19 +845,25 @@ export function onDemandEntryHandler({
           }
         },
         onEdgeServer: () => {
+          const isInstrumentation = isInstrumentationHookFile(route.page)
+          const edgeState = getEntryState(multiCompiler.outputPath)
+
+          // If there's no existing edge server entry, we don't emit instrumentation entry
+          if (isInstrumentation && edgeState.edgeServerCount === 0) {
+            return
+          }
           added.set(
             COMPILER_NAMES.edgeServer,
             addEntry(COMPILER_NAMES.edgeServer)
           )
+          edgeState.edgeServerCount += 1
+
           const serverEntry = getEntryKey(
             COMPILER_NAMES.server,
             pageBundleType,
             route.page
           )
-          if (
-            curEntries[serverEntry] &&
-            !isInstrumentationHookFile(route.page)
-          ) {
+          if (curEntries[serverEntry] && !isInstrumentation) {
             // Runtime switched from server to edge
             delete curEntries[serverEntry]
           }
