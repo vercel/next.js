@@ -11,10 +11,10 @@ use crate::{
             },
             is_root_node, ExecuteContext, Operation,
         },
-        storage::get,
+        storage::{get, update},
         TaskDataCategory,
     },
-    data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey},
+    data::{CachedDataItem, CachedDataItemKey},
 };
 
 const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 2;
@@ -44,6 +44,13 @@ impl ConnectChildOperation {
             task: child_task_id,
             value: (),
         }) {
+            // Update the children count
+            let mut children_count = 0;
+            update!(parent_task, ChildrenCount, |count: Option<u32>| {
+                children_count = count.unwrap_or_default() + 1;
+                Some(children_count)
+            });
+
             // Update the task aggregation
             let mut queue = AggregationUpdateQueue::new();
 
@@ -54,16 +61,6 @@ impl ConnectChildOperation {
             let parent_aggregation = if is_root_node(current_parent_aggregation.base) {
                 u32::MAX
             } else {
-                let children_count = parent_task
-                    .iter(CachedDataItemIndex::Children)
-                    .filter(|(k, _)| {
-                        matches!(
-                            *k,
-                            CachedDataItemKey::Child { .. }
-                                | CachedDataItemKey::OutdatedChild { .. }
-                        )
-                    })
-                    .count();
                 let target_distance = children_count.ilog2() * 2;
                 if target_distance != current_parent_aggregation.distance {
                     queue.push(AggregationUpdateJob::UpdateAggregationNumber {
