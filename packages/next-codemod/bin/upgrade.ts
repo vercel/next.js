@@ -1,8 +1,9 @@
 import prompts from 'prompts'
 import fs from 'fs'
+import semver from 'semver'
+import compareVersions from 'semver/functions/compare'
 import { execSync } from 'child_process'
 import path from 'path'
-import { compareVersions } from 'compare-versions'
 import pc from 'picocolors'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { runTransform } from './transform'
@@ -306,9 +307,29 @@ async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string
 ): Promise<string[]> {
+  // Here we suggest pre-released codemods by their "stable" version.
+  // It is because if we suggest by the version range (installed ~ target),
+  // pre-released codemods for the target version are not suggested when upgrading.
+
+  // Let's say we have a codemod for v15.0.0-canary.x, and we're upgrading from
+  // v15.x -> v15.x. Our initial version is higher than the codemod's version,
+  // so the codemod will not be suggested.
+
+  // This is not ideal as the codemods for pre-releases are also targeting the major version.
+  // Also, when the user attempts to run the upgrade command twice, and have installed the
+  // target version, the behavior must be idempotent and suggest the codemods including the
+  // pre-releases of the target version.
+  const initial = semver.parse(initialNextVersion)
   const initialVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
-    (versionCodemods) =>
-      compareVersions(versionCodemods.version, initialNextVersion) > 0
+    (versionCodemods) => {
+      const codemod = semver.parse(versionCodemods.version)
+      return (
+        compareVersions(
+          `${codemod.major}.${codemod.minor}.${codemod.patch}`,
+          `${initial.major}.${initial.minor}.${initial.patch}`
+        ) >= 0
+      )
+    }
   )
   if (initialVersionIndex === -1) {
     return []
