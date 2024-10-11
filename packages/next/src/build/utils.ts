@@ -745,9 +745,8 @@ export async function printTreeView(
     })
   )
 
-  const staticFunctionInfo = lists.app && stats.router.app
-    ? 'generateStaticParams'
-    : 'getStaticProps'
+  const staticFunctionInfo =
+    lists.app && stats.router.app ? 'generateStaticParams' : 'getStaticProps'
   print()
   print(
     textTable(
