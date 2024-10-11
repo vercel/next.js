@@ -605,6 +605,9 @@ importers:
 
   bench/basic-app:
     dependencies:
+      keyv:
+        specifier: 3.1.0
+        version: 3.1.0
       next:
         specifier: workspace:*
         version: link:../../packages/next

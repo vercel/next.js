@@ -67,7 +67,7 @@ pub enum ModuleResolveResultItem {
         /// uri, path, reference, etc.
         name: RcStr,
         typ: ExternalType,
-        source: Option<Vc<Box<dyn OutputAsset>>>,
+        module: Option<Box<ModuleResolveResultItem>>,
     },
     Ignore,
     Error(Vc<RcStr>),
@@ -702,21 +702,15 @@ impl ResolveResult {
                         Ok((
                             request,
                             match item {
-                                ResolveResultItem::Source(source)
-                                | ResolveResultItem::External {
-                                    source: Some(source),
-                                    ..
-                                } => asset_fn(source).await?,
-                                ResolveResultItem::External {
-                                    name,
-                                    typ,
-                                    source: None,
-                                } => {
-                                    println!("external: {name} {typ:?} no source");
+                                ResolveResultItem::Source(source) => asset_fn(source).await?,
+                                ResolveResultItem::External { name, typ, source } => {
                                     ModuleResolveResultItem::External {
                                         name,
                                         typ,
-                                        source: None,
+                                        module: match source {
+                                            Some(source) => Some(Box::new(asset_fn(source).await?)),
+                                            None => None,
+                                        },
                                     }
                                 }
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,

@@ -3,14 +3,18 @@ use std::{fmt::Display, io::Write};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
-use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder, FileContent, FileSystem, VirtualFileSystem};
+use turbo_tasks_fs::{
+    glob::Glob, rope::RopeBuilder, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
+};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
-    module::Module,
-    output::OutputAsset,
-    reference::ModuleReferences,
+    module::{Module, OptionModule},
+    output::{OutputAsset, OutputAssets},
+    reference::{
+        referenced_modules_and_affecting_sources, ModuleReferences, SingleOutputAssetReference,
+    },
 };
 
 use crate::{
@@ -51,7 +55,7 @@ impl Display for CachedExternalType {
 pub struct CachedExternalModule {
     pub request: RcStr,
     pub external_type: CachedExternalType,
-    pub source: Option<Vc<Box<dyn OutputAsset>>>,
+    pub module: Vc<OptionModule>,
 }
 
 #[turbo_tasks::value_impl]
@@ -60,12 +64,12 @@ impl CachedExternalModule {
     pub fn new(
         request: RcStr,
         external_type: CachedExternalType,
-        source: Option<Vc<Box<dyn OutputAsset>>>,
+        module: Vc<OptionModule>,
     ) -> Vc<Self> {
         Self::cell(CachedExternalModule {
             request,
             external_type,
-            source,
+            module,
         })
     }
 
@@ -109,12 +113,6 @@ impl Module for CachedExternalModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         let fs = VirtualFileSystem::new_with_name("externals".into());
-
-        if let Some(asset) = self.source {
-            println!("external {}: {:?}", self.request, asset);
-        } else {
-            println!("external {}: none", self.request);
-        }
 
         AssetIdent::from_path(fs.root().join(self.request.clone()))
             .with_layer(layer())
@@ -200,8 +198,22 @@ impl ChunkItem for CachedExternalModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        if let Some(module) = &*self.module.await?.module.await? {
+            // println!(
+            //     "CachedExternalModuleChunkItem::references() {}",
+            //     module.ident().to_string().await?
+            // );
+            let mut module_references = self.module.references().await?.clone_value();
+            module_references.push(Vc::upcast(SingleOutputAssetReference::new(
+                Vc::upcast(MyRebasedAsset::new_external(*module)),
+                Vc::cell("module".into()),
+            )));
+            Ok(Vc::cell(module_references))
+        } else {
+            // println!("CachedExternalModuleChunkItem::references() none",);
+            Ok(self.module.references())
+        }
     }
 
     #[turbo_tasks::function]
@@ -287,5 +299,82 @@ impl Module for IncludeIdentModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.ident
+    }
+}
+
+// TODO put this someplace better
+
+/// Converts a [Module] graph into an [OutputAsset] graph by placing it into a
+/// different directory.
+#[turbo_tasks::value]
+#[derive(Hash)]
+pub struct MyRebasedAsset {
+    source: Vc<Box<dyn Module>>,
+    input_dir: Vc<FileSystemPath>,
+    output_dir: Vc<FileSystemPath>,
+}
+
+#[turbo_tasks::function]
+fn external_fs() -> Vc<VirtualFileSystem> {
+    VirtualFileSystem::new_with_name("externals".into())
+}
+
+#[turbo_tasks::value_impl]
+impl MyRebasedAsset {
+    #[turbo_tasks::function]
+    pub fn new(
+        source: Vc<Box<dyn Module>>,
+        input_dir: Vc<FileSystemPath>,
+        output_dir: Vc<FileSystemPath>,
+    ) -> Vc<Self> {
+        Self::cell(MyRebasedAsset {
+            source,
+            input_dir,
+            output_dir,
+        })
+    }
+    #[turbo_tasks::function]
+    pub fn new_external(source: Vc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(MyRebasedAsset {
+            source,
+            input_dir: source.ident().path().root(),
+            output_dir: external_fs().root(),
+        })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for MyRebasedAsset {
+    #[turbo_tasks::function]
+    fn ident(&self) -> Vc<AssetIdent> {
+        AssetIdent::from_path(FileSystemPath::rebase(
+            self.source.ident().path(),
+            self.input_dir,
+            self.output_dir,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        let mut references = Vec::new();
+        for &module in referenced_modules_and_affecting_sources(self.source, true)
+            .await?
+            .iter()
+        {
+            references.push(Vc::upcast(MyRebasedAsset::new(
+                module,
+                self.input_dir,
+                self.output_dir,
+            )));
+        }
+        Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for MyRebasedAsset {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        self.source.content()
     }
 }

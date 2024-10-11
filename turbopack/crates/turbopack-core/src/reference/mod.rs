@@ -12,7 +12,7 @@ use crate::{
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_module::RawModule,
-    resolve::{ModuleResolveResult, RequestKey},
+    resolve::{ModuleResolveResult, ModuleResolveResultItem, RequestKey},
 };
 pub mod source_map;
 
@@ -148,7 +148,7 @@ impl SingleOutputAssetReference {
 #[turbo_tasks::function]
 pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
-    externals_only: bool,
+    include_externals: bool,
 ) -> Result<Vc<Modules>> {
     let references_set = module.references().await?;
     let mut modules = IndexSet::new();
@@ -158,8 +158,25 @@ pub async fn referenced_modules_and_affecting_sources(
         .try_join()
         .await?;
     for resolve_result in resolve_results {
-        // TODO filter out non externals here
-        modules.extend(resolve_result.primary_modules_iter());
+        modules.extend(
+            resolve_result
+                .primary
+                .iter()
+                .filter_map(|(_, item)| match item {
+                    // ModuleResolveResultItem::External {
+                    //     module: Some(module),
+                    //     ..
+                    // } if include_externals => {
+                    //     if let ModuleResolveResultItem::Module(module) = &**module {
+                    //         Some(*module)
+                    //     } else {
+                    //         None
+                    //     }
+                    // }
+                    ModuleResolveResultItem::Module(module) => Some(*module),
+                    _ => None,
+                }),
+        );
         modules.extend(
             resolve_result
                 .affecting_sources_iter()

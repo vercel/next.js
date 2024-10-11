@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "next": "workspace:*"
+    "next": "workspace:*",
+    "keyv": "3.1.0"
   }
 }

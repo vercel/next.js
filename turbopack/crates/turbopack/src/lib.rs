@@ -913,7 +913,7 @@ pub async fn replace_externals(
         let ModuleResolveResultItem::External {
             name: request,
             typ,
-            source,
+            module,
         } = item
         else {
             continue;
@@ -934,9 +934,25 @@ pub async fn replace_externals(
             }
         };
 
-        let module = CachedExternalModule::new(request.clone(), external_type, source.clone())
-            .resolve()
-            .await?;
+        println!(
+            "CachedExternalModule::new {:?} {:?} {:?}",
+            request,
+            typ,
+            module.is_some()
+        );
+        let module = CachedExternalModule::new(
+            request.clone(),
+            external_type,
+            Vc::cell(match module {
+                Some(module) => match &**module {
+                    ModuleResolveResultItem::Module(module) => Some(*module),
+                    _ => None,
+                },
+                None => None,
+            }),
+        )
+        .resolve()
+        .await?;
 
         *item = ModuleResolveResultItem::Module(Vc::upcast(module));
     }
