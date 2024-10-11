@@ -21,6 +21,7 @@ import {
   getVariableDeclaratorId,
   NEXTJS_ENTRY_FILES,
 } from './utils'
+import { createParserFromPath } from '../../../lib/parser'
 
 const PAGE_PROPS = 'props'
 
@@ -348,7 +349,7 @@ function modifyTypes(
 
 export function transformDynamicProps(
   source: string,
-  api: API,
+  _api: API,
   filePath: string
 ) {
   const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
@@ -358,7 +359,7 @@ export function transformDynamicProps(
 
   let modified = false
   let modifiedPropArgument = false
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(filePath)
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false

@@ -11,6 +11,7 @@ import {
   insertCommentOnce,
   NEXTJS_ENTRY_FILES,
 } from './utils'
+import { createParserFromPath } from '../../../lib/parser'
 
 const DYNAMIC_IMPORT_WARN_COMMENT = ` Next.js Dynamic Async API Codemod: The APIs under 'next/headers' are async now, need to be manually awaited. `
 
@@ -42,11 +43,11 @@ function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
 
 export function transformDynamicAPI(
   source: string,
-  api: API,
+  _api: API,
   filePath: string
 ) {
   const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(filePath)
   const root = j(source)
   let modified = false
 
