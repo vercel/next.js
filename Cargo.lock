@@ -5030,7 +5030,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf741fa415952eb20f27fbc210dc85f31cc7cdc80aa3ce81d5e27d28a6f45dc2"
 dependencies = [
  "byteorder",
- "half 2.4.1",
+ "half",
  "serde",
 ]
 
@@ -8620,7 +8620,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "byteorder",
- "dashmap",
+ "dashmap 5.5.3",
  "either",
  "hashbrown 0.14.5",
  "indexmap 1.9.3",
