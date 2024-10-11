@@ -20,7 +20,7 @@ const { getTestFilter } = require('./test/get-test-filter')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-70fb1363-20241010";
+const supportedReact19Version = "19.0.0-rc-70fb1363-20241010";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -412,8 +412,11 @@ ${ENDGROUP}`)
     // a starter Next.js install to re-use to speed up tests to avoid having to
     // run `pnpm install` each time.
     console.log(`${GROUP}Creating shared Next.js install`)
+    const specifiedReactVersion = process.env.NEXT_TEST_REACT_VERSION
     const reactVersion =
-      process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
+      specifiedReactVersion === '19' || !specifiedReactVersion
+        ? supportedReact19Version
+        : specifiedReactVersion
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {

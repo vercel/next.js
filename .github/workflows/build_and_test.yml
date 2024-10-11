@@ -206,8 +206,7 @@ jobs:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
-        # Empty value uses default
-        react: ['', '18.3.1']
+        react: ['19', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1  NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
@@ -226,8 +225,11 @@ jobs:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
-        # Empty value uses default
-        react: ['']
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.include:
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimensions until we can figure out a way to test multiple React versions.
+        react: ['19']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -247,12 +249,7 @@ jobs:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
-        # Empty value uses default
-        # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.include:
-        # We can't easily switch like we do for e2e tests.
-        # Skipping this dimensions until we can figure out a way to test multiple React versions.
-        react: ['', '18.3.1']
+        react: ['19', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -385,8 +382,7 @@ jobs:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/4, 2/4, 3/4, 4/4]
-        # Empty value uses default
-        react: ['', '18.3.1']
+        react: ['19', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
@@ -405,8 +401,7 @@ jobs:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
-        # Empty value uses default
-        react: ['', '18.3.1']
+        react: ['19', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
@@ -435,11 +430,11 @@ jobs:
           - 11/12
           - 12/12
           # Empty value uses default
-          # TODO: Run with React 18.
-          # Integration tests use the installed React version in next/package.json.include:
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.include:
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimensions until we can figure out a way to test multiple React versions.
-        react: ['']
+        react: ['19']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2

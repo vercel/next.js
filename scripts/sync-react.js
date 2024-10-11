@@ -307,8 +307,8 @@ Or, run this command with no arguments to use the most recently published versio
     const filePath = path.join(cwd, fileName)
     const previousSource = await fsp.readFile(filePath, 'utf-8')
     const updatedSource = previousSource.replace(
-      `const nextjsReactPeerVersion = "${baseVersionStr}";`,
-      `const nextjsReactPeerVersion = "${newVersionStr}";`
+      `const supportedReact19Version = "${baseVersionStr}";`,
+      `const supportedReact19Version = "${newVersionStr}";`
     )
     if (updatedSource === previousSource) {
       errors.push(
