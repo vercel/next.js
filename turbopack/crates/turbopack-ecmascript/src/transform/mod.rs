@@ -220,9 +220,8 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::CommonJs => {
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
-                program.visit_mut_with(&mut swc_core::ecma::transforms::module::common_js::<
-                    &dyn Comments,
-                >(
+                program.visit_mut_with(&mut swc_core::ecma::transforms::module::common_js(
+                    swc_core::ecma::transforms::module::path::Resolver::Default,
                     unresolved_mark,
                     swc_core::ecma::transforms::module::util::Config {
                         allow_top_level_this: true,
@@ -232,7 +231,6 @@ impl EcmascriptInputTransform {
                         ..Default::default()
                     },
                     swc_core::ecma::transforms::base::feature::FeatureFlag::all(),
-                    Some(&comments),
                 ));
             }
             EcmascriptInputTransform::PresetEnv(env) => {
