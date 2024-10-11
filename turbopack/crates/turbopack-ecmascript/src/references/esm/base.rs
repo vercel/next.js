@@ -43,6 +43,7 @@ pub enum ReferencedAsset {
     Some(Vc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
     None,
+    Unresolveable,
 }
 
 impl ReferencedAsset {
@@ -52,7 +53,7 @@ impl ReferencedAsset {
             ReferencedAsset::External(request, ty) => Some(magic_identifier::mangle(&format!(
                 "{ty} external {request}"
             ))),
-            ReferencedAsset::None => None,
+            ReferencedAsset::None | ReferencedAsset::Unresolveable => None,
         })
     }
 
@@ -72,7 +73,11 @@ impl ReferencedAsset {
     #[turbo_tasks::function]
     pub async fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Vc<Self>> {
         // TODO handle multiple keyed results
-        for (_key, result) in resolve_result.await?.primary.iter() {
+        let result = resolve_result.await?;
+        if result.primary.is_empty() {
+            return Ok(ReferencedAsset::Unresolveable.cell());
+        }
+        for (_key, result) in result.primary.iter() {
             match result {
                 ModuleResolveResultItem::External(request, ty) => {
                     return Ok(ReferencedAsset::External(request.clone(), *ty).cell());
@@ -82,14 +87,14 @@ impl ReferencedAsset {
                         Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
                             .await?
                     {
-                        return Ok(ReferencedAsset::cell(ReferencedAsset::Some(placeable)));
+                        return Ok(ReferencedAsset::Some(placeable).cell());
                     }
                 }
                 // TODO ignore should probably be handled differently
                 _ => {}
             }
         }
-        Ok(ReferencedAsset::cell(ReferencedAsset::None))
+        Ok(ReferencedAsset::None.cell())
     }
 }
 
@@ -244,25 +249,9 @@ impl CodeGenerateable for EsmAssetReference {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let this = &*self.await?;
-        let chunking_type = self.chunking_type().await?;
-        let resolved = self.resolve_reference().await?;
-
-        // Insert code that throws immediately at time of import if a request is
-        // unresolvable
-        if resolved.is_unresolveable_ref() {
-            let request = request_to_string(this.request).await?.to_string();
-            let stmt = Stmt::Expr(ExprStmt {
-                expr: Box::new(throw_module_not_found_expr(&request)),
-                span: DUMMY_SP,
-            });
-            return Ok(CodeGeneration::hoisted_stmt(
-                format!("throw {request}").into(),
-                stmt,
-            ));
-        }
 
         // only chunked references can be imported
-        let result = if chunking_type.is_some() {
+        let result = if this.annotations.chunking_type() != Some("none") {
             let referenced_asset = self.get_referenced_asset().await?;
             let import_externals = this.import_externals;
             if let Some(ident) = referenced_asset.get_ident().await? {
@@ -275,6 +264,16 @@ impl CodeGenerateable for EsmAssetReference {
                         Span::new(BytePos(start as u32), BytePos(end as u32))
                     });
                 match &*referenced_asset {
+                    ReferencedAsset::Unresolveable => {
+                        // Insert code that throws immediately at time of import if a request is
+                        // unresolvable
+                        let request = request_to_string(this.request).await?.to_string();
+                        let stmt = Stmt::Expr(ExprStmt {
+                            expr: Box::new(throw_module_not_found_expr(&request)),
+                            span: DUMMY_SP,
+                        });
+                        Some((format!("throw {request}").into(), stmt))
+                    }
                     ReferencedAsset::Some(asset) => {
                         let id = asset
                             .as_chunk_item(Vc::upcast(chunking_context))
