@@ -464,7 +464,7 @@ pub(super) async fn split(
             ..
         } => {
             // If the script file is a common js file, we cannot split the module
-            if util::should_skip_tree_shaking(program, &special_exports.await?) {
+            if util::should_skip_tree_shaking(program, &[]) {
                 return Ok(SplitResult::Failed {
                     parse_result: parsed,
                 }
