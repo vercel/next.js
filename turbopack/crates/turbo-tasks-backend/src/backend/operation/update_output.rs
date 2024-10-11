@@ -103,8 +103,8 @@ impl UpdateOutputOperation {
             value: output_value,
         });
 
-        let dependent_tasks = get_many!(task, OutputDependent { task } => task);
-        let children = get_many!(task, Child { task } => task);
+        let dependent_tasks = get_many!(task, OutputDependent { task } => *task);
+        let children = get_many!(task, Child { task } => *task);
 
         let mut queue = AggregationUpdateQueue::new();
 

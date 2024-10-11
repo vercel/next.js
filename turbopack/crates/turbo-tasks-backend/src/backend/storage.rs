@@ -435,7 +435,7 @@ macro_rules! iter_many {
         $task
             .iter($crate::data::indicies::$key)
             .filter_map(|(key, _)| match key {
-                &$crate::data::CachedDataItemKey::$key $key_pattern $(if $cond)? => Some(
+                $crate::data::CachedDataItemKey::$key $key_pattern $(if $cond)? => Some(
                     $iter_item
                 ),
                 _ => None,
@@ -446,8 +446,8 @@ macro_rules! iter_many {
             .iter($crate::data::indicies::$key)
             .filter_map(|(key, value)| match (key, value) {
                 (
-                    &$crate::data::CachedDataItemKey::$key $input,
-                    &$crate::data::CachedDataItemValue::$key { value: $value_pattern }
+                    $crate::data::CachedDataItemKey::$key $input,
+                    $crate::data::CachedDataItemValue::$key { value: $value_pattern }
                 ) $(if $cond)? => Some($iter_item),
                 _ => None,
             })

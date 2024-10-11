@@ -108,13 +108,18 @@ fn add_with_diff(v: &mut i32, u: i32) -> i32 {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+/// Represents a count of dirty containers. Since dirtyness can be session dependent, there might be
+/// a different count for a specific session. It only need to store the highest session count, since
+/// old sessions can't be visited again, so we can ignore their counts.
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DirtyContainerCount {
     pub count: i32,
     pub count_in_session: Option<(SessionId, i32)>,
 }
 
 impl DirtyContainerCount {
+    /// Get the count for a specific session. It's only expected to be asked for the current
+    /// session, since old session counts might be dropped.
     pub fn get(&self, session: SessionId) -> i32 {
         if let Some((s, count)) = self.count_in_session {
             if s == session {
@@ -124,6 +129,7 @@ impl DirtyContainerCount {
         self.count
     }
 
+    /// Increase/decrease the count by the given value.
     pub fn update(&mut self, count: i32) -> DirtyContainerCount {
         self.update_count(&DirtyContainerCount {
             count,
@@ -131,6 +137,8 @@ impl DirtyContainerCount {
         })
     }
 
+    /// Increase/decrease the count by the given value, but does not update the count for a specific
+    /// session. This matches the "dirty, but clean in one session" behavior.
     pub fn update_session_dependent(
         &mut self,
         ignore_session: SessionId,
@@ -142,6 +150,10 @@ impl DirtyContainerCount {
         })
     }
 
+    /// Adds the `count` to the current count. This correctly handles session dependent counts.
+    /// Returns a new count object that represents the aggregated count. The aggregated count will
+    /// be +1 when the self count changes from <= 0 to > 0 and -1 when the self count changes from >
+    /// 0 to <= 0. The same for the session dependent count.
     pub fn update_count(&mut self, count: &DirtyContainerCount) -> DirtyContainerCount {
         let mut diff = DirtyContainerCount::default();
         match (
@@ -181,6 +193,7 @@ impl DirtyContainerCount {
         diff
     }
 
+    /// Applies a dirty state to the count. Returns an aggregated count that represents the change.
     pub fn update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
         if let Some(clean_in_session) = dirty.clean_in_session {
             self.update_session_dependent(clean_in_session, 1)
@@ -189,6 +202,8 @@ impl DirtyContainerCount {
         }
     }
 
+    /// Undoes the effect of a dirty state on the count. Returns an aggregated count that represents
+    /// the change.
     pub fn undo_update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
         if let Some(clean_in_session) = dirty.clean_in_session {
             self.update_session_dependent(clean_in_session, -1)
@@ -197,6 +212,8 @@ impl DirtyContainerCount {
         }
     }
 
+    /// Replaces the old dirty state with the new one. Returns an aggregated count that represents
+    /// the change.
     pub fn replace_dirty_state(
         &mut self,
         old: &DirtyState,
@@ -207,11 +224,13 @@ impl DirtyContainerCount {
         diff
     }
 
-    pub fn is_default(&self) -> bool {
+    /// Returns true if the count is zero and appling it would have no effect
+    pub fn is_zero(&self) -> bool {
         self.count == 0 && self.count_in_session.map(|(_, c)| c == 0).unwrap_or(true)
     }
 
-    pub fn invert(&self) -> Self {
+    /// Negates the counts.
+    pub fn negate(&self) -> Self {
         Self {
             count: -self.count,
             count_in_session: self.count_in_session.map(|(s, c)| (s, -c)),
