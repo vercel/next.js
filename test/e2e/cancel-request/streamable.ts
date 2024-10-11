@@ -5,15 +5,22 @@ export function Streamable(write: number) {
   const cleanedUp = new Deferred()
   const aborted = new Deferred()
   let i = 0
+  let startedConsuming = false
 
   const streamable = {
     finished: Promise.all([cleanedUp.promise, aborted.promise]).then(() => i),
 
     abort() {
       aborted.resolve()
+
+      if (!startedConsuming) {
+        cleanedUp.resolve()
+      }
     },
     stream: new ReadableStream({
       async pull(controller) {
+        startedConsuming = true
+
         if (i >= write) {
           return
         }
