@@ -83,12 +83,6 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     version: '13.0',
   },
   {
-    title:
-      'Transform App Router Route Segment Config `runtime` value from `experimental-edge` to `edge`',
-    value: 'app-dir-runtime-config-experimental-edge',
-    version: '13.1.2',
-  },
-  {
     title: 'Uninstall `@next/font` and transform imports to `next/font`',
     value: 'built-in-next-font',
     version: '13.2',
@@ -121,5 +115,11 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     title: 'Transforms usage of Next.js async Request APIs',
     value: 'next-async-request-api',
     version: '15.0.0-canary.171',
+  },
+  {
+    title:
+      'Transform App Router Route Segment Config `runtime` value from `experimental-edge` to `edge`',
+    value: 'app-dir-runtime-config-experimental-edge',
+    version: '15.0.0-canary.179',
   },
 ]

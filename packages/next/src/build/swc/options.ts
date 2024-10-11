@@ -215,6 +215,7 @@ function getBaseSWCOptions({
     // For app router we prefer to bundle ESM,
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
+    lintCodemodComments: true,
   }
 }
 

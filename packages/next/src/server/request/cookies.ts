@@ -162,7 +162,10 @@ function makeDynamicallyTrackedExoticCookies(
     return cachedPromise
   }
 
-  const promise = makeHangingPromise<ReadonlyRequestCookies>()
+  const promise = makeHangingPromise<ReadonlyRequestCookies>(
+    prerenderStore.renderSignal,
+    '`cookies()`'
+  )
   CachedCookies.set(prerenderStore, promise)
 
   Object.defineProperties(promise, {

@@ -469,12 +469,17 @@ function processReply(
     pendingParts = 0,
     formData = null,
     writtenObjects = new WeakMap(),
-    modelRoot = root;
-  root = serializeModel(root, 0);
+    modelRoot = root,
+    json = serializeModel(root, 0);
   null === formData
-    ? resolve(root)
-    : (formData.set(formFieldPrefix + "0", root),
+    ? resolve(json)
+    : (formData.set(formFieldPrefix + "0", json),
       0 === pendingParts && resolve(formData));
+  return function () {
+    0 < pendingParts &&
+      ((pendingParts = 0),
+      null === formData ? resolve(json) : resolve(formData));
+  };
 }
 var boundCache = new WeakMap();
 function encodeFormData(reference) {
@@ -1044,6 +1049,8 @@ function parseModelString(response, parentObject, key, value) {
           (value = value.slice(2)),
           getOutlinedModel(response, value, parentObject, key, createFormData)
         );
+      case "Z":
+        return resolveErrorProd();
       case "i":
         return (
           (value = value.slice(2)),
@@ -1322,6 +1329,13 @@ function startAsyncIterable(response, id, iterator) {
     }
   );
 }
+function resolveErrorProd() {
+  var error = Error(
+    "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
+  );
+  error.stack = "Error: " + error.message;
+  return error;
+}
 function mergeBuffer(buffer, lastChunk) {
   for (var l = buffer.length, byteLength = lastChunk.length, i = 0; i < l; i++)
     byteLength += buffer[i].byteLength;
@@ -1457,12 +1471,9 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
       }
       break;
     case 69:
-      tag = JSON.parse(buffer).digest;
-      buffer = Error(
-        "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
-      );
-      buffer.stack = "Error: " + buffer.message;
-      buffer.digest = tag;
+      tag = JSON.parse(buffer);
+      buffer = resolveErrorProd();
+      buffer.digest = tag.digest;
       tag = response._chunks;
       (chunk = tag.get(id))
         ? triggerErrorOnChunk(chunk, buffer)
@@ -1690,7 +1701,7 @@ exports.createTemporaryReferenceSet = function () {
 };
 exports.encodeReply = function (value, options) {
   return new Promise(function (resolve, reject) {
-    processReply(
+    var abort = processReply(
       value,
       "",
       options && options.temporaryReferences
@@ -1699,5 +1710,16 @@ exports.encodeReply = function (value, options) {
       resolve,
       reject
     );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(signal.reason);
+      else {
+        var listener = function () {
+          abort(signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
   });
 };
