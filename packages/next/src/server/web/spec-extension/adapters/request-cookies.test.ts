@@ -1,8 +1,13 @@
-import { RequestCookies } from '../cookies'
+import {
+  workUnitAsyncStorage,
+  type RequestStore,
+} from '../../../app-render/work-unit-async-storage.external'
+import { RequestCookies, ResponseCookies } from '../cookies'
 import {
   ReadonlyRequestCookiesError,
   RequestCookiesAdapter,
   MutableRequestCookiesAdapter,
+  wrapWithMutableAccessCheck,
 } from './request-cookies'
 
 describe('RequestCookiesAdapter', () => {
@@ -98,5 +103,52 @@ describe('MutableRequestCookiesAdapter', () => {
       expect.stringContaining('foo=;'),
       expect.stringContaining('bar=;'),
     ])
+  })
+})
+
+describe('wrapWithMutableAccessCheck', () => {
+  const createMockRequestStore = (phase: RequestStore['phase']) =>
+    ({ type: 'request', phase }) as RequestStore
+
+  it('prevents setting cookies in the render phase', () => {
+    const requestStore = createMockRequestStore('action')
+    workUnitAsyncStorage.run(requestStore, () => {
+      const headers = new Headers({})
+      const underlyingCookies = new ResponseCookies(headers)
+      const wrappedCookies = wrapWithMutableAccessCheck(underlyingCookies)
+
+      // simulate changing phases
+      requestStore.phase = 'render'
+
+      const EXPECTED_ERROR =
+        /Cookies can only be modified in a Server Action or Route Handler\./
+
+      expect(() => {
+        wrappedCookies.set('foo', '1')
+      }).toThrow(EXPECTED_ERROR)
+
+      expect(wrappedCookies.get('foo')).toBe(undefined)
+    })
+  })
+
+  it('prevents deleting cookies in the render phase', () => {
+    const requestStore = createMockRequestStore('action')
+    workUnitAsyncStorage.run(requestStore, () => {
+      const headers = new Headers({})
+      const underlyingCookies = new ResponseCookies(headers)
+      const wrappedCookies = wrapWithMutableAccessCheck(underlyingCookies)
+      wrappedCookies.set('foo', '1')
+
+      // simulate changing phases
+      requestStore.phase = 'render'
+
+      const EXPECTED_ERROR =
+        /Cookies can only be modified in a Server Action or Route Handler\./
+
+      expect(() => {
+        wrappedCookies.delete('foo')
+      }).toThrow(EXPECTED_ERROR)
+      expect(wrappedCookies.get('foo')?.value).toEqual('1')
+    })
   })
 })
