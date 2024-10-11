@@ -2,13 +2,14 @@ mod extended_key;
 
 use std::{
     collections::{hash_map::Entry, HashMap},
+    env,
     error::Error,
-    fs::create_dir_all,
+    fs::{create_dir_all, metadata, read_dir, remove_dir_all},
     mem::{transmute, ManuallyDrop},
     path::Path,
     sync::Arc,
     thread::available_parallelism,
-    time::Instant,
+    time::Duration,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -17,7 +18,7 @@ use lmdb::{
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tracing::Span;
-use turbo_tasks::{backend::CachedTaskType, KeyValuePair, TaskId};
+use turbo_tasks::{backend::CachedTaskType, KeyValuePair, SessionId, TaskId};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
@@ -28,6 +29,12 @@ use crate::{
 
 const META_KEY_OPERATIONS: u32 = 0;
 const META_KEY_NEXT_FREE_TASK_ID: u32 = 1;
+const META_KEY_SESSION_ID: u32 = 2;
+
+/// Specifies many databases that have a different version than the current one are retained.
+/// For example if MAX_OTHER_DB_VERSIONS is 2, there can be at most 3 databases in the directory,
+/// the current one and two older/newer ones.
+const MAX_OTHER_DB_VERSIONS: usize = 2;
 
 struct IntKey([u8; 4]);
 
@@ -59,8 +66,85 @@ pub struct LmdbBackingStorage {
 }
 
 impl LmdbBackingStorage {
-    pub fn new(path: &Path) -> Result<Self> {
-        create_dir_all(path)?;
+    pub fn new(base_path: &Path) -> Result<Self> {
+        // Database versioning. Pass `TURBO_ENGINE_IGNORE_DIRTY` at runtime to ignore a
+        // dirty git repository. Pass `TURBO_ENGINE_DISABLE_VERSIONING` at runtime to disable
+        // versioning and always use the same database.
+        let version_info = env!("VERGEN_GIT_DESCRIBE");
+        let (version_info, git_dirty) =
+            if let Some(version_info) = version_info.strip_suffix("-dirty") {
+                (version_info, true)
+            } else {
+                (version_info, false)
+            };
+        let ignore_dirty = env::var("TURBO_ENGINE_IGNORE_DIRTY").ok().is_some();
+        let disabled_versioning = env::var("TURBO_ENGINE_DISABLE_VERSIONING").ok().is_some();
+        let version = if disabled_versioning {
+            println!(
+                "WARNING: Persistent Caching versioning is disabled. Manual removal of the \
+                 persistent caching database might be required."
+            );
+            Some("unversioned")
+        } else if !git_dirty {
+            Some(version_info)
+        } else if ignore_dirty {
+            println!(
+                "WARNING: The git repository is dirty, but Persistent Caching is still enabled. \
+                 Manual removal of the persistent caching database might be required."
+            );
+            Some(version_info)
+        } else {
+            println!(
+                "WARNING: The git repository is dirty: Persistent Caching is disabled. Use \
+                 TURBO_ENGINE_IGNORE_DIRTY=1 to ignore dirtyness of the repository."
+            );
+            None
+        };
+        let path;
+        if let Some(version) = version {
+            path = base_path.join(version);
+
+            // Remove old databases if needed
+            if let Ok(read_dir) = read_dir(base_path) {
+                let old_dbs = read_dir
+                    .filter_map(|entry| {
+                        let entry = entry.ok()?;
+                        if !entry.file_type().ok()?.is_dir() {
+                            return None;
+                        }
+                        let name = entry.file_name();
+                        let name = name.to_string_lossy();
+                        if name == version {
+                            return None;
+                        }
+                        Some(entry.path())
+                    })
+                    .collect::<Vec<_>>();
+                if old_dbs.len() > MAX_OTHER_DB_VERSIONS {
+                    let mut old_dbs = old_dbs
+                        .iter()
+                        .map(|p| {
+                            fn get_age(p: &Path) -> Result<Duration> {
+                                let m = metadata(p)?;
+                                Ok(m.accessed().or_else(|_| m.modified())?.elapsed()?)
+                            }
+                            (
+                                p,
+                                get_age(p).unwrap_or(Duration::from_secs(10 * 356 * 24 * 60 * 60)),
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    old_dbs.sort_by_key(|(_, age)| *age);
+                    for (p, _) in old_dbs.into_iter().skip(MAX_OTHER_DB_VERSIONS) {
+                        let _ = remove_dir_all(p);
+                    }
+                }
+            }
+        } else {
+            let _ = remove_dir_all(base_path);
+            path = base_path.join("temp");
+        }
+        create_dir_all(&path).context("Creating database directory failed")?;
 
         #[cfg(target_arch = "x86")]
         const MAP_SIZE: usize = usize::MAX;
@@ -76,7 +160,7 @@ impl LmdbBackingStorage {
             .set_max_readers((available_parallelism().map_or(16, |v| v.get()) * 8) as u32)
             .set_max_dbs(5)
             .set_map_size(MAP_SIZE)
-            .open(path)?;
+            .open(&path)?;
         let infra_db = env.create_db(Some("infra"), DatabaseFlags::INTEGER_KEY)?;
         let data_db = env.create_db(Some("data"), DatabaseFlags::INTEGER_KEY)?;
         let meta_db = env.create_db(Some("meta"), DatabaseFlags::INTEGER_KEY)?;
@@ -138,6 +222,15 @@ impl BackingStorage for LmdbBackingStorage {
         TaskId::from(get(self).unwrap_or(1))
     }
 
+    fn next_session_id(&self) -> SessionId {
+        fn get(this: &LmdbBackingStorage) -> Result<u32> {
+            let tx = this.env.begin_rw_txn()?;
+            let session_id = as_u32(tx.get(this.infra_db, &IntKey::new(META_KEY_SESSION_ID)))?;
+            Ok(session_id)
+        }
+        SessionId::from(get(self).unwrap_or(0) + 1)
+    }
+
     fn uncompleted_operations(&self) -> Vec<AnyOperation> {
         fn get(this: &LmdbBackingStorage) -> Result<Vec<AnyOperation>> {
             let tx = this.env.begin_ro_txn()?;
@@ -148,22 +241,15 @@ impl BackingStorage for LmdbBackingStorage {
         get(self).unwrap_or_default()
     }
 
-    #[tracing::instrument(level = "trace", skip_all, fields(operations = operations.len(), task_cache_updates = task_cache_updates.len(), data_updates = data_updates.len()))]
     fn save_snapshot(
         &self,
+        session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
         meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
         data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()> {
-        println!(
-            "Persisting {} operations, {} task cache updates, {} meta updates, {} data updates...",
-            operations.len(),
-            task_cache_updates.iter().map(|u| u.len()).sum::<usize>(),
-            meta_updates.iter().map(|u| u.len()).sum::<usize>(),
-            data_updates.iter().map(|u| u.len()).sum::<usize>()
-        );
-        let start = Instant::now();
+        let span = tracing::trace_span!("save snapshot", session_id = ?session_id, operations = operations.len(), db_operation_count = tracing::field::Empty);
         let mut op_count = 0;
         let mut tx = self.env.begin_rw_txn()?;
         let mut task_meta_items_result = Ok(Vec::new());
@@ -173,15 +259,19 @@ impl BackingStorage for LmdbBackingStorage {
             // Start organizing the updates in parallel
             s.spawn(|_| {
                 let task_meta_updates = {
-                    let _span =
-                        tracing::trace_span!("organize task meta", updates = meta_updates.len())
-                            .entered();
+                    let _span = tracing::trace_span!(
+                        "organize task meta",
+                        updates = meta_updates.iter().map(|m| m.len()).sum::<usize>()
+                    )
+                    .entered();
                     organize_task_data(meta_updates)
                 };
                 let items_result = {
-                    let _span =
-                        tracing::trace_span!("restore task meta", tasks = task_meta_updates.len())
-                            .entered();
+                    let _span = tracing::trace_span!(
+                        "restore task meta",
+                        tasks = task_meta_updates.iter().map(|m| m.len()).sum::<usize>()
+                    )
+                    .entered();
                     restore_task_data(self, self.meta_db, task_meta_updates)
                 };
                 task_meta_items_result = items_result.and_then(|items| {
@@ -191,15 +281,19 @@ impl BackingStorage for LmdbBackingStorage {
             });
             s.spawn(|_| {
                 let task_data_updates = {
-                    let _span =
-                        tracing::trace_span!("organize task data", updates = data_updates.len())
-                            .entered();
+                    let _span = tracing::trace_span!(
+                        "organize task data",
+                        updates = data_updates.iter().map(|m| m.len()).sum::<usize>()
+                    )
+                    .entered();
                     organize_task_data(data_updates)
                 };
                 let items_result = {
-                    let _span =
-                        tracing::trace_span!("restore task data", tasks = task_data_updates.len())
-                            .entered();
+                    let _span = tracing::trace_span!(
+                        "restore task data",
+                        tasks = task_data_updates.iter().map(|m| m.len()).sum::<usize>()
+                    )
+                    .entered();
                     restore_task_data(self, self.data_db, task_data_updates)
                 };
                 task_data_items_result = items_result.and_then(|items| {
@@ -208,13 +302,27 @@ impl BackingStorage for LmdbBackingStorage {
                 });
             });
 
+            {
+                let _span =
+                    tracing::trace_span!("update session id", session_id = ?session_id).entered();
+                tx.put(
+                    self.infra_db,
+                    &IntKey::new(META_KEY_SESSION_ID),
+                    &session_id.to_be_bytes(),
+                    WriteFlags::empty(),
+                )
+                .with_context(|| anyhow!("Unable to write next session id"))?;
+            }
+
             let mut next_task_id =
                 as_u32(tx.get(self.infra_db, &IntKey::new(META_KEY_NEXT_FREE_TASK_ID)))
                     .unwrap_or(1);
             {
-                let _span =
-                    tracing::trace_span!("update task cache", items = task_cache_updates.len())
-                        .entered();
+                let _span = tracing::trace_span!(
+                    "update task cache",
+                    items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
+                )
+                .entered();
                 for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
                     let task_id = *task_id;
                     let task_type_bytes = pot::to_vec(&*task_type).with_context(|| {
@@ -303,10 +411,7 @@ impl BackingStorage for LmdbBackingStorage {
             tx.commit()
                 .with_context(|| anyhow!("Unable to commit operations"))?;
         }
-        println!(
-            "Persisted {op_count} db entries after {:?}",
-            start.elapsed()
-        );
+        span.record("db_operation_count", op_count);
         Ok(())
     }
 
@@ -512,6 +617,7 @@ fn serialize_task_data(
                         let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
                         if let Err(err) = serde_path_to_error::serialize(item, &mut serializer) {
                             if item.is_optional() {
+                                #[cfg(feature = "verify_serialization")]
                                 println!("Skipping non-serializable optional item: {item:?}");
                             } else {
                                 error = Err(err).context({

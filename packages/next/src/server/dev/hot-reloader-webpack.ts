@@ -7,7 +7,10 @@ import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
-import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware'
+import {
+  getOverlayMiddleware,
+  getSourceMapMiddleware,
+} from '../../client/components/react-dev-overlay/server/middleware'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
 import {
@@ -1500,8 +1503,15 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     this.middlewares = [
       getOverlayMiddleware({
+        distDirectory: this.distDir,
         rootDirectory: this.dir,
-        stats: () => this.clientStats,
+        clientStats: () => this.clientStats,
+        serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
+      }),
+      getSourceMapMiddleware({
+        distDirectory: this.distDir,
+        clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),

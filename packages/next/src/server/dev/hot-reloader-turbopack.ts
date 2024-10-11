@@ -28,7 +28,10 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-webpack'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
-import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
+import {
+  getOverlayMiddleware,
+  getSourceMapMiddleware,
+} from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
 import { deleteAppClientCache, deleteCache } from './require-cache'
@@ -60,6 +63,7 @@ import {
   isWellKnownError,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
+  isPersistentCachingEnabled,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -176,7 +180,7 @@ export async function createHotReloaderTurbopack(
       browserslistQuery: supportedBrowsers.join(', '),
     },
     {
-      persistentCaching: opts.nextConfig.experimental.turbo?.persistentCaching,
+      persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
     }
   )
@@ -561,7 +565,10 @@ export async function createHotReloaderTurbopack(
     )
   )
 
-  const middlewares = [getOverlayMiddleware(project)]
+  const middlewares = [
+    getOverlayMiddleware(project),
+    getSourceMapMiddleware(project),
+  ]
 
   const versionInfoPromise = getVersionInfo(
     isTestMode || opts.telemetry.isEnabled

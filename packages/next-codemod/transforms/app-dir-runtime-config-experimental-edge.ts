@@ -1,6 +1,7 @@
 import type { API, FileInfo } from 'jscodeshift'
+import { createParserFromPath } from '../lib/parser'
 
-export default function transformer(file: FileInfo, api: API) {
+export default function transformer(file: FileInfo, _api: API) {
   if (
     process.env.NODE_ENV !== 'test' &&
     !/[/\\]app[/\\].*?(page|layout|route)\.[^/\\]+$/.test(file.path)
@@ -8,7 +9,7 @@ export default function transformer(file: FileInfo, api: API) {
     return file.source
   }
 
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(file.path)
   const root = j(file.source)
 
   const runtimeExport = root.find(j.ExportNamedDeclaration, {

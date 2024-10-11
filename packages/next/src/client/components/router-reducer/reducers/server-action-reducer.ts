@@ -3,6 +3,7 @@ import type {
   ActionResult,
 } from '../../../../server/app-render/types'
 import { callServer } from '../../../app-call-server'
+import { findSourceMapURL } from '../../../app-find-source-map-url'
 import {
   ACTION_HEADER,
   NEXT_IS_PRERENDER_HEADER,
@@ -10,9 +11,6 @@ import {
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
 } from '../../app-router-headers'
-
-// Importing from dist so that we can define an alias if needed.
-import { findSourceMapURL } from 'next/dist/client/app-find-source-map-url'
 
 // // eslint-disable-next-line import/no-extraneous-dependencies
 // import { createFromFetch } from 'react-server-dom-webpack/client'

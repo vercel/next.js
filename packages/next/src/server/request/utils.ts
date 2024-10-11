@@ -53,3 +53,28 @@ export function throwWithStaticGenerationBailoutErrorWithDynamicError(
     `Route ${route} with \`dynamic = "error"\` couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
   )
 }
+
+export const wellKnownProperties = new Set([
+  'hasOwnProperty',
+  'isPrototypeOf',
+  'propertyIsEnumerable',
+  'toString',
+  'valueOf',
+  'toLocaleString',
+
+  // Promise prototype
+  // fallthrough
+  'then',
+  'catch',
+  'finally',
+
+  // React Promise extension
+  // fallthrough
+  'status',
+
+  // Common tested properties
+  // fallthrough
+  'toJSON',
+  '$$typeof',
+  '__esModule',
+])
