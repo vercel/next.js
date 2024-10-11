@@ -21,7 +21,8 @@ where
 }
 
 // declare a const of comment prefix
-const COMMENT_PREFIX: &str = "@next-codemod-error";
+const COMMENT_ERROR_PREFIX: &str = "@next-codemod-error";
+const COMMENT_BYPASS_PREFIX: &str = "@next-codemod-ignore";
 
 impl<C> LintErrorComment<C>
 where
@@ -31,7 +32,7 @@ where
         let trimmed_text = comment.text.trim();
         // if comment contains @next/codemod comment "@next-codemod-error",
         // report an error from the linter to fail the build
-        if trimmed_text.contains(COMMENT_PREFIX) {
+        if trimmed_text.contains(COMMENT_ERROR_PREFIX) {
             let span = if is_leading {
                 comment
                     .span
@@ -41,11 +42,14 @@ where
                     .span
                     .with_hi(comment.span.hi() + swc_core::common::BytePos(1))
             };
-            let action = trimmed_text.replace(COMMENT_PREFIX, "");
+            let action = trimmed_text.replace(COMMENT_ERROR_PREFIX, "");
             let err_message = format!(
-                "You have unresolved @next/codemod comments that need to be reviewed, please \
-                 address and remove them to proceed with the build.\nAction: \"{}\"",
-                action
+                "You have unresolved @next/codemod comment \"{}\" that need to be reviewed, \
+                 please address and remove them to proceed with the build.\nYou can also bypass \
+                 the build error by replacing \"{}\" with \"{}\".",
+                action.trim(),
+                COMMENT_ERROR_PREFIX,
+                COMMENT_BYPASS_PREFIX
             );
             report(span, &err_message);
         }

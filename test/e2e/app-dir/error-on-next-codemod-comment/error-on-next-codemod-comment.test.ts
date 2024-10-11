@@ -29,23 +29,23 @@ describe('app-dir - error-on-next-codemod-comment', () => {
           Ecmascript file had an error
             1 | export default function Page() {
           > 2 |   // @next-codemod-error remove jsx of next line
-              |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
             3 |   return <p>hello world</p>
             4 | }
             5 |
 
-          You have unresolved @next/codemod comments that need to be reviewed, please address and remove them to proceed with the build.
-          Action: " remove jsx of next line""
+          You have unresolved @next/codemod comment "remove jsx of next line" that need to be reviewed, please address and remove them to proceed with the build.
+          You can also bypass the build error by replacing "@next-codemod-error" with "@next-codemod-ignore"."
         `)
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/page.tsx
-          Error:   x You have unresolved @next/codemod comment needs to be removed, please address and remove it to proceed build.
-            | Action: " remove jsx of next line"
+          Error:   x You have unresolved @next/codemod comment "remove jsx of next line" that need to be reviewed, please address and remove them to proceed with the build.
+            | You can also bypass the build error by replacing "@next-codemod-error" with "@next-codemod-ignore".
              ,-[2:1]
            1 | export default function Page() {
            2 |   // @next-codemod-error remove jsx of next line
-             :  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+             :  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
            3 |   return <p>hello world</p>
            4 | }
              \`----"
@@ -53,28 +53,52 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       }
     })
 
-    it('should disappear the error when you remove the codemod comment', async () => {
+    it('should disappear the error when you rre the codemod comment', async () => {
       const browser = await next.browser('/')
 
       await assertHasRedbox(browser)
 
-      await next.patchFile(
-        'app/page.tsx',
-        `
-        export default function Page() { return <p>hello world</p> }
-      `
-      )
+      let originFileContent
+      await next.patchFile('app/page.tsx', (code) => {
+        originFileContent = code
+        return code.replace(
+          '// @next-codemod-error remove jsx of next line',
+          ''
+        )
+      })
 
       await retry(async () => {
         await assertNoRedbox(browser)
       })
+
+      // Recover the original file content
+      await next.patchFile('app/page.tsx', originFileContent)
+    })
+
+    it('should disappear the error when you replace with bypass comment', async () => {
+      const browser = await next.browser('/')
+
+      await assertHasRedbox(browser)
+
+      let originFileContent
+      await next.patchFile('app/page.tsx', (code) => {
+        originFileContent = code
+        return code.replace('@next-codemod-error', '@next-codemod-bypass')
+      })
+
+      await retry(async () => {
+        await assertNoRedbox(browser)
+      })
+
+      // Recover the original file content
+      await next.patchFile('app/page.tsx', originFileContent)
     })
   } else {
     it('should fail the build with next build', async () => {
       const res = await next.build()
       expect(res.exitCode).toBe(1)
       expect(res.cliOutput).toContain(
-        'You have unresolved @next/codemod comments that need to be reviewed, please address and remove them to proceed with the build.'
+        'You have unresolved @next/codemod comment "remove jsx of next line" that need to be reviewed, please address and remove them to proceed with the build'
       )
     })
   }
