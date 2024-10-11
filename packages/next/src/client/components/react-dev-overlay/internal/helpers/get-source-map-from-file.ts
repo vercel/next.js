@@ -7,12 +7,12 @@ import { getSourceMapUrl } from './get-source-map-url'
 export async function getSourceMapFromFile(
   filename: string
 ): Promise<RawSourceMap | undefined> {
-  const fileContents = await fs
-    .readFile(filename, 'utf-8')
-    .catch(() => undefined)
+  let fileContents: string
 
-  if (!fileContents) {
-    return undefined
+  try {
+    fileContents = await fs.readFile(filename, 'utf-8')
+  } catch (error) {
+    throw new Error('Failed to read file contents.', { cause: error })
   }
 
   const sourceUrl = getSourceMapUrl(fileContents)
@@ -22,25 +22,22 @@ export async function getSourceMapFromFile(
   }
 
   if (sourceUrl.startsWith('data:')) {
-    let buffer
+    let buffer: dataUriToBuffer.MimeBuffer
 
     try {
       buffer = dataUriToBuffer(sourceUrl)
-    } catch (err) {
-      console.error('Failed to parse source map URL:', err)
-      return undefined
+    } catch (error) {
+      throw new Error('Failed to parse source map URL.', { cause: error })
     }
 
     if (buffer.type !== 'application/json') {
-      console.error(`Unknown source map type: ${buffer.typeFull}.`)
-      return undefined
+      throw new Error(`Unknown source map type: ${buffer.typeFull}.`)
     }
 
     try {
       return JSON.parse(buffer.toString())
-    } catch {
-      console.error('Failed to parse source map.')
-      return undefined
+    } catch (error) {
+      throw new Error('Failed to parse source map.', { cause: error })
     }
   }
 
@@ -50,8 +47,7 @@ export async function getSourceMapFromFile(
     const sourceMapContents = await fs.readFile(sourceMapFilename, 'utf-8')
 
     return JSON.parse(sourceMapContents.toString())
-  } catch {
-    console.error('Failed to parse source map.')
-    return undefined
+  } catch (error) {
+    throw new Error('Failed to parse source map.', { cause: error })
   }
 }

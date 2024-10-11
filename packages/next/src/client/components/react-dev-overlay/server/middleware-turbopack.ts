@@ -183,7 +183,9 @@ export function getSourceMapMiddleware(project: Project) {
           return json(res, sourceMap)
         }
       }
-    } catch {}
+    } catch (error) {
+      console.error('Failed to get source map:', error)
+    }
 
     noContent(res)
   }

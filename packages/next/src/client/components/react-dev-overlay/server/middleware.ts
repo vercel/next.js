@@ -334,7 +334,7 @@ export function getOverlayMiddleware(options: {
           },
         })
       } catch (err) {
-        console.log('Failed to get source map:', err)
+        console.error('Failed to get source map:', err)
         return internalServerError(res)
       }
 
@@ -437,7 +437,7 @@ export function getSourceMapMiddleware(options: {
         },
       })
     } catch (error) {
-      console.log('Failed to get source map:', error)
+      console.error('Failed to get source map:', error)
 
       return internalServerError(res)
     }
