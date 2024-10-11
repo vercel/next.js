@@ -43,9 +43,22 @@ describe('app dir - dynamic error trace', () => {
       '[data-nextjs-call-stack-frame]'
     )
     const stackFrames = await Promise.all(
+      // TODO: Why is this text empty?
       stackFrameElements.map((f) => f.innerText())
     )
-    expect(stackFrames).toEqual(isReactExperimental ? ['', ''] : [])
+    expect(stackFrames).toEqual(
+      // TODO: Show useful stack
+      isReactExperimental
+        ? [
+            // Internal frames of React.
+            // Feel free to adjust until we show useful stacks.
+            '',
+            '',
+            '',
+            '',
+          ]
+        : []
+    )
 
     const codeframe = await getRedboxSource(browser)
     // TODO(NDX-115): column for "^"" marker is inconsistent between native, Webpack, and Turbopack
