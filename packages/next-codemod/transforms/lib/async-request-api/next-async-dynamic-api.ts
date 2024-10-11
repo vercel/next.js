@@ -196,7 +196,7 @@ export function transformDynamicAPI(
                   root,
                   filePath,
                   insertedTypes,
-                  ` ${NEXT_CODEMOD_ERROR_PREFIX} Manually await this call, if it's a Server Component `
+                  ` ${NEXT_CODEMOD_ERROR_PREFIX} Manually await this call and refactor the function to be async `
                 )
                 modified ||= casted
               }

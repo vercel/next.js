@@ -72,7 +72,7 @@ In this case, you need to manually await the call to `cookies()`, and change the
 ```ts
 export function MyCookiesComponent() {
   const c =
-    /* @next-codemod-error Manually await this call, if it's a Server Component */
+    /* @next-codemod-error Manually await this call and refactor the function to be async */
     cookies()
   return c.get('name')
 }
@@ -80,7 +80,7 @@ export function MyCookiesComponent() {
 
 ### Enforced Migration with Linter
 
-If you didn't address the comments that starting with `@next-codemod-error` left by codemod, Next.js will error in the dev and build to enforce you to address the issues.
+If you didn't address the comments that starting with `@next-codemod-error` left by the codemod, Next.js will error in both dev and build to enforce you to address the issues.
 You can review the changes and follow the suggestion in the comments. You can either make the necessary changes and remove the comment, or replace the comment prefix `@next-codemod-error` with `@next-codemod-ignore`
 If there's no action to be taken, the comment prefix `@next-codemod-ignore` will bypass the build error.
 
