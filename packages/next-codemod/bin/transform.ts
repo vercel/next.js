@@ -140,7 +140,8 @@ export async function runTransform(
       {
         type: 'confirm',
         name: 'uninstallNextFont',
-        message: 'Do you want to uninstall `@next/font`?',
+        message:
+          'Successfully replaced `@next/font`. Do you want to uninstall it?',
         initial: true,
       },
       { onCancel }
@@ -157,7 +158,8 @@ export async function runTransform(
       {
         type: 'confirm',
         name: 'installVercelFunctions',
-        message: 'Do you want to install `@vercel/functions`?',
+        message:
+          'This codemod requires `@vercel/functions`. Do you want to install it?',
         initial: true,
       },
       { onCancel }

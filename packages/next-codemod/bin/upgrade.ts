@@ -63,19 +63,21 @@ export async function runUpgrade(
 
   const installedNextVersion = getInstalledNextVersion()
 
-  console.log(`Current Next.js version: v${installedNextVersion}`)
+  console.log(`Current Next.js version: ${installedNextVersion}`)
 
   const targetNextVersion = targetNextPackageJson.version
 
   if (compareVersions(installedNextVersion, targetNextVersion) >= 0) {
-    console.log(
-      `${pc.green('✓')} Current Next.js version is already on or higher than the target version "v${targetNextVersion}".`
+    console.warn(
+      `${pc.yellow(pc.bold('⚠'))} Current Next.js version is already on or higher than the target version "v${targetNextVersion}".`
     )
     return
   }
 
   const installedReactVersion = getInstalledReactVersion()
-  console.log(`Current React version: v${installedReactVersion}`)
+  console.log(`Current React version: ${installedReactVersion}`)
+  console.log() // new line
+
   let shouldStayOnReact18 = false
   if (
     // From release v14.3.0-canary.45, Next.js expects the React version to be 19.0.0-beta.0
@@ -171,6 +173,7 @@ export async function runUpgrade(
     reactDependencies.push(`@types/react-dom@${targetReactDOMTypesVersion}`)
   }
 
+  console.log() // new line
   console.log(
     `Installing required packages for Next.js v${targetNextVersion}...`
   )
@@ -181,23 +184,24 @@ export async function runUpgrade(
   })
 
   console.log(
-    `${pc.green('✓')} Successfully installed required packages for Next.js v${targetNextVersion}`
+    `✔ Successfully installed required packages for Next.js v${targetNextVersion}.`
   )
 
   if (codemods.length > 0) {
+    console.log() // new line
     console.log(`Running Next.js codemods...`)
 
     for (const codemod of codemods) {
-      console.log()
       await runTransform(codemod, process.cwd(), { force: true, verbose })
     }
 
-    console.log(`${pc.green('✓')} Successfully applied Next.js codemods`)
+    console.log(`✔ Successfully applied Next.js codemods.`)
   }
 
   // To reduce user-side burden of selecting which codemods to run as it needs additional
   // understanding of the codemods, we run all of the applicable codemods.
   if (shouldRunReactCodemods) {
+    console.log() // new line
     console.log(`Running React 19 codemods...`)
 
     // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
@@ -208,9 +212,10 @@ export async function runUpgrade(
       { stdio: verbose ? 'inherit' : ['ignore', 'ignore', 'inherit'] }
     )
 
-    console.log(`${pc.green('✓')} Successfully applied React 19 codemods`)
+    console.log(`✔ Successfully applied React 19 codemods.`)
   }
   if (shouldRunReactTypesCodemods) {
+    console.log() // new line
     console.log(`Running React 19 Types codemods...`)
 
     // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
@@ -220,7 +225,7 @@ export async function runUpgrade(
       stdio: verbose ? 'inherit' : ['ignore', 'ignore', 'inherit'],
     })
 
-    console.log(`${pc.green('✓')} Successfully applied React 19 Types codemods`)
+    console.log(`✔ Successfully applied React 19 Types codemods.`)
   }
 
   console.log() // new line
@@ -232,7 +237,9 @@ export async function runUpgrade(
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
   console.log(
-    `Please review the local changes and read the Next.js 15 migration guide to complete the migration. https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15`
+    pc.yellow(
+      `Please review the local changes and read the Next.js 15 migration guide to complete the migration. https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15`
+    )
   )
 }
 
