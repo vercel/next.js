@@ -1,11 +1,10 @@
-import { createAsyncLocalStorage } from '../app-render/async-local-storage'
+import { cacheScopeAsyncLocalStorage } from './cache-scope-instance' with { 'turbopack-transition': 'next-shared' }
 
 export interface CacheScopeStore {
-  cache?: Map<string, any>
+  cache: Map<string, any>
 }
 
-export const cacheScopeAsyncLocalStorage =
-  createAsyncLocalStorage<CacheScopeStore>()
+export { cacheScopeAsyncLocalStorage }
 
 /**
  * For dynamic IO handling we want to have a scoped memory

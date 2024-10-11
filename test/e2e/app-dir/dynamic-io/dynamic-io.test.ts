@@ -151,6 +151,17 @@ describe('dynamic-io', () => {
     }
   })
 
+  it('should prerender pages that only use cached ("use cache") IO', async () => {
+    const $ = await next.render$('/cases/use_cache_cached', {})
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
+    }
+  })
+
   if (WITH_PPR) {
     it('should partially prerender pages that do any uncached IO', async () => {
       let $ = await next.render$('/cases/io_mixed', {})
@@ -167,6 +178,34 @@ describe('dynamic-io', () => {
   } else {
     it('should not prerender pages that do any uncached IO', async () => {
       let $ = await next.render$('/cases/io_mixed', {})
+      if (isNextDev) {
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page').text()).toBe('at runtime')
+        expect($('#inner').text()).toBe('at runtime')
+      } else {
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page').text()).toBe('at runtime')
+        expect($('#inner').text()).toBe('at runtime')
+      }
+    })
+  }
+
+  if (WITH_PPR) {
+    it('should partially prerender pages that do any uncached IO (use cache)', async () => {
+      let $ = await next.render$('/cases/use_cache_mixed', {})
+      if (isNextDev) {
+        expect($('#layout').text()).toBe('at runtime')
+        expect($('#page').text()).toBe('at runtime')
+        expect($('#inner').text()).toBe('at runtime')
+      } else {
+        expect($('#layout').text()).toBe('at buildtime')
+        expect($('#page').text()).toBe('at buildtime')
+        expect($('#inner').text()).toBe('at buildtime')
+      }
+    })
+  } else {
+    it('should not prerender pages that do any uncached IO (use cache)', async () => {
+      let $ = await next.render$('/cases/use_cache_mixed', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
