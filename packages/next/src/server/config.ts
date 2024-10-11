@@ -502,7 +502,7 @@ function assignDefaults(
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
-    'expireTime',
+    'swrDelta',
     'expireTime',
     configFileName,
     silent

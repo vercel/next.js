@@ -17,8 +17,8 @@ export function formatRevalidate({
   revalidate: Revalidate
   expireTime?: ExpireTime
 }): string {
-  const swrHeader = expireTime
-    ? `stale-while-revalidate=${expireTime}`
+  const swrHeader = typeof revalidate === 'number' && expireTime !== undefined
+    ? revalidate >= expireTime ? '' : `stale-while-revalidate=${expireTime - revalidate}`
     : 'stale-while-revalidate'
 
   if (revalidate === 0) {
