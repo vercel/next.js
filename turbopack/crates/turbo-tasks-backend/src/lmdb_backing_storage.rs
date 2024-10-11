@@ -85,7 +85,7 @@ impl LmdbBackingStorage {
             }
             (true, false) => {
                 println!(
-                    "WARNING: Persistent Caching versioning is disable. Manual removal of the \
+                    "WARNING: Persistent Caching versioning is disabled. Manual removal of the \
                      persistent caching database might be required."
                 );
                 Some("version-disabled")
