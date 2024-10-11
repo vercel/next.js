@@ -45,5 +45,6 @@ turbo-tasks-malloc = { workspace = true, default-features = false }
 turbo-tasks-testing = { workspace = true }
 
 [build-dependencies]
+anyhow = { workspace = true }
 turbo-tasks-build = { workspace = true }
-built = { version = "0.7.4", features = ["git2"] }
+vergen-gitcl = { version = "1.0.1" }

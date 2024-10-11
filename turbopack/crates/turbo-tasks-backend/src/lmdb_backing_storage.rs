@@ -23,7 +23,6 @@ use turbo_tasks::{backend::CachedTaskType, KeyValuePair, SessionId, TaskId};
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
     backing_storage::{BackingStorage, ReadTransaction},
-    built_info::{GIT_COMMIT_HASH_SHORT, GIT_DIRTY},
     data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, CachedDataUpdate},
     utils::chunked_vec::ChunkedVec,
 };
@@ -68,36 +67,33 @@ pub struct LmdbBackingStorage {
 
 impl LmdbBackingStorage {
     pub fn new(base_path: &Path) -> Result<Self> {
-        // Database versioning. Pass `TURBO_TASKS_IGNORE_GIT_DIRTY` at compile time to ignore a
-        // dirty git repository. Pass `TURBO_TASKS_DISABLE_VERSION` at runtime to ignore a
-        // dirty git repository.
-        let git_dirty =
-            option_env!("TURBO_TASKS_IGNORE_GIT_DIRTY").is_none() && GIT_DIRTY == Some(true);
-        let disabled_versioning = env::var("TURBO_TASKS_DISABLE_VERSION").ok().is_some();
-        let version = match (disabled_versioning, git_dirty) {
-            (false, false) => GIT_COMMIT_HASH_SHORT,
-            (false, true) => {
-                println!(
-                    "WARNING: The git repository is dirty: Persistent Caching is disabled. Force \
-                     enable it with TURBO_TASKS_DISABLE_VERSION=1"
-                );
-                None
-            }
-            (true, false) => {
-                println!(
-                    "WARNING: Persistent Caching versioning is disabled. Manual removal of the \
-                     persistent caching database might be required."
-                );
-                Some("version-disabled")
-            }
-            (true, true) => {
-                println!(
-                    "WARNING: The git repository is dirty, but Persistent Caching is still \
-                     enabled. Manual removal of the persistent caching database might be required \
-                     depending on the changes made."
-                );
-                Some("version-disabled")
-            }
+        // Database versioning. Pass `TURBO_ENGINE_IGNORE_DIRTY` at runtime to ignore a
+        // dirty git repository. Pass `TURBO_ENGINE_DISABLE_VERSIONING` at runtime to disable
+        // versioning and always use the same database.
+        let version_info = env!("VERGEN_GIT_DESCRIBE");
+        let git_dirty = version_info.strip_suffix("-dirty").is_some();
+        let ignore_dirty = env::var("TURBO_ENGINE_IGNORE_DIRTY").ok().is_some();
+        let disabled_versioning = env::var("TURBO_ENGINE_DISABLE_VERSIONING").ok().is_some();
+        let version = if disabled_versioning {
+            println!(
+                "WARNING: Persistent Caching versioning is disabled. Manual removal of the \
+                 persistent caching database might be required."
+            );
+            Some("unversioned")
+        } else if !git_dirty {
+            Some(version_info)
+        } else if ignore_dirty {
+            println!(
+                "WARNING: The git repository is dirty, but Persistent Caching is still enabled. \
+                 Manual removal of the persistent caching database might be required."
+            );
+            Some(version_info)
+        } else {
+            println!(
+                "WARNING: The git repository is dirty: Persistent Caching is disabled. Use \
+                 TURBO_ENGINE_IGNORE_DIRTY=1 to ignore dirtyness of the repository."
+            );
+            None
         };
         let path;
         if let Some(version) = version {
