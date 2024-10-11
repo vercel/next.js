@@ -7,6 +7,7 @@ import { isAbortError } from '../pipe-readable'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
+import { getProperError } from '../../lib/is-error'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -22,49 +23,56 @@ export type DigestedError = Error & { digest: string }
 
 export function createFlightReactServerErrorHandler(
   dev: boolean,
-  onReactServerRenderError: (err: any) => void
+  onReactServerRenderError: (err: DigestedError) => void
 ): RSCErrorHandler {
-  return (err: any) => {
-    // If the error already has a digest, respect the original digest,
-    // so it won't get re-generated into another new error.
-    if (!err.digest) {
+  return (thrownValue: unknown) => {
+    if (typeof thrownValue === 'string') {
       // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-      err.digest = stringHash(err.message + err.stack || '').toString()
+      return stringHash(thrownValue).toString()
     }
 
     // If the response was closed, we don't need to log the error.
-    if (isAbortError(err)) return
+    if (isAbortError(thrownValue)) return
 
     // If we're bailing out to CSR, we don't need to log the error.
-    if (isBailoutToCSRError(err)) return err.digest
+    if (isBailoutToCSRError(thrownValue)) return thrownValue.digest
 
     // If this is a navigation error, we don't need to log the error.
-    if (isNextRouterError(err)) return err.digest
+    if (isNextRouterError(thrownValue)) return thrownValue.digest
 
     // If this error occurs, we know that we should be stopping the static
     // render. This is only thrown in static generation when PPR is not enabled,
     // which causes the whole page to be marked as dynamic. We don't need to
     // tell the user about this error, as it's not actionable.
-    if (isDynamicServerError(err)) return err.digest
+    if (isDynamicServerError(thrownValue)) return thrownValue.digest
+
+    const error = getProperError(thrownValue) as DigestedError
+
+    // If the error already has a digest, respect the original digest,
+    // so it won't get re-generated into another new error.
+    if (!error.digest) {
+      // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
+      error.digest = stringHash(error.message + error.stack || '').toString()
+    }
 
     // Format server errors in development to add more helpful error messages
     if (dev) {
-      formatServerError(err)
+      formatServerError(error)
     }
 
     // Record exception in an active span, if available.
     const span = getTracer().getActiveScopeSpan()
     if (span) {
-      span.recordException(err)
+      span.recordException(error)
       span.setStatus({
         code: SpanStatusCode.ERROR,
-        message: err.message,
+        message: error.message,
       })
     }
 
-    onReactServerRenderError(err)
+    onReactServerRenderError(error)
 
-    return err.digest
+    return error.digest
   }
 }
 
@@ -73,47 +81,54 @@ export function createHTMLReactServerErrorHandler(
   isNextExport: boolean,
   reactServerErrors: Map<string, DigestedError>,
   silenceLogger: boolean,
-  onReactServerRenderError: undefined | ((err: any) => void)
+  onReactServerRenderError: undefined | ((err: DigestedError) => void)
 ): RSCErrorHandler {
-  return (err: any) => {
-    // If the error already has a digest, respect the original digest,
-    // so it won't get re-generated into another new error.
-    if (!err.digest) {
+  return (thrownValue: unknown) => {
+    if (typeof thrownValue === 'string') {
       // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-      err.digest = stringHash(err.message + (err.stack || '')).toString()
+      return stringHash(thrownValue).toString()
     }
 
     // If the response was closed, we don't need to log the error.
-    if (isAbortError(err)) return
+    if (isAbortError(thrownValue)) return
 
     // If we're bailing out to CSR, we don't need to log the error.
-    if (isBailoutToCSRError(err)) return err.digest
+    if (isBailoutToCSRError(thrownValue)) return thrownValue.digest
 
     // If this is a navigation error, we don't need to log the error.
-    if (isNextRouterError(err)) return err.digest
-
-    // @TODO by putting this here and not at the top it is possible that
-    // we don't error the build in places we actually expect to
-    if (!reactServerErrors.has(err.digest)) {
-      reactServerErrors.set(err.digest, err)
-    }
+    if (isNextRouterError(thrownValue)) return thrownValue.digest
 
     // If this error occurs, we know that we should be stopping the static
     // render. This is only thrown in static generation when PPR is not enabled,
     // which causes the whole page to be marked as dynamic. We don't need to
     // tell the user about this error, as it's not actionable.
-    if (isDynamicServerError(err)) return err.digest
+    if (isDynamicServerError(thrownValue)) return thrownValue.digest
+
+    const error = getProperError(thrownValue) as DigestedError
+
+    // If the error already has a digest, respect the original digest,
+    // so it won't get re-generated into another new error.
+    if (!error.digest) {
+      // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
+      error.digest = stringHash(error.message + (error.stack || '')).toString()
+    }
+
+    // @TODO by putting this here and not at the top it is possible that
+    // we don't error the build in places we actually expect to
+    if (!reactServerErrors.has(error.digest)) {
+      reactServerErrors.set(error.digest, error)
+    }
 
     // Format server errors in development to add more helpful error messages
     if (dev) {
-      formatServerError(err)
+      formatServerError(error)
     }
 
     // Don't log the suppressed error during export
     if (
       !(
         isNextExport &&
-        err?.message?.includes(
+        error?.message?.includes(
           'The specific message is omitted in production builds to avoid leaking sensitive details.'
         )
       )
@@ -121,19 +136,19 @@ export function createHTMLReactServerErrorHandler(
       // Record exception in an active span, if available.
       const span = getTracer().getActiveScopeSpan()
       if (span) {
-        span.recordException(err)
+        span.recordException(error)
         span.setStatus({
           code: SpanStatusCode.ERROR,
-          message: err.message,
+          message: error.message,
         })
       }
 
       if (!silenceLogger) {
-        onReactServerRenderError?.(err)
+        onReactServerRenderError?.(error)
       }
     }
 
-    return err.digest
+    return error.digest
   }
 }
 
@@ -143,56 +158,57 @@ export function createHTMLErrorHandler(
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
   silenceLogger: boolean,
-  onHTMLRenderSSRError: (err: any, errorInfo?: ErrorInfo) => void
+  onHTMLRenderSSRError: (err: DigestedError, errorInfo?: ErrorInfo) => void
 ): SSRErrorHandler {
-  return (err: any, errorInfo?: ErrorInfo) => {
+  return (thrownValue: unknown, errorInfo?: ErrorInfo) => {
     let isSSRError = true
 
+    allCapturedErrors.push(thrownValue)
+
+    // If the response was closed, we don't need to log the error.
+    if (isAbortError(thrownValue)) return
+
+    // If we're bailing out to CSR, we don't need to log the error.
+    if (isBailoutToCSRError(thrownValue)) return thrownValue.digest
+
+    // If this is a navigation error, we don't need to log the error.
+    if (isNextRouterError(thrownValue)) return thrownValue.digest
+
+    // If this error occurs, we know that we should be stopping the static
+    // render. This is only thrown in static generation when PPR is not enabled,
+    // which causes the whole page to be marked as dynamic. We don't need to
+    // tell the user about this error, as it's not actionable.
+    if (isDynamicServerError(thrownValue)) return thrownValue.digest
+
+    const error = getProperError(thrownValue) as DigestedError
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
-    if (err.digest) {
-      if (reactServerErrors.has(err.digest)) {
+    if (error.digest) {
+      if (reactServerErrors.has(error.digest)) {
         // This error is likely an obfuscated error from react-server.
         // We recover the original error here.
-        err = reactServerErrors.get(err.digest)
+        thrownValue = reactServerErrors.get(error.digest)
         isSSRError = false
       } else {
         // The error is not from react-server but has a digest
         // from other means so we don't need to produce a new one
       }
     } else {
-      err.digest = stringHash(
-        err.message + (errorInfo?.componentStack || err.stack || '')
+      error.digest = stringHash(
+        error.message + (errorInfo?.componentStack || error.stack || '')
       ).toString()
     }
 
-    allCapturedErrors.push(err)
-
-    // If the response was closed, we don't need to log the error.
-    if (isAbortError(err)) return
-
-    // If we're bailing out to CSR, we don't need to log the error.
-    if (isBailoutToCSRError(err)) return err.digest
-
-    // If this is a navigation error, we don't need to log the error.
-    if (isNextRouterError(err)) return err.digest
-
-    // If this error occurs, we know that we should be stopping the static
-    // render. This is only thrown in static generation when PPR is not enabled,
-    // which causes the whole page to be marked as dynamic. We don't need to
-    // tell the user about this error, as it's not actionable.
-    if (isDynamicServerError(err)) return err.digest
-
     // Format server errors in development to add more helpful error messages
     if (dev) {
-      formatServerError(err)
+      formatServerError(error)
     }
 
     // Don't log the suppressed error during export
     if (
       !(
         isNextExport &&
-        err?.message?.includes(
+        error?.message?.includes(
           'The specific message is omitted in production builds to avoid leaking sensitive details.'
         )
       )
@@ -200,10 +216,10 @@ export function createHTMLErrorHandler(
       // Record exception in an active span, if available.
       const span = getTracer().getActiveScopeSpan()
       if (span) {
-        span.recordException(err)
+        span.recordException(error)
         span.setStatus({
           code: SpanStatusCode.ERROR,
-          message: err.message,
+          message: error.message,
         })
       }
 
@@ -212,11 +228,11 @@ export function createHTMLErrorHandler(
         // HTML errors contain RSC errors as well, filter them out before reporting
         isSSRError
       ) {
-        onHTMLRenderSSRError(err, errorInfo)
+        onHTMLRenderSSRError(error, errorInfo)
       }
     }
 
-    return err.digest
+    return error.digest
   }
 }
 
