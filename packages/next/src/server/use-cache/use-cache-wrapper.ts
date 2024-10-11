@@ -44,7 +44,10 @@ type CacheEntry = {
 }
 
 interface CacheHandler {
-  get(cacheKey: string | ArrayBuffer): Promise<undefined | CacheEntry>
+  get(
+    cacheKey: string | ArrayBuffer,
+    implicitTags: string[]
+  ): Promise<undefined | CacheEntry>
   set(cacheKey: string | ArrayBuffer, value: Promise<CacheEntry>): Promise<void>
 }
 
@@ -151,6 +154,12 @@ function generateCacheEntryWithCacheContext(
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
+    phase: 'render',
+    implicitTags:
+      outerWorkUnitStore === undefined ||
+      outerWorkUnitStore.type === 'unstable-cache'
+        ? []
+        : outerWorkUnitStore.implicitTags,
     revalidate: defaultCacheLife.revalidate,
     explicitRevalidate: undefined,
     tags: null,
@@ -338,6 +347,11 @@ export function cache(kind: string, id: string, fn: any) {
 
       const workUnitStore = workUnitAsyncStorage.getStore()
 
+      const implicitTags =
+        workUnitStore === undefined || workUnitStore.type === 'unstable-cache'
+          ? []
+          : workUnitStore.implicitTags
+
       // Because the Action ID is not yet unique per implementation of that Action we can't
       // safely reuse the results across builds yet. In the meantime we add the buildId to the
       // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
@@ -362,8 +376,10 @@ export function cache(kind: string, id: string, fn: any) {
             // is not valid to use TextDecoder on this result.
             await new Response(encodedArguments).arrayBuffer()
 
-      let entry: undefined | CacheEntry =
-        await cacheHandler.get(serializedCacheKey)
+      let entry: undefined | CacheEntry = await cacheHandler.get(
+        serializedCacheKey,
+        implicitTags
+      )
 
       // Get the clientReferenceManifestSingleton while we're still in the outer Context.
       // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.

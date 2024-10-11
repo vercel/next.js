@@ -211,8 +211,8 @@ export function getOverlayMiddleware(options: {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
-    next: Function
-  ) {
+    next: () => void
+  ): Promise<void> {
     const { pathname, searchParams } = new URL(`http://n${req.url}`)
 
     const frame = {
