@@ -8,17 +8,17 @@ import { CACHE_ONE_YEAR } from '../../lib/constants'
  * value for this option.
  */
 export type Revalidate = number | false
-export type SwrDelta = number
+export type ExpireTime = number
 
 export function formatRevalidate({
   revalidate,
-  swrDelta,
+  expireTime,
 }: {
   revalidate: Revalidate
-  swrDelta?: SwrDelta
+  expireTime?: ExpireTime
 }): string {
-  const swrHeader = swrDelta
-    ? `stale-while-revalidate=${swrDelta}`
+  const swrHeader = expireTime
+    ? `stale-while-revalidate=${expireTime}`
     : 'stale-while-revalidate'
 
   if (revalidate === 0) {
