@@ -40,9 +40,9 @@ impl UpdateCellOperation {
 
         let dependent = get_many!(
             task,
-            CellDependent { cell: dependent_cell, task } _value
-            if dependent_cell == cell
-            => task
+            CellDependent { cell: dependent_cell, task }
+            if *dependent_cell == cell
+            => *task
         );
 
         drop(task);
