@@ -1,6 +1,7 @@
 mod extended_key;
 
 use std::{
+    cell::UnsafeCell,
     collections::{hash_map::Entry, HashMap},
     env,
     error::Error,
@@ -13,10 +14,13 @@ use std::{
 };
 
 use anyhow::{anyhow, Context, Result};
+use arc_swap::ArcSwap;
 use lmdb::{
     Database, DatabaseFlags, Environment, EnvironmentFlags, RoTransaction, Transaction, WriteFlags,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use smallvec::SmallVec;
+use thread_local::ThreadLocal;
 use tracing::Span;
 use turbo_tasks::{backend::CachedTaskType, KeyValuePair, SessionId, TaskId};
 
@@ -56,7 +60,27 @@ fn as_u32<E: Error + Send + Sync + 'static>(result: Result<&[u8], E>) -> Result<
     Ok(n)
 }
 
+struct ThreadLocalReadTransactionsContainer(UnsafeCell<SmallVec<[RoTransaction<'static>; 4]>>);
+
+impl ThreadLocalReadTransactionsContainer {
+    unsafe fn pop(&self) -> Option<RoTransaction<'static>> {
+        let vec = unsafe { &mut *self.0.get() };
+        vec.pop()
+    }
+
+    unsafe fn push(&self, tx: RoTransaction<'static>) {
+        let vec = unsafe { &mut *self.0.get() };
+        vec.push(tx)
+    }
+}
+
+// Safety: It's safe to send RoTransaction between threads, but the types don't allow that.
+unsafe impl Send for ThreadLocalReadTransactionsContainer {}
+
 pub struct LmdbBackingStorage {
+    // Safety: `read_transactions_cache` need to be dropped before `env` since it will end the
+    // transactions.
+    read_transactions_cache: ArcSwap<ThreadLocal<ThreadLocalReadTransactionsContainer>>,
     env: Environment,
     infra_db: Database,
     data_db: Database,
@@ -180,6 +204,7 @@ impl LmdbBackingStorage {
             forward_task_cache_db,
             reverse_task_cache_db,
             fresh_db,
+            read_transactions_cache: ArcSwap::new(Arc::new(ThreadLocal::new())),
         })
     }
 
@@ -188,6 +213,33 @@ impl LmdbBackingStorage {
             TaskDataCategory::Meta => self.meta_db,
             TaskDataCategory::Data => self.data_db,
             _ => unreachable!(),
+        }
+    }
+
+    fn begin_read_transaction(&self) -> Result<RoTransaction<'_>> {
+        let guard = self.read_transactions_cache.load();
+        let container = guard
+            .get_or(|| ThreadLocalReadTransactionsContainer(UnsafeCell::new(Default::default())));
+        // Safety: Since it's a thread local it's safe to take from the container
+        Ok(if let Some(tx) = unsafe { container.pop() } {
+            tx
+        } else {
+            self.env.begin_ro_txn()?
+        })
+    }
+
+    fn end_read_transaction(&self, tx: RoTransaction<'_>) {
+        let guard = self.read_transactions_cache.load();
+        let container = guard
+            .get_or(|| ThreadLocalReadTransactionsContainer(UnsafeCell::new(Default::default())));
+        // Safety: We cast it to 'static lifetime, but it will be casted back to 'env when
+        // taken. It's safe since this will not outlive the environment. We need to
+        // be careful with Drop, but `read_transactions_cache` is before `env` in the
+        // LmdbBackingStorage struct, so it's fine.
+        let tx = unsafe { transmute::<RoTransaction<'_>, RoTransaction<'static>>(tx) };
+        // Safety: It's safe to put it back since it's a thread local
+        unsafe {
+            container.push(tx);
         }
     }
 
@@ -208,9 +260,9 @@ impl LmdbBackingStorage {
             let tx = self.to_tx(tx);
             f(&tx)
         } else {
-            let tx = self.env.begin_ro_txn()?;
+            let tx = self.begin_read_transaction()?;
             let r = f(&tx)?;
-            tx.commit()?;
+            self.end_read_transaction(tx);
             Ok(r)
         }
     }
@@ -238,10 +290,11 @@ impl BackingStorage for LmdbBackingStorage {
 
     fn uncompleted_operations(&self) -> Vec<AnyOperation> {
         fn get(this: &LmdbBackingStorage) -> Result<Vec<AnyOperation>> {
-            let tx = this.env.begin_ro_txn()?;
-            let operations = tx.get(this.infra_db, &IntKey::new(META_KEY_OPERATIONS))?;
-            let operations = pot::from_slice(operations)?;
-            Ok(operations)
+            this.with_tx(None, |tx| {
+                let operations = tx.get(this.infra_db, &IntKey::new(META_KEY_OPERATIONS))?;
+                let operations = pot::from_slice(operations)?;
+                Ok(operations)
+            })
         }
         get(self).unwrap_or_default()
     }
@@ -416,18 +469,23 @@ impl BackingStorage for LmdbBackingStorage {
             tx.commit()
                 .with_context(|| anyhow!("Unable to commit operations"))?;
         }
+        {
+            let _span = tracing::trace_span!("swap read transactions").entered();
+            // This resets the thread local storage for read transactions, read transactions are
+            // eventually dropped, allowing DB to free up unused storage.
+            self.read_transactions_cache
+                .store(Arc::new(ThreadLocal::new()));
+        }
         span.record("db_operation_count", op_count);
         Ok(())
     }
 
     fn start_read_transaction(&self) -> Option<ReadTransaction> {
-        Some(Self::from_tx(self.env.begin_ro_txn().ok()?))
+        Some(Self::from_tx(self.begin_read_transaction().ok()?))
     }
 
     unsafe fn end_read_transaction(&self, transaction: ReadTransaction) {
-        ManuallyDrop::into_inner(self.to_tx(transaction))
-            .commit()
-            .unwrap();
+        self.end_read_transaction(ManuallyDrop::into_inner(Self::to_tx(self, transaction)));
     }
 
     unsafe fn forward_lookup_task_cache(
