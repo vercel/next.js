@@ -55,6 +55,24 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       }
     })
 
+    it('should error with inline comment as well', async () => {
+      let originFileContent
+      await next.patchFile('app/page.tsx', (code) => {
+        originFileContent = code
+        return code.replace(
+          '// @next-codemod-error remove jsx of next line',
+          '/* @next-codemod-error remove jsx of next line */'
+        )
+      })
+
+      const browser = await next.browser('/')
+
+      await assertHasRedbox(browser)
+
+      // Recover the original file content
+      await next.patchFile('app/page.tsx', originFileContent)
+    })
+
     it('should disappear the error when you rre the codemod comment', async () => {
       const browser = await next.browser('/')
 
