@@ -1,5 +1,6 @@
 import fs from 'fs/promises'
 import path from 'path'
+import url from 'url'
 import type { RawSourceMap } from 'next/dist/compiled/source-map08'
 import dataUriToBuffer from 'next/dist/compiled/data-uri-to-buffer'
 import { getSourceMapUrl } from './get-source-map-url'
@@ -7,6 +8,10 @@ import { getSourceMapUrl } from './get-source-map-url'
 export async function getSourceMapFromFile(
   filename: string
 ): Promise<RawSourceMap | undefined> {
+  filename = filename.startsWith('file://')
+    ? url.fileURLToPath(filename)
+    : filename
+
   let fileContents: string
 
   try {
