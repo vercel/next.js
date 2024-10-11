@@ -18,6 +18,7 @@ export type FunctionScope =
   | ArrowFunctionExpression
 
 export const NEXT_CODEMOD_ERROR_PREFIX = '@next-codemod-error'
+const NEXT_CODEMOD_IGNORE_ERROR_PREFIX = '@next-codemod-ignore'
 
 export const TARGET_ROUTE_EXPORTS = new Set([
   'GET',
@@ -429,10 +430,28 @@ export function insertCommentOnce(
   j: API['j'],
   comment: string
 ): boolean {
+  const isCodemodErrorComment = comment
+    .trim()
+    .startsWith(NEXT_CODEMOD_ERROR_PREFIX)
+
+  let hasIgnoreComment = false
+  let hasComment = false
   if (node.comments) {
-    const hasComment = node.comments.some(
-      (commentNode) => commentNode.value === comment
-    )
+    node.comments.forEach((commentNode) => {
+      const currentComment = commentNode.value
+      if (currentComment.trim().startsWith(NEXT_CODEMOD_IGNORE_ERROR_PREFIX)) {
+        hasIgnoreComment = true
+      }
+      if (currentComment === comment) {
+        hasComment = true
+      }
+    })
+    // If it's inserting codemod error comment,
+    // check if there's already a @next-codemod-ignore comment.
+    // if ignore comment exists, bypass the comment insertion.
+    if (hasIgnoreComment && isCodemodErrorComment) {
+      return false
+    }
     if (hasComment) {
       return false
     }

@@ -29,3 +29,9 @@ export function POST(req, ctx) {
     { ...req }
   )
 }
+
+export function PATCH(req, ctx) {
+  console.log(
+    { /* @next-codemod-ignore */ ...ctx }
+  )
+}
