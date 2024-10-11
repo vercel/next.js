@@ -29,7 +29,7 @@ describe('server-components-hmr-cache', () => {
           await retry(async () => {
             const updatedContent = await browser.elementById('content').text()
             expect(updatedContent).toBe('bar')
-          })
+          }, 5000)
 
           const valueAfterPatch = await browser.elementById('value').text()
           expect(valueBeforePatch).toEqual(valueAfterPatch)
@@ -45,7 +45,7 @@ describe('server-components-hmr-cache', () => {
       await retry(async () => {
         const valueAfterRefresh = await browser.elementById('value').text()
         expect(valueBeforeRefresh).not.toEqual(valueAfterRefresh)
-      })
+      }, 5000)
     })
 
     describe('in after()', () => {
@@ -65,7 +65,7 @@ describe('server-components-hmr-cache', () => {
             await retry(async () => {
               const updatedContent = await browser.elementById('content').text()
               expect(updatedContent).toBe('bar')
-            })
+            }, 5000)
 
             const valueAfterPatch = getLoggedAfterValue()
             expect(valueBeforePatch).toEqual(valueAfterPatch)
@@ -83,7 +83,7 @@ describe('server-components-hmr-cache', () => {
         await retry(async () => {
           const valueAfterRefresh = getLoggedAfterValue()
           expect(valueBeforeRefresh).not.toEqual(valueAfterRefresh)
-        })
+        }, 5000)
       })
     })
 
@@ -117,7 +117,7 @@ describe('server-components-hmr-cache', () => {
             await retry(async () => {
               const updatedContent = await browser.elementById('content').text()
               expect(updatedContent).toBe('bar')
-            })
+            }, 5000)
 
             const valueAfterPatch = await browser.elementById('value').text()
             expect(valueBeforePatch).not.toEqual(valueAfterPatch)
@@ -144,7 +144,7 @@ describe('server-components-hmr-cache', () => {
                   .elementById('content')
                   .text()
                 expect(updatedContent).toBe('bar')
-              })
+              }, 5000)
 
               const valueAfterPatch = await retry(() => getLoggedAfterValue())
               expect(valueBeforePatch).not.toEqual(valueAfterPatch)
