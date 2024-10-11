@@ -250,6 +250,20 @@ function assignDefaults(
     )
   }
 
+  if (
+    !process.env.__NEXT_VERSION?.includes('canary') &&
+    !process.env.__NEXT_TEST_MODE
+  ) {
+    // Prevents usage of certain experimental features outside of canary
+    if (result.experimental?.ppr) {
+      throw new CanaryOnlyError('experimental.ppr')
+    } else if (result.experimental?.dynamicIO) {
+      throw new CanaryOnlyError('experimental.dynamicIO')
+    } else if (result.experimental?.turbo?.unstablePersistentCaching) {
+      throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
+    }
+  }
+
   if (result.output === 'export') {
     if (result.i18n) {
       throw new Error(
@@ -1220,4 +1234,12 @@ export function getEnabledExperimentalFeatures(
     }
   }
   return enabledExperiments
+}
+
+class CanaryOnlyError extends Error {
+  constructor(feature: string) {
+    super(
+      `The experimental feature "${feature}" can only be enabled when using the latest canary version of Next.js.`
+    )
+  }
 }
