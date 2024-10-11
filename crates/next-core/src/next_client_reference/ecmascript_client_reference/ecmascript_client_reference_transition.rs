@@ -95,6 +95,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
                 EntryReferenceSubType::AppClientComponent,
             )),
         );
+
         let ProcessResult::Module(ssr_module) = *ssr_module.await? else {
             return Ok(ProcessResult::Ignore.cell());
         };
