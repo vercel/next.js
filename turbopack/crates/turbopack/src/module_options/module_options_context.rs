@@ -125,8 +125,6 @@ pub struct ModuleOptionsContext {
     pub side_effect_free_packages: Vec<RcStr>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
-    pub special_exports: Option<Vc<Vec<RcStr>>>,
-
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,
     /// A list of rules to use a different module option context for certain
