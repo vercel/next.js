@@ -13,7 +13,6 @@ import {
   noContent,
   type OriginalStackFrameResponse,
 } from './shared'
-import { createStackFrame } from '../internal/helpers/create-stack-frame'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
 export { getSourceMapFromFile }
@@ -81,6 +80,16 @@ async function findOriginalSourcePositionAndContent(
   } finally {
     consumer.destroy()
   }
+}
+
+function createStackFrame(searchParams: URLSearchParams) {
+  return {
+    file: searchParams.get('file') as string,
+    methodName: searchParams.get('methodName') as string,
+    lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+    column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+    arguments: searchParams.getAll('arguments').filter(Boolean),
+  } satisfies StackFrame
 }
 
 function findOriginalSourcePositionAndContentFromCompilation(

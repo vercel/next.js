@@ -60,6 +60,27 @@ export async function batchedTraceSource(
   }
 }
 
+function createStackFrame(searchParams: URLSearchParams) {
+  const fileParam = searchParams.get('file')
+
+  if (!fileParam) {
+    return undefined
+  }
+
+  // rsc://React/Server/file://<filename>?42 => file://<filename>
+  const file = fileParam
+    .replace(/^rsc:\/\/React\/\w+\//, '')
+    .replace(/\?\d+$/, '')
+
+  return {
+    file,
+    methodName: searchParams.get('methodName') ?? '<unknown>',
+    line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+    column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+    isServer: searchParams.get('isServer') === 'true',
+  } satisfies TurbopackStackFrame
+}
+
 export async function createOriginalStackFrame(
   project: Project,
   frame: TurbopackStackFrame
@@ -166,25 +187,4 @@ export function getSourceMapMiddleware(project: Project) {
 
     noContent(res)
   }
-}
-
-function createStackFrame(searchParams: URLSearchParams) {
-  const fileParam = searchParams.get('file')
-
-  if (!fileParam) {
-    return undefined
-  }
-
-  // rsc://React/Server/file://<filename>?42 => file://<filename>
-  const file = fileParam
-    .replace(/^rsc:\/\/React\/\w+\//, '')
-    .replace(/\?\d+$/, '')
-
-  return {
-    file,
-    methodName: searchParams.get('methodName') ?? '<unknown>',
-    line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
-    column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
-    isServer: searchParams.get('isServer') === 'true',
-  } satisfies TurbopackStackFrame
 }
