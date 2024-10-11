@@ -18,7 +18,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{RcStr, ValueDefault, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -82,7 +82,7 @@ pub trait CustomTransformer: Debug {
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionTransformPlugin(Option<Vc<TransformPlugin>>);
+pub struct OptionTransformPlugin(Option<ResolvedVc<TransformPlugin>>);
 
 #[turbo_tasks::value_impl]
 impl ValueDefault for OptionTransformPlugin {

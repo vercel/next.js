@@ -5,7 +5,7 @@ use std::fmt::Write;
 
 use anyhow::{bail, Result};
 use indexmap::IndexSet;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -37,7 +37,7 @@ pub struct CssChunk {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CssChunks(Vec<Vc<CssChunk>>);
+pub struct CssChunks(Vec<ResolvedVc<CssChunk>>);
 
 #[turbo_tasks::value_impl]
 impl CssChunk {
@@ -351,7 +351,7 @@ impl CssChunkContext {
 pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
 
 #[turbo_tasks::value(transparent)]
-pub struct CssChunkPlaceables(Vec<Vc<Box<dyn CssChunkPlaceable>>>);
+pub struct CssChunkPlaceables(Vec<ResolvedVc<Box<dyn CssChunkPlaceable>>>);
 
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]

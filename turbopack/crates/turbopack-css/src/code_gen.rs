@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::chunk::CssImport;
@@ -26,4 +26,4 @@ pub trait CodeGenerateable {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CodeGenerateables(Vec<Vc<Box<dyn CodeGenerateable>>>);
+pub struct CodeGenerateables(Vec<ResolvedVc<Box<dyn CodeGenerateable>>>);

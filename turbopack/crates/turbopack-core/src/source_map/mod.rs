@@ -7,7 +7,7 @@ use ref_cast::RefCast;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     rope::{Rope, RopeBuilder},
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
@@ -57,7 +57,7 @@ pub enum SourceMap {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct SectionMapping(IndexMap<String, Vc<Box<dyn GenerateSourceMap>>>);
+pub struct SectionMapping(IndexMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionSourceMap(Option<Vc<SourceMap>>);

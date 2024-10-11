@@ -7,7 +7,7 @@ pub(crate) mod placeable;
 use std::fmt::Write;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -40,7 +40,7 @@ pub struct EcmascriptChunk {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunks(Vec<Vc<EcmascriptChunk>>);
+pub struct EcmascriptChunks(Vec<ResolvedVc<EcmascriptChunk>>);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunk {
