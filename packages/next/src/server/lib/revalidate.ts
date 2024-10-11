@@ -17,9 +17,12 @@ export function formatRevalidate({
   revalidate: Revalidate
   expireTime?: ExpireTime
 }): string {
-  const swrHeader = typeof revalidate === 'number' && expireTime !== undefined
-    ? revalidate >= expireTime ? '' : `stale-while-revalidate=${expireTime - revalidate}`
-    : 'stale-while-revalidate'
+  const swrHeader =
+    typeof revalidate === 'number' && expireTime !== undefined
+      ? revalidate >= expireTime
+        ? ''
+        : `stale-while-revalidate=${expireTime - revalidate}`
+      : 'stale-while-revalidate'
 
   if (revalidate === 0) {
     return 'private, no-cache, no-store, max-age=0, must-revalidate'
