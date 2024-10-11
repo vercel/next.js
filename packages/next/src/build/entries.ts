@@ -722,14 +722,12 @@ export async function createEntrypoints(
           let appDirLoader: string = ''
           if (isInstrumentation) {
             // Add instrumentation edge server entry when there's other edge server entries
-            if (Object.keys(edgeServer).length > 0) {
-              edgeServer[serverBundlePath.replace('src/', '')] =
-                getInstrumentationEntry({
-                  absolutePagePath,
-                  isEdgeServer: true,
-                  isDev: false,
-                })
-            }
+            edgeServer[serverBundlePath.replace('src/', '')] =
+              getInstrumentationEntry({
+                absolutePagePath,
+                isEdgeServer: true,
+                isDev: false,
+              })
           } else {
             if (pagesType === 'app') {
               const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
