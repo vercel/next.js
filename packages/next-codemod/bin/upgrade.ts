@@ -372,7 +372,7 @@ async function suggestReactTypesCodemods(): Promise<boolean> {
     {
       type: 'toggle',
       name: 'runReactTypesCodemod',
-      message: Would you like to run the React 19 Types upgrade codemod?',
+      message: 'Would you like to run the React 19 Types upgrade codemod?',
       initial: true,
       active: 'Yes',
       inactive: 'No',
