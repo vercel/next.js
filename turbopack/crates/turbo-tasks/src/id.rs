@@ -78,6 +78,7 @@ define_id!(ValueTypeId: u32);
 define_id!(TraitTypeId: u32);
 define_id!(BackendJobId: u32);
 define_id!(ExecutionId: u64, derive(Debug));
+define_id!(SessionId: u32, derive(Debug, Serialize, Deserialize), serde(transparent));
 define_id!(
     LocalCellId: u32,
     derive(Debug),

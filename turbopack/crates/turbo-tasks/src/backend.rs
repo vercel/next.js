@@ -717,7 +717,7 @@ pub trait Backend: Sync + Send {
         // Do nothing by default
     }
 
-    fn mark_own_task_as_dirty_when_persisted(
+    fn mark_own_task_as_session_dependent(
         &self,
         _task: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi<Self>,

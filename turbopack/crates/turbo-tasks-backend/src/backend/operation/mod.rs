@@ -12,7 +12,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
@@ -95,6 +95,10 @@ impl<'a> ExecuteContext<'a> {
             self.transaction = Some(tx);
             tx
         }
+    }
+
+    pub fn session_id(&self) -> SessionId {
+        self.backend.session_id()
     }
 
     pub fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'a> {
