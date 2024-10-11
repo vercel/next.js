@@ -19,7 +19,7 @@ function createParserFromPath(filePath: string): j.JSCodeshift {
   // jsx is allowed in .js files, feed them into the tsx parser.
   // tsx parser :.js, .jsx, .tsx
   // ts parser: .ts, .mts, .cts
-  const isTsFile = /\.(m|c).ts$/.test(filePath)
+  const isTsFile = /\.(m|c)?.ts$/.test(filePath)
   return isTsFile ? j.withParser('ts') : j.withParser('tsx')
 }
 
