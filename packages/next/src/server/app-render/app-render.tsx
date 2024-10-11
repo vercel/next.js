@@ -50,7 +50,7 @@ import {
   createTrackedMetadataContext,
   createMetadataContext,
 } from '../../lib/metadata/metadata-context'
-import { withRequestStore } from '../async-storage/with-request-store'
+import { createRequestStoreForRender } from '../async-storage/request-store'
 import { withWorkStore } from '../async-storage/with-work-store'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
@@ -1277,49 +1277,45 @@ export const renderToHTMLOrFlight: AppPageRender = (
     url,
     fallbackRouteParams
   )
-
-  return withRequestStore(
-    renderOpts.ComponentMod.workUnitAsyncStorage,
-    {
-      req,
-      url,
-      res,
-      phase: 'render',
-      renderOpts,
-      isHmrRefresh,
-      serverComponentsHmrCache,
-      implicitTags,
-    },
-    (requestStore) => {
-      if (requestStore.type !== 'request') {
-        // TODO: Refactor to not need a RequestStore for prerenders.
-        throw new Error('This should never happen.')
-      }
-      return withWorkStore(
-        renderOpts.ComponentMod.workAsyncStorage,
-        {
-          page: renderOpts.routeModule.definition.page,
-          fallbackRouteParams,
-          renderOpts,
-          requestEndedState,
-          isPrefetchRequest: Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER]),
-        },
-        (workStore) =>
-          renderToHTMLOrFlightImpl(
-            req,
-            res,
-            pagePath,
-            query,
-            renderOpts,
-            requestStore,
-            workStore,
-            parsedRequestHeaders,
-            requestEndedState,
-            postponedState
-          )
-      )
-    }
+  // TODO: We need to refactor this so that prerenders do not rely upon the
+  // existence of an outer scoped request store. Then we should move this
+  // store generation inside the appropriate scope like `renderToStream` where
+  // we know we're handling a Request and not a Prerender
+  const requestStore = createRequestStoreForRender(
+    req,
+    res,
+    url,
+    implicitTags,
+    renderOpts.onUpdateCookies,
+    renderOpts.previewProps,
+    isHmrRefresh,
+    serverComponentsHmrCache
   )
+  return workUnitAsyncStorage.run(requestStore, () => {
+    return withWorkStore(
+      renderOpts.ComponentMod.workAsyncStorage,
+      {
+        page: renderOpts.routeModule.definition.page,
+        fallbackRouteParams,
+        renderOpts,
+        requestEndedState,
+        isPrefetchRequest: Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER]),
+      },
+      (workStore) =>
+        renderToHTMLOrFlightImpl(
+          req,
+          res,
+          pagePath,
+          query,
+          renderOpts,
+          requestStore,
+          workStore,
+          parsedRequestHeaders,
+          requestEndedState,
+          postponedState
+        )
+    )
+  })
 }
 
 async function renderToStream(

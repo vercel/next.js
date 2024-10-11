@@ -1,12 +1,7 @@
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
-import type { AsyncLocalStorage } from 'async_hooks'
-import type {
-  RequestStore,
-  WorkUnitStore,
-} from '../app-render/work-unit-async-storage.external'
+import type { RequestStore } from '../app-render/work-unit-async-storage.external'
 import type { RenderOpts } from '../app-render/types'
-import type { WithStore } from './with-store'
 import type { NextRequest } from '../web/spec-extension/request'
 import type { __ApiPreviewProps } from '../api-utils'
 
@@ -104,22 +99,62 @@ function mergeMiddlewareCookies(
   }
 }
 
-export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
-  Result,
->(
-  storage: AsyncLocalStorage<WorkUnitStore>,
-  {
+export function createRequestStoreForRender(
+  req: RequestContext['req'],
+  res: RequestContext['res'],
+  url: RequestContext['url'],
+  implicitTags: RequestContext['implicitTags'],
+  onUpdateCookies: RenderOpts['onUpdateCookies'],
+  previewProps: WrapperRenderOpts['previewProps'],
+  isHmrRefresh: RequestContext['isHmrRefresh'],
+  serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
+): RequestStore {
+  return createRequestStoreImpl(
+    // Pages start in render phase by default
+    'render',
     req,
-    url,
     res,
-    phase,
-    renderOpts,
-    isHmrRefresh,
-    serverComponentsHmrCache,
+    url,
     implicitTags,
-  }: RequestContext,
-  callback: (store: RequestStore) => Result
-): Result => {
+    onUpdateCookies,
+    previewProps,
+    isHmrRefresh,
+    serverComponentsHmrCache
+  )
+}
+
+export function createRequestStoreForAPI(
+  req: RequestContext['req'],
+  url: RequestContext['url'],
+  implicitTags: RequestContext['implicitTags'],
+  onUpdateCookies: RenderOpts['onUpdateCookies'],
+  previewProps: WrapperRenderOpts['previewProps']
+): RequestStore {
+  return createRequestStoreImpl(
+    // API routes start in action phase by default
+    'action',
+    req,
+    undefined,
+    url,
+    implicitTags,
+    onUpdateCookies,
+    previewProps,
+    false,
+    undefined
+  )
+}
+
+function createRequestStoreImpl(
+  phase: RequestStore['phase'],
+  req: RequestContext['req'],
+  res: RequestContext['res'],
+  url: RequestContext['url'],
+  implicitTags: RequestContext['implicitTags'],
+  onUpdateCookies: RenderOpts['onUpdateCookies'],
+  previewProps: WrapperRenderOpts['previewProps'],
+  isHmrRefresh: RequestContext['isHmrRefresh'],
+  serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
+): RequestStore {
   function defaultOnUpdateCookies(cookies: string[]) {
     if (res) {
       res.setHeader('Set-Cookie', cookies)
@@ -133,7 +168,7 @@ export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
     draftMode?: DraftModeProvider
   } = {}
 
-  const store: RequestStore = {
+  return {
     type: 'request',
     phase,
     implicitTags: implicitTags ?? [],
@@ -171,8 +206,7 @@ export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
       if (!cache.mutableCookies) {
         const mutableCookies = getMutableCookies(
           req.headers,
-          renderOpts?.onUpdateCookies ||
-            (res ? defaultOnUpdateCookies : undefined)
+          onUpdateCookies || (res ? defaultOnUpdateCookies : undefined)
         )
 
         mergeMiddlewareCookies(req, mutableCookies)
@@ -184,7 +218,7 @@ export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
     get draftMode() {
       if (!cache.draftMode) {
         cache.draftMode = new DraftModeProvider(
-          renderOpts?.previewProps,
+          previewProps,
           req,
           this.cookies,
           this.mutableCookies
@@ -199,6 +233,4 @@ export const withRequestStore: WithStore<WorkUnitStore, RequestContext> = <
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
   }
-
-  return storage.run(store, callback, store)
 }
