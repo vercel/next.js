@@ -68,8 +68,8 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           // We'll map the filename before normalization:
           // sitemap.ts -> sitemap.xml/route.ts
           // icon.ts -> icon/route.ts
-          const metadataPage = normalizeMetadataPageToRoute(page, false) // this.normalizers.page.normalize(dummyFilename)
-          const metadataPathname = normalizeMetadataPageToRoute(pathname, false) // this.normalizers.pathname.normalize(dummyFilename)
+          const metadataPage = normalizeMetadataPageToRoute(page, false)
+          const metadataPathname = normalizeMetadataPageToRoute(pathname, false)
           const metadataBundlePath = normalizeMetadataPageToRoute(
             bundlePath,
             false
