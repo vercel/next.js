@@ -17,6 +17,8 @@ export type FunctionScope =
   | FunctionExpression
   | ArrowFunctionExpression
 
+export const NEXT_CODEMOD_ERROR_PREFIX = '@next-codemod-error'
+
 export const TARGET_ROUTE_EXPORTS = new Set([
   'GET',
   'POST',

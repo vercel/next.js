@@ -21,7 +21,7 @@ where
 }
 
 // declare a const of comment prefix
-const COMMENT_PREFIX: &str = "Next.js Dynamic Async API Codemod:";
+const COMMENT_PREFIX: &str = "@next-codemod-error";
 
 impl<C> LintErrorComment<C>
 where
@@ -29,7 +29,7 @@ where
 {
     fn lint(&self, comment: &Comment, is_leading: bool) {
         let trimmed_text = comment.text.trim();
-        // if comment contains @next/codemod comment "Next.js Dynamic Async API Codemod:",
+        // if comment contains @next/codemod comment "@next-codemod-error",
         // report an error from the linter to fail the build
         if trimmed_text.contains(COMMENT_PREFIX) {
             let span = if is_leading {

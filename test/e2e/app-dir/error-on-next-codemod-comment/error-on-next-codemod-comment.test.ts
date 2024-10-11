@@ -28,7 +28,7 @@ describe('app-dir - error-on-next-codemod-comment', () => {
           "./app/page.tsx:2:2
           Ecmascript file had an error
             1 | export default function Page() {
-          > 2 |   // Next.js Dynamic Async API Codemod: remove jsx of next line
+          > 2 |   // @next-codemod-error remove jsx of next line
               |  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
             3 |   return <p>hello world</p>
             4 | }
@@ -40,11 +40,11 @@ describe('app-dir - error-on-next-codemod-comment', () => {
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "./app/page.tsx
-          Error:   x You have unresolved @next/codemod comments that need to be reviewed, please address and remove them to proceed with the build.
+          Error:   x You have unresolved @next/codemod comment needs to be removed, please address and remove it to proceed build.
             | Action: " remove jsx of next line"
              ,-[2:1]
            1 | export default function Page() {
-           2 |   // Next.js Dynamic Async API Codemod: remove jsx of next line
+           2 |   // @next-codemod-error remove jsx of next line
              :  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
            3 |   return <p>hello world</p>
            4 | }
