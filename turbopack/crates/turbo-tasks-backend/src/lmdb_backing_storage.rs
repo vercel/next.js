@@ -4,7 +4,7 @@ use std::{
     collections::{hash_map::Entry, HashMap},
     env,
     error::Error,
-    fs::{create_dir_all, metadata, read_dir, remove_dir_all},
+    fs::{self, create_dir_all, metadata, read_dir, remove_dir_all},
     mem::{transmute, ManuallyDrop},
     path::Path,
     sync::Arc,
@@ -63,6 +63,7 @@ pub struct LmdbBackingStorage {
     meta_db: Database,
     forward_task_cache_db: Database,
     reverse_task_cache_db: Database,
+    fresh_db: bool,
 }
 
 impl LmdbBackingStorage {
@@ -144,7 +145,10 @@ impl LmdbBackingStorage {
             let _ = remove_dir_all(base_path);
             path = base_path.join("temp");
         }
-        create_dir_all(&path).context("Creating database directory failed")?;
+        let fresh_db = fs::exists(&path).map_or(false, |exists| !exists);
+        if fresh_db {
+            create_dir_all(&path).context("Creating database directory failed")?;
+        }
 
         #[cfg(target_arch = "x86")]
         const MAP_SIZE: usize = usize::MAX;
@@ -175,6 +179,7 @@ impl LmdbBackingStorage {
             meta_db,
             forward_task_cache_db,
             reverse_task_cache_db,
+            fresh_db,
         })
     }
 
@@ -430,6 +435,12 @@ impl BackingStorage for LmdbBackingStorage {
         tx: Option<ReadTransaction>,
         task_type: &CachedTaskType,
     ) -> Option<TaskId> {
+        // Performance optimization when the database was empty
+        // It's assumed that no cache entries are removed from the memory cache, but we might change
+        // that in future.
+        if self.fresh_db {
+            return None;
+        }
         fn lookup(
             this: &LmdbBackingStorage,
             tx: &RoTransaction<'_>,
@@ -462,6 +473,12 @@ impl BackingStorage for LmdbBackingStorage {
         tx: Option<ReadTransaction>,
         task_id: TaskId,
     ) -> Option<Arc<CachedTaskType>> {
+        // Performance optimization when the database was empty
+        // It's assumed that no cache entries are removed from the memory cache, but we might change
+        // that in future.
+        if self.fresh_db {
+            return None;
+        }
         fn lookup(
             this: &LmdbBackingStorage,
             tx: &RoTransaction<'_>,
@@ -492,6 +509,12 @@ impl BackingStorage for LmdbBackingStorage {
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Vec<CachedDataItem> {
+        // Performance optimization when the database was empty
+        // It's assumed that no cache entries are removed from the memory cache, but we might change
+        // that in future.
+        if self.fresh_db {
+            return Vec::new();
+        }
         fn lookup(
             this: &LmdbBackingStorage,
             tx: &RoTransaction<'_>,
