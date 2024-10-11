@@ -11,14 +11,16 @@ const dtsOptions = {
 }
 
 function createParserFromPath(filePath: string): j.JSCodeshift {
-  const isTypeFile = /\.d\.(m|c)?ts$/.test(filePath)
-  if (isTypeFile) {
+  const isDeclarationFile = /\.d\.(m|c)?ts$/.test(filePath)
+  if (isDeclarationFile) {
     return j.withParser(babylonParse(dtsOptions))
   }
-  // In Next.js js files could also contain jsx syntax, applying with tsx parser is most compatible.
-  // This is similar to how Next.js itself handles tsx and ts files with SWC.
-  const isTs = filePath.endsWith('.ts')
-  return isTs ? j.withParser('ts') : j.withParser('tsx')
+
+  // jsx is allowed in .js files, feed them into the tsx parser.
+  // tsx parser :.js, .jsx, .tsx
+  // ts parser: .ts, .mts, .cts
+  const isTsFile = /\.(m|c).ts$/.test(filePath)
+  return isTsFile ? j.withParser('ts') : j.withParser('tsx')
 }
 
 export { createParserFromPath }
