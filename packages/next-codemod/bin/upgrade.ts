@@ -172,7 +172,7 @@ export async function runUpgrade(
   }
 
   console.log(
-    `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
+    `Installing required packages for Next.js v${targetNextVersion}...`
   )
 
   installPackages([nextDependency, ...reactDependencies], {
@@ -180,32 +180,55 @@ export async function runUpgrade(
     silent: !verbose,
   })
 
-  for (const codemod of codemods) {
-    await runTransform(codemod, process.cwd(), { force: true, verbose })
+  console.log(
+    `${pc.green('✓')} Successfully installed required packages for Next.js v${targetNextVersion}`
+  )
+
+  if (codemods.length > 0) {
+    console.log(`Running Next.js codemods...`)
+
+    for (const codemod of codemods) {
+      console.log()
+      await runTransform(codemod, process.cwd(), { force: true, verbose })
+    }
+
+    console.log(`${pc.green('✓')} Successfully applied Next.js codemods`)
   }
 
   // To reduce user-side burden of selecting which codemods to run as it needs additional
   // understanding of the codemods, we run all of the applicable codemods.
   if (shouldRunReactCodemods) {
+    console.log(`Running React 19 codemods...`)
+
     // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
     execSync(
       // `--no-interactive` skips the interactive prompt that asks for confirmation
       // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
       `${execCommand} codemod@latest react/19/migration-recipe --no-interactive`,
-      { stdio: 'inherit' }
+      { stdio: verbose ? 'inherit' : ['ignore', 'ignore', 'inherit'] }
     )
+
+    console.log(`${pc.green('✓')} Successfully applied React 19 codemods`)
   }
   if (shouldRunReactTypesCodemods) {
+    console.log(`Running React 19 Types codemods...`)
+
     // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
     // `--yes` skips prompts and applies all codemods automatically
     // https://github.com/eps1lon/types-react-codemod/blob/8463103233d6b70aad3cd6bee1814001eae51b28/README.md?plain=1#L52
     execSync(`${execCommand} types-react-codemod@latest --yes preset-19 .`, {
-      stdio: 'inherit',
+      stdio: verbose ? 'inherit' : ['ignore', 'ignore', 'inherit'],
     })
+
+    console.log(`${pc.green('✓')} Successfully applied React 19 Types codemods`)
   }
 
   console.log() // new line
-  if (codemods.length > 0) {
+  if (
+    codemods.length > 0 ||
+    shouldRunReactCodemods ||
+    shouldRunReactTypesCodemods
+  ) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
   console.log(

@@ -31,18 +31,22 @@ export function getPkgManager(baseDir: string): PackageManager {
 
 export function uninstallPackage(
   packageToUninstall: string,
-  pkgManager?: PackageManager
+  options: { packageManager?: PackageManager; silent?: boolean } = {}
 ) {
-  pkgManager ??= getPkgManager(process.cwd())
-  if (!pkgManager) throw new Error('Failed to find package manager')
+  const { packageManager = getPkgManager(process.cwd()), silent = false } =
+    options
+
+  if (!packageManager) throw new Error('Failed to find package manager')
 
   let command = 'uninstall'
-  if (pkgManager === 'yarn') {
+  if (packageManager === 'yarn') {
     command = 'remove'
   }
 
   try {
-    execa.sync(pkgManager, [command, packageToUninstall], { stdio: 'inherit' })
+    execa.sync(packageManager, [command, packageToUninstall], {
+      stdio: silent ? ['ignore', 'ignore', 'inherit'] : 'inherit',
+    })
   } catch (error) {
     throw new Error(
       `Failed to uninstall "${packageToUninstall}". Please uninstall it manually.`,
