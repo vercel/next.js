@@ -62,6 +62,7 @@ function getOriginalStackFrame(
 
   if (
     source.file === '<anonymous>' ||
+    source.file === 'file://' ||
     source.file?.match(/^node:/) ||
     source.file?.match(/https?:\/\//)
   ) {
