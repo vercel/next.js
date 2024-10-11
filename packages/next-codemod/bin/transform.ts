@@ -127,7 +127,7 @@ export async function runTransform(
   console.log(`Executing command: jscodeshift ${args.join(' ')}`)
 
   const result = execa.sync(jscodeshiftExecutable, args, {
-    stdio: verbose ? 'inherit' : ['ignore', 'ignore', 'inherit'],
+    stdio: 'inherit',
     stripFinalNewline: false,
   })
 

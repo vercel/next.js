@@ -69,7 +69,7 @@ export async function runUpgrade(
 
   if (compareVersions(installedNextVersion, targetNextVersion) >= 0) {
     console.warn(
-      `${pc.yellow(pc.bold('⚠'))} Current Next.js version is already on or higher than the target version "v${targetNextVersion}".`
+      `${pc.green(pc.bold('✔'))} Current Next.js version is already on or higher than the target version "v${targetNextVersion}".`
     )
     return
   }
@@ -238,8 +238,9 @@ export async function runUpgrade(
   }
   console.log(
     pc.yellow(
-      `Please review the local changes and read the Next.js 15 migration guide to complete the migration. https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15`
-    )
+      `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+    ),
+    'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
   )
 }
 
