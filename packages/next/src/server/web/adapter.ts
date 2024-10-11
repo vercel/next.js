@@ -12,13 +12,13 @@ import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
+import { withRequestStore } from '../async-storage/with-request-store'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
-  withRequestStore,
-  type WrapperRenderOpts,
-} from '../async-storage/with-request-store'
-import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
-import { withWorkStore } from '../async-storage/with-work-store'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+  withWorkStore,
+  type WorkStoreContext,
+} from '../async-storage/with-work-store'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
@@ -212,11 +212,12 @@ export async function adapter(
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
       // so we have to inject it via DefinePlugin.
       // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
+
       const isAfterEnabled =
         params.request.nextConfig?.experimental?.after ??
         !!process.env.__NEXT_AFTER
 
-      let waitUntil: WrapperRenderOpts['waitUntil'] = undefined
+      let waitUntil: WorkStoreContext['renderOpts']['waitUntil'] = undefined
       let closeController: CloseController | undefined = undefined
 
       if (isAfterEnabled) {
@@ -250,6 +251,10 @@ export async function adapter(
                   },
                   buildId: buildId ?? '',
                   supportsDynamicResponse: true,
+                  waitUntil,
+                  onClose: closeController
+                    ? closeController.onClose.bind(closeController)
+                    : undefined,
                 },
                 requestEndedState: { ended: false },
                 isPrefetchRequest: request.headers.has(
@@ -258,23 +263,17 @@ export async function adapter(
               },
               () =>
                 withRequestStore(
-                  requestAsyncStorage,
+                  workUnitAsyncStorage,
                   {
                     req: request,
                     res: undefined,
+                    phase: 'action',
                     url: request.nextUrl,
                     renderOpts: {
                       onUpdateCookies: (cookies) => {
                         cookiesFromResponse = cookies
                       },
                       previewProps,
-                      waitUntil,
-                      onClose: closeController
-                        ? closeController.onClose.bind(closeController)
-                        : undefined,
-                      experimental: {
-                        after: isAfterEnabled,
-                      },
                     },
                   },
                   () => params.handler(request, event)

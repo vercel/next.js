@@ -68,7 +68,7 @@ pub struct StateRef<'a, T> {
     mutated: bool,
 }
 
-impl<'a, T> Deref for StateRef<'a, T> {
+impl<T> Deref for StateRef<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -76,14 +76,14 @@ impl<'a, T> Deref for StateRef<'a, T> {
     }
 }
 
-impl<'a, T> DerefMut for StateRef<'a, T> {
+impl<T> DerefMut for StateRef<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.mutated = true;
         &mut self.inner.value
     }
 }
 
-impl<'a, T> Drop for StateRef<'a, T> {
+impl<T> Drop for StateRef<'_, T> {
     fn drop(&mut self) {
         if self.mutated {
             for invalidator in take(&mut self.inner.invalidators) {

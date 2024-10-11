@@ -33,29 +33,40 @@ const program = new Command(packageJson.name)
   .helpOption('-h, --help', 'Display this help message.')
   .option('-f, --force', 'Bypass Git safety checks and forcibly run codemods')
   .option('-d, --dry', 'Dry run (no changes are made to files)')
-  .option('-p, --print', 'Print transformed files to your terminal')
+  .option(
+    '-p, --print',
+    'Print transformed files to stdout, useful for development'
+  )
+  .option('--verbose', 'Show more information about the transform process')
   .option(
     '-j, --jscodeshift',
     '(Advanced) Pass options directly to jscodeshift'
   )
   .action(runTransform)
   .allowUnknownOption()
+  // This is needed for options for subcommands to be passed correctly.
+  // Because by default the options are not positional, which will pass options
+  // to the main command "@next/codemod" even if it was passed after subcommands,
+  // e.g. "@next/codemod upgrade --verbose" will be treated as "next-codemod --verbose upgrade"
+  // By enabling this, it will respect the position of the options and pass it to subcommands.
+  // x-ref: https://github.com/tj/commander.js/pull/1427
+  .enablePositionalOptions()
 
 program
   .command('upgrade')
   .description(
     'Upgrade Next.js apps to desired versions with a single command.'
   )
-
   .argument(
     '[revision]',
-    'NPM dist tag or exact version to upgrade to (e.g. "latest" or "15.0.0-canary.167"). Valid dist-tags are "latest", "canary" or "rc".',
+    'Specify the target Next.js version using an NPM dist tag (e.g. "latest", "canary", "rc") or an exact version number (e.g. "15.0.0").',
     packageJson.version.includes('-canary.')
       ? 'canary'
       : packageJson.version.includes('-rc.')
         ? 'rc'
         : 'latest'
   )
+  .usage('[revision] [options]')
   .option('--verbose', 'Verbose output', false)
   .action(runUpgrade)
 

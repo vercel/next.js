@@ -30,7 +30,7 @@ macro_rules! define_id {
             /// # Safety
             ///
             /// The passed `id` must not be zero.
-            pub unsafe fn new_unchecked(id: $primitive) -> Self {
+            pub const unsafe fn new_unchecked(id: $primitive) -> Self {
                 Self { id: unsafe { NonZero::<$primitive>::new_unchecked(id) } }
             }
         }

@@ -1,4 +1,6 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use std::time::Duration;
 
@@ -12,6 +14,14 @@ const COUNT2: u32 = 2000;
 
 #[tokio::test]
 async fn many_calls_to_many_children() {
+    if matches!(
+        std::env::var("TURBOPACK_TEST_PERFORMANCE").ok().as_deref(),
+        None | Some("") | Some("no") | Some("false")
+    ) {
+        println!("Skipping test, pass `TURBOPACK_TEST_PERFORMANCE=yes` to run it");
+        return;
+    }
+
     run(&REGISTRATION, || async {
         // The first call will actually execute many_children and its children.
         let start = std::time::Instant::now();

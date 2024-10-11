@@ -4,6 +4,7 @@ use crate::{
     backend::{
         operation::{ExecuteContext, InvalidateOperation},
         storage::{get_many, remove},
+        TaskDataCategory,
     },
     data::{CachedDataItem, CachedDataItemKey},
 };
@@ -11,12 +12,12 @@ use crate::{
 pub struct UpdateCellOperation;
 
 impl UpdateCellOperation {
-    pub fn run(task: TaskId, cell: CellId, content: CellContent, ctx: ExecuteContext<'_>) {
-        let mut task = ctx.task(task);
+    pub fn run(task_id: TaskId, cell: CellId, content: CellContent, mut ctx: ExecuteContext<'_>) {
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
         let old_content = if let CellContent(Some(new_content)) = content {
             task.insert(CachedDataItem::CellData {
                 cell,
-                value: new_content,
+                value: new_content.into_typed(cell.type_id),
             })
         } else {
             task.remove(&CachedDataItemKey::CellData { cell })

@@ -3,7 +3,11 @@ import globby from 'globby'
 import prompts from 'prompts'
 import { join } from 'node:path'
 import { installPackages, uninstallPackage } from '../lib/handle-package'
-import { checkGitStatus, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import {
+  checkGitStatus,
+  onCancel,
+  TRANSFORMER_INQUIRER_CHOICES,
+} from '../lib/utils'
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {
   const shouldExpandFiles = filesBeforeExpansion.some((file) =>
@@ -41,22 +45,36 @@ export async function runTransform(
   }
 
   if (!path) {
-    const res = await prompts({
-      type: 'text',
-      name: 'path',
-      message: 'On which files or directory should the codemods be applied?',
-      default: '.',
-    })
+    const res = await prompts(
+      {
+        type: 'text',
+        name: 'path',
+        message: 'On which files or directory should the codemods be applied?',
+        initial: '.',
+      },
+      { onCancel }
+    )
 
     directory = res.path
   }
   if (!transform) {
-    const res = await prompts({
-      type: 'select',
-      name: 'transformer',
-      message: 'Which transform would you like to apply?',
-      choices: TRANSFORMER_INQUIRER_CHOICES,
-    })
+    const res = await prompts(
+      {
+        type: 'select',
+        name: 'transformer',
+        message: 'Which transform would you like to apply?',
+        choices: TRANSFORMER_INQUIRER_CHOICES.reverse().map(
+          ({ title, value, version }) => {
+            return {
+              title: `(v${version}) ${value}`,
+              description: title,
+              value,
+            }
+          }
+        ),
+      },
+      { onCancel }
+    )
 
     transformer = res.transformer
   }
@@ -77,7 +95,7 @@ export async function runTransform(
 
   let args = []
 
-  const { dry, print, runInBand, jscodeshift } = options
+  const { dry, print, runInBand, jscodeshift, verbose } = options
 
   if (dry) {
     args.push('--dry')
@@ -88,8 +106,10 @@ export async function runTransform(
   if (runInBand) {
     args.push('--run-in-band')
   }
-
-  args.push('--verbose=2')
+  if (verbose) {
+    args.push('--verbose=2')
+  }
+  args.push('--no-babel')
 
   args.push('--ignore-pattern=**/node_modules/**')
   args.push('--ignore-pattern=**/.next/**')
@@ -116,18 +136,30 @@ export async function runTransform(
   }
 
   if (!dry && transformer === 'built-in-next-font') {
-    console.log('Uninstalling `@next/font`')
-    try {
+    const { uninstallNextFont } = await prompts({
+      type: 'confirm',
+      name: 'uninstallNextFont',
+      message: 'Do you want to uninstall `@next/font`?',
+      initial: true,
+    })
+
+    if (uninstallNextFont) {
+      console.log('Uninstalling `@next/font`')
       uninstallPackage('@next/font')
-    } catch {
-      console.error(
-        "Couldn't uninstall `@next/font`, please uninstall it manually"
-      )
     }
   }
 
   if (!dry && transformer === 'next-request-geo-ip') {
-    console.log('Installing `@vercel/functions`...')
-    installPackages(['@vercel/functions'])
+    const { installVercelFunctions } = await prompts({
+      type: 'confirm',
+      name: 'installVercelFunctions',
+      message: 'Do you want to install `@vercel/functions`?',
+      initial: true,
+    })
+
+    if (installVercelFunctions) {
+      console.log('Installing `@vercel/functions`...')
+      installPackages(['@vercel/functions'])
+    }
   }
 }

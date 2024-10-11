@@ -16,7 +16,6 @@ const __TURBOPACK__import$2e$meta__ = {
         return `file://${__turbopack_resolve_absolute_path__("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs")}`;
     }
 };
-"__TURBOPACK__ecmascript__hoisting__location__";
 const assetUrl = new __turbopack_relative_url__(__turbopack_require__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt [test] (static)"));
 console.log(assetUrl);
 fetch(assetUrl).then((res)=>res.text()).then(console.log);
@@ -28,7 +27,6 @@ var { r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_
 {
 __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$import$2d$meta$2f$url$2f$input$2f$mod$2e$mjs__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs [test] (ecmascript)");
-"__TURBOPACK__ecmascript__hoisting__location__";
 ;
 }}),
 }]);

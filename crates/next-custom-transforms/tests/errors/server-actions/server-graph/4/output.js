@@ -5,5 +5,3 @@ export default class Component {
         return null;
     }
 }
-import { ensureServerEntryExports } from "private-next-rsc-action-validate";
-ensureServerEntryExports([]);
