@@ -71,7 +71,12 @@ impl LmdbBackingStorage {
         // dirty git repository. Pass `TURBO_ENGINE_DISABLE_VERSIONING` at runtime to disable
         // versioning and always use the same database.
         let version_info = env!("VERGEN_GIT_DESCRIBE");
-        let git_dirty = version_info.strip_suffix("-dirty").is_some();
+        let (version_info, git_dirty) =
+            if let Some(version_info) = version_info.strip_suffix("-dirty") {
+                (version_info, true)
+            } else {
+                (version_info, false)
+            };
         let ignore_dirty = env::var("TURBO_ENGINE_IGNORE_DIRTY").ok().is_some();
         let disabled_versioning = env::var("TURBO_ENGINE_DISABLE_VERSIONING").ok().is_some();
         let version = if disabled_versioning {
