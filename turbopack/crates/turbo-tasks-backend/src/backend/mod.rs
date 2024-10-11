@@ -207,6 +207,7 @@ impl TurboTasksBackendInner {
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
         if self.suspending_requested() {
+            let _span = tracing::trace_span!("operation suspended").entered();
             let operation = Arc::new(suspend());
             let mut snapshot_request = self.snapshot_request.lock();
             if snapshot_request.snapshot_requested {
@@ -233,6 +234,7 @@ impl TurboTasksBackendInner {
     pub(crate) fn start_operation(&self) -> OperationGuard<'_> {
         let fetch_add = self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
         if (fetch_add & SNAPSHOT_REQUESTED_BIT) != 0 {
+            let _span = tracing::trace_span!("operation waiting for start").entered();
             let mut snapshot_request = self.snapshot_request.lock();
             if snapshot_request.snapshot_requested {
                 let value = self.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
@@ -445,6 +447,7 @@ impl TurboTasksBackendInner {
         let (item, listener) =
             CachedDataItem::new_scheduled_with_listener(self.get_task_desc_fn(task_id), note);
         task.add_new(item);
+        let _span = tracing::trace_span!("recompute from reading output").entered();
         turbo_tasks.schedule(task_id);
 
         Ok(Err(listener))
@@ -643,6 +646,7 @@ impl TurboTasksBackendInner {
         // yet.
         let uncompleted_operations = self.backing_storage.uncompleted_operations();
         if !uncompleted_operations.is_empty() {
+            let _span = tracing::trace_span!("continue uncompleted operations").entered();
             let mut ctx = self.execute_context(turbo_tasks);
             for op in uncompleted_operations {
                 op.execute(&mut ctx);

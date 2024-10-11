@@ -6,7 +6,7 @@ use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItemExt, ChunkingContext, MinifyType, ModuleId},
+    chunk::{ChunkItemExt, ChunkingContext, MinifyType, ModuleId, ModuleIdJs},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionSourceMap},
@@ -15,7 +15,6 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkContent, EcmascriptChunkItemExt},
     minify::minify,
-    utils::StringifyJs,
 };
 
 use super::{chunk::EcmascriptBuildNodeChunk, version::EcmascriptBuildNodeChunkVersion};
@@ -76,12 +75,12 @@ impl EcmascriptBuildNodeChunkContent {
             code,
             r#"
                 module.exports = {{
-    
+
             "#,
         )?;
 
         for (id, item_code) in chunk_items(this.content).await? {
-            write!(code, "{}: ", StringifyJs(&id))?;
+            write!(code, "{}: ", ModuleIdJs(&id))?;
             code.push_code(&item_code);
             writeln!(code, ",")?;
         }

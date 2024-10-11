@@ -315,16 +315,29 @@ impl AggregatedDataUpdate {
     }
 }
 
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
+pub struct AggregationUpdateStats {
+    pub processed_jobs: usize,
+    pub update_aggregation_number: usize,
+    pub new_follower: usize,
+    pub lost_follower: usize,
+    pub data_update: usize,
+    pub find_and_schedule_dirty: usize,
+    pub balance: usize,
+}
+
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct AggregationUpdateQueue {
     #[serde(skip)]
     jobs: VecDeque<(Span, AggregationUpdateJob)>,
+    pub stats: AggregationUpdateStats,
 }
 
 impl AggregationUpdateQueue {
     pub fn new() -> Self {
         Self {
             jobs: VecDeque::with_capacity(8),
+            stats: AggregationUpdateStats::default(),
         }
     }
 
@@ -348,6 +361,7 @@ impl AggregationUpdateQueue {
     }
 
     pub fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
+        self.stats.processed_jobs += 1;
         if let Some((span, job)) = self.jobs.pop_front() {
             let span = span.entered();
             let span = &*span;
@@ -1017,9 +1031,13 @@ impl AggregationUpdateQueue {
 
 impl Operation for AggregationUpdateQueue {
     fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
+        let span = tracing::trace_span!("aggregation update queue", stats = tracing::field::Empty)
+            .entered();
         loop {
             ctx.operation_suspend_point(&self);
             if self.process(ctx) {
+                let stats = self.stats;
+                span.record("stats", tracing::field::debug(stats));
                 return;
             }
         }

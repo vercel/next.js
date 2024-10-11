@@ -31,15 +31,9 @@ pub enum ConnectChildOperation {
 impl ConnectChildOperation {
     pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: ExecuteContext<'_>) {
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
-        // Quick skip if the child was already connected before
-        if parent_task
-            .remove(&CachedDataItemKey::OutdatedChild {
-                task: child_task_id,
-            })
-            .is_some()
-        {
-            return;
-        }
+        parent_task.remove(&CachedDataItemKey::OutdatedChild {
+            task: child_task_id,
+        });
         if parent_task.add(CachedDataItem::Child {
             task: child_task_id,
             value: (),
@@ -119,6 +113,9 @@ impl ConnectChildOperation {
                     }
                 }
             }
+            if should_schedule {
+                ctx.schedule(child_task_id);
+            }
 
             ConnectChildOperation::UpdateAggregation {
                 aggregation_update: queue,
@@ -133,12 +130,28 @@ impl Operation for ConnectChildOperation {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
-                ConnectChildOperation::UpdateAggregation {
-                    ref mut aggregation_update,
-                } => {
-                    if aggregation_update.process(ctx) {
-                        self = ConnectChildOperation::Done
-                    }
+                ConnectChildOperation::UpdateAggregation { .. } => {
+                    let span = tracing::trace_span!(
+                        "aggregation update queue in connect child",
+                        stats = tracing::field::Empty
+                    )
+                    .entered();
+                    let stats = loop {
+                        ctx.operation_suspend_point(&self);
+                        let ConnectChildOperation::UpdateAggregation {
+                            ref mut aggregation_update,
+                            ..
+                        } = self
+                        else {
+                            unreachable!();
+                        };
+                        if aggregation_update.process(ctx) {
+                            let stats = aggregation_update.stats;
+                            self = ConnectChildOperation::Done;
+                            break stats;
+                        }
+                    };
+                    span.record("stats", tracing::field::debug(stats));
                 }
 
                 ConnectChildOperation::Done => {

@@ -56,9 +56,9 @@ impl ExportInfoWarning {
 pub struct ExportInfo {
     pub ssr: bool,
     pub ssg: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
     pub runtime: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub preferred_region: Vec<String>,
     pub generate_image_metadata: Option<bool>,
     pub generate_sitemaps: Option<bool>,
