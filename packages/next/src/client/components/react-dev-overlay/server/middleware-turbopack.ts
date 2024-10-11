@@ -69,7 +69,7 @@ function createStackFrame(searchParams: URLSearchParams) {
 
   // rsc://React/Server/file://<filename>?42 => file://<filename>
   const file = fileParam
-    .replace(/^rsc:\/\/React\/\w+\//, '')
+    .replace(/^rsc:\/\/React\/[^/]+\//, '')
     .replace(/\?\d+$/, '')
 
   return {

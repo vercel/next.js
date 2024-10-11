@@ -103,12 +103,12 @@ export function getOriginalStackFrames(
 }
 
 const webpackRegExes = [
-  /^(rsc:\/\/React\/\w+\/)?webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
+  /^(rsc:\/\/React\/[^/]+\/)?webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
   /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
 ]
 
 const replacementRegExes = [
-  /^(rsc:\/\/React\/\w+\/)/,
+  /^(rsc:\/\/React\/[^/]+\/)/,
   /^webpack-internal:\/\/\/(\.)?(\((\w+)\))?/,
   /^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/,
   /\?\d+$/, // React's fakeFunctionIdx query param

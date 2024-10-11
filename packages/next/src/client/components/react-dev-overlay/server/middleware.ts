@@ -226,7 +226,7 @@ export async function getSource(
   // webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
   const moduleId = filename
     .replace(
-      /^(rsc:\/\/React\/\w+\/)?(webpack-internal:\/\/\/|webpack:\/\/(_N_E\/)?)/,
+      /^(rsc:\/\/React\/[^/]+\/)?(webpack-internal:\/\/\/|webpack:\/\/(_N_E\/)?)/,
       ''
     )
     .replace(/\?\d+$/, '')
@@ -277,7 +277,7 @@ export function getOverlayMiddleware(options: {
 
       if (
         !(
-          /^(rsc:\/\/React\/\w+\/)?(webpack-internal:\/\/\/|(file|webpack):\/\/)/.test(
+          /^(rsc:\/\/React\/[^/]+\/)?(webpack-internal:\/\/\/|(file|webpack):\/\/)/.test(
             frame.file
           ) && frame.lineNumber
         )
