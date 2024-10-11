@@ -44,9 +44,10 @@ where
             };
             let action = trimmed_text.replace(COMMENT_ERROR_PREFIX, "");
             let err_message = format!(
-                "You have unresolved @next/codemod comment \"{}\" that need to be reviewed, \
-                 please address and remove them to proceed with the build.\nYou can also bypass \
-                 the build error by replacing \"{}\" with \"{}\".",
+                "You have unresolved @next/codemod comment \"{}\" that needs review.\nAfter \
+                 review, either remove the comment if you made the necessary changes or replace \
+                 \"{}\" with \"{}\" to bypass the build error if no action at this line can be \
+                 taken.\n",
                 action.trim(),
                 COMMENT_ERROR_PREFIX,
                 COMMENT_BYPASS_PREFIX
