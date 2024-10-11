@@ -18,7 +18,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::instrument;
-use turbo_tasks::{spawn_thread, Invalidator, RcStr, SerializationInvalidator};
+use turbo_tasks::{spawn_thread, Invalidator, RcStr};
 
 use crate::{
     format_absolute_fs_path,
@@ -144,7 +144,6 @@ impl DiskWatcher {
         invalidator_map: Arc<InvalidatorMap>,
         dir_invalidator_map: Arc<InvalidatorMap>,
         poll_interval: Option<Duration>,
-        serialization_invalidator: SerializationInvalidator,
     ) -> Result<()> {
         let mut watcher_guard = self.watcher.lock().unwrap();
         if watcher_guard.is_some() {
@@ -215,7 +214,6 @@ impl DiskWatcher {
                     invalidator.invalidate()
                 });
             }
-            serialization_invalidator.invalidate();
         }
 
         watcher_guard.replace(watcher);

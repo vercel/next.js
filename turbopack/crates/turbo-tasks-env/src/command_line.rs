@@ -1,5 +1,5 @@
 use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{mark_session_dependent, RcStr, Vc};
 
 use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
 
@@ -25,6 +25,7 @@ fn env_snapshot() -> IndexMap<RcStr, RcStr> {
 impl ProcessEnv for CommandLineProcessEnv {
     #[turbo_tasks::function]
     fn read_all(&self) -> Vc<EnvMap> {
+        mark_session_dependent();
         Vc::cell(env_snapshot())
     }
 }
