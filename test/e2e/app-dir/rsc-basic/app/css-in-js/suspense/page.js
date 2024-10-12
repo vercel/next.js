@@ -34,7 +34,7 @@ export default function page() {
     <div>
       <Footer id="footer">
         {`wait for `}
-        <Suspense fallback={`fallback`}>
+        <Suspense fallback={`$test-fallback-sentinel`}>
           <SuspenseyFooter />
         </Suspense>
       </Footer>

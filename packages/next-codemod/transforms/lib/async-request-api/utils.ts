@@ -17,6 +17,9 @@ export type FunctionScope =
   | FunctionExpression
   | ArrowFunctionExpression
 
+export const NEXT_CODEMOD_ERROR_PREFIX = '@next-codemod-error'
+const NEXT_CODEMOD_IGNORE_ERROR_PREFIX = '@next-codemod-ignore'
+
 export const TARGET_ROUTE_EXPORTS = new Set([
   'GET',
   'POST',
@@ -422,21 +425,58 @@ export function wrapParentheseIfNeeded(
   return hasChainAccess ? j.parenthesizedExpression(expression) : expression
 }
 
+function existsComment(
+  comments: ASTPath<any>['node']['comments'],
+  comment: string
+): boolean {
+  const isCodemodErrorComment = comment
+    .trim()
+    .startsWith(NEXT_CODEMOD_ERROR_PREFIX)
+
+  let hasIgnoreComment = false
+  let hasComment = false
+
+  if (comments) {
+    comments.forEach((commentNode) => {
+      const currentComment = commentNode.value
+      if (currentComment.trim().startsWith(NEXT_CODEMOD_IGNORE_ERROR_PREFIX)) {
+        hasIgnoreComment = true
+      }
+      if (currentComment === comment) {
+        hasComment = true
+      }
+    })
+    // If it's inserting codemod error comment,
+    // check if there's already a @next-codemod-ignore comment.
+    // if ignore comment exists, bypass the comment insertion.
+    if (hasIgnoreComment && isCodemodErrorComment) {
+      return true
+    }
+    if (hasComment) {
+      return true
+    }
+  }
+  return false
+}
+
 export function insertCommentOnce(
   node: ASTPath<any>['node'],
   j: API['j'],
   comment: string
 ): boolean {
-  if (node.comments) {
-    const hasComment = node.comments.some(
-      (commentNode) => commentNode.value === comment
-    )
-    if (hasComment) {
-      return false
-    }
+  const hasCommentInInlineComments = existsComment(node.comments, comment)
+  const hasCommentInLeadingComments = existsComment(
+    node.leadingComments,
+    comment
+  )
+
+  if (!hasCommentInInlineComments && !hasCommentInLeadingComments) {
+    // Always insert into inline comment
+    node.comments = [j.commentBlock(comment), ...(node.comments || [])]
+    return true
   }
-  node.comments = [j.commentBlock(comment), ...(node.comments || [])]
-  return true
+
+  return false
 }
 
 export function getVariableDeclaratorId(

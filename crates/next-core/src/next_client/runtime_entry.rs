@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -15,7 +15,7 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 pub enum RuntimeEntry {
     Request(Vc<Request>, Vc<FileSystemPath>),
     Evaluatable(Vc<Box<dyn EvaluatableAsset>>),
-    Source(Vc<Box<dyn Source>>),
+    Source(ResolvedVc<Box<dyn Source>>),
 }
 
 #[turbo_tasks::value_impl]
