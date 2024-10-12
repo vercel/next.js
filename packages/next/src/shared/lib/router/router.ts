@@ -177,6 +177,15 @@ function getMiddlewareData<T extends FetchDataOutput>(
   const matchedPath = response.headers.get('x-matched-path')
 
   if (
+    !rewriteTarget &&
+    matchedPath &&
+    process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE
+  ) {
+    // when externalMiddlewareRewritesResolve=true, leverage x-matched-path to detect rewrites as a fallback
+    rewriteTarget = matchedPath
+  }
+
+  if (
     matchedPath &&
     !rewriteTarget &&
     !matchedPath.includes('__next_data_catchall') &&
@@ -184,15 +193,6 @@ function getMiddlewareData<T extends FetchDataOutput>(
     !matchedPath.includes('/404')
   ) {
     // leverage x-matched-path to detect next.config.js rewrites
-    rewriteTarget = matchedPath
-  }
-
-  if (
-    !rewriteTarget &&
-    matchedPath &&
-    process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE
-  ) {
-    // when externalMiddlewareRewritesResolve=true, leverage x-matched-path to detect rewrites as a fallback
     rewriteTarget = matchedPath
   }
 
