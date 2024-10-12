@@ -187,8 +187,12 @@ function getMiddlewareData<T extends FetchDataOutput>(
     rewriteTarget = matchedPath
   }
 
-  if (matchedPath && process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE) {
-    // when externalMiddlewareRewritesResolve=true, leverage x-matched-path to detect rewrites
+  if (
+    !rewriteTarget &&
+    matchedPath &&
+    process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE
+  ) {
+    // when externalMiddlewareRewritesResolve=true, leverage x-matched-path to detect rewrites as a fallback
     rewriteTarget = matchedPath
   }
 
