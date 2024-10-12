@@ -444,7 +444,6 @@ function fetchRetry(
     method: options.method || 'GET',
     headers: Object.assign({}, options.headers, {
       'x-nextjs-data': '1',
-      'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
     }),
   }).then((response) => {
     return !response.ok && attempts > 1 && response.status >= 500
@@ -498,7 +497,12 @@ function fetchNextData({
       headers: Object.assign(
         {} as HeadersInit,
         isPrefetch ? { purpose: 'prefetch' } : {},
-        isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {}
+        isPrefetch && hasMiddleware
+          ? {
+              'x-middleware-prefetch': '1',
+              'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
+            }
+          : {}
       ),
       method: params?.method ?? 'GET',
     })
