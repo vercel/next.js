@@ -327,7 +327,7 @@ export class AppRouteRouteModule extends RouteModule<
            *
            * Next we run the handler again and we check if we get a result back in a microtask.
            * Next.js expects the return value to be a Response or a Thenable that resolves to a Response.
-           * Unfortunately Response's do not allow for acessing the response body synchronously or in
+           * Unfortunately Response's do not allow for accessing the response body synchronously or in
            * a microtask so we need to allow one more task to unwrap the response body. This is a slightly
            * different semantic than what we have when we render and it means that certain tasks can still
            * execute before a prerender completes such as a carefully timed setImmediate.
@@ -358,6 +358,8 @@ export class AppRouteRouteModule extends RouteModule<
             })
 
           let prospectiveResult
+          let prospectiveRenderErrored = false
+          let prospectiveRenderError: any = null
           try {
             prospectiveResult = this.workUnitAsyncStorage.run(
               prospectiveRoutePrerenderStore,
@@ -370,6 +372,9 @@ export class AppRouteRouteModule extends RouteModule<
               // the route handler called an API which is always dynamic
               // there is no need to try again
               prospectiveRenderIsDynamic = true
+            } else {
+              prospectiveRenderErrored = true
+              prospectiveRenderError = err
             }
           }
           if (
@@ -386,11 +391,21 @@ export class AppRouteRouteModule extends RouteModule<
                   // the route handler called an API which is always dynamic
                   // there is no need to try again
                   prospectiveRenderIsDynamic = true
+                } else {
+                  prospectiveRenderErrored = true
+                  prospectiveRenderError = err
                 }
               }
             )
           }
           await cacheSignal.cacheReady()
+
+          if (prospectiveRenderErrored) {
+            // If we errored before caches were finished filling we can assume
+            // the error would be encountered in the final render and can just throw
+            // it here instead.
+            throw prospectiveRenderError
+          }
 
           if (prospectiveRenderIsDynamic) {
             // the route handler called an API which is always dynamic
