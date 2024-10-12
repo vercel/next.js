@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::Serialize;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
+    emit, CollectiblesSource, RawVc, RcStr, ReadRef, ResolvedVc, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
@@ -353,7 +353,7 @@ where
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Issues(Vec<Vc<Box<dyn Issue>>>);
+pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
 /// A list of issues captured with [`Issue::peek_issues_with_path`] and
 /// [`Issue::take_issues_with_path`].

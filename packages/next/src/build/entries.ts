@@ -67,7 +67,7 @@ import {
   isInternalComponent,
   isNonRoutePagesPage,
 } from '../lib/is-internal-component'
-import { isMetadataRoute } from '../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
@@ -267,7 +267,10 @@ export async function createPagesMapping({
 
     let route = pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
 
-    if (isMetadataRoute(route) && pagesType === 'app') {
+    if (
+      pagesType === 'app' &&
+      isMetadataRouteFile(pagePath, pageExtensions, true)
+    ) {
       const filePath = join(appDir!, pagePath)
       const staticInfo = await getPageStaticInfo({
         nextConfig: {},

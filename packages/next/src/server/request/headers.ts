@@ -138,7 +138,10 @@ function makeDynamicallyTrackedExoticHeaders(
     return cachedHeaders
   }
 
-  const promise = makeHangingPromise<ReadonlyHeaders>()
+  const promise = makeHangingPromise<ReadonlyHeaders>(
+    prerenderStore.renderSignal,
+    '`headers()`'
+  )
   CachedHeaders.set(prerenderStore, promise)
 
   Object.defineProperties(promise, {
