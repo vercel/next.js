@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{TryFlatJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -33,7 +33,7 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
 enum SideEffectsValue {
     None,
     Constant(bool),
-    Glob(Vc<Glob>),
+    Glob(ResolvedVc<Glob>),
 }
 
 #[turbo_tasks::function]
@@ -99,9 +99,14 @@ async fn side_effects_from_package_json(
                     })
                     .try_flat_join()
                     .await?;
-                return Ok(
-                    SideEffectsValue::Glob(Glob::alternatives(globs).resolve().await?).cell(),
-                );
+                return Ok(SideEffectsValue::Glob(
+                    Glob::alternatives(globs)
+                        .resolve()
+                        .await?
+                        .to_resolved()
+                        .await?,
+                )
+                .cell());
             } else {
                 SideEffectsInPackageJsonIssue {
                     path: package_json,
@@ -190,7 +195,7 @@ pub async fn is_marked_as_side_effect_free(
 
 #[turbo_tasks::value(shared)]
 pub enum EcmascriptExports {
-    EsmExports(Vc<EsmExports>),
+    EsmExports(ResolvedVc<EsmExports>),
     DynamicNamespace,
     CommonJs,
     EmptyCommonJs,

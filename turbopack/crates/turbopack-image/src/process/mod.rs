@@ -17,7 +17,7 @@ use image::{
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -170,7 +170,7 @@ fn load_image_internal(
                     .into(),
             )
             .cell(),
-            title: Some(StyledString::Text("AVIF image not supported".into()).cell()),
+            title: Some(StyledString::Text("AVIF image not supported".into()).resolved_cell()),
             issue_severity: Some(IssueSeverity::Warning.into()),
         }
         .cell()
@@ -188,7 +188,7 @@ fn load_image_internal(
                     .into(),
             )
             .cell(),
-            title: Some(StyledString::Text("WEBP image not supported".into()).cell()),
+            title: Some(StyledString::Text("WEBP image not supported".into()).resolved_cell()),
             issue_severity: Some(IssueSeverity::Warning.into()),
         }
         .cell()
@@ -479,7 +479,7 @@ pub async fn optimize(
 struct ImageProcessingIssue {
     path: Vc<FileSystemPath>,
     message: Vc<StyledString>,
-    title: Option<Vc<StyledString>>,
+    title: Option<ResolvedVc<StyledString>>,
     issue_severity: Option<Vc<IssueSeverity>>,
 }
 
@@ -502,8 +502,9 @@ impl Issue for ImageProcessingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        self.title
-            .unwrap_or(StyledString::Text("Processing image failed".into()).cell())
+        *self
+            .title
+            .unwrap_or(StyledString::Text("Processing image failed".into()).resolved_cell())
     }
 
     #[turbo_tasks::function]
