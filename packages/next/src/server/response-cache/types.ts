@@ -77,6 +77,7 @@ export interface CachedAppPageValue {
   status: number | undefined
   postponed: string | undefined
   headers: OutgoingHttpHeaders | undefined
+  segmentData: { [segmentPath: string]: string } | undefined
 }
 
 export interface CachedPageValue {
@@ -117,6 +118,7 @@ export interface IncrementalCachedAppPageValue {
   headers: OutgoingHttpHeaders | undefined
   postponed: string | undefined
   status: number | undefined
+  segmentData: { [segmentPath: string]: string } | undefined
 }
 
 export interface IncrementalCachedPageValue {

@@ -1,9 +1,11 @@
+use std::cmp::Ordering;
+
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     event::{Event, EventListener},
     registry,
     util::SharedError,
-    CellId, KeyValuePair, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
+    CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
 };
 
 use crate::backend::{indexed::Indexed, TaskDataCategory};
@@ -83,6 +85,159 @@ transient_traits!(RootState);
 
 impl Eq for RootState {}
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DirtyState {
+    pub clean_in_session: Option<SessionId>,
+}
+
+impl DirtyState {
+    pub fn get(&self, session: SessionId) -> bool {
+        self.clean_in_session != Some(session)
+    }
+}
+
+fn add_with_diff(v: &mut i32, u: i32) -> i32 {
+    let old = *v;
+    *v += u;
+    if old <= 0 && *v > 0 {
+        1
+    } else if old > 0 && *v <= 0 {
+        -1
+    } else {
+        0
+    }
+}
+
+/// Represents a count of dirty containers. Since dirtyness can be session dependent, there might be
+/// a different count for a specific session. It only need to store the highest session count, since
+/// old sessions can't be visited again, so we can ignore their counts.
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DirtyContainerCount {
+    pub count: i32,
+    pub count_in_session: Option<(SessionId, i32)>,
+}
+
+impl DirtyContainerCount {
+    /// Get the count for a specific session. It's only expected to be asked for the current
+    /// session, since old session counts might be dropped.
+    pub fn get(&self, session: SessionId) -> i32 {
+        if let Some((s, count)) = self.count_in_session {
+            if s == session {
+                return count;
+            }
+        }
+        self.count
+    }
+
+    /// Increase/decrease the count by the given value.
+    pub fn update(&mut self, count: i32) -> DirtyContainerCount {
+        self.update_count(&DirtyContainerCount {
+            count,
+            count_in_session: None,
+        })
+    }
+
+    /// Increase/decrease the count by the given value, but does not update the count for a specific
+    /// session. This matches the "dirty, but clean in one session" behavior.
+    pub fn update_session_dependent(
+        &mut self,
+        ignore_session: SessionId,
+        count: i32,
+    ) -> DirtyContainerCount {
+        self.update_count(&DirtyContainerCount {
+            count,
+            count_in_session: Some((ignore_session, 0)),
+        })
+    }
+
+    /// Adds the `count` to the current count. This correctly handles session dependent counts.
+    /// Returns a new count object that represents the aggregated count. The aggregated count will
+    /// be +1 when the self count changes from <= 0 to > 0 and -1 when the self count changes from >
+    /// 0 to <= 0. The same for the session dependent count.
+    pub fn update_count(&mut self, count: &DirtyContainerCount) -> DirtyContainerCount {
+        let mut diff = DirtyContainerCount::default();
+        match (
+            self.count_in_session.as_mut(),
+            count.count_in_session.as_ref(),
+        ) {
+            (None, None) => {}
+            (Some((s, c)), None) => {
+                let d = add_with_diff(c, count.count);
+                diff.count_in_session = Some((*s, d));
+            }
+            (None, Some((s, c))) => {
+                let mut new = self.count;
+                let d = add_with_diff(&mut new, *c);
+                self.count_in_session = Some((*s, new));
+                diff.count_in_session = Some((*s, d));
+            }
+            (Some((s1, c1)), Some((s2, c2))) => match (*s1).cmp(s2) {
+                Ordering::Less => {
+                    let mut new = self.count;
+                    let d = add_with_diff(&mut new, *c2);
+                    self.count_in_session = Some((*s2, new));
+                    diff.count_in_session = Some((*s2, d));
+                }
+                Ordering::Equal => {
+                    let d = add_with_diff(c1, *c2);
+                    diff.count_in_session = Some((*s1, d));
+                }
+                Ordering::Greater => {
+                    let d = add_with_diff(c1, count.count);
+                    diff.count_in_session = Some((*s1, d));
+                }
+            },
+        }
+        let d = add_with_diff(&mut self.count, count.count);
+        diff.count = d;
+        diff
+    }
+
+    /// Applies a dirty state to the count. Returns an aggregated count that represents the change.
+    pub fn update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
+        if let Some(clean_in_session) = dirty.clean_in_session {
+            self.update_session_dependent(clean_in_session, 1)
+        } else {
+            self.update(1)
+        }
+    }
+
+    /// Undoes the effect of a dirty state on the count. Returns an aggregated count that represents
+    /// the change.
+    pub fn undo_update_with_dirty_state(&mut self, dirty: &DirtyState) -> DirtyContainerCount {
+        if let Some(clean_in_session) = dirty.clean_in_session {
+            self.update_session_dependent(clean_in_session, -1)
+        } else {
+            self.update(-1)
+        }
+    }
+
+    /// Replaces the old dirty state with the new one. Returns an aggregated count that represents
+    /// the change.
+    pub fn replace_dirty_state(
+        &mut self,
+        old: &DirtyState,
+        new: &DirtyState,
+    ) -> DirtyContainerCount {
+        let mut diff = self.undo_update_with_dirty_state(old);
+        diff.update_count(&self.update_with_dirty_state(new));
+        diff
+    }
+
+    /// Returns true if the count is zero and appling it would have no effect
+    pub fn is_zero(&self) -> bool {
+        self.count == 0 && self.count_in_session.map(|(_, c)| c == 0).unwrap_or(true)
+    }
+
+    /// Negates the counts.
+    pub fn negate(&self) -> Self {
+        Self {
+            count: -self.count,
+            count_in_session: self.count_in_session.map(|(s, c)| (s, -c)),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ActiveType {
     RootTask,
@@ -102,6 +257,7 @@ pub enum InProgressState {
         stale: bool,
         #[allow(dead_code)]
         once_task: bool,
+        session_dependent: bool,
         done_event: Event,
     },
 }
@@ -149,10 +305,7 @@ pub enum CachedDataItem {
 
     // State
     Dirty {
-        value: (),
-    },
-    DirtyWhenPersisted {
-        value: (),
+        value: DirtyState,
     },
 
     // Children
@@ -217,14 +370,14 @@ pub enum CachedDataItem {
     // Aggregated Data
     AggregatedDirtyContainer {
         task: TaskId,
-        value: i32,
+        value: DirtyContainerCount,
     },
     AggregatedCollectible {
         collectible: CollectibleRef,
         value: i32,
     },
     AggregatedDirtyContainerCount {
-        value: i32,
+        value: DirtyContainerCount,
     },
 
     // Transient Root Type
@@ -284,7 +437,6 @@ impl CachedDataItem {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItem::Dirty { .. } => true,
-            CachedDataItem::DirtyWhenPersisted { .. } => true,
             CachedDataItem::Child { task, .. } => !task.is_transient(),
             CachedDataItem::CellData { .. } => true,
             CachedDataItem::CellTypeMaxIndex { .. } => true,
@@ -349,7 +501,6 @@ impl CachedDataItemKey {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::Dirty { .. } => true,
-            CachedDataItemKey::DirtyWhenPersisted { .. } => true,
             CachedDataItemKey::Child { task, .. } => !task.is_transient(),
             CachedDataItemKey::CellData { .. } => true,
             CachedDataItemKey::CellTypeMaxIndex { .. } => true,
@@ -381,8 +532,7 @@ impl CachedDataItemKey {
 
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            CachedDataItemKey::Output { .. }
-            | CachedDataItemKey::Collectible { .. }
+            CachedDataItemKey::Collectible { .. }
             | CachedDataItemKey::Child { .. }
             | CachedDataItemKey::CellData { .. }
             | CachedDataItemKey::CellTypeMaxIndex { .. }
@@ -401,9 +551,9 @@ impl CachedDataItemKey {
             | CachedDataItemKey::OutdatedChild { .. }
             | CachedDataItemKey::Error { .. } => TaskDataCategory::Data,
 
-            CachedDataItemKey::AggregationNumber { .. }
+            CachedDataItemKey::Output { .. }
+            | CachedDataItemKey::AggregationNumber { .. }
             | CachedDataItemKey::Dirty { .. }
-            | CachedDataItemKey::DirtyWhenPersisted { .. }
             | CachedDataItemKey::Follower { .. }
             | CachedDataItemKey::Upper { .. }
             | CachedDataItemKey::AggregatedDirtyContainer { .. }

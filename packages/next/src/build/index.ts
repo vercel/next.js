@@ -157,6 +157,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext, type MappedPages } from './build-context'
@@ -188,6 +189,7 @@ import {
   handlePagesErrorRoute,
   formatIssue,
   isRelevantWarning,
+  isPersistentCachingEnabled,
 } from '../server/dev/turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
@@ -1258,7 +1260,7 @@ export default async function build(
               header: RSC_HEADER,
               // This vary header is used as a default. It is technically re-assigned in `base-server`,
               // and may include an additional Vary option for `Next-URL`.
-              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}`,
+              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`,
               prefetchHeader: NEXT_ROUTER_PREFETCH_HEADER,
               didPostponeHeader: NEXT_DID_POSTPONE_HEADER,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
@@ -1409,7 +1411,7 @@ export default async function build(
             browserslistQuery: supportedBrowsers.join(', '),
           },
           {
-            persistentCaching: config.experimental.turbo?.persistentCaching,
+            persistentCaching: isPersistentCachingEnabled(config),
             memoryLimit: config.experimental.turbo?.memoryLimit,
           }
         )
@@ -1624,8 +1626,9 @@ export default async function build(
           )
         }
 
+        const time = process.hrtime(startTime)
         return {
-          duration: process.hrtime(startTime)[0],
+          duration: time[0] + time[1] / 1e9,
           buildTraceContext: undefined,
           shutdownPromise,
         }
@@ -1685,11 +1688,19 @@ export default async function build(
 
           buildTraceContext = rest.buildTraceContext
 
-          Log.event('Compiled successfully')
+          if (compilerDuration > 2) {
+            Log.event(
+              `Compiled successfully in ${Math.round(compilerDuration)}s`
+            )
+          } else {
+            Log.event(
+              `Compiled successfully in ${Math.round(compilerDuration * 1000)}ms`
+            )
+          }
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
-              durationInSeconds: compilerDuration,
+              durationInSeconds: Math.round(compilerDuration),
               totalAppPagesCount,
             })
           )

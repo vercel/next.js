@@ -1,6 +1,7 @@
 import {
   type ReadonlyRequestCookies,
   type ResponseCookies,
+  areCookiesMutableInCurrentPhase,
   RequestCookiesAdapter,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestCookies } from '../web/spec-extension/cookies'
@@ -16,7 +17,6 @@ import {
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
-import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeResolvedReactPromise } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
@@ -113,22 +113,16 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
   }
 
   // cookies is being called in a dynamic context
-  const actionStore = actionAsyncStorage.getStore()
 
   const requestStore = getExpectedRequestStore(callingExpression)
 
   let underlyingCookies: ReadonlyRequestCookies
 
-  // The current implementation of cookies will return Response cookies
-  // for a server action during the render phase of a server action.
-  // This is not correct b/c the type of cookies during render is ReadOnlyRequestCookies
-  // where as the type of cookies during action is ResponseCookies
-  // This was found because RequestCookies is iterable and ResponseCookies is not
-  if (actionStore?.isAction || actionStore?.isAppRoute) {
+  if (areCookiesMutableInCurrentPhase(requestStore)) {
     // We can't conditionally return different types here based on the context.
     // To avoid confusion, we always return the readonly type here.
     underlyingCookies =
-      requestStore.mutableCookies as unknown as ReadonlyRequestCookies
+      requestStore.userspaceMutableCookies as unknown as ReadonlyRequestCookies
   } else {
     underlyingCookies = requestStore.cookies
   }
@@ -162,7 +156,10 @@ function makeDynamicallyTrackedExoticCookies(
     return cachedPromise
   }
 
-  const promise = makeHangingPromise<ReadonlyRequestCookies>()
+  const promise = makeHangingPromise<ReadonlyRequestCookies>(
+    prerenderStore.renderSignal,
+    '`cookies()`'
+  )
   CachedCookies.set(prerenderStore, promise)
 
   Object.defineProperties(promise, {

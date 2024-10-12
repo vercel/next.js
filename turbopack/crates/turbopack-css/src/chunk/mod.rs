@@ -36,9 +36,6 @@ pub struct CssChunk {
     pub content: Vc<CssChunkContent>,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct CssChunks(Vec<Vc<CssChunk>>);
-
 #[turbo_tasks::value_impl]
 impl CssChunk {
     #[turbo_tasks::function]
@@ -349,9 +346,6 @@ impl CssChunkContext {
 // TODO: remove
 #[turbo_tasks::value_trait]
 pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
-
-#[turbo_tasks::value(transparent)]
-pub struct CssChunkPlaceables(Vec<Vc<Box<dyn CssChunkPlaceable>>>);
 
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]

@@ -223,7 +223,9 @@ impl ProjectContainer {
         let project = self.project();
         let project_fs = project.project_fs().strongly_consistent().await?;
         if watch.enable {
-            project_fs.start_watching_with_invalidation_reason(watch.poll_interval)?;
+            project_fs
+                .start_watching_with_invalidation_reason(watch.poll_interval)
+                .await?;
         } else {
             project_fs.invalidate_with_reason();
         }
@@ -304,7 +306,9 @@ impl ProjectContainer {
         if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
             if watch.enable {
                 // TODO stop watching: prev_project_fs.stop_watching()?;
-                project_fs.start_watching_with_invalidation_reason(watch.poll_interval)?;
+                project_fs
+                    .start_watching_with_invalidation_reason(watch.poll_interval)
+                    .await?;
             } else {
                 project_fs.invalidate_with_reason();
             }
