@@ -24,6 +24,7 @@
   "cpu-features",
   "cypress",
   "dd-trace",
+  "edgedb",
   "eslint",
   "express",
   "firebase-admin",
