@@ -47,25 +47,13 @@ describe.each([
 
         if (process.env.TURBOPACK) {
           if (dependencies.sass) {
-            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(`
-              ".redText ::placeholder {
-                color: red;
-              }
-
-              .flex-parsing {
-                flex: 0 0 calc(50% - var(--vertical-gutter));
-              }"
-            `)
+            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+              `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+            )
           } else {
-            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(`
-              ".redText ::placeholder {
-                color: red;
-              }
-
-              .flex-parsing {
-                flex: 0 0 calc(50% - var(--vertical-gutter));
-              }"
-            `)
+            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+              `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+            )
           }
         } else {
           if (dependencies.sass) {
