@@ -1,5 +1,5 @@
 ---
-title: swrDelta
+title: expireTime
 description: Set a custom stale-while-revalidate period for ISR enabled pages.
 ---
 
@@ -7,12 +7,12 @@ description: Set a custom stale-while-revalidate period for ISR enabled pages.
 
 You can specify a custom stale-while-revalidate period for CDNs to consume in the `Cache-Control` header for ISR enabled pages.
 
-Open `next.config.js` and add the `swrDelta` config:
+Open `next.config.js` and add the `expireTime` config:
 
 ```js filename="next.config.js"
 module.exports = {
   // one year in seconds
-  swrDelta: 31536000,
+  expireTime: 31536000,
 }
 ```
 

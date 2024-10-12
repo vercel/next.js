@@ -30,7 +30,7 @@ use ecmascript::{
 use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{Completion, RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
@@ -327,7 +327,7 @@ pub struct ModuleAssetContext {
     pub module_options_context: Vc<ModuleOptionsContext>,
     pub resolve_options_context: Vc<ResolveOptionsContext>,
     pub layer: Vc<RcStr>,
-    transition: Option<Vc<Box<dyn Transition>>>,
+    transition: Option<ResolvedVc<Box<dyn Transition>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -357,7 +357,7 @@ impl ModuleAssetContext {
         module_options_context: Vc<ModuleOptionsContext>,
         resolve_options_context: Vc<ResolveOptionsContext>,
         layer: Vc<RcStr>,
-        transition: Vc<Box<dyn Transition>>,
+        transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         Self::cell(ModuleAssetContext {
             transitions,

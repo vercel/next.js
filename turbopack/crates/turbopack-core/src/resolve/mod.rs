@@ -368,22 +368,6 @@ impl ModuleResolveResult {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct ModuleResolveResultOption(Option<Vc<ModuleResolveResult>>);
-
-#[turbo_tasks::value_impl]
-impl ModuleResolveResultOption {
-    #[turbo_tasks::function]
-    pub fn some(result: Vc<ModuleResolveResult>) -> Vc<Self> {
-        ModuleResolveResultOption(Some(result)).cell()
-    }
-
-    #[turbo_tasks::function]
-    pub fn none() -> Vc<Self> {
-        ModuleResolveResultOption(None).cell()
-    }
-}
-
 #[derive(
     Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
 )]
@@ -1291,7 +1275,6 @@ async fn find_package(
                     }
                 }
             }
-            ResolveModules::Registry(_, _) => todo!(),
         }
     }
     Ok(FindPackageResult::cell(FindPackageResult {

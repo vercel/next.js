@@ -48,7 +48,7 @@ declare module 'react-server-dom-webpack/server.edge' {
     },
     options?: {
       temporaryReferences?: string
-      environmentName?: string
+      environmentName?: string | (() => string)
       filterStackFrame?: (url: string, functionName: string) => boolean
       onError?: (error: unknown) => void
       onPostpone?: (reason: string) => void

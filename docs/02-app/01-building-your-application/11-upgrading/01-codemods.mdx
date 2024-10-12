@@ -26,6 +26,30 @@ Replacing `<transform>` and `<path>` with appropriate values.
 
 ### 15.0
 
+#### Transform App Router Route Segment Config `runtime` value from `experimental-edge` to `edge`
+
+##### `app-dir-runtime-config-experimental-edge`
+
+> **Note**: This codemod is App Router specific.
+
+```bash filename="Terminal"
+npx @next/codemod@latest app-dir-runtime-config-experimental-edge .
+```
+
+This codemod transforms [Route Segment Config `runtime`](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#runtime) value `experimental-edge` to `edge`.
+
+For example:
+
+```ts
+export const runtime = 'experimental-edge'
+```
+
+Transforms into:
+
+```ts
+export const runtime = 'edge'
+```
+
 #### Migrate to async Dynamic APIs
 
 APIs that opted into dynamic rendering that previously supported synchronous access are now asynchronous. You can read more about this breaking change in the [upgrade guide](/docs/app/building-your-application/upgrading/version-15).
@@ -130,7 +154,8 @@ export function generateMetadata(props: { params: { slug: string } }) {
 }
 ```
 
-> **Good to know:** When this codemod identifies a spot that might require manual intervention, but we aren't able to determine the exact fix, it will add a comment or typecast to the code to inform the user that it needs to be manually updated. These comments are prefixed with **Next.js Dynamic Async API Codemod**, and typecasts are prefixed with `UnsafeUnwrapped`. Your build will error until these comments are explicitly removed.
+> **Good to know:** When this codemod identifies a spot that might require manual intervention, but we aren't able to determine the exact fix, it will add a comment or typecast to the code to inform the user that it needs to be manually updated. These comments are prefixed with **@next/codemod**, and typecasts are prefixed with `UnsafeUnwrapped`.
+> Your build will error until these comments are explicitly removed. [Read more](/docs/messages/sync-dynamic-apis).
 
 #### Replace `geo` and `ip` properties of `NextRequest` with `@vercel/functions`
 
@@ -285,32 +310,6 @@ Transforms into:
 
 ```js
 import { Inter } from 'next/font/google'
-```
-
-### 13.1.2
-
-#### Transform App Router Route Segment Config `runtime` value from `experimental-edge` to `edge`
-
-##### `app-dir-runtime-config-experimental-edge`
-
-> **Note**: This codemod is App Router specific.
-
-```bash filename="Terminal"
-npx @next/codemod@latest app-dir-runtime-config-experimental-edge .
-```
-
-This codemod transforms [Route Segment Config `runtime`](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#runtime) value `experimental-edge` to `edge`.
-
-For example:
-
-```ts
-export const runtime = 'experimental-edge'
-```
-
-Transforms into:
-
-```ts
-export const runtime = 'edge'
 ```
 
 ### 13.0
