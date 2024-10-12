@@ -5,7 +5,7 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type { SwrDelta } from '../lib/revalidate'
+import type { ExpireTime } from '../lib/revalidate'
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { __ApiPreviewProps } from '../api-utils'
@@ -174,7 +174,7 @@ export interface RenderOptsPartial {
      * prerendering.
      */
     isRoutePPREnabled?: boolean
-    swrDelta: SwrDelta | undefined
+    expireTime: ExpireTime | undefined
     clientTraceMetadata: string[] | undefined
     after: boolean
     dynamicIO: boolean
