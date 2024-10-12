@@ -19,7 +19,6 @@ import {
   REACT_LOADABLE_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
-  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -140,10 +139,6 @@ async function loadComponentsImpl<N = any>({
     ])
   }
 
-  // Make sure to avoid loading the manifest for Route Handlers
-  const hasClientManifest =
-    isAppPath && (page.endsWith('/page') || page === UNDERSCORE_NOT_FOUND_ROUTE)
-
   // Load the manifest files first
   const [
     buildManifest,
@@ -155,7 +150,7 @@ async function loadComponentsImpl<N = any>({
     loadManifestWithRetries<ReactLoadableManifest>(
       join(distDir, REACT_LOADABLE_MANIFEST)
     ),
-    hasClientManifest
+    isAppPath
       ? loadClientReferenceManifest(
           join(
             distDir,
