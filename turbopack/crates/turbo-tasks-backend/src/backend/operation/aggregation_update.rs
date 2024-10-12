@@ -31,9 +31,9 @@ fn get_followers_with_aggregation_number(
     aggregation_number: u32,
 ) -> Vec<TaskId> {
     if is_aggregating_node(aggregation_number) {
-        get_many!(task, Follower { task } count if count > 0 => task)
+        get_many!(task, Follower { task } count if *count > 0 => *task)
     } else {
-        get_many!(task, Child { task } => task)
+        get_many!(task, Child { task } => *task)
     }
 }
 
@@ -42,11 +42,11 @@ fn get_followers(task: &TaskGuard<'_>) -> Vec<TaskId> {
 }
 
 pub fn get_uppers(task: &TaskGuard<'_>) -> Vec<TaskId> {
-    get_many!(task, Upper { task } count if count > 0 => task)
+    get_many!(task, Upper { task } count if *count > 0 => *task)
 }
 
 fn iter_uppers<'a>(task: &'a TaskGuard<'a>) -> impl Iterator<Item = TaskId> + 'a {
-    iter_many!(task, Upper { task } count if count > 0 => task)
+    iter_many!(task, Upper { task } count if *count > 0 => *task)
 }
 
 pub fn get_aggregation_number(task: &TaskGuard<'_>) -> u32 {
@@ -126,17 +126,17 @@ impl AggregatedDataUpdate {
         let aggregation = get_aggregation_number(task);
         let mut dirty_container_count = Default::default();
         let mut collectibles_update: Vec<_> =
-            get_many!(task, Collectible { collectible } => (collectible, 1));
+            get_many!(task, Collectible { collectible } => (*collectible, 1));
         if is_aggregating_node(aggregation) {
             dirty_container_count = get!(task, AggregatedDirtyContainerCount)
-                .copied()
+                .cloned()
                 .unwrap_or_default();
             let collectibles = iter_many!(
                 task,
                 AggregatedCollectible {
                     collectible
-                } count if count > 0 => {
-                    collectible
+                } count if *count > 0 => {
+                    *collectible
                 }
             );
             for collectible in collectibles {
@@ -148,7 +148,7 @@ impl AggregatedDataUpdate {
         }
 
         let mut result = Self::new().collectibles_update(collectibles_update);
-        if !dirty_container_count.is_default() {
+        if !dirty_container_count.is_zero() {
             let DirtyContainerCount {
                 count,
                 count_in_session,
@@ -170,7 +170,7 @@ impl AggregatedDataUpdate {
             collectibles_update,
         } = &mut self;
         if let Some((_, value)) = dirty_container_update.as_mut() {
-            *value = value.invert()
+            *value = value.negate()
         }
         for (_, value) in collectibles_update.iter_mut() {
             *value = -*value;
@@ -199,7 +199,7 @@ impl AggregatedDataUpdate {
                 })
             }
 
-            let mut aggregated_update = Default::default();
+            let mut aggregated_update = DirtyContainerCount::default();
             update!(
                 task,
                 AggregatedDirtyContainer {
@@ -208,7 +208,7 @@ impl AggregatedDataUpdate {
                 |old: Option<DirtyContainerCount>| {
                     let mut new = old.unwrap_or_default();
                     aggregated_update = new.update_count(count);
-                    (!new.is_default()).then_some(new)
+                    (!new.is_zero()).then_some(new)
                 }
             );
 
@@ -225,10 +225,10 @@ impl AggregatedDataUpdate {
                 if let Some(dirty_state) = dirty_state {
                     new.undo_update_with_dirty_state(&dirty_state);
                 }
-                if !aggregated_update.is_default() {
+                if !aggregated_update.is_zero() {
                     result.dirty_container_update = Some((task_id, aggregated_update));
                 }
-                (!new.is_default()).then_some(new)
+                (!new.is_zero()).then_some(new)
             });
             if let Some((_, count)) = result.dirty_container_update.as_ref() {
                 if count.get(session_id) < 0 {
@@ -269,8 +269,8 @@ impl AggregatedDataUpdate {
                     CollectiblesDependent {
                         collectible_type,
                         task,
-                    } if collectible_type == ty => {
-                        task
+                    } if *collectible_type == ty => {
+                        *task
                     }
                 );
                 if !dependent.is_empty() {
@@ -608,7 +608,7 @@ impl AggregationUpdateQueue {
                         value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
                     });
                 }
-                let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task);
+                let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => *task);
                 if !dirty_containers.is_empty() {
                     self.push(AggregationUpdateJob::FindAndScheduleDirty {
                         task_ids: dirty_containers,
@@ -954,7 +954,7 @@ impl AggregationUpdateQueue {
             if !is_aggregating_node(old) && is_aggregating_node(aggregation_number) {
                 // When converted from leaf to aggregating node, all children become
                 // followers
-                let children: Vec<_> = get_many!(task, Child { task } => task);
+                let children: Vec<_> = get_many!(task, Child { task } => *task);
                 for child_id in children {
                     task.add_new(CachedDataItem::Follower {
                         task: child_id,
@@ -966,7 +966,7 @@ impl AggregationUpdateQueue {
             if is_aggregating_node(aggregation_number) {
                 // followers might become inner nodes when the aggregation number is
                 // increased
-                let followers = iter_many!(task, Follower { task } count if count > 0 => task);
+                let followers = iter_many!(task, Follower { task } count if *count > 0 => *task);
                 for follower_id in followers {
                     self.push(AggregationUpdateJob::BalanceEdge {
                         upper_id: task_id,
@@ -978,7 +978,7 @@ impl AggregationUpdateQueue {
                     self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
                 }
             } else {
-                let children = iter_many!(task, Child { task } => task);
+                let children = iter_many!(task, Child { task } => *task);
                 for child_id in children {
                     self.push(AggregationUpdateJob::UpdateAggregationNumber {
                         task_id: child_id,

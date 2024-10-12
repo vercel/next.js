@@ -15,7 +15,7 @@ import {
   ACTION_VERSION_INFO,
   useErrorOverlayReducer,
 } from '../shared'
-import { parseStack } from '../internal/helpers/parseStack'
+import { parseStack } from '../internal/helpers/parse-stack'
 import ReactDevOverlay from './ReactDevOverlay'
 import { useErrorHandler } from '../internal/helpers/use-error-handler'
 import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
@@ -333,7 +333,20 @@ function processMessage(
           // as we'll receive the updated manifest before usePathname
           // triggers for new value
           if ((pathnameRef.current as string) in obj.data) {
-            dispatcher.onStaticIndicator(true)
+            // the indicator can be hidden for an hour.
+            // check if it's still hidden
+            const indicatorHiddenAt = Number(
+              localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
+            )
+
+            const isHidden =
+              indicatorHiddenAt &&
+              !isNaN(indicatorHiddenAt) &&
+              Date.now() < indicatorHiddenAt
+
+            if (!isHidden) {
+              dispatcher.onStaticIndicator(true)
+            }
           } else {
             dispatcher.onStaticIndicator(false)
           }
@@ -600,7 +613,18 @@ export default function HotReload({
 
       if (appIsrManifest) {
         if (pathname in appIsrManifest) {
-          dispatcher.onStaticIndicator(true)
+          const indicatorHiddenAt = Number(
+            localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
+          )
+
+          const isHidden =
+            indicatorHiddenAt &&
+            !isNaN(indicatorHiddenAt) &&
+            Date.now() < indicatorHiddenAt
+
+          if (!isHidden) {
+            dispatcher.onStaticIndicator(true)
+          }
         } else {
           dispatcher.onStaticIndicator(false)
         }

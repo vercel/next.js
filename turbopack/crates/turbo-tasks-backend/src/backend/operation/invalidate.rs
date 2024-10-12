@@ -112,7 +112,7 @@ pub fn make_task_dirty_internal(
         }) => {
             // Got dirty in that one session only
             let mut dirty_container = get!(task, AggregatedDirtyContainerCount)
-                .copied()
+                .cloned()
                 .unwrap_or_default();
             dirty_container.update_session_dependent(session_id, 1);
             dirty_container
@@ -120,7 +120,7 @@ pub fn make_task_dirty_internal(
         None => {
             // Get dirty for all sessions
             get!(task, AggregatedDirtyContainerCount)
-                .copied()
+                .cloned()
                 .unwrap_or_default()
         }
         _ => unreachable!(),
@@ -128,7 +128,7 @@ pub fn make_task_dirty_internal(
     let aggregated_update = dirty_container.update_with_dirty_state(&DirtyState {
         clean_in_session: None,
     });
-    if !aggregated_update.is_default() {
+    if !aggregated_update.is_zero() {
         queue.extend(AggregationUpdateJob::data_update(
             task,
             AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
