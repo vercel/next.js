@@ -23,6 +23,8 @@ interface DefaultCacheEntry extends CacheEntry {
 }
 
 export class DefaultCacheHandler implements CacheHandler {
+  // LRU cache default to max 50 MB but in future track
+
   memoryCache = new Map<string, DefaultCacheEntry>()
 
   async get(
@@ -40,4 +42,6 @@ export class DefaultCacheHandler implements CacheHandler {
   ) {}
 
   async expireTags(..._tags: Parameters<CacheHandler['expireTags']>) {}
+
+  async receiveExpiredTags(..._tags: string[]): Promise<void> {}
 }
