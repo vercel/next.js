@@ -444,6 +444,7 @@ function fetchRetry(
     method: options.method || 'GET',
     headers: Object.assign({}, options.headers, {
       'x-nextjs-data': '1',
+      'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
     }),
   }).then((response) => {
     return !response.ok && attempts > 1 && response.status >= 500
@@ -1921,8 +1922,9 @@ export default class Router implements BaseRouter {
 
     try {
       let props: Record<string, any> | undefined
-      const { page: Component, styleSheets } =
-        await this.fetchComponent('/_error')
+      const { page: Component, styleSheets } = await this.fetchComponent(
+        '/_error'
+      )
 
       const routeInfo: CompletePrivateRouteInfo = {
         props,
