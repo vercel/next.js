@@ -14,6 +14,8 @@ import {
   NEXT_DATA_SUFFIX,
   NEXT_META_SUFFIX,
   RSC_PREFETCH_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
 } from '../../../lib/constants'
 
@@ -263,6 +265,38 @@ export default class FileSystemCache implements CacheHandler {
             )
           } catch {}
 
+          let maybeSegmentData: { [segmentPath: string]: string } | undefined
+          if (meta?.segmentPaths) {
+            // Collect all the segment data for this page.
+            // TODO: To optimize file system reads, we should consider creating
+            // separate cache entries for each segment, rather than storing them
+            // all on the page's entry. Though the behavior is
+            // identical regardless.
+            const segmentData: { [segmentPath: string]: string } = {}
+            maybeSegmentData = segmentData
+            const segmentsDir = key + RSC_SEGMENTS_DIR_SUFFIX
+            await Promise.all(
+              meta.segmentPaths.map(async (segmentPath: string) => {
+                const segmentDataFilePath = this.getFilePath(
+                  segmentPath === '/'
+                    ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
+                    : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
+                  IncrementalCacheKind.APP_PAGE
+                )
+                try {
+                  segmentData[segmentPath] = await this.fs.readFile(
+                    segmentDataFilePath,
+                    'utf8'
+                  )
+                } catch {
+                  // This shouldn't happen, but if for some reason we fail to
+                  // load a segment from the filesystem, treat it the same as if
+                  // the segment is dynamic and does not have a prefetch.
+                }
+              })
+            )
+          }
+
           let rscData: Buffer | undefined
           if (!isFallback) {
             rscData = await this.fs.readFile(
@@ -282,6 +316,7 @@ export default class FileSystemCache implements CacheHandler {
               postponed: meta?.postponed,
               headers: meta?.headers,
               status: meta?.status,
+              segmentData: maybeSegmentData,
             },
           }
         } else if (kind === IncrementalCacheKind.PAGES) {
@@ -405,6 +440,7 @@ export default class FileSystemCache implements CacheHandler {
         headers: data.headers,
         status: data.status,
         postponed: undefined,
+        segmentPaths: undefined,
       }
 
       await this.fs.writeFile(
@@ -447,6 +483,7 @@ export default class FileSystemCache implements CacheHandler {
           headers: data.headers,
           status: data.status,
           postponed: data.postponed,
+          segmentPaths: undefined,
         }
 
         await this.fs.writeFile(

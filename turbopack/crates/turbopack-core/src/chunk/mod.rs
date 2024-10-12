@@ -25,7 +25,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    RcStr, ReadRef, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueToString, Vc,
+    RcStr, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Upcast,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -137,7 +138,7 @@ pub trait Chunk: Asset {
 #[derive(Default)]
 pub struct OutputChunkRuntimeInfo {
     pub included_ids: Option<Vc<ModuleIds>>,
-    pub excluded_ids: Option<Vc<ModuleIds>>,
+    pub excluded_ids: Option<ResolvedVc<ModuleIds>>,
     /// List of paths of chunks containing individual modules that are part of
     /// this chunk. This is useful for selectively loading modules from a chunk
     /// without loading the whole chunk.
