@@ -726,7 +726,7 @@ export function updateCacheNodeOnPopstateRestoration(
 ) {
   // A popstate navigation reads data from the local cache. It does not issue
   // new network requests (unless the cache entries have been evicted). So, we
-  // update the cache to drop the prefetch  data for any segment whose dynamic
+  // update the cache to drop the prefetch data for any segment whose dynamic
   // data was already received. This prevents an unnecessary flash back to PPR
   // state during a back/forward navigation.
   //

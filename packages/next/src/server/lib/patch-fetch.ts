@@ -608,7 +608,7 @@ export function createPatchedFetcher(
                 })
               } else {
                 // We are dynamically rendering including dev mode. We want to return
-                // the response to the caller as soon  as possible because it might stream
+                // the response to the caller as soon as possible because it might stream
                 // over a very long time.
                 res
                   .clone()

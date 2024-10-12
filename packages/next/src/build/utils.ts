@@ -1403,7 +1403,7 @@ export async function buildAppStaticPaths({
       }))
 
   // TODO: dynamic params should be allowed to be granular per segment but
-  // we need  additional information stored/leveraged in the prerender
+  // we need additional information stored/leveraged in the prerender
   // manifest to allow this behavior.
   const dynamicParams = segments.every(
     (segment) => segment.config?.dynamicParams !== false

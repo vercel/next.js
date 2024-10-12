@@ -48,7 +48,7 @@ export default function transformer(file: FileInfo, api: API) {
         }
 
         // If file has <style jsx> enable legacyBehavior
-        // and keep <a> to  stay on the safe side
+        // and keep <a> to stay on the safe side
         if (hasStylesJSX) {
           $link
             .get('attributes')
