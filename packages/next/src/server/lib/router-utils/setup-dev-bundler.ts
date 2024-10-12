@@ -66,7 +66,8 @@ import {
 } from '../../../build/utils'
 import {
   createOriginalStackFrame,
-  getSourceById,
+  getSourceMapFromCompilation,
+  getSourceMapFromFile,
   parseStack,
 } from '../../../client/components/react-dev-overlay/server/middleware'
 import {
@@ -85,7 +86,7 @@ import {
   ModuleBuildError,
   TurbopackInternalError,
 } from '../../dev/turbopack-utils'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
@@ -428,7 +429,15 @@ async function startWatcher(opts: SetupOpts) {
           pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
 
-        if (isAppPath && isMetadataRoute(pageName)) {
+        if (
+          isAppPath &&
+          appDir &&
+          isMetadataRouteFile(
+            fileName.replace(appDir, ''),
+            nextConfig.pageExtensions,
+            true
+          )
+        ) {
           const staticInfo = await getPageStaticInfo({
             pageFilePath: fileName,
             nextConfig: {},
@@ -980,26 +989,27 @@ async function startWatcher(opts: SetupOpts) {
                 : hotReloader.serverStats?.compilation
             )!
 
-            const source = await getSourceById(
-              !!frame.file?.startsWith(path.sep) ||
-                !!frame.file?.startsWith('file:'),
-              moduleId,
-              compilation
-            )
+            const sourceMap = await (frame.file?.startsWith(path.sep) ||
+            frame.file?.startsWith('file:')
+              ? getSourceMapFromFile(frame.file)
+              : getSourceMapFromCompilation(moduleId, compilation))
 
-            try {
-              originalFrame = await createOriginalStackFrame({
-                source,
-                frame,
-                moduleId,
-                modulePath,
-                rootDirectory: opts.dir,
-                errorMessage: err.message,
-                compilation: isEdgeCompiler
-                  ? hotReloader.edgeServerStats?.compilation
-                  : hotReloader.serverStats?.compilation,
-              })
-            } catch {}
+            if (sourceMap) {
+              try {
+                originalFrame = await createOriginalStackFrame({
+                  source: {
+                    type: 'bundle',
+                    sourceMap,
+                    compilation,
+                    moduleId,
+                    modulePath,
+                  },
+                  frame,
+                  rootDirectory: opts.dir,
+                  errorMessage: err.message,
+                })
+              } catch {}
+            }
           }
 
           if (

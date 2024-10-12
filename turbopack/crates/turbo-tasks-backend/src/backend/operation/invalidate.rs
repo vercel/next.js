@@ -13,7 +13,7 @@ use crate::{
         storage::{get, get_mut},
         TaskDataCategory,
     },
-    data::{CachedDataItem, CachedDataItemKey, InProgressState},
+    data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, InProgressState},
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -91,22 +91,54 @@ pub fn make_task_dirty_internal(
             *stale = true;
         }
     }
-    if task.add(CachedDataItem::Dirty { value: () }) {
-        let dirty_container = get!(task, AggregatedDirtyContainerCount)
-            .copied()
-            .unwrap_or_default();
-        if dirty_container == 0 {
-            queue.extend(AggregationUpdateJob::data_update(
-                task,
-                AggregatedDataUpdate::new().dirty_container(task_id),
-            ));
+    let old = task.insert(CachedDataItem::Dirty {
+        value: DirtyState {
+            clean_in_session: None,
+        },
+    });
+    let mut dirty_container = match old {
+        Some(CachedDataItemValue::Dirty {
+            value: DirtyState {
+                clean_in_session: None,
+            },
+        }) => {
+            // already dirty
+            return;
         }
-        let root = task.has_key(&CachedDataItemKey::AggregateRoot {});
-        if root {
-            let description = ctx.backend.get_task_desc_fn(task_id);
-            if task.add(CachedDataItem::new_scheduled(description)) {
-                ctx.schedule(task_id);
-            }
+        Some(CachedDataItemValue::Dirty {
+            value: DirtyState {
+                clean_in_session: Some(session_id),
+            },
+        }) => {
+            // Got dirty in that one session only
+            let mut dirty_container = get!(task, AggregatedDirtyContainerCount)
+                .cloned()
+                .unwrap_or_default();
+            dirty_container.update_session_dependent(session_id, 1);
+            dirty_container
+        }
+        None => {
+            // Get dirty for all sessions
+            get!(task, AggregatedDirtyContainerCount)
+                .cloned()
+                .unwrap_or_default()
+        }
+        _ => unreachable!(),
+    };
+    let aggregated_update = dirty_container.update_with_dirty_state(&DirtyState {
+        clean_in_session: None,
+    });
+    if !aggregated_update.is_zero() {
+        queue.extend(AggregationUpdateJob::data_update(
+            task,
+            AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
+        ));
+    }
+    let root = task.has_key(&CachedDataItemKey::AggregateRoot {});
+    if root {
+        let description = ctx.backend.get_task_desc_fn(task_id);
+        if task.add(CachedDataItem::new_scheduled(description)) {
+            ctx.schedule(task_id);
         }
     }
 }

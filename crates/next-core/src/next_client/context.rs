@@ -322,6 +322,7 @@ pub async fn get_client_module_options_context(
         enable_mdx_rs,
         css: CssOptionsContext {
             use_swc_css,
+            minify_type: next_mode.minify_type(),
             ..module_options_context.css
         },
         rules: vec![

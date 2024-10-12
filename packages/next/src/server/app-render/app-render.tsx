@@ -50,7 +50,7 @@ import {
   createTrackedMetadataContext,
   createMetadataContext,
 } from '../../lib/metadata/metadata-context'
-import { withRequestStore } from '../async-storage/with-request-store'
+import { createRequestStoreForRender } from '../async-storage/request-store'
 import { withWorkStore } from '../async-storage/with-work-store'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
@@ -146,7 +146,8 @@ import {
   createReactServerPrerenderResult,
   createReactServerPrerenderResultFromRender,
   prerenderAndAbortInSequentialTasks,
-} from '../app-render/app-render-prerender-utils'
+} from './app-render-prerender-utils'
+import { scheduleInSequentialTasks } from './app-render-render-utils'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
   workUnitAsyncStorage,
@@ -1130,6 +1131,32 @@ async function renderToHTMLOrFlightImpl(
       }
     }
 
+    // Per-segment prefetch data
+    //
+    // All of the segments for a page are generated simultaneously, including
+    // during revalidations. This is to ensure consistency, because it's
+    // possible for a mismatch between a layout and page segment can cause the
+    // client to error during rendering. We want to preserve the ability of the
+    // client to recover from such a mismatch by re-requesting all the segments
+    // to get a consistent view of the page.
+    //
+    // TODO (Per Segment Prefetching): This is placeholder data. Populate with
+    // the actual data generated during prerender.
+    if (renderOpts.experimental.isRoutePPREnabled === true) {
+      const placeholder = Buffer.from(
+        'TODO (Per Segment Prefetching): Not yet implemented\n'
+      )
+      metadata.segmentFlightData = new Map([
+        // Root segment
+        ['/', placeholder],
+        ['/blog', placeholder],
+        // TODO: Update the client to use the same encoding for segment paths that
+        // we use here, so we don't have to convert between them. Needs to be
+        // filesystem safe.
+        ['/blog/[post]-1-d', placeholder],
+      ])
+    }
+
     return new RenderResult(await streamToString(response.stream), options)
   } else {
     // We're rendering dynamically
@@ -1168,6 +1195,7 @@ async function renderToHTMLOrFlightImpl(
           const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
           res.statusCode = 404
           const stream = await renderToStreamWithTracing(
+            requestStore,
             req,
             res,
             ctx,
@@ -1193,6 +1221,7 @@ async function renderToHTMLOrFlightImpl(
     }
 
     const stream = await renderToStreamWithTracing(
+      requestStore,
       req,
       res,
       ctx,
@@ -1277,52 +1306,49 @@ export const renderToHTMLOrFlight: AppPageRender = (
     url,
     fallbackRouteParams
   )
-
-  return withRequestStore(
-    renderOpts.ComponentMod.workUnitAsyncStorage,
-    {
-      req,
-      url,
-      res,
-      phase: 'render',
-      renderOpts,
-      isHmrRefresh,
-      serverComponentsHmrCache,
-      implicitTags,
-    },
-    (requestStore) => {
-      if (requestStore.type !== 'request') {
-        // TODO: Refactor to not need a RequestStore for prerenders.
-        throw new Error('This should never happen.')
-      }
-      return withWorkStore(
-        renderOpts.ComponentMod.workAsyncStorage,
-        {
-          page: renderOpts.routeModule.definition.page,
-          fallbackRouteParams,
-          renderOpts,
-          requestEndedState,
-          isPrefetchRequest: Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER]),
-        },
-        (workStore) =>
-          renderToHTMLOrFlightImpl(
-            req,
-            res,
-            pagePath,
-            query,
-            renderOpts,
-            requestStore,
-            workStore,
-            parsedRequestHeaders,
-            requestEndedState,
-            postponedState
-          )
-      )
-    }
+  // TODO: We need to refactor this so that prerenders do not rely upon the
+  // existence of an outer scoped request store. Then we should move this
+  // store generation inside the appropriate scope like `renderToStream` where
+  // we know we're handling a Request and not a Prerender
+  const requestStore = createRequestStoreForRender(
+    req,
+    res,
+    url,
+    implicitTags,
+    renderOpts.onUpdateCookies,
+    renderOpts.previewProps,
+    isHmrRefresh,
+    serverComponentsHmrCache
   )
+  return workUnitAsyncStorage.run(requestStore, () => {
+    return withWorkStore(
+      renderOpts.ComponentMod.workAsyncStorage,
+      {
+        page: renderOpts.routeModule.definition.page,
+        fallbackRouteParams,
+        renderOpts,
+        requestEndedState,
+        isPrefetchRequest: Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER]),
+      },
+      (workStore) =>
+        renderToHTMLOrFlightImpl(
+          req,
+          res,
+          pagePath,
+          query,
+          renderOpts,
+          requestStore,
+          workStore,
+          parsedRequestHeaders,
+          requestEndedState,
+          postponedState
+        )
+    )
+  })
 }
 
 async function renderToStream(
+  requestStore: RequestStore,
   req: BaseNextRequest,
   res: BaseNextResponse,
   ctx: AppRenderContext,
@@ -1413,16 +1439,57 @@ async function renderToStream(
 
   try {
     // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
-    const RSCPayload = await getRSCPayload(tree, ctx, res.statusCode === 404)
-    reactServerResult = new ReactServerResult(
-      ComponentMod.renderToReadableStream(
-        RSCPayload,
-        clientReferenceManifest.clientModules,
-        {
-          onError: serverComponentsErrorHandler,
-        }
-      )
+    const RSCPayload = await workUnitAsyncStorage.run(
+      requestStore,
+      getRSCPayload,
+      tree,
+      ctx,
+      res.statusCode === 404
     )
+
+    if (
+      // We only want this behavior when running `next dev`
+      renderOpts.dev &&
+      // We only want this behavior when we have React's dev builds available
+      process.env.NODE_ENV === 'development' &&
+      // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      // We only have a Prerender environment for projects opted into dynamicIO
+      renderOpts.experimental.dynamicIO
+    ) {
+      let environmentName = 'Prerender'
+      reactServerResult = new ReactServerResult(
+        await workUnitAsyncStorage.run(
+          requestStore,
+          scheduleInSequentialTasks,
+          () => {
+            return ComponentMod.renderToReadableStream(
+              RSCPayload,
+              clientReferenceManifest.clientModules,
+              {
+                onError: serverComponentsErrorHandler,
+                environmentName: () => environmentName,
+              }
+            )
+          },
+          () => {
+            environmentName = 'Server'
+          }
+        )
+      )
+    } else {
+      reactServerResult = new ReactServerResult(
+        workUnitAsyncStorage.run(
+          requestStore,
+          ComponentMod.renderToReadableStream,
+          RSCPayload,
+          clientReferenceManifest.clientModules,
+          {
+            onError: serverComponentsErrorHandler,
+          }
+        )
+      )
+    }
 
     // React doesn't start rendering synchronously but we want the RSC render to have a chance to start
     // before we begin SSR rendering because we want to capture any available preload headers so we tick
@@ -1453,7 +1520,9 @@ async function renderToStream(
         const resume = require('react-dom/server.edge')
           .resume as (typeof import('react-dom/server.edge'))['resume']
 
-        const htmlStream = await resume(
+        const htmlStream = await workUnitAsyncStorage.run(
+          requestStore,
+          resume,
           <App
             reactServerStream={reactServerResult.tee()}
             preinitScripts={preinitScripts}
@@ -1490,7 +1559,9 @@ async function renderToStream(
     const renderToReadableStream = require('react-dom/server.edge')
       .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
 
-    const htmlStream = await renderToReadableStream(
+    const htmlStream = await workUnitAsyncStorage.run(
+      requestStore,
+      renderToReadableStream,
       <App
         reactServerStream={reactServerResult.tee()}
         preinitScripts={preinitScripts}
@@ -1612,9 +1683,17 @@ async function renderToStream(
       '/_not-found/page'
     )
 
-    const errorRSCPayload = await getErrorRSCPayload(tree, ctx, errorType)
+    const errorRSCPayload = await workUnitAsyncStorage.run(
+      requestStore,
+      getErrorRSCPayload,
+      tree,
+      ctx,
+      errorType
+    )
 
-    const errorServerStream = ComponentMod.renderToReadableStream(
+    const errorServerStream = workUnitAsyncStorage.run(
+      requestStore,
+      ComponentMod.renderToReadableStream,
       errorRSCPayload,
       clientReferenceManifest.clientModules,
       {
@@ -1629,23 +1708,27 @@ async function renderToStream(
     }
 
     try {
-      const fizzStream = await renderToInitialFizzStream({
-        ReactDOMServer: require('react-dom/server.edge'),
-        element: (
-          <AppWithoutContext
-            reactServerStream={errorServerStream}
-            preinitScripts={errorPreinitScripts}
-            clientReferenceManifest={clientReferenceManifest}
-            nonce={ctx.nonce}
-          />
-        ),
-        streamOptions: {
-          nonce: ctx.nonce,
-          // Include hydration scripts in the HTML
-          bootstrapScripts: [errorBootstrapScript],
-          formState,
-        },
-      })
+      const fizzStream = await workUnitAsyncStorage.run(
+        requestStore,
+        renderToInitialFizzStream,
+        {
+          ReactDOMServer: require('react-dom/server.edge'),
+          element: (
+            <AppWithoutContext
+              reactServerStream={errorServerStream}
+              preinitScripts={errorPreinitScripts}
+              clientReferenceManifest={clientReferenceManifest}
+              nonce={ctx.nonce}
+            />
+          ),
+          streamOptions: {
+            nonce: ctx.nonce,
+            // Include hydration scripts in the HTML
+            bootstrapScripts: [errorBootstrapScript],
+            formState,
+          },
+        }
+      )
 
       /**
        * Rules of Static & Dynamic HTML:

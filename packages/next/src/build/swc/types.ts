@@ -213,6 +213,8 @@ export interface Project {
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
+  getSourceMap(filePath: string): Promise<string | null>
+
   traceSource(
     stackFrame: TurbopackStackFrame
   ): Promise<TurbopackStackFrame | null>

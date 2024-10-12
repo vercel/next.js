@@ -104,10 +104,6 @@ pub struct EsmAssetReference {
     pub import_externals: bool,
 }
 
-/// A list of [EsmAssetReference]s
-#[turbo_tasks::value(transparent)]
-pub struct EsmAssetReferences(Vec<Vc<EsmAssetReference>>);
-
 impl EsmAssetReference {
     fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
         let mut origin = self.origin;
