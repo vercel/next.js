@@ -162,7 +162,7 @@ pub(crate) async fn collect_next_dynamic_imports(
                     .iter()
                     .map(|module| async move {
                         Ok(NextDynamicVisitEntry::Module(
-                            module.resolve().await?.to_resolved().await?,
+                            module.to_resolved().await?,
                             module.ident().to_string().await?,
                         ))
                     })

@@ -99,14 +99,9 @@ async fn side_effects_from_package_json(
                     })
                     .try_flat_join()
                     .await?;
-                return Ok(SideEffectsValue::Glob(
-                    Glob::alternatives(globs)
-                        .resolve()
-                        .await?
-                        .to_resolved()
-                        .await?,
-                )
-                .cell());
+                return Ok(
+                    SideEffectsValue::Glob(Glob::alternatives(globs).to_resolved().await?).cell(),
+                );
             } else {
                 SideEffectsInPackageJsonIssue {
                     path: package_json,
