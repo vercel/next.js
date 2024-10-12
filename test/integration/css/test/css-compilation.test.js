@@ -122,7 +122,7 @@ module.exports = {
                     "sections": [
                       {
                         "map": {
-                          "mappings": "AAAA;EACE;;;;;AAKF;;;;AAIA;;;;AAIA;;;;AAIA",
+                          "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
                           "names": [],
                           "sources": [
                             "turbopack://[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
@@ -166,8 +166,8 @@ module.exports = {
                           "version": 3,
                         },
                         "offset": {
-                          "column": 0,
-                          "line": 22,
+                          "column": 264,
+                          "line": 1,
                         },
                       },
                     ],
@@ -180,7 +180,7 @@ module.exports = {
                     "sections": [
                       {
                         "map": {
-                          "mappings": "AAAA;EACE;;;;;AAKF;;;;AAIA;;;;AAIA;;;;AAIA",
+                          "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
                           "names": [],
                           "sources": [
                             "turbopack://[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
@@ -224,8 +224,8 @@ module.exports = {
                           "version": 3,
                         },
                         "offset": {
-                          "column": 0,
-                          "line": 22,
+                          "column": 264,
+                          "line": 1,
                         },
                       },
                     ],
