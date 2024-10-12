@@ -91,7 +91,7 @@ describe.each([
                 "sections": [
                   {
                     "map": {
-                      "mappings": "AAAA;;;;AAAiC",
+                      "mappings": "AAAA,iCAAiC",
                       "names": [],
                       "sources": [
                         "turbopack://[project]/styles/global.scss.css",
@@ -114,8 +114,8 @@ describe.each([
                       "version": 3,
                     },
                     "offset": {
-                      "column": 0,
-                      "line": 8,
+                      "column": 91,
+                      "line": 1,
                     },
                   },
                 ],
@@ -128,7 +128,7 @@ describe.each([
                 "sections": [
                   {
                     "map": {
-                      "mappings": "AAAA;;;;AAAiC",
+                      "mappings": "AAAA,iCAAiC",
                       "names": [],
                       "sources": [
                         "turbopack://[project]/styles/global.scss.css",
@@ -151,8 +151,8 @@ describe.each([
                       "version": 3,
                     },
                     "offset": {
-                      "column": 0,
-                      "line": 8,
+                      "column": 91,
+                      "line": 1,
                     },
                   },
                 ],
