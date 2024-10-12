@@ -176,12 +176,8 @@ function getMiddlewareData<T extends FetchDataOutput>(
 
   const matchedPath = response.headers.get('x-matched-path')
 
-  if (
-    !rewriteTarget &&
-    matchedPath &&
-    process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE
-  ) {
-    // when externalMiddlewareRewritesResolve=true, leverage x-matched-path to detect rewrites as a fallback
+  if (matchedPath && process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE) {
+    // when externalMiddlewareRewritesResolve=true, leverage x-matched-path to detect rewrites instead of x-nextjs-rewrite or x-nextjs-matched-path
     rewriteTarget = matchedPath
   }
 
