@@ -146,7 +146,8 @@ import {
   createReactServerPrerenderResult,
   createReactServerPrerenderResultFromRender,
   prerenderAndAbortInSequentialTasks,
-} from '../app-render/app-render-prerender-utils'
+} from './app-render-prerender-utils'
+import { scheduleInSequentialTasks } from './app-render-render-utils'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
   workUnitAsyncStorage,
@@ -1445,17 +1446,50 @@ async function renderToStream(
       ctx,
       res.statusCode === 404
     )
-    reactServerResult = new ReactServerResult(
-      workUnitAsyncStorage.run(
-        requestStore,
-        ComponentMod.renderToReadableStream,
-        RSCPayload,
-        clientReferenceManifest.clientModules,
-        {
-          onError: serverComponentsErrorHandler,
-        }
+
+    if (
+      // We only want this behavior when running `next dev`
+      renderOpts.dev &&
+      // We only want this behavior when we have React's dev builds available
+      process.env.NODE_ENV === 'development' &&
+      // Edge routes never prerender so we don't have a Prerender environment for anything in edge runtime
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      // We only have a Prerender environment for projects opted into dynamicIO
+      renderOpts.experimental.dynamicIO
+    ) {
+      let environmentName = 'Prerender'
+      reactServerResult = new ReactServerResult(
+        await workUnitAsyncStorage.run(
+          requestStore,
+          scheduleInSequentialTasks,
+          () => {
+            return ComponentMod.renderToReadableStream(
+              RSCPayload,
+              clientReferenceManifest.clientModules,
+              {
+                onError: serverComponentsErrorHandler,
+                environmentName: () => environmentName,
+              }
+            )
+          },
+          () => {
+            environmentName = 'Server'
+          }
+        )
       )
-    )
+    } else {
+      reactServerResult = new ReactServerResult(
+        workUnitAsyncStorage.run(
+          requestStore,
+          ComponentMod.renderToReadableStream,
+          RSCPayload,
+          clientReferenceManifest.clientModules,
+          {
+            onError: serverComponentsErrorHandler,
+          }
+        )
+      )
+    }
 
     // React doesn't start rendering synchronously but we want the RSC render to have a chance to start
     // before we begin SSR rendering because we want to capture any available preload headers so we tick
