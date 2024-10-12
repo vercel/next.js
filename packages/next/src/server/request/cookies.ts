@@ -33,11 +33,8 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
  * from outside and await the return value before passing it into this function.
  *
  * You can find instances that require manual migration by searching for `UnsafeUnwrappedCookies` in your codebase or by search for a comment that
- * starts with:
+ * starts with `@next-codemod-error`.
  *
- * ```
- * // TODO [sync-cookies-usage]
- * ```
  * In a future version of Next.js `cookies()` will only return a Promise and you will not be able to access the underlying cookies object directly
  * without awaiting the return value first. When this change happens the type `UnsafeUnwrappedCookies` will be updated to reflect that is it no longer
  * usable.
