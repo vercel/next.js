@@ -10,9 +10,11 @@ import {
   wrapParentheseIfNeeded,
   insertCommentOnce,
   NEXTJS_ENTRY_FILES,
+  NEXT_CODEMOD_ERROR_PREFIX,
 } from './utils'
+import { createParserFromPath } from '../../../lib/parser'
 
-const DYNAMIC_IMPORT_WARN_COMMENT = ` Next.js Dynamic Async API Codemod: The APIs under 'next/headers' are async now, need to be manually awaited. `
+const DYNAMIC_IMPORT_WARN_COMMENT = ` @next-codemod-error The APIs under 'next/headers' are async now, need to be manually awaited. `
 
 function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
   let modified = false
@@ -42,11 +44,11 @@ function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
 
 export function transformDynamicAPI(
   source: string,
-  api: API,
+  _api: API,
   filePath: string
 ) {
   const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(filePath)
   const root = j(source)
   let modified = false
 
@@ -194,7 +196,7 @@ export function transformDynamicAPI(
                   root,
                   filePath,
                   insertedTypes,
-                  ` Next.js Dynamic Async API Codemod: Manually await this call, if it's a Server Component `
+                  ` ${NEXT_CODEMOD_ERROR_PREFIX} Manually await this call and refactor the function to be async `
                 )
                 modified ||= casted
               }
@@ -206,7 +208,7 @@ export function transformDynamicAPI(
                 root,
                 filePath,
                 insertedTypes,
-                ' Next.js Dynamic Async API Codemod: please manually await this call, codemod cannot transform due to undetermined async scope '
+                ` ${NEXT_CODEMOD_ERROR_PREFIX} please manually await this call, codemod cannot transform due to undetermined async scope `
               )
               modified ||= casted
             }

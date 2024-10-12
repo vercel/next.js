@@ -32,6 +32,8 @@ export type AppPageRenderResultMetadata = {
   headers?: OutgoingHttpHeaders
   fetchTags?: string
   fetchMetrics?: FetchMetrics
+
+  segmentFlightData?: Map<string, Buffer>
 }
 
 export type PagesRenderResultMetadata = {

@@ -103,6 +103,7 @@ import {
   RSC_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -1910,7 +1911,7 @@ export default abstract class Server<
     isAppPath: boolean,
     resolvedPathname: string
   ): void {
-    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}`
+    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
     const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     let addedNextUrlToVary = false
@@ -2143,6 +2144,13 @@ export default abstract class Server<
     // because we can't cache the HTML (as it's also dynamic).
     const isDynamicRSCRequest =
       isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
+
+    // Need to read this before it's stripped by stripFlightHeaders. We don't
+    // need to transfer it to the request meta because it's only read
+    // within this function; the static segment data should have already been
+    // generated, so we will always either return a static response or a 404.
+    const segmentPrefetchHeader =
+      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()]
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
@@ -2754,6 +2762,7 @@ export default abstract class Server<
             rscData: metadata.flightData,
             postponed: metadata.postponed,
             status: res.statusCode,
+            segmentData: undefined,
           } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
           isFallback: !!fallbackRouteParams,
@@ -3088,6 +3097,51 @@ export default abstract class Server<
         isRoutePPREnabled,
       }
     )
+
+    if (
+      isRoutePPREnabled &&
+      isPrefetchRSCRequest &&
+      typeof segmentPrefetchHeader === 'string'
+    ) {
+      if (cacheEntry?.value?.kind === CachedRouteKind.APP_PAGE) {
+        // This is a prefetch request for an individual segment's static data.
+        // Unless the segment is fully dynamic, the data should have already been
+        // loaded into the cache, when the page itself was generated. So we should
+        // always either return the cache entry. If no cache entry is available,
+        // it's a 404 — either the segment is fully dynamic, or an invalid segment
+        // path was requested.
+        if (cacheEntry.value.segmentData) {
+          const matchedSegment =
+            cacheEntry.value.segmentData[segmentPrefetchHeader]
+          if (matchedSegment !== undefined) {
+            return {
+              type: 'rsc',
+              body: RenderResult.fromStatic(matchedSegment),
+              // TODO: Eventually this should use revalidate time of the
+              // individual segment, not the whole page.
+              revalidate: cacheEntry.revalidate,
+            }
+          }
+        }
+        // If the segment is not found, return a 404. Since this is an RSC
+        // request, there's no reason to render a 404 page; just return an
+        // empty response.
+        res.statusCode = 404
+        return {
+          type: 'rsc',
+          body: RenderResult.fromStatic(''),
+          revalidate: cacheEntry.revalidate,
+        }
+      } else {
+        // Segment prefetches should never reach the application layer. If
+        // there's no cache entry for this page, it's a 404.
+        res.statusCode = 404
+        return {
+          type: 'rsc',
+          body: RenderResult.fromStatic(''),
+        }
+      }
+    }
 
     if (isPreviewMode) {
       res.setHeader(

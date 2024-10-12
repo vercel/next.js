@@ -34,10 +34,6 @@ pub struct WebpackLoadersOptions {
     pub loader_runner_package: Option<Vc<ImportMapping>>,
 }
 
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct OptionWebpackLoadersOptions(Option<Vc<WebpackLoadersOptions>>);
-
 /// The kind of decorators transform to use.
 /// [TODO]: might need bikeshed for the name (Ecma)
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]

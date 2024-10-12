@@ -358,7 +358,7 @@ impl TurboTasksBackendInner {
 
             // Check the dirty count of the root node
             let dirty_tasks = get!(task, AggregatedDirtyContainerCount)
-                .copied()
+                .cloned()
                 .unwrap_or_default()
                 .get(self.session_id);
             if dirty_tasks > 0 || is_dirty {
@@ -375,7 +375,14 @@ impl TurboTasksBackendInner {
                         value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
                     });
                     // A newly added AggregateRoot need to make sure to schedule the tasks
-                    task_ids_to_schedule = get_many!(task, AggregatedDirtyContainer { task } count if count.get(self.session_id) > 0 => task);
+                    task_ids_to_schedule = get_many!(
+                        task,
+                        AggregatedDirtyContainer {
+                            task
+                        } count if count.get(self.session_id) > 0 => {
+                            *task
+                        }
+                    );
                     if is_dirty {
                         task_ids_to_schedule.push(task_id);
                     }
@@ -1076,7 +1083,7 @@ impl TurboTasksBackendInner {
         // handle cell counters: update max index and remove cells that are no longer used
         let mut removed_cells = HashMap::new();
         let mut old_counters: HashMap<_, _> =
-            get_many!(task, CellTypeMaxIndex { cell_type } max_index => (cell_type, max_index));
+            get_many!(task, CellTypeMaxIndex { cell_type } max_index => (*cell_type, *max_index));
         for (&cell_type, &max_index) in cell_counters.iter() {
             if let Some(old_max_index) = old_counters.remove(&cell_type) {
                 if old_max_index != max_index {
@@ -1234,7 +1241,7 @@ impl TurboTasksBackendInner {
 
         let data_update = if old_dirty_state.is_some() || new_dirty_state.is_some() {
             let mut dirty_containers = get!(task, AggregatedDirtyContainerCount)
-                .copied()
+                .cloned()
                 .unwrap_or_default();
             if let Some(old_dirty_state) = old_dirty_state {
                 dirty_containers.update_with_dirty_state(&old_dirty_state);
@@ -1245,7 +1252,7 @@ impl TurboTasksBackendInner {
                 (None, Some(new)) => dirty_containers.update_with_dirty_state(&new),
                 (Some(old), Some(new)) => dirty_containers.replace_dirty_state(&old, &new),
             };
-            if !aggregated_update.is_default() {
+            if !aggregated_update.is_zero() {
                 if aggregated_update.get(self.session_id) < 0 {
                     if let Some(root_state) = get!(task, AggregateRoot) {
                         root_state.all_clean_event.notify(usize::MAX);
@@ -1403,7 +1410,7 @@ impl TurboTasksBackendInner {
                 task,
                 AggregatedCollectible {
                     collectible
-                } count if collectible.collectible_type == collectible_type && count > 0 => {
+                } count if collectible.collectible_type == collectible_type && *count > 0 => {
                     collectible.cell
                 }
             ) {
@@ -1416,7 +1423,7 @@ impl TurboTasksBackendInner {
                 Collectible {
                     collectible
                 } count if collectible.collectible_type == collectible_type => {
-                    (collectible.cell, count)
+                    (collectible.cell, *count)
                 }
             ) {
                 *collectibles

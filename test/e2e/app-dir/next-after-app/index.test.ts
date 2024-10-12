@@ -248,15 +248,16 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     const cookie1 = await browser.elementById('cookie').text()
     expect(cookie1).toEqual('Cookie: null')
 
+    const cliOutputIndex = next.cliOutput.length
     try {
       await browser.elementByCss('button[type="submit"]').click()
 
       await retry(async () => {
         const cookie1 = await browser.elementById('cookie').text()
         expect(cookie1).toEqual('Cookie: "action"')
-        // const newLogs = next.cliOutput.slice(cliOutputIndex)
+        const newLogs = next.cliOutput.slice(cliOutputIndex)
         // // after() from action
-        // expect(newLogs).toContain(EXPECTED_ERROR)
+        expect(newLogs).toMatch(EXPECTED_ERROR)
       })
     } finally {
       await browser.eval('document.cookie = "testCookie=;path=/;max-age=-1"')

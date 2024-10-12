@@ -30,7 +30,7 @@ pub use self::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
         EcmascriptChunkItemOptions,
     },
-    placeable::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceables, EcmascriptExports},
+    placeable::{EcmascriptChunkPlaceable, EcmascriptExports},
 };
 
 #[turbo_tasks::value]
@@ -38,9 +38,6 @@ pub struct EcmascriptChunk {
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub content: Vc<EcmascriptChunkContent>,
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunks(Vec<Vc<EcmascriptChunk>>);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunk {
