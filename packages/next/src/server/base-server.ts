@@ -76,7 +76,7 @@ import { setConfig } from '../shared/lib/runtime-config.external'
 import {
   formatRevalidate,
   type Revalidate,
-  type SwrDelta,
+  type ExpireTime,
 } from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
@@ -399,7 +399,7 @@ export default abstract class Server<
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate?: Revalidate
-      swrDelta?: SwrDelta
+      expireTime?: ExpireTime
     }
   ): Promise<void>
 
@@ -598,7 +598,7 @@ export default abstract class Server<
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
-        swrDelta: this.nextConfig.swrDelta,
+        expireTime: this.nextConfig.expireTime,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
@@ -1735,7 +1735,7 @@ export default abstract class Server<
         generateEtags,
         poweredByHeader,
         revalidate,
-        swrDelta: this.nextConfig.swrDelta,
+        expireTime: this.nextConfig.expireTime,
       })
       res.statusCode = originalStatus
     }
@@ -3341,7 +3341,7 @@ export default abstract class Server<
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            swrDelta: this.nextConfig.swrDelta,
+            expireTime: this.nextConfig.expireTime,
           })
         )
       }
@@ -3364,7 +3364,7 @@ export default abstract class Server<
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            swrDelta: this.nextConfig.swrDelta,
+            expireTime: this.nextConfig.expireTime,
           })
         )
       }

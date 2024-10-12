@@ -10,7 +10,7 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
-import type { SwrDelta } from './lib/revalidate'
+import type { ExpireTime } from './lib/revalidate'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 
@@ -268,9 +268,9 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   /**
-   * @deprecated use config.swrDelta instead
+   * @deprecated use config.expireTime instead
    */
-  swrDelta?: SwrDelta
+  expireTime?: ExpireTime
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
@@ -915,7 +915,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * period (in seconds) where the server allow to serve stale cache
    */
-  swrDelta?: SwrDelta
+  expireTime?: ExpireTime
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -1008,7 +1008,7 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
-  swrDelta: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
+  expireTime: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,

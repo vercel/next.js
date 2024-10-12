@@ -627,7 +627,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     skipMiddlewareUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
     staticPageGenerationTimeout: z.number().optional(),
-    swrDelta: z.number().optional(),
+    expireTime: z.number().optional(),
     target: z.string().optional(),
     trailingSlash: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),
