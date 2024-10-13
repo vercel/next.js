@@ -85,7 +85,9 @@ describe('app-dir action handling', () => {
         expect.arrayContaining([
           expect.objectContaining({
             message: expect.stringContaining(
-              'Cannot access value on the server.'
+              isNextDev
+                ? 'Cannot access value on the server.'
+                : GENERIC_RSC_ERROR.replace(/^Error: /, '')
             ),
           }),
         ])
