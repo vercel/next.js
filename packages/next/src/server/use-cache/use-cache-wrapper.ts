@@ -36,14 +36,16 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 type CacheEntry = {
   value: ReadableStream
+  timestamp: number
   // In-memory caches are fragile and should not use stale-while-revalidate
   // semantics on the caches because it's not worth warming up an entry that's
   // likely going to get evicted before we get to use it anyway. However,
   // we also don't want to reuse a stale entry for too long so stale entries
   // should be considered expired/missing in such CacheHandlers.
-  stale: boolean
-  tags: string[]
   revalidate: number
+  expire: number
+  stale: number
+  tags: string[]
 }
 
 interface CacheHandler {
@@ -60,12 +62,22 @@ cacheHandlerMap.set('default', {
     // TODO: Implement proper caching.
     const entry = await defaultCacheStorage.get(cacheKey)
     if (entry !== undefined) {
+      if (
+        performance.timeOrigin + performance.now() >
+        entry.timestamp + entry.revalidate * 1000
+      ) {
+        // In memory caches should expire after revalidate time because it is unlikely that
+        // a new entry will be able to be used before it is dropped from the cache.
+        return undefined
+      }
       const [returnStream, newSaved] = entry.value.tee()
       entry.value = newSaved
       return {
         value: returnStream,
-        stale: false,
+        timestamp: entry.timestamp,
         revalidate: entry.revalidate,
+        expire: entry.revalidate,
+        stale: entry.stale,
         tags: entry.tags,
       }
     }
@@ -217,6 +229,7 @@ async function collectResult(
   savedStream: ReadableStream,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
+  startTime: number,
   errors: Array<unknown> // This is a live array that gets pushed into.
 ): Promise<CacheEntry> {
   // We create a buffered stream that collects all chunks until the end to
@@ -263,9 +276,11 @@ async function collectResult(
 
   const entry = {
     value: bufferStream,
-    stale: false, // TODO: rm
-    tags: collectedTags === null ? [] : collectedTags,
+    timestamp: startTime,
     revalidate: collectedRevalidate,
+    expire: Infinity,
+    stale: 0,
+    tags: collectedTags === null ? [] : collectedTags,
   }
   // Propagate tags/revalidate to the parent context.
   propagateCacheLifeAndTags(outerWorkUnitStore, entry)
@@ -301,6 +316,8 @@ async function generateCacheEntryImpl(
     }
   )
 
+  // Track the timestamp when we started copmuting the result.
+  const startTime = performance.timeOrigin + performance.now()
   // Invoke the inner function to load a new result.
   const result = fn.apply(null, args)
 
@@ -326,6 +343,7 @@ async function generateCacheEntryImpl(
     savedStream,
     outerWorkUnitStore,
     innerCacheStore,
+    startTime,
     errors
   )
 
@@ -372,7 +390,13 @@ async function loadCacheEntry(
     implicitTags
   )
 
-  if (entry === undefined || (entry.stale && workStore.isStaticGeneration)) {
+  const currentTime = performance.timeOrigin + performance.now()
+  if (
+    entry === undefined ||
+    currentTime > entry.timestamp + entry.expire * 1000 ||
+    (workStore.isStaticGeneration &&
+      currentTime > entry.timestamp + entry.revalidate * 1000)
+  ) {
     // Miss. Generate a new result.
 
     // If the cache entry is stale and we're prerendering, we don't want to use the
@@ -398,7 +422,7 @@ async function loadCacheEntry(
   } else {
     propagateCacheLifeAndTags(workUnitStore, entry)
 
-    if (entry.stale) {
+    if (currentTime > entry.timestamp + entry.revalidate) {
       // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
       // then we should warm up the cache with a fresh revalidated entry.
       const ignoredStream = await generateCacheEntry(
