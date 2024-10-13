@@ -182,7 +182,11 @@ function generateCacheEntryWithCacheContext(
         ? []
         : outerWorkUnitStore.implicitTags,
     revalidate: defaultCacheLife.revalidate,
+    expire: defaultCacheLife.expire,
+    stale: defaultCacheLife.stale,
     explicitRevalidate: undefined,
+    explicitExpire: undefined,
+    explicitStale: undefined,
     tags: null,
   }
   return workUnitAsyncStorage.run(
@@ -273,13 +277,21 @@ async function collectResult(
     innerCacheStore.explicitRevalidate !== undefined
       ? innerCacheStore.explicitRevalidate
       : innerCacheStore.revalidate
+  const collectedExpire =
+    innerCacheStore.explicitExpire !== undefined
+      ? innerCacheStore.explicitExpire
+      : innerCacheStore.expire
+  const collectedStale =
+    innerCacheStore.explicitStale !== undefined
+      ? innerCacheStore.explicitStale
+      : innerCacheStore.stale
 
   const entry = {
     value: bufferStream,
     timestamp: startTime,
     revalidate: collectedRevalidate,
-    expire: Infinity,
-    stale: 0,
+    expire: collectedExpire,
+    stale: collectedStale,
     tags: collectedTags === null ? [] : collectedTags,
   }
   // Propagate tags/revalidate to the parent context.

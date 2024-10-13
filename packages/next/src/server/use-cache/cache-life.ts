@@ -140,4 +140,22 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
       workUnitStore.explicitRevalidate = profile.revalidate
     }
   }
+  if (profile.expire !== undefined) {
+    // Track the explicit expire time.
+    if (
+      workUnitStore.explicitExpire === undefined ||
+      workUnitStore.explicitExpire > profile.expire
+    ) {
+      workUnitStore.explicitExpire = profile.expire
+    }
+  }
+  if (profile.stale !== undefined) {
+    // Track the explicit stale time.
+    if (
+      workUnitStore.explicitStale === undefined ||
+      workUnitStore.explicitStale > profile.stale
+    ) {
+      workUnitStore.explicitStale = profile.stale
+    }
+  }
 }
