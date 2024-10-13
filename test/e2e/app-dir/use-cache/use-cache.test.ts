@@ -5,9 +5,10 @@ const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 describe('use-cache', () => {
-  const { next, isNextDev, isNextDeploy, isTurbopack } = nextTestSetup({
-    files: __dirname,
-  })
+  const { next, isNextDev, isNextDeploy, isNextStart, isTurbopack } =
+    nextTestSetup({
+      files: __dirname,
+    })
 
   const itSkipTurbopack = isTurbopack ? it.skip : it
 
@@ -81,4 +82,24 @@ describe('use-cache', () => {
 
     expect(rand1).toEqual(rand2)
   })
+
+  if (isNextStart) {
+    it('should match the expected revalidate config on the prerender manifest', async () => {
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
+
+      expect(prerenderManifest.version).toBe(4)
+      expect(
+        prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
+      ).toBe(100)
+    })
+
+    it('should propagate unstable_cache tags correctly', async () => {
+      const meta = JSON.parse(
+        await next.readFile('.next/server/app/cache-tag.meta')
+      )
+      expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
+    })
+  }
 })

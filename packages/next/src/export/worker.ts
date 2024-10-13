@@ -251,6 +251,7 @@ async function exportPageImpl(
         page,
         components.routeModule as AppRouteRouteModule,
         input.renderOpts.incrementalCache,
+        input.renderOpts.cacheLifeProfiles,
         htmlFilepath,
         fileWriter,
         input.renderOpts.experimental,

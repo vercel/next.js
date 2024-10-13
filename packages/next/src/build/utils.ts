@@ -1217,6 +1217,7 @@ export async function buildAppStaticPaths({
   segments,
   isrFlushToDisk,
   cacheHandler,
+  cacheLifeProfiles,
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
@@ -1235,6 +1236,9 @@ export async function buildAppStaticPaths({
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   cacheHandler?: string
+  cacheLifeProfiles?: {
+    [profile: string]: import('../server/use-cache/cache-life').CacheLife
+  }
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
@@ -1305,6 +1309,7 @@ export async function buildAppStaticPaths({
       fallbackRouteParams: null,
       renderOpts: {
         incrementalCache,
+        cacheLifeProfiles,
         supportsDynamicResponse: true,
         isRevalidate: false,
         experimental: {
@@ -1489,6 +1494,7 @@ export async function isPageStatic({
   maxMemoryCacheSize,
   nextConfigOutput,
   cacheHandler,
+  cacheLifeProfiles,
   pprConfig,
   isAppPPRFallbacksEnabled,
   buildId,
@@ -1510,6 +1516,9 @@ export async function isPageStatic({
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
   cacheHandler?: string
+  cacheLifeProfiles?: {
+    [profile: string]: import('../server/use-cache/cache-life').CacheLife
+  }
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
   isAppPPRFallbacksEnabled: boolean | undefined
@@ -1632,6 +1641,7 @@ export async function isPageStatic({
               isrFlushToDisk,
               maxMemoryCacheSize,
               cacheHandler,
+              cacheLifeProfiles,
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
