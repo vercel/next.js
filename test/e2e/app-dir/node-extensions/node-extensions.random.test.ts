@@ -65,7 +65,7 @@ describe('Node Extensions', () => {
         expect($('li').length).toBe(2)
       })
 
-      it.skip('should not error when accessing routes that use Math.random() in App Router', async () => {
+      it('should not error when accessing routes that use Math.random() in App Router', async () => {
         let res, body
 
         res = await next.fetch('/app/prerendered/uncached/api')

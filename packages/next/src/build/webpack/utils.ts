@@ -6,7 +6,6 @@ import type {
   Module,
   ModuleGraph,
 } from 'webpack'
-import { isAppRouteRoute } from '../../lib/is-app-route-route'
 import type { ModuleGraphConnection } from 'webpack'
 
 export function traverseModules(
@@ -48,11 +47,7 @@ export function forEachEntryModule(
 ) {
   for (const [name, entry] of compilation.entries.entries()) {
     // Skip for entries under pages/
-    if (
-      name.startsWith('pages/') ||
-      // Skip for route.js entries
-      (name.startsWith('app/') && isAppRouteRoute(name))
-    ) {
+    if (name.startsWith('pages/')) {
       continue
     }
 
