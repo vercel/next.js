@@ -153,6 +153,7 @@
     "eslint-plugin-jsdoc": "48.0.4",
     "eslint-plugin-react": "7.33.2",
     "eslint-plugin-react-hooks": "4.6.0",
+    "eslint-v9": "npm:eslint@^9.0.0",
     "event-stream": "4.0.1",
     "execa": "2.0.3",
     "expect-type": "0.14.2",
@@ -274,7 +275,8 @@
       "react": "19.0.0-rc-70fb1363-20241010",
       "react-dom": "19.0.0-rc-70fb1363-20241010",
       "react-is": "19.0.0-rc-70fb1363-20241010",
-      "scheduler": "0.25.0-rc-70fb1363-20241010"
+      "scheduler": "0.25.0-rc-70fb1363-20241010",
+      "eslint": "8.56.0"
     },
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch"
