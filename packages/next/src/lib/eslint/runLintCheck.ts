@@ -336,12 +336,6 @@ export async function runLintCheck(
     const eslintrcFile =
       (await findUp(
         [
-          '.eslintrc.js',
-          '.eslintrc.cjs',
-          '.eslintrc.yaml',
-          '.eslintrc.yml',
-          '.eslintrc.json',
-          '.eslintrc',
           // eslint v9
           'eslint.config.js',
           'eslint.config.mjs',
@@ -349,6 +343,13 @@ export async function runLintCheck(
           'eslint.config.ts', // requires additional setup
           'eslint.config.mts', // requires additional setup
           'eslint.config.cts', // requires additional setup
+          // eslint <= v8
+          '.eslintrc.js',
+          '.eslintrc.cjs',
+          '.eslintrc.yaml',
+          '.eslintrc.yml',
+          '.eslintrc.json',
+          '.eslintrc',
         ],
         {
           cwd: baseDir,
