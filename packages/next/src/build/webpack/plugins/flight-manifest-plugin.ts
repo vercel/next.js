@@ -519,6 +519,12 @@ export class ClientReferenceManifestPlugin {
         manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
       }
 
+      // We also need to create manifests for route handler entrypoints to
+      // enable `'use cache'`.
+      if (/\/route$/.test(entryName)) {
+        manifestEntryFiles.push(entryName)
+      }
+
       const groupName = entryNameToGroupName(entryName)
       if (!manifestsPerGroup.has(groupName)) {
         manifestsPerGroup.set(groupName, [])
