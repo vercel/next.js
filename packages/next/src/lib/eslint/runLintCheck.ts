@@ -162,6 +162,24 @@ async function lint(
       if ('extensions' in options) {
         delete options.extensions
       }
+      if ('ignorePath' in options) {
+        delete options.ignorePath
+      }
+      if ('reportUnusedDisableDirectives' in options) {
+        delete options.reportUnusedDisableDirectives
+      }
+      if ('resolvePluginsRelativeTo' in options) {
+        delete options.resolvePluginsRelativeTo
+      }
+      if ('rulePaths' in options) {
+        delete options.rulePaths
+      }
+      if ('inlineConfig' in options) {
+        delete options.inlineConfig
+      }
+      if ('maxWarnings' in options) {
+        delete options.maxWarnings
+      }
     }
 
     let eslint = new ESLint(options)

@@ -28,24 +28,35 @@ export type NextLintOptions = {
   fixType?: string
   format?: string
   ignore: boolean
-  inlineConfig: boolean
-  maxWarnings: number
   outputFile?: string
   quiet?: boolean
   strict?: boolean
+  // TODO(jiwon): ESLint v9 unsupported options
+  // we currently delete them at `runLintCheck` when used in v9
+  ext: string[]
+  ignorePath?: string
+  reportUnusedDisableDirectivesSeverity: 'error' | 'off' | 'warn'
+  resolvePluginsRelativeTo?: string
+  rulesdir?: string
+  inlineConfig: boolean
+  maxWarnings: number
 }
 
 const eslintOptions = (
   options: NextLintOptions,
   defaultCacheLocation: string
 ) => ({
-  // allow user custom options for backward compatibility with ESLint v8
-  ...options,
   overrideConfigFile: options.config || null,
+  extensions: options.ext ?? [],
+  resolvePluginsRelativeTo: options.resolvePluginsRelativeTo || null,
+  rulePaths: options.rulesdir ?? [],
   fix: options.fix ?? false,
   fixTypes: options.fixType ?? null,
+  ignorePath: options.ignorePath || null,
   ignore: options.ignore,
   allowInlineConfig: options.inlineConfig,
+  reportUnusedDisableDirectives:
+    options.reportUnusedDisableDirectivesSeverity || null,
   cache: options.cache,
   cacheLocation: options.cacheLocation || defaultCacheLocation,
   cacheStrategy: options.cacheStrategy,
