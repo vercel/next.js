@@ -264,6 +264,7 @@ export type LoadedRenderOpts = RenderOpts &
 export type RequestLifecycleOpts = {
   waitUntil: ((promise: Promise<any>) => void) | undefined
   onClose: ((callback: () => void) => void) | undefined
+  onAfterTaskError: ((error: unknown) => void) | undefined
 }
 
 type BaseRenderOpts = RenderOpts & {
@@ -2469,6 +2470,7 @@ export default abstract class Server<
         postponed,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
+        onAfterTaskError: undefined,
         // only available in dev
         setAppIsrStatus: (this as any).setAppIsrStatus,
       }
@@ -2514,6 +2516,7 @@ export default abstract class Server<
               isRevalidate: isSSG,
               waitUntil: this.getWaitUntil(),
               onClose: res.onClose.bind(res),
+              onAfterTaskError: undefined,
               onInstrumentationRequestError:
                 this.renderOpts.onInstrumentationRequestError,
               buildId: this.renderOpts.buildId,

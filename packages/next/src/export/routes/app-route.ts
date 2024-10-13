@@ -26,6 +26,7 @@ import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { Params } from '../../server/request/params'
+import { AfterRunner } from '../../server/after/run-with-after'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -53,6 +54,9 @@ export async function exportAppRoute(
     signalFromNodeResponse(res)
   )
 
+  // TODO(after): should we use the onClose from MockedResponse?
+  const afterRunner = new AfterRunner()
+
   // Create the context for the handler. This contains the params from
   // the route and the context for the request.
   const context: AppRouteRouteHandlerContext = {
@@ -73,8 +77,9 @@ export async function exportAppRoute(
       nextExport: true,
       supportsDynamicResponse: false,
       incrementalCache,
-      waitUntil: undefined,
-      onClose: undefined,
+      waitUntil: afterRunner.context.waitUntil,
+      onClose: afterRunner.context.onClose,
+      onAfterTaskError: afterRunner.context.onTaskError,
       buildId,
     },
   }
@@ -110,6 +115,9 @@ export async function exportAppRoute(
     }
 
     const blob = await response.blob()
+
+    await afterRunner.executeAfter() // TODO(after): thrown errors?
+
     const revalidate =
       typeof (context.renderOpts as any).collectedRevalidate === 'undefined' ||
       (context.renderOpts as any).collectedRevalidate >= INFINITE_CACHE

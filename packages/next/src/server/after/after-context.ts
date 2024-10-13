@@ -14,19 +14,22 @@ import {
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   onClose: RequestLifecycleOpts['onClose'] | undefined
+  onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 }
 
 export class AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   private onClose: RequestLifecycleOpts['onClose'] | undefined
+  private onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 
   private runCallbacksOnClosePromise: Promise<void> | undefined
   private callbackQueue: PromiseQueue
   private workUnitStores = new Set<WorkUnitStore>()
 
-  constructor({ waitUntil, onClose }: AfterContextOpts) {
+  constructor({ waitUntil, onClose, onTaskError }: AfterContextOpts) {
     this.waitUntil = waitUntil
     this.onClose = onClose
+    this.onTaskError = onTaskError
 
     this.callbackQueue = new PromiseQueue()
     this.callbackQueue.pause()
@@ -84,10 +87,12 @@ export class AfterContext {
         await callback()
       } catch (err) {
         // TODO(after): this is fine for now, but will need better intergration with our error reporting.
+        // TODO: should we log this if we have a onTaskError callback?
         console.error(
           'An error occurred in a function passed to `unstable_after()`:',
           err
         )
+        this.onTaskError?.(err)
       }
     })
 

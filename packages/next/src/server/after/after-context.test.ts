@@ -55,6 +55,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -121,6 +122,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -168,6 +170,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -258,6 +261,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -317,6 +321,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -351,9 +356,12 @@ describe('AfterContext', () => {
       onCloseCallback = cb
     })
 
+    const onTaskError = jest.fn()
+
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -363,8 +371,9 @@ describe('AfterContext', () => {
     const promise1 = new DetachedPromise<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
+    const thrownFromCallback2 = new Error('2')
     const afterCallback2 = jest.fn(() => {
-      throw new Error('2')
+      throw thrownFromCallback2
     })
 
     const promise3 = new DetachedPromise<string>()
@@ -392,11 +401,14 @@ describe('AfterContext', () => {
     expect(afterCallback3).toHaveBeenCalledTimes(1)
     expect(waitUntil).toHaveBeenCalledTimes(1)
 
-    promise1.reject(new Error('1'))
+    const thrownFromCallback1 = new Error('1')
+    promise1.reject(thrownFromCallback1)
     promise3.resolve('3')
 
     const results = await Promise.all(waitUntilPromises)
     expect(results).toEqual([undefined])
+    expect(onTaskError).toHaveBeenCalledWith(thrownFromCallback2)
+    expect(onTaskError).toHaveBeenCalledWith(thrownFromCallback1)
   })
 
   it('throws from after() if waitUntil is not provided', async () => {
@@ -406,6 +418,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -435,6 +448,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -466,6 +480,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -510,6 +525,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
