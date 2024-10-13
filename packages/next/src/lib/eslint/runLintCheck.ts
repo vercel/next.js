@@ -180,16 +180,18 @@ async function lint(
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
       if (!configFile) continue
 
-      const completeConfig: Config =
+      const completeConfig: Config | undefined =
         await eslint.calculateConfigForFile(configFile)
+      if (!completeConfig) continue
 
-      const hasNextPlugin = completeConfig.plugins
-        ? // in ESLint < 9, `plugins` value is string[]
-          Array.isArray(completeConfig.plugins)
-          ? completeConfig.plugins.includes('@next/next')
+      const plugins = completeConfig.plugins
+
+      const hasNextPlugin =
+        // in ESLint < 9, `plugins` value is string[]
+        Array.isArray(plugins)
+          ? plugins.includes('@next/next')
           : // in ESLint >= 9, `plugins` value is Record<string, unknown>
-            '@next/next' in completeConfig.plugins
-        : false
+            '@next/next' in plugins
 
       if (hasNextPlugin) {
         nextEslintPluginIsEnabled = true
