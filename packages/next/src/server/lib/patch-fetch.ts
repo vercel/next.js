@@ -168,13 +168,19 @@ export function createPatchedFetcher(
       url = undefined
     }
     const fetchUrl = url?.href ?? ''
-    const fetchStart = performance.timeOrigin + performance.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
     // Do create a new span trace for internal fetches in the
     // non-verbose mode.
     const isInternal = (init?.next as any)?.internal === true
     const hideSpan = process.env.NEXT_OTEL_FETCH_DISABLED === '1'
+    // We don't track fetch metrics for internal fetches
+    // so it's not critical that we have a start time, as it won't be recorded.
+    // This is to workaround a flaky issue where performance APIs might
+    // not be available and will require follow-up investigation.
+    const fetchStart: number | undefined = isInternal
+      ? undefined
+      : performance.timeOrigin + performance.now()
 
     const workStore = workAsyncStorage.getStore()
     const workUnitStore = workUnitAsyncStorage.getStore()
@@ -540,7 +546,7 @@ export function createPatchedFetcher(
           }
 
           return originFetch(input, clonedInit).then(async (res) => {
-            if (!isStale) {
+            if (!isStale && fetchStart) {
               trackFetchMetric(workStore, {
                 start: fetchStart,
                 url: fetchUrl,
@@ -608,7 +614,7 @@ export function createPatchedFetcher(
                 })
               } else {
                 // We are dynamically rendering including dev mode. We want to return
-                // the response to the caller as soon  as possible because it might stream
+                // the response to the caller as soon as possible because it might stream
                 // over a very long time.
                 res
                   .clone()
@@ -736,15 +742,17 @@ export function createPatchedFetcher(
           }
 
           if (cachedFetchData) {
-            trackFetchMetric(workStore, {
-              start: fetchStart,
-              url: fetchUrl,
-              cacheReason,
-              cacheStatus: isHmrRefreshCache ? 'hmr' : 'hit',
-              cacheWarning,
-              status: cachedFetchData.status || 200,
-              method: init?.method || 'GET',
-            })
+            if (fetchStart) {
+              trackFetchMetric(workStore, {
+                start: fetchStart,
+                url: fetchUrl,
+                cacheReason,
+                cacheStatus: isHmrRefreshCache ? 'hmr' : 'hit',
+                cacheWarning,
+                status: cachedFetchData.status || 200,
+                method: init?.method || 'GET',
+              })
+            }
 
             const response = new Response(
               Buffer.from(cachedFetchData.body, 'base64'),

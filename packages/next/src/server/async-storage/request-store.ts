@@ -13,6 +13,8 @@ import {
 import {
   MutableRequestCookiesAdapter,
   RequestCookiesAdapter,
+  responseCookiesToRequestCookies,
+  wrapWithMutableAccessCheck,
   type ReadonlyRequestCookies,
 } from '../web/spec-extension/adapters/request-cookies'
 import { ResponseCookies, RequestCookies } from '../web/spec-extension/cookies'
@@ -165,6 +167,7 @@ function createRequestStoreImpl(
     headers?: ReadonlyHeaders
     cookies?: ReadonlyRequestCookies
     mutableCookies?: ResponseCookies
+    userspaceMutableCookies?: ResponseCookies
     draftMode?: DraftModeProvider
   } = {}
 
@@ -202,6 +205,9 @@ function createRequestStoreImpl(
 
       return cache.cookies
     },
+    set cookies(value: ReadonlyRequestCookies) {
+      cache.cookies = value
+    },
     get mutableCookies() {
       if (!cache.mutableCookies) {
         const mutableCookies = getMutableCookies(
@@ -214,6 +220,15 @@ function createRequestStoreImpl(
         cache.mutableCookies = mutableCookies
       }
       return cache.mutableCookies
+    },
+    get userspaceMutableCookies() {
+      if (!cache.userspaceMutableCookies) {
+        const userspaceMutableCookies = wrapWithMutableAccessCheck(
+          this.mutableCookies
+        )
+        cache.userspaceMutableCookies = userspaceMutableCookies
+      }
+      return cache.userspaceMutableCookies
     },
     get draftMode() {
       if (!cache.draftMode) {
@@ -233,4 +248,11 @@ function createRequestStoreImpl(
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
   }
+}
+
+export function synchronizeMutableCookies(store: RequestStore) {
+  // TODO: does this need to update headers as well?
+  store.cookies = RequestCookiesAdapter.seal(
+    responseCookiesToRequestCookies(store.mutableCookies)
+  )
 }
