@@ -3,7 +3,6 @@ import type AppRouteRouteModule from '../../server/route-modules/app-route/modul
 import type { AppRouteRouteHandlerContext } from '../../server/route-modules/app-route/module'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 
-import { join } from 'path'
 import {
   INFINITE_CACHE,
   NEXT_BODY_SUFFIX,
@@ -11,7 +10,6 @@ import {
   NEXT_META_SUFFIX,
 } from '../../lib/constants'
 import { NodeNextRequest } from '../../server/base-http/node'
-import { RouteModuleLoader } from '../../server/lib/module-loader/route-module-loader'
 import {
   NextRequestAdapter,
   signalFromNodeResponse,
@@ -22,7 +20,6 @@ import type {
   MockedResponse,
 } from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
-import { SERVER_DIRECTORY } from '../../shared/lib/constants'
 import { hasNextSupport } from '../../server/ci-info'
 import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers/is-static-gen-enabled'
 import type { ExperimentalConfig } from '../../server/config-shared'
@@ -40,8 +37,8 @@ export async function exportAppRoute(
   res: MockedResponse,
   params: Params | undefined,
   page: string,
+  module: AppRouteRouteModule,
   incrementalCache: IncrementalCache | undefined,
-  distDir: string,
   htmlFilepath: string,
   fileWriter: FileWriter,
   experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>,
@@ -86,13 +83,7 @@ export async function exportAppRoute(
     context.renderOpts.isRevalidate = true
   }
 
-  // This is a route handler, which means it has it's handler in the
-  // bundled file already, we should just use that.
-  const filename = join(distDir, SERVER_DIRECTORY, 'app', page)
-
   try {
-    // Route module loading and handling.
-    const module = await RouteModuleLoader.load<AppRouteRouteModule>(filename)
     const userland = module.userland
     // we don't bail from the static optimization for
     // metadata routes
