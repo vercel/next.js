@@ -10,7 +10,7 @@ import {
 import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
-import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope'
+import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope.external'
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
@@ -414,7 +414,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
       const cacheScope = cacheScopeAsyncLocalStorage.getStore()
 
-      if (cacheScope?.cache) {
+      if (cacheScope) {
         const memoryCacheData = cacheScope.cache.get(cacheKey)
 
         if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
@@ -538,7 +538,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
       const cacheScope = cacheScopeAsyncLocalStorage.getStore()
 
-      if (cacheScope?.cache) {
+      if (cacheScope) {
         cacheScope.cache.set(pathname, data)
       }
     }
