@@ -73,6 +73,75 @@ describe('app-dir - errors', () => {
       )
     })
 
+    it('should trigger error component when undefined is thrown during server components rendering', async () => {
+      const browser = await next.browser('/server-component/throw-undefined')
+
+      expect(
+        await browser.waitForElementByCss('#error-boundary-message').text()
+      ).toBe(
+        isNextDev
+          ? 'undefined'
+          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+      )
+      expect(
+        await browser.waitForElementByCss('#error-boundary-digest').text()
+        // Digest of the error message should be stable.
+      ).not.toBe('')
+      expect(stripAnsi(next.cliOutput)).toEqual(
+        expect.stringMatching(
+          isNextDev
+            ? /Error: An undefined error was thrown.*digest: "\d+"/s
+            : /Error: undefined.*digest: '\d+'/s
+        )
+      )
+    })
+
+    it('should trigger error component when null is thrown during server components rendering', async () => {
+      const browser = await next.browser('/server-component/throw-null')
+
+      expect(
+        await browser.waitForElementByCss('#error-boundary-message').text()
+      ).toBe(
+        isNextDev
+          ? 'null'
+          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+      )
+      expect(
+        await browser.waitForElementByCss('#error-boundary-digest').text()
+        // Digest of the error message should be stable.
+      ).not.toBe('')
+      expect(stripAnsi(next.cliOutput)).toEqual(
+        expect.stringMatching(
+          isNextDev
+            ? /Error: A null error was thrown.*digest: "\d+"/s
+            : /Error: null.*digest: '\d+'/s
+        )
+      )
+    })
+
+    it('should trigger error component when a string is thrown during server components rendering', async () => {
+      const browser = await next.browser('/server-component/throw-string')
+
+      expect(
+        await browser.waitForElementByCss('#error-boundary-message').text()
+      ).toBe(
+        isNextDev
+          ? 'this is a test'
+          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+      )
+      expect(
+        await browser.waitForElementByCss('#error-boundary-digest').text()
+        // Digest of the error message should be stable.
+      ).not.toBe('')
+      expect(stripAnsi(next.cliOutput)).toEqual(
+        expect.stringMatching(
+          isNextDev
+            ? /Error: this is a test.*digest: "\d+"/s
+            : /Error: An error occurred in the Server Components render.*digest: '\d+'/s
+        )
+      )
+    })
+
     it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
       const browser = await next.browser('/global-error-boundary/client')
       await browser.elementByCss('#error-trigger-button').click()
