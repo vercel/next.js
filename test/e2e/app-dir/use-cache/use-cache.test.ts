@@ -74,4 +74,11 @@ describe('use-cache', () => {
       )
     }
   })
+
+  itSkipTurbopack('should cache results in route handlers', async () => {
+    const response = await next.fetch('/api')
+    const { rand1, rand2 } = await response.json()
+
+    expect(rand1).toEqual(rand2)
+  })
 })
