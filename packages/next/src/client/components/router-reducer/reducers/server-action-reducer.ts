@@ -70,9 +70,6 @@ async function fetchServerAction(
   nextUrl: ReadonlyReducerState['nextUrl'],
   { actionId, actionArgs }: ServerActionAction
 ): Promise<FetchServerActionResult> {
-  // TODO: The temporary references should probably be a shared set with the
-  // createFromReadableStream/createFromFetch calls for the page RSC response,
-  // so that seen objects can be sent back to the server.
   const temporaryReferences = createTemporaryReferenceSet()
   const body = await encodeReply(actionArgs, { temporaryReferences })
 
