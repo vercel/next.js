@@ -1,7 +1,6 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
@@ -55,9 +54,6 @@ pub enum SourceMap {
     /// different regions of the file.
     Sectioned(#[turbo_tasks(trace_ignore)] SectionedSourceMap),
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct SectionMapping(IndexMap<String, Vc<Box<dyn GenerateSourceMap>>>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionSourceMap(Option<Vc<SourceMap>>);

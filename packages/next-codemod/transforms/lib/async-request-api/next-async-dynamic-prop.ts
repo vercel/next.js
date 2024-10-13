@@ -20,7 +20,9 @@ import {
   TARGET_ROUTE_EXPORTS,
   getVariableDeclaratorId,
   NEXTJS_ENTRY_FILES,
+  NEXT_CODEMOD_ERROR_PREFIX,
 } from './utils'
+import { createParserFromPath } from '../../../lib/parser'
 
 const PAGE_PROPS = 'props'
 
@@ -50,6 +52,15 @@ function awaitMemberAccessOfProp(
   // await each member access
   memberAccess.forEach((memberAccessPath) => {
     const member = memberAccessPath.value
+
+    const memberProperty = member.property
+    const isAccessingMatchedProperty =
+      j.Identifier.check(memberProperty) &&
+      TARGET_PROP_NAMES.has(memberProperty.name)
+
+    if (!isAccessingMatchedProperty) {
+      return
+    }
 
     if (isParentPromiseAllCallExpression(memberAccessPath, j)) {
       return
@@ -197,7 +208,7 @@ function commentOnMatchedReExports(
             const commentInserted = insertCommentOnce(
               specifier,
               j,
-              ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+              ` ${NEXT_CODEMOD_ERROR_PREFIX} \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
             )
             modified ||= commentInserted
           } else if (path.value.source === null) {
@@ -215,7 +226,7 @@ function commentOnMatchedReExports(
               const commentInserted = insertCommentOnce(
                 specifier,
                 j,
-                ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+                ` ${NEXT_CODEMOD_ERROR_PREFIX} \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
               )
               modified ||= commentInserted
             }
@@ -339,7 +350,7 @@ function modifyTypes(
 
 export function transformDynamicProps(
   source: string,
-  api: API,
+  _api: API,
   filePath: string
 ) {
   const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
@@ -349,7 +360,7 @@ export function transformDynamicProps(
 
   let modified = false
   let modifiedPropArgument = false
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(filePath)
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
@@ -462,7 +473,7 @@ export function transformDynamicProps(
           const propPassedAsArg = args.find(
             (arg) => j.Identifier.check(arg) && arg.name === argName
           )
-          const comment = ` Next.js Dynamic Async API Codemod: '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
+          const comment = ` ${NEXT_CODEMOD_ERROR_PREFIX} '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
           const inserted = insertCommentOnce(propPassedAsArg, j, comment)
           modified ||= inserted
         })
@@ -653,10 +664,10 @@ export function transformDynamicProps(
           }
         }
 
-        const propRenamedId = j.Identifier.check(paramsProperty)
+        const paramsPropertyName = j.Identifier.check(paramsProperty)
           ? paramsProperty.name
           : null
-        const propName = propRenamedId || matchedPropName
+        const paramPropertyName = paramsPropertyName || matchedPropName
 
         // if propName is not used in lower scope, and it stars with unused prefix `_`,
         // also skip the transformation
@@ -665,11 +676,36 @@ export function transformDynamicProps(
         const hasUsedInBody =
           j(functionBodyPath)
             .find(j.Identifier, {
-              name: propName,
+              name: paramPropertyName,
             })
             .size() > 0
 
-        if (!hasUsedInBody && propName.startsWith('_')) continue
+        if (!hasUsedInBody && paramPropertyName.startsWith('_')) continue
+
+        // Search the usage of propName in the function body,
+        // if they're all awaited or wrapped with use(), skip the transformation
+        const propUsages = j(functionBodyPath).find(j.Identifier, {
+          name: paramPropertyName,
+        })
+
+        // if there's usage of the propName, then do the check
+        if (propUsages.size()) {
+          let hasMissingAwaited = false
+          propUsages.forEach((propUsage) => {
+            // If the parent is not AwaitExpression, it's not awaited
+            const isAwaited =
+              propUsage.parentPath?.value.type === 'AwaitExpression'
+            const isAwaitedByUse = isParentUseCallExpression(propUsage, j)
+            if (!isAwaited && !isAwaitedByUse) {
+              hasMissingAwaited = true
+              return
+            }
+          })
+          // If all the usages of parm are awaited, skip the transformation
+          if (!hasMissingAwaited) {
+            continue
+          }
+        }
 
         modifiedPropertyCount++
 
@@ -683,7 +719,7 @@ export function transformDynamicProps(
         // e.g.
         // input: Page({ params: { slug } })
         // output: const { slug } = await props.params; rather than const props = await props.params;
-        const uid = functionName + ':' + propName
+        const uid = functionName + ':' + paramPropertyName
 
         if (paramsProperty?.type === 'ObjectPattern') {
           const objectPattern = paramsProperty
@@ -720,7 +756,7 @@ export function transformDynamicProps(
           // If it's async function, add await to the async props.<propName>
           const paramAssignment = j.variableDeclaration('const', [
             j.variableDeclarator(
-              j.identifier(propName),
+              j.identifier(paramPropertyName),
               j.awaitExpression(accessedPropIdExpr)
             ),
           ])
@@ -742,7 +778,7 @@ export function transformDynamicProps(
               // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
               const paramAssignment = j.variableDeclaration('const', [
                 j.variableDeclarator(
-                  j.identifier(propName),
+                  j.identifier(paramPropertyName),
                   j.awaitExpression(accessedPropIdExpr)
                 ),
               ])
@@ -755,7 +791,7 @@ export function transformDynamicProps(
           } else {
             const paramAssignment = j.variableDeclaration('const', [
               j.variableDeclarator(
-                j.identifier(propName),
+                j.identifier(paramPropertyName),
                 j.callExpression(j.identifier('use'), [accessedPropIdExpr])
               ),
             ])
@@ -899,7 +935,7 @@ function commentSpreadProps(
   const objSpreadProperties = functionBodyCollection.find(j.SpreadElement, {
     argument: { name: propsIdentifierName },
   })
-  const comment = ` Next.js Dynamic Async API Codemod: '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
+  const comment = ` ${NEXT_CODEMOD_ERROR_PREFIX} '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
 
   // Add comment before it
   jsxSpreadProperties.forEach((spread) => {

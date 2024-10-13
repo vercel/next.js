@@ -106,7 +106,7 @@ export async function stitchBuilds(
       path.join(distDir, entryFile + '.nft.json')
     )
 
-    if (type === 'app' && !entry.endsWith('/route')) {
+    if (type === 'app') {
       const clientRefManifestFile = path.join(
         'server',
         type,

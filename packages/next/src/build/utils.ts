@@ -745,6 +745,8 @@ export async function printTreeView(
     })
   )
 
+  const staticFunctionInfo =
+    lists.app && stats.router.app ? 'generateStaticParams' : 'getStaticProps'
   print()
   print(
     textTable(
@@ -757,13 +759,13 @@ export async function printTreeView(
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `prerendered as static HTML (uses ${cyan('getStaticProps')})`,
+          `prerendered as static HTML (uses ${cyan(staticFunctionInfo)})`,
         ],
         usedSymbols.has('ISR') && [
           '',
           '(ISR)',
           `incremental static regeneration (uses revalidate in ${cyan(
-            'getStaticProps'
+            staticFunctionInfo
           )})`,
         ],
         usedSymbols.has('◐') && [
@@ -1332,14 +1334,11 @@ export async function buildAppStaticPaths({
         const params: Params[] = []
 
         if (current.generateStaticParams) {
+          // fetchCache can be used to inform the fetch() defaults used inside
+          // of generateStaticParams. revalidate and dynamic options don't come into
+          // play within generateStaticParams.
           if (typeof current.config?.fetchCache !== 'undefined') {
             store.fetchCache = current.config.fetchCache
-          }
-          if (typeof current.config?.revalidate !== 'undefined') {
-            store.revalidate = current.config.revalidate
-          }
-          if (current.config?.dynamic === 'force-dynamic') {
-            store.forceDynamic = true
           }
 
           if (parentsParams.length > 0) {

@@ -1,4 +1,4 @@
-import { createAsyncLocalStorage } from '../../client/components/async-local-storage'
+import { createAsyncLocalStorage } from '../app-render/async-local-storage'
 
 export interface CacheScopeStore {
   cache?: Map<string, any>

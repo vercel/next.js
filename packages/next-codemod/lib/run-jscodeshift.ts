@@ -13,10 +13,6 @@ export default function runJscodeshift(
       '**/node_modules/**',
       '**/.next/**',
       '**/build/**',
-      // type files
-      '**/*.d.ts',
-      '**/*.d.cts',
-      '**/*.d.mts',
       // test files
       '**/*.test.*',
       '**/*.spec.*',

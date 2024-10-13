@@ -386,9 +386,6 @@ export { d3 as a } from "__TURBOPACK_VAR__" assert {
 import { a as d3 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -0
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
 function c2_1() {
     return c2_2(d3);
 }
@@ -440,9 +437,6 @@ import { e as d2 } from "__TURBOPACK_PART__" assert {
 };
 import { f as d1 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
 };
 function c1_1() {
     return c1_2();
@@ -591,9 +585,6 @@ export { d3 as a } from "__TURBOPACK_VAR__" assert {
 import { a as d3 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -0
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
 function c2_1() {
     return c2_2(d3);
 }
@@ -645,9 +636,6 @@ import { e as d2 } from "__TURBOPACK_PART__" assert {
 };
 import { f as d1 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
 };
 function c1_1() {
     return c1_2();

@@ -620,9 +620,6 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
 function setDog(newDog) {

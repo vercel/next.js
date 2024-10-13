@@ -16,7 +16,7 @@ import { findAllTelemetryEvents } from 'next-test-utils'
       await next.fetch('/')
 
       expect(next.cliOutput).toContain(
-        `The "experimental.esmExternals" option has been modified. experimental.esmExternals is not recommended to be modified as it may disrupt module resolution. Please update your next.config.js`
+        `The "experimental.esmExternals" option has been modified. experimental.esmExternals is not recommended to be modified as it may disrupt module resolution. It should be removed from your next.config.js`
       )
     })
 

@@ -92,12 +92,14 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
 #[derive(Debug)]
 pub struct SwcEcmaTransformPluginsTransformer {
     #[cfg(feature = "swc_ecma_transform_plugin")]
-    plugins: Vec<(Vc<SwcPluginModule>, serde_json::Value)>,
+    plugins: Vec<(turbo_tasks::ResolvedVc<SwcPluginModule>, serde_json::Value)>,
 }
 
 impl SwcEcmaTransformPluginsTransformer {
     #[cfg(feature = "swc_ecma_transform_plugin")]
-    pub fn new(plugins: Vec<(Vc<SwcPluginModule>, serde_json::Value)>) -> Self {
+    pub fn new(
+        plugins: Vec<(turbo_tasks::ResolvedVc<SwcPluginModule>, serde_json::Value)>,
+    ) -> Self {
         Self { plugins }
     }
 
