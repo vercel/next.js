@@ -18,6 +18,9 @@ describe('Next Build', () => {
           dependencies: {
             // create-next-install will replace this with a version built from the local source
             'eslint-config-next': 'canary',
+            // TODO(jiwon): update this test when we create the config for ESLint 9.
+            // pin ESLint 8 for current testing as we don't create the corresponding config for the users yet.
+            eslint: '^8',
           },
           skipStart: true,
         })
@@ -98,6 +101,9 @@ describe('Next Build', () => {
           dependencies: {
             // create-next-install will replace this with a version built from the local source
             'eslint-config-next': 'canary',
+            // TODO(jiwon): update this test when we create the config for ESLint 9.
+            // pin ESLint 8 for current testing as we don't create the corresponding config for the users yet.
+            eslint: '^8',
           },
           skipStart: true,
         })
