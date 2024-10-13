@@ -6,14 +6,17 @@ describe('temporary-references', () => {
     files: __dirname,
   })
 
-  it('should return the same object that was sent to the action', async () => {
-    const browser = await next.browser('/')
-    expect(await browser.elementByCss('p').text()).toBe('initial')
+  it.each(['edge', 'node'])(
+    'should return the same object that was sent to the action (%s)',
+    async (runtime) => {
+      const browser = await next.browser('/' + runtime)
+      expect(await browser.elementByCss('p').text()).toBe('initial')
 
-    await browser.elementByCss('button').click()
+      await browser.elementByCss('button').click()
 
-    await retry(async () => {
-      expect(await browser.elementByCss('p').text()).toBe('identical')
-    })
-  })
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('identical')
+      })
+    }
+  )
 })
