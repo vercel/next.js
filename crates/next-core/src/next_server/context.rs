@@ -23,7 +23,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
     free_var_references,
 };
-use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
+use turbopack_ecmascript::references::esm::UrlRewriteBehavior;
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
 };
@@ -896,20 +896,6 @@ pub async fn get_server_module_options_context(
     .cell();
 
     Ok(module_options_context)
-}
-
-#[turbo_tasks::function]
-pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
-    ModuleOptionsContext {
-        ecmascript: EcmascriptOptionsContext {
-            enable_typescript_transform: Some(Default::default()),
-            esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
-            ..Default::default()
-        },
-        tree_shaking_mode: Some(TreeShakingMode::ModuleFragments),
-        ..Default::default()
-    }
-    .cell()
 }
 
 #[turbo_tasks::function]

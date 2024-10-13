@@ -30,11 +30,8 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
  * from outside and await the return value before passing it into this function.
  *
  * You can find instances that require manual migration by searching for `UnsafeUnwrappedHeaders` in your codebase or by search for a comment that
- * starts with:
+ * starts with `@next-codemod-error`.
  *
- * ```
- * // TODO [sync-headers-usage]
- * ```
  * In a future version of Next.js `headers()` will only return a Promise and you will not be able to access the underlying Headers instance
  * without awaiting the return value first. When this change happens the type `UnsafeUnwrappedHeaders` will be updated to reflect that is it no longer
  * usable.
@@ -138,7 +135,10 @@ function makeDynamicallyTrackedExoticHeaders(
     return cachedHeaders
   }
 
-  const promise = makeHangingPromise<ReadonlyHeaders>()
+  const promise = makeHangingPromise<ReadonlyHeaders>(
+    prerenderStore.renderSignal,
+    '`headers()`'
+  )
   CachedHeaders.set(prerenderStore, promise)
 
   Object.defineProperties(promise, {

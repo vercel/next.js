@@ -8,7 +8,6 @@ import { getTracer, SpanKind } from './trace/tracer'
 import {
   CACHE_ONE_YEAR,
   INFINITE_CACHE,
-  NEXT_CACHE_IMPLICIT_TAG_ID,
   NEXT_CACHE_TAG_MAX_ITEMS,
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
@@ -17,7 +16,6 @@ import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
 import type {
   WorkUnitAsyncStorage,
-  WorkUnitStore,
   RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
@@ -113,69 +111,6 @@ export function validateTags(tags: any[], description: string) {
   return validTags
 }
 
-const getDerivedTags = (pathname: string): string[] => {
-  const derivedTags: string[] = [`/layout`]
-
-  // we automatically add the current path segments as tags
-  // for revalidatePath handling
-  if (pathname.startsWith('/')) {
-    const pathnameParts = pathname.split('/')
-
-    for (let i = 1; i < pathnameParts.length + 1; i++) {
-      let curPathname = pathnameParts.slice(0, i).join('/')
-
-      if (curPathname) {
-        // all derived tags other than the page are layout tags
-        if (!curPathname.endsWith('/page') && !curPathname.endsWith('/route')) {
-          curPathname = `${curPathname}${
-            !curPathname.endsWith('/') ? '/' : ''
-          }layout`
-        }
-        derivedTags.push(curPathname)
-      }
-    }
-  }
-  return derivedTags
-}
-
-export function getImplicitTags(
-  workStore: WorkStore,
-  workUnitStore: WorkUnitStore | undefined
-) {
-  // TODO: Cache the result
-  const newTags: string[] = []
-  const { page, fallbackRouteParams } = workStore
-  const hasFallbackRouteParams =
-    fallbackRouteParams && fallbackRouteParams.size > 0
-
-  // Add the derived tags from the page.
-  const derivedTags = getDerivedTags(page)
-  for (let tag of derivedTags) {
-    tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
-    newTags.push(tag)
-  }
-
-  const renderedPathname =
-    workUnitStore !== undefined
-      ? workUnitStore.type === 'request'
-        ? workUnitStore.url.pathname
-        : workUnitStore.type === 'prerender' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy'
-          ? workUnitStore.pathname
-          : undefined
-      : undefined
-
-  // Add the tags from the pathname. If the route has unknown params, we don't
-  // want to add the pathname as a tag, as it will be invalid.
-  if (renderedPathname && !hasFallbackRouteParams) {
-    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${renderedPathname}`
-    newTags.push(tag)
-  }
-
-  return newTags
-}
-
 function trackFetchMetric(
   workStore: WorkStore,
   ctx: Omit<FetchMetric, 'end' | 'idx'>
@@ -233,13 +168,19 @@ export function createPatchedFetcher(
       url = undefined
     }
     const fetchUrl = url?.href ?? ''
-    const fetchStart = performance.timeOrigin + performance.now()
     const method = init?.method?.toUpperCase() || 'GET'
 
     // Do create a new span trace for internal fetches in the
     // non-verbose mode.
     const isInternal = (init?.next as any)?.internal === true
     const hideSpan = process.env.NEXT_OTEL_FETCH_DISABLED === '1'
+    // We don't track fetch metrics for internal fetches
+    // so it's not critical that we have a start time, as it won't be recorded.
+    // This is to workaround a flaky issue where performance APIs might
+    // not be available and will require follow-up investigation.
+    const fetchStart: number | undefined = isInternal
+      ? undefined
+      : performance.timeOrigin + performance.now()
 
     const workStore = workAsyncStorage.getStore()
     const workUnitStore = workUnitAsyncStorage.getStore()
@@ -322,7 +263,10 @@ export function createPatchedFetcher(
           }
         }
 
-        const implicitTags = getImplicitTags(workStore, workUnitStore)
+        const implicitTags =
+          !workUnitStore || workUnitStore.type === 'unstable-cache'
+            ? []
+            : workUnitStore.implicitTags
 
         // Inside unstable-cache we treat it the same as force-no-store on the page.
         const pageFetchCacheMode =
@@ -602,7 +546,7 @@ export function createPatchedFetcher(
           }
 
           return originFetch(input, clonedInit).then(async (res) => {
-            if (!isStale) {
+            if (!isStale && fetchStart) {
               trackFetchMetric(workStore, {
                 start: fetchStart,
                 url: fetchUrl,
@@ -798,15 +742,17 @@ export function createPatchedFetcher(
           }
 
           if (cachedFetchData) {
-            trackFetchMetric(workStore, {
-              start: fetchStart,
-              url: fetchUrl,
-              cacheReason,
-              cacheStatus: isHmrRefreshCache ? 'hmr' : 'hit',
-              cacheWarning,
-              status: cachedFetchData.status || 200,
-              method: init?.method || 'GET',
-            })
+            if (fetchStart) {
+              trackFetchMetric(workStore, {
+                start: fetchStart,
+                url: fetchUrl,
+                cacheReason,
+                cacheStatus: isHmrRefreshCache ? 'hmr' : 'hit',
+                cacheWarning,
+                status: cachedFetchData.status || 200,
+                method: init?.method || 'GET',
+              })
+            }
 
             const response = new Response(
               Buffer.from(cachedFetchData.body, 'base64'),

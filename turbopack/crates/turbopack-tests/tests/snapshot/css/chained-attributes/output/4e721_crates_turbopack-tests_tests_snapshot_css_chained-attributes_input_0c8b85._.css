@@ -2,10 +2,7 @@
 @layer layer.foo {
 @media print and (orientation: landscape) {
 @supports not(display: inline-grid) and font-format(woff2) {
-.imported {
-  color: red;
-}
-
+.imported{color:red}
 }
 }
 }
@@ -14,10 +11,7 @@
 @layer layer.bar {
 @media print and (orientation: portrait) {
 @supports not(display: inline-grid) and font-format(woff2) {
-.imported {
-  color: red;
-}
-
+.imported{color:red}
 }
 }
 }
@@ -26,10 +20,7 @@
 @layer layer {
 @media print {
 @supports not(display: inline-grid) and font-format(woff2) {
-.imported {
-  color: orange;
-}
-
+.imported{color:orange}
 }
 }
 }
@@ -38,18 +29,12 @@
 @layer layer {
 @media print {
 @supports not(display: inline-grid) {
-.imported {
-  color: #0ff;
-}
-
+.imported{color:#0ff}
 }
 }
 }
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/style.css [test] (css) */
-.style {
-  color: #ff0;
-}
-
+.style{color:#ff0}
 
 /*# sourceMappingURL=4e721_crates_turbopack-tests_tests_snapshot_css_chained-attributes_input_0c8b85._.css.map*/

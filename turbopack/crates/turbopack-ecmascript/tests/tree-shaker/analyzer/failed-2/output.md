@@ -847,9 +847,6 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 14
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 const hasPostpone = typeof React.unstable_postpone === 'function';

@@ -6,6 +6,10 @@ import { isThenable } from '../../shared/lib/is-thenable'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { withExecuteRevalidates } from './revalidation-utils'
 import { bindSnapshot } from '../app-render/async-local-storage'
+import {
+  workUnitAsyncStorage,
+  type WorkUnitStore,
+} from '../app-render/work-unit-async-storage.external'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
@@ -18,6 +22,7 @@ export class AfterContext {
 
   private runCallbacksOnClosePromise: Promise<void> | undefined
   private callbackQueue: PromiseQueue
+  private workUnitStores = new Set<WorkUnitStore>()
 
   constructor({ waitUntil, onClose }: AfterContextOpts) {
     this.waitUntil = waitUntil
@@ -55,6 +60,14 @@ export class AfterContext {
       )
     }
 
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (!workUnitStore) {
+      throw new InvariantError(
+        'Missing workUnitStore in AfterContext.addCallback'
+      )
+    }
+    this.workUnitStores.add(workUnitStore)
+
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
       this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
@@ -89,9 +102,15 @@ export class AfterContext {
   private async runCallbacks(): Promise<void> {
     if (this.callbackQueue.size === 0) return
 
-    const workStore = workAsyncStorage.getStore()
+    for (const workUnitStore of this.workUnitStores) {
+      workUnitStore.phase = 'after'
+    }
 
-    // TODO(after): Change phase in workUnitStore to disable e.g. `cookies().set()`
+    const workStore = workAsyncStorage.getStore()
+    if (!workStore) {
+      throw new InvariantError('Missing workStore in AfterContext.runCallbacks')
+    }
+
     return withExecuteRevalidates(workStore, () => {
       this.callbackQueue.start()
       return this.callbackQueue.onIdle()

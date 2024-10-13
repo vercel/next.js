@@ -55,6 +55,21 @@ type TurbopackMiddlewareManifest = MiddlewareManifest & {
   instrumentation?: InstrumentationDefinition
 }
 
+const getManifestPath = (page: string, distDir: string, name: string, type: string) => {
+  let manifestPath = posix.join(
+    distDir,
+    `server`,
+    type,
+    type === 'middleware' || type === 'instrumentation'
+      ? ''
+      : type === 'app'
+        ? page
+        : getAssetPathFromRoute(page),
+    name
+  )
+  return manifestPath
+}
+
 async function readPartialManifest<T>(
   distDir: string,
   name:
@@ -70,34 +85,19 @@ async function readPartialManifest<T>(
   pageName: string,
   type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
 ): Promise<T> {
-  const page = pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route')
+  const page = pageName
+  const isSitemapRoute = /[\\/]sitemap(.xml)?\/route$/.test(page)
+  let manifestPath = getManifestPath(page, distDir, name, type)
 
-  let manifestPath = posix.join(
-    distDir,
-    `server`,
-    type,
-    type === 'middleware' || type === 'instrumentation'
-      ? ''
-      : type === 'app'
-        ? page
-        : getAssetPathFromRoute(page),
-    name
-  )
+  // Check the ambiguity of /sitemap and /sitemap.xml
+  if (isSitemapRoute && !existsSync(manifestPath)) {
+    manifestPath = getManifestPath(pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route'), distDir, name, type)
+  }
   // existsSync is faster than using the async version
   if(!existsSync(manifestPath) && page.endsWith('/route')) {
     // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
-    const metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page.replace(/\/sitemap\.xml\/route$/, '/sitemap/route'))))
-    manifestPath = posix.join(
-      distDir,
-      `server`,
-      type,
-      type === 'middleware' || type === 'instrumentation'
-        ? ''
-        : type === 'app'
-          ? metadataPage
-          : getAssetPathFromRoute(metadataPage),
-      name
-    )
+    let metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page)))
+    manifestPath = getManifestPath(metadataPage, distDir, name, type)
   }
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
 }

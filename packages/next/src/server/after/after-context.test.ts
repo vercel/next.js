@@ -2,16 +2,19 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import { AsyncLocalStorage } from 'async_hooks'
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import type { AfterContext } from './after-context'
 
 describe('AfterContext', () => {
   // 'async-local-storage.ts' needs `AsyncLocalStorage` on `globalThis` at import time,
   // so we have to do some contortions here to set it up before running anything else
   type WASMod = typeof import('../app-render/work-async-storage.external')
+  type WSMod = typeof import('../app-render/work-unit-async-storage.external')
   type AfterMod = typeof import('./after')
   type AfterContextMod = typeof import('./after-context')
 
   let workAsyncStorage: WASMod['workAsyncStorage']
+  let workUnitAsyncStorage: WSMod['workUnitAsyncStorage']
   let AfterContext: AfterContextMod['AfterContext']
   let after: AfterMod['unstable_after']
 
@@ -21,6 +24,9 @@ describe('AfterContext', () => {
 
     const WASMod = await import('../app-render/work-async-storage.external')
     workAsyncStorage = WASMod.workAsyncStorage
+
+    const WSMod = await import('../app-render/work-unit-async-storage.external')
+    workUnitAsyncStorage = WSMod.workUnitAsyncStorage
 
     const AfterContextMod = await import('./after-context')
     AfterContext = AfterContextMod.AfterContext
@@ -32,7 +38,9 @@ describe('AfterContext', () => {
   const createRun =
     (_afterContext: AfterContext, workStore: WorkStore) =>
     <T>(cb: () => T): T => {
-      return workAsyncStorage.run(workStore, cb)
+      return workAsyncStorage.run(workStore, () =>
+        workUnitAsyncStorage.run(createMockWorkUnitStore(), cb)
+      )
     }
 
   it('runs after() callbacks from a run() callback that resolves', async () => {
@@ -362,11 +370,13 @@ describe('AfterContext', () => {
     const promise3 = new DetachedPromise<string>()
     const afterCallback3 = jest.fn(() => promise3.promise)
 
-    workAsyncStorage.run(workStore, () => {
-      after(afterCallback1)
-      after(afterCallback2)
-      after(afterCallback3)
-    })
+    workAsyncStorage.run(workStore, () =>
+      workUnitAsyncStorage.run(createMockWorkUnitStore(), () => {
+        after(afterCallback1)
+        after(afterCallback2)
+        after(afterCallback3)
+      })
+    )
 
     expect(afterCallback1).not.toHaveBeenCalled()
     expect(afterCallback2).not.toHaveBeenCalled()
@@ -556,4 +566,8 @@ const createMockWorkStore = (afterContext: AfterContext): WorkStore => {
       )
     },
   })
+}
+
+const createMockWorkUnitStore = () => {
+  return { phase: 'render' } as WorkUnitStore
 }

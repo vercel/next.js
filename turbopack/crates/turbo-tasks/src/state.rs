@@ -9,7 +9,7 @@ use parking_lot::{Mutex, MutexGuard};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    get_invalidator, mark_dirty_when_persisted, mark_stateful, trace::TraceRawVcs, Invalidator,
+    get_invalidator, mark_session_dependent, mark_stateful, trace::TraceRawVcs, Invalidator,
     SerializationInvalidator,
 };
 
@@ -266,7 +266,7 @@ impl<T> TransientState<T> {
     /// as dependency of the state and will be invalidated when the state
     /// changes.
     pub fn get(&self) -> StateRef<'_, Option<T>> {
-        mark_dirty_when_persisted();
+        mark_session_dependent();
         let invalidator = get_invalidator();
         let mut inner = self.inner.lock();
         inner.add_invalidator(invalidator);

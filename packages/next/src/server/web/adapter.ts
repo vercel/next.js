@@ -12,7 +12,7 @@ import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
 import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
-import { withRequestStore } from '../async-storage/with-request-store'
+import { createRequestStoreForAPI } from '../async-storage/request-store'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   withWorkStore,
@@ -236,7 +236,18 @@ export async function adapter(
         },
         async () => {
           try {
+            const onUpdateCookies = (cookies: Array<string>) => {
+              cookiesFromResponse = cookies
+            }
             const previewProps = getEdgePreviewProps()
+
+            const requestStore = createRequestStoreForAPI(
+              request,
+              request.nextUrl,
+              undefined,
+              onUpdateCookies,
+              previewProps
+            )
 
             return await withWorkStore(
               workAsyncStorage,
@@ -262,20 +273,11 @@ export async function adapter(
                 ),
               },
               () =>
-                withRequestStore(
-                  workUnitAsyncStorage,
-                  {
-                    req: request,
-                    res: undefined,
-                    url: request.nextUrl,
-                    renderOpts: {
-                      onUpdateCookies: (cookies) => {
-                        cookiesFromResponse = cookies
-                      },
-                      previewProps,
-                    },
-                  },
-                  () => params.handler(request, event)
+                workUnitAsyncStorage.run(
+                  requestStore,
+                  params.handler,
+                  request,
+                  event
                 )
             )
           } finally {

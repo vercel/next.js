@@ -89,3 +89,7 @@ export function json(res: ServerResponse, data: any) {
     .setHeader('Content-Type', 'application/json')
     .end(Buffer.from(JSON.stringify(data)))
 }
+
+export function jsonString(res: ServerResponse, data: string) {
+  res.setHeader('Content-Type', 'application/json').end(Buffer.from(data))
+}

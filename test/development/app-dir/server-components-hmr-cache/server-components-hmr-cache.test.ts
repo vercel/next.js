@@ -18,27 +18,24 @@ describe('server-components-hmr-cache', () => {
   }
 
   describe.each(['edge', 'node'])('%s runtime', (runtime) => {
-    afterEach(async () => {
-      await next.patchFile('components/shared-page.tsx', (content) =>
-        content.replace('bar', 'foo')
-      )
-    })
-
     it('should use cached fetch calls for fast refresh requests', async () => {
       const browser = await next.browser(`/${runtime}`)
       const valueBeforePatch = await browser.elementById('value').text()
 
-      await next.patchFile('components/shared-page.tsx', (content) =>
-        content.replace('foo', 'bar')
+      await next.patchFile(
+        'components/shared-page.tsx',
+        (content) => content.replace('foo', 'bar'),
+        async () => {
+          await retry(async () => {
+            const updatedContent = await browser.elementById('content').text()
+            expect(updatedContent).toBe('bar')
+            // TODO: remove custom duration in case we increase the default.
+          }, 5000)
+
+          const valueAfterPatch = await browser.elementById('value').text()
+          expect(valueBeforePatch).toEqual(valueAfterPatch)
+        }
       )
-
-      await retry(async () => {
-        const updatedContent = await browser.elementById('content').text()
-        expect(updatedContent).toBe('bar')
-      })
-
-      const valueAfterPatch = await browser.elementById('value').text()
-      expect(valueBeforePatch).toEqual(valueAfterPatch)
     })
 
     it('should not use cached fetch calls for intentional refresh requests', async () => {
@@ -49,7 +46,8 @@ describe('server-components-hmr-cache', () => {
       await retry(async () => {
         const valueAfterRefresh = await browser.elementById('value').text()
         expect(valueBeforeRefresh).not.toEqual(valueAfterRefresh)
-      })
+        // TODO: remove custom duration in case we increase the default.
+      }, 5000)
     })
 
     describe('in after()', () => {
@@ -62,17 +60,20 @@ describe('server-components-hmr-cache', () => {
         const valueBeforePatch = getLoggedAfterValue()
         cliOutputLength = next.cliOutput.length
 
-        await next.patchFile('components/shared-page.tsx', (content) =>
-          content.replace('foo', 'bar')
+        await next.patchFile(
+          'components/shared-page.tsx',
+          (content) => content.replace('foo', 'bar'),
+          async () => {
+            await retry(async () => {
+              const updatedContent = await browser.elementById('content').text()
+              expect(updatedContent).toBe('bar')
+              // TODO: remove custom duration in case we increase the default.
+            }, 5000)
+
+            const valueAfterPatch = getLoggedAfterValue()
+            expect(valueBeforePatch).toEqual(valueAfterPatch)
+          }
         )
-
-        await retry(async () => {
-          const updatedContent = await browser.elementById('content').text()
-          expect(updatedContent).toBe('bar')
-        })
-
-        const valueAfterPatch = getLoggedAfterValue()
-        expect(valueBeforePatch).toEqual(valueAfterPatch)
       })
 
       it('should not use cached fetch calls for intentional refresh requests', async () => {
@@ -85,7 +86,8 @@ describe('server-components-hmr-cache', () => {
         await retry(async () => {
           const valueAfterRefresh = getLoggedAfterValue()
           expect(valueBeforeRefresh).not.toEqual(valueAfterRefresh)
-        })
+          // TODO: remove custom duration in case we increase the default.
+        }, 5000)
       })
     })
 
@@ -112,17 +114,20 @@ describe('server-components-hmr-cache', () => {
         const browser = await next.browser(`/${runtime}`)
         const valueBeforePatch = await browser.elementById('value').text()
 
-        await next.patchFile('components/shared-page.tsx', (content) =>
-          content.replace('foo', 'bar')
+        await next.patchFile(
+          'components/shared-page.tsx',
+          (content) => content.replace('foo', 'bar'),
+          async () => {
+            await retry(async () => {
+              const updatedContent = await browser.elementById('content').text()
+              expect(updatedContent).toBe('bar')
+              // TODO: remove custom duration in case we increase the default.
+            }, 5000)
+
+            const valueAfterPatch = await browser.elementById('value').text()
+            expect(valueBeforePatch).not.toEqual(valueAfterPatch)
+          }
         )
-
-        await retry(async () => {
-          const updatedContent = await browser.elementById('content').text()
-          expect(updatedContent).toBe('bar')
-        })
-
-        const valueAfterPatch = await browser.elementById('value').text()
-        expect(valueBeforePatch).not.toEqual(valueAfterPatch)
       })
 
       describe('in after()', () => {
@@ -135,17 +140,22 @@ describe('server-components-hmr-cache', () => {
           const valueBeforePatch = await retry(() => getLoggedAfterValue())
           cliOutputLength = next.cliOutput.length
 
-          await next.patchFile('components/shared-page.tsx', (content) =>
-            content.replace('foo', 'bar')
+          await next.patchFile(
+            'components/shared-page.tsx',
+            (content) => content.replace('foo', 'bar'),
+            async () => {
+              await retry(async () => {
+                const updatedContent = await browser
+                  .elementById('content')
+                  .text()
+                expect(updatedContent).toBe('bar')
+                // TODO: remove custom duration in case we increase the default.
+              }, 5000)
+
+              const valueAfterPatch = await retry(() => getLoggedAfterValue())
+              expect(valueBeforePatch).not.toEqual(valueAfterPatch)
+            }
           )
-
-          await retry(async () => {
-            const updatedContent = await browser.elementById('content').text()
-            expect(updatedContent).toBe('bar')
-          })
-
-          const valueAfterPatch = await retry(() => getLoggedAfterValue())
-          expect(valueBeforePatch).not.toEqual(valueAfterPatch)
         })
       })
     })

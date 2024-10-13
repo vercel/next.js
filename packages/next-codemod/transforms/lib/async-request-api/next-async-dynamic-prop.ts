@@ -20,7 +20,9 @@ import {
   TARGET_ROUTE_EXPORTS,
   getVariableDeclaratorId,
   NEXTJS_ENTRY_FILES,
+  NEXT_CODEMOD_ERROR_PREFIX,
 } from './utils'
+import { createParserFromPath } from '../../../lib/parser'
 
 const PAGE_PROPS = 'props'
 
@@ -50,6 +52,15 @@ function awaitMemberAccessOfProp(
   // await each member access
   memberAccess.forEach((memberAccessPath) => {
     const member = memberAccessPath.value
+
+    const memberProperty = member.property
+    const isAccessingMatchedProperty =
+      j.Identifier.check(memberProperty) &&
+      TARGET_PROP_NAMES.has(memberProperty.name)
+
+    if (!isAccessingMatchedProperty) {
+      return
+    }
 
     if (isParentPromiseAllCallExpression(memberAccessPath, j)) {
       return
@@ -197,7 +208,7 @@ function commentOnMatchedReExports(
             const commentInserted = insertCommentOnce(
               specifier,
               j,
-              ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+              ` ${NEXT_CODEMOD_ERROR_PREFIX} \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
             )
             modified ||= commentInserted
           } else if (path.value.source === null) {
@@ -215,7 +226,7 @@ function commentOnMatchedReExports(
               const commentInserted = insertCommentOnce(
                 specifier,
                 j,
-                ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+                ` ${NEXT_CODEMOD_ERROR_PREFIX} \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
               )
               modified ||= commentInserted
             }
@@ -339,7 +350,7 @@ function modifyTypes(
 
 export function transformDynamicProps(
   source: string,
-  api: API,
+  _api: API,
   filePath: string
 ) {
   const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
@@ -349,7 +360,7 @@ export function transformDynamicProps(
 
   let modified = false
   let modifiedPropArgument = false
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(filePath)
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
@@ -462,7 +473,7 @@ export function transformDynamicProps(
           const propPassedAsArg = args.find(
             (arg) => j.Identifier.check(arg) && arg.name === argName
           )
-          const comment = ` Next.js Dynamic Async API Codemod: '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
+          const comment = ` ${NEXT_CODEMOD_ERROR_PREFIX} '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
           const inserted = insertCommentOnce(propPassedAsArg, j, comment)
           modified ||= inserted
         })
@@ -924,7 +935,7 @@ function commentSpreadProps(
   const objSpreadProperties = functionBodyCollection.find(j.SpreadElement, {
     argument: { name: propsIdentifierName },
   })
-  const comment = ` Next.js Dynamic Async API Codemod: '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
+  const comment = ` ${NEXT_CODEMOD_ERROR_PREFIX} '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
 
   // Add comment before it
   jsxSpreadProperties.forEach((spread) => {
