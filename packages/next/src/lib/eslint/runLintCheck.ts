@@ -156,29 +156,19 @@ async function lint(
     }
 
     if (semver.gte(eslintVersion, '9.0.0')) {
-      if ('useEslintrc' in options) {
-        delete options.useEslintrc
-      }
-      if ('extensions' in options) {
-        delete options.extensions
-      }
-      if ('ignorePath' in options) {
-        delete options.ignorePath
-      }
-      if ('reportUnusedDisableDirectives' in options) {
-        delete options.reportUnusedDisableDirectives
-      }
-      if ('resolvePluginsRelativeTo' in options) {
-        delete options.resolvePluginsRelativeTo
-      }
-      if ('rulePaths' in options) {
-        delete options.rulePaths
-      }
-      if ('inlineConfig' in options) {
-        delete options.inlineConfig
-      }
-      if ('maxWarnings' in options) {
-        delete options.maxWarnings
+      for (const option of [
+        'useEslintrc',
+        'extensions',
+        'ignorePath',
+        'reportUnusedDisableDirectives',
+        'resolvePluginsRelativeTo',
+        'rulePaths',
+        'inlineConfig',
+        'maxWarnings',
+      ]) {
+        if (option in options) {
+          delete options[option]
+        }
       }
     }
 
@@ -193,7 +183,15 @@ async function lint(
       const completeConfig: Config =
         await eslint.calculateConfigForFile(configFile)
 
-      if (completeConfig.plugins?.includes('@next/next')) {
+      const hasNextPlugin = completeConfig.plugins
+        ? // in ESLint < 9, `plugins` value is string[]
+          Array.isArray(completeConfig.plugins)
+          ? completeConfig.plugins.includes('@next/next')
+          : // in ESLint >= 9, `plugins` value is Record<string, unknown>
+            '@next/next' in completeConfig.plugins
+        : false
+
+      if (hasNextPlugin) {
         nextEslintPluginIsEnabled = true
         for (const [name, [severity]] of Object.entries(completeConfig.rules)) {
           if (!name.startsWith('@next/next/')) {
