@@ -341,12 +341,12 @@ export async function runLintCheck(
           '.eslintrc.json',
           '.eslintrc',
           // eslint v9
-          '.eslint.config.js',
-          '.eslint.config.mjs',
-          '.eslint.config.cjs',
-          '.eslint.config.ts', // requires additional setup
-          '.eslint.config.mts', // requires additional setup
-          '.eslint.config.cts', // requires additional setup
+          'eslint.config.js',
+          'eslint.config.mjs',
+          'eslint.config.cjs',
+          'eslint.config.ts', // requires additional setup
+          'eslint.config.mts', // requires additional setup
+          'eslint.config.cts', // requires additional setup
         ],
         {
           cwd: baseDir,
