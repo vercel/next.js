@@ -47,11 +47,8 @@ type CacheEntry = {
 }
 
 interface CacheHandler {
-  get(
-    cacheKey: string | ArrayBuffer,
-    implicitTags: string[]
-  ): Promise<undefined | CacheEntry>
-  set(cacheKey: string | ArrayBuffer, value: Promise<CacheEntry>): Promise<void>
+  get(cacheKey: string, implicitTags: string[]): Promise<undefined | CacheEntry>
+  set(cacheKey: string, value: Promise<CacheEntry>): Promise<void>
 }
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
@@ -59,13 +56,9 @@ const cacheHandlerMap: Map<string, CacheHandler> = new Map()
 // TODO: Move default implementation to be injectable.
 const defaultCacheStorage: Map<string, Promise<CacheEntry>> = new Map()
 cacheHandlerMap.set('default', {
-  async get(cacheKey: string | ArrayBuffer): Promise<undefined | CacheEntry> {
+  async get(cacheKey: string): Promise<undefined | CacheEntry> {
     // TODO: Implement proper caching.
-    const stringCacheKey =
-      typeof cacheKey === 'string'
-        ? cacheKey
-        : Buffer.from(cacheKey).toString('base64')
-    const entry = await defaultCacheStorage.get(stringCacheKey)
+    const entry = await defaultCacheStorage.get(cacheKey)
     if (entry !== undefined) {
       const [returnStream, newSaved] = entry.value.tee()
       entry.value = newSaved
@@ -78,13 +71,9 @@ cacheHandlerMap.set('default', {
     }
     return undefined
   },
-  async set(cacheKey: string | ArrayBuffer, promise: Promise<CacheEntry>) {
-    const stringCacheKey =
-      typeof cacheKey === 'string'
-        ? cacheKey
-        : Buffer.from(cacheKey).toString('base64')
+  async set(cacheKey: string, promise: Promise<CacheEntry>) {
     // TODO: Implement proper caching.
-    defaultCacheStorage.set(stringCacheKey, promise)
+    defaultCacheStorage.set(cacheKey, promise)
     await promise
   },
 })
@@ -95,7 +84,7 @@ function generateCacheEntry(
   cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
-  serializedCacheKey: string | ArrayBuffer,
+  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ): Promise<ReadableStream> {
@@ -123,7 +112,7 @@ function generateCacheEntryWithRestoredWorkStore(
   cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
-  serializedCacheKey: string | ArrayBuffer,
+  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ) {
@@ -167,7 +156,7 @@ function generateCacheEntryWithCacheContext(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
-  serializedCacheKey: string | ArrayBuffer,
+  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ) {
@@ -298,7 +287,7 @@ async function generateCacheEntryImpl(
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
-  serializedCacheKey: string | ArrayBuffer,
+  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ): Promise<ReadableStream> {
@@ -360,7 +349,7 @@ async function loadCacheEntry(
   cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
-  serializedCacheKey: string | ArrayBuffer,
+  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ): Promise<ReadableStream> {
@@ -494,10 +483,14 @@ export function cache(kind: string, id: string, fn: any) {
           ? // Fast path for the simple case for simple inputs. We let the CacheHandler
             // Convert it to an ArrayBuffer if it wants to.
             encodedArguments
-          : // The FormData might contain binary data that is not valid UTF-8 so this
-            // cannot be a string in this case. I.e. .text() is not valid here and it
-            // is not valid to use TextDecoder on this result.
-            await new Response(encodedArguments).arrayBuffer()
+          : // The FormData might contain binary data that is not valid UTF-8 so this cache
+            // key may generate a UCS-2 string. Passing this to another service needs to be
+            // aware that the key might not be compatible.
+            String.fromCodePoint(
+              ...new Uint8Array(
+                await new Response(encodedArguments).arrayBuffer()
+              )
+            )
 
       let stream: ReadableStream
 
@@ -507,15 +500,11 @@ export function cache(kind: string, id: string, fn: any) {
         // String cache key for easier hash mapping.
         // Note that we're not worried about collisions between string and base64
         // since the string form will always be JSON which doesn't overlap with base64.
-        const stringCacheKey =
-          typeof serializedCacheKey === 'string'
-            ? serializedCacheKey
-            : Buffer.from(serializedCacheKey).toString('base64')
         const cachedStream:
           | undefined
           | Promise<{
               value: ReadableStream
-            }> = cacheScope.cache.get(stringCacheKey)
+            }> = cacheScope.cache.get(serializedCacheKey)
         if (cachedStream !== undefined) {
           const entry = await cachedStream
           // Get a clone out of the cache.
@@ -538,7 +527,7 @@ export function cache(kind: string, id: string, fn: any) {
           )
           const streams = teePromiseOfStream(loadedStream)
           cacheScope.cache.set(
-            stringCacheKey,
+            serializedCacheKey,
             cacheScopeEntryFromSecondStream(streams)
           )
           stream = (await streams)[0]
