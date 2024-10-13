@@ -155,6 +155,15 @@ async function lint(
       ...eslintOptions,
     }
 
+    if (semver.gte(eslintVersion, '9.0.0')) {
+      if ('useEslintrc' in options) {
+        delete options.useEslintrc
+      }
+      if ('extensions' in options) {
+        delete options.extensions
+      }
+    }
+
     let eslint = new ESLint(options)
 
     let nextEslintPluginIsEnabled = false
@@ -315,6 +324,13 @@ export async function runLintCheck(
           '.eslintrc.yml',
           '.eslintrc.json',
           '.eslintrc',
+          // eslint v9
+          '.eslint.config.js',
+          '.eslint.config.mjs',
+          '.eslint.config.cjs',
+          '.eslint.config.ts', // requires additional setup
+          '.eslint.config.mts', // requires additional setup
+          '.eslint.config.cts', // requires additional setup
         ],
         {
           cwd: baseDir,

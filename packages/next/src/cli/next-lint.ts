@@ -23,20 +23,15 @@ export type NextLintOptions = {
   config?: string
   dir?: string[]
   errorOnUnmatchedPattern?: boolean
-  ext: string[]
   file?: string[]
   fix?: boolean
   fixType?: string
   format?: string
   ignore: boolean
-  ignorePath?: string
   inlineConfig: boolean
   maxWarnings: number
   outputFile?: string
   quiet?: boolean
-  reportUnusedDisableDirectivesSeverity: 'error' | 'off' | 'warn'
-  resolvePluginsRelativeTo?: string
-  rulesdir?: string
   strict?: boolean
 }
 
@@ -44,17 +39,13 @@ const eslintOptions = (
   options: NextLintOptions,
   defaultCacheLocation: string
 ) => ({
+  // allow user custom options for backward compatibility with ESLint v8
+  ...options,
   overrideConfigFile: options.config || null,
-  extensions: options.ext ?? [],
-  resolvePluginsRelativeTo: options.resolvePluginsRelativeTo || null,
-  rulePaths: options.rulesdir ?? [],
   fix: options.fix ?? false,
   fixTypes: options.fixType ?? null,
-  ignorePath: options.ignorePath || null,
   ignore: options.ignore,
   allowInlineConfig: options.inlineConfig,
-  reportUnusedDisableDirectives:
-    options.reportUnusedDisableDirectivesSeverity || null,
   cache: options.cache,
   cacheLocation: options.cacheLocation || defaultCacheLocation,
   cacheStrategy: options.cacheStrategy,

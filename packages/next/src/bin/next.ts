@@ -233,35 +233,19 @@ program
     'Include directory, or directories, to run ESLint.'
   )
   .option('--file, <files...>', 'Include file, or files, to run ESLint.')
-  .addOption(
-    new Option(
-      '--ext, [exts...]',
-      'Specify JavaScript file extensions.'
-    ).default(['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx'])
-  )
   .option(
     '-c, --config, <config>',
     'Uses this configuration file, overriding all other configuration options.'
   )
   .option(
-    '--resolve-plugins-relative-to, <rprt>',
-    'Specify a directory where plugins should be resolved from.'
-  )
-  .option(
     '--strict',
     'Creates a `.eslintrc.json` file using the Next.js strict configuration.'
-  )
-  .option(
-    '--rulesdir, <rulesdir...>',
-    'Uses additional rules from this directory(s).'
   )
   .option('--fix', 'Automatically fix linting issues.')
   .option(
     '--fix-type <fixType>',
     'Specify the types of fixes to apply (e.g., problem, suggestion, layout).'
   )
-  .option('--ignore-path <path>', 'Specify a file to ignore.')
-  .option('--no-ignore', 'Disables the `--ignore-path` option.')
   .option('--quiet', 'Reports errors only.')
   .addOption(
     new Option(
@@ -280,12 +264,6 @@ program
     '--no-inline-config',
     'Prevents comments from changing config or rules.'
   )
-  .addOption(
-    new Option(
-      '--report-unused-disable-directives-severity <level>',
-      'Specify severity level for unused eslint-disable directives.'
-    ).choices(['error', 'off', 'warn'])
-  )
   .option('--no-cache', 'Disables caching.')
   .option('--cache-location, <cacheLocation>', 'Specify a location for cache.')
   .addOption(
@@ -298,6 +276,8 @@ program
     '--error-on-unmatched-pattern',
     'Reports errors when any file patterns are unmatched.'
   )
+  // allow unknown options for backward compatibility with ESLint v8
+  .allowUnknownOption()
   .action((directory: string, options: NextLintOptions) =>
     import('../cli/next-lint.js').then((mod) =>
       mod.nextLint(options, directory)
