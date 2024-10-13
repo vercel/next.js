@@ -7,7 +7,7 @@ const rulePaths = glob.sync('packages/eslint-plugin-next/dist/rules/*js', {
   absolute: true,
 })
 
-describe('@next/eslint-plugin-next index', () => {
+describe('eslint-v9 @next/eslint-plugin-next index', () => {
   it('should include all defined rules and no extra / undefined rules', () => {
     const rules = rulePaths.map((rulePath) => getRuleNameFromRulePath(rulePath))
 

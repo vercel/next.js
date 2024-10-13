@@ -1,12 +1,14 @@
 import rule from '@next/eslint-plugin-next/dist/rules/inline-script-id'
-import { RuleTester } from 'eslint'
+import { RuleTester } from 'eslint-v9'
 ;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
+  languageOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
+    parserOptions: {
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
     },
   },
 })
@@ -15,7 +17,7 @@ const errorMessage =
   '`next/script` components with inline content must specify an `id` attribute. See: https://nextjs.org/docs/messages/inline-script-id'
 
 const ruleTester = new RuleTester()
-ruleTester.run('inline-script-id', rule, {
+ruleTester.run('eslint-v9 inline-script-id', rule, {
   valid: [
     {
       code: `import Script from 'next/script';

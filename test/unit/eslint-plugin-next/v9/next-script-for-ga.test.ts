@@ -1,12 +1,14 @@
 import rule from '@next/eslint-plugin-next/dist/rules/next-script-for-ga'
-import { RuleTester } from 'eslint'
+import { RuleTester } from 'eslint-v9'
 ;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
+  languageOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
+    parserOptions: {
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
     },
   },
 })
@@ -16,7 +18,7 @@ const ERROR_MSG =
 
 const ruleTester = new RuleTester()
 
-ruleTester.run('sync-scripts', rule, {
+ruleTester.run('eslint-v9 sync-scripts', rule, {
   valid: [
     `import Script from 'next/script'
 

@@ -1,18 +1,20 @@
 import rule from '@next/eslint-plugin-next/dist/rules/no-head-import-in-document'
-import { RuleTester } from 'eslint'
+import { RuleTester } from 'eslint-v9'
 ;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
+  languageOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
+    parserOptions: {
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
     },
   },
 })
 const ruleTester = new RuleTester()
 
-ruleTester.run('no-head-import-in-document', rule, {
+ruleTester.run('eslint-v9 no-head-import-in-document', rule, {
   valid: [
     {
       code: `import Document, { Html, Head, Main, NextScript } from 'next/document'

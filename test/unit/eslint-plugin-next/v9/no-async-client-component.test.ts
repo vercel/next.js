@@ -1,12 +1,14 @@
 import rule from '@next/eslint-plugin-next/dist/rules/no-async-client-component'
-import { RuleTester } from 'eslint'
+import { RuleTester } from 'eslint-v9'
 ;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
+  languageOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
+    parserOptions: {
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
     },
   },
 })
@@ -15,7 +17,7 @@ const ruleTester = new RuleTester()
 const message =
   'Prevent client components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'
 
-ruleTester.run('no-async-client-component single line', rule, {
+ruleTester.run('eslint-v9 no-async-client-component single line', rule, {
   valid: [
     `
     export default async function MyComponent() {
@@ -41,35 +43,39 @@ ruleTester.run('no-async-client-component single line', rule, {
   ],
 })
 
-ruleTester.run('no-async-client-component single line capitalization', rule, {
-  valid: [
-    `
+ruleTester.run(
+  'eslint v9 no-async-client-component single line capitalization',
+  rule,
+  {
+    valid: [
+      `
     "use client"
 
     export default async function myFunction() {
       return ''
     }
     `,
-  ],
-  invalid: [
-    {
-      code: `
+    ],
+    invalid: [
+      {
+        code: `
       "use client"
 
       export default async function MyFunction() {
         return ''
       }
       `,
-      errors: [
-        {
-          message,
-        },
-      ],
-    },
-  ],
-})
+        errors: [
+          {
+            message,
+          },
+        ],
+      },
+    ],
+  }
+)
 
-ruleTester.run('no-async-client-component multiple line', rule, {
+ruleTester.run('eslint-v9 no-async-client-component multiple line', rule, {
   valid: [
     `
     async function MyComponent() {
@@ -99,9 +105,12 @@ ruleTester.run('no-async-client-component multiple line', rule, {
   ],
 })
 
-ruleTester.run('no-async-client-component multiple line capitalization', rule, {
-  valid: [
-    `
+ruleTester.run(
+  'eslint v9 no-async-client-component multiple line capitalization',
+  rule,
+  {
+    valid: [
+      `
     "use client"
 
     async function myFunction() {
@@ -110,10 +119,10 @@ ruleTester.run('no-async-client-component multiple line capitalization', rule, {
 
     export default myFunction
     `,
-  ],
-  invalid: [
-    {
-      code: `
+    ],
+    invalid: [
+      {
+        code: `
       "use client"
 
       async function MyFunction() {
@@ -122,16 +131,17 @@ ruleTester.run('no-async-client-component multiple line capitalization', rule, {
 
       export default MyFunction
       `,
-      errors: [
-        {
-          message,
-        },
-      ],
-    },
-  ],
-})
+        errors: [
+          {
+            message,
+          },
+        ],
+      },
+    ],
+  }
+)
 
-ruleTester.run('no-async-client-component arrow function', rule, {
+ruleTester.run('eslint-v9 no-async-client-component arrow function', rule, {
   valid: [
     `
     "use client"

@@ -1,18 +1,20 @@
 import rule from '@next/eslint-plugin-next/dist/rules/google-font-display'
-import { RuleTester } from 'eslint'
+import { RuleTester } from 'eslint-v9'
 ;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
+  languageOptions: {
     ecmaVersion: 2020,
     sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
+    parserOptions: {
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
     },
   },
 })
 const ruleTester = new RuleTester()
 
-ruleTester.run('google-font-display', rule, {
+ruleTester.run('eslint-v9 google-font-display', rule, {
   valid: [
     `import Head from "next/head";
 

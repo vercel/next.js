@@ -1,18 +1,20 @@
 import rule from '@next/eslint-plugin-next/dist/rules/no-sync-scripts'
-import { RuleTester } from 'eslint'
+import { RuleTester } from 'eslint-v9'
 ;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
+  languageOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
+    parserOptions: {
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
     },
   },
 })
 const ruleTester = new RuleTester()
 
-ruleTester.run('sync-scripts', rule, {
+ruleTester.run('eslint-v9 sync-scripts', rule, {
   valid: [
     `import {Head} from 'next/document';
 

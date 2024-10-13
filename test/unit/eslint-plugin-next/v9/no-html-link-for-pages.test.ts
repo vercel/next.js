@@ -1,35 +1,49 @@
 /* eslint-env jest */
 import rule from '@next/eslint-plugin-next/dist/rules/no-html-link-for-pages'
-import { Linter } from 'eslint'
+import { Linter } from 'eslint-v9'
 import assert from 'assert'
 import path from 'path'
 
-const withCustomPagesDirectory = path.join(__dirname, 'with-custom-pages-dir')
-const withNestedPagesDirectory = path.join(__dirname, 'with-nested-pages-dir')
+const withCustomPagesDirectory = path.join(
+  __dirname,
+  '..',
+  'with-custom-pages-dir'
+)
+const withNestedPagesDirectory = path.join(
+  __dirname,
+  '..',
+  'with-nested-pages-dir'
+)
 
 const withoutPagesLinter = new Linter({
-  cwd: path.join(__dirname, 'without-pages-dir'),
+  cwd: path.join(__dirname, '..', 'without-pages-dir'),
+  configType: 'eslintrc',
 })
 const withAppLinter = new Linter({
-  cwd: path.join(__dirname, 'with-app-dir'),
+  cwd: path.join(__dirname, '..', 'with-app-dir'),
+  configType: 'eslintrc',
 })
 const withNestedPagesLinter = new Linter({
   cwd: withNestedPagesDirectory,
+  configType: 'eslintrc',
 })
 const withCustomPagesLinter = new Linter({
   cwd: withCustomPagesDirectory,
+  configType: 'eslintrc',
 })
 
 const linterConfig: any = {
   rules: {
     'no-html-link-for-pages': [2],
   },
-  parserOptions: {
+  languageOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
+    parserOptions: {
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
     },
   },
 }
@@ -252,7 +266,7 @@ export class Blah extends Head {
   }
 }
 `
-describe('no-html-link-for-pages', function () {
+describe('eslint-v9 no-html-link-for-pages', function () {
   it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
     withNestedPagesLinter.verify(
@@ -271,7 +285,7 @@ describe('no-html-link-for-pages', function () {
     withoutPagesLinter.verify(validCode, linterConfig, {
       filename: 'foo.js',
     })
-    const rootDirectory = path.join(__dirname, 'without-pages-dir')
+    const rootDirectory = path.join(__dirname, '..', 'without-pages-dir')
     expect(consoleSpy).toHaveBeenCalledWith(
       `Pages directory cannot be found at ${path.join(
         rootDirectory,

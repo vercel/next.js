@@ -1,21 +1,26 @@
 import rule from '@next/eslint-plugin-next/dist/rules/no-before-interactive-script-outside-document'
-import { RuleTester } from 'eslint'
+import { RuleTester } from 'eslint-v9'
 ;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
+  languageOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
+    parserOptions: {
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
     },
   },
 })
 const ruleTester = new RuleTester()
 
-ruleTester.run('no-before-interactive-script-outside-document', rule, {
-  valid: [
-    {
-      code: `
+ruleTester.run(
+  'eslint v9 no-before-interactive-script-outside-document',
+  rule,
+  {
+    valid: [
+      {
+        code: `
       import Document, { Html, Main, NextScript } from 'next/document'
       import Script from 'next/script'
 
@@ -42,10 +47,10 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document.js',
-    },
-    {
-      code: `
+        filename: 'pages/_document.js',
+      },
+      {
+        code: `
       import Document, { Html, Main, NextScript } from 'next/document'
       import ScriptComponent from 'next/script'
 
@@ -72,10 +77,10 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document.tsx',
-    },
-    {
-      code: `
+        filename: 'pages/_document.tsx',
+      },
+      {
+        code: `
       import Document, { Html, Main, NextScript } from 'next/document'
       import ScriptComponent from 'next/script'
 
@@ -101,10 +106,10 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document.tsx',
-    },
-    {
-      code: `
+        filename: 'pages/_document.tsx',
+      },
+      {
+        code: `
       import Script from "next/script";
 
       export default function Index() {
@@ -118,10 +123,10 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/Users/user_name/projects/project-name/app/layout.tsx',
-    },
-    {
-      code: `
+        filename: '/Users/user_name/projects/project-name/app/layout.tsx',
+      },
+      {
+        code: `
       import Script from "next/script";
 
       export default function test() {
@@ -135,10 +140,11 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: 'C:\\Users\\username\\projects\\project-name\\app\\layout.tsx',
-    },
-    {
-      code: `
+        filename:
+          'C:\\Users\\username\\projects\\project-name\\app\\layout.tsx',
+      },
+      {
+        code: `
       import Script from "next/script";
 
       export default function Index() {
@@ -152,10 +158,10 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/Users/user_name/projects/project-name/src/app/layout.tsx',
-    },
-    {
-      code: `
+        filename: '/Users/user_name/projects/project-name/src/app/layout.tsx',
+      },
+      {
+        code: `
       import Script from "next/script";
 
       export default function test() {
@@ -169,19 +175,19 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename:
-        'C:\\Users\\username\\projects\\project-name\\src\\app\\layout.tsx',
-    },
-  ].map((obj, idx) => ({
-    ...obj,
-    code: `// valid-${idx}
+        filename:
+          'C:\\Users\\username\\projects\\project-name\\src\\app\\layout.tsx',
+      },
+    ].map((obj, idx) => ({
+      ...obj,
+      code: `// valid-${idx}
       ${obj.code}
     `,
-  })),
+    })),
 
-  invalid: [
-    {
-      code: `
+    invalid: [
+      {
+        code: `
       import Head from "next/head";
       import Script from "next/script";
 
@@ -194,16 +200,16 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           ></Script>
         );
       }`,
-      filename: 'pages/index.js',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
-    },
-    {
-      code: `
+        filename: 'pages/index.js',
+        errors: [
+          {
+            message:
+              "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+          },
+        ],
+      },
+      {
+        code: `
       import Head from "next/head";
       import Script from "next/script";
 
@@ -216,16 +222,16 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           ></Script>
         );
       }`,
-      filename: 'components/outside-known-dirs.js',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
-    },
-    {
-      code: `
+        filename: 'components/outside-known-dirs.js',
+        errors: [
+          {
+            message:
+              "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+          },
+        ],
+      },
+      {
+        code: `
       import Script from "next/script";
 
       export default function Index() {
@@ -239,16 +245,16 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/Users/user_name/projects/project-name/pages/layout.tsx',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
-    },
-    {
-      code: `
+        filename: '/Users/user_name/projects/project-name/pages/layout.tsx',
+        errors: [
+          {
+            message:
+              "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+          },
+        ],
+      },
+      {
+        code: `
       import Script from "next/script";
 
       export default function Index() {
@@ -262,17 +268,17 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename:
-        'C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
-    },
-    {
-      code: `
+        filename:
+          'C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx',
+        errors: [
+          {
+            message:
+              "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+          },
+        ],
+      },
+      {
+        code: `
       import Script from "next/script";
 
       export default function Index() {
@@ -286,16 +292,16 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/Users/user_name/projects/project-name/src/pages/layout.tsx',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
-    },
-    {
-      code: `
+        filename: '/Users/user_name/projects/project-name/src/pages/layout.tsx',
+        errors: [
+          {
+            message:
+              "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+          },
+        ],
+      },
+      {
+        code: `
       import Script from "next/script";
 
       export default function test() {
@@ -309,19 +315,20 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename:
-        'C:\\Users\\username\\projects\\project-name\\src\\pages\\layout.tsx',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
-    },
-  ].map((obj, idx) => ({
-    ...obj,
-    code: `// invalid-${idx}
+        filename:
+          'C:\\Users\\username\\projects\\project-name\\src\\pages\\layout.tsx',
+        errors: [
+          {
+            message:
+              "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
+          },
+        ],
+      },
+    ].map((obj, idx) => ({
+      ...obj,
+      code: `// invalid-${idx}
       ${obj.code}
     `,
-  })),
-})
+    })),
+  }
+)

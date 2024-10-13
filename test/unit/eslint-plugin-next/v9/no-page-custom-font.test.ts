@@ -1,12 +1,14 @@
 import rule from '@next/eslint-plugin-next/dist/rules/no-page-custom-font'
-import { RuleTester } from 'eslint'
+import { RuleTester } from 'eslint-v9'
 ;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
+  languageOptions: {
     ecmaVersion: 2018,
     sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
+    parserOptions: {
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
     },
   },
 })
@@ -14,7 +16,7 @@ const ruleTester = new RuleTester()
 
 const filename = 'pages/_document.js'
 
-ruleTester.run('no-page-custom-font', rule, {
+ruleTester.run('eslint-v9 no-page-custom-font', rule, {
   valid: [
     {
       code: `import Document, { Html, Head } from "next/document";
