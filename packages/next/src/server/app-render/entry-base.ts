@@ -1,5 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 export {
+  createTemporaryReferenceSet,
   renderToReadableStream,
   decodeReply,
   decodeAction,

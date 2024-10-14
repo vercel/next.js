@@ -139,10 +139,10 @@ const readable = new ReadableStream({
   },
 })
 
-const initialServerResponse = createFromReadableStream(readable, {
-  callServer,
-  findSourceMapURL,
-})
+const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
+  readable,
+  { callServer, findSourceMapURL }
+)
 
 // React overrides `.then` and doesn't return a new promise chain,
 // so we wrap the action queue in a promise to ensure that its value
@@ -151,7 +151,7 @@ const initialServerResponse = createFromReadableStream(readable, {
 const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
   (resolve, reject) => {
     initialServerResponse.then(
-      (initialRSCPayload: InitialRSCPayload) => {
+      (initialRSCPayload) => {
         resolve(
           createMutableActionQueue(
             createInitialRouterState({
@@ -173,7 +173,7 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
 )
 
 function ServerRoot(): React.ReactNode {
-  const initialRSCPayload = use<InitialRSCPayload>(initialServerResponse)
+  const initialRSCPayload = use(initialServerResponse)
   const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
 
   const router = (
