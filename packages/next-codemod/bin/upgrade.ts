@@ -51,6 +51,32 @@ function endMessage() {
   )
 }
 
+function addDependencyIfNeeded(
+  packageName: string,
+  version: string,
+  appPackageJson: any,
+  dependenciesToInstall: string[],
+  devDependenciesToInstall: string[]
+) {
+  const specifiedDependency = `${packageName}@${version}`
+  // First check if it's dev dependencies, then add into dev deps;
+  // If it's not, fallback into dependencies.
+  if (appPackageJson.devDependencies?.[packageName]) {
+    devDependenciesToInstall.push(specifiedDependency)
+  } else {
+    const isPeerDep = appPackageJson.peerDependencies?.[packageName]
+    const isDep = appPackageJson.dependencies?.[packageName]
+
+    //
+    if (isPeerDep && !isDep) {
+      // Skip installation if it's a peer-dependency only dependency
+      return
+    } else if (appPackageJson.dependencies?.[packageName]) {
+      dependenciesToInstall.push(specifiedDependency)
+    }
+  }
+}
+
 export async function runUpgrade(
   revision: string | undefined,
   options: { verbose: boolean }
@@ -176,18 +202,19 @@ export async function runUpgrade(
   const devDependenciesToInstall = []
 
   const corePackageNameVersionMapping = {
-    react: `react@${targetReactVersion}`,
-    'react-dom': `react-dom@${targetReactVersion}`,
-    next: `next@${targetNextVersion}`,
+    react: targetReactVersion,
+    'react-dom': targetReactVersion,
+    next: targetNextVersion,
   }
+
   for (const packageName of Object.keys(corePackageNameVersionMapping)) {
-    // First check if it's dev dependencies, then add into dev deps;
-    // If it's not, fallback into dependencies.
-    if (appPackageJson.devDependencies?.[packageName]) {
-      devDependenciesToInstall.push(corePackageNameVersionMapping[packageName])
-    } else if (appPackageJson.dependencies?.[packageName]) {
-      dependenciesToInstall.push(corePackageNameVersionMapping[packageName])
-    }
+    addDependencyIfNeeded(
+      packageName,
+      corePackageNameVersionMapping[packageName],
+      appPackageJson,
+      dependenciesToInstall,
+      devDependenciesToInstall
+    )
   }
 
   if (
@@ -195,8 +222,8 @@ export async function runUpgrade(
     targetReactVersion.startsWith('19.0.0-beta') ||
     targetReactVersion.startsWith('19.0.0-rc')
   ) {
-    devDependenciesToInstall.push(`@types/react@npm:types-react@rc`)
-    devDependenciesToInstall.push(`@types/react-dom@npm:types-react-dom@rc`)
+    corePackageNameVersionMapping['@types/react'] = 'npm:types-react@rc'
+    corePackageNameVersionMapping['@types/react-dom'] = 'npm:types-react-dom@rc'
   } else {
     const [targetReactTypesVersion, targetReactDOMTypesVersion] =
       await Promise.all([
@@ -207,10 +234,9 @@ export async function runUpgrade(
           `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
         ),
       ])
-    devDependenciesToInstall.push(`@types/react@${targetReactTypesVersion}`)
-    devDependenciesToInstall.push(
-      `@types/react-dom@${targetReactDOMTypesVersion}`
-    )
+    corePackageNameVersionMapping['@types/react'] = targetReactTypesVersion
+    corePackageNameVersionMapping['@types/react-dom'] =
+      targetReactDOMTypesVersion
   }
 
   console.log(
