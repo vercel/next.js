@@ -269,6 +269,10 @@ impl DepGraph {
             exports.insert(Key::ModuleEvaluation, 0);
         }
 
+        // See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084
+        // ImportBinding should depend on actual import statements because those imports may have
+        // side effects.
+        let mut importer = FxHashMap::default();
         let mut declarator = FxHashMap::default();
         let mut exporter = FxHashMap::default();
 
@@ -282,6 +286,17 @@ impl DepGraph {
 
                 if let Some(export) = &item.export {
                     exporter.insert(export.clone(), ix as u32);
+                }
+
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    specifiers,
+                    src,
+                    ..
+                })) = &item.content
+                {
+                    if specifiers.is_empty() {
+                        importer.insert(src.value.clone(), ix as u32);
+                    }
                 }
             }
         }
@@ -327,6 +342,38 @@ impl DepGraph {
 
                 for var in data.var_decls.iter() {
                     required_vars.remove(var);
+                }
+
+                // Depend on import statements from 'ImportBinding'
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    specifiers,
+                    src,
+                    ..
+                })) = &data.content
+                {
+                    if !specifiers.is_empty() {
+                        if let Some(dep) = importer.get(&src.value) {
+                            if *dep != ix as u32 {
+                                part_deps
+                                    .entry(ix as u32)
+                                    .or_default()
+                                    .push(PartId::Internal(*dep, true));
+
+                                chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                    ImportDecl {
+                                        span: DUMMY_SP,
+                                        specifiers: vec![],
+                                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                                        type_only: false,
+                                        with: Some(Box::new(create_turbopack_part_id_assert(
+                                            PartId::Internal(*dep, true),
+                                        ))),
+                                        phase: Default::default(),
+                                    },
+                                )));
+                            }
+                        }
+                    }
                 }
             }
 
