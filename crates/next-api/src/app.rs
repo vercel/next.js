@@ -1406,13 +1406,21 @@ impl AppEndpoint {
                 .await?);
                 server_assets.insert(rsc_chunk);
 
-                server_assets.insert(Vc::upcast(NftJsonAsset::new(
-                    app_entry.rsc_entry,
-                    Some(rsc_chunk),
-                    true,
-                    this.app_project.project().output_fs(),
-                    this.app_project.project().project_fs(),
-                )));
+                if this
+                    .app_project
+                    .project()
+                    .next_mode()
+                    .await?
+                    .is_production()
+                {
+                    server_assets.insert(Vc::upcast(NftJsonAsset::new(
+                        app_entry.rsc_entry,
+                        Some(rsc_chunk),
+                        true,
+                        this.app_project.project().output_fs(),
+                        this.app_project.project().project_fs(),
+                    )));
+                }
 
                 let app_paths_manifest_output = create_app_paths_manifest(
                     node_root,
