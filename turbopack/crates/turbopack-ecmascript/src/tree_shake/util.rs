@@ -393,63 +393,65 @@ where
 }
 
 pub fn should_skip_tree_shaking(m: &Program) -> bool {
-    if let Program::Module(m) = m {
-        for item in m.body.iter() {
-            match item {
-                // Skip turbopack helpers.
-                ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                    with, specifiers, ..
-                })) => {
-                    if let Some(with) = with.as_deref().and_then(|v| v.as_import_with()) {
-                        for item in with.values.iter() {
-                            if item.key.sym == *TURBOPACK_HELPER {
-                                // Skip tree shaking if the import is from turbopack-helper
-                                return true;
-                            }
-                        }
-                    }
+    let Program::Module(m) = m else {
+        return true;
+    };
 
-                    // TODO(PACK-3150): Tree shaking has a bug related to ModuleExportName::Str
-                    for s in specifiers.iter() {
-                        if let ImportSpecifier::Named(is) = s {
-                            if matches!(is.imported, Some(ModuleExportName::Str(..))) {
-                                return true;
-                            }
+    for item in m.body.iter() {
+        match item {
+            // Skip turbopack helpers.
+            ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                with, specifiers, ..
+            })) => {
+                if let Some(with) = with.as_deref().and_then(|v| v.as_import_with()) {
+                    for item in with.values.iter() {
+                        if item.key.sym == *TURBOPACK_HELPER {
+                            // Skip tree shaking if the import is from turbopack-helper
+                            return true;
                         }
                     }
                 }
 
-                // Tree shaking has a bug related to ModuleExportName::Str
-                ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(NamedExport {
-                    src: Some(..),
-                    specifiers,
-                    ..
-                })) => {
-                    for s in specifiers {
-                        if let ExportSpecifier::Named(es) = s {
-                            if matches!(es.orig, ModuleExportName::Str(..))
-                                || matches!(es.exported, Some(ModuleExportName::Str(..)))
-                            {
-                                return true;
-                            }
+                // TODO(PACK-3150): Tree shaking has a bug related to ModuleExportName::Str
+                for s in specifiers.iter() {
+                    if let ImportSpecifier::Named(is) = s {
+                        if matches!(is.imported, Some(ModuleExportName::Str(..))) {
+                            return true;
                         }
                     }
                 }
-
-                _ => {}
             }
-        }
 
-        let mut visitor = ShouldSkip::default();
-        m.visit_with(&mut visitor);
-        if visitor.skip {
-            return true;
-        }
-
-        for item in m.body.iter() {
-            if item.is_module_decl() {
-                return false;
+            // Tree shaking has a bug related to ModuleExportName::Str
+            ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(NamedExport {
+                src: Some(..),
+                specifiers,
+                ..
+            })) => {
+                for s in specifiers {
+                    if let ExportSpecifier::Named(es) = s {
+                        if matches!(es.orig, ModuleExportName::Str(..))
+                            || matches!(es.exported, Some(ModuleExportName::Str(..)))
+                        {
+                            return true;
+                        }
+                    }
+                }
             }
+
+            _ => {}
+        }
+    }
+
+    let mut visitor = ShouldSkip::default();
+    m.visit_with(&mut visitor);
+    if visitor.skip {
+        return true;
+    }
+
+    for item in m.body.iter() {
+        if item.is_module_decl() {
+            return false;
         }
     }
 
