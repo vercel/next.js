@@ -59,8 +59,9 @@ const defaultCacheStorage: Map<string, Promise<CacheEntry>> = new Map()
 cacheHandlerMap.set('default', {
   async get(cacheKey: string): Promise<undefined | CacheEntry> {
     // TODO: Implement proper caching.
-    const entry = await defaultCacheStorage.get(cacheKey)
-    if (entry !== undefined) {
+    const promiseOfEntry = defaultCacheStorage.get(cacheKey)
+    if (promiseOfEntry !== undefined) {
+      const entry = await promiseOfEntry
       if (
         performance.timeOrigin + performance.now() >
         entry.timestamp + entry.revalidate * 1000
