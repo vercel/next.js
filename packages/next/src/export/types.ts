@@ -5,7 +5,7 @@ import type { LoadComponentsReturnType } from '../server/load-components'
 import type { OutgoingHttpHeaders } from 'http'
 import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
-import type { Revalidate } from '../server/lib/revalidate'
+import type { ExpireTime, Revalidate } from '../server/lib/revalidate'
 import type { NextEnabledDirectories } from '../server/base-server'
 import type {
   SerializableTurborepoAccessTraceResult,
@@ -84,6 +84,7 @@ export type ExportRouteResult =
   | {
       ampValidations?: AmpValidation[]
       revalidate: Revalidate
+      expire: ExpireTime
       metadata?: {
         status?: number
         headers?: OutgoingHttpHeaders

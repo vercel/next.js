@@ -1,6 +1,6 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
-import type { Revalidate } from '../lib/revalidate'
+import type { ExpireTime, Revalidate } from '../lib/revalidate'
 import type { RouteKind } from '../route-kind'
 
 export interface ResponseCacheBase {
@@ -65,7 +65,7 @@ export interface CachedFetchValue {
 
 export interface CachedRedirectValue {
   kind: CachedRouteKind.REDIRECT
-  props: Object
+  props: any
 }
 
 export interface CachedAppPageValue {
@@ -85,7 +85,7 @@ export interface CachedPageValue {
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
-  pageData: Object
+  pageData: any
   status: number | undefined
   headers: OutgoingHttpHeaders | undefined
 }
@@ -126,7 +126,7 @@ export interface IncrementalCachedPageValue {
   // this needs to be a string since the cache expects to store
   // the string value
   html: string
-  pageData: Object
+  pageData: any
   headers: OutgoingHttpHeaders | undefined
   status: number | undefined
 }
@@ -135,6 +135,8 @@ export type IncrementalCacheEntry = {
   curRevalidate?: Revalidate
   // milliseconds to revalidate after
   revalidateAfter: Revalidate
+  // seconds to expire after
+  expire: ExpireTime
   // -1 here dictates a blocking revalidate should be used
   isStale?: boolean | -1
   value: IncrementalCacheValue | null
@@ -158,6 +160,7 @@ export type ResponseCacheValue =
 
 export type ResponseCacheEntry = {
   revalidate?: Revalidate
+  expire?: ExpireTime
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
@@ -178,6 +181,7 @@ export type IncrementalCacheItem = {
   revalidateAfter?: number | false
   curRevalidate?: number | false
   revalidate?: number | false
+  expire?: number
   value: IncrementalCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean

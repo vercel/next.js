@@ -12,6 +12,7 @@ import type {
 } from '../../server/lib/mock-request'
 import { isInAmpMode } from '../../shared/lib/amp-mode'
 import {
+  INFINITE_CACHE,
   NEXT_DATA_SUFFIX,
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../lib/constants'
@@ -217,6 +218,7 @@ export async function exportPagesPage(
   return {
     ampValidations,
     revalidate: metadata.revalidate ?? false,
+    expire: INFINITE_CACHE, // Pages/ doesn't have an expire config.
     ssgNotFound,
   }
 }

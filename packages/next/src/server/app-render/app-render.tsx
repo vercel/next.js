@@ -1125,12 +1125,17 @@ async function renderToHTMLOrFlightImpl(
     // the page.
     if (workStore.forceStatic === false || response.collectedRevalidate === 0) {
       metadata.revalidate = 0
+      metadata.expire = 0
     } else {
       // Copy the revalidation value onto the render result metadata.
       metadata.revalidate =
         response.collectedRevalidate >= INFINITE_CACHE
           ? false
           : response.collectedRevalidate
+      metadata.expire =
+        response.collectedExpire >= INFINITE_CACHE
+          ? undefined
+          : response.collectedExpire
     }
 
     // provide bailout info for debugging

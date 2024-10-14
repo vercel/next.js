@@ -109,14 +109,14 @@ export async function exportAppRoute(
       // unless specifically opted into
       experimental.dynamicIO !== true
     ) {
-      return { revalidate: 0 }
+      return { revalidate: 0, expire: 0 }
     }
 
     const response = await module.handle(request, context)
 
     const isValidStatus = response.status < 400 || response.status === 404
     if (!isValidStatus) {
-      return { revalidate: 0 }
+      return { revalidate: 0, expire: 0 }
     }
 
     const blob = await response.blob()
@@ -130,6 +130,12 @@ export async function exportAppRoute(
       (context.renderOpts as any).collectedRevalidate >= INFINITE_CACHE
         ? false
         : (context.renderOpts as any).collectedRevalidate
+
+    const expire =
+      typeof (context.renderOpts as any).collectedExpire === 'undefined' ||
+      (context.renderOpts as any).collectedExpire >= INFINITE_CACHE
+        ? false
+        : (context.renderOpts as any).collectedExpire
 
     const headers = toNodeOutgoingHttpHeaders(response.headers)
     const cacheTags = (context.renderOpts as any).collectedTags
@@ -161,6 +167,7 @@ export async function exportAppRoute(
 
     return {
       revalidate: revalidate,
+      expire: expire,
       metadata: meta,
     }
   } catch (err) {
@@ -168,6 +175,6 @@ export async function exportAppRoute(
       throw err
     }
 
-    return { revalidate: 0 }
+    return { revalidate: 0, expire: 0 }
   }
 }

@@ -319,7 +319,8 @@ export class WrappedBuildError extends Error {
 type ResponsePayload = {
   type: 'html' | 'json' | 'rsc'
   body: RenderResult
-  revalidate?: Revalidate
+  revalidate: undefined | Revalidate
+  expire: undefined | ExpireTime
 }
 
 export type NextEnabledDirectories = {
@@ -1718,7 +1719,7 @@ export default abstract class Server<
     const { req, res } = ctx
     const originalStatus = res.statusCode
     const { body, type } = payload
-    let { revalidate } = payload
+    let { revalidate, expire } = payload
     if (!res.sent) {
       const { generateEtags, poweredByHeader, dev } = this.renderOpts
 
@@ -1734,7 +1735,7 @@ export default abstract class Server<
         generateEtags,
         poweredByHeader,
         revalidate,
-        expireTime: this.nextConfig.expireTime,
+        expireTime: expire ?? this.nextConfig.expireTime,
       })
       res.statusCode = originalStatus
     }
@@ -2186,6 +2187,8 @@ export default abstract class Server<
         type: 'html',
         // TODO: Static pages should be serialized as RenderResult
         body: RenderResult.fromStatic(components.Component),
+        revalidate: undefined,
+        expire: undefined,
       }
     }
 
@@ -2563,6 +2566,13 @@ export default abstract class Server<
                   ? false
                   : (context.renderOpts as any).collectedRevalidate
 
+              const expire =
+                typeof (context.renderOpts as any).collectedExpire ===
+                  'undefined' ||
+                (context.renderOpts as any).collectedExpire >= INFINITE_CACHE
+                  ? undefined
+                  : (context.renderOpts as any).collectedExpire
+
               // Create the cache entry for the response.
               const cacheEntry: ResponseCacheEntry = {
                 value: {
@@ -2572,6 +2582,7 @@ export default abstract class Server<
                   headers,
                 },
                 revalidate,
+                expire,
                 isFallback: false,
               }
 
@@ -2733,6 +2744,7 @@ export default abstract class Server<
         return {
           value: null,
           revalidate: metadata.revalidate,
+          expire: metadata.expire,
           isFallback: false,
         } satisfies ResponseCacheEntry
       }
@@ -2745,6 +2757,7 @@ export default abstract class Server<
             props: metadata.pageData ?? metadata.flightData,
           } satisfies CachedRedirectValue,
           revalidate: metadata.revalidate,
+          expire: metadata.expire,
           isFallback: false,
         } satisfies ResponseCacheEntry
       }
@@ -2767,6 +2780,7 @@ export default abstract class Server<
             segmentData: undefined,
           } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
+          expire: metadata.expire,
           isFallback: !!fallbackRouteParams,
         } satisfies ResponseCacheEntry
       }
@@ -2780,6 +2794,7 @@ export default abstract class Server<
           status: isAppPath ? res.statusCode : undefined,
         } satisfies CachedPageValue,
         revalidate: metadata.revalidate,
+        expire: metadata.expire,
         isFallback: query.__nextFallback === 'true',
       }
     }
@@ -3000,6 +3015,7 @@ export default abstract class Server<
       ) {
         return {
           revalidate: 1,
+          expire: INFINITE_CACHE,
           isFallback: false,
           value: {
             kind: CachedRouteKind.PAGES,
@@ -3032,6 +3048,7 @@ export default abstract class Server<
       return {
         ...result,
         revalidate: result.revalidate,
+        expire: result.expire,
       }
     }
 
@@ -3122,6 +3139,7 @@ export default abstract class Server<
               // TODO: Eventually this should use revalidate time of the
               // individual segment, not the whole page.
               revalidate: cacheEntry.revalidate,
+              expire: cacheEntry.expire,
             }
           }
         }
@@ -3133,6 +3151,7 @@ export default abstract class Server<
           type: 'rsc',
           body: RenderResult.fromStatic(''),
           revalidate: cacheEntry.revalidate,
+          expire: cacheEntry.expire,
         }
       } else {
         // Segment prefetches should never reach the application layer. If
@@ -3141,6 +3160,8 @@ export default abstract class Server<
         return {
           type: 'rsc',
           body: RenderResult.fromStatic(''),
+          revalidate: undefined,
+          expire: undefined,
         }
       }
     }
@@ -3343,7 +3364,7 @@ export default abstract class Server<
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            expireTime: this.nextConfig.expireTime,
+            expireTime: cacheEntry.expire ?? this.nextConfig.expireTime,
           })
         )
       }
@@ -3366,7 +3387,7 @@ export default abstract class Server<
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            expireTime: this.nextConfig.expireTime,
+            expireTime: cacheEntry.expire ?? this.nextConfig.expireTime,
           })
         )
       }
@@ -3379,6 +3400,7 @@ export default abstract class Server<
             JSON.stringify(cachedData.props)
           ),
           revalidate: cacheEntry.revalidate,
+          expire: cacheEntry.expire,
         }
       } else {
         await handleRedirect(cachedData.props)
@@ -3475,6 +3497,7 @@ export default abstract class Server<
             // postponed state.
             // TODO: distinguish `force-static` from pages with no postponed state (static)
             revalidate: isDynamicRSCRequest ? 0 : cacheEntry.revalidate,
+            expire: isDynamicRSCRequest ? 0 : cacheEntry.expire,
           }
         }
 
@@ -3484,6 +3507,7 @@ export default abstract class Server<
           type: 'rsc',
           body: RenderResult.fromStatic(cachedData.rscData),
           revalidate: cacheEntry.revalidate,
+          expire: cacheEntry.expire,
         }
       }
 
@@ -3498,6 +3522,7 @@ export default abstract class Server<
           type: 'html',
           body,
           revalidate: cacheEntry.revalidate,
+          expire: cacheEntry.expire,
         }
       }
 
@@ -3517,7 +3542,7 @@ export default abstract class Server<
           })
         )
 
-        return { type: 'html', body, revalidate: 0 }
+        return { type: 'html', body, revalidate: 0, expire: 0 }
       }
 
       // This request has postponed, so let's create a new transformer that the
@@ -3564,18 +3589,21 @@ export default abstract class Server<
         // the response being sent to the client it's dynamic parts are streamed
         // to the client on the same request.
         revalidate: 0,
+        expire: undefined,
       }
     } else if (isNextDataRequest) {
       return {
         type: 'json',
         body: RenderResult.fromStatic(JSON.stringify(cachedData.pageData)),
         revalidate: cacheEntry.revalidate,
+        expire: cacheEntry.expire,
       }
     } else {
       return {
         type: 'html',
         body: cachedData.html,
         revalidate: cacheEntry.revalidate,
+        expire: cacheEntry.expire,
       }
     }
   }
@@ -3893,6 +3921,8 @@ export default abstract class Server<
       return {
         type: 'html',
         body: RenderResult.fromStatic(''),
+        revalidate: undefined,
+        expire: undefined,
       }
     }
     const { res, query } = ctx
@@ -3999,6 +4029,8 @@ export default abstract class Server<
                 check()
               </script>`
             ),
+            revalidate: undefined,
+            expire: undefined,
           }
         }
 
@@ -4077,6 +4109,8 @@ export default abstract class Server<
       return {
         type: 'html',
         body: RenderResult.fromStatic('Internal Server Error'),
+        revalidate: undefined,
+        expire: undefined,
       }
     }
   }
