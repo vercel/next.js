@@ -1,5 +1,5 @@
-import { RuleTester as ESLintTesterV8 } from 'eslint'
-import { RuleTester as ESLintTesterV9 } from 'eslint-v9'
+import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
+import { RuleTester as ESLintTesterV9 } from 'eslint'
 import { rules } from '@next/eslint-plugin-next'
 
 const NextESLintRule = rules['no-img-element']

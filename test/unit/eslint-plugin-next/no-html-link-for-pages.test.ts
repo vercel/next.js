@@ -1,6 +1,6 @@
 /* eslint-env jest */
-import { Linter as ESLintLinterV8 } from 'eslint'
-import { Linter as ESLintLinterV9 } from 'eslint-v9'
+import { Linter as ESLintLinterV8 } from 'eslint-v8'
+import { Linter as ESLintLinterV9 } from 'eslint'
 import { rules } from '@next/eslint-plugin-next'
 import assert from 'assert'
 import path from 'path'
