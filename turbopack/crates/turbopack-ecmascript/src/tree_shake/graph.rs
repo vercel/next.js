@@ -600,7 +600,7 @@ impl DepGraph {
         let mut new_graph = InternedGraph::default();
         let mut done = FxHashSet::default();
 
-        let mapped = condensed.filter_map(
+        let mapped = condensed.map(
             |_, node| {
                 let mut item_ids = node
                     .iter()
@@ -612,9 +612,9 @@ impl DepGraph {
                     .collect::<Vec<_>>();
                 item_ids.sort();
 
-                Some(new_graph.node(&item_ids))
+                new_graph.node(&item_ids)
             },
-            |_, edge| Some(*edge),
+            |_, edge| *edge,
         );
 
         let map = GraphMap::from_graph(mapped);
