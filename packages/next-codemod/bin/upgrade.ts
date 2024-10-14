@@ -186,7 +186,16 @@ export async function runUpgrade(
     if (appPackageJson.devDependencies?.[packageName]) {
       devDependenciesToInstall.push(corePackageNameVersionMapping[packageName])
     } else {
-      dependenciesToInstall.push(corePackageNameVersionMapping[packageName])
+      const isPeerDep = appPackageJson.peerDependencies?.[packageName]
+      const isDep = appPackageJson.dependencies?.[packageName]
+
+      //
+      if (isPeerDep && !isDep) {
+        // Skip installation if it's a peer-dependency only dependency
+        continue
+      } else {
+        dependenciesToInstall.push(corePackageNameVersionMapping[packageName])
+      }
     }
   }
 
