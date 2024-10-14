@@ -314,7 +314,6 @@ graph TD
     Item7 --> Item3;
     Item8 --> Item9;
     Item9 --> Item7;
-    Item12 --> Item10;
     Item12 --> Item11;
 ```
 # Final
@@ -350,7 +349,6 @@ graph TD
     N7 --> N5;
     N8 --> N8;
     N8 --> N6;
-    N0 --> N9;
     N0 --> N10;
 ```
 # Entrypoints
@@ -375,9 +373,6 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
 };
@@ -544,9 +539,6 @@ export { c2_2 } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
 };
 "module evaluation";
@@ -576,9 +568,6 @@ import "__TURBOPACK_PART__" assert {
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
 };
 "module evaluation";
 
@@ -720,9 +709,6 @@ export { c2_2 } from "__TURBOPACK_PART__" assert {
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
 };
 "module evaluation";
 

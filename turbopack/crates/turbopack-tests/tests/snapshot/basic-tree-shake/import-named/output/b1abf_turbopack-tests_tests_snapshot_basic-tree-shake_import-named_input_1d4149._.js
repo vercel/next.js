@@ -97,10 +97,6 @@ var { r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_
 {
 __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$named$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__13$3e$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-named/input/lib.js [test] (ecmascript) <internal part 13>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$named$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__10$3e$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-named/input/lib.js [test] (ecmascript) <internal part 10>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$named$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__7$3e$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-named/input/lib.js [test] (ecmascript) <internal part 7>");
-;
-;
 ;
 "module evaluation";
 }}),

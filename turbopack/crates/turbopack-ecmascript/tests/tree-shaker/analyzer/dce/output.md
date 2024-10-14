@@ -75,7 +75,6 @@ graph TD
     Item4["ModuleEvaluation"];
     Item3 --> Item2;
     Item3 --> Item1;
-    Item4 --> Item1;
     Item4 --> Item3;
 ```
 # Final
@@ -87,7 +86,6 @@ graph TD
     N3["Items: [ItemId(1, Normal)]"];
     N3 --> N2;
     N3 --> N1;
-    N0 --> N1;
     N0 --> N3;
 ```
 # Entrypoints
@@ -103,9 +101,6 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
@@ -147,9 +142,6 @@ if (1 + 1 == 3) {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
@@ -170,9 +162,6 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };
 "module evaluation";
@@ -213,9 +202,6 @@ if (1 + 1 == 3) {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
 };

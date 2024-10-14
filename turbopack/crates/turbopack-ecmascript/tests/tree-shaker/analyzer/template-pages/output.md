@@ -1085,23 +1085,6 @@ graph TD
     Item35 --> Item22;
     Item36 --> Item23;
     Item37 --> Item24;
-    Item25 --> Item1;
-    Item25 --> Item2;
-    Item25 --> Item3;
-    Item25 --> Item4;
-    Item25 --> Item5;
-    Item25 --> Item6;
-    Item25 --> Item13;
-    Item25 --> Item14;
-    Item25 --> Item15;
-    Item25 --> Item16;
-    Item25 --> Item17;
-    Item25 --> Item18;
-    Item25 --> Item19;
-    Item25 --> Item20;
-    Item25 --> Item21;
-    Item25 --> Item22;
-    Item25 --> Item23;
     Item25 --> Item24;
 ```
 # Final
@@ -1336,23 +1319,6 @@ graph TD
     N8 --> N34;
     N9 --> N35;
     N7 --> N36;
-    N0 --> N13;
-    N0 --> N15;
-    N0 --> N17;
-    N0 --> N19;
-    N0 --> N21;
-    N0 --> N23;
-    N0 --> N25;
-    N0 --> N26;
-    N0 --> N27;
-    N0 --> N28;
-    N0 --> N29;
-    N0 --> N30;
-    N0 --> N31;
-    N0 --> N32;
-    N0 --> N33;
-    N0 --> N34;
-    N0 --> N35;
     N0 --> N36;
 ```
 # Entrypoints
@@ -1404,57 +1370,6 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 17
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 19
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 21
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 23
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 25
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 26
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 27
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 28
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 29
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 30
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 31
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 32
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 33
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 34
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 35
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 36
 };
@@ -2344,57 +2259,6 @@ export { unstable_getStaticProps } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 17
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 19
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 21
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 23
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 25
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 26
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 27
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 28
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 29
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 30
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 31
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 32
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 33
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 34
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 35
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 36
 };
@@ -2451,57 +2315,6 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 17
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 19
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 21
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 23
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 25
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 26
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 27
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 28
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 29
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 30
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 31
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 32
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 33
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 34
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 35
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 36
 };
 "module evaluation";
@@ -3390,57 +3203,6 @@ export { unstable_getStaticProps } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 17
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 19
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 21
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 23
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 25
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 26
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 27
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 28
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 29
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 30
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 31
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 32
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 33
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 34
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 35
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 36
 };
