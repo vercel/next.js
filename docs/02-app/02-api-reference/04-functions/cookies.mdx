@@ -140,11 +140,13 @@ You can use the `cookies().set(name, value, options)` method in a [Server Action
 import { cookies } from 'next/headers'
 
 export async function create(data) {
-  (await cookies()).set('name', 'lee')
+  const cookieStore = await cookies()
+
+  cookieStore().set('name', 'lee')
   // or
-  (await cookies()).set('name', 'lee', { secure: true })
+  cookieStore().set('name', 'lee', { secure: true })
   // or
-  (await cookies()).set({
+  cookieStore().set({
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -159,11 +161,13 @@ export async function create(data) {
 import { cookies } from 'next/headers'
 
 export async function create(data) {
-  (await cookies()).set('name', 'lee')
+  const cookieStore = await cookies()
+
+  cookieStore().set('name', 'lee')
   // or
-  (await cookies()).set('name', 'lee', { secure: true })
+  cookieStore().set('name', 'lee', { secure: true })
   // or
-  (await cookies()).set({
+  cookieStore().set({
     name: 'name',
     value: 'lee',
     httpOnly: true,

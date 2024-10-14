@@ -657,15 +657,17 @@ import { cookies } from 'next/headers'
 
 export async function createSession(userId: string) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  const session = await encrypt({ userId, expiresAt })
-
-  (await cookies()).set('session', session, {
-    httpOnly: true,
-    secure: true,
-    expires: expiresAt,
-    sameSite: 'lax',
-    path: '/',
-  })
+  const session = await encrypt({ userId, expiresAt })(await cookies()).set(
+    'session',
+    session,
+    {
+      httpOnly: true,
+      secure: true,
+      expires: expiresAt,
+      sameSite: 'lax',
+      path: '/',
+    }
+  )
 }
 ```
 
@@ -676,8 +678,9 @@ import { cookies } from 'next/headers'
 export async function createSession(userId) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   const session = await encrypt({ userId, expiresAt })
+  const cookieStore = await cookies()
 
-  (await cookies()).set('session', session, {
+  cookieStore().set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
@@ -746,7 +749,9 @@ export async function updateSession() {
   }
 
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  (await cookies()).set('session', session, {
+
+  const cookieStore = await cookies()
+  cookieStore().set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expires,
@@ -769,8 +774,9 @@ export async function updateSession() {
     return null
   }
 
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  (await cookies()).set('session', session, {
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)(
+    await cookies()
+  ).set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expires,
@@ -791,7 +797,8 @@ import 'server-only'
 import { cookies } from 'next/headers'
 
 export async function deleteSession() {
-  (await cookies()).delete('session')
+  const cookieStore = await cookies()
+  cookieStore().delete('session')
 }
 ```
 
@@ -800,7 +807,8 @@ import 'server-only'
 import { cookies } from 'next/headers'
 
 export async function deleteSession() {
-  (await cookies()).delete('session')
+  const cookieStore = await cookies()
+  cookieStore().delete('session')
 }
 ```
 
@@ -911,7 +919,8 @@ export async function createSession(id: number) {
   const session = await encrypt({ sessionId, expiresAt })
 
   // 3. Store the session in cookies for optimistic auth checks
-  (await cookies()).set('session', session, {
+  const cookieStore = await cookies()
+  cookieStore().set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
@@ -945,7 +954,8 @@ export async function createSession(id) {
   const session = await encrypt({ sessionId, expiresAt })
 
   // 3. Store the session in cookies for optimistic auth checks
-  (await cookies()).set('session', session, {
+  const cookieStore = await cookies()
+  cookieStore().set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
