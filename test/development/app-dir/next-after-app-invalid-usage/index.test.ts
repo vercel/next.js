@@ -64,26 +64,22 @@ describe('unstable_after() - dynamic APIs', () => {
       {
         api: 'connection',
         path: '/dynamic-apis/connection',
-        expectedError:
-          /An error occurred in a function passed to `unstable_after\(\)`: Error: Route .*? used "connection" inside "unstable_after\(\.\.\.\)"\./,
+        expectedError: `An error occurred in a function passed to \`unstable_after()\`: Error: Route /dynamic-apis/connection used "connection" inside "unstable_after(...)".`,
       },
       {
         api: 'cookies',
         path: '/dynamic-apis/cookies',
-        expectedError:
-          /An error occurred in a function passed to `unstable_after\(\)`: Error: Route .*? used "cookies" inside "unstable_after\(\.\.\.\)"\./,
+        expectedError: `An error occurred in a function passed to \`unstable_after()\`: Error: Route /dynamic-apis/cookies used "cookies" inside "unstable_after(...)".`,
       },
       {
         api: 'draftMode',
         path: '/dynamic-apis/draft-mode',
-        expectedError:
-          /An error occurred in a function passed to `unstable_after\(\)`: Error: Route .*? used "draftMode" inside "unstable_after\(\.\.\.\)"\./,
+        expectedError: `An error occurred in a function passed to \`unstable_after()\`: Error: Route /dynamic-apis/draft-mode used "draftMode" inside "unstable_after(...)".`,
       },
       {
         api: 'headers',
         path: '/dynamic-apis/headers',
-        expectedError:
-          /An error occurred in a function passed to `unstable_after\(\)`: Error: Route .*? used "headers" inside "unstable_after\(\.\.\.\)"\./,
+        expectedError: `An error occurred in a function passed to \`unstable_after()\`: Error: Route /dynamic-apis/headers used "headers" inside "unstable_after(...)".`,
       },
     ])(
       'does not allow calling $api inside unstable_after',
@@ -91,7 +87,7 @@ describe('unstable_after() - dynamic APIs', () => {
         const res = await next.fetch(path)
         await res.text()
         await retry(() => {
-          expect(getLogs()).toMatch(expectedError)
+          expect(getLogs()).toInclude(expectedError)
         })
       }
     )
