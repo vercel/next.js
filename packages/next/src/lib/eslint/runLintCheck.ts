@@ -135,14 +135,25 @@ async function lint(
 
     const mod = await Promise.resolve(require(deps.resolved.get('eslint')!))
 
-    const { loadESLint } = mod
-    const ESLint = await loadESLint({
-      // To use legacy configs (.eslintrc*), user has to pass `ESLINT_USE_FLAT_CONFIG=false`.
-      // https://eslint.org/blog/2024/04/eslint-v9.0.0-released/#flat-config-is-now-the-default-and-has-some-changes
-      // The return value is `LegacyESLint`.
+    const useFlatConfig =
+      // If V9 config was found, use flat config, or else use legacy.
+      eslintrcFile?.startsWith('eslint.config.')
+
+    let ESLint
+    // loadESLint is >= 8.57.0
+    // PR https://github.com/eslint/eslint/pull/18098
+    // Release https://github.com/eslint/eslint/releases/tag/v8.57.0
+    if ('loadESLint' in mod) {
+      // By default, configType is `flat`. If `useFlatConfig` is false, the return value is `LegacyESLint`.
       // https://github.com/eslint/eslint/blob/1def4cdfab1f067c5089df8b36242cdf912b0eb6/lib/types/index.d.ts#L1609-L1613
-      useFlatConfig: process.env.ESLINT_USE_FLAT_CONFIG !== 'false',
-    })
+      ESLint = await mod.loadESLint({
+        useFlatConfig,
+      })
+    } else {
+      // eslint < 8.57.0, use legacy ESLint
+      ESLint = mod.ESLint
+    }
+
     let eslintVersion = ESLint?.version ?? mod.CLIEngine?.version
 
     if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
