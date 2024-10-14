@@ -173,7 +173,7 @@ async function lint(
       ...eslintOptions,
     }
 
-    if (semver.gte(eslintVersion, '9.0.0')) {
+    if (semver.gte(eslintVersion, '9.0.0') && useFlatConfig) {
       for (const option of [
         'useEslintrc',
         'extensions',
