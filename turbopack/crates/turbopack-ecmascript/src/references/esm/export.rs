@@ -128,10 +128,12 @@ pub async fn follow_reexports(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     side_effect_free_packages: Vc<Glob>,
+    ignore_side_effect_of_entry: Vc<bool>,
 ) -> Result<Vc<FollowExportsResult>> {
-    if !*module
-        .is_marked_as_side_effect_free(side_effect_free_packages)
-        .await?
+    if !*ignore_side_effect_of_entry.await?
+        && !*module
+            .is_marked_as_side_effect_free(side_effect_free_packages)
+            .await?
     {
         return Ok(FollowExportsResult::cell(FollowExportsResult {
             module,
@@ -154,13 +156,20 @@ pub async fn follow_reexports(
         // Try to find the export in the local exports
         let exports_ref = exports.await?;
         if let Some(export) = exports_ref.exports.get(&export_name) {
-            match handle_declared_export(module, export_name, export, side_effect_free_packages)
-                .await?
+            match handle_declared_export(
+                module,
+                export_name.clone(),
+                export,
+                side_effect_free_packages,
+            )
+            .await?
             {
                 ControlFlow::Continue((m, n)) => {
-                    module = m;
-                    export_name = n;
-                    continue;
+                    if !is_module_part_with_no_real_export(m).await? {
+                        module = m;
+                        export_name = n;
+                        continue;
+                    }
                 }
                 ControlFlow::Break(result) => {
                     return Ok(result.cell());
@@ -203,6 +212,21 @@ pub async fn follow_reexports(
             ty: FoundExportType::NotFound,
         }));
     }
+}
+
+async fn is_module_part_with_no_real_export(
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+) -> Result<bool> {
+    if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
+    {
+        if matches!(
+            *module.await?.part.await?,
+            ModulePart::Internal(..) | ModulePart::Evaluation
+        ) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 async fn handle_declared_export(
