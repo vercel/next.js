@@ -121,7 +121,8 @@ pub async fn run_node_file_trace(
             .await?
             .iter()
             {
-                let nft_asset = crate::nft_json::NftJsonAsset::new(*module, None, true, fs, fs);
+                let nft_asset =
+                    crate::nft_json::NftJsonAsset::new(*module, None, true, fs, fs, vec![]);
                 let path = nft_asset.ident().path().await?.path.clone();
                 output_nft_assets.push(path);
                 emits.push(emit_asset(Vc::upcast(nft_asset)));
