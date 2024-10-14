@@ -180,16 +180,18 @@ async function lint(
     for (const configFile of [eslintrcFile, pkgJsonPath]) {
       if (!configFile) continue
 
-      const completeConfig: Config =
+      const completeConfig: Config | undefined =
         await eslint.calculateConfigForFile(configFile)
+      if (!completeConfig) continue
 
-      const hasNextPlugin = completeConfig.plugins
-        ? // in ESLint < 9, `plugins` value is string[]
-          Array.isArray(completeConfig.plugins)
-          ? completeConfig.plugins.includes('@next/next')
+      const plugins = completeConfig.plugins
+
+      const hasNextPlugin =
+        // in ESLint < 9, `plugins` value is string[]
+        Array.isArray(plugins)
+          ? plugins.includes('@next/next')
           : // in ESLint >= 9, `plugins` value is Record<string, unknown>
-            '@next/next' in completeConfig.plugins
-        : false
+            '@next/next' in plugins
 
       if (hasNextPlugin) {
         nextEslintPluginIsEnabled = true
@@ -334,19 +336,23 @@ export async function runLintCheck(
     const eslintrcFile =
       (await findUp(
         [
+          // eslint v9
+          'eslint.config.js',
+          'eslint.config.mjs',
+          'eslint.config.cjs',
+          // TODO(jiwon): Support when it's stable.
+          // TS extensions are experimental and requires to install another package `jiti`.
+          // https://eslint.org/docs/latest/use/configure/configuration-files#typescript-configuration-files
+          // 'eslint.config.ts',
+          // 'eslint.config.mts',
+          // 'eslint.config.cts',
+          // eslint <= v8
           '.eslintrc.js',
           '.eslintrc.cjs',
           '.eslintrc.yaml',
           '.eslintrc.yml',
           '.eslintrc.json',
           '.eslintrc',
-          // eslint v9
-          '.eslint.config.js',
-          '.eslint.config.mjs',
-          '.eslint.config.cjs',
-          '.eslint.config.ts', // requires additional setup
-          '.eslint.config.mts', // requires additional setup
-          '.eslint.config.cts', // requires additional setup
         ],
         {
           cwd: baseDir,

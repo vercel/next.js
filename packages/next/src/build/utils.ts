@@ -745,6 +745,8 @@ export async function printTreeView(
     })
   )
 
+  const staticFunctionInfo =
+    lists.app && stats.router.app ? 'generateStaticParams' : 'getStaticProps'
   print()
   print(
     textTable(
@@ -757,13 +759,13 @@ export async function printTreeView(
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `prerendered as static HTML (uses ${cyan('getStaticProps')})`,
+          `prerendered as static HTML (uses ${cyan(staticFunctionInfo)})`,
         ],
         usedSymbols.has('ISR') && [
           '',
           '(ISR)',
           `incremental static regeneration (uses revalidate in ${cyan(
-            'getStaticProps'
+            staticFunctionInfo
           )})`,
         ],
         usedSymbols.has('◐') && [
@@ -1403,7 +1405,7 @@ export async function buildAppStaticPaths({
       }))
 
   // TODO: dynamic params should be allowed to be granular per segment but
-  // we need  additional information stored/leveraged in the prerender
+  // we need additional information stored/leveraged in the prerender
   // manifest to allow this behavior.
   const dynamicParams = segments.every(
     (segment) => segment.config?.dynamicParams !== false

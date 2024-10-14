@@ -9,7 +9,6 @@ import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
   TRACE_OUTPUT_VERSION,
-  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   type CompilerNameValues,
 } from '../../../shared/lib/constants'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
@@ -279,21 +278,17 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
         if (entrypoint.name.startsWith('app/')) {
           // include the client reference manifest
-          const clientManifestsForPage =
-            entrypoint.name.endsWith('/page') ||
-            entrypoint.name === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
-              ? nodePath.join(
-                  outputPath,
-                  outputPrefix,
-                  entrypoint.name.replace(/%5F/g, '_') +
-                    '_' +
-                    CLIENT_REFERENCE_MANIFEST +
-                    '.js'
-                )
-              : null
+          const clientManifestsForEntrypoint = nodePath.join(
+            outputPath,
+            outputPrefix,
+            entrypoint.name.replace(/%5F/g, '_') +
+              '_' +
+              CLIENT_REFERENCE_MANIFEST +
+              '.js'
+          )
 
-          if (clientManifestsForPage !== null) {
-            entryFiles.add(clientManifestsForPage)
+          if (clientManifestsForEntrypoint !== null) {
+            entryFiles.add(clientManifestsForEntrypoint)
           }
         }
 

@@ -135,4 +135,4 @@ body:
 
         or
 
-        I am hosting via Docker with the recommended `output: "standalone"` option", and if I remove that option or try a different hosting option, I cannot reproduce the same issue.
+        I am hosting via Docker with the recommended `output: "standalone"` option, and if I remove that option or try a different hosting option, I cannot reproduce the same issue.

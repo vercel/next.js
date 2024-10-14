@@ -795,10 +795,10 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.0.0-canary.184
+        specifier: 15.0.0-canary.188
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
-        specifier: ^1.3.3
+        specifier: ^1.10.3
         version: 1.10.4
       '@typescript-eslint/eslint-plugin':
         specifier: ^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -816,17 +816,17 @@ importers:
         specifier: ^3.5.2
         version: 3.6.3(@typescript-eslint/parser@7.16.0(eslint@9.0.0)(typescript@5.6.3))(eslint-import-resolver-node@0.3.9)(eslint-plugin-import-x@4.3.1(eslint@9.0.0)(typescript@5.6.3))(eslint-plugin-import@2.31.0)(eslint@9.0.0)
       eslint-plugin-import:
-        specifier: ^2.28.1
+        specifier: ^2.31.0
         version: 2.31.0(@typescript-eslint/parser@7.16.0(eslint@9.0.0)(typescript@5.6.3))(eslint-import-resolver-typescript@3.6.3)(eslint@9.0.0)
       eslint-plugin-jsx-a11y:
-        specifier: ^6.7.1
+        specifier: ^6.10.0
         version: 6.10.0(eslint@9.0.0)
       eslint-plugin-react:
-        specifier: ^7.33.2
+        specifier: ^7.35.0
         version: 7.35.0(eslint@9.0.0)
       eslint-plugin-react-hooks:
-        specifier: ^4.5.0 || 5.0.0-canary-7118f5dd7-20230705
-        version: 4.6.0(eslint@9.0.0)
+        specifier: ^5.0.0
+        version: 5.0.0(eslint@9.0.0)
       typescript:
         specifier: '>=3.3.1'
         version: 5.6.3
@@ -856,7 +856,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.0.0-canary.184
+        specifier: 15.0.0-canary.188
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -984,19 +984,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 15.0.0-canary.184
+        specifier: 15.0.0-canary.188
         version: link:../font
       '@next/polyfill-module':
-        specifier: 15.0.0-canary.184
+        specifier: 15.0.0-canary.188
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.0.0-canary.184
+        specifier: 15.0.0-canary.188
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.0.0-canary.184
+        specifier: 15.0.0-canary.188
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.0.0-canary.184
+        specifier: 15.0.0-canary.188
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1627,7 +1627,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.0.0-canary.184
+        specifier: 15.0.0-canary.188
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -8075,12 +8075,6 @@ packages:
     engines: {node: '>=4.0'}
     peerDependencies:
       eslint: ^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9
-
-  eslint-plugin-react-hooks@4.6.0:
-    resolution: {integrity: sha512-oFc7Itz9Qxh2x4gNHStv3BqJq54ExXmfC+a1NjAta66IAN87Wu0R/QArgIS9qKzX3dXKPI9H5crl9QchNMY9+g==}
-    engines: {node: '>=10'}
-    peerDependencies:
-      eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
 
   eslint-plugin-react-hooks@5.0.0:
     resolution: {integrity: sha512-hIOwI+5hYGpJEc4uPRmz2ulCjAGD/N13Lukkh8cLV0i2IRk/bdZDYjgLVHj+U9Z704kLIdIO6iueGvxNur0sgw==}
@@ -23391,7 +23385,7 @@ snapshots:
       safe-regex-test: 1.0.3
       string.prototype.includes: 2.0.0
 
-  eslint-plugin-react-hooks@4.6.0(eslint@9.0.0):
+  eslint-plugin-react-hooks@5.0.0(eslint@9.0.0):
     dependencies:
       eslint: 9.0.0
 

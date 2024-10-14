@@ -2,6 +2,6 @@
   "version": 3,
   "sources": [],
   "sections": [
-    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/url-in-supports-query/input/style.css"],"sourcesContent":["@supports ((-webkit-mask: url(\"\")) or (mask: url(\"\"))) {\n  .supports-url-in-query {\n    color: red;\n  }\n}\n"],"names":[],"mappings":"AAAA,CAAC,QAAQ,CAAE,CAAC,CAAC,AAAD,YAAY,EAAE,GAAG,CAAC,EAAE,CAAA,CAAC,IAAM,CAAC,AAAD,IAAI,EAAE,GAAG,CAAC,EAAE,CAAA,CAAC,CAAC,CAAE,CAAC;EACtD,CAAC,qBAAqB,CAAC,CAAC;IACtB,KAAK,EAAE,GAAG;EACZ,CAAC;AACH,CAAC"}},
-    {"offset": {"line": 5, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/url-in-supports-query/input/style.css"],"sourcesContent":["@supports ((-webkit-mask: url(\"\")) or (mask: url(\"\"))) {\n  .supports-url-in-query {\n    color: red;\n  }\n}\n"],"names":[],"mappings":"AAAA,CAAC,QAAQ,AAAE,CAAC,CAAC,AAAD,YAAY,CAAE,GAAG,CAAC,EAAE,CAAA,CAAC,GAAM,CAAC,AAAD,IAAI,CAAE,GAAG,CAAC,EAAE,CAAA,CAAC,CAAC,AAAE,CAAC,AACtD,CAAC,qBAAqB,AAAC,CAAC,AACtB,KAAK,CAAE,GAAG,AACZ,CAAC,AACH,CAAC"}},
+    {"offset": {"line": 1, "column": 85}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }
