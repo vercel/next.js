@@ -46,6 +46,7 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   cacheHandler,
+  cacheLifeProfiles,
   nextConfigOutput,
   isAppPPRFallbacksEnabled,
   buildId,
@@ -64,6 +65,9 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
+  cacheLifeProfiles?: {
+    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
+  }
   nextConfigOutput: 'standalone' | 'export' | undefined
   isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
@@ -97,6 +101,7 @@ export async function loadStaticPaths({
       distDir,
       requestHeaders,
       cacheHandler,
+      cacheLifeProfiles,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,

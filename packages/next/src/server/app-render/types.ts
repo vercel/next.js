@@ -147,6 +147,9 @@ export interface RenderOptsPartial {
   nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
+  cacheLifeProfiles?: {
+    [profile: string]: import('../use-cache/cache-life').CacheLife
+  }
   setAppIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean

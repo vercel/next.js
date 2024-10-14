@@ -255,6 +255,8 @@ export async function adapter(
                 page: '/', // Fake Work
                 fallbackRouteParams: null,
                 renderOpts: {
+                  cacheLifeProfiles:
+                    params.request.nextConfig?.experimental?.cacheLife,
                   experimental: {
                     after: isAfterEnabled,
                     isRoutePPREnabled: false,

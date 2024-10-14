@@ -29,7 +29,6 @@ import {
   getClientReferenceManifestSingleton,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
-import { defaultCacheLife } from './cache-life'
 import type { CacheScopeStore } from '../async-storage/cache-scope.external'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
@@ -60,8 +59,9 @@ const defaultCacheStorage: Map<string, Promise<CacheEntry>> = new Map()
 cacheHandlerMap.set('default', {
   async get(cacheKey: string): Promise<undefined | CacheEntry> {
     // TODO: Implement proper caching.
-    const entry = await defaultCacheStorage.get(cacheKey)
-    if (entry !== undefined) {
+    const promiseOfEntry = defaultCacheStorage.get(cacheKey)
+    if (promiseOfEntry !== undefined) {
+      const entry = await promiseOfEntry
       if (
         performance.timeOrigin + performance.now() >
         entry.timestamp + entry.revalidate * 1000
@@ -76,7 +76,7 @@ cacheHandlerMap.set('default', {
         value: returnStream,
         timestamp: entry.timestamp,
         revalidate: entry.revalidate,
-        expire: entry.revalidate,
+        expire: entry.expire,
         stale: entry.stale,
         tags: entry.tags,
       }
@@ -172,6 +172,22 @@ function generateCacheEntryWithCacheContext(
   encodedArguments: FormData | string,
   fn: any
 ) {
+  if (!workStore.cacheLifeProfiles) {
+    throw new Error(
+      'cacheLifeProfiles should always be provided. This is a bug in Next.js.'
+    )
+  }
+  const defaultCacheLife = workStore.cacheLifeProfiles['default']
+  if (
+    !defaultCacheLife ||
+    defaultCacheLife.revalidate == null ||
+    defaultCacheLife.expire == null ||
+    defaultCacheLife.stale == null
+  ) {
+    throw new Error(
+      'A default cacheLife profile must always be provided. This is a bug in Next.js.'
+    )
+  }
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
@@ -434,7 +450,7 @@ async function loadCacheEntry(
   } else {
     propagateCacheLifeAndTags(workUnitStore, entry)
 
-    if (currentTime > entry.timestamp + entry.revalidate) {
+    if (currentTime > entry.timestamp + entry.revalidate * 1000) {
       // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
       // then we should warm up the cache with a fresh revalidated entry.
       const ignoredStream = await generateCacheEntry(
@@ -530,9 +546,10 @@ export function cache(kind: string, id: string, fn: any) {
 
       let stream: ReadableStream
 
+      const disable = true // TODO: Reenable the cache scope
       const cacheScope: undefined | CacheScopeStore =
         cacheScopeAsyncLocalStorage.getStore()
-      if (cacheScope) {
+      if (cacheScope && !disable) {
         // String cache key for easier hash mapping.
         // Note that we're not worried about collisions between string and base64
         // since the string form will always be JSON which doesn't overlap with base64.

@@ -15,7 +15,7 @@ export interface RequestData {
     basePath?: string
     i18n?: I18NConfig | null
     trailingSlash?: boolean
-    experimental?: Pick<ExperimentalConfig, 'after'>
+    experimental?: Pick<ExperimentalConfig, 'after' | 'cacheLife'>
   }
   page?: {
     name?: string

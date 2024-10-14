@@ -4,6 +4,11 @@
 const nextConfig = {
   experimental: {
     dynamicIO: true,
+    cacheLife: {
+      frequent: {
+        revalidate: 100,
+      },
+    },
   },
 }
 
