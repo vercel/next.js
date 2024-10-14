@@ -838,6 +838,8 @@ You can `get`, `set`, and `delete` cookies inside a Server Action using the [`co
 import { cookies } from 'next/headers'
 
 export async function exampleAction() {
+  const cookieStore = await cookies()
+
   // Get cookie
   cookieStore.get('name')?.value
 
@@ -873,13 +875,32 @@ See [additional examples](/docs/app/api-reference/functions/cookies#deleting-coo
 
 ## Security
 
-When you add the `"use server"` directive to the top of a file, it marks all the exports in that file as API endpoints. By default, exported but unused functions are tree-shaken. That is, Next.js evaluates your codebase and removes references to unused Server Actions from the client-side JavaScript bundle.
+By default, when a Server Action is created and exported, it creates a public HTTP endpoint
+and should be treated with the same security assumptions and authorization checks. This means, even if a Server Action or utility function is not imported elsewhere in your code, it’s still a publicly accessible.
 
-In addition, the IDs that link the client-side reference to the server-side code is re-encrypted on each new deployment. This means Server Actions can only be invoked internally by the application.
+To improve security, Next.js has the following built-in features:
+
+- **Dead code elimination:** Unused Server Actions won’t have their IDs exposed to the client-side JavaScript bundle, reducing bundle size and improving performance.
+- **Secure action IDs:** Next.js creates unguessable, non-deterministic IDs to allow the client to reference and call the Server Action. These IDs are periodically recalculated for enhanced security.
+
+```jsx
+// app/actions.js
+'use server'
+
+// This action **is** used in our application, so Next.js
+// will create a secure ID to allow the client to reference
+// and call the Server Action.
+export async function updateUserAction(formData) {}
+
+// This action **is not** used in our application, so Next.js
+// will automatically remove this code during `next build`
+// and will not create a public endpoint.
+export async function deleteUserAction(formData) {}
+```
 
 ### Authentication and authorization
 
-You should treat Server Actions as public-facing API endpoints, and ensure that the user is authorized to perform the action. For example:
+You should ensure that the user is authorized to perform the action. For example:
 
 ```tsx filename="app/actions.ts"
 'use server'
