@@ -19,14 +19,14 @@ use turbopack_core::{
     issue::IssueDescriptionExt,
     module::{Module, Modules},
     output::OutputAsset,
+    rebase::RebasedAsset,
     reference::all_modules_and_affecting_sources,
     resolve::options::{ImportMapping, ResolvedMap},
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    emit_asset, emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset,
-    ModuleAssetContext,
+    emit_asset, emit_with_completion, module_options::ModuleOptionsContext, ModuleAssetContext,
 };
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]

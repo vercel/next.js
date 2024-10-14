@@ -35,7 +35,6 @@ use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion,
     module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
-    rebase::RebasedAsset,
     register, ModuleAssetContext,
 };
 use turbopack_core::{
@@ -44,6 +43,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     output::OutputAsset,
+    rebase::RebasedAsset,
     reference_type::ReferenceType,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
