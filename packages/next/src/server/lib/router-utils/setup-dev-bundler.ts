@@ -430,7 +430,6 @@ async function startWatcher(opts: SetupOpts) {
         })
 
         if (
-          isAppPath &&
           appDir &&
           isMetadataRouteFile(
             fileName.replace(appDir, ''),
