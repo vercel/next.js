@@ -35,12 +35,7 @@ impl EcmascriptParsable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
         let parsed = self.full_module.failsafe_parse();
-        let split_data = split(
-            self.full_module.ident(),
-            self.full_module.source(),
-            parsed,
-            self.full_module.options().await?.special_exports,
-        );
+        let split_data = split(self.full_module.ident(), self.full_module.source(), parsed);
         Ok(part_of_module(split_data, self.part))
     }
     #[turbo_tasks::function]
