@@ -30,6 +30,7 @@ import { wait } from '../lib/wait'
 import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
 import { createServerModuleMap } from './app-render/action-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { isMetadataRoute } from '../lib/metadata/is-metadata-route'
 
 export type ManifestItem = {
   id: number | string
@@ -139,6 +140,9 @@ async function loadComponentsImpl<N = any>({
     ])
   }
 
+  // Make sure to avoid loading the manifest for metadata route handlers.
+  const hasClientManifest = isAppPath && !isMetadataRoute(page)
+
   // Load the manifest files first
   const [
     buildManifest,
@@ -150,7 +154,7 @@ async function loadComponentsImpl<N = any>({
     loadManifestWithRetries<ReactLoadableManifest>(
       join(distDir, REACT_LOADABLE_MANIFEST)
     ),
-    isAppPath
+    hasClientManifest
       ? loadClientReferenceManifest(
           join(
             distDir,

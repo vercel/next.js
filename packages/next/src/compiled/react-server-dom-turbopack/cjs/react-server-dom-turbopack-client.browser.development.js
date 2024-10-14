@@ -1389,7 +1389,7 @@
             return (
               Object.defineProperty(parentObject, key, {
                 get: function () {
-                  throw "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+                  return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
                 },
                 enumerable: !0,
                 configurable: !1
@@ -2347,10 +2347,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-rc-70fb1363-20241010",
+      version: "19.0.0-rc-cd22717c-20241013",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-rc-70fb1363-20241010",
+      reconcilerVersion: "19.0.0-rc-cd22717c-20241013",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
