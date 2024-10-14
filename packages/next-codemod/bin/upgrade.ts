@@ -2,7 +2,7 @@ import prompts from 'prompts'
 import fs from 'fs'
 import semver from 'semver'
 import compareVersions from 'semver/functions/compare'
-import { execSync } from 'child_process'
+import { execSync, spawnSync } from 'child_process'
 import path from 'path'
 import pc from 'picocolors'
 import { getPkgManager, installPackages } from '../lib/handle-package'
@@ -81,9 +81,6 @@ export async function runUpgrade(
 
   const installedNextVersion = getInstalledNextVersion()
 
-  // Align the prefix spaces
-  console.log(`  Current Next.js version: v${installedNextVersion}`)
-
   const targetNextVersion = targetNextPackageJson.version
 
   if (compareVersions(installedNextVersion, targetNextVersion) === 0) {
@@ -102,7 +99,10 @@ export async function runUpgrade(
   }
 
   const installedReactVersion = getInstalledReactVersion()
-  console.log(`Current React version: v${installedReactVersion}`)
+  // Align the prefix spaces
+  console.log(`  Detected installed versions:`)
+  console.log(`  - React: v${installedReactVersion}`)
+  console.log(`  - Next.js: v${installedNextVersion}`)
   let shouldStayOnReact18 = false
   if (
     // From release v14.3.0-canary.45, Next.js expects the React version to be 19.0.0-beta.0
@@ -219,17 +219,6 @@ export async function runUpgrade(
     await runTransform(codemod, process.cwd(), { force: true, verbose })
   }
 
-  // To reduce user-side burden of selecting which codemods to run as it needs additional
-  // understanding of the codemods, we run all of the applicable codemods.
-  if (shouldRunReactCodemods) {
-    // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
-    execSync(
-      // `--no-interactive` skips the interactive prompt that asks for confirmation
-      // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
-      `${execCommand} codemod@latest react/19/migration-recipe --no-interactive`,
-      { stdio: 'inherit' }
-    )
-  }
   if (shouldRunReactTypesCodemods) {
     // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
     // `--yes` skips prompts and applies all codemods automatically
@@ -237,6 +226,24 @@ export async function runUpgrade(
     execSync(`${execCommand} types-react-codemod@latest --yes preset-19 .`, {
       stdio: 'inherit',
     })
+  }
+
+  // To reduce user-side burden of selecting which codemods to run as it needs additional
+  // understanding of the codemods, we run all of the applicable codemods.
+  if (shouldRunReactCodemods) {
+    // Note: Run react/19/migration codemods at the end to hide the noisy logs,
+    // as verbose mode cannot be disabled.
+
+    // x-ref: https://react.dev/blog/2024/04/25/react-19-upgrade-guide#run-all-react-19-codemods
+    const child = spawnSync(
+      // `--no-interactive` skips the interactive prompt that asks for confirmation
+      // https://github.com/codemod-com/codemod/blob/c0cf00d13161a0ec0965b6cc6bc5d54076839cc8/apps/cli/src/flags.ts#L160
+      `${execCommand} codemod@latest react/19/migration-recipe --no-interactive`,
+      { stdio: 'ignore' }
+    )
+    if (child.stderr) {
+      console.error(child.stderr.toString())
+    }
   }
 
   console.log() // new line
