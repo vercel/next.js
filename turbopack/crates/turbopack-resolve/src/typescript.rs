@@ -456,7 +456,7 @@ pub async fn type_resolve(
         origin.origin_path(),
         request,
         options,
-        IssueSeverity::Error.cell(),
+        false,
         None,
     )
     .await

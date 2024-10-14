@@ -460,6 +460,9 @@ impl ValueToString for ResolveResult {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         let mut result = String::new();
+        if self.is_unresolveable_ref() {
+            result.push_str("unresolveable");
+        }
         for (i, (request, item)) in self.primary.iter().enumerate() {
             if i > 0 {
                 result.push_str(", ");
@@ -1433,7 +1436,7 @@ pub async fn url_resolve(
     request: Vc<Request>,
     reference_type: Value<ReferenceType>,
     issue_source: Option<Vc<IssueSource>>,
-    issue_severity: Vc<IssueSeverity>,
+    is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     let resolve_options = origin.resolve_options(reference_type.clone());
     let rel_request = request.as_relative();
@@ -1464,7 +1467,7 @@ pub async fn url_resolve(
         origin.origin_path(),
         request,
         resolve_options,
-        issue_severity,
+        is_optional,
         issue_source,
     )
     .await
@@ -1745,7 +1748,7 @@ async fn resolve_internal_inline(
 
                 if !has_alias {
                     ResolvingIssue {
-                        severity: IssueSeverity::Error.cell(),
+                        severity: error_severity(options).await?,
                         request_type: "server relative import: not implemented yet".to_string(),
                         request,
                         file_path: lookup_path,
@@ -1775,7 +1778,7 @@ async fn resolve_internal_inline(
             } => {
                 if !has_alias {
                     ResolvingIssue {
-                        severity: IssueSeverity::Error.cell(),
+                        severity: error_severity(options).await?,
                         request_type: "windows import: not implemented yet".to_string(),
                         request,
                         file_path: lookup_path,
@@ -1829,7 +1832,7 @@ async fn resolve_internal_inline(
             Request::Unknown { path } => {
                 if !has_alias {
                     ResolvingIssue {
-                        severity: IssueSeverity::Error.cell(),
+                        severity: error_severity(options).await?,
                         request_type: format!("unknown import: `{}`", path),
                         request,
                         file_path: lookup_path,
@@ -2234,7 +2237,7 @@ async fn apply_in_package(
         }
 
         ResolvingIssue {
-            severity: IssueSeverity::Error.cell(),
+            severity: error_severity(options).await?,
             file_path: *package_json_path,
             request_type: format!("alias field ({field})"),
             request: Request::parse(Value::new(Pattern::Constant(request))),
@@ -2676,7 +2679,7 @@ async fn resolve_package_internal_with_imports_field(
     // https://github.com/nodejs/node/blob/1b177932/lib/internal/modules/esm/resolve.js#L615-L619
     if specifier == "#" || specifier.starts_with("#/") || specifier.ends_with('/') {
         ResolvingIssue {
-            severity: IssueSeverity::Error.cell(),
+            severity: error_severity(resolve_options).await?,
             file_path,
             request_type: format!("package imports request: `{specifier}`"),
             request,
@@ -2714,7 +2717,7 @@ pub async fn handle_resolve_error(
     origin_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    severity: Vc<IssueSeverity>,
+    is_optional: bool,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
@@ -2724,27 +2727,29 @@ pub async fn handle_resolve_error(
         Ok(unresolveable) => {
             if unresolveable {
                 emit_unresolveable_issue(
-                    severity,
+                    is_optional,
                     origin_path,
                     reference_type,
                     request,
                     resolve_options,
                     source,
-                );
+                )
+                .await?;
             }
 
             result
         }
         Err(err) => {
             emit_resolve_error_issue(
-                severity,
+                is_optional,
                 origin_path,
                 reference_type,
                 request,
                 resolve_options,
                 err,
                 source,
-            );
+            )
+            .await?;
             ModuleResolveResult::unresolveable().cell()
         }
     })
@@ -2756,7 +2761,7 @@ pub async fn handle_resolve_source_error(
     origin_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    severity: Vc<IssueSeverity>,
+    is_optional: bool,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ResolveResult>> {
     async fn is_unresolveable(result: Vc<ResolveResult>) -> Result<bool> {
@@ -2766,41 +2771,48 @@ pub async fn handle_resolve_source_error(
         Ok(unresolveable) => {
             if unresolveable {
                 emit_unresolveable_issue(
-                    severity,
+                    is_optional,
                     origin_path,
                     reference_type,
                     request,
                     resolve_options,
                     source,
-                );
+                )
+                .await?;
             }
 
             result
         }
         Err(err) => {
             emit_resolve_error_issue(
-                severity,
+                is_optional,
                 origin_path,
                 reference_type,
                 request,
                 resolve_options,
                 err,
                 source,
-            );
+            )
+            .await?;
             ResolveResult::unresolveable().cell()
         }
     })
 }
 
-fn emit_resolve_error_issue(
-    severity: Vc<IssueSeverity>,
+async fn emit_resolve_error_issue(
+    is_optional: bool,
     origin_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     err: anyhow::Error,
     source: Option<Vc<IssueSource>>,
-) {
+) -> Result<()> {
+    let severity = if is_optional || resolve_options.await?.loose_errors {
+        IssueSeverity::Warning.cell()
+    } else {
+        IssueSeverity::Error.cell()
+    };
     ResolvingIssue {
         severity,
         file_path: origin_path,
@@ -2812,16 +2824,22 @@ fn emit_resolve_error_issue(
     }
     .cell()
     .emit();
+    Ok(())
 }
 
-fn emit_unresolveable_issue(
-    severity: Vc<IssueSeverity>,
+async fn emit_unresolveable_issue(
+    is_optional: bool,
     origin_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     source: Option<Vc<IssueSource>>,
-) {
+) -> Result<()> {
+    let severity = if is_optional || resolve_options.await?.loose_errors {
+        IssueSeverity::Warning.cell()
+    } else {
+        IssueSeverity::Error.cell()
+    };
     ResolvingIssue {
         severity,
         file_path: origin_path,
@@ -2833,6 +2851,15 @@ fn emit_unresolveable_issue(
     }
     .cell()
     .emit();
+    Ok(())
+}
+
+async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<Vc<IssueSeverity>> {
+    Ok(if resolve_options.await?.loose_errors {
+        IssueSeverity::Warning.cell()
+    } else {
+        IssueSeverity::Error.cell()
+    })
 }
 
 // TODO this should become a TaskInput instead of a Vc

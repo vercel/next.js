@@ -57,7 +57,6 @@ use turbopack_core::{
     },
     file_source::FileSource,
     ident::AssetIdent,
-    issue::IssueSeverity,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
@@ -604,7 +603,7 @@ impl AppProject {
                 "next/dist/client/app-next-turbopack.js".into(),
             ))),
             None,
-            IssueSeverity::Error.cell(),
+            false,
         )
         .resolve()
         .await?

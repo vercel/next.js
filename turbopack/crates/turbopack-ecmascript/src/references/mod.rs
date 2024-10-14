@@ -2567,7 +2567,7 @@ async fn require_resolve_visitor(
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(Value::new(pat.clone()));
-        let resolved = cjs_resolve_source(origin, request, None, IssueSeverity::Warning.cell())
+        let resolved = cjs_resolve_source(origin, request, None, true)
             .resolve()
             .await?;
         let mut values = resolved
@@ -2634,7 +2634,7 @@ async fn require_context_visitor(
         options.include_subdirs,
         Vc::cell(options.filter),
         None,
-        IssueSeverity::Warning.cell(),
+        true,
     );
 
     Ok(JsValue::WellKnownFunction(

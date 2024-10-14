@@ -47,7 +47,6 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::IssueSeverity,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
@@ -576,7 +575,7 @@ impl PagesProject {
                 .into(),
             ))),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-            IssueSeverity::Error.cell(),
+            false,
             None,
         )
         .first_module()
