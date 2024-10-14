@@ -53,16 +53,18 @@ The behavior of the `<Form>` component depends on whether the `action` prop is p
 
 When `action` is a string, the `<Form>` component supports the following props:
 
-| Prop      | Example            | Type                            | Required |
-| --------- | ------------------ | ------------------------------- | -------- |
-| `action`  | `action="/search"` | `string` (URL or relative path) | Yes      |
-| `replace` | `replace={false}`  | `boolean`                       | -        |
-| `scroll`  | `scroll={true}`    | `boolean`                       | -        |
+| Prop       | Example            | Type                            | Required |
+| ---------- | ------------------ | ------------------------------- | -------- |
+| `action`   | `action="/search"` | `string` (URL or relative path) | Yes      |
+| `replace`  | `replace={false}`  | `boolean`                       | -        |
+| `scroll`   | `scroll={true}`    | `boolean`                       | -        |
+| `prefetch` | `prefetch={false}` | `boolean`                       | -        |
 
 - **`action`**: The URL or path to navigate to when the form is submitted.
   - An empty string `""` will navigate to the same route with updated search params.
 - **`scroll`**: Controls the scroll behavior during navigation. Defaults to `true`, this means it will scroll to the top of the new route, and maintain the scroll position for backwards and forwards navigation.
 - **`replace`**: Replaces the current history state instead of pushing a new one to the [browser's history](https://developer.mozilla.org/en-US/docs/Web/API/History_API) stack. Default is `false`.
+- **`prefetch`**: Controls whether the path should be prefetched when the form becomes visible in the user's viewport. Defaults to `true`.
 
 ### `action` (function) Props
 
