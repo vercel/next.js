@@ -1,7 +1,6 @@
 ---
 title: <Form>
 description: Learn how to use the `<Form>` component to handle form submissions and search params updates with client-side navigation.
-version: canary
 ---
 
 The `<Form>` component extends the HTML `<form>` element to provide [**prefetching**](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) of [loading UI](/docs/app/building-your-application/routing/loading-ui-and-streaming), **client-side navigation** on submission, and **progressive enhancement**.
@@ -58,12 +57,12 @@ When `action` is a string, the `<Form>` component supports the following props:
 | `action`   | `action="/search"` | `string` (URL or relative path) | Yes      |
 | `replace`  | `replace={false}`  | `boolean`                       | -        |
 | `scroll`   | `scroll={true}`    | `boolean`                       | -        |
-| `prefetch` | `prefetch={false}` | `boolean`                       | -        |
+| `prefetch` | `prefetch={true}`  | `boolean`                       | -        |
 
 - **`action`**: The URL or path to navigate to when the form is submitted.
   - An empty string `""` will navigate to the same route with updated search params.
-- **`scroll`**: Controls the scroll behavior during navigation. Defaults to `true`, this means it will scroll to the top of the new route, and maintain the scroll position for backwards and forwards navigation.
 - **`replace`**: Replaces the current history state instead of pushing a new one to the [browser's history](https://developer.mozilla.org/en-US/docs/Web/API/History_API) stack. Default is `false`.
+- **`scroll`**: Controls the scroll behavior during navigation. Defaults to `true`, this means it will scroll to the top of the new route, and maintain the scroll position for backwards and forwards navigation.
 - **`prefetch`**: Controls whether the path should be prefetched when the form becomes visible in the user's viewport. Defaults to `true`.
 
 ### `action` (function) Props
