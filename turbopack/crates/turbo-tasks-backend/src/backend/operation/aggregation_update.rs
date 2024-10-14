@@ -6,7 +6,7 @@ use turbo_tasks::{SessionId, TaskId};
 
 use crate::{
     backend::{
-        operation::{ExecuteContext, InvalidateOperation, Operation, TaskGuard},
+        operation::{invalidate::make_task_dirty, ExecuteContext, Operation, TaskGuard},
         storage::{get, get_many, iter_many, remove, update, update_count},
         TaskDataCategory,
     },
@@ -467,7 +467,9 @@ impl AggregationUpdateQueue {
                     self.balance_edge(ctx, upper_id, task_id);
                 }
                 AggregationUpdateJob::Invalidate { task_ids } => {
-                    ctx.run_operation(self, |ctx| InvalidateOperation::run(task_ids, ctx));
+                    for task_id in task_ids {
+                        make_task_dirty(task_id, self, ctx);
+                    }
                 }
             }
         }
