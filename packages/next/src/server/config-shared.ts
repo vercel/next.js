@@ -13,6 +13,7 @@ import type { SizeLimit } from '../types'
 import type { ExpireTime } from './lib/revalidate'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
+import { INFINITE_CACHE } from '../lib/constants'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -1031,7 +1032,7 @@ export const defaultConfig: NextConfig = {
       default: {
         stale: undefined, // defaults to staleTimes.static
         revalidate: 900,
-        expire: Infinity,
+        expire: INFINITE_CACHE,
       },
     },
     multiZoneDraftMode: false,

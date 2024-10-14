@@ -180,9 +180,9 @@ function generateCacheEntryWithCacheContext(
   const defaultCacheLife = workStore.cacheLifeProfiles['default']
   if (
     !defaultCacheLife ||
-    defaultCacheLife.revalidate === undefined ||
-    defaultCacheLife.expire === undefined ||
-    defaultCacheLife.stale === undefined
+    defaultCacheLife.revalidate == null ||
+    defaultCacheLife.expire == null ||
+    defaultCacheLife.stale == null
   ) {
     throw new Error(
       'A default cacheLife profile must always be provided. This is a bug in Next.js.'
