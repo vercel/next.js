@@ -99,6 +99,16 @@ describe('use-cache', () => {
     )
 
     itSkipTurbopack(
+      'should match the expected stale config in the page header',
+      async () => {
+        const meta = JSON.parse(
+          await next.readFile('.next/server/app/cache-tag.meta')
+        )
+        expect(meta.headers['Next-Router-Stale-Time']).toBe('19')
+      }
+    )
+
+    itSkipTurbopack(
       'should propagate unstable_cache tags correctly',
       async () => {
         const meta = JSON.parse(

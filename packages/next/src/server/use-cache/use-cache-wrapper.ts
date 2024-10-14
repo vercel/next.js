@@ -188,6 +188,7 @@ function generateCacheEntryWithCacheContext(
       'A default cacheLife profile must always be provided. This is a bug in Next.js.'
     )
   }
+
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
@@ -239,8 +240,14 @@ function propagateCacheLifeAndTags(
         outerTags.push(tag)
       }
     }
+    if (workUnitStore.stale > entry.stale) {
+      workUnitStore.stale = entry.stale
+    }
     if (workUnitStore.revalidate > entry.revalidate) {
       workUnitStore.revalidate = entry.revalidate
+    }
+    if (workUnitStore.expire > entry.expire) {
+      workUnitStore.expire = entry.expire
     }
   }
 }
