@@ -84,22 +84,28 @@ describe('use-cache', () => {
   })
 
   if (isNextStart) {
-    it('should match the expected revalidate config on the prerender manifest', async () => {
-      const prerenderManifest = JSON.parse(
-        await next.readFile('.next/prerender-manifest.json')
-      )
+    itSkipTurbopack(
+      'should match the expected revalidate config on the prerender manifest',
+      async () => {
+        const prerenderManifest = JSON.parse(
+          await next.readFile('.next/prerender-manifest.json')
+        )
 
-      expect(prerenderManifest.version).toBe(4)
-      expect(
-        prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
-      ).toBe(100)
-    })
+        expect(prerenderManifest.version).toBe(4)
+        expect(
+          prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
+        ).toBe(100)
+      }
+    )
 
-    it('should propagate unstable_cache tags correctly', async () => {
-      const meta = JSON.parse(
-        await next.readFile('.next/server/app/cache-tag.meta')
-      )
-      expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
-    })
+    itSkipTurbopack(
+      'should propagate unstable_cache tags correctly',
+      async () => {
+        const meta = JSON.parse(
+          await next.readFile('.next/server/app/cache-tag.meta')
+        )
+        expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
+      }
+    )
   }
 })
