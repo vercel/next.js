@@ -726,7 +726,12 @@ impl AssetContext for ModuleAssetContext {
                                 name,
                                 typ,
                                 module: match source {
-                                    Some(source) => {
+                                    Some(source)
+                                        if self
+                                            .module_options_context()
+                                            .await?
+                                            .enable_externals_tracing =>
+                                    {
                                         let external_context = {
                                             let env = Environment::new(Value::new(
                                                 ExecutionEnvironment::NodeJsLambda(
@@ -763,7 +768,7 @@ impl AssetContext for ModuleAssetContext {
                                             ProcessResult::Ignore => None,
                                         }
                                     }
-                                    None => None,
+                                    _ => None,
                                 },
                             }
                         }
