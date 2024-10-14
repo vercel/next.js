@@ -24,12 +24,12 @@
     {"offset": {"line": 128, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
     {"offset": {"line": 134, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
     {"offset": {"line": 140, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 146, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-named-all/input/index.js"],"sourcesContent":["import {cat as c,dogRef,initialCat,getChimera} from './lib'\n\nconsole.log(c)\n\n// TODO: Execution\n"],"names":[],"mappings":";;;;;;AAAA;AAAA"}},
-    {"offset": {"line": 156, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 162, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-named-all/input/index.js"],"sourcesContent":["import {cat as c,dogRef,initialCat,getChimera} from './lib'\n\nconsole.log(c)\n\n// TODO: Execution\n"],"names":[],"mappings":";;;;;AAEA,QAAQ,GAAG,CAAC,yPAAA,CAAA,IAAC,EAEb,kBAAkB"}},
-    {"offset": {"line": 169, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 175, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 181, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 187, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
-    {"offset": {"line": 191, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+    {"offset": {"line": 146, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-named-all/input/index.js"],"sourcesContent":["import {cat as c,dogRef,initialCat,getChimera} from './lib'\n\nconsole.log(c)\n\n// TODO: Execution\n"],"names":[],"mappings":";;;;;;;AAAA;AAAA"}},
+    {"offset": {"line": 158, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 164, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-named-all/input/index.js"],"sourcesContent":["import {cat as c,dogRef,initialCat,getChimera} from './lib'\n\nconsole.log(c)\n\n// TODO: Execution\n"],"names":[],"mappings":";;;;;AAEA,QAAQ,GAAG,CAAC,yPAAA,CAAA,IAAC,EAEb,kBAAkB"}},
+    {"offset": {"line": 171, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 177, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 183, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 189, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 193, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
 }

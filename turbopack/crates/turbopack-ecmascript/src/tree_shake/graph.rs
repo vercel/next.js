@@ -269,6 +269,10 @@ impl DepGraph {
             exports.insert(Key::ModuleEvaluation, 0);
         }
 
+        // See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084
+        // ImportBinding should depend on actual import statements because those imports may have
+        // side effects.
+        let mut importer = FxHashMap::default();
         let mut declarator = FxHashMap::default();
         let mut exporter = FxHashMap::default();
 
@@ -282,6 +286,17 @@ impl DepGraph {
 
                 if let Some(export) = &item.export {
                     exporter.insert(export.clone(), ix as u32);
+                }
+
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    specifiers,
+                    src,
+                    ..
+                })) = &item.content
+                {
+                    if specifiers.is_empty() {
+                        importer.insert(src.value.clone(), ix as u32);
+                    }
                 }
             }
         }
@@ -327,6 +342,38 @@ impl DepGraph {
 
                 for var in data.var_decls.iter() {
                     required_vars.remove(var);
+                }
+
+                // Depend on import statements from 'ImportBinding'
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                    specifiers,
+                    src,
+                    ..
+                })) = &data.content
+                {
+                    if !specifiers.is_empty() {
+                        if let Some(dep) = importer.get(&src.value) {
+                            if *dep != ix as u32 {
+                                part_deps
+                                    .entry(ix as u32)
+                                    .or_default()
+                                    .push(PartId::Internal(*dep, true));
+
+                                chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                    ImportDecl {
+                                        span: DUMMY_SP,
+                                        specifiers: vec![],
+                                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                                        type_only: false,
+                                        with: Some(Box::new(create_turbopack_part_id_assert(
+                                            PartId::Internal(*dep, true),
+                                        ))),
+                                        phase: Default::default(),
+                                    },
+                                )));
+                            }
+                        }
+                    }
                 }
             }
 
@@ -598,9 +645,28 @@ impl DepGraph {
         let condensed = condensation(graph, false);
 
         let mut new_graph = InternedGraph::default();
+
+        // Sort the items to match the order of the original code.
+        for node in condensed.node_weights() {
+            let mut item_ids = node
+                .iter()
+                .map(|&ix| self.g.graph_ix[ix as usize].clone())
+                .collect::<Vec<_>>();
+            item_ids.sort();
+
+            debug_assert!(!item_ids.is_empty());
+
+            new_graph.node(&item_ids);
+        }
+
+        new_graph.graph_ix.sort_by(|a, b| a[0].cmp(&b[0]));
+
+        debug_assert_eq!(new_graph.idx_graph.node_count(), 0);
+        debug_assert_eq!(new_graph.idx_graph.edge_count(), 0);
+
         let mut done = FxHashSet::default();
 
-        let mapped = condensed.filter_map(
+        let mapped = condensed.map(
             |_, node| {
                 let mut item_ids = node
                     .iter()
@@ -612,9 +678,9 @@ impl DepGraph {
                     .collect::<Vec<_>>();
                 item_ids.sort();
 
-                Some(new_graph.node(&item_ids))
+                new_graph.node(&item_ids)
             },
-            |_, edge| Some(*edge),
+            |_, edge| *edge,
         );
 
         let map = GraphMap::from_graph(mapped);
