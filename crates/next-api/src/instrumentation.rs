@@ -216,13 +216,15 @@ impl InstrumentationEndpoint {
         } else {
             let chunk = self.node_chunk();
             let mut output_assets = vec![chunk];
-            output_assets.push(Vc::upcast(NftJsonAsset::new(
-                self.entry_module(),
-                Some(chunk),
-                true,
-                this.project.output_fs(),
-                this.project.project_fs(),
-            )));
+            if this.project.next_mode().await?.is_production() {
+                output_assets.push(Vc::upcast(NftJsonAsset::new(
+                    self.entry_module(),
+                    Some(chunk),
+                    true,
+                    this.project.output_fs(),
+                    this.project.project_fs(),
+                )));
+            }
             Ok(Vc::cell(output_assets))
         }
     }
