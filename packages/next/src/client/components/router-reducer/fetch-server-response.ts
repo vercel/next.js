@@ -26,15 +26,13 @@ import {
   NEXT_DID_POSTPONE_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
+import { findSourceMapURL } from '../../app-find-source-map-url'
 import { PrefetchKind } from './router-reducer-types'
 import { hexHash } from '../../../shared/lib/hash'
 import {
   normalizeFlightData,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
-
-// Importing from dist so that we can define an alias if needed.
-import { findSourceMapURL } from 'next/dist/client/app-find-source-map-url'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState

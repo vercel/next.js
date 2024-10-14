@@ -106,7 +106,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             )*
         }
 
-        #[derive(Debug, Clone, Default)]
+        #[derive(Debug, Clone, Default, PartialEq, Eq)]
         #vis enum #value_name {
             #(
                 #variant_names {

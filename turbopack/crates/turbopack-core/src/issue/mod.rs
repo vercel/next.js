@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::Serialize;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
+    emit, CollectiblesSource, RawVc, RcStr, ReadRef, ResolvedVc, TransientInstance, TransientValue,
     TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
@@ -353,7 +353,7 @@ where
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Issues(Vec<Vc<Box<dyn Issue>>>);
+pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
 /// A list of issues captured with [`Issue::peek_issues_with_path`] and
 /// [`Issue::take_issues_with_path`].
@@ -552,6 +552,27 @@ impl IssueSource {
     #[turbo_tasks::function]
     pub fn file_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
+    }
+}
+
+impl IssueSource {
+    /// Returns bytes offsets corresponding the source range in the format used by swc's Spans.
+    pub async fn to_swc_offsets(&self) -> Result<Option<(usize, usize)>> {
+        Ok(match self.range {
+            Some(range) => match &*range.await? {
+                SourceRange::ByteOffset(start, end) => Some((*start + 1, *end + 1)),
+                SourceRange::LineColumn(start, end) => {
+                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                        let start = find_offset(lines.as_ref(), *start) + 1;
+                        let end = find_offset(lines.as_ref(), *end) + 1;
+                        Some((start, end))
+                    } else {
+                        None
+                    }
+                }
+            },
+            _ => None,
+        })
     }
 }
 
@@ -1029,4 +1050,9 @@ fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
             }
         }
     }
+}
+
+fn find_offset(lines: &[FileLine], pos: SourcePos) -> usize {
+    let line = &lines[pos.line];
+    line.bytes_offset + pos.column
 }

@@ -1,4 +1,4 @@
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 
 /** Run a callback, and execute any *new* revalidations added during its runtime. */
 export async function withExecuteRevalidates<T>(

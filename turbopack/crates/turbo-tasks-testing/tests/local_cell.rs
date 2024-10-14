@@ -33,26 +33,6 @@ async fn test_store_and_read() -> Result<()> {
     .await
 }
 
-#[tokio::test]
-async fn test_store_and_read_generic() -> Result<()> {
-    run(&REGISTRATION, || async {
-        // `Vc<Vec<Vc<T>>>` is stored as `Vc<Vec<Vc<()>>>` and requires special
-        // transmute handling
-        let cells: Vc<Vec<Vc<u32>>> =
-            Vc::local_cell(vec![Vc::local_cell(1), Vc::local_cell(2), Vc::cell(3)]);
-
-        let mut output = Vec::new();
-        for el in cells.await.unwrap() {
-            output.push(*el.await.unwrap());
-        }
-
-        assert_eq!(output, vec![1, 2, 3]);
-
-        Ok(())
-    })
-    .await
-}
-
 #[turbo_tasks::function(local_cells)]
 async fn returns_resolved_local_vc() -> Vc<u32> {
     let cell = Vc::<u32>::cell(42);

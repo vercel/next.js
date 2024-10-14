@@ -1,8 +1,8 @@
-import { getExpectedRequestStore } from '../../server/app-render/work-unit-async-storage.external'
+import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
 
-import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
+import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
@@ -18,11 +18,8 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
  * from outside and await the return value before passing it into this function.
  *
  * You can find instances that require manual migration by searching for `UnsafeUnwrappedDraftMode` in your codebase or by search for a comment that
- * starts with:
+ * starts with `@next-codemod-error`.
  *
- * ```
- * // TODO [sync-draftMode-usage]
- * ```
  * In a future version of Next.js `draftMode()` will only return a Promise and you will not be able to access the underlying draftMode object directly
  * without awaiting the return value first. When this change happens the type `UnsafeUnwrappedDraftMode` will be updated to reflect that is it no longer
  * usable.
@@ -43,6 +40,7 @@ export function draftMode(): Promise<DraftMode> {
     (workUnitStore.type === 'cache' ||
       workUnitStore.type === 'unstable-cache' ||
       workUnitStore.type === 'prerender' ||
+      workUnitStore.type === 'prerender-ppr' ||
       workUnitStore.type === 'prerender-legacy')
   ) {
     // Return empty draft mode

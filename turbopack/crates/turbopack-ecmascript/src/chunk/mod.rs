@@ -11,7 +11,7 @@ use turbo_tasks::{RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkItem, ChunkingContext, ModuleIds},
+    chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
     ident::AssetIdent,
     introspect::{
         module::IntrospectableModule,
@@ -30,7 +30,7 @@ pub use self::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
         EcmascriptChunkItemOptions,
     },
-    placeable::{EcmascriptChunkPlaceable, EcmascriptChunkPlaceables, EcmascriptExports},
+    placeable::{EcmascriptChunkPlaceable, EcmascriptExports},
 };
 
 #[turbo_tasks::value]
@@ -38,9 +38,6 @@ pub struct EcmascriptChunk {
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub content: Vc<EcmascriptChunkContent>,
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunks(Vec<Vc<EcmascriptChunk>>);
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunk {
@@ -136,6 +133,18 @@ impl Chunk for EcmascriptChunk {
     async fn references(&self) -> Result<Vc<OutputAssets>> {
         let content = self.content.await?;
         Ok(Vc::cell(content.referenced_output_assets.clone()))
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_items(&self) -> Result<Vc<ChunkItems>> {
+        let EcmascriptChunkContent { chunk_items, .. } = &*self.content.await?;
+        Ok(ChunkItems(
+            chunk_items
+                .iter()
+                .map(|(item, _)| Vc::upcast(*item))
+                .collect(),
+        )
+        .cell())
     }
 }
 

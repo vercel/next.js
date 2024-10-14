@@ -56,6 +56,10 @@ ${
 
 type TEntry = typeof import('${relativePath}.js')
 
+type SegmentParams<T extends Object = any> = T extends Record<string, any>
+  ? { [K in keyof T]: T[K] extends string ? string | string[] | undefined : never }
+  : T
+
 // Check that the entry is a valid entry
 checkFields<Diff<{
   ${
@@ -163,7 +167,6 @@ if ('generateStaticParams' in entry) {
   checkFields<Diff<{ __tag__: 'generateStaticParams', __return_type__: any[] | Promise<any[]> }, { __tag__: 'generateStaticParams', __return_type__: ReturnType<MaybeField<TEntry, 'generateStaticParams'>> }>>()
 }
 
-type SegmentParams = {[param: string]: string | string[] | undefined}
 export interface PageProps {
   params?: Promise<SegmentParams>
   searchParams?: Promise<any>

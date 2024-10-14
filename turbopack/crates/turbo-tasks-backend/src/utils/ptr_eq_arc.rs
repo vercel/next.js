@@ -10,6 +10,10 @@ impl<T> PtrEqArc<T> {
     pub fn new(value: T) -> Self {
         Self(Arc::new(value))
     }
+
+    pub fn arc(&self) -> &Arc<T> {
+        &self.0
+    }
 }
 
 impl<T> From<Arc<T>> for PtrEqArc<T> {

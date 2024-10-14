@@ -76,7 +76,7 @@ import { setConfig } from '../shared/lib/runtime-config.external'
 import {
   formatRevalidate,
   type Revalidate,
-  type SwrDelta,
+  type ExpireTime,
 } from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
@@ -103,6 +103,7 @@ import {
   RSC_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -130,6 +131,7 @@ import {
 } from './web/utils'
 import {
   CACHE_ONE_YEAR,
+  INFINITE_CACHE,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
 } from '../lib/constants'
@@ -170,10 +172,7 @@ import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
 import { PrefetchCacheScopes } from './lib/prefetch-cache-scopes'
-import {
-  runWithCacheScope,
-  type CacheScopeStore,
-} from './async-storage/cache-scope'
+import { runWithCacheScope } from './async-storage/cache-scope.external'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -397,7 +396,7 @@ export default abstract class Server<
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate?: Revalidate
-      swrDelta?: SwrDelta
+      expireTime?: ExpireTime
     }
   ): Promise<void>
 
@@ -596,7 +595,7 @@ export default abstract class Server<
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       experimental: {
-        swrDelta: this.nextConfig.swrDelta,
+        expireTime: this.nextConfig.expireTime,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         after: this.nextConfig.experimental.after ?? false,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
@@ -1733,7 +1732,7 @@ export default abstract class Server<
         generateEtags,
         poweredByHeader,
         revalidate,
-        swrDelta: this.nextConfig.swrDelta,
+        expireTime: this.nextConfig.expireTime,
       })
       res.statusCode = originalStatus
     }
@@ -1909,7 +1908,7 @@ export default abstract class Server<
     isAppPath: boolean,
     resolvedPathname: string
   ): void {
-    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}`
+    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`
     const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
     let addedNextUrlToVary = false
@@ -2142,6 +2141,13 @@ export default abstract class Server<
     // because we can't cache the HTML (as it's also dynamic).
     const isDynamicRSCRequest =
       isRoutePPREnabled && isRSCRequest && !isPrefetchRSCRequest
+
+    // Need to read this before it's stripped by stripFlightHeaders. We don't
+    // need to transfer it to the request meta because it's only read
+    // within this function; the static segment data should have already been
+    // generated, so we will always either return a static response or a 404.
+    const segmentPrefetchHeader =
+      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()]
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
@@ -2526,7 +2532,7 @@ export default abstract class Server<
               context.renderOpts as any
             ).fetchMetrics
 
-            const cacheTags = (context.renderOpts as any).fetchTags
+            const cacheTags = (context.renderOpts as any).collectedTags
 
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
@@ -2544,7 +2550,13 @@ export default abstract class Server<
                 headers['content-type'] = blob.type
               }
 
-              const revalidate = context.renderOpts.store?.revalidate ?? false
+              const revalidate =
+                typeof (context.renderOpts as any).collectedRevalidate ===
+                  'undefined' ||
+                (context.renderOpts as any).collectedRevalidate >=
+                  INFINITE_CACHE
+                  ? false
+                  : (context.renderOpts as any).collectedRevalidate
 
               // Create the cache entry for the response.
               const cacheEntry: ResponseCacheEntry = {
@@ -2747,6 +2759,7 @@ export default abstract class Server<
             rscData: metadata.flightData,
             postponed: metadata.postponed,
             status: res.statusCode,
+            segmentData: undefined,
           } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
           isFallback: !!fallbackRouteParams,
@@ -3023,10 +3036,8 @@ export default abstract class Server<
       responseGenerator = async (
         ...args: Parameters<typeof responseGenerator>
       ): ReturnType<typeof responseGenerator> => {
-        let cache: CacheScopeStore['cache'] | undefined
-
         if (this.renderOpts.dev) {
-          cache = this.prefetchCacheScopesDev.get(urlPathname)
+          let cache = this.prefetchCacheScopesDev.get(urlPathname)
 
           // we need to seed the prefetch cache scope in dev
           // since we did not have a prefetch cache available
@@ -3050,19 +3061,21 @@ export default abstract class Server<
             delete req.headers[RSC_HEADER]
             delete req.headers[NEXT_ROUTER_PREFETCH_HEADER]
           }
+
+          if (cache) {
+            return runWithCacheScope({ cache }, () =>
+              originalResponseGenerator(...args)
+            ).finally(() => {
+              if (isPrefetchRSCRequest) {
+                this.prefetchCacheScopesDev.set(urlPathname, cache)
+              } else {
+                this.prefetchCacheScopesDev.del(urlPathname)
+              }
+            })
+          }
         }
 
-        return runWithCacheScope({ cache }, () =>
-          originalResponseGenerator(...args)
-        ).finally(() => {
-          if (this.renderOpts.dev) {
-            if (isPrefetchRSCRequest) {
-              this.prefetchCacheScopesDev.set(urlPathname, cache)
-            } else {
-              this.prefetchCacheScopesDev.del(urlPathname)
-            }
-          }
-        })
+        return originalResponseGenerator(...args)
       }
     }
 
@@ -3081,6 +3094,51 @@ export default abstract class Server<
         isRoutePPREnabled,
       }
     )
+
+    if (
+      isRoutePPREnabled &&
+      isPrefetchRSCRequest &&
+      typeof segmentPrefetchHeader === 'string'
+    ) {
+      if (cacheEntry?.value?.kind === CachedRouteKind.APP_PAGE) {
+        // This is a prefetch request for an individual segment's static data.
+        // Unless the segment is fully dynamic, the data should have already been
+        // loaded into the cache, when the page itself was generated. So we should
+        // always either return the cache entry. If no cache entry is available,
+        // it's a 404 — either the segment is fully dynamic, or an invalid segment
+        // path was requested.
+        if (cacheEntry.value.segmentData) {
+          const matchedSegment =
+            cacheEntry.value.segmentData[segmentPrefetchHeader]
+          if (matchedSegment !== undefined) {
+            return {
+              type: 'rsc',
+              body: RenderResult.fromStatic(matchedSegment),
+              // TODO: Eventually this should use revalidate time of the
+              // individual segment, not the whole page.
+              revalidate: cacheEntry.revalidate,
+            }
+          }
+        }
+        // If the segment is not found, return a 404. Since this is an RSC
+        // request, there's no reason to render a 404 page; just return an
+        // empty response.
+        res.statusCode = 404
+        return {
+          type: 'rsc',
+          body: RenderResult.fromStatic(''),
+          revalidate: cacheEntry.revalidate,
+        }
+      } else {
+        // Segment prefetches should never reach the application layer. If
+        // there's no cache entry for this page, it's a 404.
+        res.statusCode = 404
+        return {
+          type: 'rsc',
+          body: RenderResult.fromStatic(''),
+        }
+      }
+    }
 
     if (isPreviewMode) {
       res.setHeader(
@@ -3280,7 +3338,7 @@ export default abstract class Server<
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            swrDelta: this.nextConfig.swrDelta,
+            expireTime: this.nextConfig.expireTime,
           })
         )
       }
@@ -3303,7 +3361,7 @@ export default abstract class Server<
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            swrDelta: this.nextConfig.swrDelta,
+            expireTime: this.nextConfig.expireTime,
           })
         )
       }

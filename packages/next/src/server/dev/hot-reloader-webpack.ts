@@ -7,7 +7,10 @@ import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
-import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware'
+import {
+  getOverlayMiddleware,
+  getSourceMapMiddleware,
+} from '../../client/components/react-dev-overlay/server/middleware'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
 import {
@@ -229,7 +232,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private dir: string
   private buildId: string
   private encryptionKey: string
-  private interceptors: any[]
+  private middlewares: ((
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: () => void
+  ) => Promise<void>)[]
   private pagesDir?: string
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
@@ -297,7 +304,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.buildId = buildId
     this.encryptionKey = encryptionKey
     this.dir = dir
-    this.interceptors = []
+    this.middlewares = []
     this.pagesDir = pagesDir
     this.appDir = appDir
     this.distDir = distDir
@@ -379,13 +386,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     const { finished } = await handlePageBundleRequest(res, parsedUrl)
 
-    for (const fn of this.interceptors) {
-      await new Promise<void>((resolve, reject) => {
-        fn(req, res, (err: Error) => {
-          if (err) return reject(err)
-          resolve()
-        })
+    for (const middleware of this.middlewares) {
+      let calledNext = false
+
+      await middleware(req, res, () => {
+        calledNext = true
       })
+
+      if (!calledNext) {
+        return { finished: true }
+      }
     }
 
     return { finished }
@@ -1491,10 +1501,17 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
     })
 
-    this.interceptors = [
+    this.middlewares = [
       getOverlayMiddleware({
+        distDirectory: this.distDir,
         rootDirectory: this.dir,
-        stats: () => this.clientStats,
+        clientStats: () => this.clientStats,
+        serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
+      }),
+      getSourceMapMiddleware({
+        distDirectory: this.distDir,
+        clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),

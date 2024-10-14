@@ -47,5 +47,11 @@ function createDate(originalConstructor: typeof Date): typeof Date {
   return newConstructor as typeof Date
 }
 
-// eslint-disable-next-line no-native-reassign
-Date = createDate(Date)
+try {
+  // eslint-disable-next-line no-native-reassign
+  Date = createDate(Date)
+} catch {
+  console.error(
+    'Failed to install `Date` class extension. When using `experimental.dynamicIO`, APIs that read the current time will not correctly trigger dynamic behavior.'
+  )
+}

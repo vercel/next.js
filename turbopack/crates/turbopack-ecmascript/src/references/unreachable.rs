@@ -124,7 +124,7 @@ impl CodeGenerateable for Unreachable {
             }
         };
 
-        Ok(CodeGeneration { visitors }.cell())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 

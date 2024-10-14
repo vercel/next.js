@@ -46,6 +46,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/dynamic-metadata-static-route',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -87,6 +88,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/dynamic-metadata-dynamic-route',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -127,6 +129,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/dynamic-viewport-static-route',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -168,6 +171,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/dynamic-viewport-dynamic-route',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -208,6 +212,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/static',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -244,6 +249,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/dynamic-root',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -301,6 +307,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/dynamic-boundary',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {

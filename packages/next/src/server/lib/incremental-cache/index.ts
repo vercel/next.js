@@ -10,7 +10,7 @@ import {
 import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
-import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope'
+import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope.external'
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
@@ -23,6 +23,7 @@ import {
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
 import { SharedRevalidateTimings } from './shared-revalidate-timings'
+import { getBuiltinRequestContext } from '../../after/builtin-request-context'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -120,6 +121,13 @@ export class IncrementalCache implements IncrementalCacheType {
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
+
+    const globalCacheHandler = getBuiltinRequestContext()?.NextCacheHandler
+
+    if (globalCacheHandler) {
+      CurCacheHandler = globalCacheHandler
+    }
+
     if (!CurCacheHandler) {
       if (fs && serverDistDir) {
         if (debug) {
@@ -406,7 +414,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
       const cacheScope = cacheScopeAsyncLocalStorage.getStore()
 
-      if (cacheScope?.cache) {
+      if (cacheScope) {
         const memoryCacheData = cacheScope.cache.get(cacheKey)
 
         if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
@@ -530,7 +538,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
       const cacheScope = cacheScopeAsyncLocalStorage.getStore()
 
-      if (cacheScope?.cache) {
+      if (cacheScope) {
         cacheScope.cache.set(pathname, data)
       }
     }

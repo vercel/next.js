@@ -6,7 +6,7 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
-import { isWebpackServerOnlyLayer } from '../utils'
+import { isWebpackServerOnlyLayer, isWebpackAppPagesLayer } from '../utils'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -82,6 +82,7 @@ function getBaseSWCOptions({
   bundleLayer?: WebpackLayerName
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
+  const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -202,7 +203,7 @@ function getBaseSWCOptions({
           }
         : undefined,
     serverActions:
-      serverComponents && !jest
+      isAppRouterPagesLayer && !jest
         ? {
             // always enable server actions
             // TODO: remove this option
@@ -214,6 +215,7 @@ function getBaseSWCOptions({
     // For app router we prefer to bundle ESM,
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
+    lintCodemodComments: true,
   }
 }
 

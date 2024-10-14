@@ -8,6 +8,8 @@ const cacheExports = {
   unstable_noStore:
     require('next/dist/server/web/spec-extension/unstable-no-store')
       .unstable_noStore,
+  unstable_cacheLife: require('next/dist/server/use-cache/cache-life'),
+  unstable_cacheTag: require('next/dist/server/use-cache/cache-tag'),
 }
 
 // https://nodejs.org/api/esm.html#commonjs-namespaces

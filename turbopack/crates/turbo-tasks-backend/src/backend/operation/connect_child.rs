@@ -12,6 +12,7 @@ use crate::{
             is_root_node, ExecuteContext, Operation,
         },
         storage::get,
+        TaskDataCategory,
     },
     data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey},
 };
@@ -28,21 +29,21 @@ pub enum ConnectChildOperation {
 }
 
 impl ConnectChildOperation {
-    pub fn run(parent_task_id: TaskId, child_task_id: TaskId, ctx: ExecuteContext<'_>) {
-        let mut parent_task = ctx.task(parent_task_id);
-        parent_task.remove(&CachedDataItemKey::OutdatedChild {
-            task: child_task_id,
-        });
+    pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: ExecuteContext<'_>) {
+        let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
+        // Quick skip if the child was already connected before
+        if parent_task
+            .remove(&CachedDataItemKey::OutdatedChild {
+                task: child_task_id,
+            })
+            .is_some()
+        {
+            return;
+        }
         if parent_task.add(CachedDataItem::Child {
             task: child_task_id,
             value: (),
         }) {
-            // When task is added to a AggregateRoot is need to be scheduled,
-            // indirect connections are handled by the aggregation update.
-            let mut should_schedule = false;
-            if parent_task.has_key(&CachedDataItemKey::AggregateRoot {}) {
-                should_schedule = true;
-            }
             // Update the task aggregation
             let mut queue = AggregationUpdateQueue::new();
 
@@ -108,27 +109,27 @@ impl ConnectChildOperation {
             drop(parent_task);
 
             {
-                let mut task = ctx.task(child_task_id);
-                should_schedule = should_schedule || !task.has_key(&CachedDataItemKey::Output {});
-                if should_schedule {
+                let mut task = ctx.task(child_task_id, TaskDataCategory::Data);
+                if !task.has_key(&CachedDataItemKey::Output {}) {
                     let description = ctx.backend.get_task_desc_fn(child_task_id);
-                    should_schedule = task.add(CachedDataItem::new_scheduled(description));
+                    let should_schedule = task.add(CachedDataItem::new_scheduled(description));
+                    drop(task);
+                    if should_schedule {
+                        ctx.schedule(child_task_id);
+                    }
                 }
-            }
-            if should_schedule {
-                ctx.schedule(child_task_id);
             }
 
             ConnectChildOperation::UpdateAggregation {
                 aggregation_update: queue,
             }
-            .execute(&ctx);
+            .execute(&mut ctx);
         }
     }
 }
 
 impl Operation for ConnectChildOperation {
-    fn execute(mut self, ctx: &ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {

@@ -46,6 +46,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/sync-random-with-fallback',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -91,6 +92,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/sync-random-without-fallback',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {

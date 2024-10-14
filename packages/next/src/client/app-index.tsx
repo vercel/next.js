@@ -11,6 +11,7 @@ import { createFromReadableStream } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './on-recoverable-error'
 import { callServer } from './app-call-server'
+import { findSourceMapURL } from './app-find-source-map-url'
 import {
   type AppRouterActionQueue,
   createMutableActionQueue,
@@ -19,9 +20,6 @@ import AppRouter from './components/app-router'
 import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
-
-// Importing from dist so that we can define an alias if needed.
-import { findSourceMapURL } from 'next/dist/client/app-find-source-map-url'
 
 /// <reference types="react-dom/experimental" />
 
@@ -141,10 +139,10 @@ const readable = new ReadableStream({
   },
 })
 
-const initialServerResponse = createFromReadableStream(readable, {
-  callServer,
-  findSourceMapURL,
-})
+const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
+  readable,
+  { callServer, findSourceMapURL }
+)
 
 // React overrides `.then` and doesn't return a new promise chain,
 // so we wrap the action queue in a promise to ensure that its value
@@ -153,7 +151,7 @@ const initialServerResponse = createFromReadableStream(readable, {
 const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
   (resolve, reject) => {
     initialServerResponse.then(
-      (initialRSCPayload: InitialRSCPayload) => {
+      (initialRSCPayload) => {
         resolve(
           createMutableActionQueue(
             createInitialRouterState({
@@ -175,7 +173,7 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
 )
 
 function ServerRoot(): React.ReactNode {
-  const initialRSCPayload = use<InitialRSCPayload>(initialServerResponse)
+  const initialRSCPayload = use(initialServerResponse)
   const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
 
   const router = (

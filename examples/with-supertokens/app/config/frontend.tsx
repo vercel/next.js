@@ -7,15 +7,15 @@ import { SuperTokensConfig } from "supertokens-auth-react/lib/build/types";
 import { ThirdPartyPreBuiltUI } from "supertokens-auth-react/recipe/thirdparty/prebuiltui";
 import { EmailPasswordPreBuiltUI } from "supertokens-auth-react/recipe/emailpassword/prebuiltui";
 
-const routerInfo: { router?: ReturnType<typeof useRouter>; pathName?: string } =
+const routerInfo: { router?: ReturnType<typeof useRouter>; pathname?: string } =
   {};
 
 export function setRouter(
   router: ReturnType<typeof useRouter>,
-  pathName: string,
+  pathname: string,
 ) {
   routerInfo.router = router;
-  routerInfo.pathName = pathName;
+  routerInfo.pathname = pathname;
 }
 
 export const frontendConfig = (): SuperTokensConfig => {
@@ -39,7 +39,7 @@ export const frontendConfig = (): SuperTokensConfig => {
         ...orig,
         location: {
           ...orig.location,
-          getPathName: () => routerInfo.pathName!,
+          getPathname: () => routerInfo.pathname!,
           assign: (url) => routerInfo.router!.push(url.toString()),
           setHref: (url) => routerInfo.router!.push(url.toString()),
         },

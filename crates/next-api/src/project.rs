@@ -223,7 +223,9 @@ impl ProjectContainer {
         let project = self.project();
         let project_fs = project.project_fs().strongly_consistent().await?;
         if watch.enable {
-            project_fs.start_watching_with_invalidation_reason(watch.poll_interval)?;
+            project_fs
+                .start_watching_with_invalidation_reason(watch.poll_interval)
+                .await?;
         } else {
             project_fs.invalidate_with_reason();
         }
@@ -304,7 +306,9 @@ impl ProjectContainer {
         if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
             if watch.enable {
                 // TODO stop watching: prev_project_fs.stop_watching()?;
-                project_fs.start_watching_with_invalidation_reason(watch.poll_interval)?;
+                project_fs
+                    .start_watching_with_invalidation_reason(watch.poll_interval)
+                    .await?;
             } else {
                 project_fs.invalidate_with_reason();
             }
@@ -616,6 +620,13 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn js_config(&self) -> Vc<JsConfig> {
         self.js_config
+    }
+
+    #[turbo_tasks::function]
+    pub(super) async fn should_create_webpack_stats(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.env.read("TURBOPACK_STATS".into()).await?.is_some(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1274,7 +1285,7 @@ impl Project {
             }
             None => match *self.next_mode().await? {
                 NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
-                NextMode::Build => Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self))),
+                NextMode::Build => Ok(Vc::upcast(DevModuleIdStrategy::new())),
             },
         }
     }

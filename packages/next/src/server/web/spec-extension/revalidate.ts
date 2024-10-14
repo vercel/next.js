@@ -4,8 +4,8 @@ import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
   NEXT_CACHE_SOFT_TAG_MAX_LENGTH,
 } from '../../../lib/constants'
-import { workAsyncStorage } from '../../../client/components/work-async-storage.external'
-import { workUnitAsyncStorage } from '../../../server/app-render/work-unit-async-storage.external'
+import { workAsyncStorage } from '../../app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
 
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
@@ -58,6 +58,11 @@ function revalidate(tag: string, expression: string) {
     } else if (workUnitStore.type === 'unstable-cache') {
       throw new Error(
         `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+      )
+    }
+    if (workUnitStore.phase === 'render') {
+      throw new Error(
+        `Route ${store.route} used "${expression}" during render which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
   }

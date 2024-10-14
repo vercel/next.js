@@ -189,7 +189,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
             }),
         );
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 

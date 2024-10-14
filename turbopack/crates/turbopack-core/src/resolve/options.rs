@@ -37,10 +37,6 @@ pub enum ResolveModules {
         dir: Vc<FileSystemPath>,
         excluded_extensions: Vc<ExcludedExtensions>,
     },
-    /// lookup versions based on lockfile in the registry filesystem
-    /// registry filesystem is assumed to have structure like
-    /// @scope/module/version/<path-in-package>
-    Registry(Vc<FileSystemPath>, Vc<LockedVersions>),
 }
 
 #[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]

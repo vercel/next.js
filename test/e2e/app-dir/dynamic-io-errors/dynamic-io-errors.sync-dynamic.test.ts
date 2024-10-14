@@ -46,6 +46,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/sync-client-search-with-fallback',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -91,6 +92,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/sync-client-search-without-fallback',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -138,6 +140,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/sync-server-search-with-fallback',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -183,6 +186,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/sync-server-search-without-fallback',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -238,6 +242,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/sync-cookies-with-fallback',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {
@@ -283,6 +288,7 @@ function runTests(options: { withMinification: boolean }) {
       const { next, isNextDev, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/sync-cookies-without-fallback',
         skipStart: true,
+        skipDeployment: true,
       })
 
       if (skipped) {

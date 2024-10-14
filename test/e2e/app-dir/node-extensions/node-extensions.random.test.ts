@@ -5,6 +5,7 @@ describe('Node Extensions', () => {
     describe('Dynamic IO', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname + '/fixtures/random/dynamic-io',
+        skipDeployment: true,
       })
 
       if (skipped) {

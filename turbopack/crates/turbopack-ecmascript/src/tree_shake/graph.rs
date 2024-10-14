@@ -481,6 +481,10 @@ impl DepGraph {
                 .idx_graph
                 .neighbors_directed(ix as u32, petgraph::Direction::Outgoing)
             {
+                if dep == ix as u32 {
+                    continue;
+                }
+
                 if !part_deps_done.insert(dep) {
                     continue;
                 }

@@ -22,13 +22,13 @@ use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
+use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, UpdateInfo, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
     issue::PlainIssue,
-    source_map::Token,
+    source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
     SOURCE_MAP_PREFIX,
 };
@@ -44,7 +44,7 @@ use super::{
     endpoint::ExternalEndpoint,
     utils::{
         create_turbo_tasks, get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue,
-        NextBackend, RootTask, TurbopackResult, VcArc,
+        NextTurboTasks, RootTask, TurbopackResult, VcArc,
     },
 };
 use crate::register;
@@ -188,6 +188,8 @@ pub struct NapiDefineEnv {
 
 #[napi(object)]
 pub struct NapiTurboEngineOptions {
+    /// Use the new backend with persistent caching enabled.
+    pub persistent_caching: Option<bool>,
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
 }
@@ -272,7 +274,7 @@ impl From<NapiDefineEnv> for DefineEnv {
 }
 
 pub struct ProjectInstance {
-    turbo_tasks: Arc<TurboTasks<NextBackend>>,
+    turbo_tasks: NextTurboTasks,
     container: Vc<ProjectContainer>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
 }
@@ -338,13 +340,20 @@ pub async fn project_new(
         .memory_limit
         .map(|m| m as usize)
         .unwrap_or(usize::MAX);
-    let turbo_tasks = create_turbo_tasks(PathBuf::from(&options.dist_dir), memory_limit)?;
-    #[cfg(not(feature = "new-backend"))]
-    {
+    let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
+    let turbo_tasks = create_turbo_tasks(
+        PathBuf::from(&options.dist_dir),
+        persistent_caching,
+        memory_limit,
+    )?;
+    if !persistent_caching {
         use std::io::Write;
         let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
         if let Some(stats_path) = stats_path {
-            let task_stats = turbo_tasks.backend().task_statistics().enable().clone();
+            let Some(backend) = turbo_tasks.memory_backend() else {
+                return Err(anyhow!("task statistics require a memory backend").into());
+            };
+            let task_stats = backend.task_statistics().enable().clone();
             exit.on_exit(async move {
                 tokio::task::spawn_blocking(move || {
                     let mut file = std::fs::File::create(&stats_path)
@@ -498,11 +507,7 @@ struct NapiRoute {
 }
 
 impl NapiRoute {
-    fn from_route(
-        pathname: String,
-        value: Route,
-        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
-    ) -> Self {
+    fn from_route(pathname: String, value: Route, turbo_tasks: &NextTurboTasks) -> Self {
         let convert_endpoint = |endpoint: Vc<Box<dyn Endpoint>>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -566,10 +571,7 @@ struct NapiMiddleware {
 }
 
 impl NapiMiddleware {
-    fn from_middleware(
-        value: &Middleware,
-        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
-    ) -> Result<Self> {
+    fn from_middleware(value: &Middleware, turbo_tasks: &NextTurboTasks) -> Result<Self> {
         Ok(NapiMiddleware {
             endpoint: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -586,10 +588,7 @@ struct NapiInstrumentation {
 }
 
 impl NapiInstrumentation {
-    fn from_instrumentation(
-        value: &Instrumentation,
-        turbo_tasks: &Arc<TurboTasks<NextBackend>>,
-    ) -> Result<Self> {
+    fn from_instrumentation(value: &Instrumentation, turbo_tasks: &NextTurboTasks) -> Result<Self> {
         Ok(NapiInstrumentation {
             node_js: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -1003,73 +1002,75 @@ pub struct StackFrame {
     pub method_name: Option<String>,
 }
 
+pub async fn get_source_map(
+    container: Vc<ProjectContainer>,
+    file_path: String,
+) -> Result<Option<Vc<SourceMap>>> {
+    let (file, module) = match Url::parse(&file_path) {
+        Ok(url) => match url.scheme() {
+            "file" => {
+                let path = urlencoding::decode(url.path())?.to_string();
+                let module = url.query_pairs().find(|(k, _)| k == "id");
+                (
+                    path,
+                    match module {
+                        Some(module) => Some(urlencoding::decode(&module.1)?.into_owned().into()),
+                        None => None,
+                    },
+                )
+            }
+            _ => bail!("Unknown url scheme"),
+        },
+        Err(_) => (file_path.to_string(), None),
+    };
+
+    let Some(chunk_base) = file.strip_prefix(
+        &(format!(
+            "{}/{}/",
+            container.project().await?.project_path,
+            container.project().dist_dir().await?
+        )),
+    ) else {
+        // File doesn't exist within the dist dir
+        return Ok(None);
+    };
+
+    let server_path = container.project().node_root().join(chunk_base.into());
+
+    let client_path = container
+        .project()
+        .client_relative_path()
+        .join(chunk_base.into());
+
+    let mut map = container
+        .get_source_map(server_path, module.clone())
+        .await?;
+
+    if map.is_none() {
+        // If the chunk doesn't exist as a server chunk, try a client chunk.
+        // TODO: Properly tag all server chunks and use the `isServer` query param.
+        // Currently, this is inaccurate as it does not cover RSC server
+        // chunks.
+        map = container.get_source_map(client_path, module).await?;
+    }
+
+    let map = map.context("chunk/module is missing a sourcemap")?;
+
+    Ok(Some(map))
+}
+
 #[napi]
 pub async fn project_trace_source(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     frame: StackFrame,
 ) -> napi::Result<Option<StackFrame>> {
     let turbo_tasks = project.turbo_tasks.clone();
+    let container = project.container;
     let traced_frame = turbo_tasks
         .run_once(async move {
-            let (file, module) = match Url::parse(&frame.file) {
-                Ok(url) => match url.scheme() {
-                    "file" => {
-                        let path = urlencoding::decode(url.path())?.to_string();
-                        let module = url.query_pairs().find(|(k, _)| k == "id");
-                        (
-                            path,
-                            match module {
-                                Some(module) => {
-                                    Some(urlencoding::decode(&module.1)?.into_owned().into())
-                                }
-                                None => None,
-                            },
-                        )
-                    }
-                    _ => bail!("Unknown url scheme"),
-                },
-                Err(_) => (frame.file.to_string(), None),
-            };
-
-            let Some(chunk_base) = file.strip_prefix(
-                &(format!(
-                    "{}/{}/",
-                    project.container.project().await?.project_path,
-                    project.container.project().dist_dir().await?
-                )),
-            ) else {
-                // File doesn't exist within the dist dir
+            let Some(map) = get_source_map(container, frame.file).await? else {
                 return Ok(None);
             };
-
-            let server_path = project
-                .container
-                .project()
-                .node_root()
-                .join(chunk_base.into());
-
-            let client_path = project
-                .container
-                .project()
-                .client_relative_path()
-                .join(chunk_base.into());
-
-            let mut map = project
-                .container
-                .get_source_map(server_path, module.clone())
-                .await?;
-
-            if map.is_none() {
-                // If the chunk doesn't exist as a server chunk, try a client chunk.
-                // TODO: Properly tag all server chunks and use the `isServer` query param.
-                // Currently, this is inaccurate as it does not cover RSC server
-                // chunks.
-                map = project
-                    .container
-                    .get_source_map(client_path, module)
-                    .await?;
-            }
-            let map = map.context("chunk/module is missing a sourcemap")?;
 
             let Some(line) = frame.line else {
                 return Ok(None);
@@ -1151,6 +1152,28 @@ pub async fn project_get_source_for_asset(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
     Ok(source)
+}
+
+#[napi]
+pub async fn project_get_source_map(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: String,
+) -> napi::Result<Option<String>> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let container = project.container;
+
+    let source_map = turbo_tasks
+        .run_once(async move {
+            let Some(map) = get_source_map(container, file_path).await? else {
+                return Ok(None);
+            };
+
+            Ok(Some(map.to_rope().await?.to_str()?.to_string()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(source_map)
 }
 
 /// Runs exit handlers for the project registered using the [`ExitHandler`] API.

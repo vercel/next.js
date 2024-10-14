@@ -16,8 +16,7 @@ use super::{
 use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor,
-    references::esm::base::{insert_hoisted_stmt, ReferencedAsset},
+    references::esm::base::ReferencedAsset,
     utils::module_id_to_lit,
 };
 
@@ -109,8 +108,6 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let mut visitors = Vec::new();
-
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
         let ident = referenced_asset
@@ -126,15 +123,13 @@ impl CodeGenerateable for EcmascriptModulePartReference {
             .id()
             .await?;
 
-        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-            let stmt = quote!(
+        Ok(CodeGeneration::hoisted_stmt(
+            ident.clone().into(),
+            quote!(
                 "var $name = __turbopack_import__($id);" as Stmt,
                 name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                 id: Expr = module_id_to_lit(&id),
-            );
-            insert_hoisted_stmt(program, stmt);
-        }));
-
-        Ok(CodeGeneration { visitors }.into())
+            ),
+        ))
     }
 }

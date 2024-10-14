@@ -529,9 +529,13 @@ pub trait Backend: Sync + Send {
 
     #[allow(unused_variables)]
     fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    #[allow(unused_variables)]
+    fn stopping(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
     #[allow(unused_variables)]
     fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    #[allow(unused_variables)]
+    fn idle_end(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
 
     fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
@@ -713,7 +717,7 @@ pub trait Backend: Sync + Send {
         // Do nothing by default
     }
 
-    fn mark_own_task_as_dirty_when_persisted(
+    fn mark_own_task_as_session_dependent(
         &self,
         _task: TaskId,
         _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
