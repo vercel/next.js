@@ -5,6 +5,7 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 import { loadEntrypoint } from '../../../load-entrypoint'
+import { isMetadataRoute } from '../../../../lib/metadata/is-metadata-route'
 
 export type EdgeAppRouteLoaderQuery = {
   absolutePagePath: string
@@ -36,7 +37,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     const buildInfo = getModuleBuildInfo(this._module)
 
     buildInfo.nextEdgeSSR = {
-      isServerComponent: true, // Needed for 'use cache'.
+      isServerComponent: !isMetadataRoute(page), // Needed for 'use cache'.
       page: page,
       isAppDir: true,
     }
