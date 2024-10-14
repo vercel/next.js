@@ -72,6 +72,11 @@ export function headers(): Promise<ReadonlyHeaders> {
         throw new Error(
           `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
         )
+      } else if (workUnitStore.phase === 'after') {
+        throw new Error(
+          // TODO(after): "close over it" is bad phrasing
+          `Route ${workStore.route} used "headers" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "headers" outside of the callback and close over it. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_after`
+        )
       }
     }
     if (workStore.dynamicShouldError) {

@@ -30,4 +30,48 @@ describe('unstable_after() - invalid usages', () => {
     )
     expect(getLogs()).toHaveLength(0)
   })
+
+  describe('invalid calls inside after', () => {
+    const paths = [
+      {
+        title: 'connection',
+        path: '/dynamic-apis/connection',
+      },
+      {
+        title: 'connection - promise',
+        path: '/dynamic-apis/connection/indirect',
+      },
+      {
+        title: 'cookies',
+        path: '/dynamic-apis/cookies',
+      },
+      {
+        title: 'cookies - promise',
+        path: '/dynamic-apis/cookies/indirect',
+      },
+      {
+        title: 'draftMode',
+        path: '/dynamic-apis/draft-mode',
+      },
+      {
+        title: 'draftMode - promise',
+        path: '/dynamic-apis/draft-mode/indirect',
+      },
+      {
+        title: 'headers',
+        path: '/dynamic-apis/headers',
+      },
+      {
+        title: 'headers - promise',
+        path: '/dynamic-apis/headers/indirect',
+      },
+      // { title: 'dynamic params', path: '/dynamic-apis/dynamic-params' },
+    ]
+    it.each(paths)('$title', async ({ path }) => {
+      // TODO(after): implement these tests, and do something about the "indirect" test cases. also need to test DIO
+      const res = await next.fetch(path)
+      await res.text()
+      throw new Error('TODO')
+    })
+  })
 })

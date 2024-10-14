@@ -2,5 +2,7 @@
 module.exports = {
   experimental: {
     after: true,
+    // dynamicIO: true,
+    prerenderEarlyExit: false,
   },
 }

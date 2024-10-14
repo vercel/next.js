@@ -33,6 +33,10 @@ export function connection(): Promise<void> {
         throw new Error(
           `Route ${workStore.route} used "connection" inside a function cached with "unstable_cache(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
         )
+      } else if (workUnitStore.phase === 'after') {
+        throw new Error(
+          `Route ${workStore.route} used "connection" inside "unstable_after(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but "unstable_after(...)" executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_after`
+        )
       }
     }
     if (workStore.dynamicShouldError) {

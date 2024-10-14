@@ -35,23 +35,29 @@ export function draftMode(): Promise<DraftMode> {
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (
-    workUnitStore &&
-    (workUnitStore.type === 'cache' ||
+  if (workUnitStore) {
+    if (workStore && workUnitStore.phase === 'after') {
+      throw new Error(
+        `Route ${workStore.route} used "draftMode" inside "unstable_after(...)". This is not supported, because "unstable_after(...)" runs after the request is finished and cannot affect the response. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_after`
+      )
+    }
+    if (
+      workUnitStore.type === 'cache' ||
       workUnitStore.type === 'unstable-cache' ||
       workUnitStore.type === 'prerender' ||
       workUnitStore.type === 'prerender-ppr' ||
-      workUnitStore.type === 'prerender-legacy')
-  ) {
-    // Return empty draft mode
-    if (
-      process.env.NODE_ENV === 'development' &&
-      !workStore?.isPrefetchRequest
+      workUnitStore.type === 'prerender-legacy'
     ) {
-      const route = workStore?.route
-      return createExoticDraftModeWithDevWarnings(null, route)
-    } else {
-      return createExoticDraftMode(null)
+      // Return empty draft mode
+      if (
+        process.env.NODE_ENV === 'development' &&
+        !workStore?.isPrefetchRequest
+      ) {
+        const route = workStore?.route
+        return createExoticDraftModeWithDevWarnings(null, route)
+      } else {
+        return createExoticDraftMode(null)
+      }
     }
   }
 
