@@ -1,10 +1,11 @@
 use std::{
     cmp::{max, Ordering},
-    collections::VecDeque,
+    collections::{hash_map::Entry as HashMapEntry, VecDeque},
     num::NonZeroU32,
 };
 
 use indexmap::map::Entry;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_tasks::{FxIndexMap, FxIndexSet, SessionId, TaskId};
@@ -315,7 +316,7 @@ impl AggregatedDataUpdate {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 struct AggregationNumberUpdate {
     base_aggregation_number: u32,
     distance: Option<NonZeroU32>,
@@ -325,7 +326,10 @@ struct AggregationNumberUpdate {
 pub struct AggregationUpdateQueue {
     jobs: VecDeque<AggregationUpdateJob>,
     number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
+    done_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
     find_and_schedule: FxIndexSet<TaskId>,
+    done_find_and_schedule: FxHashSet<TaskId>,
+    balance_queue: FxIndexSet<(TaskId, TaskId)>,
 }
 
 impl AggregationUpdateQueue {
@@ -333,7 +337,10 @@ impl AggregationUpdateQueue {
         Self {
             jobs: VecDeque::with_capacity(8),
             number_updates: FxIndexMap::default(),
+            done_number_updates: FxHashMap::default(),
             find_and_schedule: FxIndexSet::default(),
+            done_find_and_schedule: FxHashSet::default(),
+            balance_queue: FxIndexSet::default(),
         }
     }
 
@@ -362,12 +369,33 @@ impl AggregationUpdateQueue {
                         }
                     }
                     Entry::Vacant(entry) => {
+                        match self.done_number_updates.entry(task_id) {
+                            HashMapEntry::Occupied(mut entry) => {
+                                let update = entry.get_mut();
+                                let change =
+                                    if update.base_aggregation_number < base_aggregation_number {
+                                        true
+                                    } else if let Some(distance) = distance {
+                                        update.distance.map_or(true, |d| d < distance)
+                                    } else {
+                                        false
+                                    };
+                                if !change {
+                                    return;
+                                }
+                                entry.remove();
+                            }
+                            HashMapEntry::Vacant(_) => {}
+                        }
                         entry.insert(AggregationNumberUpdate {
                             base_aggregation_number,
                             distance,
                         });
                     }
                 };
+            }
+            AggregationUpdateJob::BalanceEdge { upper_id, task_id } => {
+                self.balance_queue.insert((upper_id, task_id));
             }
             _ => {
                 self.jobs.push_back(job);
@@ -376,15 +404,23 @@ impl AggregationUpdateQueue {
     }
 
     pub fn extend(&mut self, jobs: impl IntoIterator<Item = AggregationUpdateJob>) {
-        self.jobs.extend(jobs);
+        for job in jobs {
+            self.push(job);
+        }
     }
 
     pub fn push_find_and_schedule_dirty(&mut self, task_id: TaskId) {
-        self.find_and_schedule.insert(task_id);
+        if !self.done_find_and_schedule.contains(&task_id) {
+            self.find_and_schedule.insert(task_id);
+        }
     }
 
     pub fn extend_find_and_schedule_dirty(&mut self, task_ids: impl IntoIterator<Item = TaskId>) {
-        self.find_and_schedule.extend(task_ids);
+        self.find_and_schedule.extend(
+            task_ids
+                .into_iter()
+                .filter(|task_id| !self.done_find_and_schedule.contains(task_id)),
+        );
     }
 
     pub fn run(job: AggregationUpdateJob, ctx: &mut ExecuteContext<'_>) {
@@ -396,7 +432,8 @@ impl AggregationUpdateQueue {
     pub fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
         if let Some(job) = self.jobs.pop_front() {
             match job {
-                AggregationUpdateJob::UpdateAggregationNumber { .. } => {
+                AggregationUpdateJob::UpdateAggregationNumber { .. }
+                | AggregationUpdateJob::BalanceEdge { .. } => {
                     // These jobs are never pushed to the queue
                     unreachable!();
                 }
@@ -501,9 +538,6 @@ impl AggregationUpdateQueue {
                 AggregationUpdateJob::AggregatedDataUpdate { upper_ids, update } => {
                     self.aggregated_data_update(upper_ids, ctx, update);
                 }
-                AggregationUpdateJob::BalanceEdge { upper_id, task_id } => {
-                    self.balance_edge(ctx, upper_id, task_id);
-                }
                 AggregationUpdateJob::Invalidate { task_ids } => {
                     for task_id in task_ids {
                         make_task_dirty(task_id, self, ctx);
@@ -515,6 +549,7 @@ impl AggregationUpdateQueue {
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
                 if let Some((task_id, update)) = self.number_updates.pop() {
+                    self.done_number_updates.insert(task_id, update);
                     self.update_aggregation_number(
                         ctx,
                         task_id,
@@ -532,6 +567,17 @@ impl AggregationUpdateQueue {
             while remaining > 0 {
                 if let Some(task_id) = self.find_and_schedule.pop() {
                     self.find_and_schedule_dirty(task_id, ctx);
+                    remaining -= 1;
+                } else {
+                    break;
+                }
+            }
+            false
+        } else if !self.balance_queue.is_empty() {
+            let mut remaining = MAX_COUNT_BEFORE_YIELD;
+            while remaining > 0 {
+                if let Some((upper_id, task_id)) = self.balance_queue.pop() {
+                    self.balance_edge(ctx, upper_id, task_id);
                     remaining -= 1;
                 } else {
                     break;
