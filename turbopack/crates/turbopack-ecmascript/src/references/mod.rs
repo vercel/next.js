@@ -26,7 +26,6 @@ use std::{
 use anyhow::{bail, Result};
 use constant_condition::{ConstantCondition, ConstantConditionValue};
 use constant_value::ConstantValue;
-use indexmap::IndexSet;
 use lazy_static::lazy_static;
 use num_traits::Zero;
 use once_cell::sync::Lazy;
@@ -51,7 +50,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{RcStr, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
@@ -161,10 +160,10 @@ pub struct AnalyzeEcmascriptModuleResult {
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
 pub struct AnalyzeEcmascriptModuleResultBuilder {
-    references: IndexSet<Vc<Box<dyn ModuleReference>>>,
-    local_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
-    reexport_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
-    evaluation_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
+    references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    local_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    reexport_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    evaluation_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
     code_gens: Vec<CodeGen>,
     exports: EcmascriptExports,
     async_module: Vc<OptionAsyncModule>,
@@ -176,10 +175,10 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
 impl AnalyzeEcmascriptModuleResultBuilder {
     pub fn new() -> Self {
         Self {
-            references: IndexSet::new(),
-            local_references: IndexSet::new(),
-            reexport_references: IndexSet::new(),
-            evaluation_references: IndexSet::new(),
+            references: FxIndexSet::default(),
+            local_references: FxIndexSet::default(),
+            reexport_references: FxIndexSet::default(),
+            evaluation_references: FxIndexSet::default(),
             code_gens: Vec::new(),
             exports: EcmascriptExports::None,
             async_module: Vc::cell(None),

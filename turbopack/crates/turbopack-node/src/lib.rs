@@ -7,11 +7,10 @@
 use std::{collections::HashMap, iter::once, thread::available_parallelism};
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, RcStr, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, FxIndexSet, RcStr, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
@@ -172,8 +171,8 @@ async fn separate_assets(
         .completed()?
         .into_inner();
 
-    let mut internal_assets = IndexSet::new();
-    let mut external_asset_entrypoints = IndexSet::new();
+    let mut internal_assets = FxIndexSet::default();
+    let mut external_asset_entrypoints = FxIndexSet::default();
 
     for item in graph.into_reverse_topological() {
         match item {

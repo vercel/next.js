@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use indexmap::IndexMap;
 use modularize_imports::{modularize_imports, PackageConfig};
 use serde::{Deserialize, Serialize};
 use swc_core::{
@@ -12,7 +11,7 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
@@ -39,7 +38,7 @@ pub enum Transform {
 
 /// Returns a rule which applies the Next.js modularize imports transform.
 pub fn get_next_modularize_imports_rule(
-    modularize_imports_config: &IndexMap<String, ModularizeImportPackageConfig>,
+    modularize_imports_config: &FxIndexMap<String, ModularizeImportPackageConfig>,
     enable_mdx_rs: bool,
 ) -> ModuleRule {
     let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
@@ -60,7 +59,7 @@ struct ModularizeImportsTransformer {
 }
 
 impl ModularizeImportsTransformer {
-    fn new(packages: &IndexMap<String, ModularizeImportPackageConfig>) -> Self {
+    fn new(packages: &FxIndexMap<String, ModularizeImportPackageConfig>) -> Self {
         Self {
             packages: packages
                 .iter()

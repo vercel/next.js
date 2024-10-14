@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexSet;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, Vc};
 use turbo_tasks_fs::FileContent;
 
 use super::{
@@ -62,7 +61,7 @@ pub async fn children_from_module_references(
     references: Vc<ModuleReferences>,
 ) -> Result<Vc<IntrospectableChildren>> {
     let key = reference_ty();
-    let mut children = IndexSet::new();
+    let mut children = FxIndexSet::default();
     let references = references.await?;
     for reference in &*references {
         let mut key = key;
@@ -107,7 +106,7 @@ pub async fn children_from_output_assets(
     references: Vc<OutputAssets>,
 ) -> Result<Vc<IntrospectableChildren>> {
     let key = reference_ty();
-    let mut children = IndexSet::new();
+    let mut children = FxIndexSet::default();
     let references = references.await?;
     for &reference in &*references {
         children.insert((key, IntrospectableOutputAsset::new(Vc::upcast(reference))));

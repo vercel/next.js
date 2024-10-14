@@ -4,7 +4,6 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, Pattern, Segment},
     dependencies::{Dependency, ImportDependency, Location, SourceRange},
@@ -36,7 +35,7 @@ use swc_core::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -328,7 +327,7 @@ pub enum CssWithPlaceholderResult {
         url_references: Vc<UnresolvedUrlReferences>,
 
         #[turbo_tasks(trace_ignore)]
-        exports: Option<IndexMap<String, CssModuleExport>>,
+        exports: Option<FxIndexMap<String, CssModuleExport>>,
 
         #[turbo_tasks(trace_ignore)]
         placeholders: HashMap<String, Url<'static>>,
@@ -383,7 +382,7 @@ pub async fn process_css_with_placeholder(
                 stylesheet.to_css(cm.clone(), &code, MinifyType::NoMinify, false, false, false)?;
 
             let exports = result.exports.map(|exports| {
-                let mut exports = exports.into_iter().collect::<IndexMap<_, _>>();
+                let mut exports = exports.into_iter().collect::<FxIndexMap<_, _>>();
 
                 exports.sort_keys();
 

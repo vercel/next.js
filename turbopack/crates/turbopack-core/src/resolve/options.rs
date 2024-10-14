@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, RcStr, TryJoinIterExt, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
@@ -22,7 +22,7 @@ pub struct LockedVersions {}
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug)]
-pub struct ExcludedExtensions(pub IndexSet<RcStr>);
+pub struct ExcludedExtensions(pub FxIndexSet<RcStr>);
 
 /// A location where to resolve modules.
 #[derive(

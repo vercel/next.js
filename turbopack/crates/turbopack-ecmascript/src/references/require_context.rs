@@ -1,7 +1,6 @@
 use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
 use anyhow::{bail, Result};
-use indexmap::IndexMap;
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -13,7 +12,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{primitives::Regex, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{primitives::Regex, FxIndexMap, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -52,7 +51,7 @@ pub(crate) enum DirListEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct DirList(IndexMap<RcStr, DirListEntry>);
+pub(crate) struct DirList(FxIndexMap<RcStr, DirListEntry>);
 
 #[turbo_tasks::value_impl]
 impl DirList {
@@ -71,7 +70,7 @@ impl DirList {
         let root_val = &*dir.await?;
         let regex = &*filter.await?;
 
-        let mut list = IndexMap::new();
+        let mut list = FxIndexMap::default();
 
         let dir_content = dir.read_dir().await?;
         let entries = match &*dir_content {
@@ -114,7 +113,7 @@ impl DirList {
 
         let mut queue = VecDeque::from([this]);
 
-        let mut list = IndexMap::new();
+        let mut list = FxIndexMap::default();
 
         while let Some(dir) = queue.pop_front() {
             for (k, entry) in &*dir {
@@ -134,7 +133,7 @@ impl DirList {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FlatDirList(IndexMap<RcStr, Vc<FileSystemPath>>);
+pub(crate) struct FlatDirList(FxIndexMap<RcStr, Vc<FileSystemPath>>);
 
 #[turbo_tasks::value_impl]
 impl FlatDirList {
@@ -154,7 +153,7 @@ pub struct RequireContextMapEntry {
 
 /// The resolved context map for a `require.context(..)` call.
 #[turbo_tasks::value(transparent)]
-pub struct RequireContextMap(IndexMap<RcStr, RequireContextMapEntry>);
+pub struct RequireContextMap(FxIndexMap<RcStr, RequireContextMapEntry>);
 
 #[turbo_tasks::value_impl]
 impl RequireContextMap {
@@ -171,7 +170,7 @@ impl RequireContextMap {
 
         let list = &*FlatDirList::read(dir, recursive, filter).await?;
 
-        let mut map = IndexMap::new();
+        let mut map = FxIndexMap::default();
 
         for (context_relative, path) in list {
             if let Some(origin_relative) = origin_path.get_relative_path_to(&*path.await?) {

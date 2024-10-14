@@ -1,15 +1,11 @@
-use std::{
-    fmt,
-    hash::{BuildHasherDefault, Hash},
-};
+use std::{fmt, hash::Hash};
 
-use indexmap::IndexSet;
 use petgraph::{
     algo::{condensation, has_path_connecting},
     graphmap::GraphMap,
     prelude::DiGraphMap,
 };
-use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
     ecma::{
@@ -24,7 +20,7 @@ use swc_core::{
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
     },
 };
-use turbo_tasks::RcStr;
+use turbo_tasks::{FxIndexSet, RcStr};
 
 use super::{
     util::{
@@ -71,8 +67,6 @@ impl fmt::Debug for ItemId {
     }
 }
 
-type FxBuildHasher = BuildHasherDefault<FxHasher>;
-
 /// Data about a module item
 pub(crate) struct ItemData {
     /// Is the module item hoisted?
@@ -83,10 +77,10 @@ pub(crate) struct ItemData {
     pub pure: bool,
 
     /// Variables declared or bound by this module item
-    pub var_decls: IndexSet<Id, FxBuildHasher>,
+    pub var_decls: FxIndexSet<Id>,
 
     /// Variables read by this module item during evaluation
-    pub read_vars: IndexSet<Id, FxBuildHasher>,
+    pub read_vars: FxIndexSet<Id>,
 
     /// Variables read by this module item eventually
     ///
@@ -97,13 +91,13 @@ pub(crate) struct ItemData {
     /// - Note: This doesn’t mean they are only read “after” initial evaluation. They might also be
     ///   read “during” initial evaluation on any module item with SIDE_EFFECTS. This kind of
     ///   interaction is handled by the module item with SIDE_EFFECTS.
-    pub eventual_read_vars: IndexSet<Id, FxBuildHasher>,
+    pub eventual_read_vars: FxIndexSet<Id>,
 
     /// Side effects that are triggered on local variables during evaluation
-    pub write_vars: IndexSet<Id, FxBuildHasher>,
+    pub write_vars: FxIndexSet<Id>,
 
     /// Side effects that are triggered on local variables eventually
-    pub eventual_write_vars: IndexSet<Id, FxBuildHasher>,
+    pub eventual_write_vars: FxIndexSet<Id>,
 
     /// Any other unknown side effects that are trigger during evaluation
     pub side_effects: bool,
@@ -152,7 +146,7 @@ where
     T: Eq + Hash + Clone,
 {
     pub(super) idx_graph: DiGraphMap<u32, Dependency>,
-    pub(super) graph_ix: IndexSet<T, BuildHasherDefault<FxHasher>>,
+    pub(super) graph_ix: FxIndexSet<T>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -329,7 +323,7 @@ impl DepGraph {
                         .chain(data.eventual_read_vars.iter())
                         .chain(data.eventual_write_vars.iter())
                 })
-                .collect::<IndexSet<_>>();
+                .collect::<FxIndexSet<_>>();
 
             for item in group {
                 if let ItemId::Group(ItemIdGroupKind::Export(id, _)) = item {
@@ -1067,7 +1061,7 @@ impl DepGraph {
                         &top_level_vars,
                     );
                     let var_decls = {
-                        let mut v = IndexSet::with_capacity_and_hasher(1, Default::default());
+                        let mut v = FxIndexSet::with_capacity_and_hasher(1, Default::default());
                         v.insert(f.ident.to_id());
                         v
                     };
@@ -1098,7 +1092,7 @@ impl DepGraph {
                     let mut vars =
                         ids_used_by(&c.class, unresolved_ctxt, top_level_ctxt, &top_level_vars);
                     let var_decls = {
-                        let mut v = IndexSet::with_capacity_and_hasher(1, Default::default());
+                        let mut v = FxIndexSet::with_capacity_and_hasher(1, Default::default());
                         v.insert(c.ident.to_id());
                         v
                     };

@@ -1,7 +1,4 @@
-use std::hash::BuildHasherDefault;
-
-use indexmap::IndexSet;
-use rustc_hash::{FxHashSet, FxHasher};
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::SyntaxContext,
     ecma::{
@@ -14,6 +11,7 @@ use swc_core::{
         visit::{noop_visit_type, Visit, VisitWith},
     },
 };
+use turbo_tasks::FxIndexSet;
 
 use crate::TURBOPACK_HELPER;
 
@@ -194,9 +192,9 @@ impl Visit for IdentUsageCollector<'_> {
 #[derive(Debug, Default)]
 pub(crate) struct Vars {
     /// Variables which are read.
-    pub read: IndexSet<Id, BuildHasherDefault<FxHasher>>,
+    pub read: FxIndexSet<Id>,
     /// Variables which are written.
-    pub write: IndexSet<Id, BuildHasherDefault<FxHasher>>,
+    pub write: FxIndexSet<Id>,
 
     pub found_unresolved: bool,
 }

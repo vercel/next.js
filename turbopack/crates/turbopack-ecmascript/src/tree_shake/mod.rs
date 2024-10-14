@@ -1,7 +1,6 @@
 use std::{borrow::Cow, fmt::Write};
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 use rustc_hash::FxHashMap;
 use swc_core::{
     common::{comments::Comments, util::take::Take, SyntaxContext, DUMMY_SP, GLOBALS},
@@ -13,7 +12,7 @@ use swc_core::{
         codegen::to_code,
     },
 };
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
@@ -95,8 +94,8 @@ impl Analyzer<'_> {
     ///
     ///
     /// Returns all (EVENTUAL_READ/WRITE_VARS) in the module.
-    fn hoist_vars_and_bindings(&mut self) -> IndexSet<Id> {
-        let mut eventual_ids = IndexSet::default();
+    fn hoist_vars_and_bindings(&mut self) -> FxIndexSet<Id> {
+        let mut eventual_ids = FxIndexSet::default();
 
         for item_id in self.item_ids.iter() {
             if let Some(item) = self.items.get(item_id) {
@@ -131,7 +130,7 @@ impl Analyzer<'_> {
     }
 
     /// Phase 2: Immediate evaluation
-    fn evaluate_immediate(&mut self, _module: &Module, eventual_ids: &IndexSet<Id>) {
+    fn evaluate_immediate(&mut self, _module: &Module, eventual_ids: &FxIndexSet<Id>) {
         for item_id in self.item_ids.iter() {
             if let Some(item) = self.items.get(item_id) {
                 // Ignore HOISTED module items, they have been processed in phase 1 already.

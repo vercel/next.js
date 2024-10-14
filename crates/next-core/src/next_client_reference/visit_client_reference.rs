@@ -1,14 +1,13 @@
 use std::{collections::HashSet, future::Future};
 
 use anyhow::Result;
-use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
-    RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::CssModuleAsset;
@@ -50,7 +49,7 @@ pub struct ClientReferenceGraphResult {
     /// Only the [`ClientReferenceType::EcmascriptClientReference`]s are listed in this map.
     #[allow(clippy::type_complexity)]
     pub client_references_by_server_component:
-        IndexMap<Option<Vc<NextServerComponentModule>>, Vec<Vc<Box<dyn Module>>>>,
+        FxIndexMap<Option<Vc<NextServerComponentModule>>, Vec<Vc<Box<dyn Module>>>>,
     pub server_component_entries: Vec<Vc<NextServerComponentModule>>,
     pub server_utils: Vec<Vc<Box<dyn Module>>>,
     pub visited_nodes: Vc<VisitedClientReferenceGraphNodes>,
@@ -80,7 +79,7 @@ impl VisitedClientReferenceGraphNodes {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ClientReferenceTypes(IndexSet<ClientReferenceType>);
+pub struct ClientReferenceTypes(FxIndexSet<ClientReferenceType>);
 
 #[turbo_tasks::value_impl]
 impl ClientReferenceGraphResult {
@@ -90,7 +89,7 @@ impl ClientReferenceGraphResult {
             self.client_references
                 .iter()
                 .map(|r| r.ty())
-                .collect::<IndexSet<_>>(),
+                .collect::<FxIndexSet<_>>(),
         )
     }
 }
@@ -124,7 +123,7 @@ pub async fn client_reference_graph(
         let mut server_component_entries = vec![];
         let mut server_utils = vec![];
 
-        let mut client_references_by_server_component = IndexMap::new();
+        let mut client_references_by_server_component = FxIndexMap::default();
         // Make sure None (for the various internal next/dist/esm/client/components/*) is listed
         // first
         client_references_by_server_component.insert(None, Vec::new());
