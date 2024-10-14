@@ -104,7 +104,7 @@ describe('use-cache', () => {
         const meta = JSON.parse(
           await next.readFile('.next/server/app/cache-tag.meta')
         )
-        expect(meta.headers['Next-Router-Stale-Time']).toBe('19')
+        expect(meta.headers['x-nextjs-stale-time']).toBe('19')
       }
     )
 

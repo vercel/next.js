@@ -11,7 +11,6 @@ export const NEXT_ROUTER_PREFETCH_HEADER = 'Next-Router-Prefetch' as const
 // be merged into a single enum.
 export const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER =
   'Next-Router-Segment-Prefetch' as const
-export const NEXT_ROUTER_STALE_TIME_HEADER = 'Next-Router-Stale-Time' as const
 export const NEXT_HMR_REFRESH_HEADER = 'Next-HMR-Refresh' as const
 export const NEXT_URL = 'Next-Url' as const
 export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
@@ -26,5 +25,6 @@ export const FLIGHT_HEADERS = [
 
 export const NEXT_RSC_UNION_QUERY = '_rsc' as const
 
+export const NEXT_ROUTER_STALE_TIME_HEADER = 'x-nextjs-stale-time' as const
 export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed' as const
 export const NEXT_IS_PRERENDER_HEADER = 'x-nextjs-prerender' as const
