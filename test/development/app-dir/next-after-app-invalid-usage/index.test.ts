@@ -1,11 +1,16 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import * as Log from './utils/log'
-import { assertHasRedbox, getRedboxSource } from '../../../lib/next-test-utils'
+import * as Log from './basic/utils/log'
+import {
+  assertHasRedbox,
+  getRedboxSource,
+  retry,
+} from '../../../lib/next-test-utils'
+import { join } from 'path'
 
 describe('unstable_after() - invalid usages', () => {
   const { next } = nextTestSetup({
-    files: __dirname,
+    files: join(__dirname, 'basic'),
   })
 
   let currentCliOutputIndex = 0
@@ -13,7 +18,7 @@ describe('unstable_after() - invalid usages', () => {
     currentCliOutputIndex = next.cliOutput.length
   })
 
-  const getLogs = () => {
+  const getAfterLogs = () => {
     if (next.cliOutput.length < currentCliOutputIndex) {
       // cliOutput shrank since we started the test, so something (like a `sandbox`) reset the logs
       currentCliOutputIndex = 0
@@ -28,50 +33,77 @@ describe('unstable_after() - invalid usages', () => {
     expect(await getRedboxSource(session)).toMatch(
       /You're importing a component that needs "?unstable_after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
     )
-    expect(getLogs()).toHaveLength(0)
+    expect(getAfterLogs()).toHaveLength(0)
+  })
+})
+
+describe('unstable_after() - dynamic APIs', () => {
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'dynamic-apis'),
   })
 
-  describe('invalid calls inside after', () => {
-    const paths = [
-      {
-        title: 'connection',
-        path: '/dynamic-apis/connection',
-      },
-      {
-        title: 'connection - promise',
-        path: '/dynamic-apis/connection/indirect',
-      },
-      {
-        title: 'cookies',
-        path: '/dynamic-apis/cookies',
-      },
-      {
-        title: 'cookies - promise',
-        path: '/dynamic-apis/cookies/indirect',
-      },
-      {
-        title: 'draftMode',
-        path: '/dynamic-apis/draft-mode',
-      },
-      {
-        title: 'draftMode - promise',
-        path: '/dynamic-apis/draft-mode/indirect',
-      },
-      {
-        title: 'headers',
-        path: '/dynamic-apis/headers',
-      },
-      {
-        title: 'headers - promise',
-        path: '/dynamic-apis/headers/indirect',
-      },
-      // { title: 'dynamic params', path: '/dynamic-apis/dynamic-params' },
-    ]
-    it.each(paths)('$title', async ({ path }) => {
-      // TODO(after): implement these tests, and do something about the "indirect" test cases. also need to test DIO
-      const res = await next.fetch(path)
-      await res.text()
-      throw new Error('TODO')
-    })
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    resetLogs()
   })
+
+  const resetLogs = () => {
+    currentCliOutputIndex = next.cliOutput.length
+  }
+
+  const getLogs = () => {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      // cliOutput shrank since we started the test, so something (like a `sandbox`) reset the logs
+      currentCliOutputIndex = 0
+    }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
+
+  describe('awaited calls', () => {
+    it.each([
+      {
+        api: 'connection',
+        path: '/dynamic-apis/connection',
+        expectedError:
+          /An error occurred in a function passed to `unstable_after\(\)`: Error: Route .*? used "connection" inside "unstable_after\(\.\.\.\)"\./,
+      },
+      {
+        api: 'cookies',
+        path: '/dynamic-apis/cookies',
+        expectedError:
+          /An error occurred in a function passed to `unstable_after\(\)`: Error: Route .*? used "cookies" inside "unstable_after\(\.\.\.\)"\./,
+      },
+      {
+        api: 'draftMode',
+        path: '/dynamic-apis/draft-mode',
+        expectedError:
+          /An error occurred in a function passed to `unstable_after\(\)`: Error: Route .*? used "draftMode" inside "unstable_after\(\.\.\.\)"\./,
+      },
+      {
+        api: 'headers',
+        path: '/dynamic-apis/headers',
+        expectedError:
+          /An error occurred in a function passed to `unstable_after\(\)`: Error: Route .*? used "headers" inside "unstable_after\(\.\.\.\)"\./,
+      },
+    ])(
+      'does not allow calling $api inside unstable_after',
+      async ({ path, expectedError }) => {
+        const res = await next.fetch(path)
+        await res.text()
+        await retry(() => {
+          expect(getLogs()).toMatch(expectedError)
+        })
+      }
+    )
+  })
+
+  // TODO(after): test unawaited calls, like this
+  //
+  // export default function Page() {
+  //   const promise = headers()
+  //   after(async () => {
+  //     const headerStore = await promise
+  //   })
+  //   return null
+  // }
 })
