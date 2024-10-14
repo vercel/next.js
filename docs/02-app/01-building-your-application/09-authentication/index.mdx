@@ -911,7 +911,7 @@ export async function createSession(id: number) {
   const session = await encrypt({ sessionId, expiresAt })
 
   // 3. Store the session in cookies for optimistic auth checks
-  await cookies().set('session', session, {
+  (await cookies()).set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
