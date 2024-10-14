@@ -738,7 +738,7 @@ impl AssetContext for ModuleAssetContext {
 
                                             let resolve_options = ResolveOptionsContext {
                                                 emulate_environment: Some(env),
-                                                // loose_errors: true,
+                                                loose_errors: true,
                                                 ..Default::default()
                                             };
 
