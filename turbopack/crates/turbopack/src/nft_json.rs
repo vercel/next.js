@@ -8,7 +8,6 @@ use turbopack_core::{
     module::Module,
     output::OutputAsset,
     reference::all_assets_from_entries,
-    source_map::SourceMapAsset,
 };
 
 #[turbo_tasks::value(shared)]
@@ -128,10 +127,7 @@ impl Asset for NftJsonAsset {
         if let Some(chunk) = this.chunk {
             let chunk = chunk.resolve().await?;
             for referenced_chunk in all_assets_from_entries(Vc::cell(vec![chunk])).await? {
-                // TODO or should it skip sourcemaps by checking path.endsWith(".map")?
-                if (Vc::try_resolve_downcast_type::<SourceMapAsset>(*referenced_chunk).await?)
-                    .is_some()
-                {
+                if referenced_chunk.ident().path().await?.extension_ref() == Some("map") {
                     continue;
                 }
 
