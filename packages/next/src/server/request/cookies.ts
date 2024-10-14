@@ -70,7 +70,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       } else if (workUnitStore.phase === 'after') {
         throw new Error(
           // TODO(after): "close over it" is bad phrasing
-          `Route ${workStore.route} used "cookies" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "cookies" outside of the callback and close over it. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_after`
+          `Route ${workStore.route} used "cookies" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "cookies" outside of the callback and close over it. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
         )
       }
     }

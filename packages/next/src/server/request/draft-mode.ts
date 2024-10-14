@@ -38,7 +38,7 @@ export function draftMode(): Promise<DraftMode> {
   if (workUnitStore) {
     if (workStore && workUnitStore.phase === 'after') {
       throw new Error(
-        `Route ${workStore.route} used "draftMode" inside "unstable_after(...)". This is not supported, because "unstable_after(...)" runs after the request is finished and cannot affect the response. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_after`
+        `Route ${workStore.route} used "draftMode" inside "unstable_after(...)". This is not supported, because "unstable_after(...)" runs after the request is finished and cannot affect the response. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
       )
     }
     if (
