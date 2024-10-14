@@ -36,7 +36,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     const buildInfo = getModuleBuildInfo(this._module)
 
     buildInfo.nextEdgeSSR = {
-      isServerComponent: false,
+      isServerComponent: true, // Needed for 'use cache'.
       page: page,
       isAppDir: true,
     }
@@ -55,6 +55,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
 
     return await loadEntrypoint('edge-app-route', {
       VAR_USERLAND: modulePath,
+      VAR_PAGE: page,
     })
   }
 
