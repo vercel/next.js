@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_complex/input/index.js"],"sourcesContent":["let specifier = \"does-not-exist/path\";\nif (x) {\n  specifier = \"does-not-exist-either/path\"\n}\nif (y) {\n  specifier = y;\n}\n\nconsole.log(require(specifier));\n"],"names":[],"mappings":"AAAA,IAAI,YAAY;AAChB,IAAI,GAAG;IACL,YAAY;AACd;AACA,IAAI,GAAG;IACL,YAAY;AACd;AAEA,QAAQ,GAAG"}},
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
