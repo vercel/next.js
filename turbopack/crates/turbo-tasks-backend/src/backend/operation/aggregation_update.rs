@@ -21,6 +21,7 @@ use crate::{
 };
 
 const LEAF_NUMBER: u32 = 16;
+const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 
 pub fn is_aggregating_node(aggregation_number: u32) -> bool {
     aggregation_number >= LEAF_NUMBER
@@ -597,11 +598,8 @@ impl AggregationUpdateQueue {
     }
 
     fn find_and_schedule_dirty(&mut self, mut task_ids: Vec<TaskId>, ctx: &mut ExecuteContext) {
-        let popped = task_ids.pop();
-        if !task_ids.is_empty() {
-            self.push(AggregationUpdateJob::FindAndScheduleDirty { task_ids });
-        }
-        if let Some(task_id) = popped {
+        let start = task_ids.len().saturating_sub(MAX_COUNT_BEFORE_YIELD);
+        for task_id in task_ids.drain(start..) {
             let mut task = ctx.task(task_id, TaskDataCategory::Meta);
             let session_id = ctx.session_id();
             // Task need to be scheduled if it's dirty or doesn't have output
@@ -628,6 +626,9 @@ impl AggregationUpdateQueue {
                     }
                 }
             }
+        }
+        if !task_ids.is_empty() {
+            self.push(AggregationUpdateJob::FindAndScheduleDirty { task_ids });
         }
     }
 
