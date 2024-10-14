@@ -1,0 +1,27 @@
+---
+title: use cache
+description: Learn how to use the `use cache` directive to cache data in your Next.js application.
+version: canary
+---
+
+The `use cache` directive is used to cache data in your Next.js application. When you have an asynchronous function that fetches data or performs computations, you can mark it as cacheable by adding the `"use cache"` directive to the top of the function.
+
+In the following example, the `getCachedData` function is marked as cacheable by adding the `use cache` directive to the top of the file:
+
+```tsx filename="/app/components/get-cached-data.tsx" switcher
+"use cache"
+
+export async function getCachedData() {
+  const data = await fetch('/api/data');
+  return data;
+}
+```
+
+```jsx filename="/app/components/get-cached-data.js" switcher
+"use cache"
+
+export async function getCachedData() {
+  const data = await fetch('/api/data');
+  return data;
+}
+```
