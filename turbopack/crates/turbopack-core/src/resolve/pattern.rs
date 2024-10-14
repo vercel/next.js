@@ -1257,7 +1257,7 @@ impl From<RcStr> for Pattern {
 impl Display for Pattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Pattern::Constant(c) => write!(f, "\"{c}\""),
+            Pattern::Constant(c) => write!(f, "'{c}'"),
             Pattern::Dynamic => write!(f, "<dynamic>"),
             Pattern::Alternatives(list) => write!(
                 f,
