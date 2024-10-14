@@ -23,7 +23,6 @@ import {
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
 import { SharedRevalidateTimings } from './shared-revalidate-timings'
-import { getBuiltinRequestContext } from '../../after/builtin-request-context'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -43,6 +42,8 @@ export interface CacheHandlerValue {
   cacheState?: string
   value: IncrementalCacheValue | null
 }
+
+export const cacheHandlersSymbol = Symbol('@next/cache-handlers')
 
 export class CacheHandler {
   // eslint-disable-next-line
@@ -122,28 +123,35 @@ export class IncrementalCache implements IncrementalCacheType {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
 
-    const globalCacheHandler = getBuiltinRequestContext()?.NextCacheHandler
-
-    if (globalCacheHandler) {
-      CurCacheHandler = globalCacheHandler
-    }
+    const _globalThis: typeof globalThis & {
+      [cacheHandlersSymbol]?: {
+        FetchCache?: typeof CacheHandler
+      }
+    } = globalThis
 
     if (!CurCacheHandler) {
-      if (fs && serverDistDir) {
-        if (debug) {
-          console.log('using filesystem cache handler')
+      // if we have a global cache handler available leverage it
+      const globalCacheHandler = _globalThis[cacheHandlersSymbol]
+
+      if (globalCacheHandler?.FetchCache) {
+        CurCacheHandler = globalCacheHandler.FetchCache
+      } else {
+        if (fs && serverDistDir) {
+          if (debug) {
+            console.log('using filesystem cache handler')
+          }
+          CurCacheHandler = FileSystemCache
         }
-        CurCacheHandler = FileSystemCache
-      }
-      if (
-        FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
-        minimalMode &&
-        fetchCache
-      ) {
-        if (debug) {
-          console.log('using fetch cache handler')
+        if (
+          FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
+          minimalMode &&
+          fetchCache
+        ) {
+          if (debug) {
+            console.log('using fetch cache handler')
+          }
+          CurCacheHandler = FetchCache
         }
-        CurCacheHandler = FetchCache
       }
     } else if (debug) {
       console.log('using custom cache handler', CurCacheHandler.name)
