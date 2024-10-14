@@ -1,5 +1,5 @@
-import type { Config } from "tailwindcss";
 import typography from "@tailwindcss/typography";
+import type { Config } from "tailwindcss";
 
 export default {
   content: ["./app/**/*.{ts,tsx}", "./sanity/**/*.{ts,tsx}"],
