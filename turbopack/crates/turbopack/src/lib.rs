@@ -939,12 +939,6 @@ pub async fn replace_externals(
             }
         };
 
-        println!(
-            "CachedExternalModule::new {:?} {:?} {:?}",
-            request,
-            typ,
-            module.is_some()
-        );
         let module = CachedExternalModule::new(
             request.clone(),
             external_type,

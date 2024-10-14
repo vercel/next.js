@@ -200,10 +200,6 @@ impl ChunkItem for CachedExternalModuleChunkItem {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         if let Some(module) = &*self.module.await?.module.await? {
-            // println!(
-            //     "CachedExternalModuleChunkItem::references() {}",
-            //     module.ident().to_string().await?
-            // );
             let mut module_references = self.module.references().await?.clone_value();
             module_references.push(Vc::upcast(SingleOutputAssetReference::new(
                 Vc::upcast(MyRebasedAsset::new_external(*module)),
@@ -211,7 +207,6 @@ impl ChunkItem for CachedExternalModuleChunkItem {
             )));
             Ok(Vc::cell(module_references))
         } else {
-            // println!("CachedExternalModuleChunkItem::references() none",);
             Ok(self.module.references())
         }
     }
