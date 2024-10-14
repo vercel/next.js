@@ -10,11 +10,13 @@ const message =
 const tests = {
   valid: [
     `
+    // single line
     export default async function MyComponent() {
       return <></>
     }
     `,
     `
+    // single line capitalization
     "use client"
 
     export default async function myFunction() {
@@ -22,6 +24,7 @@ const tests = {
     }
     `,
     `
+    // multiple line
     async function MyComponent() {
       return <></>
     }
@@ -29,6 +32,7 @@ const tests = {
     export default MyComponent
     `,
     `
+    // multiple line capitalization
     "use client"
 
     async function myFunction() {
@@ -38,6 +42,7 @@ const tests = {
     export default myFunction
     `,
     `
+    // arrow function
     "use client"
 
     const myFunction = () => {
@@ -50,6 +55,7 @@ const tests = {
   invalid: [
     {
       code: `
+      // single line
       "use client"
 
       export default async function MyComponent() {
@@ -60,6 +66,7 @@ const tests = {
     },
     {
       code: `
+      // single line capitalization
       "use client"
 
       export default async function MyFunction() {
@@ -70,6 +77,7 @@ const tests = {
     },
     {
       code: `
+      // multiple line
       "use client"
 
       async function MyComponent() {
@@ -82,6 +90,7 @@ const tests = {
     },
     {
       code: `
+      // multiple line capitalization
       "use client"
 
       async function MyFunction() {
@@ -94,6 +103,7 @@ const tests = {
     },
     {
       code: `
+      // arrow function
       "use client"
 
       const MyFunction = async () => {
@@ -107,7 +117,7 @@ const tests = {
   ],
 }
 
-describe('no-async-client-component single line', () => {
+describe('no-async-client-component', () => {
   new ESLintTesterV8({
     parserOptions: {
       ecmaVersion: 2018,
