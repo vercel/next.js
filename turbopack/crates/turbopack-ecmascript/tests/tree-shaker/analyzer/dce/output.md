@@ -119,6 +119,9 @@ import './module';
 ```
 ## Part 2
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import { baz } from './module';
 export { baz as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -182,6 +185,9 @@ import './module';
 ```
 ## Part 2
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
 import { baz } from './module';
 export { baz as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true

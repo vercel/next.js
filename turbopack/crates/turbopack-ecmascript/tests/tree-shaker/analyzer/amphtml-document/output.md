@@ -355,6 +355,9 @@ import "react/jsx-runtime";
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { jsx as _jsx } from "react/jsx-runtime";
 export { _jsx as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -363,6 +366,9 @@ export { _jsx as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { jsxs as _jsxs } from "react/jsx-runtime";
 export { _jsxs as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -371,6 +377,9 @@ export { _jsxs as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { Fragment as _Fragment } from "react/jsx-runtime";
 export { _Fragment as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -387,6 +396,9 @@ import 'next/document';
 ```
 ## Part 7
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import Document from 'next/document';
 export { Document as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -395,6 +407,9 @@ export { Document as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { Html } from 'next/document';
 export { Html as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -403,6 +418,9 @@ export { Html as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 9
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { Head } from 'next/document';
 export { Head as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -411,6 +429,9 @@ export { Head as g } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 10
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { Main } from 'next/document';
 export { Main as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -419,6 +440,9 @@ export { Main as h } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { NextScript } from 'next/document';
 export { NextScript as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -568,6 +592,9 @@ import "react/jsx-runtime";
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { jsx as _jsx } from "react/jsx-runtime";
 export { _jsx as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -576,6 +603,9 @@ export { _jsx as b } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { jsxs as _jsxs } from "react/jsx-runtime";
 export { _jsxs as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -584,6 +614,9 @@ export { _jsxs as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 5
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { Fragment as _Fragment } from "react/jsx-runtime";
 export { _Fragment as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -600,6 +633,9 @@ import 'next/document';
 ```
 ## Part 7
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import Document from 'next/document';
 export { Document as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -608,6 +644,9 @@ export { Document as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { Html } from 'next/document';
 export { Html as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -616,6 +655,9 @@ export { Html as f } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 9
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { Head } from 'next/document';
 export { Head as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -624,6 +666,9 @@ export { Head as g } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 10
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { Main } from 'next/document';
 export { Main as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -632,6 +677,9 @@ export { Main as h } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { NextScript } from 'next/document';
 export { NextScript as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true

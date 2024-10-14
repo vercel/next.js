@@ -2151,6 +2151,9 @@ import "node:net";
 ```
 ## Part 4
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
 import { createConnection } from "node:net";
 export { createConnection as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -2167,6 +2170,9 @@ import "../compiled/stacktrace-parser";
 ```
 ## Part 6
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
 export { parseStackTrace as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -2186,6 +2192,9 @@ import "./error";
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
 import { getProperError } from "./error";
 export { getProperError as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -3670,6 +3679,9 @@ import "node:net";
 ```
 ## Part 4
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
 import { createConnection } from "node:net";
 export { createConnection as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -3686,6 +3698,9 @@ import "../compiled/stacktrace-parser";
 ```
 ## Part 6
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
 import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
 export { parseStackTrace as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -3705,6 +3720,9 @@ import "./error";
 ```
 ## Part 8
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
 import { getProperError } from "./error";
 export { getProperError as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true

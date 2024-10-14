@@ -773,6 +773,9 @@ import 'react';
 ```
 ## Part 10
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 9
+};
 import React from 'react';
 export { React as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -789,6 +792,9 @@ import '../../client/components/hooks-server-context';
 ```
 ## Part 12
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 11
+};
 import { DynamicServerError } from '../../client/components/hooks-server-context';
 export { DynamicServerError as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -808,6 +814,9 @@ import '../../client/components/static-generation-bailout';
 ```
 ## Part 14
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 13
+};
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
 export { StaticGenBailoutError as k } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -830,6 +839,9 @@ import '../../lib/url';
 ```
 ## Part 16
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 15
+};
 import { getPathname } from '../../lib/url';
 export { getPathname as l } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1233,6 +1245,9 @@ import 'react';
 ```
 ## Part 10
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 9
+};
 import React from 'react';
 export { React as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1249,6 +1264,9 @@ import '../../client/components/hooks-server-context';
 ```
 ## Part 12
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 11
+};
 import { DynamicServerError } from '../../client/components/hooks-server-context';
 export { DynamicServerError as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1268,6 +1286,9 @@ import '../../client/components/static-generation-bailout';
 ```
 ## Part 14
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 13
+};
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout';
 export { StaticGenBailoutError as k } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -1290,6 +1311,9 @@ import '../../lib/url';
 ```
 ## Part 16
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 15
+};
 import { getPathname } from '../../lib/url';
 export { getPathname as l } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true

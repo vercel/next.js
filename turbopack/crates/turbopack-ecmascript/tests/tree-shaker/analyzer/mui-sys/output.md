@@ -2108,6 +2108,9 @@ import './style';
 ```
 ## Part 15
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 14
+};
 import style from './style';
 export { style as n } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -2124,6 +2127,9 @@ import './compose';
 ```
 ## Part 17
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 16
+};
 import compose from './compose';
 export { compose as o } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -2143,6 +2149,9 @@ import './spacing';
 ```
 ## Part 19
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 18
+};
 import { createUnaryUnit } from './spacing';
 export { createUnaryUnit as p } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -2151,6 +2160,9 @@ export { createUnaryUnit as p } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 20
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 18
+};
 import { getValue } from './spacing';
 export { getValue as q } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -2173,6 +2185,9 @@ import './breakpoints';
 ```
 ## Part 22
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 21
+};
 import { handleBreakpoints } from './breakpoints';
 export { handleBreakpoints as r } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -2198,6 +2213,9 @@ import './responsivePropType';
 ```
 ## Part 24
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 23
+};
 import responsivePropType from './responsivePropType';
 export { responsivePropType as s } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -3514,6 +3532,9 @@ import './style';
 ```
 ## Part 15
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 14
+};
 import style from './style';
 export { style as n } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -3530,6 +3551,9 @@ import './compose';
 ```
 ## Part 17
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 16
+};
 import compose from './compose';
 export { compose as o } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -3549,6 +3573,9 @@ import './spacing';
 ```
 ## Part 19
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 18
+};
 import { createUnaryUnit } from './spacing';
 export { createUnaryUnit as p } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -3557,6 +3584,9 @@ export { createUnaryUnit as p } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 20
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 18
+};
 import { getValue } from './spacing';
 export { getValue as q } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -3579,6 +3609,9 @@ import './breakpoints';
 ```
 ## Part 22
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 21
+};
 import { handleBreakpoints } from './breakpoints';
 export { handleBreakpoints as r } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -3604,6 +3637,9 @@ import './responsivePropType';
 ```
 ## Part 24
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 23
+};
 import responsivePropType from './responsivePropType';
 export { responsivePropType as s } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true

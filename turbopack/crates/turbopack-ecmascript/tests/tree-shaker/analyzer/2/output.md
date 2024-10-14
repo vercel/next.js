@@ -526,6 +526,9 @@ import "module";
 ```
 ## Part 7
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { upper } from "module";
 export { upper as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -818,6 +821,9 @@ import "module";
 ```
 ## Part 7
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
 import { upper } from "module";
 export { upper as f } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true

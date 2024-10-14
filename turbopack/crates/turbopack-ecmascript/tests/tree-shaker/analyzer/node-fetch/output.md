@@ -193,6 +193,9 @@ import 'node:stream';
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import Stream from 'node:stream';
 export { Stream as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -302,6 +305,9 @@ import 'node:stream';
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import Stream from 'node:stream';
 export { Stream as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true

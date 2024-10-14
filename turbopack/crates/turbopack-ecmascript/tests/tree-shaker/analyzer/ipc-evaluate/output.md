@@ -272,6 +272,9 @@ import "./index";
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { IPC } from "./index";
 export { IPC as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -462,6 +465,9 @@ import "./index";
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { IPC } from "./index";
 export { IPC as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true

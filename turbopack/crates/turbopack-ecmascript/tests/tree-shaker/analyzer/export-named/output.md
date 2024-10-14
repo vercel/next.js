@@ -113,6 +113,9 @@ import "./lib";
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
 export { __TURBOPACK__reexport__cat__ as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
@@ -171,6 +174,9 @@ import "./lib";
 ```
 ## Part 3
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
 import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
 export { __TURBOPACK__reexport__cat__ as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
