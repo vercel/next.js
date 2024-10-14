@@ -1,5 +1,6 @@
-import keyv from 'keyv'
-
 export function register() {
-  console.log('keyv', keyv)
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const keyv = require('keyv')
+    console.log('keyv', keyv)
+  }
 }
