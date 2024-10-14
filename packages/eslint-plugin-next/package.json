@@ -15,6 +15,7 @@
     "fast-glob": "3.3.1"
   },
   "devDependencies": {
+    "@types/estree": "1.0.5",
     "eslint": "8.56.0"
   },
   "scripts": {
