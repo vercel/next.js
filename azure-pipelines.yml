@@ -1,7 +1,7 @@
 trigger:
   # Only run latest commit for branches:
   batch: true
-  # Do not run Azure CI for docs-only/example-only changes:
+  # Do not run Azure CI for docs-only/example-only/codemod-only changes:
   paths:
     include:
       - '*'
@@ -10,6 +10,7 @@ trigger:
       - docs
       - errors
       - examples
+      - packages/next-codemod
   # Do not run Azure on release tags. This unnecessarily increases the backlog.
   branches:
     include:
@@ -18,7 +19,7 @@ trigger:
       - refs/tags/*
 
 pr:
-  # Do not run Azure CI for docs-only/example-only changes:
+  # Do not run Azure CI for docs-only/example-only/codemod-only changes:
   paths:
     include:
       - '*'
@@ -27,6 +28,7 @@ pr:
       - docs
       - errors
       - examples
+      - packages/next-codemod
 
 variables:
   PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
