@@ -154,17 +154,18 @@ export async function runUpgrade(
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
   const nextDependency = `next@${targetNextVersion}`
-  const reactDependencies = [
+  const dependenciesToInstall = [
     `react@${targetReactVersion}`,
     `react-dom@${targetReactVersion}`,
   ]
+  const devDependenciesToInstall = []
   if (
     targetReactVersion.startsWith('19.0.0-canary') ||
     targetReactVersion.startsWith('19.0.0-beta') ||
     targetReactVersion.startsWith('19.0.0-rc')
   ) {
-    reactDependencies.push(`@types/react@npm:types-react@rc`)
-    reactDependencies.push(`@types/react-dom@npm:types-react-dom@rc`)
+    devDependenciesToInstall.push(`@types/react@npm:types-react@rc`)
+    devDependenciesToInstall.push(`@types/react-dom@npm:types-react-dom@rc`)
   } else {
     const [targetReactTypesVersion, targetReactDOMTypesVersion] =
       await Promise.all([
@@ -175,17 +176,24 @@ export async function runUpgrade(
           `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
         ),
       ])
-    reactDependencies.push(`@types/react@${targetReactTypesVersion}`)
-    reactDependencies.push(`@types/react-dom@${targetReactDOMTypesVersion}`)
+    devDependenciesToInstall.push(`@types/react@${targetReactTypesVersion}`)
+    devDependenciesToInstall.push(
+      `@types/react-dom@${targetReactDOMTypesVersion}`
+    )
   }
 
   console.log(
     `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
   )
 
-  installPackages([nextDependency, ...reactDependencies], {
+  installPackages([nextDependency, ...dependenciesToInstall], {
     packageManager,
     silent: !verbose,
+  })
+  installPackages(devDependenciesToInstall, {
+    packageManager,
+    silent: !verbose,
+    dev: true,
   })
 
   for (const codemod of codemods) {
