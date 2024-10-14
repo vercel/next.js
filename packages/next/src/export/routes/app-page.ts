@@ -54,7 +54,6 @@ export async function exportAppPage(
   isDynamicError: boolean,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
-  // TODO(after): should we use the onClose from MockedResponse?
   const afterRunner = new AfterRunner()
 
   const renderOpts: RenderOpts = {
@@ -84,7 +83,9 @@ export async function exportAppPage(
 
     const html = result.toUnchunkedString()
 
-    await afterRunner.executeAfter() // TODO(after): thrown errors?
+    // TODO(after): if we abort a prerender because of an error in an after-callback
+    // we should probably communicate that better (and not log the error twice)
+    await afterRunner.executeAfter()
 
     const { metadata } = result
     const {

@@ -87,7 +87,7 @@ export class AfterContext {
         await callback()
       } catch (err) {
         // TODO(after): this is fine for now, but will need better intergration with our error reporting.
-        // TODO: should we log this if we have a onTaskError callback?
+        // TODO(after): should we log this if we have a onTaskError callback?
         console.error(
           'An error occurred in a function passed to `unstable_after()`:',
           err

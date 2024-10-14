@@ -54,7 +54,6 @@ export async function exportAppRoute(
     signalFromNodeResponse(res)
   )
 
-  // TODO(after): should we use the onClose from MockedResponse?
   const afterRunner = new AfterRunner()
 
   // Create the context for the handler. This contains the params from
@@ -116,7 +115,9 @@ export async function exportAppRoute(
 
     const blob = await response.blob()
 
-    await afterRunner.executeAfter() // TODO(after): thrown errors?
+    // TODO(after): if we abort a prerender because of an error in an after-callback
+    // we should probably communicate that better (and not log the error twice)
+    await afterRunner.executeAfter()
 
     const revalidate =
       typeof (context.renderOpts as any).collectedRevalidate === 'undefined' ||
