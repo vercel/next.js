@@ -1118,27 +1118,31 @@ impl AppEndpoint {
         let app_entry_chunks_ref = app_entry_chunks.await?;
         server_assets.extend(app_entry_chunks_ref.iter().copied());
 
-        if let (Some(client_references), Some(client_references_chunks)) =
-            (client_references, client_references_chunks)
-        {
-            let entry_manifest = ClientReferenceManifest::build_output(
-                node_root,
-                client_relative_path,
-                app_entry.original_name.clone(),
-                client_references,
-                client_references_chunks,
-                *app_entry_chunks,
-                Value::new(*app_entry_chunks_availability),
-                client_chunking_context,
-                ssr_chunking_context,
-                this.app_project.project().next_config(),
-                runtime,
-            );
-            server_assets.insert(entry_manifest);
-            if runtime == NextRuntime::Edge {
-                middleware_assets.push(entry_manifest);
-            }
-        }
+        let client_reference_manifest =
+            if let (Some(client_references), Some(client_references_chunks)) =
+                (client_references, client_references_chunks)
+            {
+                let entry_manifest = ClientReferenceManifest::build_output(
+                    node_root,
+                    client_relative_path,
+                    app_entry.original_name.clone(),
+                    client_references,
+                    client_references_chunks,
+                    *app_entry_chunks,
+                    Value::new(*app_entry_chunks_availability),
+                    client_chunking_context,
+                    ssr_chunking_context,
+                    this.app_project.project().next_config(),
+                    runtime,
+                );
+                server_assets.insert(entry_manifest);
+                if runtime == NextRuntime::Edge {
+                    middleware_assets.push(entry_manifest);
+                }
+                Some(entry_manifest)
+            } else {
+                None
+            };
 
         let client_assets = OutputAssets::new(client_assets.iter().cloned().collect::<Vec<_>>());
 
@@ -1331,6 +1335,7 @@ impl AppEndpoint {
                         true,
                         this.app_project.project().output_fs(),
                         this.app_project.project().project_fs(),
+                        client_reference_manifest.iter().copied().collect(),
                     )));
                 }
 

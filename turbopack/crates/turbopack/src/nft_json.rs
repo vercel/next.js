@@ -17,6 +17,7 @@ pub struct NftJsonAsset {
     only_externals: bool,
     output_fs: Vc<DiskFileSystem>,
     project_fs: Vc<DiskFileSystem>,
+    additional_assets: Vec<Vc<Box<dyn OutputAsset>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -28,6 +29,7 @@ impl NftJsonAsset {
         only_externals: bool,
         output_fs: Vc<DiskFileSystem>,
         project_fs: Vc<DiskFileSystem>,
+        additional_assets: Vec<Vc<Box<dyn OutputAsset>>>,
     ) -> Vc<Self> {
         NftJsonAsset {
             entry,
@@ -35,6 +37,7 @@ impl NftJsonAsset {
             only_externals,
             output_fs,
             project_fs,
+            additional_assets,
         }
         .cell()
     }
@@ -126,7 +129,11 @@ impl Asset for NftJsonAsset {
 
         if let Some(chunk) = this.chunk {
             let chunk = chunk.resolve().await?;
-            for referenced_chunk in all_assets_from_entries(Vc::cell(vec![chunk])).await? {
+            for referenced_chunk in all_assets_from_entries(Vc::cell(vec![chunk]))
+                .await?
+                .iter()
+                .chain(this.additional_assets.iter())
+            {
                 if referenced_chunk.ident().path().await?.extension_ref() == Some("map") {
                     continue;
                 }

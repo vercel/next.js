@@ -890,6 +890,7 @@ impl PageEndpoint {
                         true,
                         this.pages_project.project().output_fs(),
                         this.pages_project.project().project_fs(),
+                        vec![],
                     ))))
                 } else {
                     Vc::cell(None)
