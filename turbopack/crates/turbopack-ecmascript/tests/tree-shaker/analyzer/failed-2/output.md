@@ -571,10 +571,6 @@ graph TD
     Item19 --> Item18;
     Item19 --> Item9;
     Item19 --> Item5;
-    Item20 --> Item1;
-    Item20 --> Item2;
-    Item20 --> Item3;
-    Item20 --> Item4;
     Item20 --> Item9;
 ```
 # Final
@@ -641,10 +637,6 @@ graph TD
     N22 --> N17;
     N25 --> N17;
     N25 --> N10;
-    N0 --> N9;
-    N0 --> N11;
-    N0 --> N13;
-    N0 --> N15;
     N0 --> N17;
 ```
 # Entrypoints
@@ -684,18 +676,6 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
 };
@@ -1102,18 +1082,6 @@ export { usedDynamicAPIs } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
 };
 "module evaluation";
@@ -1157,19 +1125,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
 };
 "module evaluation";
 
@@ -1588,19 +1544,7 @@ export { usedDynamicAPIs } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 15
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 17
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
 };
 "module evaluation";
 

@@ -456,12 +456,6 @@ graph TD
     Item15 --> Item13;
     Item15 --> Item9;
     Item17 --> Item15;
-    Item16 --> Item1;
-    Item16 --> Item2;
-    Item16 --> Item3;
-    Item16 --> Item4;
-    Item16 --> Item5;
-    Item16 --> Item12;
     Item16 --> Item13;
 ```
 # Final
@@ -515,12 +509,6 @@ graph TD
     N16 --> N14;
     N16 --> N8;
     N1 --> N16;
-    N0 --> N2;
-    N0 --> N4;
-    N0 --> N6;
-    N0 --> N9;
-    N0 --> N11;
-    N0 --> N13;
     N0 --> N14;
 ```
 # Entrypoints
@@ -539,24 +527,6 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 14
 };
@@ -899,24 +869,6 @@ export { NextResponse } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 14
 };
@@ -940,24 +892,6 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 14
 };
 "module evaluation";
@@ -1299,24 +1233,6 @@ export { NextResponse } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 14
 };

@@ -126,8 +126,6 @@ graph TD
     Item5 --> Item1;
     Item5 --> Item3;
     Item7 --> Item5;
-    Item6 --> Item1;
-    Item6 --> Item3;
     Item6 --> Item5;
 ```
 # Final
@@ -146,8 +144,6 @@ graph TD
     N6 --> N2;
     N6 --> N4;
     N1 --> N6;
-    N0 --> N2;
-    N0 --> N4;
     N0 --> N6;
 ```
 # Entrypoints
@@ -166,12 +162,6 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -250,12 +240,6 @@ export { default } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
@@ -279,12 +263,6 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 "module evaluation";
@@ -362,12 +340,6 @@ export { default } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
