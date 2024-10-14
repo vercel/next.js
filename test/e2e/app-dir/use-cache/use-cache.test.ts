@@ -102,7 +102,7 @@ describe('use-cache', () => {
       'should match the expected stale config in the page header',
       async () => {
         const meta = JSON.parse(
-          await next.readFile('.next/server/app/cache-tag.meta')
+          await next.readFile('.next/server/app/cache-life.meta')
         )
         expect(meta.headers['x-nextjs-stale-time']).toBe('19')
       }
