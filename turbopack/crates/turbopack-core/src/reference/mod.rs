@@ -11,7 +11,7 @@ use crate::{
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_module::RawModule,
-    resolve::{ModuleResolveResult, ModuleResolveResultItem, RequestKey},
+    resolve::{ModuleResolveResult, RequestKey},
 };
 pub mod source_map;
 
@@ -140,14 +140,10 @@ impl SingleOutputAssetReference {
 /// This does not include transitively references [Module]s, but it includes
 /// primary and secondary [Module]s referenced.
 ///
-/// If `externals_only` is true, only externals are included, by way of
-/// upcasting to check.
-///
 /// [Module]: crate::module::Module
 #[turbo_tasks::function]
 pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
-    include_externals: bool,
 ) -> Result<Vc<Modules>> {
     let references_set = module.references().await?;
     let mut modules = FxIndexSet::default();
@@ -157,25 +153,7 @@ pub async fn referenced_modules_and_affecting_sources(
         .try_join()
         .await?;
     for resolve_result in resolve_results {
-        modules.extend(
-            resolve_result
-                .primary
-                .iter()
-                .filter_map(|(_, item)| match item {
-                    // ModuleResolveResultItem::External {
-                    //     module: Some(module),
-                    //     ..
-                    // } if include_externals => {
-                    //     if let ModuleResolveResultItem::Module(module) = &**module {
-                    //         Some(*module)
-                    //     } else {
-                    //         None
-                    //     }
-                    // }
-                    ModuleResolveResultItem::Module(module) => Some(*module),
-                    _ => None,
-                }),
-        );
+        modules.extend(resolve_result.primary_modules_iter());
         modules.extend(
             resolve_result
                 .affecting_sources_iter()
@@ -226,10 +204,7 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
 pub async fn all_modules_and_affecting_sources(asset: Vc<Box<dyn Module>>) -> Result<Vc<Modules>> {
     // TODO need to track import path here
     let mut queue = VecDeque::with_capacity(32);
-    queue.push_back((
-        asset,
-        referenced_modules_and_affecting_sources(asset, false),
-    ));
+    queue.push_back((asset, referenced_modules_and_affecting_sources(asset)));
     let mut assets = HashSet::new();
     assets.insert(asset);
     while let Some((parent, references)) = queue.pop_front() {
@@ -238,10 +213,7 @@ pub async fn all_modules_and_affecting_sources(asset: Vc<Box<dyn Module>>) -> Re
             .await?;
         for asset in references.await?.iter() {
             if assets.insert(*asset) {
-                queue.push_back((
-                    *asset,
-                    referenced_modules_and_affecting_sources(*asset, false),
-                ));
+                queue.push_back((*asset, referenced_modules_and_affecting_sources(*asset)));
             }
         }
     }
