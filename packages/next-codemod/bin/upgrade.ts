@@ -63,17 +63,8 @@ function addDependencyIfNeeded(
   // If it's not, fallback into dependencies.
   if (appPackageJson.devDependencies?.[packageName]) {
     devDependenciesToInstall.push(specifiedDependency)
-  } else {
-    const isPeerDep = appPackageJson.peerDependencies?.[packageName]
-    const isDep = appPackageJson.dependencies?.[packageName]
-
-    //
-    if (isPeerDep && !isDep) {
-      // Skip installation if it's a peer-dependency only dependency
-      return
-    } else if (appPackageJson.dependencies?.[packageName]) {
-      dependenciesToInstall.push(specifiedDependency)
-    }
+  } else if (appPackageJson.dependencies?.[packageName]) {
+    dependenciesToInstall.push(specifiedDependency)
   }
 }
 
