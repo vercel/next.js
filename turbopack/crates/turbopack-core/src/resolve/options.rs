@@ -1,10 +1,10 @@
 use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, RcStr, TryJoinIterExt, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
@@ -22,7 +22,7 @@ pub struct LockedVersions {}
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug)]
-pub struct ExcludedExtensions(pub IndexSet<RcStr>);
+pub struct ExcludedExtensions(pub FxIndexSet<RcStr>);
 
 /// A location where to resolve modules.
 #[derive(
@@ -37,10 +37,6 @@ pub enum ResolveModules {
         dir: Vc<FileSystemPath>,
         excluded_extensions: Vc<ExcludedExtensions>,
     },
-    /// lookup versions based on lockfile in the registry filesystem
-    /// registry filesystem is assumed to have structure like
-    /// @scope/module/version/<path-in-package>
-    Registry(Vc<FileSystemPath>, Vc<LockedVersions>),
 }
 
 #[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
@@ -496,6 +492,8 @@ pub struct ResolveOptions {
     pub plugins: Vec<Vc<Box<dyn AfterResolvePlugin>>>,
     /// Support resolving *.js requests to *.ts files
     pub enable_typescript_with_output_extension: bool,
+    /// Warn instead of error for resolve errors
+    pub loose_errors: bool,
 
     pub placeholder_for_future_extensions: (),
 }

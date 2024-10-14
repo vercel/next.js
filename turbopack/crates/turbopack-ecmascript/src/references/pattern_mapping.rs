@@ -1,7 +1,6 @@
 use std::{borrow::Cow, collections::HashSet};
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -11,7 +10,9 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, RcStr, TryJoinIterExt, Value, Vc,
+};
 use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
@@ -70,7 +71,7 @@ pub(crate) enum PatternMapping {
     /// ```js
     /// require(`./images/${name}.png`)
     /// ```
-    Map(IndexMap<String, SinglePatternMapping>),
+    Map(FxIndexMap<String, SinglePatternMapping>),
 }
 
 #[derive(Hash, Debug, Copy, Clone)]
@@ -231,7 +232,7 @@ enum ImportMode {
 }
 
 fn create_context_map(
-    map: &IndexMap<String, SinglePatternMapping>,
+    map: &FxIndexMap<String, SinglePatternMapping>,
     key_expr: &Expr,
     import_mode: ImportMode,
 ) -> Expr {

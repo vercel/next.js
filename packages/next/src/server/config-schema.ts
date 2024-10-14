@@ -391,7 +391,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             resolveExtensions: z.array(z.string()).optional(),
             useSwcCss: z.boolean().optional(),
             treeShaking: z.boolean().optional(),
-            persistentCaching: z.boolean().optional(),
+            persistentCaching: z
+              .union([z.number(), z.literal(false)])
+              .optional(),
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
           })
@@ -625,7 +627,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     skipMiddlewareUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
     staticPageGenerationTimeout: z.number().optional(),
-    swrDelta: z.number().optional(),
+    expireTime: z.number().optional(),
     target: z.string().optional(),
     trailingSlash: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),

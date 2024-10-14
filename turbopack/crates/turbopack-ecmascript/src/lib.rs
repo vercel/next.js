@@ -39,7 +39,6 @@ use std::fmt::{Display, Formatter};
 use anyhow::Result;
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt};
-use indexmap::IndexMap;
 pub use parse::ParseResultSourceMap;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
@@ -56,11 +55,12 @@ use swc_core::{
     },
 };
 pub use transform::{
-    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, OptionTransformPlugin,
-    TransformContext, TransformPlugin, UnsupportedServerActionIssue,
+    CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
+    TransformPlugin, UnsupportedServerActionIssue,
 };
 use turbo_tasks::{
-    trace::TraceRawVcs, RcStr, ReadRef, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, RcStr, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{rope::Rope, FileJsonContent, FileSystemPath};
 use turbopack_core::{
@@ -146,14 +146,6 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
-    /// The list of export names that should make tree shaking bail off. This is
-    /// required because tree shaking can split imports like `export const
-    /// runtime = 'edge'` as a separate module.
-    ///
-    /// Currently the analysis of these exports are statically verified by `NextPageStaticInfo`,
-    /// which is a `CustomTransformer` implementation and we don't have a way to apply it after
-    /// tree shaking.
-    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -250,7 +242,7 @@ pub struct EcmascriptModuleAsset {
     pub transforms: Vc<EcmascriptInputTransforms>,
     pub options: Vc<EcmascriptOptions>,
     pub compile_time_info: Vc<CompileTimeInfo>,
-    pub inner_assets: Option<Vc<InnerAssets>>,
+    pub inner_assets: Option<ResolvedVc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
     last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
 }
@@ -279,14 +271,6 @@ pub trait EcmascriptAnalyzable {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>>;
 }
-
-/// An optional [EcmascriptModuleAsset]
-#[turbo_tasks::value(transparent)]
-pub struct OptionEcmascriptModuleAsset(Option<Vc<EcmascriptModuleAsset>>);
-
-/// A list of [EcmascriptModuleAsset]s
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptModuleAssets(Vec<Vc<EcmascriptModuleAsset>>);
 
 impl EcmascriptModuleAsset {
     pub fn builder(
@@ -449,7 +433,7 @@ impl EcmascriptModuleAsset {
         transforms: Vc<EcmascriptInputTransforms>,
         options: Vc<EcmascriptOptions>,
         compile_time_info: Vc<CompileTimeInfo>,
-        inner_assets: Vc<InnerAssets>,
+        inner_assets: ResolvedVc<InnerAssets>,
     ) -> Vc<Self> {
         Self::cell(EcmascriptModuleAsset {
             source,
@@ -888,8 +872,8 @@ fn process_content_with_code_gens(
 ) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
-    let mut early_hoisted_stmts = IndexMap::new();
-    let mut hoisted_stmts = IndexMap::new();
+    let mut early_hoisted_stmts = FxIndexMap::default();
+    let mut hoisted_stmts = FxIndexMap::default();
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
             hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());

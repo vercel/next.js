@@ -12,7 +12,6 @@ use turbopack_core::{
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
 };
-use turbopack_resolve::ecmascript::try_to_severity;
 
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
@@ -61,7 +60,7 @@ impl WorkerAssetReference {
             // TODO support more worker types
             Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
             Some(self.issue_source),
-            try_to_severity(self.in_try),
+            self.in_try,
         );
 
         let Some(module) = *module.first_module().await? else {

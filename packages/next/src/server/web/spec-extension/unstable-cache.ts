@@ -236,6 +236,7 @@ export function unstable_cache<T extends Callback>(
                 }
                 const innerCacheStore: UnstableCacheStore = {
                   type: 'unstable-cache',
+                  phase: 'render',
                 }
                 // We run the cache function asynchronously and save the result when it completes
                 workStore.pendingRevalidates[invocationKey] =
@@ -268,6 +269,7 @@ export function unstable_cache<T extends Callback>(
 
         const innerCacheStore: UnstableCacheStore = {
           type: 'unstable-cache',
+          phase: 'render',
         }
         // If we got this far then we had an invalid cache entry and need to generate a new one
         const result = await workUnitAsyncStorage.run(
@@ -334,6 +336,7 @@ export function unstable_cache<T extends Callback>(
 
         const innerCacheStore: UnstableCacheStore = {
           type: 'unstable-cache',
+          phase: 'render',
         }
         // If we got this far then we had an invalid cache entry and need to generate a new one
         const result = await workUnitAsyncStorage.run(

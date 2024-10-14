@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
-use indexmap::indexmap;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{fxindexmap, RcStr, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -73,7 +72,7 @@ impl WebAssemblyModuleAsset {
 
         let module = this.asset_context.process(
             loader_source,
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
+            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
                 "WASM_PATH".into() => Vc::upcast(RawWebAssemblyModuleAsset::new(this.source, this.asset_context)),
             }))),
         ).module();

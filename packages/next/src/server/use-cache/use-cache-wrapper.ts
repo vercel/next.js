@@ -21,6 +21,8 @@ import type {
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
+import { cacheScopeAsyncLocalStorage } from '../async-storage/cache-scope.external'
+
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 import {
@@ -28,71 +30,73 @@ import {
   getServerModuleMap,
 } from '../app-render/encryption-utils'
 import { defaultCacheLife } from './cache-life'
+import type { CacheScopeStore } from '../async-storage/cache-scope.external'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 type CacheEntry = {
   value: ReadableStream
+  timestamp: number
   // In-memory caches are fragile and should not use stale-while-revalidate
   // semantics on the caches because it's not worth warming up an entry that's
   // likely going to get evicted before we get to use it anyway. However,
   // we also don't want to reuse a stale entry for too long so stale entries
   // should be considered expired/missing in such CacheHandlers.
-  stale: boolean
-  tags: string[]
   revalidate: number
+  expire: number
+  stale: number
+  tags: string[]
 }
 
 interface CacheHandler {
-  get(
-    cacheKey: string | ArrayBuffer,
-    implicitTags: string[]
-  ): Promise<undefined | CacheEntry>
-  set(cacheKey: string | ArrayBuffer, value: Promise<CacheEntry>): Promise<void>
+  get(cacheKey: string, implicitTags: string[]): Promise<undefined | CacheEntry>
+  set(cacheKey: string, value: Promise<CacheEntry>): Promise<void>
 }
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
 
 // TODO: Move default implementation to be injectable.
-const defaultCacheStorage: Map<string, CacheEntry> = new Map()
+const defaultCacheStorage: Map<string, Promise<CacheEntry>> = new Map()
 cacheHandlerMap.set('default', {
-  async get(cacheKey: string | ArrayBuffer): Promise<undefined | CacheEntry> {
+  async get(cacheKey: string): Promise<undefined | CacheEntry> {
     // TODO: Implement proper caching.
-    if (typeof cacheKey === 'string') {
-      const entry = defaultCacheStorage.get(cacheKey)
-      if (entry !== undefined) {
-        const [returnStream, newSaved] = entry.value.tee()
-        entry.value = newSaved
-        return {
-          value: returnStream,
-          stale: false,
-          revalidate: entry.revalidate,
-          tags: entry.tags,
-        }
+    const entry = await defaultCacheStorage.get(cacheKey)
+    if (entry !== undefined) {
+      if (
+        performance.timeOrigin + performance.now() >
+        entry.timestamp + entry.revalidate * 1000
+      ) {
+        // In memory caches should expire after revalidate time because it is unlikely that
+        // a new entry will be able to be used before it is dropped from the cache.
+        return undefined
       }
-    } else {
-      // TODO: Handle binary keys.
+      const [returnStream, newSaved] = entry.value.tee()
+      entry.value = newSaved
+      return {
+        value: returnStream,
+        timestamp: entry.timestamp,
+        revalidate: entry.revalidate,
+        expire: entry.revalidate,
+        stale: entry.stale,
+        tags: entry.tags,
+      }
     }
     return undefined
   },
-  async set(cacheKey: string | ArrayBuffer, promise: Promise<CacheEntry>) {
-    const entry = await promise
+  async set(cacheKey: string, promise: Promise<CacheEntry>) {
     // TODO: Implement proper caching.
-    if (typeof cacheKey === 'string') {
-      defaultCacheStorage.set(cacheKey, entry)
-    } else {
-      // TODO: Handle binary keys.
-      await entry.value.cancel()
-    }
+    defaultCacheStorage.set(cacheKey, promise)
+    await promise
   },
 })
 
 function generateCacheEntry(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
+  cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
-  serializedCacheKey: string | ArrayBuffer,
+  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ): Promise<ReadableStream> {
@@ -105,6 +109,7 @@ function generateCacheEntry(
     generateCacheEntryWithRestoredWorkStore,
     workStore,
     outerWorkUnitStore,
+    cacheScope,
     clientReferenceManifest,
     cacheHandler,
     serializedCacheKey,
@@ -116,9 +121,10 @@ function generateCacheEntry(
 function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
+  cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
-  serializedCacheKey: string | ArrayBuffer,
+  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ) {
@@ -129,6 +135,21 @@ function generateCacheEntryWithRestoredWorkStore(
   // in RequestStore but should be available to Caches need to move to WorkStore.
   // PrerenderStore is not needed inside the cache scope because the outer most one will
   // be the one to report its result to the outer Prerender.
+  if (cacheScope) {
+    return cacheScopeAsyncLocalStorage.run(cacheScope, () =>
+      workAsyncStorage.run(
+        workStore,
+        generateCacheEntryWithCacheContext,
+        workStore,
+        outerWorkUnitStore,
+        clientReferenceManifest,
+        cacheHandler,
+        serializedCacheKey,
+        encodedArguments,
+        fn
+      )
+    )
+  }
   return workAsyncStorage.run(
     workStore,
     generateCacheEntryWithCacheContext,
@@ -147,20 +168,25 @@ function generateCacheEntryWithCacheContext(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
-  serializedCacheKey: string | ArrayBuffer,
+  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ) {
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
+    phase: 'render',
     implicitTags:
       outerWorkUnitStore === undefined ||
       outerWorkUnitStore.type === 'unstable-cache'
         ? []
         : outerWorkUnitStore.implicitTags,
     revalidate: defaultCacheLife.revalidate,
+    expire: defaultCacheLife.expire,
+    stale: defaultCacheLife.stale,
     explicitRevalidate: undefined,
+    explicitExpire: undefined,
+    explicitStale: undefined,
     tags: null,
   }
   return workUnitAsyncStorage.run(
@@ -207,6 +233,7 @@ async function collectResult(
   savedStream: ReadableStream,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
+  startTime: number,
   errors: Array<unknown> // This is a live array that gets pushed into.
 ): Promise<CacheEntry> {
   // We create a buffered stream that collects all chunks until the end to
@@ -250,15 +277,34 @@ async function collectResult(
     innerCacheStore.explicitRevalidate !== undefined
       ? innerCacheStore.explicitRevalidate
       : innerCacheStore.revalidate
+  const collectedExpire =
+    innerCacheStore.explicitExpire !== undefined
+      ? innerCacheStore.explicitExpire
+      : innerCacheStore.expire
+  const collectedStale =
+    innerCacheStore.explicitStale !== undefined
+      ? innerCacheStore.explicitStale
+      : innerCacheStore.stale
 
   const entry = {
     value: bufferStream,
-    stale: false, // TODO: rm
-    tags: collectedTags === null ? [] : collectedTags,
+    timestamp: startTime,
     revalidate: collectedRevalidate,
+    expire: collectedExpire,
+    stale: collectedStale,
+    tags: collectedTags === null ? [] : collectedTags,
   }
   // Propagate tags/revalidate to the parent context.
   propagateCacheLifeAndTags(outerWorkUnitStore, entry)
+
+  const cacheSignal =
+    outerWorkUnitStore && outerWorkUnitStore.type === 'prerender'
+      ? outerWorkUnitStore.cacheSignal
+      : null
+  if (cacheSignal) {
+    cacheSignal.endRead()
+  }
+
   return entry
 }
 
@@ -268,7 +314,7 @@ async function generateCacheEntryImpl(
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
   cacheHandler: CacheHandler,
-  serializedCacheKey: string | ArrayBuffer,
+  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ): Promise<ReadableStream> {
@@ -282,6 +328,8 @@ async function generateCacheEntryImpl(
     }
   )
 
+  // Track the timestamp when we started copmuting the result.
+  const startTime = performance.timeOrigin + performance.now()
   // Invoke the inner function to load a new result.
   const result = fn.apply(null, args)
 
@@ -303,10 +351,11 @@ async function generateCacheEntryImpl(
 
   const [returnStream, savedStream] = stream.tee()
 
-  const cacheEntry = collectResult(
+  let cacheEntry = collectResult(
     savedStream,
     outerWorkUnitStore,
     innerCacheStore,
+    startTime,
     errors
   )
 
@@ -322,6 +371,106 @@ async function generateCacheEntryImpl(
   // erroring we cannot return a stale-while-error version but it allows
   // streaming back the result earlier.
   return returnStream
+}
+
+async function loadCacheEntry(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore | undefined,
+  cacheScope: undefined | CacheScopeStore,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
+  cacheHandler: CacheHandler,
+  serializedCacheKey: string,
+  encodedArguments: FormData | string,
+  fn: any
+): Promise<ReadableStream> {
+  const cacheSignal =
+    workUnitStore && workUnitStore.type === 'prerender'
+      ? workUnitStore.cacheSignal
+      : null
+  if (cacheSignal) {
+    // Either the cache handler or the generation can be using I/O at this point.
+    // We need to track when they start and when they complete.
+    cacheSignal.beginRead()
+  }
+
+  const implicitTags =
+    workUnitStore === undefined || workUnitStore.type === 'unstable-cache'
+      ? []
+      : workUnitStore.implicitTags
+  let entry: undefined | CacheEntry = await cacheHandler.get(
+    serializedCacheKey,
+    implicitTags
+  )
+
+  const currentTime = performance.timeOrigin + performance.now()
+  if (
+    entry === undefined ||
+    currentTime > entry.timestamp + entry.expire * 1000 ||
+    (workStore.isStaticGeneration &&
+      currentTime > entry.timestamp + entry.revalidate * 1000)
+  ) {
+    // Miss. Generate a new result.
+
+    // If the cache entry is stale and we're prerendering, we don't want to use the
+    // stale entry since it would unnecessarily need to shorten the lifetime of the
+    // prerender. We're not time constrained here so we can re-generated it now.
+
+    // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
+    // generation cannot read anything from the context we're currently executing which
+    // might include request specific things like cookies() inside a React.cache().
+    // Note: It is important that we await at least once before this because it lets us
+    // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
+
+    return generateCacheEntry(
+      workStore,
+      workUnitStore,
+      cacheScope,
+      clientReferenceManifest,
+      cacheHandler,
+      serializedCacheKey,
+      encodedArguments,
+      fn
+    )
+  } else {
+    propagateCacheLifeAndTags(workUnitStore, entry)
+
+    if (currentTime > entry.timestamp + entry.revalidate) {
+      // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
+      // then we should warm up the cache with a fresh revalidated entry.
+      const ignoredStream = await generateCacheEntry(
+        workStore,
+        workUnitStore,
+        cacheScope,
+        clientReferenceManifest,
+        cacheHandler,
+        serializedCacheKey,
+        encodedArguments,
+        fn
+      )
+      await ignoredStream.cancel()
+    } else {
+      if (cacheSignal) {
+        // If we're not regenerating we need to signal that we've finished
+        // putting the entry into the cache scope at this point. Otherwise we do
+        // that inside generateCacheEntry.
+        cacheSignal.endRead()
+      }
+    }
+
+    return entry.value
+  }
+}
+
+async function teePromiseOfStream(
+  promiseOfStream: Promise<ReadableStream>
+): Promise<[ReadableStream, ReadableStream]> {
+  return (await promiseOfStream).tee()
+}
+
+async function cacheScopeEntryFromSecondStream(
+  promiseOfStreams: Promise<[ReadableStream, ReadableStream]>
+) {
+  return { value: (await promiseOfStreams)[1] }
 }
 
 export function cache(kind: string, id: string, fn: any) {
@@ -346,10 +495,10 @@ export function cache(kind: string, id: string, fn: any) {
 
       const workUnitStore = workUnitAsyncStorage.getStore()
 
-      const implicitTags =
-        workUnitStore === undefined || workUnitStore.type === 'unstable-cache'
-          ? []
-          : workUnitStore.implicitTags
+      // Get the clientReferenceManifestSingleton while we're still in the outer Context.
+      // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
+      const clientReferenceManifestSingleton =
+        getClientReferenceManifestSingleton()
 
       // Because the Action ID is not yet unique per implementation of that Action we can't
       // safely reuse the results across builds yet. In the meantime we add the buildId to the
@@ -370,66 +519,66 @@ export function cache(kind: string, id: string, fn: any) {
           ? // Fast path for the simple case for simple inputs. We let the CacheHandler
             // Convert it to an ArrayBuffer if it wants to.
             encodedArguments
-          : // The FormData might contain binary data that is not valid UTF-8 so this
-            // cannot be a string in this case. I.e. .text() is not valid here and it
-            // is not valid to use TextDecoder on this result.
-            await new Response(encodedArguments).arrayBuffer()
+          : // The FormData might contain binary data that is not valid UTF-8 so this cache
+            // key may generate a UCS-2 string. Passing this to another service needs to be
+            // aware that the key might not be compatible.
+            String.fromCodePoint(
+              ...new Uint8Array(
+                await new Response(encodedArguments).arrayBuffer()
+              )
+            )
 
-      let entry: undefined | CacheEntry = await cacheHandler.get(
-        serializedCacheKey,
-        implicitTags
-      )
+      let stream: ReadableStream
 
-      // Get the clientReferenceManifestSingleton while we're still in the outer Context.
-      // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
-      const clientReferenceManifestSingleton =
-        getClientReferenceManifestSingleton()
-
-      let stream
-      if (
-        entry === undefined ||
-        (entry.stale && workStore.isStaticGeneration)
-      ) {
-        // Miss. Generate a new result.
-
-        // If the cache entry is stale and we're prerendering, we don't want to use the
-        // stale entry since it would unnecessarily need to shorten the lifetime of the
-        // prerender. We're not time constrained here so we can re-generated it now.
-
-        // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
-        // generation cannot read anything from the context we're currently executing which
-        // might include request specific things like cookies() inside a React.cache().
-        // Note: It is important that we await at least once before this because it lets us
-        // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
-
-        stream = await generateCacheEntry(
-          workStore,
-          workUnitStore,
-          clientReferenceManifestSingleton,
-          cacheHandler,
-          serializedCacheKey,
-          encodedArguments,
-          fn
-        )
-      } else {
-        stream = entry.value
-
-        propagateCacheLifeAndTags(workUnitStore, entry)
-
-        if (entry.stale) {
-          // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
-          // then we should warm up the cache with a fresh revalidated entry.
-          const ignoredStream = await generateCacheEntry(
+      const cacheScope: undefined | CacheScopeStore =
+        cacheScopeAsyncLocalStorage.getStore()
+      if (cacheScope) {
+        // String cache key for easier hash mapping.
+        // Note that we're not worried about collisions between string and base64
+        // since the string form will always be JSON which doesn't overlap with base64.
+        const cachedStream:
+          | undefined
+          | Promise<{
+              value: ReadableStream
+            }> = cacheScope.cache.get(serializedCacheKey)
+        if (cachedStream !== undefined) {
+          const entry = await cachedStream
+          // Get a clone out of the cache.
+          const [streamA, streamB] = entry.value.tee()
+          entry.value = streamB
+          stream = streamA
+        } else {
+          // If this is a miss we need to synchronously save an entry so that if we're asked again
+          // for the same entry, we can dedupe the requests. So we split the Promise into two Promises
+          // of streams.
+          const loadedStream = loadCacheEntry(
             workStore,
             workUnitStore,
+            cacheScope,
             clientReferenceManifestSingleton,
             cacheHandler,
             serializedCacheKey,
             encodedArguments,
             fn
           )
-          await ignoredStream.cancel()
+          const streams = teePromiseOfStream(loadedStream)
+          cacheScope.cache.set(
+            serializedCacheKey,
+            cacheScopeEntryFromSecondStream(streams)
+          )
+          stream = (await streams)[0]
         }
+      } else {
+        stream = await loadCacheEntry(
+          workStore,
+          workUnitStore,
+          cacheScope,
+          clientReferenceManifestSingleton,
+          cacheHandler,
+          serializedCacheKey,
+          encodedArguments,
+          fn
+        )
       }
 
       // Logs are replayed even if it's a hit - to ensure we see them on the client eventually.

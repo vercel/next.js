@@ -3,7 +3,7 @@ title: layout.js
 description: API reference for the layout.js file.
 ---
 
-A **layout** is UI that is shared between routes.
+The `layout` file is used to define a layout in your Next.js application.
 
 ```tsx filename="app/dashboard/layout.tsx" switcher
 export default function DashboardLayout({
@@ -47,58 +47,77 @@ export default function RootLayout({ children }) {
 }
 ```
 
-## Props
+## Reference
 
-### `children` (required)
+### Props
+
+#### `children` (required)
 
 Layout components should accept and use a `children` prop. During rendering, `children` will be populated with the route segments the layout is wrapping. These will primarily be the component of a child [Layout](/docs/app/building-your-application/routing/pages) (if it exists) or [Page](/docs/app/building-your-application/routing/pages), but could also be other special files like [Loading](/docs/app/building-your-application/routing/loading-ui-and-streaming) or [Error](/docs/app/building-your-application/routing/error-handling) when applicable.
 
-### `params` (optional)
+#### `params` (optional)
 
-The [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) object from the root segment down to that layout.
+A promise that resolves to an object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) object from the root segment down to that layout.
 
-| Example                           | URL            | `params`                  |
-| --------------------------------- | -------------- | ------------------------- |
-| `app/dashboard/[team]/layout.js`  | `/dashboard/1` | `{ team: '1' }`           |
-| `app/shop/[tag]/[item]/layout.js` | `/shop/1/2`    | `{ tag: '1', item: '2' }` |
-| `app/blog/[...slug]/layout.js`    | `/blog/1/2`    | `{ slug: ['1', '2'] }`    |
-
-For example:
-
-```tsx filename="app/shop/[tag]/[item]/layout.tsx" switcher
-export default function ShopLayout({
-  children,
+```tsx filename="app/dashboard/[team]/layout.tsx" switcher
+export default async function Layout({
   params,
 }: {
-  children: React.ReactNode
-  params: {
-    tag: string
-    item: string
-  }
+  params: Promise<{ team: string }>
 }) {
-  // URL -> /shop/shoes/nike-air-max-97
-  // `params` -> { tag: 'shoes', item: 'nike-air-max-97' }
-  return <section>{children}</section>
+  const team = (await params).team
 }
 ```
 
-```jsx filename="app/shop/[tag]/[item]/layout.js" switcher
-export default function ShopLayout({ children, params }) {
-  // URL -> /shop/shoes/nike-air-max-97
-  // `params` -> { tag: 'shoes', item: 'nike-air-max-97' }
-  return <section>{children}</section>
+```jsx filename="app/dashboard/[team]/layout.js" switcher
+export default async function Layout({ params }) {
+  const team = (await params).team
 }
 ```
 
-## Good to know
+| Example Route                     | URL            | `params`                           |
+| --------------------------------- | -------------- | ---------------------------------- |
+| `app/dashboard/[team]/layout.js`  | `/dashboard/1` | `Promise<{ team: '1' }>`           |
+| `app/shop/[tag]/[item]/layout.js` | `/shop/1/2`    | `Promise<{ tag: '1', item: '2' }>` |
+| `app/blog/[...slug]/layout.js`    | `/blog/1/2`    | `Promise<{ slug: ['1', '2'] }>`    |
+
+- Since the `params` prop is a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access the values.
+  - In version 14 and earlier, `params` was a synchronous prop. To help with backwards compatability, you can still access it synchronoulsy in Next.js 15, but this behavior will be deprecated in the future.
 
 ### Root Layouts
 
-- The `app` directory **must** include a root `app/layout.js`.
+The `app` directory **must** include a root `app/layout.js`.
+
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
 - The root layout **must** define `<html>` and `<body>` tags.
-  - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/api-reference/functions/generate-metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
+  - You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to root layouts. Instead, you should use the [Metadata API](/docs/app/building-your-application/optimizing/metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
 - You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts.
   - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load. This **only** applies to multiple root layouts.
+
+## Caveats
 
 ### Layouts do not receive `searchParams`
 
@@ -122,7 +141,7 @@ This performance optimization allows navigation between pages that share a layou
 
 Because `dashboard/layout.tsx` doesn't re-render, the `searchParams` prop in the layout Server Component might become **stale** after navigation.
 
-Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop or the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook in a Client Component, which is re-rendered on the client with the latest `searchParams`.
+Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop or the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook in a Client Component within the layout, which is rerendered on the client with the latest `searchParams`.
 
 ### Layouts cannot access `pathname`
 
@@ -162,8 +181,75 @@ Common `pathname` patterns can also be implemented with [`params`](#params-optio
 
 See the [examples](/docs/app/building-your-application/routing/layouts-and-templates#examples) section for more information.
 
+## Examples
+
+### Displaying content based on `params`
+
+Using [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes), you can display or fetch specific content based on the `params` prop.
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+export default async function DashboardLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode
+  params: Promise<{ team: string }>
+}) {
+  const { team } = await params
+
+  return (
+    <section>
+      <header>
+        <h1>Welcome to {team}'s Dashboard</h1>
+      </header>
+      <main>{children}</main>
+    </section>
+  )
+}
+```
+
+```jsx filename="app/dashboard/layout.js" switcher
+export default async function DashboardLayout({ children, params }) {
+  const { team } = await params
+
+  return (
+    <section>
+      <header>
+        <h1>Welcome to {team}'s Dashboard</h1>
+      </header>
+      <main>{children}</main>
+    </section>
+  )
+}
+```
+
+### Reading `params` in Client Components
+
+To use `params` in a Client Component (which cannot be `async`), you can use React's [`use`](https://react.dev/reference/react/use) function to read the promise:
+
+```tsx filename="app/page.tsx" switcher
+'use client'
+
+import { use } from 'react'
+
+export function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params)
+}
+```
+
+```js filename="app/page.js" switcher
+'use client'
+
+import { use } from 'react'
+
+export function Page({ params }) {
+  const { slug } = use(params)
+}
+```
+
 ## Version History
 
-| Version   | Changes              |
-| --------- | -------------------- |
-| `v13.0.0` | `layout` introduced. |
+| Version      | Changes                                                                                                          |
+| ------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `v15.0.0-RC` | `params` is now a promise. A [codemod](/docs/app/building-your-application/upgrading/codemods#150) is available. |
+| `v13.0.0`    | `layout` introduced.                                                                                             |

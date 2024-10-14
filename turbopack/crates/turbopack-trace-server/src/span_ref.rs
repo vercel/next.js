@@ -5,14 +5,13 @@ use std::{
     vec,
 };
 
-use indexmap::IndexMap;
-
 use crate::{
     bottom_up::build_bottom_up_graph,
     span::{Span, SpanEvent, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames, SpanTimeData},
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
     store::{SpanId, Store},
+    FxIndexMap,
 };
 
 #[derive(Copy, Clone)]
@@ -296,7 +295,8 @@ impl<'a> SpanRef<'a> {
         self.extra()
             .graph
             .get_or_init(|| {
-                let mut map: IndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> = IndexMap::new();
+                let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
+                    FxIndexMap::default();
                 let mut queue = VecDeque::with_capacity(8);
                 for child in self.children() {
                     let name = child.group_name();

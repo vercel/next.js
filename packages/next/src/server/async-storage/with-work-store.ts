@@ -139,6 +139,6 @@ function createAfterContext(
   if (!isAfterEnabled) {
     return undefined
   }
-  const { waitUntil, onClose } = renderOpts
-  return new AfterContext({ waitUntil, onClose })
+  const { waitUntil, onClose, onAfterTaskError } = renderOpts
+  return new AfterContext({ waitUntil, onClose, onTaskError: onAfterTaskError })
 }

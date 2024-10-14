@@ -10,7 +10,7 @@ import {
 import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
-import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope'
+import { cacheScopeAsyncLocalStorage } from '../../async-storage/cache-scope.external'
 import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
@@ -42,6 +42,8 @@ export interface CacheHandlerValue {
   cacheState?: string
   value: IncrementalCacheValue | null
 }
+
+export const cacheHandlersSymbol = Symbol('@next/cache-handlers')
 
 export class CacheHandler {
   // eslint-disable-next-line
@@ -120,22 +122,36 @@ export class IncrementalCache implements IncrementalCacheType {
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
-    if (!CurCacheHandler) {
-      if (fs && serverDistDir) {
-        if (debug) {
-          console.log('using filesystem cache handler')
-        }
-        CurCacheHandler = FileSystemCache
+
+    const _globalThis: typeof globalThis & {
+      [cacheHandlersSymbol]?: {
+        FetchCache?: typeof CacheHandler
       }
-      if (
-        FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
-        minimalMode &&
-        fetchCache
-      ) {
-        if (debug) {
-          console.log('using fetch cache handler')
+    } = globalThis
+
+    if (!CurCacheHandler) {
+      // if we have a global cache handler available leverage it
+      const globalCacheHandler = _globalThis[cacheHandlersSymbol]
+
+      if (globalCacheHandler?.FetchCache) {
+        CurCacheHandler = globalCacheHandler.FetchCache
+      } else {
+        if (fs && serverDistDir) {
+          if (debug) {
+            console.log('using filesystem cache handler')
+          }
+          CurCacheHandler = FileSystemCache
         }
-        CurCacheHandler = FetchCache
+        if (
+          FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
+          minimalMode &&
+          fetchCache
+        ) {
+          if (debug) {
+            console.log('using fetch cache handler')
+          }
+          CurCacheHandler = FetchCache
+        }
       }
     } else if (debug) {
       console.log('using custom cache handler', CurCacheHandler.name)
@@ -406,7 +422,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
       const cacheScope = cacheScopeAsyncLocalStorage.getStore()
 
-      if (cacheScope?.cache) {
+      if (cacheScope) {
         const memoryCacheData = cacheScope.cache.get(cacheKey)
 
         if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
@@ -530,7 +546,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
       const cacheScope = cacheScopeAsyncLocalStorage.getStore()
 
-      if (cacheScope?.cache) {
+      if (cacheScope) {
         cacheScope.cache.set(pathname, data)
       }
     }

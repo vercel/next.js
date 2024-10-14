@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::indexmap;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{fxindexmap, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -74,7 +73,7 @@ pub async fn get_app_route_entry(
     let virtual_source = load_next_js_template(
         "app-route.js",
         project_root,
-        indexmap! {
+        fxindexmap! {
             "VAR_DEFINITION_PAGE" => page.to_string().into(),
             "VAR_DEFINITION_PATHNAME" => pathname.clone(),
             "VAR_DEFINITION_FILENAME" => path.file_stem().await?.as_ref().unwrap().as_str().into(),
@@ -83,10 +82,10 @@ pub async fn get_app_route_entry(
             "VAR_RESOLVED_PAGE_PATH" => path.to_string().await?.clone_value(),
             "VAR_USERLAND" => INNER.into(),
         },
-        indexmap! {
+        fxindexmap! {
             "nextConfigOutput" => output_type
         },
-        indexmap! {},
+        fxindexmap! {},
     )
     .await?;
 
@@ -97,7 +96,7 @@ pub async fn get_app_route_entry(
         )
         .module();
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         INNER.into() => userland_module
     };
 
@@ -138,15 +137,15 @@ async fn wrap_edge_route(
     let source = load_next_js_template(
         "edge-app-route.js",
         project_root,
-        indexmap! {
+        fxindexmap! {
             "VAR_USERLAND" => INNER.into(),
         },
-        indexmap! {},
-        indexmap! {},
+        fxindexmap! {},
+        fxindexmap! {},
     )
     .await?;
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         INNER.into() => entry
     };
 
