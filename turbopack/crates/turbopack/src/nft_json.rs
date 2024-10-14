@@ -94,8 +94,7 @@ impl NftJsonAsset {
             }
         }
 
-        println!("Unknown filesystem for {}", path.to_string().await?);
-        Ok(Vc::cell("".into()))
+        bail!("Unknown filesystem for {}", path.to_string().await?);
     }
 }
 
@@ -123,29 +122,12 @@ impl OutputAsset for NftJsonAsset {
 impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        // println!(
-        //     "parent_dir: {:?}",
-        //     self.ident().path().parent().to_string().await?
-        // );
-
         let this = &*self.await?;
         let mut result = Vec::new();
-
-        // let set = async { all_modules_and_affecting_sources(this.entry).await }
-        //     .instrument(tracing::info_span!("NftJsonAsset tracing"))
-        //     .await?;
-        // for asset in set {
-        //     let specifier = self.get_output_specifier(asset.ident().path()).await?;
-        //     result.push(specifier);
-        // }
 
         if let Some(chunk) = this.chunk {
             let chunk = chunk.resolve().await?;
             for referenced_chunk in all_assets_from_entries(Vc::cell(vec![chunk])).await? {
-                println!(
-                    "referenced_chunk {}",
-                    referenced_chunk.ident().to_string().await?
-                );
                 // TODO or should it skip sourcemaps by checking path.endsWith(".map")?
                 if (Vc::try_resolve_downcast_type::<SourceMapAsset>(*referenced_chunk).await?)
                     .is_some()
