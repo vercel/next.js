@@ -74,8 +74,7 @@ export function headers(): Promise<ReadonlyHeaders> {
         )
       } else if (workUnitStore.phase === 'after') {
         throw new Error(
-          // TODO(after): "close over it" is bad phrasing
-          `Route ${workStore.route} used "headers" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "headers" outside of the callback and close over it. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
+          `Route ${workStore.route} used "headers" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "headers" outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
         )
       }
     }
