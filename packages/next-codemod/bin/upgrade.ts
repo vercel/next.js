@@ -8,6 +8,7 @@ import pc from 'picocolors'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import { BadInput } from './shared'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
@@ -34,6 +35,22 @@ async function loadHighestNPMVersionMatching(query: string) {
   return versionOrVersions
 }
 
+function endMessage() {
+  console.log()
+  console.log(
+    pc.white(
+      pc.bold(
+        `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+      )
+    )
+  )
+  console.log(
+    pc.underline(
+      'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
+    )
+  )
+}
+
 export async function runUpgrade(
   revision: string | undefined,
   options: { verbose: boolean }
@@ -57,14 +74,15 @@ export async function runUpgrade(
     'version' in targetNextPackageJson &&
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
-    throw new Error(
+    throw new BadInput(
       `Invalid revision provided: "${revision}". Please provide a valid Next.js version or dist-tag (e.g. "latest", "canary", "rc", or "15.0.0").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
     )
   }
 
   const installedNextVersion = getInstalledNextVersion()
 
-  console.log(`Current Next.js version: v${installedNextVersion}`)
+  // Align the prefix spaces
+  console.log(`  Current Next.js version: v${installedNextVersion}`)
 
   const targetNextVersion = targetNextPackageJson.version
 
@@ -72,12 +90,14 @@ export async function runUpgrade(
     console.log(
       `${pc.green('✓')} Current Next.js version is already on the target version "v${targetNextVersion}".`
     )
+    endMessage()
     return
   }
   if (compareVersions(installedNextVersion, targetNextVersion) > 0) {
     console.log(
       `${pc.green('✓')} Current Next.js version is higher than the target version "v${targetNextVersion}".`
     )
+    endMessage()
     return
   }
 
@@ -153,17 +173,18 @@ export async function runUpgrade(
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
   const nextDependency = `next@${targetNextVersion}`
-  const reactDependencies = [
+  const dependenciesToInstall = [
     `react@${targetReactVersion}`,
     `react-dom@${targetReactVersion}`,
   ]
+  const devDependenciesToInstall = []
   if (
     targetReactVersion.startsWith('19.0.0-canary') ||
     targetReactVersion.startsWith('19.0.0-beta') ||
     targetReactVersion.startsWith('19.0.0-rc')
   ) {
-    reactDependencies.push(`@types/react@npm:types-react@rc`)
-    reactDependencies.push(`@types/react-dom@npm:types-react-dom@rc`)
+    devDependenciesToInstall.push(`@types/react@npm:types-react@rc`)
+    devDependenciesToInstall.push(`@types/react-dom@npm:types-react-dom@rc`)
   } else {
     const [targetReactTypesVersion, targetReactDOMTypesVersion] =
       await Promise.all([
@@ -174,17 +195,24 @@ export async function runUpgrade(
           `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
         ),
       ])
-    reactDependencies.push(`@types/react@${targetReactTypesVersion}`)
-    reactDependencies.push(`@types/react-dom@${targetReactDOMTypesVersion}`)
+    devDependenciesToInstall.push(`@types/react@${targetReactTypesVersion}`)
+    devDependenciesToInstall.push(
+      `@types/react-dom@${targetReactDOMTypesVersion}`
+    )
   }
 
   console.log(
     `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
   )
 
-  installPackages([nextDependency, ...reactDependencies], {
+  installPackages([nextDependency, ...dependenciesToInstall], {
     packageManager,
     silent: !verbose,
+  })
+  installPackages(devDependenciesToInstall, {
+    packageManager,
+    silent: !verbose,
+    dev: true,
   })
 
   for (const codemod of codemods) {
@@ -215,9 +243,7 @@ export async function runUpgrade(
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
-  console.log(
-    `Please review the local changes and read the Next.js 15 migration guide to complete the migration. https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15`
-  )
+  endMessage()
 }
 
 function getInstalledNextVersion(): string {
@@ -228,7 +254,7 @@ function getInstalledNextVersion(): string {
       })
     ).version
   } catch (error) {
-    throw new Error(
+    throw new BadInput(
       `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
@@ -245,7 +271,7 @@ function getInstalledReactVersion(): string {
       })
     ).version
   } catch (error) {
-    throw new Error(
+    throw new BadInput(
       `Failed to detect the installed React version in "${process.cwd()}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,

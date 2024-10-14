@@ -852,6 +852,9 @@ importers:
       fontkit:
         specifier: 2.0.2
         version: 2.0.2
+      typescript:
+        specifier: 5.5.3
+        version: 5.5.3
 
   packages/next:
     dependencies:
@@ -1303,7 +1306,7 @@ importers:
         version: 2.4.4(webpack@5.90.0(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.13)))
       msw:
         specifier: 2.3.0
-        version: 2.3.0(typescript@5.6.3)
+        version: 2.3.0(typescript@5.5.3)
       nanoid:
         specifier: 3.1.32
         version: 3.1.32
@@ -1463,6 +1466,9 @@ importers:
       tty-browserify:
         specifier: 0.0.1
         version: 0.0.1
+      typescript:
+        specifier: 5.5.3
+        version: 5.5.3
       ua-parser-js:
         specifier: 1.0.35
         version: 1.0.35
@@ -1551,6 +1557,9 @@ importers:
       '@types/semver':
         specifier: 7.3.1
         version: 7.3.1
+      typescript:
+        specifier: 5.5.3
+        version: 5.5.3
 
   packages/next-env:
     devDependencies:
@@ -1635,6 +1644,9 @@ importers:
       prettier:
         specifier: 2.5.1
         version: 2.5.1
+      typescript:
+        specifier: 5.5.3
+        version: 5.5.3
 
   turbopack/crates/turbopack-cli/js:
     dependencies:
@@ -12658,7 +12670,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -27515,7 +27526,7 @@ snapshots:
       int64-buffer: 0.1.10
       isarray: 1.0.0
 
-  msw@2.3.0(typescript@5.6.3):
+  msw@2.3.0(typescript@5.5.3):
     dependencies:
       '@bundled-es-modules/cookie': 2.0.0
       '@bundled-es-modules/statuses': 1.0.1
@@ -27535,7 +27546,7 @@ snapshots:
       type-fest: 4.18.3
       yargs: 17.7.2
     optionalDependencies:
-      typescript: 5.6.3
+      typescript: 5.5.3
 
   multimatch@2.1.0:
     dependencies:

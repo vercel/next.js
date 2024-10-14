@@ -39,7 +39,6 @@ use std::fmt::{Display, Formatter};
 use anyhow::Result;
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt};
-use indexmap::IndexMap;
 pub use parse::ParseResultSourceMap;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
@@ -60,7 +59,7 @@ pub use transform::{
     TransformPlugin, UnsupportedServerActionIssue,
 };
 use turbo_tasks::{
-    trace::TraceRawVcs, RcStr, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
+    trace::TraceRawVcs, FxIndexMap, RcStr, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
     ValueToString, Vc,
 };
 use turbo_tasks_fs::{rope::Rope, FileJsonContent, FileSystemPath};
@@ -147,14 +146,6 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
-    /// The list of export names that should make tree shaking bail off. This is
-    /// required because tree shaking can split imports like `export const
-    /// runtime = 'edge'` as a separate module.
-    ///
-    /// Currently the analysis of these exports are statically verified by `NextPageStaticInfo`,
-    /// which is a `CustomTransformer` implementation and we don't have a way to apply it after
-    /// tree shaking.
-    pub special_exports: Vc<Vec<RcStr>>,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -881,8 +872,8 @@ fn process_content_with_code_gens(
 ) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
-    let mut early_hoisted_stmts = IndexMap::new();
-    let mut hoisted_stmts = IndexMap::new();
+    let mut early_hoisted_stmts = FxIndexMap::default();
+    let mut hoisted_stmts = FxIndexMap::default();
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in &code_gen.hoisted_stmts {
             hoisted_stmts.entry(key.clone()).or_insert(stmt.clone());

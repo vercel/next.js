@@ -5,7 +5,7 @@ use std::{
     cmp::Ordering,
     fmt::{Display, Formatter, Write},
     future::Future,
-    hash::{Hash, Hasher},
+    hash::{BuildHasherDefault, Hash, Hasher},
     mem::take,
     pin::Pin,
     sync::Arc,
@@ -13,11 +13,11 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use graph::VarGraph;
-use indexmap::{IndexMap, IndexSet};
 use num_bigint::BigInt;
 use num_traits::identities::Zero;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHasher;
 use swc_core::{
     common::Mark,
     ecma::{
@@ -25,7 +25,7 @@ use swc_core::{
         atoms::{Atom, JsWord},
     },
 };
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
 };
@@ -1923,7 +1923,7 @@ impl JsValue {
     pub fn match_free_var_reference<'a, T>(
         &self,
         var_graph: Option<&VarGraph>,
-        free_var_references: &'a IndexMap<Vec<DefineableNameSegment>, T>,
+        free_var_references: &'a FxIndexMap<Vec<DefineableNameSegment>, T>,
         prefix_self: &Option<DefineableNameSegment>,
     ) -> Option<&'a T> {
         if let Some(def_name_len) = self.get_defineable_name_len() {
@@ -1965,7 +1965,7 @@ impl JsValue {
     /// `self` with `prefix`, e.g. to be able to match `typeof foo` if `self` is just `foo`.
     pub fn match_define<'a, T>(
         &self,
-        defines: &'a IndexMap<Vec<DefineableNameSegment>, T>,
+        defines: &'a FxIndexMap<Vec<DefineableNameSegment>, T>,
     ) -> Option<&'a T> {
         if let Some(def_name_len) = self.get_defineable_name_len() {
             for (name, value) in defines.iter() {
@@ -3220,7 +3220,10 @@ impl JsValue {
                 if values.len() == 1 {
                     *self = take(&mut values[0]);
                 } else {
-                    let mut set = IndexSet::with_capacity(values.len());
+                    let mut set = FxIndexSet::with_capacity_and_hasher(
+                        values.len(),
+                        BuildHasherDefault::<FxHasher>::default(),
+                    );
                     for v in take(values) {
                         match v {
                             JsValue::Alternatives {
@@ -3746,13 +3749,13 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct RequireContextValue(IndexMap<RcStr, RcStr>);
+pub struct RequireContextValue(FxIndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::value_impl]
 impl RequireContextValue {
     #[turbo_tasks::function]
     pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Vc<Self>> {
-        let mut context_map = IndexMap::new();
+        let mut context_map = FxIndexMap::default();
 
         for (key, entry) in map.await?.iter() {
             context_map.insert(key.clone(), entry.origin_relative.clone());
@@ -3834,8 +3837,7 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
-    use indexmap::IndexMap;
-    use turbo_tasks::Vc;
+    use turbo_tasks::{FxIndexMap, Vc};
     use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
     use super::{
@@ -3884,7 +3886,7 @@ pub mod test_utils {
                 ref args,
             ) => match parse_require_context(args) {
                 Ok(options) => {
-                    let mut map = IndexMap::new();
+                    let mut map = FxIndexMap::default();
 
                     map.insert("./a".into(), format!("[context: {}]/a", options.dir).into());
                     map.insert("./b".into(), format!("[context: {}]/b", options.dir).into());

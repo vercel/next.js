@@ -1,10 +1,9 @@
 use std::collections::HashSet;
 
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, TaskInput, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
@@ -37,7 +36,7 @@ struct CustomRoutes {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ModularizeImports(IndexMap<String, ModularizeImportPackageConfig>);
+pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -53,14 +52,14 @@ pub struct NextConfig {
     /// custom path to a cache handler to use
     pub cache_handler: Option<RcStr>,
 
-    pub env: IndexMap<String, JsonValue>,
+    pub env: FxIndexMap<String, JsonValue>,
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
     pub page_extensions: Vec<RcStr>,
     pub react_production_profiling: Option<bool>,
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<RcStr>>,
-    pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
+    pub modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
     pub dist_dir: Option<RcStr>,
     sass_options: Option<serde_json::Value>,
     pub trailing_slash: Option<bool>,
@@ -108,8 +107,8 @@ pub struct NextConfig {
     on_demand_entries: OnDemandEntriesConfig,
     powered_by_header: bool,
     production_browser_source_maps: bool,
-    public_runtime_config: IndexMap<String, serde_json::Value>,
-    server_runtime_config: IndexMap<String, serde_json::Value>,
+    public_runtime_config: FxIndexMap<String, serde_json::Value>,
+    server_runtime_config: FxIndexMap<String, serde_json::Value>,
     static_page_generation_timeout: f64,
     target: Option<String>,
     typescript: TypeScriptConfig,
@@ -398,8 +397,8 @@ pub enum RemotePatternProtocal {
 pub struct ExperimentalTurboConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
-    pub rules: Option<IndexMap<RcStr, RuleConfigItemOrShortcut>>,
-    pub resolve_alias: Option<IndexMap<RcStr, JsonValue>>,
+    pub rules: Option<FxIndexMap<RcStr, RuleConfigItemOrShortcut>>,
+    pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub use_swc_css: Option<bool>,
     pub tree_shaking: Option<bool>,
@@ -425,7 +424,7 @@ pub enum RuleConfigItemOrShortcut {
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItem {
     Options(RuleConfigItemOptions),
-    Conditional(IndexMap<RcStr, RuleConfigItem>),
+    Conditional(FxIndexMap<RcStr, RuleConfigItem>),
     Boolean(bool),
 }
 
@@ -864,7 +863,7 @@ impl NextConfig {
             return Vc::cell(None);
         }
         let active_conditions = active_conditions.into_iter().collect::<HashSet<_>>();
-        let mut rules = IndexMap::new();
+        let mut rules = FxIndexMap::default();
         for (ext, rule) in turbo_rules.iter() {
             fn transform_loaders(loaders: &[LoaderItem]) -> Vc<WebpackLoaderItems> {
                 Vc::cell(

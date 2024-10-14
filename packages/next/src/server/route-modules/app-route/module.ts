@@ -352,6 +352,8 @@ export class AppRouteRouteModule extends RouteModule<
               controller: null,
               dynamicTracking,
               revalidate: defaultRevalidate,
+              expire: INFINITE_CACHE,
+              stale: INFINITE_CACHE,
               tags: [...implicitTags],
             })
 
@@ -423,6 +425,8 @@ export class AppRouteRouteModule extends RouteModule<
             controller: finalController,
             dynamicTracking,
             revalidate: defaultRevalidate,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
             tags: [...implicitTags],
           })
 
@@ -495,6 +499,8 @@ export class AppRouteRouteModule extends RouteModule<
             phase: 'action',
             implicitTags: implicitTags,
             revalidate: defaultRevalidate,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
             tags: [...implicitTags],
           }
 
@@ -570,6 +576,8 @@ export class AppRouteRouteModule extends RouteModule<
         prerenderStore.tags?.join(',')
       ;(context.renderOpts as any).collectedRevalidate =
         prerenderStore.revalidate
+      ;(context.renderOpts as any).collectedExpire = prerenderStore.expire
+      ;(context.renderOpts as any).collectedStale = prerenderStore.stale
     }
 
     // It's possible cookies were set in the handler, so we need

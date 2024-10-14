@@ -1784,6 +1784,8 @@ type PrerenderToStreamResult = {
   ssrErrors: Array<unknown>
   dynamicTracking?: null | DynamicTrackingState
   collectedRevalidate: number
+  collectedExpire: number
+  collectedStale: number
   collectedTags: null | string[]
 }
 
@@ -1945,6 +1947,8 @@ async function prerenderToStream(
             // will track it again there
             dynamicTracking: null,
             revalidate: INFINITE_CACHE,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
             tags: [...ctx.requestStore.implicitTags],
           })
 
@@ -2036,6 +2040,8 @@ async function prerenderToStream(
           controller: flightController,
           dynamicTracking,
           revalidate: INFINITE_CACHE,
+          expire: INFINITE_CACHE,
+          stale: INFINITE_CACHE,
           tags: [...ctx.requestStore.implicitTags],
         })
 
@@ -2098,6 +2104,8 @@ async function prerenderToStream(
           // dynamic during SSR
           dynamicTracking,
           revalidate: INFINITE_CACHE,
+          expire: INFINITE_CACHE,
+          stale: INFINITE_CACHE,
           tags: [...ctx.requestStore.implicitTags],
         }
         let SSRIsDynamic = false
@@ -2202,6 +2210,8 @@ async function prerenderToStream(
             dynamicTracking,
             // TODO: Should this include the SSR pass?
             collectedRevalidate: finalRenderPrerenderStore.revalidate,
+            collectedExpire: finalRenderPrerenderStore.expire,
+            collectedStale: finalRenderPrerenderStore.stale,
             collectedTags: finalRenderPrerenderStore.tags,
           }
         } else {
@@ -2257,6 +2267,8 @@ async function prerenderToStream(
             dynamicTracking,
             // TODO: Should this include the SSR pass?
             collectedRevalidate: finalRenderPrerenderStore.revalidate,
+            collectedExpire: finalRenderPrerenderStore.expire,
+            collectedStale: finalRenderPrerenderStore.stale,
             collectedTags: finalRenderPrerenderStore.tags,
           }
         }
@@ -2312,6 +2324,8 @@ async function prerenderToStream(
             controller: flightController,
             dynamicTracking,
             revalidate: INFINITE_CACHE,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
             tags: [...ctx.requestStore.implicitTags],
           })
 
@@ -2393,6 +2407,8 @@ async function prerenderToStream(
           controller: flightController,
           dynamicTracking,
           revalidate: INFINITE_CACHE,
+          expire: INFINITE_CACHE,
+          stale: INFINITE_CACHE,
           tags: [...ctx.requestStore.implicitTags],
         })
 
@@ -2411,6 +2427,8 @@ async function prerenderToStream(
           // dynamic during SSR
           dynamicTracking,
           revalidate: INFINITE_CACHE,
+          expire: INFINITE_CACHE,
+          stale: INFINITE_CACHE,
           tags: [...ctx.requestStore.implicitTags],
         }
 
@@ -2577,6 +2595,8 @@ async function prerenderToStream(
           dynamicTracking,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: finalRenderPrerenderStore.revalidate,
+          collectedExpire: finalRenderPrerenderStore.expire,
+          collectedStale: finalRenderPrerenderStore.stale,
           collectedTags: finalRenderPrerenderStore.tags,
         }
       }
@@ -2591,6 +2611,8 @@ async function prerenderToStream(
         implicitTags: ctx.requestStore.implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
         tags: [...ctx.requestStore.implicitTags],
       })
       const RSCPayload = await workUnitAsyncStorage.run(
@@ -2620,6 +2642,8 @@ async function prerenderToStream(
         implicitTags: ctx.requestStore.implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
         tags: [...ctx.requestStore.implicitTags],
       }
       const prerender = require('react-dom/static.edge')
@@ -2706,6 +2730,8 @@ async function prerenderToStream(
           dynamicTracking,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
+          collectedExpire: reactServerPrerenderStore.expire,
+          collectedStale: reactServerPrerenderStore.stale,
           collectedTags: reactServerPrerenderStore.tags,
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
@@ -2721,6 +2747,8 @@ async function prerenderToStream(
           dynamicTracking,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
+          collectedExpire: reactServerPrerenderStore.expire,
+          collectedStale: reactServerPrerenderStore.stale,
           collectedTags: reactServerPrerenderStore.tags,
         }
       } else {
@@ -2777,6 +2805,8 @@ async function prerenderToStream(
           dynamicTracking,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
+          collectedExpire: reactServerPrerenderStore.expire,
+          collectedStale: reactServerPrerenderStore.stale,
           collectedTags: reactServerPrerenderStore.tags,
         }
       }
@@ -2786,6 +2816,8 @@ async function prerenderToStream(
         phase: 'render',
         implicitTags: ctx.requestStore.implicitTags,
         revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
         tags: [...ctx.requestStore.implicitTags],
       })
       // This is a regular static generation. We don't do dynamic tracking because we rely on
@@ -2860,6 +2892,8 @@ async function prerenderToStream(
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
+        collectedExpire: prerenderLegacyStore.expire,
+        collectedStale: prerenderLegacyStore.stale,
         collectedTags: prerenderLegacyStore.tags,
       }
     }
@@ -2943,6 +2977,8 @@ async function prerenderToStream(
       phase: 'render',
       implicitTags: ctx.requestStore.implicitTags,
       revalidate: INFINITE_CACHE,
+      expire: INFINITE_CACHE,
+      stale: INFINITE_CACHE,
       tags: [...ctx.requestStore.implicitTags],
     })
     const errorRSCPayload = await workUnitAsyncStorage.run(
@@ -3017,6 +3053,10 @@ async function prerenderToStream(
         dynamicTracking: null,
         collectedRevalidate:
           prerenderStore !== null ? prerenderStore.revalidate : INFINITE_CACHE,
+        collectedExpire:
+          prerenderStore !== null ? prerenderStore.expire : INFINITE_CACHE,
+        collectedStale:
+          prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE,
         collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
       }
     } catch (finalErr: any) {

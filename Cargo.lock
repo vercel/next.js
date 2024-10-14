@@ -9232,6 +9232,7 @@ dependencies = [
  "postcard",
  "rayon",
  "rustc-demangle",
+ "rustc-hash",
  "serde",
  "serde_json",
  "tungstenite 0.21.0",
