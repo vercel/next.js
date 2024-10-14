@@ -51,7 +51,7 @@ impl OutputAsset for RebasedAsset {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
         let mut references = Vec::new();
-        for &module in referenced_modules_and_affecting_sources(self.source, true)
+        for &module in referenced_modules_and_affecting_sources(self.source)
             .await?
             .iter()
         {
