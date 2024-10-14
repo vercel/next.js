@@ -8,7 +8,7 @@ async function getData() {
   }
 }
 
-export default function nestedPage(props) {
+export default function NestedPage(props) {
   // TODO-APP: refactor this test page to `async function` instead.
   if (!i) {
     i = getData()
