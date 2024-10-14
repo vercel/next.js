@@ -52,8 +52,8 @@ You can use `generateMetadata` function to `fetch` metadata that requires dynami
 import type { Metadata, ResolvingMetadata } from 'next'
 
 type Props = {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
 export async function generateMetadata(
@@ -61,7 +61,7 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   // read route params
-  const id = params.id
+  const id = (await params).id
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -83,7 +83,7 @@ export default function Page({ params, searchParams }: Props) {}
 ```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
-  const id = params.id
+  const id = (await params).id
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())

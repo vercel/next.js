@@ -492,6 +492,7 @@ async function generateDynamicFlightRenderResult(
     skipFlight: boolean
     componentTree?: CacheNodeSeedData
     preloadCallbacks?: PreloadCallbacks
+    temporaryReferences?: WeakMap<any, string>
   }
 ): Promise<RenderResult> {
   const renderOpts = ctx.renderOpts
@@ -517,6 +518,7 @@ async function generateDynamicFlightRenderResult(
     ctx.clientReferenceManifest.clientModules,
     {
       onError,
+      temporaryReferences: options?.temporaryReferences,
     }
   )
 

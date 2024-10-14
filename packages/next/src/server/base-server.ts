@@ -172,10 +172,7 @@ import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
 import { PrefetchCacheScopes } from './lib/prefetch-cache-scopes'
-import {
-  runWithCacheScope,
-  type CacheScopeStore,
-} from './async-storage/cache-scope'
+import { runWithCacheScope } from './async-storage/cache-scope.external'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -3039,10 +3036,8 @@ export default abstract class Server<
       responseGenerator = async (
         ...args: Parameters<typeof responseGenerator>
       ): ReturnType<typeof responseGenerator> => {
-        let cache: CacheScopeStore['cache'] | undefined
-
         if (this.renderOpts.dev) {
-          cache = this.prefetchCacheScopesDev.get(urlPathname)
+          let cache = this.prefetchCacheScopesDev.get(urlPathname)
 
           // we need to seed the prefetch cache scope in dev
           // since we did not have a prefetch cache available
@@ -3066,19 +3061,21 @@ export default abstract class Server<
             delete req.headers[RSC_HEADER]
             delete req.headers[NEXT_ROUTER_PREFETCH_HEADER]
           }
+
+          if (cache) {
+            return runWithCacheScope({ cache }, () =>
+              originalResponseGenerator(...args)
+            ).finally(() => {
+              if (isPrefetchRSCRequest) {
+                this.prefetchCacheScopesDev.set(urlPathname, cache)
+              } else {
+                this.prefetchCacheScopesDev.del(urlPathname)
+              }
+            })
+          }
         }
 
-        return runWithCacheScope({ cache }, () =>
-          originalResponseGenerator(...args)
-        ).finally(() => {
-          if (this.renderOpts.dev) {
-            if (isPrefetchRSCRequest) {
-              this.prefetchCacheScopesDev.set(urlPathname, cache)
-            } else {
-              this.prefetchCacheScopesDev.del(urlPathname)
-            }
-          }
-        })
+        return originalResponseGenerator(...args)
       }
     }
 
