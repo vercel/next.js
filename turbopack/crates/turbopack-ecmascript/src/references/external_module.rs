@@ -10,7 +10,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
-    module::{Module, OptionModule},
+    module::Module,
     output::{OutputAsset, OutputAssets},
     reference::{
         referenced_modules_and_affecting_sources, ModuleReferences, SingleOutputAssetReference,
@@ -55,7 +55,7 @@ impl Display for CachedExternalType {
 pub struct CachedExternalModule {
     pub request: RcStr,
     pub external_type: CachedExternalType,
-    pub module: Vc<OptionModule>,
+    pub module: Option<Vc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -64,7 +64,7 @@ impl CachedExternalModule {
     pub fn new(
         request: RcStr,
         external_type: CachedExternalType,
-        module: Vc<OptionModule>,
+        module: Option<Vc<Box<dyn Module>>>,
     ) -> Vc<Self> {
         Self::cell(CachedExternalModule {
             request,
@@ -199,10 +199,10 @@ impl ChunkItem for CachedExternalModuleChunkItem {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        if let Some(module) = &*self.module.await?.module.await? {
+        if let Some(module) = self.module.await?.module {
             let mut module_references = self.module.references().await?.clone_value();
             module_references.push(Vc::upcast(SingleOutputAssetReference::new(
-                Vc::upcast(MyRebasedAsset::new_external(*module)),
+                Vc::upcast(MyRebasedAsset::new_external(module)),
                 Vc::cell("module".into()),
             )));
             Ok(Vc::cell(module_references))
