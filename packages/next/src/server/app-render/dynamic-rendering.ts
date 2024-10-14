@@ -223,7 +223,7 @@ export function trackDynamicDataAccessed(
   if (workUnitStore) {
     if (workUnitStore.type === 'prerender') {
       // dynamicIO Prerender
-      abortAndThrowOnSynchronousDynamicDataAccess(
+      abortAndThrowOnSynchronousRequestDataAccess(
         store.route,
         expression,
         workUnitStore
@@ -319,7 +319,7 @@ export function trackDynamicDataInDynamicRender(
 // Despite it's name we don't actually abort unless we have a controller to call abort on
 // There are times when we let a prerender run long to discover caches where we want the semantics
 // of tracking dynamic access without terminating the prerender early
-export function abortOnSynchronousDynamicDataAccess(
+function abortOnSynchronousDynamicDataAccess(
   route: string,
   expression: string,
   prerenderStore: PrerenderStoreModern
@@ -352,6 +352,14 @@ export function abortOnSynchronousDynamicDataAccess(
   }
 }
 
+export function abortOnSynchronousPlatformIOAccess(
+  route: string,
+  expression: string,
+  prerenderStore: PrerenderStoreModern
+): void {
+  return abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
+}
+
 /**
  * use this function when prerendering with dynamicIO. If we are doing a
  * prospective prerender we don't actually abort because we want to discover
@@ -360,10 +368,9 @@ export function abortOnSynchronousDynamicDataAccess(
  * This function accepts a prerenderStore but the caller should ensure we're
  * actually running in dynamicIO mode.
  *
- *
  * @internal
  */
-export function abortAndThrowOnSynchronousDynamicDataAccess(
+export function abortAndThrowOnSynchronousRequestDataAccess(
   route: string,
   expression: string,
   prerenderStore: PrerenderStoreModern

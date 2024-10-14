@@ -1549,7 +1549,7 @@ async function renderToStream(
       // We only have a Prerender environment for projects opted into dynamicIO
       renderOpts.experimental.dynamicIO
     ) {
-      let environmentName = 'Prerender'
+      let environmentName: 'Prerender' | 'Server' = 'Prerender'
       requestStore.environment = environmentName
       reactServerResult = new ReactServerResult(
         await workUnitAsyncStorage.run(

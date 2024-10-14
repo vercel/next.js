@@ -51,7 +51,7 @@ export type RequestStore = {
 
   // DEV-only
   usedDynamic?: boolean
-  environment?: string
+  environment?: 'Prerender' | 'Server'
 } & PhasePartial
 
 /**

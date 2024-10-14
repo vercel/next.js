@@ -3,7 +3,7 @@ import type { FallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  abortAndThrowOnSynchronousDynamicDataAccess,
+  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   postponeWithTracking,
 } from '../app-render/dynamic-rendering'
@@ -229,7 +229,7 @@ function makeAbortingExoticParams(
         Object.defineProperty(promise, prop, {
           get() {
             const expression = describeStringPropertyAccess('params', prop)
-            abortAndThrowOnSynchronousDynamicDataAccess(
+            abortAndThrowOnSynchronousRequestDataAccess(
               route,
               expression,
               prerenderStore
