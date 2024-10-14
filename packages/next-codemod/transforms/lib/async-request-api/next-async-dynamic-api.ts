@@ -21,7 +21,6 @@ function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
   // find all the dynamic imports of `next/headers`,
   // and add a comment to the import expression to inform this needs to be manually handled
 
-  // find all the dynamic imports of `next/cookies`,
   // Notice, import() is not handled as ImportExpression in current jscodeshift version,
   // we need to use CallExpression to capture the dynamic imports.
   const importPaths = root.find(j.CallExpression, {
