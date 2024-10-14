@@ -172,12 +172,24 @@ export async function runUpgrade(
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
-  const nextDependency = `next@${targetNextVersion}`
-  const dependenciesToInstall = [
-    `react@${targetReactVersion}`,
-    `react-dom@${targetReactVersion}`,
-  ]
+  const dependenciesToInstall = []
   const devDependenciesToInstall = []
+
+  const corePackageNameVersionMapping = {
+    react: `react@${targetReactVersion}`,
+    'react-dom': `react-dom@${targetReactVersion}`,
+    next: `next@${targetNextVersion}`,
+  }
+  for (const packageName of Object.keys(corePackageNameVersionMapping)) {
+    // First check if it's dev dependencies, then add into dev deps;
+    // If it's not, fallback into dependencies.
+    if (appPackageJson.devDependencies?.[packageName]) {
+      devDependenciesToInstall.push(corePackageNameVersionMapping[packageName])
+    } else {
+      dependenciesToInstall.push(corePackageNameVersionMapping[packageName])
+    }
+  }
+
   if (
     targetReactVersion.startsWith('19.0.0-canary') ||
     targetReactVersion.startsWith('19.0.0-beta') ||
@@ -205,7 +217,7 @@ export async function runUpgrade(
     `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
   )
 
-  installPackages([nextDependency, ...dependenciesToInstall], {
+  installPackages(dependenciesToInstall, {
     packageManager,
     silent: !verbose,
   })
