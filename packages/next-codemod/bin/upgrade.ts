@@ -8,6 +8,7 @@ import pc from 'picocolors'
 import { getPkgManager, installPackages } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
+import { BadInput } from './shared'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
@@ -57,7 +58,7 @@ export async function runUpgrade(
     'version' in targetNextPackageJson &&
     'peerDependencies' in targetNextPackageJson
   if (!validRevision) {
-    throw new Error(
+    throw new BadInput(
       `Invalid revision provided: "${revision}". Please provide a valid Next.js version or dist-tag (e.g. "latest", "canary", "rc", or "15.0.0").\nCheck available versions at https://www.npmjs.com/package/next?activeTab=versions.`
     )
   }
@@ -228,7 +229,7 @@ function getInstalledNextVersion(): string {
       })
     ).version
   } catch (error) {
-    throw new Error(
+    throw new BadInput(
       `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
@@ -245,7 +246,7 @@ function getInstalledReactVersion(): string {
       })
     ).version
   } catch (error) {
-    throw new Error(
+    throw new BadInput(
       `Failed to detect the installed React version in "${process.cwd()}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
