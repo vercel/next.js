@@ -42,7 +42,10 @@ export function uninstallPackage(
   }
 
   try {
-    execa.sync(pkgManager, [command, packageToUninstall], { stdio: 'inherit' })
+    execa.sync(pkgManager, [command, packageToUninstall], {
+      stdio: 'inherit',
+      shell: true,
+    })
   } catch (error) {
     throw new Error(
       `Failed to uninstall "${packageToUninstall}". Please uninstall it manually.`,
@@ -64,6 +67,7 @@ export function installPackages(
     execa.sync(packageManager, ['add', ...packageToInstall], {
       // Keeping stderr since it'll likely be relevant later when it fails.
       stdio: silent ? ['ignore', 'ignore', 'inherit'] : 'inherit',
+      shell: true,
     })
   } catch (error) {
     throw new Error(
