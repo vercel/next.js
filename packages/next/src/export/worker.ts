@@ -251,6 +251,7 @@ async function exportPageImpl(
         page,
         components.routeModule as AppRouteRouteModule,
         input.renderOpts.incrementalCache,
+        input.renderOpts.cacheLifeProfiles,
         htmlFilepath,
         fileWriter,
         input.renderOpts.experimental,
@@ -271,8 +272,6 @@ async function exportPageImpl(
         ...input.renderOpts.experimental,
         isRoutePPREnabled,
       },
-      waitUntil: undefined,
-      onClose: undefined,
     }
 
     if (hasNextSupport) {

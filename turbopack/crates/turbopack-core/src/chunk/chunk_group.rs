@@ -2,8 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
-use indexmap::{IndexMap, IndexSet};
-use turbo_tasks::{TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
 
 use super::{
     availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItemInfo,
@@ -49,7 +48,7 @@ pub async fn make_chunk_group(
         .copied()
         .chain(self_async_children.into_iter())
         .map(|chunk_item| (chunk_item, AutoSet::<Vc<Box<dyn ChunkItem>>>::new()))
-        .collect::<IndexMap<_, _>>();
+        .collect::<FxIndexMap<_, _>>();
 
     // Propagate async inheritance
     let mut i = 0;
@@ -81,7 +80,7 @@ pub async fn make_chunk_group(
     let mut chunk_items = chunk_items
         .into_iter()
         .map(|chunk_item| (chunk_item, None))
-        .collect::<IndexMap<_, Option<Vc<AsyncModuleInfo>>>>();
+        .collect::<FxIndexMap<_, Option<Vc<AsyncModuleInfo>>>>();
 
     // Insert AsyncModuleInfo for every async module
     for (async_item, referenced_async_modules) in async_chunk_items {
@@ -172,7 +171,7 @@ pub async fn make_chunk_group(
 }
 
 async fn references_to_output_assets(
-    references: IndexSet<Vc<Box<dyn ModuleReference>>>,
+    references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
 ) -> Result<Vc<OutputAssets>> {
     let output_assets = references
         .into_iter()

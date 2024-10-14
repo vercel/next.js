@@ -106,7 +106,7 @@ struct TurboTasksBackendInner {
 
     persisted_task_cache_log: Sharded<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
-    transient_tasks: DashMap<TaskId, Arc<TransientTask>>,
+    transient_tasks: DashMap<TaskId, Arc<TransientTask>, BuildHasherDefault<FxHasher>>,
 
     persisted_storage_data_log: Sharded<ChunkedVec<CachedDataUpdate>>,
     persisted_storage_meta_log: Sharded<ChunkedVec<CachedDataUpdate>>,
@@ -161,7 +161,7 @@ impl TurboTasksBackendInner {
             ),
             persisted_task_cache_log: Sharded::new(shard_amount),
             task_cache: BiMap::new(),
-            transient_tasks: DashMap::new(),
+            transient_tasks: DashMap::default(),
             persisted_storage_data_log: Sharded::new(shard_amount),
             persisted_storage_meta_log: Sharded::new(shard_amount),
             storage: Storage::new(),

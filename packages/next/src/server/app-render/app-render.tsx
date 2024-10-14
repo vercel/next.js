@@ -147,6 +147,7 @@ import {
   createReactServerPrerenderResultFromRender,
   prerenderAndAbortInSequentialTasks,
 } from './app-render-prerender-utils'
+import { printDebugThrownValueForProspectiveRender } from './prospective-render-utils'
 import { scheduleInSequentialTasks } from './app-render-render-utils'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
@@ -1784,6 +1785,8 @@ type PrerenderToStreamResult = {
   ssrErrors: Array<unknown>
   dynamicTracking?: null | DynamicTrackingState
   collectedRevalidate: number
+  collectedExpire: number
+  collectedStale: number
   collectedTags: null | string[]
 }
 
@@ -1945,20 +1948,25 @@ async function prerenderToStream(
             // will track it again there
             dynamicTracking: null,
             revalidate: INFINITE_CACHE,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
             tags: [...ctx.requestStore.implicitTags],
           })
 
         let reactServerIsDynamic = false
-        function onError(err: unknown) {
+        function prospectiveRenderOnError(err: unknown) {
           if (err === abortReason) {
             reactServerIsDynamic = true
             return PRERENDER_COMPLETE
           } else if (isPrerenderInterruptedError(err)) {
             reactServerIsDynamic = true
             return err.digest
+          } else if (process.env.NEXT_DEBUG_BUILD) {
+            printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
-
-          return serverComponentsErrorHandler(err)
+          // We don't track errors during the prospective render because we will
+          // always do a final render and we cannot infer the errors from this render
+          // are relevant to the final result
         }
 
         // We're not going to use the result of this render because the only time it could be used
@@ -1971,8 +1979,6 @@ async function prerenderToStream(
           res.statusCode === 404
         )
 
-        let didError = false
-        let prospectiveRenderError: unknown = null
         ;(
           workUnitAsyncStorage.run(
             // The store to scope
@@ -1983,35 +1989,27 @@ async function prerenderToStream(
             firstAttemptRSCPayload,
             clientReferenceManifest.clientModules,
             {
-              // This render will be thrown away so we don't need to track errors or postpones
-              onError,
-              onPostpone: undefined,
+              onError: prospectiveRenderOnError,
               // we don't care to track postpones during the prospective render because we need
               // to always do a final render anyway
+              onPostpone: undefined,
               signal: flightController.signal,
             }
           ) as Promise<ReactServerPrerenderResolveToType>
         ).catch((err) => {
           if (
+            process.env.NEXT_DEBUG_BUILD &&
             err !== abortReason &&
             !isPrerenderInterruptedError(err) &&
             !isDynamicServerError(err)
           ) {
-            didError = true
-            prospectiveRenderError = err
+            printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
         })
 
         // When this resolves the cache has no inflight reads and we can ascertain the dynamic outcome
         await cacheSignal.cacheReady()
         flightController.abort(abortReason)
-        // We wait a microtask to to ensure the catch handler has a chance to run if the root errors when we abort.
-        await 1
-        if (didError) {
-          // We errored with something other than prerender errors during the warmup. We throw here
-          // to allow the user error to be handled
-          throw prospectiveRenderError
-        }
 
         // When PPR is enabled we don't synchronously abort the render when performing a prospective render
         // because it might prevent us from discovering all caches during the render which is essential
@@ -2036,8 +2034,22 @@ async function prerenderToStream(
           controller: flightController,
           dynamicTracking,
           revalidate: INFINITE_CACHE,
+          expire: INFINITE_CACHE,
+          stale: INFINITE_CACHE,
           tags: [...ctx.requestStore.implicitTags],
         })
+
+        function finalRenderOnError(err: unknown) {
+          if (err === abortReason) {
+            reactServerIsDynamic = true
+            return PRERENDER_COMPLETE
+          } else if (isPrerenderInterruptedError(err)) {
+            reactServerIsDynamic = true
+            return err.digest
+          }
+
+          return serverComponentsErrorHandler(err)
+        }
 
         function onPostpone(reason: string) {
           if (
@@ -2067,7 +2079,7 @@ async function prerenderToStream(
                   finalAttemptRSCPayload,
                   clientReferenceManifest.clientModules,
                   {
-                    onError,
+                    onError: finalRenderOnError,
                     onPostpone,
                     signal: flightController.signal,
                   }
@@ -2098,6 +2110,8 @@ async function prerenderToStream(
           // dynamic during SSR
           dynamicTracking,
           revalidate: INFINITE_CACHE,
+          expire: INFINITE_CACHE,
+          stale: INFINITE_CACHE,
           tags: [...ctx.requestStore.implicitTags],
         }
         let SSRIsDynamic = false
@@ -2202,6 +2216,8 @@ async function prerenderToStream(
             dynamicTracking,
             // TODO: Should this include the SSR pass?
             collectedRevalidate: finalRenderPrerenderStore.revalidate,
+            collectedExpire: finalRenderPrerenderStore.expire,
+            collectedStale: finalRenderPrerenderStore.stale,
             collectedTags: finalRenderPrerenderStore.tags,
           }
         } else {
@@ -2257,6 +2273,8 @@ async function prerenderToStream(
             dynamicTracking,
             // TODO: Should this include the SSR pass?
             collectedRevalidate: finalRenderPrerenderStore.revalidate,
+            collectedExpire: finalRenderPrerenderStore.expire,
+            collectedStale: finalRenderPrerenderStore.stale,
             collectedTags: finalRenderPrerenderStore.tags,
           }
         }
@@ -2312,6 +2330,8 @@ async function prerenderToStream(
             controller: flightController,
             dynamicTracking,
             revalidate: INFINITE_CACHE,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
             tags: [...ctx.requestStore.implicitTags],
           })
 
@@ -2326,16 +2346,19 @@ async function prerenderToStream(
         let reactServerIsDynamic = false
         let reactServerIsSynchronouslyDynamic = false
 
-        function onError(err: unknown) {
+        function prospectiveRenderOnError(err: unknown) {
           if (err === abortReason) {
             reactServerIsDynamic = true
             return PRERENDER_COMPLETE
           } else if (isPrerenderInterruptedError(err)) {
             reactServerIsSynchronouslyDynamic = true
             return err.digest
+          } else if (process.env.NEXT_DEBUG_BUILD) {
+            printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
-
-          return serverComponentsErrorHandler(err)
+          // We don't track errors during the prospective render because we will
+          // always do a final render and we cannot infer the errors from this render
+          // are relevant to the final result
         }
 
         try {
@@ -2348,7 +2371,7 @@ async function prerenderToStream(
             firstAttemptRSCPayload,
             clientReferenceManifest.clientModules,
             {
-              onError,
+              onError: prospectiveRenderOnError,
               signal: flightController.signal,
             }
           ) as ReadableStream<Uint8Array>
@@ -2362,15 +2385,12 @@ async function prerenderToStream(
           await warmFlightResponse(prospectiveStream, clientReferenceManifest)
         } catch (err) {
           if (
-            err === abortReason ||
-            isPrerenderInterruptedError(err) ||
-            isDynamicServerError(err)
+            process.env.NEXT_DEBUG_BUILD &&
+            err !== abortReason &&
+            !isPrerenderInterruptedError(err) &&
+            !isDynamicServerError(err)
           ) {
-            // We aborted with an incomplete shell. We'll handle this below with the handling
-            // for dynamic.
-          } else {
-            // We have some other kind of shell error, we want to bubble this up to be handled
-            throw err
+            printDebugThrownValueForProspectiveRender(err, workStore.route)
           }
         }
 
@@ -2393,6 +2413,8 @@ async function prerenderToStream(
           controller: flightController,
           dynamicTracking,
           revalidate: INFINITE_CACHE,
+          expire: INFINITE_CACHE,
+          stale: INFINITE_CACHE,
           tags: [...ctx.requestStore.implicitTags],
         })
 
@@ -2411,6 +2433,8 @@ async function prerenderToStream(
           // dynamic during SSR
           dynamicTracking,
           revalidate: INFINITE_CACHE,
+          expire: INFINITE_CACHE,
+          stale: INFINITE_CACHE,
           tags: [...ctx.requestStore.implicitTags],
         }
 
@@ -2421,6 +2445,18 @@ async function prerenderToStream(
           ctx,
           res.statusCode === 404
         )
+
+        function finalRenderOnError(err: unknown) {
+          if (err === abortReason) {
+            reactServerIsDynamic = true
+            return PRERENDER_COMPLETE
+          } else if (isPrerenderInterruptedError(err)) {
+            reactServerIsDynamic = true
+            return err.digest
+          }
+
+          return serverComponentsErrorHandler(err)
+        }
 
         function SSROnError(err: unknown, errorInfo?: ErrorInfo) {
           if (
@@ -2459,7 +2495,7 @@ async function prerenderToStream(
                   finalAttemptRSCPayload,
                   clientReferenceManifest.clientModules,
                   {
-                    onError,
+                    onError: finalRenderOnError,
                     signal: flightController.signal,
                   }
                 ) as ReadableStream<Uint8Array>
@@ -2577,6 +2613,8 @@ async function prerenderToStream(
           dynamicTracking,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: finalRenderPrerenderStore.revalidate,
+          collectedExpire: finalRenderPrerenderStore.expire,
+          collectedStale: finalRenderPrerenderStore.stale,
           collectedTags: finalRenderPrerenderStore.tags,
         }
       }
@@ -2591,6 +2629,8 @@ async function prerenderToStream(
         implicitTags: ctx.requestStore.implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
         tags: [...ctx.requestStore.implicitTags],
       })
       const RSCPayload = await workUnitAsyncStorage.run(
@@ -2620,6 +2660,8 @@ async function prerenderToStream(
         implicitTags: ctx.requestStore.implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
         tags: [...ctx.requestStore.implicitTags],
       }
       const prerender = require('react-dom/static.edge')
@@ -2706,6 +2748,8 @@ async function prerenderToStream(
           dynamicTracking,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
+          collectedExpire: reactServerPrerenderStore.expire,
+          collectedStale: reactServerPrerenderStore.stale,
           collectedTags: reactServerPrerenderStore.tags,
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
@@ -2721,6 +2765,8 @@ async function prerenderToStream(
           dynamicTracking,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
+          collectedExpire: reactServerPrerenderStore.expire,
+          collectedStale: reactServerPrerenderStore.stale,
           collectedTags: reactServerPrerenderStore.tags,
         }
       } else {
@@ -2777,6 +2823,8 @@ async function prerenderToStream(
           dynamicTracking,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
+          collectedExpire: reactServerPrerenderStore.expire,
+          collectedStale: reactServerPrerenderStore.stale,
           collectedTags: reactServerPrerenderStore.tags,
         }
       }
@@ -2786,6 +2834,8 @@ async function prerenderToStream(
         phase: 'render',
         implicitTags: ctx.requestStore.implicitTags,
         revalidate: INFINITE_CACHE,
+        expire: INFINITE_CACHE,
+        stale: INFINITE_CACHE,
         tags: [...ctx.requestStore.implicitTags],
       })
       // This is a regular static generation. We don't do dynamic tracking because we rely on
@@ -2860,6 +2910,8 @@ async function prerenderToStream(
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
+        collectedExpire: prerenderLegacyStore.expire,
+        collectedStale: prerenderLegacyStore.stale,
         collectedTags: prerenderLegacyStore.tags,
       }
     }
@@ -2943,6 +2995,8 @@ async function prerenderToStream(
       phase: 'render',
       implicitTags: ctx.requestStore.implicitTags,
       revalidate: INFINITE_CACHE,
+      expire: INFINITE_CACHE,
+      stale: INFINITE_CACHE,
       tags: [...ctx.requestStore.implicitTags],
     })
     const errorRSCPayload = await workUnitAsyncStorage.run(
@@ -3017,6 +3071,10 @@ async function prerenderToStream(
         dynamicTracking: null,
         collectedRevalidate:
           prerenderStore !== null ? prerenderStore.revalidate : INFINITE_CACHE,
+        collectedExpire:
+          prerenderStore !== null ? prerenderStore.expire : INFINITE_CACHE,
+        collectedStale:
+          prerenderStore !== null ? prerenderStore.stale : INFINITE_CACHE,
         collectedTags: prerenderStore !== null ? prerenderStore.tags : null,
       }
     } catch (finalErr: any) {

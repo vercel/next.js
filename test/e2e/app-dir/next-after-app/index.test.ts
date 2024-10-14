@@ -41,7 +41,6 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         value: '123',
         assertions: {
           'cache() works in after()': true,
-          'headers() works in after()': true,
         },
       })
     })
@@ -69,7 +68,6 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         assertions: {
           // cache() does not currently work in actions, and after() shouldn't affect that
           'cache() works in after()': false,
-          'headers() works in after()': true,
         },
       })
     })
@@ -85,7 +83,6 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           source: `[page] /nested-after (after #${id})`,
           assertions: {
             'cache() works in after()': true,
-            'headers() works in after()': true,
           },
         })
       }

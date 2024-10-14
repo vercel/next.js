@@ -31,6 +31,7 @@ import {
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 import { RequestCookiesAdapter } from '../../web/spec-extension/adapters/request-cookies'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
+import { printDebugThrownValueForProspectiveRender } from '../../app-render/prospective-render-utils'
 
 import * as serverHooks from '../../../client/components/hooks-server-context'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
@@ -327,7 +328,7 @@ export class AppRouteRouteModule extends RouteModule<
            *
            * Next we run the handler again and we check if we get a result back in a microtask.
            * Next.js expects the return value to be a Response or a Thenable that resolves to a Response.
-           * Unfortunately Response's do not allow for acessing the response body synchronously or in
+           * Unfortunately Response's do not allow for accessing the response body synchronously or in
            * a microtask so we need to allow one more task to unwrap the response body. This is a slightly
            * different semantic than what we have when we render and it means that certain tasks can still
            * execute before a prerender completes such as a carefully timed setImmediate.
@@ -352,6 +353,8 @@ export class AppRouteRouteModule extends RouteModule<
               controller: null,
               dynamicTracking,
               revalidate: defaultRevalidate,
+              expire: INFINITE_CACHE,
+              stale: INFINITE_CACHE,
               tags: [...implicitTags],
             })
 
@@ -368,6 +371,8 @@ export class AppRouteRouteModule extends RouteModule<
               // the route handler called an API which is always dynamic
               // there is no need to try again
               prospectiveRenderIsDynamic = true
+            } else if (process.env.NEXT_DEBUG_BUILD) {
+              printDebugThrownValueForProspectiveRender(err, workStore.route)
             }
           }
           if (
@@ -384,6 +389,11 @@ export class AppRouteRouteModule extends RouteModule<
                   // the route handler called an API which is always dynamic
                   // there is no need to try again
                   prospectiveRenderIsDynamic = true
+                } else if (process.env.NEXT_DEBUG_BUILD) {
+                  printDebugThrownValueForProspectiveRender(
+                    err,
+                    workStore.route
+                  )
                 }
               }
             )
@@ -423,6 +433,8 @@ export class AppRouteRouteModule extends RouteModule<
             controller: finalController,
             dynamicTracking,
             revalidate: defaultRevalidate,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
             tags: [...implicitTags],
           })
 
@@ -495,6 +507,8 @@ export class AppRouteRouteModule extends RouteModule<
             phase: 'action',
             implicitTags: implicitTags,
             revalidate: defaultRevalidate,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
             tags: [...implicitTags],
           }
 
@@ -570,6 +584,8 @@ export class AppRouteRouteModule extends RouteModule<
         prerenderStore.tags?.join(',')
       ;(context.renderOpts as any).collectedRevalidate =
         prerenderStore.revalidate
+      ;(context.renderOpts as any).collectedExpire = prerenderStore.expire
+      ;(context.renderOpts as any).collectedStale = prerenderStore.stale
     }
 
     // It's possible cookies were set in the handler, so we need

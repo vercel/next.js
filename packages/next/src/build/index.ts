@@ -1688,15 +1688,17 @@ export default async function build(
 
           buildTraceContext = rest.buildTraceContext
 
-          if (compilerDuration > 2) {
-            Log.event(
-              `Compiled successfully in ${Math.round(compilerDuration)}s`
-            )
+          let durationString
+          if (compilerDuration > 120) {
+            durationString = `${Math.round(compilerDuration / 6) / 10}min`
+          } else if (compilerDuration > 20) {
+            durationString = `${Math.round(compilerDuration)}s`
+          } else if (compilerDuration > 2) {
+            durationString = `${Math.round(compilerDuration * 10) / 10}s`
           } else {
-            Log.event(
-              `Compiled successfully in ${Math.round(compilerDuration * 1000)}ms`
-            )
+            durationString = `${Math.round(compilerDuration * 1000)}ms`
           }
+          Log.event(`Compiled successfully in ${durationString}`)
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {

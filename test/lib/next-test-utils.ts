@@ -10,7 +10,7 @@ import { promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
-import cheerio from 'cheerio'
+import type cheerio from 'cheerio'
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
