@@ -1,8 +1,8 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-head-element'
 import { RuleTester as ESLintTesterV8 } from 'eslint'
 import { RuleTester as ESLintTesterV9 } from 'eslint-v9'
+import { rules } from '@next/eslint-plugin-next'
 
-const NextESLintRule = rule
+const NextESLintRule = rules['no-head-element']
 
 const message =
   'Do not use `<head>` element. Use `<Head />` from `next/head` instead. See: https://nextjs.org/docs/messages/no-head-element'

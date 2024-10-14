@@ -1,48 +1,19 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-async-client-component'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
-const ruleTester = new RuleTester()
+import { RuleTester as ESLintTesterV8 } from 'eslint'
+import { RuleTester as ESLintTesterV9 } from 'eslint-v9'
+import { rules } from '@next/eslint-plugin-next'
+
+const NextESLintRule = rules['no-async-client-component']
 
 const message =
   'Prevent client components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'
 
-ruleTester.run('no-async-client-component single line', rule, {
+const tests = {
   valid: [
     `
     export default async function MyComponent() {
       return <></>
     }
     `,
-  ],
-  invalid: [
-    {
-      code: `
-      "use client"
-
-      export default async function MyComponent() {
-        return <></>
-      }
-      `,
-      errors: [
-        {
-          message,
-        },
-      ],
-    },
-  ],
-})
-
-ruleTester.run('no-async-client-component single line capitalization', rule, {
-  valid: [
     `
     "use client"
 
@@ -50,27 +21,6 @@ ruleTester.run('no-async-client-component single line capitalization', rule, {
       return ''
     }
     `,
-  ],
-  invalid: [
-    {
-      code: `
-      "use client"
-
-      export default async function MyFunction() {
-        return ''
-      }
-      `,
-      errors: [
-        {
-          message,
-        },
-      ],
-    },
-  ],
-})
-
-ruleTester.run('no-async-client-component multiple line', rule, {
-  valid: [
     `
     async function MyComponent() {
       return <></>
@@ -78,29 +28,6 @@ ruleTester.run('no-async-client-component multiple line', rule, {
 
     export default MyComponent
     `,
-  ],
-  invalid: [
-    {
-      code: `
-      "use client"
-
-      async function MyComponent() {
-        return <></>
-      }
-
-      export default MyComponent
-      `,
-      errors: [
-        {
-          message,
-        },
-      ],
-    },
-  ],
-})
-
-ruleTester.run('no-async-client-component multiple line capitalization', rule, {
-  valid: [
     `
     "use client"
 
@@ -110,29 +37,6 @@ ruleTester.run('no-async-client-component multiple line capitalization', rule, {
 
     export default myFunction
     `,
-  ],
-  invalid: [
-    {
-      code: `
-      "use client"
-
-      async function MyFunction() {
-        return ''
-      }
-
-      export default MyFunction
-      `,
-      errors: [
-        {
-          message,
-        },
-      ],
-    },
-  ],
-})
-
-ruleTester.run('no-async-client-component arrow function', rule, {
-  valid: [
     `
     "use client"
 
@@ -148,17 +52,83 @@ ruleTester.run('no-async-client-component arrow function', rule, {
       code: `
       "use client"
 
+      export default async function MyComponent() {
+        return <></>
+      }
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      "use client"
+
+      export default async function MyFunction() {
+        return ''
+      }
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      "use client"
+
+      async function MyComponent() {
+        return <></>
+      }
+
+      export default MyComponent
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      "use client"
+
+      async function MyFunction() {
+        return ''
+      }
+
+      export default MyFunction
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      "use client"
+
       const MyFunction = async () => {
         return '123'
       }
 
       export default MyFunction
       `,
-      errors: [
-        {
-          message,
-        },
-      ],
+      errors: [{ message }],
     },
   ],
+}
+
+describe('no-async-client-component single line', () => {
+  new ESLintTesterV8({
+    parserOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
+    },
+  }).run('eslint-v8', NextESLintRule, tests)
+
+  new ESLintTesterV9({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint-v9', NextESLintRule, tests)
 })
