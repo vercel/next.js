@@ -1406,17 +1406,6 @@ impl AppEndpoint {
                 .await?);
                 server_assets.insert(rsc_chunk);
 
-                // println!(
-                //     "rsc_chunk: {:?} {:?}",
-                //     rsc_chunk.ident().to_string().await?,
-                //     rsc_chunk
-                //         .references()
-                //         .await?
-                //         .iter()
-                //         .map(|a| a.ident().to_string())
-                //         .try_join()
-                //         .await?
-                // );
                 server_assets.insert(Vc::upcast(NftJsonAsset::new(
                     app_entry.rsc_entry,
                     Some(rsc_chunk),
