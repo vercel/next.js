@@ -111,7 +111,7 @@ You safely read environment variables on the server during dynamic rendering.
 ```tsx filename="app/page.ts" switcher
 import { connection } from 'next/server'
 
-export default function Component() {
+export default async function Component() {
   await connection()
   // cookies, headers, and other Dynamic APIs
   // will also opt into dynamic rendering, meaning
