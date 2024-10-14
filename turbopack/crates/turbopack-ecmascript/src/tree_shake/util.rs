@@ -397,6 +397,17 @@ pub fn should_skip_tree_shaking(m: &Program) -> bool {
         return true;
     };
 
+    // If there's no export, we will result in module evaluation containing all code, so just we
+    // skip tree shaking.
+    if m.body.iter().all(|item| {
+        matches!(
+            item,
+            ModuleItem::ModuleDecl(ModuleDecl::Import(..)) | ModuleItem::Stmt(..)
+        )
+    }) {
+        return true;
+    }
+
     for item in m.body.iter() {
         match item {
             // Skip turbopack helpers.
