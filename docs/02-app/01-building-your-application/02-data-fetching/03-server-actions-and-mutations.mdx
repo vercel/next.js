@@ -839,13 +839,13 @@ import { cookies } from 'next/headers'
 
 export async function exampleAction() {
   // Get cookie
-  (await cookies()).get('name')?.value
+  cookieStore.get('name')?.value
 
   // Set cookie
-  (await cookies()).set('name', 'Delba')
+  cookieStore.set('name', 'Delba')
 
   // Delete cookie
-  (await cookies()).delete('name')
+  cookieStore.delete('name')
 }
 ```
 
@@ -856,13 +856,16 @@ import { cookies } from 'next/headers'
 
 export async function exampleAction() {
   // Get cookie
-  (await cookies()).get('name')?.value
+  const cookieStore = await cookies()
+
+  // Get cookie
+  cookieStore.get('name')?.value
 
   // Set cookie
-  (await cookies()).set('name', 'Delba')
+  cookieStore.set('name', 'Delba')
 
   // Delete cookie
-  (await cookies()).delete('name')
+  cookieStore.delete('name')
 }
 ```
 
