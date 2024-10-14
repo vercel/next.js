@@ -849,6 +849,9 @@ importers:
       fontkit:
         specifier: 2.0.2
         version: 2.0.2
+      typescript:
+        specifier: 5.5.3
+        version: 5.5.3
 
   packages/next:
     dependencies:
@@ -1300,7 +1303,7 @@ importers:
         version: 2.4.4(webpack@5.90.0(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.13)))
       msw:
         specifier: 2.3.0
-        version: 2.3.0(typescript@5.6.2)
+        version: 2.3.0(typescript@5.5.3)
       nanoid:
         specifier: 3.1.32
         version: 3.1.32
@@ -1460,6 +1463,9 @@ importers:
       tty-browserify:
         specifier: 0.0.1
         version: 0.0.1
+      typescript:
+        specifier: 5.5.3
+        version: 5.5.3
       ua-parser-js:
         specifier: 1.0.35
         version: 1.0.35
@@ -1548,6 +1554,9 @@ importers:
       '@types/semver':
         specifier: 7.3.1
         version: 7.3.1
+      typescript:
+        specifier: 5.5.3
+        version: 5.5.3
 
   packages/next-env:
     devDependencies:
@@ -1632,6 +1641,9 @@ importers:
       prettier:
         specifier: 2.5.1
         version: 2.5.1
+      typescript:
+        specifier: 5.5.3
+        version: 5.5.3
 
   turbopack/crates/turbopack-cli/js:
     dependencies:
@@ -14374,11 +14386,6 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  typescript@5.6.2:
-    resolution: {integrity: sha512-NW8ByodCSNCwZeghjN3o+JX5OFH0Ojg6sadjEKY4huZ52TqbJTJnDo5+Tw98lSy63NZvi4n+ez5m2u5d4PkZyw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
-
   ua-parser-js@0.7.31:
     resolution: {integrity: sha512-qLK/Xe9E2uzmYI3qLeOmI0tEOt+TBBQyUIAh4aAgU05FVYzeZrKUdkAZfBNVGRaHVgV0TDkdEngJSw/SyQchkQ==}
 
@@ -27109,7 +27116,7 @@ snapshots:
       int64-buffer: 0.1.10
       isarray: 1.0.0
 
-  msw@2.3.0(typescript@5.6.2):
+  msw@2.3.0(typescript@5.5.3):
     dependencies:
       '@bundled-es-modules/cookie': 2.0.0
       '@bundled-es-modules/statuses': 1.0.1
@@ -27129,7 +27136,7 @@ snapshots:
       type-fest: 4.18.3
       yargs: 17.7.2
     optionalDependencies:
-      typescript: 5.6.2
+      typescript: 5.5.3
 
   multimatch@2.1.0:
     dependencies:
@@ -31059,9 +31066,6 @@ snapshots:
   typescript@4.8.2: {}
 
   typescript@5.5.3: {}
-
-  typescript@5.6.2:
-    optional: true
 
   ua-parser-js@0.7.31: {}
 
