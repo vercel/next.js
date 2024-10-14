@@ -140,11 +140,11 @@ You can use the `cookies().set(name, value, options)` method in a [Server Action
 import { cookies } from 'next/headers'
 
 export async function create(data) {
-  await cookies().set('name', 'lee')
+  (await cookies()).set('name', 'lee')
   // or
-  await cookies().set('name', 'lee', { secure: true })
+  (await cookies()).set('name', 'lee', { secure: true })
   // or
-  await cookies().set({
+  (await cookies()).set({
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -159,11 +159,11 @@ export async function create(data) {
 import { cookies } from 'next/headers'
 
 export async function create(data) {
-  await cookies().set('name', 'lee')
+  (await cookies()).set('name', 'lee')
   // or
-  await cookies().set('name', 'lee', { secure: true })
+  (await cookies()).set('name', 'lee', { secure: true })
   // or
-  await cookies().set({
+  (await cookies()).set({
     name: 'name',
     value: 'lee',
     httpOnly: true,
@@ -208,7 +208,7 @@ Using the `delete()` method:
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  await cookies().delete('name')
+  (await cookies()).delete('name')
 }
 ```
 
@@ -218,7 +218,7 @@ export async function delete(data) {
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  await cookies().delete('name')
+  (await cookies()).delete('name')
 }
 ```
 
@@ -230,7 +230,7 @@ Setting a new cookie with the same name and an empty value:
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  await cookies().set('name', '')
+  (await cookies()).set('name', '')
 }
 ```
 
@@ -240,7 +240,7 @@ export async function delete(data) {
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  await cookies().set('name', '')
+  (await cookies()).set('name', '')
 }
 ```
 
@@ -252,7 +252,7 @@ Setting the `maxAge` to 0 will immediately expire a cookie. `maxAge` accepts a v
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  await cookies().set('name', 'value', { maxAge: 0 })
+  (await cookies()).set('name', 'value', { maxAge: 0 })
 }
 ```
 
@@ -262,7 +262,8 @@ export async function delete(data) {
 import { cookies } from 'next/headers'
 
 export async function delete(data) {
-  await cookies().set('name', 'value', { maxAge: 0 })
+  (await cookies()).set('name', 'value', { maxAge: 0 })
+``
 }
 ```
 

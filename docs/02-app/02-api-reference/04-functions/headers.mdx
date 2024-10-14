@@ -55,7 +55,7 @@ export default async function Page() {
 import { headers } from 'next/headers'
 
 export default async function Page() {
-  const authorization = await headers().get('authorization')
+  const authorization = (await headers()).get('authorization')
   const res = await fetch('...', {
     headers: { authorization }, // Forward the authorization header
   })

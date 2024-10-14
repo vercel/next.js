@@ -53,7 +53,7 @@ To enable Draft Mode, create a new [Route Handler](/docs/app/building-your-appli
 import { draftMode } from 'next/headers'
 
 export async function GET(request: Request) {
-  await draftMode().enable()
+  (await draftMode()).enable()
   return new Response('Draft mode is enabled')
 }
 ```
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
 import { draftMode } from 'next/headers'
 
 export async function GET(request) {
-  await draftMode().enable()
+  (await draftMode()).enable()
   return new Response('Draft mode is enabled')
 }
 ```
@@ -77,7 +77,7 @@ To disable Draft Mode manually, call the `disable()` method in your [Route Handl
 import { draftMode } from 'next/headers'
 
 export async function GET(request: Request) {
-  await draftMode().disable()
+  (await draftMode()).disable()
   return new Response('Draft mode is disabled')
 }
 ```
@@ -86,7 +86,7 @@ export async function GET(request: Request) {
 import { draftMode } from 'next/headers'
 
 export async function GET(request) {
-  await draftMode().disable()
+  (await draftMode()).disable()
   return new Response('Draft mode is disabled')
 }
 ```

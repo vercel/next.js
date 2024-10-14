@@ -738,7 +738,7 @@ import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
 export async function updateSession() {
-  const session = await cookies().get('session')?.value
+  const session = (await cookies()).get('session')?.value
   const payload = await decrypt(session)
 
   if (!session || !payload) {
@@ -746,7 +746,7 @@ export async function updateSession() {
   }
 
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  await cookies().set('session', session, {
+  (await cookies()).set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expires,
@@ -762,7 +762,7 @@ import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
 export async function updateSession() {
-  const session = await cookies().get('session').value
+  const session = (await cookies()).get('session')?.value
   const payload = await decrypt(session)
 
   if (!session || !payload) {
@@ -770,7 +770,7 @@ export async function updateSession() {
   }
 
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-  await cookies().set('session', session, {
+  (await cookies()).set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expires,
@@ -791,7 +791,7 @@ import 'server-only'
 import { cookies } from 'next/headers'
 
 export async function deleteSession() {
-  await cookies().delete('session')
+  (await cookies()).delete('session')
 }
 ```
 
@@ -800,7 +800,7 @@ import 'server-only'
 import { cookies } from 'next/headers'
 
 export async function deleteSession() {
-  await cookies().delete('session')
+  (await cookies()).delete('session')
 }
 ```
 
@@ -945,7 +945,7 @@ export async function createSession(id) {
   const session = await encrypt({ sessionId, expiresAt })
 
   // 3. Store the session in cookies for optimistic auth checks
-  await cookies().set('session', session, {
+  (await cookies()).set('session', session, {
     httpOnly: true,
     secure: true,
     expires: expiresAt,
@@ -1056,7 +1056,7 @@ export default async function middleware(req: NextRequest) {
   const isPublicRoute = publicRoutes.includes(path)
 
   // 3. Decrypt the session from the cookie
-  const cookie = await cookies().get('session')?.value
+  const cookie = (await cookies()).get('session')?.value
   const session = await decrypt(cookie)
 
   // 4. Redirect to /login if the user is not authenticated
@@ -1098,7 +1098,7 @@ export default async function middleware(req) {
   const isPublicRoute = publicRoutes.includes(path)
 
   // 3. Decrypt the session from the cookie
-  const cookie = await cookies().get('session')?.value
+  const cookie = (await cookies()).get('session')?.value
   const session = await decrypt(cookie)
 
   // 5. Redirect to /login if the user is not authenticated
@@ -1149,7 +1149,7 @@ import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
 export const verifySession = cache(async () => {
-  const cookie = await cookies().get('session')?.value
+  const cookie = (await cookies()).get('session')?.value
   const session = await decrypt(cookie)
 
   if (!session?.userId) {
@@ -1167,7 +1167,7 @@ import { cookies } from 'next/headers'
 import { decrypt } from '@/app/lib/session'
 
 export const verifySession = cache(async () => {
-  const cookie = await cookies().get('session').value
+  const cookie = (await cookies()).get('session')?.value
   const session = await decrypt(cookie)
 
   if (!session.userId) {

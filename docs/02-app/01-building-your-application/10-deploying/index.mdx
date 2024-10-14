@@ -124,7 +124,7 @@ export default function Component() {
 ```jsx filename="app/page.js" switcher
 import { connection } from 'next/server'
 
-export default function Component() {
+export default async function Component() {
   await connection()
   // cookies, headers, and other Dynamic APIs
   // will also opt into dynamic rendering, meaning
