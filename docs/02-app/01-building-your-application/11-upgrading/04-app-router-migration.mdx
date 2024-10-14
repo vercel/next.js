@@ -629,23 +629,23 @@ export default function Page(props) {
 
 The `app` directory exposes new read-only functions to retrieve request data:
 
-- [`headers()`](/docs/app/api-reference/functions/headers): Based on the Web Headers API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve request headers.
-- [`cookies()`](/docs/app/api-reference/functions/cookies): Based on the Web Cookies API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve cookies.
+- [`headers`](/docs/app/api-reference/functions/headers): Based on the Web Headers API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve request headers.
+- [`cookies`](/docs/app/api-reference/functions/cookies): Based on the Web Cookies API, and can be used inside [Server Components](/docs/app/building-your-application/rendering/server-components) to retrieve cookies.
 
 ```tsx filename="app/page.tsx" switcher
 // `app` directory
 import { cookies, headers } from 'next/headers'
 
 async function getData() {
-  const authHeader = headers().get('authorization')
+  const authHeader = (await headers()).get('authorization')
 
   return '...'
 }
 
 export default async function Page() {
-  // You can use `cookies()` or `headers()` inside Server Components
+  // You can use `cookies` or `headers` inside Server Components
   // directly or in your data fetching function
-  const theme = cookies().get('theme')
+  const theme = (await cookies()).get('theme')
   const data = await getData()
   return '...'
 }
@@ -656,15 +656,15 @@ export default async function Page() {
 import { cookies, headers } from 'next/headers'
 
 async function getData() {
-  const authHeader = headers().get('authorization')
+  const authHeader = (await headers()).get('authorization')
 
   return '...'
 }
 
 export default async function Page() {
-  // You can use `cookies()` or `headers()` inside Server Components
+  // You can use `cookies` or `headers` inside Server Components
   // directly or in your data fetching function
-  const theme = cookies().get('theme')
+  const theme = (await cookies()).get('theme')
   const data = await getData()
   return '...'
 }
