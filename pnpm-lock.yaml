@@ -822,8 +822,8 @@ importers:
         specifier: ^7.35.0
         version: 7.37.1(eslint@9.12.0)
       eslint-plugin-react-hooks:
-        specifier: ^4.5.0 || ^5.0.0
-        version: 4.6.0(eslint@9.12.0)
+        specifier: ^5.0.0
+        version: 5.0.0(eslint@9.12.0)
       typescript:
         specifier: '>=3.3.1'
         version: 5.6.3
@@ -8033,6 +8033,12 @@ packages:
     engines: {node: '>=10'}
     peerDependencies:
       eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0
+
+  eslint-plugin-react-hooks@5.0.0:
+    resolution: {integrity: sha512-hIOwI+5hYGpJEc4uPRmz2ulCjAGD/N13Lukkh8cLV0i2IRk/bdZDYjgLVHj+U9Z704kLIdIO6iueGvxNur0sgw==}
+    engines: {node: '>=10'}
+    peerDependencies:
+      eslint: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0-0 || ^9.0.0
 
   eslint-plugin-react@7.33.2:
     resolution: {integrity: sha512-73QQMKALArI8/7xGLNI/3LylrEYrlKZSb5C9+q3OtOewTnMQi5cT+aE9E41sLCmli3I9PGGmD1yiZydyo4FEPw==}
@@ -23347,7 +23353,7 @@ snapshots:
     dependencies:
       eslint: 8.56.0
 
-  eslint-plugin-react-hooks@4.6.0(eslint@9.12.0):
+  eslint-plugin-react-hooks@5.0.0(eslint@9.12.0):
     dependencies:
       eslint: 9.12.0
 
