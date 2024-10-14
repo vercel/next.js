@@ -304,7 +304,7 @@ impl Analyzer<'_> {
                         // Create a strong dependency to LAST_SIDE_EFFECTS
 
                         self.g
-                            .add_strong_deps(item_id, self.last_side_effects.iter());
+                            .add_strong_deps(item_id, self.last_side_effects.last());
                     }
                     ItemIdGroupKind::Export(local, _) => {
                         // Create a strong dependency to LAST_WRITES for this var
