@@ -69,7 +69,7 @@ pub enum ModuleResolveResultItem {
         /// uri, path, reference, etc.
         name: RcStr,
         typ: ExternalType,
-        module: Option<Box<ModuleResolveResultItem>>,
+        module: Option<Vc<Box<dyn Module>>>,
     },
     Ignore,
     Error(ResolvedVc<RcStr>),
@@ -693,16 +693,15 @@ impl ResolveResult {
                             request,
                             match item {
                                 ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::External { name, typ, source } => {
-                                    ModuleResolveResultItem::External {
-                                        name,
-                                        typ,
-                                        module: match source {
-                                            Some(source) => Some(Box::new(asset_fn(source).await?)),
-                                            None => None,
-                                        },
-                                    }
-                                }
+                                ResolveResultItem::External {
+                                    name,
+                                    typ,
+                                    source: _,
+                                } => ModuleResolveResultItem::External {
+                                    name,
+                                    typ,
+                                    module: None,
+                                },
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
                                 ResolveResultItem::Error(e) => {
@@ -714,6 +713,29 @@ impl ResolveResult {
                             },
                         ))
                     }
+                })
+                .try_join()
+                .await?
+                .into_iter()
+                .collect(),
+            affecting_sources: self.affecting_sources.clone(),
+        })
+    }
+
+    pub async fn map_items_module<A, AF>(&self, source_fn: A) -> Result<ModuleResolveResult>
+    where
+        A: Fn(ResolveResultItem) -> AF,
+        AF: Future<Output = Result<ModuleResolveResultItem>>,
+    {
+        Ok(ModuleResolveResult {
+            primary: self
+                .primary
+                .iter()
+                .map(|(request, item)| {
+                    let asset_fn = &source_fn;
+                    let request = request.clone();
+                    let item = item.clone();
+                    async move { Ok((request, asset_fn(item).await?)) }
                 })
                 .try_join()
                 .await?
