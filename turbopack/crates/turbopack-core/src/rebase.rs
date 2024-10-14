@@ -3,7 +3,8 @@ use std::hash::Hash;
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{
+
+use crate::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     module::Module,

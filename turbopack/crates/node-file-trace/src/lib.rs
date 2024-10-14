@@ -30,8 +30,7 @@ use turbo_tasks_fs::{
     glob::Glob, DirectoryEntry, DiskFileSystem, FileSystem, FileSystemPath, ReadGlobResult,
 };
 use turbopack::{
-    emit_asset, emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset,
-    ModuleAssetContext,
+    emit_asset, emit_with_completion, module_options::ModuleOptionsContext, ModuleAssetContext,
 };
 use turbopack_cli_utils::issue::{ConsoleUi, IssueSeverityCliOption, LogOptions};
 use turbopack_core::{
@@ -42,6 +41,7 @@ use turbopack_core::{
     issue::{IssueDescriptionExt, IssueReporter, IssueSeverity},
     module::{Module, Modules},
     output::OutputAsset,
+    rebase::RebasedAsset,
     reference::all_modules_and_affecting_sources,
     resolve::options::{ImportMapping, ResolvedMap},
 };
