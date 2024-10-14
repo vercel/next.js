@@ -54,17 +54,45 @@ export function uninstallPackage(
   }
 }
 
+const ADD_CMD_FLAG = {
+  npm: 'install',
+  yarn: 'add',
+  pnpm: 'add',
+  bun: 'add',
+}
+
+const DEV_DEP_FLAG = {
+  npm: '--save-dev',
+  yarn: '--dev',
+  pnpm: '--save-dev',
+  bun: '--dev',
+}
+
 export function installPackages(
   packageToInstall: string[],
-  options: { packageManager?: PackageManager; silent?: boolean } = {}
+  options: {
+    packageManager?: PackageManager
+    silent?: boolean
+    dev?: boolean
+  } = {}
 ) {
-  const { packageManager = getPkgManager(process.cwd()), silent = false } =
-    options
+  const {
+    packageManager = getPkgManager(process.cwd()),
+    silent = false,
+    dev = false,
+  } = options
 
   if (!packageManager) throw new Error('Failed to find package manager')
 
+  const addCmd = ADD_CMD_FLAG[packageManager]
+  const devDepFlag = dev ? DEV_DEP_FLAG[packageManager] : undefined
+
+  const installFlags = [addCmd]
+  if (devDepFlag) {
+    installFlags.push(devDepFlag)
+  }
   try {
-    execa.sync(packageManager, ['add', ...packageToInstall], {
+    execa.sync(packageManager, [...installFlags, ...packageToInstall], {
       // Keeping stderr since it'll likely be relevant later when it fails.
       stdio: silent ? ['ignore', 'ignore', 'inherit'] : 'inherit',
       shell: true,
