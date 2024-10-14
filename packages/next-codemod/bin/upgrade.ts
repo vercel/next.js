@@ -81,9 +81,6 @@ export async function runUpgrade(
 
   const installedNextVersion = getInstalledNextVersion()
 
-  // Align the prefix spaces
-  console.log(`  Current Next.js version: v${installedNextVersion}`)
-
   const targetNextVersion = targetNextPackageJson.version
 
   if (compareVersions(installedNextVersion, targetNextVersion) === 0) {
@@ -102,7 +99,10 @@ export async function runUpgrade(
   }
 
   const installedReactVersion = getInstalledReactVersion()
-  console.log(`Current React version: v${installedReactVersion}`)
+  // Align the prefix spaces
+  console.log(`  Detected installed versions:`)
+  console.log(`  - React: v${installedReactVersion}`)
+  console.log(`  - Next.js: v${installedNextVersion}`)
   let shouldStayOnReact18 = false
   if (
     // From release v14.3.0-canary.45, Next.js expects the React version to be 19.0.0-beta.0
@@ -230,6 +230,7 @@ export async function runUpgrade(
       { stdio: 'inherit' }
     )
   }
+
   if (shouldRunReactTypesCodemods) {
     // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
     // `--yes` skips prompts and applies all codemods automatically
@@ -238,7 +239,6 @@ export async function runUpgrade(
       stdio: 'inherit',
     })
   }
-
   console.log() // new line
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
