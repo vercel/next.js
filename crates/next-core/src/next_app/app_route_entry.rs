@@ -113,6 +113,7 @@ pub async fn get_app_route_entry(
             project_root,
             rsc_entry,
             page,
+            next_config,
         );
     }
 
@@ -131,8 +132,11 @@ async fn wrap_edge_route(
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
     page: AppPage,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_ROUTE_ENTRY";
+
+    let next_config = &*next_config.await?;
 
     let source = load_next_js_template(
         "edge-app-route.js",
@@ -141,7 +145,9 @@ async fn wrap_edge_route(
             "VAR_USERLAND" => INNER.into(),
             "VAR_PAGE" => page.to_string().into(),
         },
-        fxindexmap! {},
+        fxindexmap! {
+            "nextConfig" => serde_json::to_string(next_config)?.into(),
+        },
         fxindexmap! {},
     )
     .await?;
