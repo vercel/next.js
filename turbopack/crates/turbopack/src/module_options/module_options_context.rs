@@ -1,6 +1,5 @@
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ValueDefault, Vc};
 use turbopack_core::{
     chunk::MinifyType, condition::ContextCondition, environment::Environment,
     resolve::options::ImportMapping,
@@ -22,7 +21,7 @@ pub struct LoaderRuleItem {
 
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]
-pub struct WebpackRules(IndexMap<RcStr, LoaderRuleItem>);
+pub struct WebpackRules(FxIndexMap<RcStr, LoaderRuleItem>);
 
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]

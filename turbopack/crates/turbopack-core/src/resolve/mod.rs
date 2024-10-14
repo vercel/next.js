@@ -7,10 +7,12 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use indexmap::{indexmap, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{
+    fxindexmap, fxindexset, trace::TraceRawVcs, FxIndexMap, RcStr, TaskInput, TryJoinIterExt,
+    Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
 };
@@ -74,7 +76,7 @@ pub enum ModuleResolveResultItem {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
-    pub primary: IndexMap<RequestKey, ModuleResolveResultItem>,
+    pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
     pub affecting_sources: Vec<Vc<Box<dyn Source>>>,
 }
 
@@ -87,7 +89,7 @@ impl Default for ModuleResolveResult {
 impl ModuleResolveResult {
     pub fn unresolveable() -> Self {
         ModuleResolveResult {
-            primary: IndexMap::new(),
+            primary: FxIndexMap::default(),
             affecting_sources: Vec::new(),
         }
     }
@@ -96,7 +98,7 @@ impl ModuleResolveResult {
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
-            primary: IndexMap::new(),
+            primary: FxIndexMap::default(),
             affecting_sources,
         }
     }
@@ -107,7 +109,7 @@ impl ModuleResolveResult {
 
     pub fn ignored_with_key(request_key: RequestKey) -> ModuleResolveResult {
         ModuleResolveResult {
-            primary: indexmap! { request_key => ModuleResolveResultItem::Ignore },
+            primary: fxindexmap! { request_key => ModuleResolveResultItem::Ignore },
             affecting_sources: Vec::new(),
         }
     }
@@ -121,7 +123,7 @@ impl ModuleResolveResult {
         module: Vc<Box<dyn Module>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
-            primary: indexmap! { request_key => ModuleResolveResultItem::Module(module) },
+            primary: fxindexmap! { request_key => ModuleResolveResultItem::Module(module) },
             affecting_sources: Vec::new(),
         }
     }
@@ -131,7 +133,7 @@ impl ModuleResolveResult {
         output_asset: Vc<Box<dyn OutputAsset>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
-            primary: indexmap! { request_key => ModuleResolveResultItem::OutputAsset(output_asset) },
+            primary: fxindexmap! { request_key => ModuleResolveResultItem::OutputAsset(output_asset) },
             affecting_sources: Vec::new(),
         }
     }
@@ -347,7 +349,7 @@ impl ModuleResolveResult {
         let second = second.resolve().await?;
 
         // We have at least two items, so we need to deduplicate them
-        let mut set = IndexSet::from([first, second]);
+        let mut set = fxindexset![first, second];
         for module in self.primary_modules_iter() {
             set.insert(module.resolve().await?);
         }
@@ -445,7 +447,7 @@ impl RequestKey {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ResolveResult {
-    pub primary: IndexMap<RequestKey, ResolveResultItem>,
+    pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
     pub affecting_sources: Vec<Vc<Box<dyn Source>>>,
 }
 
@@ -509,7 +511,7 @@ impl ValueToString for ResolveResult {
 impl ResolveResult {
     pub fn unresolveable() -> Self {
         ResolveResult {
-            primary: IndexMap::new(),
+            primary: FxIndexMap::default(),
             affecting_sources: Vec::new(),
         }
     }
@@ -518,7 +520,7 @@ impl ResolveResult {
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ResolveResult {
         ResolveResult {
-            primary: IndexMap::new(),
+            primary: FxIndexMap::default(),
             affecting_sources,
         }
     }
@@ -529,7 +531,7 @@ impl ResolveResult {
 
     pub fn primary_with_key(request_key: RequestKey, result: ResolveResultItem) -> ResolveResult {
         ResolveResult {
-            primary: indexmap! { request_key => result },
+            primary: fxindexmap! { request_key => result },
             affecting_sources: Vec::new(),
         }
     }
@@ -539,8 +541,10 @@ impl ResolveResult {
         result: ResolveResultItem,
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ResolveResult {
+        let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
+        primary.insert(request_key, result);
         ResolveResult {
-            primary: indexmap! { request_key => result },
+            primary,
             affecting_sources,
         }
     }
@@ -550,8 +554,10 @@ impl ResolveResult {
     }
 
     pub fn source_with_key(request_key: RequestKey, source: Vc<Box<dyn Source>>) -> ResolveResult {
+        let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
+        primary.insert(request_key, ResolveResultItem::Source(source));
         ResolveResult {
-            primary: indexmap! { request_key => ResolveResultItem::Source(source) },
+            primary,
             affecting_sources: Vec::new(),
         }
     }
@@ -561,8 +567,10 @@ impl ResolveResult {
         source: Vc<Box<dyn Source>>,
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ResolveResult {
+        let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
+        primary.insert(request_key, ResolveResultItem::Source(source));
         ResolveResult {
-            primary: indexmap! { request_key => ResolveResultItem::Source(source) },
+            primary,
             affecting_sources,
         }
     }
@@ -1523,7 +1531,7 @@ async fn handle_after_resolve_plugins(
     let mut changed = false;
     let result_value = result.await?;
 
-    let mut new_primary = IndexMap::new();
+    let mut new_primary = FxIndexMap::default();
     let mut new_affecting_sources = Vec::new();
 
     for (key, primary) in result_value.primary.iter() {

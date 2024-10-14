@@ -1,7 +1,6 @@
 use anyhow::Result;
-use indexmap::{IndexMap, IndexSet};
 use serde::Serialize;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, Vc};
 use turbopack_browser::ecmascript::EcmascriptDevChunk;
 use turbopack_core::{
     chunk::{Chunk, ChunkItem},
@@ -17,7 +16,8 @@ where
 {
     let mut assets = vec![];
     let mut chunks = vec![];
-    let mut chunk_items: IndexMap<Vc<Box<dyn ChunkItem>>, IndexSet<RcStr>> = IndexMap::new();
+    let mut chunk_items: FxIndexMap<Vc<Box<dyn ChunkItem>>, FxIndexSet<RcStr>> =
+        FxIndexMap::default();
     let mut modules = vec![];
     for asset in entry_assets {
         let path = normalize_client_path(&asset.ident().path().await?.path);
@@ -64,7 +64,7 @@ where
         });
     }
 
-    let mut entrypoints = IndexMap::new();
+    let mut entrypoints = FxIndexMap::default();
     entrypoints.insert(
         entry_name.clone(),
         WebpackStatsEntrypoint {
@@ -150,7 +150,7 @@ pub struct WebpackStatsEntrypoint {
 #[serde(rename_all = "camelCase")]
 pub struct WebpackStats {
     pub assets: Vec<WebpackStatsAsset>,
-    pub entrypoints: IndexMap<RcStr, WebpackStatsEntrypoint>,
+    pub entrypoints: FxIndexMap<RcStr, WebpackStatsEntrypoint>,
     pub chunks: Vec<WebpackStatsChunk>,
     pub modules: Vec<WebpackStatsModule>,
 }

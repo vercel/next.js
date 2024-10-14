@@ -1,5 +1,4 @@
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
@@ -28,7 +27,9 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{trace::TraceRawVcs, Completion, RcStr, TaskInput, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, Completion, FxIndexMap, RcStr, TaskInput, TryJoinIterExt, Value, Vc,
+};
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
 };
@@ -96,10 +97,10 @@ impl PagesProject {
             document: _,
             error: _,
         } = &*pages_structure.await?;
-        let mut routes = IndexMap::new();
+        let mut routes = FxIndexMap::default();
 
         async fn add_page_to_routes(
-            routes: &mut IndexMap<RcStr, Route>,
+            routes: &mut FxIndexMap<RcStr, Route>,
             page: Vc<PagesStructureItem>,
             make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<PagesStructureItem>) -> Route,
         ) -> Result<()> {
@@ -117,7 +118,7 @@ impl PagesProject {
         }
 
         async fn add_dir_to_routes(
-            routes: &mut IndexMap<RcStr, Route>,
+            routes: &mut FxIndexMap<RcStr, Route>,
             dir: Vc<PagesDirectoryStructure>,
             make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<PagesStructureItem>) -> Route,
         ) -> Result<()> {

@@ -1,9 +1,8 @@
 use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
-use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, Value, ValueDefault, Vc};
+use turbo_tasks::{fxindexset, RcStr, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -363,7 +362,7 @@ pub async fn apply_tsconfig_resolve_options(
             ResolveModules::Path {
                 dir: base_url,
                 // tsconfig basepath doesn't apply to json requests
-                excluded_extensions: Vc::cell(IndexSet::from([".json".into()])),
+                excluded_extensions: Vc::cell(fxindexset![".json".into()]),
             },
         );
     }

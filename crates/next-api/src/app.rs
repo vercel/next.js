@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use indexmap::{indexset, IndexMap, IndexSet};
 use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
@@ -39,7 +38,8 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, RcStr, TryJoinIterExt,
+    Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -832,8 +832,8 @@ impl AppEndpoint {
 
         let server_path = node_root.join("server".into());
 
-        let mut server_assets = indexset![];
-        let mut client_assets = indexset![];
+        let mut server_assets = fxindexset![];
+        let mut client_assets = fxindexset![];
         // assets to add to the middleware manifest (to be loaded in the edge runtime).
         let mut middleware_assets = vec![];
 
@@ -910,7 +910,7 @@ impl AppEndpoint {
                 };
 
                 let client_dynamic_imports = {
-                    let mut client_dynamic_imports = IndexMap::new();
+                    let mut client_dynamic_imports = FxIndexMap::default();
                     let mut visited_modules = VisitedDynamicImportModules::empty();
 
                     for refs in client_references
@@ -943,9 +943,9 @@ impl AppEndpoint {
                 );
                 let client_references_chunks_ref = client_references_chunks.await?;
 
-                let mut entry_client_chunks = IndexSet::new();
+                let mut entry_client_chunks = FxIndexSet::default();
                 // TODO(alexkirsz) In which manifest does this go?
-                let mut entry_ssr_chunks = IndexSet::new();
+                let mut entry_ssr_chunks = FxIndexSet::default();
                 for chunks in client_references_chunks_ref
                     .layout_segment_client_chunks
                     .values()

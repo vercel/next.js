@@ -1,7 +1,7 @@
 use std::{path::MAIN_SEPARATOR, time::Duration};
 
 use anyhow::{bail, Context, Result};
-use indexmap::{indexmap, map::Entry, IndexMap};
+use indexmap::map::Entry;
 use next_core::{
     all_assets_from_entries,
     app_structure::find_app_dir,
@@ -24,10 +24,11 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
+    fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, IntoTraitRef, RcStr, ReadRef, State, TaskInput, TransientInstance,
-    TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, RcStr, ReadRef, State, TaskInput,
+    TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -679,7 +680,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) fn edge_env(&self) -> Vc<EnvMap> {
-        let edge_env = indexmap! {
+        let edge_env = fxindexmap! {
             "__NEXT_BUILD_ID".into() => self.build_id.clone(),
             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY".into() => self.encryption_key.clone(),
             "__NEXT_PREVIEW_MODE_ID".into() => self.preview_props.preview_mode_id.clone(),
@@ -835,7 +836,7 @@ impl Project {
     pub async fn entrypoints(self: Vc<Self>) -> Result<Vc<Entrypoints>> {
         self.collect_project_feature_telemetry().await?;
 
-        let mut routes = IndexMap::new();
+        let mut routes = FxIndexMap::default();
         let app_project = self.app_project();
         let pages_project = self.pages_project();
 
