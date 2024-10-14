@@ -53,13 +53,12 @@ function endMessage() {
 
 const requiredPackages = new Set(['react', 'react-dom', 'next'])
 
-function addDependencyIfNeeded(
+function addDependency(
   packageName: string,
   version: string,
   appPackageJson: any,
   dependenciesToInstall: string[],
-  devDependenciesToInstall: string[],
-  required: boolean
+  devDependenciesToInstall: string[]
 ) {
   const specifiedDependency = `${packageName}@${version}`
   // First check if it's dev dependencies, then add into dev deps;
@@ -67,9 +66,7 @@ function addDependencyIfNeeded(
   if (appPackageJson.devDependencies?.[packageName]) {
     devDependenciesToInstall.push(specifiedDependency)
   } else {
-    if (required) {
-      dependenciesToInstall.push(specifiedDependency)
-    }
+    dependenciesToInstall.push(specifiedDependency)
   }
 }
 
@@ -206,15 +203,25 @@ export async function runUpgrade(
     'react-is': targetReactVersion,
   }
 
+  const allDependencyKeys = new Set(
+    Object.keys({
+      ...appPackageJson.dependencies,
+      ...appPackageJson.devDependencies,
+    })
+  )
   for (const packageName of Object.keys(corePackageNameVersionMapping)) {
-    addDependencyIfNeeded(
-      packageName,
-      corePackageNameVersionMapping[packageName],
-      appPackageJson,
-      dependenciesToInstall,
-      devDependenciesToInstall,
+    if (
+      allDependencyKeys.has(packageName) ||
       requiredPackages.has(packageName)
-    )
+    ) {
+      addDependency(
+        packageName,
+        corePackageNameVersionMapping[packageName],
+        appPackageJson,
+        dependenciesToInstall,
+        devDependenciesToInstall
+      )
+    }
   }
 
   if (
