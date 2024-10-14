@@ -51,6 +51,23 @@ function endMessage() {
   )
 }
 
+function addDependencyIfNeeded(
+  packageName: string,
+  version: string,
+  appPackageJson: any,
+  dependenciesToInstall: string[],
+  devDependenciesToInstall: string[]
+) {
+  const specifiedDependency = `${packageName}@${version}`
+  // First check if it's dev dependencies, then add into dev deps;
+  // If it's not, fallback into dependencies.
+  if (appPackageJson.devDependencies?.[packageName]) {
+    devDependenciesToInstall.push(specifiedDependency)
+  } else if (appPackageJson.dependencies?.[packageName]) {
+    dependenciesToInstall.push(specifiedDependency)
+  }
+}
+
 export async function runUpgrade(
   revision: string | undefined,
   options: { verbose: boolean }
@@ -81,9 +98,6 @@ export async function runUpgrade(
 
   const installedNextVersion = getInstalledNextVersion()
 
-  // Align the prefix spaces
-  console.log(`  Current Next.js version: v${installedNextVersion}`)
-
   const targetNextVersion = targetNextPackageJson.version
 
   if (compareVersions(installedNextVersion, targetNextVersion) === 0) {
@@ -102,7 +116,10 @@ export async function runUpgrade(
   }
 
   const installedReactVersion = getInstalledReactVersion()
-  console.log(`Current React version: v${installedReactVersion}`)
+  // Align the prefix spaces
+  console.log(`  Detected installed versions:`)
+  console.log(`  - React: v${installedReactVersion}`)
+  console.log(`  - Next.js: v${installedNextVersion}`)
   let shouldStayOnReact18 = false
   if (
     // From release v14.3.0-canary.45, Next.js expects the React version to be 19.0.0-beta.0
@@ -172,19 +189,32 @@ export async function runUpgrade(
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
-  const nextDependency = `next@${targetNextVersion}`
-  const dependenciesToInstall = [
-    `react@${targetReactVersion}`,
-    `react-dom@${targetReactVersion}`,
-  ]
+  const dependenciesToInstall = []
   const devDependenciesToInstall = []
+
+  const corePackageNameVersionMapping = {
+    react: targetReactVersion,
+    'react-dom': targetReactVersion,
+    next: targetNextVersion,
+  }
+
+  for (const packageName of Object.keys(corePackageNameVersionMapping)) {
+    addDependencyIfNeeded(
+      packageName,
+      corePackageNameVersionMapping[packageName],
+      appPackageJson,
+      dependenciesToInstall,
+      devDependenciesToInstall
+    )
+  }
+
   if (
     targetReactVersion.startsWith('19.0.0-canary') ||
     targetReactVersion.startsWith('19.0.0-beta') ||
     targetReactVersion.startsWith('19.0.0-rc')
   ) {
-    devDependenciesToInstall.push(`@types/react@npm:types-react@rc`)
-    devDependenciesToInstall.push(`@types/react-dom@npm:types-react-dom@rc`)
+    corePackageNameVersionMapping['@types/react'] = 'npm:types-react@rc'
+    corePackageNameVersionMapping['@types/react-dom'] = 'npm:types-react-dom@rc'
   } else {
     const [targetReactTypesVersion, targetReactDOMTypesVersion] =
       await Promise.all([
@@ -195,17 +225,16 @@ export async function runUpgrade(
           `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
         ),
       ])
-    devDependenciesToInstall.push(`@types/react@${targetReactTypesVersion}`)
-    devDependenciesToInstall.push(
-      `@types/react-dom@${targetReactDOMTypesVersion}`
-    )
+    corePackageNameVersionMapping['@types/react'] = targetReactTypesVersion
+    corePackageNameVersionMapping['@types/react-dom'] =
+      targetReactDOMTypesVersion
   }
 
   console.log(
     `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
   )
 
-  installPackages([nextDependency, ...dependenciesToInstall], {
+  installPackages(dependenciesToInstall, {
     packageManager,
     silent: !verbose,
   })
@@ -230,6 +259,7 @@ export async function runUpgrade(
       { stdio: 'inherit' }
     )
   }
+
   if (shouldRunReactTypesCodemods) {
     // https://react.dev/blog/2024/04/25/react-19-upgrade-guide#typescript-changes
     // `--yes` skips prompts and applies all codemods automatically
@@ -238,7 +268,6 @@ export async function runUpgrade(
       stdio: 'inherit',
     })
   }
-
   console.log() // new line
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
