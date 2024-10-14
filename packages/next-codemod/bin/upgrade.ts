@@ -35,6 +35,22 @@ async function loadHighestNPMVersionMatching(query: string) {
   return versionOrVersions
 }
 
+function endMessage() {
+  console.log()
+  console.log(
+    pc.white(
+      pc.bold(
+        `Please review the local changes and read the Next.js 15 migration guide to complete the migration.`
+      )
+    )
+  )
+  console.log(
+    pc.underline(
+      'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
+    )
+  )
+}
+
 export async function runUpgrade(
   revision: string | undefined,
   options: { verbose: boolean }
@@ -65,7 +81,8 @@ export async function runUpgrade(
 
   const installedNextVersion = getInstalledNextVersion()
 
-  console.log(`Current Next.js version: v${installedNextVersion}`)
+  // Align the prefix spaces
+  console.log(`  Current Next.js version: v${installedNextVersion}`)
 
   const targetNextVersion = targetNextPackageJson.version
 
@@ -73,12 +90,14 @@ export async function runUpgrade(
     console.log(
       `${pc.green('✓')} Current Next.js version is already on the target version "v${targetNextVersion}".`
     )
+    endMessage()
     return
   }
   if (compareVersions(installedNextVersion, targetNextVersion) > 0) {
     console.log(
       `${pc.green('✓')} Current Next.js version is higher than the target version "v${targetNextVersion}".`
     )
+    endMessage()
     return
   }
 
@@ -224,9 +243,7 @@ export async function runUpgrade(
   if (codemods.length > 0) {
     console.log(`${pc.green('✔')} Codemods have been applied successfully.`)
   }
-  console.log(
-    `Please review the local changes and read the Next.js 15 migration guide to complete the migration. https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15`
-  )
+  endMessage()
 }
 
 function getInstalledNextVersion(): string {
