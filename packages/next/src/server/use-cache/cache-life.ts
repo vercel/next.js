@@ -19,7 +19,16 @@ export type CacheLife = {
 // The default revalidates relatively frequently but doesn't expire to ensure it's always
 // able to serve fast results but by default doesn't hang.
 
-type CacheLifeProfiles = string // This gets overridden by the next-types-plugin
+// This gets overridden by the next-types-plugin
+type CacheLifeProfiles =
+  | 'default'
+  | 'seconds'
+  | 'minutes'
+  | 'hours'
+  | 'days'
+  | 'weeks'
+  | 'max'
+  | string
 
 function validateCacheLife(profile: CacheLife) {
   if (profile.stale !== undefined) {
