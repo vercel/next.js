@@ -1,12 +1,10 @@
 use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{vdbg, ResolvedVc, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{vdbg, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{
-        AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
-    },
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
@@ -19,16 +17,13 @@ use super::{
     PartId, SplitResult,
 };
 use crate::{
-    chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
-    },
+    chunk::{EcmascriptChunkItem, EcmascriptChunkPlaceable, EcmascriptExports},
     parse::ParseResult,
     references::{
         analyse_ecmascript_module, esm::FoundExportType, follow_reexports, FollowExportsResult,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    tree_shake::Key,
+    tree_shake::{chunk_item::SideEffectsModuleChunkItem, Key},
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptParsable,
 };
@@ -197,7 +192,7 @@ impl EcmascriptModulePartAsset {
 }
 
 #[turbo_tasks::value]
-struct SideEffectsModule {
+pub(super) struct SideEffectsModule {
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     side_effects: Vc<SideEffects>,
 }
@@ -254,52 +249,6 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
     }
 }
 
-#[turbo_tasks::value]
-struct SideEffectsModuleChunkItem {
-    module: Vc<SideEffectsModule>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for SideEffectsModuleChunkItem {
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
-        Vc::upcast(EcmascriptChunkType::value_default())
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
-    }
-}
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
-        panic!("content() should never be called");
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
-    }
-}
-
 #[turbo_tasks::value_impl]
 impl ChunkableModule for SideEffectsModule {
     #[turbo_tasks::function]
@@ -307,10 +256,15 @@ impl ChunkableModule for SideEffectsModule {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        let chunk_item = self.await?.module.as_chunk_item(chunking_context);
+        let chunk_item = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
+            .await?
+            .unwrap();
+
         Ok(Vc::upcast(
             SideEffectsModuleChunkItem {
                 module: self,
-                chunking_context,
+                chunk_item,
             }
             .cell(),
         ))
