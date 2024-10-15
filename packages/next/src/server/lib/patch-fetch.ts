@@ -186,6 +186,15 @@ export function createPatchedFetcher(
     const workStore = workAsyncStorage.getStore()
     const workUnitStore = workUnitAsyncStorage.getStore()
 
+    // During static generation we track cache reads so we can reason about when they fill
+    let cacheSignal =
+      workUnitStore && workUnitStore.type === 'prerender'
+        ? workUnitStore.cacheSignal
+        : null
+    if (cacheSignal) {
+      cacheSignal.beginRead()
+    }
+
     const result = getTracer().trace(
       isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
       {
@@ -381,6 +390,10 @@ export function createPatchedFetcher(
         ) {
           // If we have no cache config, and we're in Dynamic I/O prerendering, it'll be a dynamic call.
           // We don't have to issue that dynamic call.
+          if (cacheSignal) {
+            cacheSignal.endRead()
+            cacheSignal = null
+          }
           return makeHangingPromise<Response>(
             workUnitStore.renderSignal,
             'fetch()'
@@ -469,6 +482,10 @@ export function createPatchedFetcher(
           // postpone instead first.
           if (finalRevalidate === 0) {
             if (workUnitStore && workUnitStore.type === 'prerender') {
+              if (cacheSignal) {
+                cacheSignal.endRead()
+                cacheSignal = null
+              }
               return makeHangingPromise<Response>(
                 workUnitStore.renderSignal,
                 'fetch()'
@@ -597,7 +614,6 @@ export function createPatchedFetcher(
               if (workUnitStore && workUnitStore.type === 'prerender') {
                 // We are prerendering at build time or revalidate time with dynamicIO so we need to
                 // buffer the response so we can guarantee it can be read in a microtask
-
                 const bodyBuffer = await res.arrayBuffer()
 
                 const fetchedData = {
@@ -800,6 +816,10 @@ export function createPatchedFetcher(
           if (cache === 'no-store') {
             // If enabled, we should bail out of static generation.
             if (workUnitStore && workUnitStore.type === 'prerender') {
+              if (cacheSignal) {
+                cacheSignal.endRead()
+                cacheSignal = null
+              }
               return makeHangingPromise<Response>(
                 workUnitStore.renderSignal,
                 'fetch()'
@@ -914,22 +934,16 @@ export function createPatchedFetcher(
       }
     )
 
-    if (
-      workUnitStore &&
-      workUnitStore.type === 'prerender' &&
-      workUnitStore.cacheSignal
-    ) {
-      // During static generation we track cache reads so we can reason about when they fill
-      const cacheSignal = workUnitStore.cacheSignal
-      cacheSignal.beginRead()
+    if (cacheSignal) {
       try {
         return await result
       } finally {
-        cacheSignal.endRead()
+        if (cacheSignal) {
+          cacheSignal.endRead()
+        }
       }
-    } else {
-      return result
     }
+    return result
   }
 
   // Attach the necessary properties to the patched fetch function.
