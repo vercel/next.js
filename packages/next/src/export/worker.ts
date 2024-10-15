@@ -538,6 +538,7 @@ async function exportPage(
     files,
     ampValidations: result.ampValidations,
     revalidate: result.revalidate,
+    expire: result.expire,
     metadata: result.metadata,
     ssgNotFound: result.ssgNotFound,
     hasEmptyPrelude: result.hasEmptyPrelude,

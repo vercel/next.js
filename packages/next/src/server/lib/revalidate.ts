@@ -15,7 +15,7 @@ export function formatRevalidate({
   expireTime,
 }: {
   revalidate: Revalidate
-  expireTime?: ExpireTime
+  expireTime: undefined | ExpireTime
 }): string {
   const swrHeader =
     typeof revalidate === 'number' && expireTime !== undefined

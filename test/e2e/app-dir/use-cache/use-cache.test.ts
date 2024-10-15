@@ -1,5 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
+import { fetchViaHTTP } from 'next-test-utils'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -117,5 +118,14 @@ describe('use-cache', () => {
         expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
       }
     )
+
+    it('set stale-while-revalidate from expire setting', async () => {
+      const initialRes = await fetchViaHTTP(next.url, '/cache-life')
+      expect(initialRes.headers.get('cache-control')).toBe(
+        isNextDeploy
+          ? 'public, max-age=0, must-revalidate'
+          : 's-maxage=100, stale-while-revalidate=50'
+      )
+    })
   }
 })

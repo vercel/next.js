@@ -16,6 +16,7 @@ import {
   RSC_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SEGMENT_SUFFIX,
+  INFINITE_CACHE,
 } from '../../lib/constants'
 import { hasNextSupport } from '../../server/ci-info'
 import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.render'
@@ -91,6 +92,7 @@ export async function exportAppPage(
     const {
       flightData,
       revalidate = false,
+      expire = INFINITE_CACHE,
       postponed,
       fetchTags,
       fetchMetrics,
@@ -118,7 +120,7 @@ export async function exportAppPage(
         })
       }
 
-      return { revalidate: 0, fetchMetrics }
+      return { revalidate: 0, expire: 0, fetchMetrics }
     }
 
     // If page data isn't available, it means that the page couldn't be rendered
@@ -239,6 +241,7 @@ export async function exportAppPage(
       hasEmptyPrelude: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
       revalidate,
+      expire,
       fetchMetrics,
     }
   } catch (err) {
@@ -266,7 +269,7 @@ export async function exportAppPage(
       })
     }
 
-    return { revalidate: 0, fetchMetrics }
+    return { revalidate: 0, expire: 0, fetchMetrics }
   }
 }
 

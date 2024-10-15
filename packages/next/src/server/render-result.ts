@@ -1,5 +1,5 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
-import type { Revalidate } from './lib/revalidate'
+import type { ExpireTime, Revalidate } from './lib/revalidate'
 import type { FetchMetrics } from './base-http'
 
 import {
@@ -16,6 +16,7 @@ type ContentTypeOption = string | undefined
 export type AppPageRenderResultMetadata = {
   flightData?: Buffer
   revalidate?: Revalidate
+  expire?: ExpireTime
   staticBailoutInfo?: {
     stack?: string
     description?: string
@@ -44,6 +45,7 @@ export type PagesRenderResultMetadata = {
   isRedirect?: boolean
 }
 
+// eslint-disable-next-line
 export type StaticRenderResultMetadata = {}
 
 export type RenderResultMetadata = AppPageRenderResultMetadata &
