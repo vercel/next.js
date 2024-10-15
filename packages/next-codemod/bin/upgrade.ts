@@ -511,31 +511,28 @@ function writeOverridesField(
       packageJson.overrides[key] = value
     }
   } else if (packageManager === 'pnpm') {
-    if (!packageJson.pnpm) {
-      packageJson.pnpm = {}
-    }
-    if (!packageJson.pnpm.overrides) {
-      packageJson.pnpm.overrides = {}
-    }
-    for (const [key, value] of Object.entries(overrides)) {
-      packageJson.pnpm.overrides[key] = value
+    // pnpm supports pnpm.overrides and pnpm.resolutions
+    if (packageJson.resolutions) {
+      for (const [key, value] of Object.entries(overrides)) {
+        packageJson.resolutions[key] = value
+      }
+    } else {
+      if (!packageJson.pnpm) {
+        packageJson.pnpm = {}
+      }
+      if (!packageJson.pnpm.overrides) {
+        packageJson.pnpm.overrides = {}
+      }
+      for (const [key, value] of Object.entries(overrides)) {
+        packageJson.pnpm.overrides[key] = value
+      }
     }
   } else if (packageManager === 'yarn') {
-    if (!packageJson.overrides || !packageJson.resolutions) {
-      packageJson.overrides = {}
-    } else {
-      if (packageJson.overrides) {
-        for (const [key, value] of Object.entries(overrides)) {
-          packageJson.overrides[key] = value
-        }
-      } else {
-        if (!packageJson.resolutions) {
-          packageJson.resolutions = {}
-        }
-        for (const [key, value] of Object.entries(overrides)) {
-          packageJson.resolutions[key] = value
-        }
-      }
+    if (!packageJson.resolutions) {
+      packageJson.resolutions = {}
+    }
+    for (const [key, value] of Object.entries(overrides)) {
+      packageJson.resolutions[key] = value
     }
   }
 }
