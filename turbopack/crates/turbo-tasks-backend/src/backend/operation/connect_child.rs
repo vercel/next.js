@@ -18,7 +18,7 @@ use crate::{
     data::{CachedDataItem, CachedDataItemKey},
 };
 
-const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 2;
+const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 3;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum ConnectChildOperation {
