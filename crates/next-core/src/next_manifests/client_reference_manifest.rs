@@ -56,11 +56,12 @@ impl ClientReferenceManifest {
             let app_client_reference_ty = app_client_reference.ty();
 
             // An client component need to be emitted into the client reference manifest
-            if let ClientReferenceType::EcmascriptClientReference(ecmascript_client_reference) =
-                app_client_reference_ty
+            if let ClientReferenceType::EcmascriptClientReference {
+                parent_module,
+                module: ecmascript_client_reference,
+            } = app_client_reference_ty
             {
-                let proxy_module = ecmascript_client_reference.0;
-                let ecmascript_client_reference = ecmascript_client_reference.1.await?;
+                let ecmascript_client_reference = ecmascript_client_reference.await?;
 
                 let server_path = ecmascript_client_reference.server_ident.to_string().await?;
 
@@ -108,7 +109,7 @@ impl ClientReferenceManifest {
                     let ssr_module_id = ssr_chunk_item.id().await?;
 
                     let rsc_chunk_item: Vc<Box<dyn ChunkItem>> =
-                        proxy_module.as_chunk_item(Vc::upcast(ssr_chunking_context));
+                        parent_module.as_chunk_item(Vc::upcast(ssr_chunking_context));
                     let rsc_module_id = rsc_chunk_item.id().await?;
 
                     let (ssr_chunks_paths, ssr_is_async) = if runtime == NextRuntime::Edge {

@@ -41,12 +41,10 @@ impl ClientReference {
     Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 pub enum ClientReferenceType {
-    EcmascriptClientReference(
-        (
-            Vc<EcmascriptClientReferenceProxyModule>,
-            Vc<EcmascriptClientReferenceModule>,
-        ),
-    ),
+    EcmascriptClientReference {
+        parent_module: Vc<EcmascriptClientReferenceProxyModule>,
+        module: Vc<EcmascriptClientReferenceModule>,
+    },
     CssClientReference(Vc<CssModuleAsset>),
 }
 
@@ -181,8 +179,9 @@ pub async fn client_reference_graph(
                 VisitClientReferenceNodeType::ClientReference(client_reference, _) => {
                     client_references.push(*client_reference);
 
-                    if let ClientReferenceType::EcmascriptClientReference((_, entry)) =
-                        client_reference.ty()
+                    if let ClientReferenceType::EcmascriptClientReference {
+                        module: entry, ..
+                    } = client_reference.ty()
                     {
                         client_references_by_server_component
                             .entry(client_reference.server_component)
@@ -359,14 +358,16 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         ty: VisitClientReferenceNodeType::ClientReference(
                             ClientReference {
                                 server_component: node.state.server_component(),
-                                ty: ClientReferenceType::EcmascriptClientReference((
-                                    Vc::try_resolve_downcast_type::<
+                                ty: ClientReferenceType::EcmascriptClientReference {
+                                    parent_module: Vc::try_resolve_downcast_type::<
                                         EcmascriptClientReferenceProxyModule,
-                                    >(parent_module)
+                                    >(
+                                        parent_module
+                                    )
                                     .await?
                                     .unwrap(),
-                                    client_reference_module,
-                                )),
+                                    module: client_reference_module,
+                                },
                             },
                             client_reference_module.ident().to_string().await?,
                         ),
