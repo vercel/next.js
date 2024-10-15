@@ -144,14 +144,8 @@ impl EcmascriptModulePartAsset {
             let FollowExportsResult {
                 module: final_module,
                 export_name: new_export,
-                ty,
+                ..
             } = &*result.await?;
-
-            vdbg!(
-                *ty,
-                final_module.ident().to_string().await?,
-                new_export.clone()
-            );
 
             if let Some(new_export) = new_export {
                 if *new_export == export_name {
@@ -203,7 +197,6 @@ async fn follow_reexports_with_side_effects(
             side_effect_free_packages,
             Vc::cell(true),
         );
-        dbg!(&*current_module.ident().to_string().await?);
 
         let FollowExportsResult {
             module,
