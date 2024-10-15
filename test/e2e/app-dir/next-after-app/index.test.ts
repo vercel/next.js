@@ -19,9 +19,13 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   const pathPrefix = '/' + runtimeValue
 
   let currentCliOutputIndex = 0
-  beforeEach(() => {
+
+  const ignorePreviousLogs = () => {
     currentCliOutputIndex = next.cliOutput.length
-  })
+  }
+  const resetLogIsolation = () => {
+    currentCliOutputIndex = 0
+  }
 
   const getLogs = () => {
     if (next.cliOutput.length < currentCliOutputIndex) {
@@ -30,6 +34,10 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     }
     return Log.readCliLogs(next.cliOutput.slice(currentCliOutputIndex))
   }
+
+  beforeEach(() => {
+    ignorePreviousLogs()
+  })
 
   it('runs in dynamic pages', async () => {
     const response = await next.fetch(pathPrefix + '/123/dynamic')
@@ -261,38 +269,68 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     }
   })
 
-  it('uses waitUntil from request context if available', async () => {
-    const { cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          // this needs to be injected as early as possible, before the server tries to read the context
-          // (which may be even before we load the page component in dev mode)
-          'instrumentation.js',
-          outdent`
+  describe('uses waitUntil from request context if available', () => {
+    let sanboxed: Awaited<ReturnType<typeof sandbox>>
+    beforeAll(async () => {
+      resetLogIsolation() // sandbox resets `next.cliOutput` to empty
+      sanboxed = await sandbox(
+        next,
+        new Map([
+          [
+            // this needs to be injected as early as possible, before the server tries to read the context
+            // (which may be even before we load the page component in dev mode)
+            'instrumentation.js',
+            outdent`
             import { injectRequestContext } from './utils/provided-request-context'
             export function register() {
+             if (process.env.NEXT_RUNTIME === 'edge') {
+               // these tests only run 'next dev/start', and for edge things,
+               // instrumentation runs *again* inside the sandbox.
+               // we don't want that, because the sandbox wouldn't have access to globals from outside
+               // and thus wouldn't normally see the request context
+               return;
+             }
               injectRequestContext();
             }
           `,
-        ],
-      ]),
-      pathPrefix + '/provided-request-context'
-    )
+          ],
+        ])
+      )
+    })
+    afterAll(async () => {
+      await sanboxed.cleanup()
+    })
 
-    try {
+    it.each([
+      {
+        name: 'in a page',
+        path: '/provided-request-context/page',
+        expectedLog: { source: '[page] /provided-request-context/page' },
+      },
+      {
+        name: 'in a route handler',
+        path: '/provided-request-context/route',
+        expectedLog: {
+          source: '[route handler] /provided-request-context/route',
+        },
+      },
+      {
+        name: 'in middleware',
+        path: '/provided-request-context/middleware',
+        expectedLog: {
+          source: '[middleware] /provided-request-context/middleware',
+        },
+      },
+    ])('$name', async ({ path, expectedLog }) => {
+      await next.browser(pathPrefix + path)
       await retry(() => {
         const logs = getLogs()
         expect(logs).toContainEqual(
           'waitUntil from "@next/request-context" was called'
         )
-        expect(logs).toContainEqual({
-          source: '[page] /provided-request-context',
-        })
+        expect(logs).toContainEqual(expectedLog)
       })
-    } finally {
-      await cleanup()
-    }
+    })
   })
 })
 
