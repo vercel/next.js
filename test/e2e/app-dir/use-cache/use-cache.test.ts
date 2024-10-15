@@ -76,7 +76,7 @@ describe('use-cache', () => {
     }
   })
 
-  itSkipTurbopack('should cache results in route handlers', async () => {
+  it('should cache results in route handlers', async () => {
     const response = await next.fetch('/api')
     const { rand1, rand2 } = await response.json()
 
@@ -84,38 +84,29 @@ describe('use-cache', () => {
   })
 
   if (isNextStart) {
-    itSkipTurbopack(
-      'should match the expected revalidate config on the prerender manifest',
-      async () => {
-        const prerenderManifest = JSON.parse(
-          await next.readFile('.next/prerender-manifest.json')
-        )
+    it('should match the expected revalidate config on the prerender manifest', async () => {
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
 
-        expect(prerenderManifest.version).toBe(4)
-        expect(
-          prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
-        ).toBe(100)
-      }
-    )
+      expect(prerenderManifest.version).toBe(4)
+      expect(
+        prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
+      ).toBe(100)
+    })
 
-    itSkipTurbopack(
-      'should match the expected stale config in the page header',
-      async () => {
-        const meta = JSON.parse(
-          await next.readFile('.next/server/app/cache-life.meta')
-        )
-        expect(meta.headers['x-nextjs-stale-time']).toBe('19')
-      }
-    )
+    it('should match the expected stale config in the page header', async () => {
+      const meta = JSON.parse(
+        await next.readFile('.next/server/app/cache-life.meta')
+      )
+      expect(meta.headers['x-nextjs-stale-time']).toBe('19')
+    })
 
-    itSkipTurbopack(
-      'should propagate unstable_cache tags correctly',
-      async () => {
-        const meta = JSON.parse(
-          await next.readFile('.next/server/app/cache-tag.meta')
-        )
-        expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
-      }
-    )
+    it('should propagate unstable_cache tags correctly', async () => {
+      const meta = JSON.parse(
+        await next.readFile('.next/server/app/cache-tag.meta')
+      )
+      expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
+    })
   }
 })
