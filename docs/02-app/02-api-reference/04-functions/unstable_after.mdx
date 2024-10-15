@@ -37,8 +37,7 @@ export default function Layout({ children }) {
 }
 ```
 
-Note that `unstable_after` is not a [Dynamic API](/docs/app/building-your-application/rendering/server-components#dynamic-apis) and calling it does not cause a route to become dynamic.
-If it is used within a static page, the callback will execute at build time, or whenever a page is revalidated.
+> **Good to know:** `unstable_after` is not a [Dynamic API](/docs/app/building-your-application/rendering/server-components#dynamic-apis) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
 
 ## Reference
 
