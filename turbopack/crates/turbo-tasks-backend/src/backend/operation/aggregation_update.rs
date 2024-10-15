@@ -1181,13 +1181,23 @@ impl AggregationUpdateQueue {
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::Meta);
         let current = get!(task, AggregationNumber).copied().unwrap_or_default();
-        // The wanted new distance is either the provided one or the old distance
-        let distance = base_effective_distance.map_or(current.distance, |d| d.get());
-        // The base aggregation number can only increase
-        let base_aggregation_number = max(current.base, base_aggregation_number);
         let old = current.effective;
-        // The new target effecive aggregation number is base + distance
-        let aggregation_number = base_aggregation_number.saturating_add(distance);
+        // The base aggregation number can only increase
+        let mut base_aggregation_number = max(current.base, base_aggregation_number);
+        let distance = base_effective_distance.map_or(current.distance, |d| d.get());
+        // The wanted new distance is either the provided one or the old distance
+        let aggregation_number = if is_aggregating_node(base_aggregation_number) {
+            base_aggregation_number.saturating_add(distance)
+        } else {
+            // The new target effecive aggregation number is base + distance
+            let aggregation_number = base_aggregation_number.saturating_add(distance);
+            if is_aggregating_node(aggregation_number) {
+                base_aggregation_number = LEAF_NUMBER;
+                LEAF_NUMBER.saturating_add(distance)
+            } else {
+                aggregation_number
+            }
+        };
         if old >= aggregation_number {
             if base_aggregation_number != current.base && distance != current.distance {
                 task.insert(CachedDataItem::AggregationNumber {
