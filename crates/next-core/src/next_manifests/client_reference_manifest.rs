@@ -8,7 +8,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo, ChunkItem, ChunkItemExt, ChunkableModule,
         ChunkingContext, ModuleId as TurbopackModuleId,
     },
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssets},
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_ecmascript::utils::StringifyJs;
@@ -30,6 +30,8 @@ impl ClientReferenceManifest {
         entry_name: RcStr,
         client_references: Vc<ClientReferenceGraphResult>,
         client_references_chunks: Vc<ClientReferencesChunks>,
+        rsc_app_entry_chunks: Vc<OutputAssets>,
+        rsc_app_entry_chunks_availability: Vc<AvailabilityInfo>,
         client_chunking_context: Vc<Box<dyn ChunkingContext>>,
         ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
         next_config: Vc<NextConfig>,
@@ -51,6 +53,8 @@ impl ClientReferenceManifest {
         let client_references_chunks = client_references_chunks.await?;
         let client_relative_path = client_relative_path.await?;
         let node_root_ref = node_root.await?;
+        let rsc_app_entry_chunks = rsc_app_entry_chunks.await?;
+        let rsc_app_entry_chunks_availability = rsc_app_entry_chunks_availability.await?;
 
         for app_client_reference in client_references.await?.client_references.iter() {
             let app_client_reference_ty = app_client_reference.ty();
@@ -151,14 +155,8 @@ impl ClientReferenceManifest {
                         // edge runtime doesn't support dynamically
                         // loading chunks.
                         (Vec::new(), false)
-                    } else if let Some((rsc_chunks, rsc_availability_info)) =
-                        client_references_chunks
-                            .client_component_rsc_chunks
-                            .get(&app_client_reference_ty)
-                    {
-                        let rsc_chunks = rsc_chunks.await?;
-
-                        let rsc_chunks_paths = rsc_chunks
+                    } else {
+                        let rsc_chunks_paths = rsc_app_entry_chunks
                             .iter()
                             .map(|chunk| chunk.ident().path())
                             .try_join()
@@ -171,11 +169,11 @@ impl ClientReferenceManifest {
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
-                        let is_async = is_item_async(rsc_availability_info, rsc_chunk_item).await?;
+                        let is_async =
+                            is_item_async(&rsc_app_entry_chunks_availability, rsc_chunk_item)
+                                .await?;
 
                         (chunk_paths, is_async)
-                    } else {
-                        (Vec::new(), false)
                     };
 
                     entry_manifest.client_modules.module_exports.insert(

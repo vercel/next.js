@@ -3,7 +3,7 @@ use turbo_tasks::Vc;
 
 use super::available_chunk_items::{AvailableChunkItemInfoMap, AvailableChunkItems};
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value(into = "shared", serialization = "auto_for_input")]
 #[derive(Hash, Clone, Copy, Debug)]
 pub enum AvailabilityInfo {
     /// Availability of modules is not tracked

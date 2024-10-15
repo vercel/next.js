@@ -38,6 +38,12 @@ use turbopack_ecmascript::{
     tree_shake::asset::EcmascriptModulePartAsset, EcmascriptParsable,
 };
 
+#[turbo_tasks::value]
+pub(crate) struct ServerActionsManifest {
+    pub loader: Vc<Box<dyn EvaluatableAsset>>,
+    pub manifest: Vc<Box<dyn OutputAsset>>,
+}
+
 /// Scans the RSC entry point's full module graph looking for exported Server
 /// Actions (identifiable by a magic comment in the transformed module's
 /// output), and constructs a evaluatable "action loader" entry point and
@@ -45,19 +51,20 @@ use turbopack_ecmascript::{
 ///
 /// If Server Actions are not enabled, this returns an empty manifest and a None
 /// loader.
+#[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
     rsc_entry: Vc<Box<dyn Module>>,
     server_reference_modules: Vc<Modules>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
-    page_name: &str,
-    runtime: NextRuntime,
+    page_name: RcStr,
+    runtime: Value<NextRuntime>,
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
+) -> Result<Vc<ServerActionsManifest>> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader =
-        build_server_actions_loader(project_path, page_name.into(), actions, asset_context);
+        build_server_actions_loader(project_path, page_name.clone(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
         .context("loader module must be evaluatable")?;
@@ -67,7 +74,11 @@ pub(crate) async fn create_server_actions_manifest(
         .id()
         .to_string();
     let manifest = build_manifest(node_root, page_name, runtime, actions, loader_id).await?;
-    Ok((evaluable, manifest))
+    Ok(ServerActionsManifest {
+        loader: evaluable,
+        manifest,
+    }
+    .cell())
 }
 
 /// Builds the "action loader" entry point, which reexports every found action
@@ -129,12 +140,12 @@ async fn build_server_actions_loader(
 /// module id which exports a function using that hashed name.
 async fn build_manifest(
     node_root: Vc<FileSystemPath>,
-    page_name: &str,
-    runtime: NextRuntime,
+    page_name: RcStr,
+    runtime: Value<NextRuntime>,
     actions: Vc<AllActions>,
     loader_id: Vc<RcStr>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
-    let manifest_path_prefix = page_name;
+    let manifest_path_prefix = &page_name;
     let manifest_path = node_root
         .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
     let mut manifest = ServerReferenceManifest {
@@ -145,7 +156,7 @@ async fn build_manifest(
 
     let actions_value = actions.await?;
     let loader_id_value = loader_id.await?;
-    let mapping = match runtime {
+    let mapping = match *runtime {
         NextRuntime::Edge => &mut manifest.edge,
         NextRuntime::NodeJs => &mut manifest.node,
     };
