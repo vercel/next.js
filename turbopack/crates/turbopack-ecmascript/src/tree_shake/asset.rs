@@ -149,7 +149,15 @@ impl EcmascriptModulePartAsset {
 
             if let Some(new_export) = new_export {
                 if *new_export == export_name {
-                    return Ok(Vc::upcast(*final_module));
+                    let side_effects = side_effects.await?.to_vec();
+
+                    return Ok(Vc::upcast(
+                        SideEffectsModule {
+                            module: *final_module,
+                            side_effects: Vc::cell(side_effects),
+                        }
+                        .cell(),
+                    ));
                 }
             }
         }
@@ -167,6 +175,49 @@ impl EcmascriptModulePartAsset {
         } else {
             Ok(Vc::cell(false))
         }
+    }
+}
+
+#[turbo_tasks::value]
+struct SideEffectsModule {
+    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    side_effects: Vc<SideEffects>,
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for SideEffectsModule {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        unreachable!("SideEffectsModule has no content")
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Module for SideEffectsModule {
+    #[turbo_tasks::function]
+    fn ident(&self) -> Vc<AssetIdent> {
+        self.module
+            .ident()
+            .with_modifier(Vc::cell(RcStr::from("with intermediate side-effects")))
+    }
+
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        let mut references = vec![];
+
+        for &side_effect in self.side_effects.await?.iter() {
+            references.push(Vc::upcast(SingleModuleReference::new(
+                Vc::upcast(side_effect),
+                Vc::cell(RcStr::from("side effect")),
+            )));
+        }
+
+        references.push(Vc::upcast(SingleModuleReference::new(
+            Vc::upcast(self.module),
+            Vc::cell(RcStr::from("target binding")),
+        )));
+
+        Ok(Vc::cell(references))
     }
 }
 
