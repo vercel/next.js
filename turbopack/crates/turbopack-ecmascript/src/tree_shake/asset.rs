@@ -219,14 +219,11 @@ impl Module for SideEffectsModule {
         let mut references = vec![];
 
         for &side_effect in self.side_effects.await?.iter() {
-            vdbg!(side_effect.ident().to_string().await?);
             references.push(Vc::upcast(SingleModuleReference::new(
                 Vc::upcast(side_effect),
                 Vc::cell(RcStr::from("side effect")),
             )));
         }
-
-        vdbg!(self.module.ident().to_string().await?);
 
         references.push(Vc::upcast(SingleModuleReference::new(
             Vc::upcast(self.module),
@@ -257,6 +254,13 @@ async fn follow_reexports_with_side_effects(
     let mut current_module = module;
     let mut current_export_name = export_name;
     let result = loop {
+        if !*current_module
+            .is_marked_as_side_effect_free(side_effect_free_packages)
+            .await?
+        {
+            side_effects.push(current_module);
+        }
+
         // We ignore the side effect of the entry module here, because we need to proceed.
         let result = follow_reexports(
             current_module,
@@ -270,8 +274,6 @@ async fn follow_reexports_with_side_effects(
             export_name,
             ty,
         } = &*result.await?;
-
-        dbg!("ty", ty);
 
         match ty {
             FoundExportType::SideEffects => {
