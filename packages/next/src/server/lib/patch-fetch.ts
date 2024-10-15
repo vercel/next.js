@@ -374,6 +374,19 @@ export function createPatchedFetcher(
             revalidateStore &&
             revalidateStore.revalidate === 0)
 
+        if (
+          hasNoExplicitCacheConfig &&
+          workUnitStore !== undefined &&
+          workUnitStore.type === 'prerender'
+        ) {
+          // If we have no cache config, and we're in Dynamic I/O prerendering, it'll be a dynamic call.
+          // We don't have to issue that dynamic call.
+          return makeHangingPromise<Response>(
+            workUnitStore.renderSignal,
+            'fetch()'
+          )
+        }
+
         switch (pageFetchCacheMode) {
           case 'force-no-store': {
             cacheReason = 'fetchCache = force-no-store'
