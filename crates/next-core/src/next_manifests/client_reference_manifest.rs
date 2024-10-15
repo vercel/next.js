@@ -59,7 +59,8 @@ impl ClientReferenceManifest {
             if let ClientReferenceType::EcmascriptClientReference(ecmascript_client_reference) =
                 app_client_reference_ty
             {
-                let ecmascript_client_reference = ecmascript_client_reference.await?;
+                let proxy_module = ecmascript_client_reference.0;
+                let ecmascript_client_reference = ecmascript_client_reference.1.await?;
 
                 let server_path = ecmascript_client_reference.server_ident.to_string().await?;
 
@@ -104,8 +105,11 @@ impl ClientReferenceManifest {
                     let ssr_chunk_item = ecmascript_client_reference
                         .ssr_module
                         .as_chunk_item(Vc::upcast(ssr_chunking_context));
-
                     let ssr_module_id = ssr_chunk_item.id().await?;
+
+                    let rsc_chunk_item: Vc<Box<dyn ChunkItem>> =
+                        proxy_module.as_chunk_item(Vc::upcast(ssr_chunking_context));
+                    let rsc_module_id = rsc_chunk_item.id().await?;
 
                     let (ssr_chunks_paths, ssr_is_async) = if runtime == NextRuntime::Edge {
                         // the chunks get added to the middleware-manifest.json instead
@@ -140,6 +144,39 @@ impl ClientReferenceManifest {
                         (Vec::new(), false)
                     };
 
+                    let (rsc_chunks_paths, rsc_is_async) = if runtime == NextRuntime::Edge {
+                        // the chunks get added to the middleware-manifest.json instead
+                        // of this file because the
+                        // edge runtime doesn't support dynamically
+                        // loading chunks.
+                        (Vec::new(), false)
+                    } else if let Some((rsc_chunks, rsc_availability_info)) =
+                        client_references_chunks
+                            .client_component_rsc_chunks
+                            .get(&app_client_reference_ty)
+                    {
+                        let rsc_chunks = rsc_chunks.await?;
+
+                        let rsc_chunks_paths = rsc_chunks
+                            .iter()
+                            .map(|chunk| chunk.ident().path())
+                            .try_join()
+                            .await?;
+
+                        let chunk_paths = rsc_chunks_paths
+                            .iter()
+                            .filter_map(|chunk_path| node_root_ref.get_path_to(chunk_path))
+                            .map(ToString::to_string)
+                            .map(RcStr::from)
+                            .collect::<Vec<_>>();
+
+                        let is_async = is_item_async(rsc_availability_info, rsc_chunk_item).await?;
+
+                        (chunk_paths, is_async)
+                    } else {
+                        (Vec::new(), false)
+                    };
+
                     entry_manifest.client_modules.module_exports.insert(
                         get_client_reference_module_key(&server_path, "*"),
                         ManifestNodeEntry {
@@ -165,16 +202,33 @@ impl ClientReferenceManifest {
                         },
                     );
 
+                    let mut rsc_manifest_node = ManifestNode::default();
+                    rsc_manifest_node.module_exports.insert(
+                        "*".into(),
+                        ManifestNodeEntry {
+                            name: "*".into(),
+                            id: (&*rsc_module_id).into(),
+                            chunks: rsc_chunks_paths,
+                            r#async: rsc_is_async,
+                        },
+                    );
+
                     match runtime {
                         NextRuntime::NodeJs => {
                             entry_manifest
                                 .ssr_module_mapping
                                 .insert((&*client_module_id).into(), ssr_manifest_node);
+                            entry_manifest
+                                .rsc_module_mapping
+                                .insert((&*client_module_id).into(), rsc_manifest_node);
                         }
                         NextRuntime::Edge => {
                             entry_manifest
                                 .edge_ssr_module_mapping
                                 .insert((&*client_module_id).into(), ssr_manifest_node);
+                            entry_manifest
+                                .edge_rsc_module_mapping
+                                .insert((&*client_module_id).into(), rsc_manifest_node);
                         }
                     }
                 }

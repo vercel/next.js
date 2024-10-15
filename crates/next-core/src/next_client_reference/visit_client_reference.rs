@@ -14,7 +14,10 @@ use turbopack::css::CssModuleAsset;
 use turbopack_core::{module::Module, reference::primary_referenced_modules};
 
 use super::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
-use crate::next_server_component::server_component_module::NextServerComponentModule;
+use crate::{
+    next_client_reference::ecmascript_client_reference::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule,
+    next_server_component::server_component_module::NextServerComponentModule,
+};
 
 #[derive(
     Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
@@ -38,7 +41,12 @@ impl ClientReference {
     Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 pub enum ClientReferenceType {
-    EcmascriptClientReference(Vc<EcmascriptClientReferenceModule>),
+    EcmascriptClientReference(
+        (
+            Vc<EcmascriptClientReferenceProxyModule>,
+            Vc<EcmascriptClientReferenceModule>,
+        ),
+    ),
     CssClientReference(Vc<CssModuleAsset>),
 }
 
@@ -173,7 +181,7 @@ pub async fn client_reference_graph(
                 VisitClientReferenceNodeType::ClientReference(client_reference, _) => {
                     client_references.push(*client_reference);
 
-                    if let ClientReferenceType::EcmascriptClientReference(entry) =
+                    if let ClientReferenceType::EcmascriptClientReference((_, entry)) =
                         client_reference.ty()
                     {
                         client_references_by_server_component
@@ -330,7 +338,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
     fn edges(&mut self, node: &VisitClientReferenceNode) -> Self::EdgesFuture {
         let node = node.clone();
         async move {
-            let module = match node.ty {
+            let parent_module = match node.ty {
                 // This should never occur since we always skip visiting these
                 // nodes' edges.
                 VisitClientReferenceNodeType::ClientReference(..) => return Ok(vec![]),
@@ -339,7 +347,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 VisitClientReferenceNodeType::ServerComponentEntry(module, _) => Vc::upcast(module),
             };
 
-            let referenced_modules = primary_referenced_modules(module).await?;
+            let referenced_modules = primary_referenced_modules(parent_module).await?;
 
             let referenced_modules = referenced_modules.iter().map(|module| async move {
                 let module = module.resolve().await?;
@@ -351,9 +359,14 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         ty: VisitClientReferenceNodeType::ClientReference(
                             ClientReference {
                                 server_component: node.state.server_component(),
-                                ty: ClientReferenceType::EcmascriptClientReference(
+                                ty: ClientReferenceType::EcmascriptClientReference((
+                                    Vc::try_resolve_downcast_type::<
+                                        EcmascriptClientReferenceProxyModule,
+                                    >(parent_module)
+                                    .await?
+                                    .unwrap(),
                                     client_reference_module,
-                                ),
+                                )),
                             },
                             client_reference_module.ident().to_string().await?,
                         ),
