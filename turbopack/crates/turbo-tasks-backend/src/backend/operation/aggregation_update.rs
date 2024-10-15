@@ -4,9 +4,10 @@ use std::{
     num::NonZeroU32,
 };
 
+use indexmap::map::Entry;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use turbo_tasks::{FxIndexSet, SessionId, TaskId};
+use turbo_tasks::{FxIndexMap, FxIndexSet, SessionId, TaskId};
 
 use crate::{
     backend::{
@@ -314,9 +315,16 @@ impl AggregatedDataUpdate {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+struct AggregationNumberUpdate {
+    base_aggregation_number: u32,
+    distance: Option<NonZeroU32>,
+}
+
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct AggregationUpdateQueue {
     jobs: VecDeque<AggregationUpdateJob>,
+    number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
     find_and_schedule: FxIndexSet<TaskId>,
 }
 
@@ -324,6 +332,7 @@ impl AggregationUpdateQueue {
     pub fn new() -> Self {
         Self {
             jobs: VecDeque::with_capacity(8),
+            number_updates: FxIndexMap::default(),
             find_and_schedule: FxIndexSet::default(),
         }
     }
@@ -333,7 +342,37 @@ impl AggregationUpdateQueue {
     }
 
     pub fn push(&mut self, job: AggregationUpdateJob) {
-        self.jobs.push_back(job);
+        match job {
+            AggregationUpdateJob::UpdateAggregationNumber {
+                task_id,
+                base_aggregation_number,
+                distance,
+            } => {
+                match self.number_updates.entry(task_id) {
+                    Entry::Occupied(mut entry) => {
+                        let update = entry.get_mut();
+                        update.base_aggregation_number =
+                            max(update.base_aggregation_number, base_aggregation_number);
+                        if let Some(distance) = distance {
+                            if let Some(update_distance) = update.distance.as_mut() {
+                                *update_distance = max(*update_distance, distance);
+                            } else {
+                                update.distance = Some(distance);
+                            }
+                        }
+                    }
+                    Entry::Vacant(entry) => {
+                        entry.insert(AggregationNumberUpdate {
+                            base_aggregation_number,
+                            distance,
+                        });
+                    }
+                };
+            }
+            _ => {
+                self.jobs.push_back(job);
+            }
+        }
     }
 
     pub fn extend(&mut self, jobs: impl IntoIterator<Item = AggregationUpdateJob>) {
@@ -357,17 +396,9 @@ impl AggregationUpdateQueue {
     pub fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
         if let Some(job) = self.jobs.pop_front() {
             match job {
-                AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id,
-                    base_aggregation_number,
-                    distance: base_effective_distance,
-                } => {
-                    self.update_aggregation_number(
-                        ctx,
-                        task_id,
-                        base_effective_distance,
-                        base_aggregation_number,
-                    );
+                AggregationUpdateJob::UpdateAggregationNumber { .. } => {
+                    // These jobs are never pushed to the queue
+                    unreachable!();
                 }
                 AggregationUpdateJob::InnerOfUppersHasNewFollowers {
                     mut upper_ids,
@@ -477,6 +508,22 @@ impl AggregationUpdateQueue {
                     for task_id in task_ids {
                         make_task_dirty(task_id, self, ctx);
                     }
+                }
+            }
+            false
+        } else if !self.number_updates.is_empty() {
+            let mut remaining = MAX_COUNT_BEFORE_YIELD;
+            while remaining > 0 {
+                if let Some((task_id, update)) = self.number_updates.pop() {
+                    self.update_aggregation_number(
+                        ctx,
+                        task_id,
+                        update.distance,
+                        update.base_aggregation_number,
+                    );
+                    remaining -= 1;
+                } else {
+                    break;
                 }
             }
             false
