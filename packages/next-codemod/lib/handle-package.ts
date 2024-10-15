@@ -123,7 +123,7 @@ export function addPackageDependency(
   name: string,
   version: string,
   dev: boolean
-): Record<string, any> {
+): void {
   if (dev) {
     packageJson.devDependencies = packageJson.devDependencies || {}
   } else {
@@ -133,29 +133,4 @@ export function addPackageDependency(
   const deps = dev ? packageJson.devDependencies : packageJson.dependencies
 
   deps[name] = version
-
-  return packageJson
-
-  // if (!packageManager) throw new Error('Failed to find package manager')
-
-  // const addCmd = ADD_CMD_FLAG[packageManager]
-  // const devDepFlag = dev ? DEV_DEP_FLAG[packageManager] : undefined
-
-  // const installFlags = [addCmd]
-  // if (devDepFlag) {
-  //   installFlags.push(devDepFlag)
-  // }
-
-  // try {
-  //   execa.sync(packageManager, [...installFlags, ...packageToInstall], {
-  //     // Keeping stderr since it'll likely be relevant later when it fails.
-  //     stdio: silent ? ['ignore', 'ignore', 'inherit'] : 'inherit',
-  //     shell: true,
-  //   })
-  // } catch (error) {
-  //   throw new Error(
-  //     `Failed to install "${packageToInstall}". Please install it manually.`,
-  //     { cause: error }
-  //   )
-  // }
 }

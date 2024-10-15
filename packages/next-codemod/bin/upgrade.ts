@@ -197,15 +197,20 @@ export async function runUpgrade(
     targetReactVersion.startsWith('19.0.0-beta') ||
     targetReactVersion.startsWith('19.0.0-rc')
   ) {
+    const [targetReactTypesVersion, targetReactDOMTypesVersion] =
+      await Promise.all([
+        loadHighestNPMVersionMatching(`types-react@rc`),
+        loadHighestNPMVersionMatching(`types-react-dom@rc`),
+      ])
     if (allDependencies['@types/react']) {
       versionMapping['@types/react'] = {
-        version: `npm:types-react@rc`,
+        version: `npm:types-react@${targetReactTypesVersion}`,
         required: false,
       }
     }
     if (allDependencies['@types/react-dom']) {
       versionMapping['@types/react-dom'] = {
-        version: `npm:types-react-dom@rc`,
+        version: `npm:types-react-dom@${targetReactDOMTypesVersion}`,
         required: false,
       }
     }
@@ -519,7 +524,6 @@ function writeOverridesField(
     for (const [key, value] of Object.entries(overrides)) {
       packageJson.pnpm.overrides[key] = value
     }
-    console.log('after', packageJson.pnpm)
   } else if (packageManager === 'yarn') {
     if (!packageJson.resolutions) {
       packageJson.resolutions = {}
