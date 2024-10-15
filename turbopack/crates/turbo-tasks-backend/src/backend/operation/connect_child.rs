@@ -62,7 +62,9 @@ impl ConnectChildOperation {
             let parent_aggregation = if is_root_node(current_parent_aggregation.base) {
                 u32::MAX
             } else {
-                let target_distance = children_count.ilog2() * 2;
+                let target_distance = u32::try_from(1 << (children_count / 100 + 1).ilog2())
+                    .unwrap()
+                    .wrapping_sub(1);
                 if target_distance != current_parent_aggregation.distance {
                     queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                         task_id: parent_task_id,
