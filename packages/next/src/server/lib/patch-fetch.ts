@@ -12,6 +12,7 @@ import {
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
+import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
 import type {
@@ -454,11 +455,18 @@ export function createPatchedFetcher(
           // If we were setting the revalidate value to 0, we should try to
           // postpone instead first.
           if (finalRevalidate === 0) {
-            markCurrentScopeAsDynamic(
-              workStore,
-              workUnitStore,
-              `revalidate: 0 fetch ${input} ${workStore.route}`
-            )
+            if (workUnitStore && workUnitStore.type === 'prerender') {
+              return makeHangingPromise<Response>(
+                workUnitStore.renderSignal,
+                'fetch()'
+              )
+            } else {
+              markCurrentScopeAsDynamic(
+                workStore,
+                workUnitStore,
+                `revalidate: 0 fetch ${input} ${workStore.route}`
+              )
+            }
           }
 
           if (revalidateStore) {
@@ -778,11 +786,18 @@ export function createPatchedFetcher(
 
           if (cache === 'no-store') {
             // If enabled, we should bail out of static generation.
-            markCurrentScopeAsDynamic(
-              workStore,
-              workUnitStore,
-              `no-store fetch ${input} ${workStore.route}`
-            )
+            if (workUnitStore && workUnitStore.type === 'prerender') {
+              return makeHangingPromise<Response>(
+                workUnitStore.renderSignal,
+                'fetch()'
+              )
+            } else {
+              markCurrentScopeAsDynamic(
+                workStore,
+                workUnitStore,
+                `no-store fetch ${input} ${workStore.route}`
+              )
+            }
           }
 
           const hasNextConfig = 'next' in init
@@ -794,11 +809,18 @@ export function createPatchedFetcher(
           ) {
             if (next.revalidate === 0) {
               // If enabled, we should bail out of static generation.
-              markCurrentScopeAsDynamic(
-                workStore,
-                workUnitStore,
-                `revalidate: 0 fetch ${input} ${workStore.route}`
-              )
+              if (workUnitStore && workUnitStore.type === 'prerender') {
+                return makeHangingPromise<Response>(
+                  workUnitStore.renderSignal,
+                  'fetch()'
+                )
+              } else {
+                markCurrentScopeAsDynamic(
+                  workStore,
+                  workUnitStore,
+                  `revalidate: 0 fetch ${input} ${workStore.route}`
+                )
+              }
             }
 
             if (!workStore.forceStatic || next.revalidate !== 0) {

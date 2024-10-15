@@ -21,6 +21,8 @@ import type {
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
+import { makeHangingPromise } from '../dynamic-rendering-utils'
+
 import { cacheScopeAsyncLocalStorage } from '../async-storage/cache-scope.external'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -32,6 +34,9 @@ import {
 import type { CacheScopeStore } from '../async-storage/cache-scope.external'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
+
+// If the expire time is less than .
+const DYNAMIC_EXPIRE = 300
 
 type CacheEntry = {
   value: ReadableStream
@@ -427,6 +432,20 @@ async function loadCacheEntry(
 
   const currentTime = performance.timeOrigin + performance.now()
   if (
+    workUnitStore !== undefined &&
+    workUnitStore.type === 'prerender' &&
+    entry !== undefined &&
+    (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
+  ) {
+    // In a Dynamic I/O prerender, if the cache entry has revalidate: 0 or if the
+    // expire time is under 5 minutes, then we consider this cache entry dynamic
+    // as it's not worth generating static pages for such data. It's better to leave
+    // a PPR hole that can be filled in dynamically with a potentially cached entry.
+    if (cacheSignal) {
+      cacheSignal.endRead()
+    }
+    return makeHangingPromise(workUnitStore.renderSignal, 'dynamic "use cache"')
+  } else if (
     entry === undefined ||
     currentTime > entry.timestamp + entry.expire * 1000 ||
     (workStore.isStaticGeneration &&
