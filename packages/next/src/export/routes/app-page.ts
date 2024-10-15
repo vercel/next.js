@@ -54,7 +54,13 @@ export async function exportAppPage(
   isDynamicError: boolean,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
-  const afterRunner = new AfterRunner()
+  const wrappedResponse = new NodeNextResponse(res)
+  const afterRunner = new AfterRunner({
+    onClose: wrappedResponse.onClose.bind(wrappedResponse),
+  })
+  const wrappedRequest = new NodeNextRequest(req, {
+    waitUntil: afterRunner.context.waitUntil,
+  })
 
   const renderOpts: RenderOpts = {
     ...partialRenderOpts,
@@ -71,8 +77,8 @@ export async function exportAppPage(
 
   try {
     const result = await lazyRenderAppPage(
-      new NodeNextRequest(req, { waitUntil: afterRunner.context.waitUntil }),
-      new NodeNextResponse(res), // TODO: what about `afterRunner.context.onClose` here?
+      wrappedRequest,
+      wrappedResponse,
       pathname,
       query,
       fallbackRouteParams,
@@ -80,6 +86,9 @@ export async function exportAppPage(
     )
 
     const html = result.toUnchunkedString()
+    // the RenderResult is not piped into the `wrappedResponse` like it'd be during a normal request,
+    // but `after` relies on `onClose` firing, so we end the response manually
+    wrappedResponse.send()
 
     // TODO(after): if we abort a prerender because of an error in an after-callback
     // we should probably communicate that better (and not log the error twice)

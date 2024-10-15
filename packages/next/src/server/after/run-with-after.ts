@@ -11,17 +11,41 @@ type Ctx = {
 
 export class AfterRunner {
   private awaiter = new AwaiterOnce()
-  private closeController = new CloseController()
-  private finishedWithoutErrors = new DetachedPromise<void>()
 
-  readonly context: Ctx = {
-    waitUntil: this.awaiter.waitUntil.bind(this.awaiter),
-    onClose: this.closeController.onClose.bind(this.closeController),
-    onTaskError: (error) => this.finishedWithoutErrors.reject(error),
+  private close:
+    | {
+        type: 'external'
+        onClose: Ctx['onClose']
+      }
+    | {
+        type: 'internal'
+        controller: CloseController
+      }
+
+  private finishedWithoutErrors = new DetachedPromise<void>()
+  readonly context: Ctx
+
+  constructor(options: { onClose?: Ctx['onClose'] } = {}) {
+    let onClose: Ctx['onClose']
+    if (options.onClose) {
+      onClose = options.onClose
+      this.close = { type: 'external', onClose }
+    } else {
+      const controller = new CloseController()
+      onClose = controller.onClose.bind(controller)
+      this.close = { type: 'internal', controller: controller }
+    }
+    this.context = {
+      waitUntil: this.awaiter.waitUntil.bind(this.awaiter),
+      onClose,
+      onTaskError: (error) => this.finishedWithoutErrors.reject(error),
+    }
   }
 
   public async executeAfter() {
-    this.closeController.dispatchClose()
+    if (this.close.type === 'internal') {
+      this.close.controller.dispatchClose()
+    }
     await this.awaiter.awaiting()
 
     // if we got an error while running the callbacks,
