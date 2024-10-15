@@ -1,10 +1,11 @@
-import { unstable_after as after } from 'next/server'
+import { unstable_after as after, connection } from 'next/server'
 import { cache } from 'react'
 import { cliLog } from '../../../utils/log'
 
 const thing = cache(() => Symbol('cache me please'))
 
-export default function Index({ params }) {
+export default async function Index({ params }) {
+  await connection()
   const valueFromRender = thing()
 
   after(async () => {

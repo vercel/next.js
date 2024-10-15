@@ -1782,6 +1782,8 @@ export default abstract class Server<
       // the platform provided a request context.
       // use the `waitUntil` from there, whether actually present or not --
       // if not present, `unstable_after` will error.
+
+      // NOTE: if we're in an edge runtime sandbox, this context will be used to forward the outer waitUntil.
       return builtinRequestContext.waitUntil
     }
 
@@ -1792,8 +1794,9 @@ export default abstract class Server<
       // return nothing, and `unstable_after` will error if used.
       //
       // NOTE: for edge functions, `NextWebServer` always runs in minimal mode.
-      // in next dev/start, it'll be in an edge runtime sandbox.
-      // but in that case, `waitUntil` will be passed in via `NodejsRequestData`.
+      //
+      // NOTE: if we're in an edge runtime sandbox, waitUntil will be passed in using "@next/request-context",
+      // so we won't get here.
       return undefined
     }
 

@@ -27,6 +27,7 @@ import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
+import { getBuiltinRequestContext } from '../after/builtin-request-context'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -201,14 +202,15 @@ export async function adapter(
     })
   }
 
+  // if we're in an edge runtime sandbox, we should use the waitUntil
+  // that we receive from the enclosing NextServer
+  const outerWaitUntil =
+    params.request.waitUntil ?? getBuiltinRequestContext()?.waitUntil
+
   const event = new NextFetchEvent({
     request,
     page: params.page,
-    // if we're in an edge runtime sandbox, we should use the waitUntil
-    // that we receive from the enclosing NextServer
-    context: params.request.waitUntil
-      ? { waitUntil: params.request.waitUntil }
-      : undefined,
+    context: outerWaitUntil ? { waitUntil: outerWaitUntil } : undefined,
   })
   let response
   let cookiesFromResponse
