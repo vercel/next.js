@@ -710,13 +710,24 @@ impl AggregationUpdateQueue {
             }
         } else {
             // both nodes have the same aggregation number
-            // We need to change the aggregation number of the task
-            let current = get!(task, AggregationNumber).copied().unwrap_or_default();
-            self.push(AggregationUpdateJob::UpdateAggregationNumber {
-                task_id,
-                base_aggregation_number: current.base + 1,
-                distance: None,
-            });
+            // We need to change the aggregation number of the task or of upper
+            let upper_uppers = iter_uppers(&upper).count();
+            let task_uppers = iter_uppers(&task).count();
+            if upper_uppers > task_uppers {
+                let current = get!(upper, AggregationNumber).copied().unwrap_or_default();
+                self.push(AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id: upper_id,
+                    base_aggregation_number: current.base + 1,
+                    distance: None,
+                });
+            } else {
+                let current = get!(task, AggregationNumber).copied().unwrap_or_default();
+                self.push(AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id,
+                    base_aggregation_number: current.base + 1,
+                    distance: None,
+                });
+            }
         }
     }
 
