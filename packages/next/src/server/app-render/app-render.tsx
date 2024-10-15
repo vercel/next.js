@@ -921,7 +921,8 @@ async function renderToHTMLOrFlightImpl(
         process.env.NODE_ENV === 'development' &&
         renderOpts.setAppIsrStatus &&
         !isPPR &&
-        !requestStore.usedDynamic
+        !requestStore.usedDynamic &&
+        !workStore.forceDynamic
       ) {
         // only node can be ISR so we only need to update the status here
         const { pathname } = new URL(req.url || '/', 'http://n')
