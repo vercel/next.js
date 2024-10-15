@@ -5,7 +5,11 @@ import compareVersions from 'semver/functions/compare'
 import { execSync } from 'child_process'
 import path from 'path'
 import pc from 'picocolors'
-import { getPkgManager, installPackages } from '../lib/handle-package'
+import {
+  getPkgManager,
+  addPackageDependency,
+  runInstallation,
+} from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 import { BadInput } from './shared'
@@ -172,8 +176,13 @@ export async function runUpgrade(
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
-  const dependenciesToInstall = []
-  const devDependenciesToInstall = []
+  const dependenciesToInstall: [string, string][] = []
+  const devDependenciesToInstall: [string, string][] = []
+
+  const allDependencies = {
+    ...appPackageJson.dependencies,
+    ...appPackageJson.devDependencies,
+  }
 
   const versionMapping: Record<string, { version: string; required: boolean }> =
     {
@@ -188,13 +197,17 @@ export async function runUpgrade(
     targetReactVersion.startsWith('19.0.0-beta') ||
     targetReactVersion.startsWith('19.0.0-rc')
   ) {
-    versionMapping['@types/react'] = {
-      version: `npm:types-react@rc`,
-      required: false,
+    if (allDependencies['@types/react']) {
+      versionMapping['@types/react'] = {
+        version: `npm:types-react@rc`,
+        required: false,
+      }
     }
-    versionMapping['@types/react-dom'] = {
-      version: `npm:types-react-dom@rc`,
-      required: false,
+    if (allDependencies['@types/react-dom']) {
+      versionMapping['@types/react-dom'] = {
+        version: `npm:types-react-dom@rc`,
+        required: false,
+      }
     }
   } else {
     const [targetReactTypesVersion, targetReactDOMTypesVersion] =
@@ -207,23 +220,45 @@ export async function runUpgrade(
         ),
       ])
 
-    versionMapping['@types/react'] = {
-      version: targetReactTypesVersion,
-      required: false,
+    if (allDependencies['@types/react']) {
+      versionMapping['@types/react'] = {
+        version: targetReactTypesVersion,
+        required: false,
+      }
     }
-    versionMapping['@types/react-dom'] = {
-      version: targetReactDOMTypesVersion,
-      required: false,
+    if (allDependencies['@types/react-dom']) {
+      versionMapping['@types/react-dom'] = {
+        version: targetReactDOMTypesVersion,
+        required: false,
+      }
     }
+  }
+
+  const overrides: Record<string, string> = {}
+
+  if (allDependencies['@types/react']) {
+    overrides['@types/react'] = versionMapping['@types/react'].version
+  }
+  if (allDependencies['@types/react-dom']) {
+    overrides['@types/react-dom'] = versionMapping['@types/react-dom'].version
+  }
+
+  if (Object.keys(overrides).length > 0) {
+    writeOverridesField(
+      appPackageJson,
+      appPackageJsonPath,
+      packageManager,
+      overrides
+    )
   }
 
   for (const [packageName, { version, required }] of Object.entries(
     versionMapping
   )) {
     if (appPackageJson.devDependencies?.[packageName]) {
-      devDependenciesToInstall.push(`${packageName}@${version}`)
+      devDependenciesToInstall.push([packageName, version])
     } else if (required || appPackageJson.dependencies?.[packageName]) {
-      dependenciesToInstall.push(`${packageName}@${version}`)
+      dependenciesToInstall.push([packageName, version])
     }
   }
 
@@ -231,15 +266,14 @@ export async function runUpgrade(
     `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
   )
 
-  installPackages(dependenciesToInstall, {
-    packageManager,
-    silent: !verbose,
-  })
-  installPackages(devDependenciesToInstall, {
-    packageManager,
-    silent: !verbose,
-    dev: true,
-  })
+  for (const [dep, version] of dependenciesToInstall) {
+    addPackageDependency(appPackageJson, dep, version, false)
+  }
+  for (const [dep, version] of devDependenciesToInstall) {
+    addPackageDependency(appPackageJson, dep, version, true)
+  }
+
+  runInstallation(packageManager)
 
   for (const codemod of codemods) {
     await runTransform(codemod, process.cwd(), { force: true, verbose })
@@ -460,4 +494,40 @@ async function suggestReactTypesCodemods(): Promise<boolean> {
   )
 
   return runReactTypesCodemod
+}
+
+function writeOverridesField(
+  packageJson: any,
+  packageJsonPath: string,
+  packageManager: PackageManager,
+  overrides: Record<string, string>
+) {
+  if (packageManager === 'bun' || packageManager === 'npm') {
+    if (!packageJson.overrides) {
+      packageJson.overrides = {}
+    }
+    for (const [key, value] of Object.entries(overrides)) {
+      packageJson.overrides[key] = value
+    }
+  } else if (packageManager === 'pnpm') {
+    if (!packageJson.pnpm) {
+      packageJson.pnpm = {}
+    }
+    if (!packageJson.pnpm.overrides) {
+      packageJson.pnpm.overrides = {}
+    }
+    for (const [key, value] of Object.entries(overrides)) {
+      packageJson.pnpm.overrides[key] = value
+    }
+    console.log('after', packageJson.pnpm)
+  } else if (packageManager === 'yarn') {
+    if (!packageJson.resolutions) {
+      packageJson.resolutions = {}
+    }
+    for (const [key, value] of Object.entries(overrides)) {
+      packageJson.resolutions[key] = value
+    }
+  }
+
+  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
 }
