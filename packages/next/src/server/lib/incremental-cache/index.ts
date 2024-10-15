@@ -43,8 +43,6 @@ export interface CacheHandlerValue {
   value: IncrementalCacheValue | null
 }
 
-export const cacheHandlersSymbol = Symbol('@next/cache-handlers')
-
 export class CacheHandler {
   // eslint-disable-next-line
   constructor(_ctx: CacheHandlerContext) {}
@@ -123,6 +121,7 @@ export class IncrementalCache implements IncrementalCacheType {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
     this.hasCustomCacheHandler = Boolean(CurCacheHandler)
 
+    const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
     const _globalThis: typeof globalThis & {
       [cacheHandlersSymbol]?: {
         FetchCache?: typeof CacheHandler
