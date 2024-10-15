@@ -22,7 +22,7 @@ use crate::{
     },
 };
 
-const LEAF_NUMBER: u32 = 16;
+pub const LEAF_NUMBER: u32 = 16;
 const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 
 pub fn is_aggregating_node(aggregation_number: u32) -> bool {

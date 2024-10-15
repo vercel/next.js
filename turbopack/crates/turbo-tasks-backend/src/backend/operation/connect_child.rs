@@ -8,6 +8,7 @@ use crate::{
         operation::{
             aggregation_update::{
                 get_uppers, is_aggregating_node, AggregationUpdateJob, AggregationUpdateQueue,
+                LEAF_NUMBER,
             },
             is_root_node, ExecuteContext, Operation,
         },
@@ -73,22 +74,29 @@ impl ConnectChildOperation {
             };
 
             // Update child aggregation number based on parent aggregation number
-            let is_aggregating_node = is_aggregating_node(parent_aggregation);
+            let aggregating_node = is_aggregating_node(parent_aggregation);
             if parent_task_id.is_transient() && !child_task_id.is_transient() {
                 queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                     task_id: child_task_id,
                     base_aggregation_number: u32::MAX,
                     distance: None,
                 });
-            } else if !is_aggregating_node {
+            } else if !aggregating_node {
+                let base_aggregation_number =
+                    parent_aggregation.saturating_add(AGGREGATION_NUMBER_BUFFER_SPACE);
                 queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                     task_id: child_task_id,
-                    base_aggregation_number: parent_aggregation
-                        .saturating_add(AGGREGATION_NUMBER_BUFFER_SPACE),
+                    base_aggregation_number: if is_aggregating_node(
+                        base_aggregation_number.saturating_add(AGGREGATION_NUMBER_BUFFER_SPACE - 1),
+                    ) {
+                        LEAF_NUMBER
+                    } else {
+                        base_aggregation_number
+                    },
                     distance: None,
                 });
             }
-            if is_aggregating_node {
+            if aggregating_node {
                 queue.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
                     upper_ids: vec![parent_task_id],
                     new_follower_id: child_task_id,
