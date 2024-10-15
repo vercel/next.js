@@ -213,15 +213,6 @@ async function lint(
           : // in ESLint >= 9, `plugins` value is Record<string, unknown>
             '@next/next' in plugins
 
-      console.log({
-        hasNextPlugin,
-        plugins,
-        completeConfig,
-        configFile,
-        eslint,
-        useFlatConfig,
-      })
-
       if (hasNextPlugin) {
         nextEslintPluginIsEnabled = true
         for (const [name, [severity]] of Object.entries(completeConfig.rules)) {
