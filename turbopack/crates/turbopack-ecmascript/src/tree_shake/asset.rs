@@ -17,7 +17,7 @@ use super::{
     PartId, SplitResult,
 };
 use crate::{
-    chunk::{EcmascriptChunkItem, EcmascriptChunkPlaceable, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     parse::ParseResult,
     references::{
         analyse_ecmascript_module, esm::FoundExportType, follow_reexports, FollowExportsResult,
@@ -210,9 +210,7 @@ impl Module for SideEffectsModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = vec![];
 
-        dbg!(self.module.ident().to_string().await?);
         for &side_effect in self.side_effects.await?.iter() {
-            dbg!(side_effect.ident().to_string().await?);
             references.push(Vc::upcast(SingleModuleReference::new(
                 Vc::upcast(side_effect),
                 Vc::cell(RcStr::from("side effect")),
@@ -256,15 +254,10 @@ impl ChunkableModule for SideEffectsModule {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        let chunk_item = self.await?.module.as_chunk_item(chunking_context);
-        let chunk_item = Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkItem>>(chunk_item)
-            .await?
-            .unwrap();
-
         Ok(Vc::upcast(
             SideEffectsModuleChunkItem {
                 module: self,
-                chunk_item,
+                chunking_context,
             }
             .cell(),
         ))

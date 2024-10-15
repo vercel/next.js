@@ -111,20 +111,16 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
 #[turbo_tasks::value(shared)]
 pub(super) struct SideEffectsModuleChunkItem {
     pub module: Vc<SideEffectsModule>,
-    pub chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
+    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for SideEffectsModuleChunkItem {
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.chunk_item.references()
-    }
+    fn references(&self) -> Vc<ModuleReferences> {}
 
     #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
+    fn asset_ident(&self) -> Vc<AssetIdent> {}
 
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<Box<dyn ChunkType>> {
@@ -132,33 +128,23 @@ impl ChunkItem for SideEffectsModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
-    }
+    fn module(&self) -> Vc<Box<dyn Module>> {}
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        EcmascriptChunkItem::chunking_context(self.chunk_item)
-    }
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {}
 }
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<EcmascriptChunkItemContent> {
-        EcmascriptChunkItem::content(self.chunk_item)
-    }
+    fn content(&self) -> Vc<EcmascriptChunkItemContent> {}
 
     #[turbo_tasks::function]
     async fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<EcmascriptChunkItemContent> {
-        self.chunk_item
-            .content_with_async_module_info(async_module_info)
     }
 
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        EcmascriptChunkItem::chunking_context(self.chunk_item)
-    }
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {}
 }
