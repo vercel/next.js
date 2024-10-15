@@ -476,16 +476,6 @@ impl<C: Comments> ServerActions<C> {
         let reference_id =
             generate_action_id(&self.config.hash_salt, &self.file_name, &export_name);
 
-        let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(cache_ident.clone(), reference_id.clone()),
-            ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Some(id.as_arg()))
-                .collect(),
-            reference_id.clone(),
-        );
-
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
@@ -511,7 +501,12 @@ impl<C: Comments> ServerActions<C> {
             let mut pats = vec![];
             for i in 0..ids_from_closure.len() {
                 pats.push(Some(Pat::Ident(
-                    IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                    Ident::new(
+                        format!("$$ACTION_ARG_{i}").into(),
+                        DUMMY_SP,
+                        self.private_ctxt,
+                    )
+                    .into(),
                 )));
             }
             let decryption_decl = VarDecl {
@@ -620,7 +615,45 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        Box::new(register_action_expr.clone())
+        let bound_args: Vec<_> = ids_from_closure
+            .iter()
+            .cloned()
+            .map(|id| Some(id.as_arg()))
+            .collect();
+
+        let register_action_expr =
+            annotate_ident_as_server_reference(cache_ident.clone(), reference_id.clone());
+
+        // If there're any bound args from the closure, we need to hoist the
+        // register action expression to the top-level, and return the bind
+        // expression inline.
+        if !bound_args.is_empty() {
+            let ref_ident = private_ident!(gen_ref_ident(&mut self.reference_index));
+
+            let ref_decl = VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Var,
+                decls: vec![VarDeclarator {
+                    span: DUMMY_SP,
+                    name: Pat::Ident(ref_ident.clone().into()),
+                    init: Some(Box::new(register_action_expr.clone())),
+                    definite: false,
+                }],
+                ..Default::default()
+            };
+
+            // Hoist the register action expression to the top-level.
+            self.extra_items
+                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(ref_decl)))));
+
+            Box::new(bind_args_to_ref_expr(
+                Expr::Ident(ref_ident.clone()),
+                bound_args,
+                reference_id.clone(),
+            ))
+        } else {
+            Box::new(register_action_expr)
+        }
     }
 
     fn maybe_hoist_and_create_proxy_for_cache_function(
