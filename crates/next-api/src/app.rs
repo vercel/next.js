@@ -962,6 +962,12 @@ impl AppEndpoint {
                 {
                     entry_ssr_chunks.extend(chunks.await?.iter().copied());
                 }
+                for (chunks, _) in client_references_chunks_ref
+                    .client_component_rsc_chunks
+                    .values()
+                {
+                    server_assets.extend(chunks.await?.iter().copied());
+                }
 
                 client_assets.extend(entry_client_chunks.iter().copied());
                 server_assets.extend(entry_ssr_chunks.iter().copied());
