@@ -165,13 +165,9 @@ pub async fn follow_reexports(
             .await?
             {
                 ControlFlow::Continue((m, n)) => {
-                    if !ignore_side_effect_of_entry
-                        || !is_module_part_with_no_real_export(m).await?
-                    {
-                        module = m;
-                        export_name = n;
-                        continue;
-                    }
+                    module = m;
+                    export_name = n;
+                    continue;
                 }
                 ControlFlow::Break(result) => {
                     return Ok(result.cell());
@@ -214,21 +210,6 @@ pub async fn follow_reexports(
             ty: FoundExportType::NotFound,
         }));
     }
-}
-
-async fn is_module_part_with_no_real_export(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-) -> Result<bool> {
-    if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
-    {
-        if matches!(
-            *module.await?.part.await?,
-            ModulePart::Internal(..) | ModulePart::Evaluation
-        ) {
-            return Ok(true);
-        }
-    }
-    Ok(false)
 }
 
 async fn handle_declared_export(
