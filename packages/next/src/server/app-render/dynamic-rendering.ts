@@ -116,7 +116,7 @@ export function getFirstDynamicReason(
  */
 export function markCurrentScopeAsDynamic(
   store: WorkStore,
-  workUnitStore: undefined | WorkUnitStore,
+  workUnitStore: undefined | Exclude<WorkUnitStore, PrerenderStoreModern>,
   expression: string
 ): void {
   if (workUnitStore) {
@@ -143,17 +143,7 @@ export function markCurrentScopeAsDynamic(
   }
 
   if (workUnitStore) {
-    if (workUnitStore.type === 'prerender') {
-      // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
-      // current render because something dynamic is being used.
-      // This won't throw so we still need to fall through to determine if/how we handle
-      // this specific dynamic request.
-      abortAndThrowOnSynchronousDynamicDataAccess(
-        store.route,
-        expression,
-        workUnitStore
-      )
-    } else if (workUnitStore.type === 'prerender-ppr') {
+    if (workUnitStore.type === 'prerender-ppr') {
       postponeWithTracking(
         store.route,
         expression,
