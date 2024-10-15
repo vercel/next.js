@@ -100,11 +100,9 @@ function generateCacheEntry(
   outerWorkUnitStore: WorkUnitStore | undefined,
   cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
-  cacheHandler: CacheHandler,
-  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
-): Promise<ReadableStream> {
+): Promise<[ReadableStream, Promise<CacheEntry>]> {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
   // generation cannot read anything from the context we're currently executing which
   // might include request specific things like cookies() inside a React.cache().
@@ -116,8 +114,6 @@ function generateCacheEntry(
     outerWorkUnitStore,
     cacheScope,
     clientReferenceManifest,
-    cacheHandler,
-    serializedCacheKey,
     encodedArguments,
     fn
   )
@@ -128,8 +124,6 @@ function generateCacheEntryWithRestoredWorkStore(
   outerWorkUnitStore: WorkUnitStore | undefined,
   cacheScope: undefined | CacheScopeStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
-  cacheHandler: CacheHandler,
-  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ) {
@@ -148,8 +142,6 @@ function generateCacheEntryWithRestoredWorkStore(
         workStore,
         outerWorkUnitStore,
         clientReferenceManifest,
-        cacheHandler,
-        serializedCacheKey,
         encodedArguments,
         fn
       )
@@ -161,8 +153,6 @@ function generateCacheEntryWithRestoredWorkStore(
     workStore,
     outerWorkUnitStore,
     clientReferenceManifest,
-    cacheHandler,
-    serializedCacheKey,
     encodedArguments,
     fn
   )
@@ -172,8 +162,6 @@ function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
-  cacheHandler: CacheHandler,
-  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
 ) {
@@ -214,12 +202,9 @@ function generateCacheEntryWithCacheContext(
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
-    workStore,
     outerWorkUnitStore,
     cacheStore,
     clientReferenceManifest,
-    cacheHandler,
-    serializedCacheKey,
     encodedArguments,
     fn
   )
@@ -337,15 +322,12 @@ async function collectResult(
 }
 
 async function generateCacheEntryImpl(
-  workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
-  cacheHandler: CacheHandler,
-  serializedCacheKey: string,
   encodedArguments: FormData | string,
   fn: any
-): Promise<ReadableStream> {
+): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
   const [, , args] = await decodeReply<any[]>(
@@ -379,7 +361,7 @@ async function generateCacheEntryImpl(
 
   const [returnStream, savedStream] = stream.tee()
 
-  let cacheEntry = collectResult(
+  const promiseOfCacheEntry = collectResult(
     savedStream,
     outerWorkUnitStore,
     innerCacheStore,
@@ -387,132 +369,34 @@ async function generateCacheEntryImpl(
     errors
   )
 
-  if (!workStore.pendingRevalidateWrites) {
-    workStore.pendingRevalidateWrites = []
-  }
-
-  const promise = cacheHandler.set(serializedCacheKey, cacheEntry)
-
-  workStore.pendingRevalidateWrites.push(promise)
-
   // Return the stream as we're creating it. This means that if it ends up
   // erroring we cannot return a stale-while-error version but it allows
   // streaming back the result earlier.
-  return returnStream
+  return [returnStream, promiseOfCacheEntry]
 }
 
-async function loadCacheEntry(
-  workStore: WorkStore,
-  workUnitStore: WorkUnitStore | undefined,
-  cacheScope: undefined | CacheScopeStore,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
-  cacheHandler: CacheHandler,
-  serializedCacheKey: string,
-  encodedArguments: FormData | string,
-  fn: any
-): Promise<ReadableStream> {
-  const cacheSignal =
-    workUnitStore && workUnitStore.type === 'prerender'
-      ? workUnitStore.cacheSignal
-      : null
-  if (cacheSignal) {
-    // Either the cache handler or the generation can be using I/O at this point.
-    // We need to track when they start and when they complete.
-    cacheSignal.beginRead()
+async function clonePendingCacheEntry(
+  pendingCacheEntry: Promise<CacheEntry>
+): Promise<[CacheEntry, CacheEntry]> {
+  const entry = await pendingCacheEntry
+  const [streamA, streamB] = entry.value.tee()
+  entry.value = streamA
+  const clonedEntry: CacheEntry = {
+    value: streamB,
+    timestamp: entry.timestamp,
+    revalidate: entry.revalidate,
+    expire: entry.expire,
+    stale: entry.stale,
+    tags: entry.tags,
   }
-
-  const implicitTags =
-    workUnitStore === undefined || workUnitStore.type === 'unstable-cache'
-      ? []
-      : workUnitStore.implicitTags
-  let entry: undefined | CacheEntry = await cacheHandler.get(
-    serializedCacheKey,
-    implicitTags
-  )
-
-  const currentTime = performance.timeOrigin + performance.now()
-  if (
-    workUnitStore !== undefined &&
-    workUnitStore.type === 'prerender' &&
-    entry !== undefined &&
-    (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
-  ) {
-    // In a Dynamic I/O prerender, if the cache entry has revalidate: 0 or if the
-    // expire time is under 5 minutes, then we consider this cache entry dynamic
-    // as it's not worth generating static pages for such data. It's better to leave
-    // a PPR hole that can be filled in dynamically with a potentially cached entry.
-    if (cacheSignal) {
-      cacheSignal.endRead()
-    }
-    return makeHangingPromise(workUnitStore.renderSignal, 'dynamic "use cache"')
-  } else if (
-    entry === undefined ||
-    currentTime > entry.timestamp + entry.expire * 1000 ||
-    (workStore.isStaticGeneration &&
-      currentTime > entry.timestamp + entry.revalidate * 1000)
-  ) {
-    // Miss. Generate a new result.
-
-    // If the cache entry is stale and we're prerendering, we don't want to use the
-    // stale entry since it would unnecessarily need to shorten the lifetime of the
-    // prerender. We're not time constrained here so we can re-generated it now.
-
-    // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
-    // generation cannot read anything from the context we're currently executing which
-    // might include request specific things like cookies() inside a React.cache().
-    // Note: It is important that we await at least once before this because it lets us
-    // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
-
-    return generateCacheEntry(
-      workStore,
-      workUnitStore,
-      cacheScope,
-      clientReferenceManifest,
-      cacheHandler,
-      serializedCacheKey,
-      encodedArguments,
-      fn
-    )
-  } else {
-    propagateCacheLifeAndTags(workUnitStore, entry)
-
-    if (currentTime > entry.timestamp + entry.revalidate * 1000) {
-      // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
-      // then we should warm up the cache with a fresh revalidated entry.
-      const ignoredStream = await generateCacheEntry(
-        workStore,
-        workUnitStore,
-        cacheScope,
-        clientReferenceManifest,
-        cacheHandler,
-        serializedCacheKey,
-        encodedArguments,
-        fn
-      )
-      await ignoredStream.cancel()
-    } else {
-      if (cacheSignal) {
-        // If we're not regenerating we need to signal that we've finished
-        // putting the entry into the cache scope at this point. Otherwise we do
-        // that inside generateCacheEntry.
-        cacheSignal.endRead()
-      }
-    }
-
-    return entry.value
-  }
+  return [entry, clonedEntry]
 }
 
-async function teePromiseOfStream(
-  promiseOfStream: Promise<ReadableStream>
-): Promise<[ReadableStream, ReadableStream]> {
-  return (await promiseOfStream).tee()
-}
-
-async function cacheScopeEntryFromSecondStream(
-  promiseOfStreams: Promise<[ReadableStream, ReadableStream]>
-) {
-  return { value: (await promiseOfStreams)[1] }
+async function getNthCacheEntry(
+  split: Promise<[CacheEntry, CacheEntry]>,
+  i: number
+): Promise<CacheEntry> {
+  return (await split)[i]
 }
 
 export function cache(kind: string, id: string, fn: any) {
@@ -537,10 +421,9 @@ export function cache(kind: string, id: string, fn: any) {
 
       const workUnitStore = workUnitAsyncStorage.getStore()
 
-      // Get the clientReferenceManifestSingleton while we're still in the outer Context.
+      // Get the clientReferenceManifest while we're still in the outer Context.
       // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
-      const clientReferenceManifestSingleton =
-        getClientReferenceManifestSingleton()
+      const clientReferenceManifest = getClientReferenceManifestSingleton()
 
       // Because the Action ID is not yet unique per implementation of that Action we can't
       // safely reuse the results across builds yet. In the meantime we add the buildId to the
@@ -570,58 +453,155 @@ export function cache(kind: string, id: string, fn: any) {
               )
             )
 
-      let stream: ReadableStream
+      let stream: undefined | ReadableStream = undefined
 
-      const disable = true // TODO: Reenable the cache scope
       const cacheScope: undefined | CacheScopeStore =
         cacheScopeAsyncLocalStorage.getStore()
-      if (cacheScope && !disable) {
-        // String cache key for easier hash mapping.
-        // Note that we're not worried about collisions between string and base64
-        // since the string form will always be JSON which doesn't overlap with base64.
-        const cachedStream:
-          | undefined
-          | Promise<{
-              value: ReadableStream
-            }> = cacheScope.cache.get(serializedCacheKey)
-        if (cachedStream !== undefined) {
-          const entry = await cachedStream
-          // Get a clone out of the cache.
-          const [streamA, streamB] = entry.value.tee()
-          entry.value = streamB
+      if (cacheScope) {
+        const cachedEntry: undefined | Promise<CacheEntry> =
+          cacheScope.cache.get(serializedCacheKey)
+        if (cachedEntry !== undefined) {
+          const existingEntry = await cachedEntry
+          propagateCacheLifeAndTags(workUnitStore, existingEntry)
+          if (
+            workUnitStore !== undefined &&
+            workUnitStore.type === 'prerender' &&
+            existingEntry !== undefined &&
+            (existingEntry.revalidate === 0 ||
+              existingEntry.expire < DYNAMIC_EXPIRE)
+          ) {
+            // In a Dynamic I/O prerender, if the cache entry has revalidate: 0 or if the
+            // expire time is under 5 minutes, then we consider this cache entry dynamic
+            // as it's not worth generating static pages for such data. It's better to leave
+            // a PPR hole that can be filled in dynamically with a potentially cached entry.
+            return makeHangingPromise(
+              workUnitStore.renderSignal,
+              'dynamic "use cache"'
+            )
+          }
+          const [streamA, streamB] = existingEntry.value.tee()
+          existingEntry.value = streamB
           stream = streamA
-        } else {
-          // If this is a miss we need to synchronously save an entry so that if we're asked again
-          // for the same entry, we can dedupe the requests. So we split the Promise into two Promises
-          // of streams.
-          const loadedStream = loadCacheEntry(
+        }
+      }
+
+      if (stream === undefined) {
+        const cacheSignal =
+          workUnitStore && workUnitStore.type === 'prerender'
+            ? workUnitStore.cacheSignal
+            : null
+        if (cacheSignal) {
+          // Either the cache handler or the generation can be using I/O at this point.
+          // We need to track when they start and when they complete.
+          cacheSignal.beginRead()
+        }
+
+        const implicitTags =
+          workUnitStore === undefined || workUnitStore.type === 'unstable-cache'
+            ? []
+            : workUnitStore.implicitTags
+        const entry: undefined | CacheEntry = await cacheHandler.get(
+          serializedCacheKey,
+          implicitTags
+        )
+        const currentTime = performance.timeOrigin + performance.now()
+        if (
+          workUnitStore !== undefined &&
+          workUnitStore.type === 'prerender' &&
+          entry !== undefined &&
+          (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE)
+        ) {
+          // In a Dynamic I/O prerender, if the cache entry has revalidate: 0 or if the
+          // expire time is under 5 minutes, then we consider this cache entry dynamic
+          // as it's not worth generating static pages for such data. It's better to leave
+          // a PPR hole that can be filled in dynamically with a potentially cached entry.
+          if (cacheSignal) {
+            cacheSignal.endRead()
+          }
+          return makeHangingPromise(
+            workUnitStore.renderSignal,
+            'dynamic "use cache"'
+          )
+        } else if (
+          entry === undefined ||
+          currentTime > entry.timestamp + entry.expire * 1000 ||
+          (workStore.isStaticGeneration &&
+            currentTime > entry.timestamp + entry.revalidate * 1000)
+        ) {
+          // Miss. Generate a new result.
+
+          // If the cache entry is stale and we're prerendering, we don't want to use the
+          // stale entry since it would unnecessarily need to shorten the lifetime of the
+          // prerender. We're not time constrained here so we can re-generated it now.
+
+          // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
+          // generation cannot read anything from the context we're currently executing which
+          // might include request specific things like cookies() inside a React.cache().
+          // Note: It is important that we await at least once before this because it lets us
+          // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
+
+          const [newStream, pendingCacheEntry] = await generateCacheEntry(
             workStore,
             workUnitStore,
             cacheScope,
-            clientReferenceManifestSingleton,
-            cacheHandler,
-            serializedCacheKey,
+            clientReferenceManifest,
             encodedArguments,
             fn
           )
-          const streams = teePromiseOfStream(loadedStream)
-          cacheScope.cache.set(
-            serializedCacheKey,
-            cacheScopeEntryFromSecondStream(streams)
-          )
-          stream = (await streams)[0]
+
+          let savedCacheEntry
+          if (cacheScope) {
+            // Create a clone that goes into the cache scope memory cache.
+            const split = clonePendingCacheEntry(pendingCacheEntry)
+            savedCacheEntry = getNthCacheEntry(split, 0)
+            cacheScope.cache.set(serializedCacheKey, getNthCacheEntry(split, 1))
+          } else {
+            savedCacheEntry = pendingCacheEntry
+          }
+
+          const promise = cacheHandler.set(serializedCacheKey, savedCacheEntry)
+
+          if (!workStore.pendingRevalidateWrites) {
+            workStore.pendingRevalidateWrites = []
+          }
+          workStore.pendingRevalidateWrites.push(promise)
+
+          stream = newStream
+        } else {
+          propagateCacheLifeAndTags(workUnitStore, entry)
+          if (cacheSignal) {
+            // If we're not regenerating we need to signal that we've finished
+            // putting the entry into the cache scope at this point. Otherwise we do
+            // that inside generateCacheEntry.
+            cacheSignal.endRead()
+          }
+
+          if (currentTime > entry.timestamp + entry.revalidate * 1000) {
+            // If this is stale, and we're not in a prerender (i.e. this is dynamic render),
+            // then we should warm up the cache with a fresh revalidated entry.
+            const [ignoredStream, pendingCacheEntry] = await generateCacheEntry(
+              workStore,
+              undefined, // This is not running within the context of this unit.
+              cacheScope,
+              clientReferenceManifest,
+              encodedArguments,
+              fn
+            )
+            const promise = cacheHandler.set(
+              serializedCacheKey,
+              pendingCacheEntry
+            )
+
+            if (!workStore.pendingRevalidateWrites) {
+              workStore.pendingRevalidateWrites = []
+            }
+            workStore.pendingRevalidateWrites.push(promise)
+
+            await ignoredStream.cancel()
+          }
+
+          stream = entry.value
         }
-      } else {
-        stream = await loadCacheEntry(
-          workStore,
-          workUnitStore,
-          cacheScope,
-          clientReferenceManifestSingleton,
-          cacheHandler,
-          serializedCacheKey,
-          encodedArguments,
-          fn
-        )
       }
 
       // Logs are replayed even if it's a hit - to ensure we see them on the client eventually.
@@ -639,8 +619,8 @@ export function cache(kind: string, id: string, fn: any) {
         // which themselves will handle the preloading.
         moduleLoading: null,
         moduleMap: isEdgeRuntime
-          ? clientReferenceManifestSingleton.edgeRscModuleMapping
-          : clientReferenceManifestSingleton.rscModuleMapping,
+          ? clientReferenceManifest.edgeRscModuleMapping
+          : clientReferenceManifest.rscModuleMapping,
       }
 
       return createFromReadableStream(stream, {
