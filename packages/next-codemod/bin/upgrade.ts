@@ -250,14 +250,7 @@ export async function runUpgrade(
     overrides['@types/react-dom'] = versionMapping['@types/react-dom'].version
   }
 
-  if (Object.keys(overrides).length > 0) {
-    writeOverridesField(
-      appPackageJson,
-      appPackageJsonPath,
-      packageManager,
-      overrides
-    )
-  }
+  writeOverridesField(appPackageJson, packageManager, overrides)
 
   for (const [packageName, { version, required }] of Object.entries(
     versionMapping
@@ -279,6 +272,8 @@ export async function runUpgrade(
   for (const [dep, version] of devDependenciesToInstall) {
     addPackageDependency(appPackageJson, dep, version, true)
   }
+
+  fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
   runInstallation(packageManager)
 
@@ -505,7 +500,6 @@ async function suggestReactTypesCodemods(): Promise<boolean> {
 
 function writeOverridesField(
   packageJson: any,
-  packageJsonPath: string,
   packageManager: PackageManager,
   overrides: Record<string, string>
 ) {
@@ -527,13 +521,21 @@ function writeOverridesField(
       packageJson.pnpm.overrides[key] = value
     }
   } else if (packageManager === 'yarn') {
-    if (!packageJson.resolutions) {
-      packageJson.resolutions = {}
-    }
-    for (const [key, value] of Object.entries(overrides)) {
-      packageJson.resolutions[key] = value
+    if (!packageJson.overrides || !packageJson.resolutions) {
+      packageJson.overrides = {}
+    } else {
+      if (packageJson.overrides) {
+        for (const [key, value] of Object.entries(overrides)) {
+          packageJson.overrides[key] = value
+        }
+      } else {
+        if (!packageJson.resolutions) {
+          packageJson.resolutions = {}
+        }
+        for (const [key, value] of Object.entries(overrides)) {
+          packageJson.resolutions[key] = value
+        }
+      }
     }
   }
-
-  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
 }
