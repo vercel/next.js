@@ -241,8 +241,6 @@ describe('dynamic-io', () => {
         expect(message2).toEqual(json.message2)
       }
 
-      // TODO: Edge is missing Server Manifest for routes.
-      /*
       str = await next.render('/routes/-edge/use_cache-cached', {})
       json = JSON.parse(str)
 
@@ -259,7 +257,6 @@ describe('dynamic-io', () => {
       expect(json.value).toEqual('at runtime')
       expect(message1).toEqual(json.message1)
       expect(message2).toEqual(json.message2)
-      */
     }
   )
 
