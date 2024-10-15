@@ -1224,7 +1224,6 @@ export async function buildAppStaticPaths({
   nextConfigOutput,
   ComponentMod,
   isRoutePPREnabled,
-  isAppPPRFallbacksEnabled,
   buildId,
 }: {
   dir: string
@@ -1244,7 +1243,6 @@ export async function buildAppStaticPaths({
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule
   isRoutePPREnabled: boolean | undefined
-  isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
 }): Promise<PartialStaticPathsResult> {
   if (
@@ -1419,11 +1417,9 @@ export async function buildAppStaticPaths({
   const supportsRoutePreGeneration =
     hadAllParamsGenerated || process.env.NODE_ENV === 'production'
 
-  const supportsPPRFallbacks = isRoutePPREnabled && isAppPPRFallbacksEnabled
-
   const fallbackMode = dynamicParams
     ? supportsRoutePreGeneration
-      ? supportsPPRFallbacks
+      ? isRoutePPREnabled
         ? FallbackMode.PRERENDER
         : FallbackMode.BLOCKING_STATIC_RENDER
       : undefined
@@ -1448,7 +1444,7 @@ export async function buildAppStaticPaths({
 
   // If the fallback mode is a prerender, we want to include the dynamic
   // route in the prerendered routes too.
-  if (isRoutePPREnabled && isAppPPRFallbacksEnabled) {
+  if (isRoutePPREnabled) {
     result.prerenderedRoutes ??= []
     result.prerenderedRoutes.unshift({
       path: page,
@@ -1496,7 +1492,6 @@ export async function isPageStatic({
   cacheHandler,
   cacheLifeProfiles,
   pprConfig,
-  isAppPPRFallbacksEnabled,
   buildId,
 }: {
   dir: string
@@ -1521,7 +1516,6 @@ export async function isPageStatic({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
-  isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
 }): Promise<PageIsStaticResult> {
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
@@ -1645,7 +1639,6 @@ export async function isPageStatic({
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
-              isAppPPRFallbacksEnabled,
               buildId,
             }))
         }

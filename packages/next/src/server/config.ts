@@ -227,19 +227,8 @@ function assignDefaults(
       `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
     )
   }
-  if (defaultConfig.experimental?.pprFallbacks) {
-    Log.warn(
-      `\`experimental.pprFallbacks\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
-    )
-  }
 
   const result = { ...defaultConfig, ...config }
-
-  if (result.experimental?.pprFallbacks && !result.experimental?.ppr) {
-    throw new Error(
-      `The experimental.pprFallbacks option requires experimental.ppr to be set to \`true\` or \`"incremental"\`.`
-    )
-  }
 
   if (
     result.experimental?.allowDevelopmentBuild &&
