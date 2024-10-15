@@ -815,13 +815,12 @@ impl AppEndpoint {
 
         let app_entry = self.app_endpoint_entry().await?;
 
-        let (process_client, process_ssr) = match this.ty {
-            AppEndpointType::Page { ty, .. } => (true, matches!(ty, AppPageEndpointType::Html)),
-            // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
-            // as we know we won't have any client references. However, for now, for simplicity's
-            // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { .. } => (false, false),
-            AppEndpointType::Metadata { .. } => (false, false),
+        let (process_client_components, process_client_assets, process_ssr) = match this.ty {
+            AppEndpointType::Page { ty, .. } => {
+                (true, true, matches!(ty, AppPageEndpointType::Html))
+            }
+            AppEndpointType::Route { .. } => (true, false, false),
+            AppEndpointType::Metadata { .. } => (false, false, false),
         };
 
         let node_root = this.app_project.project().node_root();
@@ -843,7 +842,7 @@ impl AppEndpoint {
         let client_chunking_context = this.app_project.project().client_chunking_context();
 
         let (app_server_reference_modules, client_dynamic_imports, client_references) =
-            if process_client {
+            if process_client_components {
                 let client_shared_chunk_group = get_app_client_shared_chunk_group(
                     AssetIdent::from_path(this.app_project.project().project_path())
                         .with_modifier(client_shared_chunks()),
@@ -902,7 +901,7 @@ impl AppEndpoint {
                         NextRuntime::Edge => this
                             .app_project
                             .project()
-                            .edge_chunking_context(process_client),
+                            .edge_chunking_context(process_client_assets),
                     })
                 } else {
                     None
@@ -1138,7 +1137,7 @@ impl AppEndpoint {
                 let chunking_context = this
                     .app_project
                     .project()
-                    .edge_chunking_context(process_client);
+                    .edge_chunking_context(process_client_assets);
                 let mut evaluatable_assets = this
                     .app_project
                     .edge_rsc_runtime_entries()
@@ -1300,7 +1299,7 @@ impl AppEndpoint {
                 let chunking_context = this
                     .app_project
                     .project()
-                    .server_chunking_context(process_client);
+                    .server_chunking_context(process_client_assets);
 
                 if let Some(app_server_reference_modules) = app_server_reference_modules {
                     let (loader, manifest) = create_server_actions_manifest(
@@ -1354,7 +1353,12 @@ impl AppEndpoint {
                             .server_component_entries
                             .iter()
                             .copied()
-                            .take(client_references.server_component_entries.len() - 1)
+                            .take(
+                                client_references
+                                    .server_component_entries
+                                    .len()
+                                    .saturating_sub(1),
+                            )
                         {
                             let span = tracing::trace_span!(
                                 "layout segment",

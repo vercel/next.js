@@ -527,6 +527,7 @@ pub struct ExperimentalConfig {
     after: Option<bool>,
     amp: Option<serde_json::Value>,
     app_document_preloading: Option<bool>,
+    cache_life: Option<FxIndexMap<String, CacheLifeProfile>>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
@@ -579,6 +580,61 @@ pub struct ExperimentalConfig {
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct CacheLifeProfile {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stale: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub revalidate: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expire: Option<u32>,
+}
+
+#[test]
+fn test_cache_life_profiles() {
+    let json = serde_json::json!({
+        "cacheLife": {
+            "frequent": {
+                "stale": 19,
+                "revalidate": 100,
+            },
+        }
+    });
+
+    let config: ExperimentalConfig = serde_json::from_value(json).unwrap();
+    let mut expected_cache_life = FxIndexMap::default();
+
+    expected_cache_life.insert(
+        "frequent".to_string(),
+        CacheLifeProfile {
+            stale: Some(19),
+            revalidate: Some(100),
+            expire: None,
+        },
+    );
+
+    assert_eq!(config.cache_life, Some(expected_cache_life));
+}
+
+#[test]
+fn test_cache_life_profiles_invalid() {
+    let json = serde_json::json!({
+        "cacheLife": {
+            "invalid": {
+                "stale": "invalid_value",
+            },
+        }
+    });
+
+    let result: Result<ExperimentalConfig, _> = serde_json::from_value(json);
+
+    assert!(
+        result.is_err(),
+        "Deserialization should fail due to invalid 'stale' value type"
+    );
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]

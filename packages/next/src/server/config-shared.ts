@@ -1025,8 +1025,38 @@ export const defaultConfig: NextConfig = {
     cacheLife: {
       default: {
         stale: undefined, // defaults to staleTimes.static
-        revalidate: 900,
+        revalidate: 60 * 15, // 15 minutes
         expire: INFINITE_CACHE,
+      },
+      seconds: {
+        stale: undefined, // defaults to staleTimes.dynamic
+        revalidate: 1, // 1 second
+        expire: 1, // 1 minute
+      },
+      minutes: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60, // 1 minute
+        expire: 60 * 60, // 1 hour
+      },
+      hours: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60, // 1 hour
+        expire: 60 * 60 * 24, // 1 day
+      },
+      days: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24, // 1 day
+        expire: 60 * 60 * 24 * 7, // 1 week
+      },
+      weeks: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24 * 7, // 1 week
+        expire: 60 * 60 * 24 * 30, // 1 month
+      },
+      max: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24 * 30, // 1 month
+        expire: INFINITE_CACHE, // Unbounded.
       },
     },
     multiZoneDraftMode: false,
