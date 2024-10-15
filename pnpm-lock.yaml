@@ -420,11 +420,11 @@ importers:
         specifier: 5.0.0
         version: 5.0.0
       playwright:
-        specifier: 1.41.2
-        version: 1.41.2
+        specifier: 1.48.0
+        version: 1.48.0
       playwright-chromium:
-        specifier: 1.41.2
-        version: 1.41.2
+        specifier: 1.48.0
+        version: 1.48.0
       postcss:
         specifier: 8.4.31
         version: 8.4.31
@@ -11809,6 +11809,11 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
+  playwright-chromium@1.48.0:
+    resolution: {integrity: sha512-jPFKhB4+zGEcAwc+h1mTLa8L08Rb+FwGKFqd/o7mWSGyxAtwBu5R4QxSG/a8KcHbewOj4DLBUVVK2N/uKrYmiQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   playwright-core@1.41.2:
     resolution: {integrity: sha512-VaTvwCA4Y8kxEe+kfm2+uUUw5Lubf38RxF7FpBxLPmGe5sdNkSg5e3ChEigaGrX7qdqT3pt2m/98LiyvU2x6CA==}
     engines: {node: '>=16'}
@@ -11819,6 +11824,11 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  playwright-core@1.48.0:
+    resolution: {integrity: sha512-RBvzjM9rdpP7UUFrQzRwR8L/xR4HyC1QXMzGYTbf1vjw25/ya9NRAVnXi/0fvFopjebvyPzsmoK58xxeEOaVvA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   playwright@1.41.2:
     resolution: {integrity: sha512-v0bOa6H2GJChDL8pAeLa/LZC4feoAMbSQm1/jF/ySsWWoaNItvrMP7GEkvEEFyCTUYKMxjQKaTSg5up7nR6/8A==}
     engines: {node: '>=16'}
@@ -11826,6 +11836,11 @@ packages:
 
   playwright@1.45.1:
     resolution: {integrity: sha512-Hjrgae4kpSQBr98nhCj3IScxVeVUixqj+5oyif8TdIn2opTCPEzqAqNMeK42i3cWDCVu9MI+ZsGWw+gVR4ISBg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.48.0:
+    resolution: {integrity: sha512-qPqFaMEHuY/ug8o0uteYJSRfMGFikhUysk8ZvAtfKmUK3kc/6oNl/y3EczF8OFGYIi/Ex2HspMfzYArk6+XQSA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -12670,6 +12685,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -28394,9 +28410,15 @@ snapshots:
     dependencies:
       playwright-core: 1.41.2
 
+  playwright-chromium@1.48.0:
+    dependencies:
+      playwright-core: 1.48.0
+
   playwright-core@1.41.2: {}
 
   playwright-core@1.45.1: {}
+
+  playwright-core@1.48.0: {}
 
   playwright@1.41.2:
     dependencies:
@@ -28407,6 +28429,12 @@ snapshots:
   playwright@1.45.1:
     dependencies:
       playwright-core: 1.45.1
+    optionalDependencies:
+      fsevents: 2.3.2
+
+  playwright@1.48.0:
+    dependencies:
+      playwright-core: 1.48.0
     optionalDependencies:
       fsevents: 2.3.2
 
