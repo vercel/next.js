@@ -193,8 +193,8 @@ impl EcmascriptModulePartAsset {
 
 #[turbo_tasks::value]
 pub(super) struct SideEffectsModule {
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    side_effects: Vc<SideEffects>,
+    pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub side_effects: Vc<SideEffects>,
 }
 
 #[turbo_tasks::value_impl]
@@ -274,7 +274,7 @@ struct FollowExportsWithSideEffectsResult {
 }
 
 #[turbo_tasks::value(transparent)]
-struct SideEffects(Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>);
+pub(super) struct SideEffects(pub Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>);
 
 #[turbo_tasks::function]
 async fn follow_reexports_with_side_effects(
