@@ -135,9 +135,11 @@ async function lint(
 
     const mod = await Promise.resolve(require(deps.resolved.get('eslint')!))
 
-    const useFlatConfig =
-      // If V9 config was found, use flat config, or else use legacy.
-      eslintrcFile?.startsWith('eslint.config.')
+    // If V9 config was found, use flat config, or else use legacy.
+    const useFlatConfig = eslintrcFile
+      ? // eslintrcFile is absolute path
+        path.basename(eslintrcFile).startsWith('eslint.config.')
+      : false
 
     let ESLint
     // loadESLint is >= 8.57.0
@@ -210,6 +212,15 @@ async function lint(
           ? plugins.includes('@next/next')
           : // in ESLint >= 9, `plugins` value is Record<string, unknown>
             '@next/next' in plugins
+
+      console.log({
+        hasNextPlugin,
+        plugins,
+        completeConfig,
+        configFile,
+        eslint,
+        useFlatConfig,
+      })
 
       if (hasNextPlugin) {
         nextEslintPluginIsEnabled = true
