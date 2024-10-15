@@ -198,14 +198,6 @@ struct SideEffectsModule {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for SideEffectsModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        unreachable!("SideEffectsModule has no content")
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl Module for SideEffectsModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
@@ -218,7 +210,9 @@ impl Module for SideEffectsModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = vec![];
 
+        dbg!(self.module.ident().to_string().await?);
         for &side_effect in self.side_effects.await?.iter() {
+            dbg!(side_effect.ident().to_string().await?);
             references.push(Vc::upcast(SingleModuleReference::new(
                 Vc::upcast(side_effect),
                 Vc::cell(RcStr::from("side effect")),
@@ -233,6 +227,46 @@ impl Module for SideEffectsModule {
         Ok(Vc::cell(references))
     }
 }
+
+#[turbo_tasks::value_impl]
+impl Asset for SideEffectsModule {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        unreachable!("SideEffectsModule has no content")
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkPlaceable for SideEffectsModule {
+    #[turbo_tasks::function]
+    async fn get_exports(&self) -> Vc<EcmascriptExports> {
+        self.module.get_exports()
+    }
+
+    #[turbo_tasks::function]
+    async fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModule for SideEffectsModule {
+    #[turbo_tasks::function]
+    async fn as_chunk_item(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        Ok(
+            Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(self.await?.module)
+                .await?
+                .unwrap()
+                .as_chunk_item(chunking_context),
+        )
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EvaluatableAsset for SideEffectsModule {}
 
 #[turbo_tasks::value]
 struct FollowExportsWithSideEffectsResult {
