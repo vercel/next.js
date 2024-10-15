@@ -58,8 +58,6 @@ export async function exportAppPage(
 
   const renderOpts: RenderOpts = {
     ...partialRenderOpts,
-    waitUntil: afterRunner.context.waitUntil,
-    onClose: afterRunner.context.onClose,
     onAfterTaskError: afterRunner.context.onTaskError,
   }
 
@@ -73,8 +71,8 @@ export async function exportAppPage(
 
   try {
     const result = await lazyRenderAppPage(
-      new NodeNextRequest(req),
-      new NodeNextResponse(res),
+      new NodeNextRequest(req, { waitUntil: afterRunner.context.waitUntil }),
+      new NodeNextResponse(res), // TODO: what about `afterRunner.context.onClose` here?
       pathname,
       query,
       fallbackRouteParams,

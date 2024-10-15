@@ -6,7 +6,12 @@ import {
   NextFetchEvent,
   getWaitUntilPromiseFromEvent,
 } from './spec-extension/fetch-event'
-import { NextRequest } from './spec-extension/request'
+import {
+  getInternalNextRequestContext,
+  NEXT_REQUEST_CONTEXT_PARAM,
+  NextRequest,
+  setInternalNextRequestContext,
+} from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
 import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
 import { NextURL } from './next-url'
@@ -16,10 +21,7 @@ import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
 import { createRequestStoreForAPI } from '../async-storage/request-store'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import {
-  withWorkStore,
-  type WorkStoreContext,
-} from '../async-storage/with-work-store'
+import { withWorkStore } from '../async-storage/with-work-store'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
@@ -27,6 +29,8 @@ import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
+import type { WaitUntil } from '../after/builtin-request-context'
+import { getAfterOptsFromNextRequest } from '../after/after-opts'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -160,6 +164,12 @@ export async function adapter(
       method: params.request.method,
       nextConfig: params.request.nextConfig,
       signal: params.request.signal,
+      // starts out as undefined
+      // - handlers that use NextRequest (api routes, middleware) initialize it
+      //   via `setInternalNextRequestContext`
+      // - handlers that use NextWebRequest (app ssr) don't need it,
+      //   because they use `req.context.waitUntil` and `res.onClose` instead
+      [NEXT_REQUEST_CONTEXT_PARAM]: undefined,
     },
   })
 
@@ -227,12 +237,17 @@ export async function adapter(
         params.request.nextConfig?.experimental?.after ??
         !!process.env.__NEXT_AFTER
 
-      let waitUntil: WorkStoreContext['renderOpts']['waitUntil'] = undefined
+      let waitUntil: WaitUntil | undefined = undefined
       let closeController: CloseController | undefined = undefined
 
-      if (isAfterEnabled) {
+      if (isAfterEnabled && !getInternalNextRequestContext(request)) {
         waitUntil = event.waitUntil.bind(event)
         closeController = new CloseController()
+
+        setInternalNextRequestContext(request, {
+          waitUntil,
+          onClose: closeController.onClose.bind(closeController),
+        })
       }
 
       return getTracer().trace(
@@ -264,6 +279,7 @@ export async function adapter(
               {
                 page: '/', // Fake Work
                 fallbackRouteParams: null,
+                afterOpts: getAfterOptsFromNextRequest(request),
                 renderOpts: {
                   cacheLifeProfiles:
                     params.request.nextConfig?.experimental?.cacheLife,
@@ -274,10 +290,7 @@ export async function adapter(
                   },
                   buildId: buildId ?? '',
                   supportsDynamicResponse: true,
-                  waitUntil,
-                  onClose: closeController
-                    ? closeController.onClose.bind(closeController)
-                    : undefined,
+                  onAfterTaskError: undefined,
                 },
                 requestEndedState: { ended: false },
                 isPrefetchRequest: request.headers.has(

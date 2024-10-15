@@ -76,6 +76,7 @@ import {
 import { isNotFoundError } from '../../../client/components/not-found'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
+import { getAfterOptsFromNextRequest } from '../../after/after-opts'
 
 export class WrappedNextRouterError {
   constructor(
@@ -619,6 +620,7 @@ export class AppRouteRouteModule extends RouteModule<
       fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
+      afterOpts: getAfterOptsFromNextRequest(req),
     }
 
     // Add the fetchCache option to the renderOpts.

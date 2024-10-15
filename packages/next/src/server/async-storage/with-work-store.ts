@@ -10,6 +10,7 @@ import type { AppSegmentConfig } from '../../build/segment-config/app/app-segmen
 import type { CacheLife } from '../use-cache/cache-life'
 
 import { AfterContext } from '../after/after-context'
+import type { AfterOpts } from '../after/after-opts'
 
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
@@ -23,6 +24,8 @@ export type WorkStoreContext = {
    * The route parameters that are currently unknown.
    */
   fallbackRouteParams: FallbackRouteParams | null
+
+  afterOpts: AfterOpts
 
   requestEndedState?: { ended?: boolean }
   isPrefetchRequest?: boolean
@@ -64,7 +67,7 @@ export type WorkStoreContext = {
     | 'isDebugDynamicAccesses'
     | 'buildId'
   > &
-    Partial<RequestLifecycleOpts> &
+    Pick<RequestLifecycleOpts, 'onAfterTaskError'> &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
 }
 
@@ -74,6 +77,7 @@ export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
     page,
     fallbackRouteParams,
     renderOpts,
+    afterOpts,
     requestEndedState,
     isPrefetchRequest,
   }: WorkStoreContext,
@@ -124,7 +128,7 @@ export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
 
-    afterContext: createAfterContext(renderOpts),
+    afterContext: createAfterContext(afterOpts, renderOpts),
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context
@@ -134,14 +138,14 @@ export const withWorkStore: WithStore<WorkStore, WorkStoreContext> = <Result>(
 }
 
 function createAfterContext(
-  renderOpts: Partial<RequestLifecycleOpts> & {
-    experimental: Pick<RenderOpts['experimental'], 'after'>
-  }
+  afterOpts: AfterOpts,
+  renderOpts: WorkStoreContext['renderOpts']
 ): AfterContext | undefined {
   const isAfterEnabled = renderOpts?.experimental?.after ?? false
   if (!isAfterEnabled) {
     return undefined
   }
-  const { waitUntil, onClose, onAfterTaskError } = renderOpts
+  const { waitUntil, onClose } = afterOpts
+  const { onAfterTaskError } = renderOpts
   return new AfterContext({ waitUntil, onClose, onTaskError: onAfterTaskError })
 }

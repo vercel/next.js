@@ -1084,7 +1084,11 @@ export default class NextNodeServer extends BaseServer<
   protected normalizeReq(
     req: NodeNextRequest | IncomingMessage
   ): NodeNextRequest {
-    return !(req instanceof NodeNextRequest) ? new NodeNextRequest(req) : req
+    if (!(req instanceof NodeNextRequest)) {
+      const waitUntil = this.getWaitUntil()
+      return new NodeNextRequest(req, waitUntil ? { waitUntil } : undefined)
+    }
+    return req
   }
 
   protected normalizeRes(
@@ -1134,8 +1138,9 @@ export default class NextNodeServer extends BaseServer<
     })
 
     const handler = this.getRequestHandler()
+    const waitUntil = this.getWaitUntil()
     await handler(
-      new NodeNextRequest(mocked.req),
+      new NodeNextRequest(mocked.req, waitUntil ? { waitUntil } : undefined),
       new NodeNextResponse(mocked.res)
     )
     await mocked.res.hasStreamed
@@ -1466,7 +1471,7 @@ export default class NextNodeServer extends BaseServer<
         page,
         body: getRequestMeta(params.request, 'clonableBody'),
         signal: signalFromNodeResponse(params.response.originalResponse),
-        waitUntil: this.getWaitUntil(),
+        waitUntil: params.request.context?.waitUntil,
       },
       useCache: true,
       onWarning: params.onWarning,
@@ -1770,7 +1775,7 @@ export default class NextNodeServer extends BaseServer<
         },
         body: getRequestMeta(params.req, 'clonableBody'),
         signal: signalFromNodeResponse(params.res.originalResponse),
-        waitUntil: this.getWaitUntil(),
+        waitUntil: params.req.context?.waitUntil,
       },
       useCache: true,
       onError: params.onError,

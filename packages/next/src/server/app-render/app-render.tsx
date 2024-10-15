@@ -160,6 +160,7 @@ import { getTracedMetadata } from '../lib/trace/utils'
 
 import './clean-async-snapshot.external'
 import { INFINITE_CACHE } from '../../lib/constants'
+import { getAfterOptsFromRequestResponsePair } from '../after/after-opts'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1338,6 +1339,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
         page: renderOpts.routeModule.definition.page,
         fallbackRouteParams,
         renderOpts,
+        afterOpts: getAfterOptsFromRequestResponsePair(req, res),
         requestEndedState,
         isPrefetchRequest: Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER]),
       },

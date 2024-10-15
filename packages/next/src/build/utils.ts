@@ -1307,10 +1307,12 @@ export async function buildAppStaticPaths({
       // We're discovering the parameters here, so we don't have any unknown
       // ones.
       fallbackRouteParams: null,
+      afterOpts: { waitUntil: undefined, onClose: undefined },
       renderOpts: {
         incrementalCache,
         cacheLifeProfiles,
         supportsDynamicResponse: true,
+        onAfterTaskError: undefined,
         isRevalidate: false,
         experimental: {
           after: false,

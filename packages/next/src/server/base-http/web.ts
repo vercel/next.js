@@ -1,5 +1,5 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
-import type { FetchMetrics } from './index'
+import type { FetchMetrics, NextBaseRequestContext } from './index'
 
 import { toNodeOutgoingHttpHeaders } from '../web/utils'
 import { BaseNextRequest, BaseNextResponse } from './index'
@@ -13,13 +13,17 @@ export class WebNextRequest extends BaseNextRequest<ReadableStream | null> {
   public headers: IncomingHttpHeaders
   public fetchMetrics?: FetchMetrics
 
-  constructor(request: NextRequestHint) {
+  constructor(
+    request: NextRequestHint,
+    context: NextBaseRequestContext | undefined
+  ) {
     const url = new URL(request.url)
 
     super(
       request.method,
       url.href.slice(url.origin.length),
-      request.clone().body
+      request.clone().body,
+      context
     )
     this.request = request
     this.fetchMetrics = request.fetchMetrics

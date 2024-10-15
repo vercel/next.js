@@ -4,6 +4,7 @@ import type { I18NConfig } from '../config-shared'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import type { NextApiRequestCookies } from '../api-utils'
 import { getCookieParser } from '../api-utils/get-cookie-parser'
+import type { WaitUntil } from '../after/builtin-request-context'
 
 export interface BaseNextRequestConfig {
   basePath: string | undefined
@@ -25,6 +26,8 @@ export type FetchMetric = {
 
 export type FetchMetrics = Array<FetchMetric>
 
+export type NextBaseRequestContext = { waitUntil: WaitUntil }
+
 export abstract class BaseNextRequest<Body = any> {
   protected _cookies: NextApiRequestCookies | undefined
   public abstract headers: IncomingHttpHeaders
@@ -33,7 +36,8 @@ export abstract class BaseNextRequest<Body = any> {
   constructor(
     public method: string,
     public url: string,
-    public body: Body
+    public body: Body,
+    public readonly context: NextBaseRequestContext | undefined
   ) {}
 
   // Utils implemented using the abstract methods above

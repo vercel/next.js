@@ -7,7 +7,12 @@ import type { NextApiRequestCookies } from '../api-utils'
 import { NEXT_REQUEST_META } from '../request-meta'
 import type { RequestMeta } from '../request-meta'
 
-import { BaseNextRequest, BaseNextResponse, type FetchMetric } from './index'
+import {
+  BaseNextRequest,
+  BaseNextResponse,
+  type FetchMetric,
+  type NextBaseRequestContext,
+} from './index'
 import type { OutgoingHttpHeaders } from 'node:http'
 
 type Req = IncomingMessage & {
@@ -22,8 +27,11 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
 
   [NEXT_REQUEST_META]: RequestMeta = this._req[NEXT_REQUEST_META] || {}
 
-  constructor(private _req: Req) {
-    super(_req.method!.toUpperCase(), _req.url!, _req)
+  constructor(
+    private _req: Req,
+    context: NextBaseRequestContext | undefined
+  ) {
+    super(_req.method!.toUpperCase(), _req.url!, _req, context)
   }
 
   get originalRequest() {

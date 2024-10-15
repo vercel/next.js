@@ -259,8 +259,9 @@ export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
 export type LoadedRenderOpts = RenderOpts &
   LoadComponentsReturnType &
-  RequestLifecycleOpts
+  Pick<RequestLifecycleOpts, 'onAfterTaskError'>
 
+// TODO: split this type
 export type RequestLifecycleOpts = {
   waitUntil: ((promise: Promise<any>) => void) | undefined
   onClose: ((callback: () => void) => void) | undefined
@@ -2469,8 +2470,6 @@ export default abstract class Server<
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
-        waitUntil: this.getWaitUntil(),
-        onClose: res.onClose.bind(res),
         onAfterTaskError: undefined,
         // only available in dev
         setAppIsrStatus: (this as any).setAppIsrStatus,
@@ -2516,8 +2515,6 @@ export default abstract class Server<
               incrementalCache,
               cacheLifeProfiles: this.nextConfig.experimental?.cacheLife,
               isRevalidate: isSSG,
-              waitUntil: this.getWaitUntil(),
-              onClose: res.onClose.bind(res),
               onAfterTaskError: undefined,
               onInstrumentationRequestError:
                 this.renderOpts.onInstrumentationRequestError,
@@ -2526,10 +2523,10 @@ export default abstract class Server<
           }
 
           try {
-            const request = NextRequestAdapter.fromNodeNextRequest(
-              req,
-              signalFromNodeResponse(res.originalResponse)
-            )
+            const request = NextRequestAdapter.fromNodeNextRequest(req, {
+              signal: signalFromNodeResponse(res.originalResponse),
+              onClose: res.onClose.bind(res),
+            })
 
             const response = await routeModule.handle(request, context)
 

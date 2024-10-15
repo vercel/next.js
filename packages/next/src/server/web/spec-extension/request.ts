@@ -3,8 +3,17 @@ import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
 import { RequestCookies } from './cookies'
+import type { BaseNextResponse, NextBaseRequestContext } from '../../base-http'
 
-export const INTERNALS = Symbol('internal request')
+const INTERNALS = Symbol.for('next.internal.NextRequest.internals')
+
+export const NEXT_REQUEST_CONTEXT_PARAM = Symbol.for(
+  'next.internal.NextRequest.init.context'
+)
+
+export type NextRequestContext = NextBaseRequestContext & {
+  onClose: BaseNextResponse['onClose']
+}
 
 /**
  * This class extends the [Web `Request` API](https://developer.mozilla.org/docs/Web/API/Request) with additional convenience methods.
@@ -16,6 +25,7 @@ export class NextRequest extends Request {
     cookies: RequestCookies
     url: string
     nextUrl: NextURL
+    context: Partial<NextRequestContext> | undefined
   }
 
   constructor(input: URL | RequestInfo, init: RequestInit = {}) {
@@ -34,6 +44,7 @@ export class NextRequest extends Request {
       url: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
         ? url
         : nextUrl.toString(),
+      context: init[NEXT_REQUEST_CONTEXT_PARAM],
     }
   }
 
@@ -90,6 +101,17 @@ export class NextRequest extends Request {
   }
 }
 
+export function getInternalNextRequestContext(request: NextRequest) {
+  return request[INTERNALS].context
+}
+
+export function setInternalNextRequestContext(
+  request: NextRequest,
+  context: NextRequest[typeof INTERNALS]['context']
+) {
+  request[INTERNALS].context = context
+}
+
 export interface RequestInit extends globalThis.RequestInit {
   nextConfig?: {
     basePath?: string
@@ -97,4 +119,7 @@ export interface RequestInit extends globalThis.RequestInit {
     trailingSlash?: boolean
   }
   signal?: AbortSignal
+  /** We use a symbol for this because it's an internal thing
+   * but NextRequest is user-accessible */
+  [NEXT_REQUEST_CONTEXT_PARAM]?: Partial<NextRequestContext>
 }

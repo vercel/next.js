@@ -1,4 +1,7 @@
-import type { NextRequest } from './spec-extension/request'
+import {
+  setInternalNextRequestContext,
+  type NextRequest,
+} from './spec-extension/request'
 import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
@@ -94,6 +97,11 @@ export class EdgeRouteModuleWrapper {
     if (isAfterEnabled) {
       waitUntil = evt.waitUntil.bind(evt)
       closeController = new CloseController()
+
+      setInternalNextRequestContext(request, {
+        waitUntil,
+        onClose: closeController.onClose.bind(closeController),
+      })
     }
 
     const previewProps = getEdgePreviewProps()
@@ -111,10 +119,7 @@ export class EdgeRouteModuleWrapper {
       },
       renderOpts: {
         supportsDynamicResponse: true,
-        waitUntil,
-        onClose: closeController
-          ? closeController.onClose.bind(closeController)
-          : undefined,
+        onAfterTaskError: undefined,
         experimental: {
           after: isAfterEnabled,
           dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,

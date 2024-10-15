@@ -207,7 +207,7 @@ export interface RenderOptsPartial {
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
   RenderOptsPartial &
-  RequestLifecycleOpts
+  Pick<RequestLifecycleOpts, 'onAfterTaskError'>
 
 export type PreloadCallbacks = (() => void)[]
 
