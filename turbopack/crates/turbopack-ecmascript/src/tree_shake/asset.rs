@@ -22,6 +22,7 @@ use crate::{
     references::{
         analyse_ecmascript_module, esm::FoundExportType, follow_reexports, FollowExportsResult,
     },
+    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     tree_shake::Key,
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptParsable,
@@ -147,24 +148,31 @@ impl EcmascriptModulePartAsset {
                 ..
             } = &*result.await?;
 
-            if let Some(new_export) = new_export {
+            let final_module = if let Some(new_export) = new_export {
                 if *new_export == export_name {
-                    let side_effects = side_effects.await?.to_vec();
-
-                    vdbg!("side effects");
-                    for side_effect in side_effects.iter() {
-                        vdbg!(side_effect.ident().to_string().await?);
-                    }
-
-                    return Ok(Vc::upcast(
-                        SideEffectsModule {
-                            module: *final_module,
-                            side_effects: Vc::cell(side_effects),
-                        }
-                        .cell(),
-                    ));
+                    *final_module
+                } else {
+                    Vc::upcast(EcmascriptModuleFacadeModule::new(
+                        *final_module,
+                        ModulePart::renamed_export(new_export.clone(), export_name.clone()),
+                    ))
                 }
-            }
+            } else {
+                Vc::upcast(EcmascriptModuleFacadeModule::new(
+                    *final_module,
+                    ModulePart::renamed_namespace(export_name.clone()),
+                ))
+            };
+
+            let side_effects = side_effects.await?.to_vec();
+
+            return Ok(Vc::upcast(
+                SideEffectsModule {
+                    module: final_module,
+                    side_effects: Vc::cell(side_effects),
+                }
+                .cell(),
+            ));
         }
 
         Ok(Vc::upcast(EcmascriptModulePartAsset::new(module, part)))
