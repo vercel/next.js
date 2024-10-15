@@ -13,10 +13,7 @@ describe('use-cache', () => {
 
   const itSkipTurbopack = isTurbopack ? it.skip : it
 
-  // TODO: Fix the following error with Turbopack:
-  // Error: Module [project]/app/client.tsx [app-client] (ecmascript) was
-  // instantiated because it was required from module...
-  itSkipTurbopack('should cache results', async () => {
+  it('should cache results', async () => {
     const browser = await next.browser('/?n=1')
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1a = await browser.waitForElementByCss('#y').text()
