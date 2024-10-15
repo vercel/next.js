@@ -56,7 +56,7 @@ export default async function loadJsConfig(
     const deps = await hasNecessaryDependencies(dir, [
       {
         pkg: 'typescript',
-        file: 'typescript/lib/typescript.js',
+        file: './lib/typescript.js',
         exportsRestrict: true,
       },
     ])

@@ -1,6 +1,6 @@
 import { existsSync, promises as fs } from 'fs'
 import { resolveFrom } from './resolve-from'
-import { dirname, join, relative } from 'path'
+import { dirname, join } from 'path'
 
 export interface MissingDependency {
   file: string
@@ -45,7 +45,7 @@ export async function hasNecessaryDependencies(
         const pkgDir = dirname(pkgPath)
 
         if (p.exportsRestrict) {
-          const fileNameToVerify = relative(p.pkg, p.file)
+          const fileNameToVerify = p.file
           if (fileNameToVerify) {
             const fileToVerify = join(pkgDir, fileNameToVerify)
             if (existsSync(fileToVerify)) {

@@ -17,17 +17,17 @@ import { missingDepsError } from './typescript/missingDependencyError'
 
 const requiredPackages = [
   {
-    file: 'typescript/lib/typescript.js',
+    file: './lib/typescript.js',
     pkg: 'typescript',
     exportsRestrict: true,
   },
   {
-    file: '@types/react/index.d.ts',
+    file: './index.d.ts',
     pkg: '@types/react',
     exportsRestrict: true,
   },
   {
-    file: '@types/node/index.d.ts',
+    file: './index.d.ts',
     pkg: '@types/node',
     exportsRestrict: true,
   },
