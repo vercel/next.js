@@ -1034,9 +1034,6 @@ export default async function loadConfig(
           nextConfigPath: path,
           cwd: dir,
         })
-        curLog.warn(
-          `Configuration with ${configFileName} is currently an experimental feature, use with caution.`
-        )
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
