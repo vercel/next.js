@@ -239,6 +239,8 @@ export async function runUpgrade(
     }
   }
 
+  // Even though we only need those if we alias `@types/react` to types-react,
+  // we still do it out of safety due to https://github.com/microsoft/DefinitelyTyped-tools/issues/433.
   const overrides: Record<string, string> = {}
 
   if (allDependencies['@types/react']) {
