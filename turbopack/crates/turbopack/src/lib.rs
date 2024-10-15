@@ -291,7 +291,7 @@ async fn apply_reexport_tree_shaking(
             module,
             export.clone_value(),
             side_effect_free_packages,
-            Vc::cell(false),
+            false,
         )
         .await?;
         let module = if let Some(new_export) = new_export {

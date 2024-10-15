@@ -195,7 +195,7 @@ async fn follow_reexports_with_side_effects(
             current_module,
             current_export_name.clone(),
             side_effect_free_packages,
-            Vc::cell(true),
+            true,
         );
 
         let FollowExportsResult {
