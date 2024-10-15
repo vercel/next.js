@@ -820,7 +820,7 @@ impl AppEndpoint {
             // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { .. } => (false, false),
+            AppEndpointType::Route { .. } => (true, false),
             AppEndpointType::Metadata { .. } => (false, false),
         };
 
@@ -1354,7 +1354,12 @@ impl AppEndpoint {
                             .server_component_entries
                             .iter()
                             .copied()
-                            .take(client_references.server_component_entries.len() - 1)
+                            .take(
+                                client_references
+                                    .server_component_entries
+                                    .len()
+                                    .saturating_sub(1),
+                            )
                         {
                             let span = tracing::trace_span!(
                                 "layout segment",

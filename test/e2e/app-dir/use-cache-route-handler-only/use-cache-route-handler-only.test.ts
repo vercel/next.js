@@ -10,7 +10,7 @@ describe('use-cache-route-handler-only', () => {
 
   const itSkipTurbopack = isTurbopack ? it.skip : it
 
-  itSkipTurbopack('should cache results in node route handlers', async () => {
+  it('should cache results in node route handlers', async () => {
     const response = await next.fetch('/node')
     const { rand1, rand2 } = await response.json()
 
