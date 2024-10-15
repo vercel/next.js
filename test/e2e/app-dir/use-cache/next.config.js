@@ -6,6 +6,7 @@ const nextConfig = {
     dynamicIO: true,
     cacheLife: {
       frequent: {
+        stale: 19,
         revalidate: 100,
       },
     },

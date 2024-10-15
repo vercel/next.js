@@ -43,6 +43,7 @@ import {
   NEXT_HMR_REFRESH_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
+  NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_URL,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
@@ -920,7 +921,8 @@ async function renderToHTMLOrFlightImpl(
         process.env.NODE_ENV === 'development' &&
         renderOpts.setAppIsrStatus &&
         !isPPR &&
-        !requestStore.usedDynamic
+        !requestStore.usedDynamic &&
+        !workStore.forceDynamic
       ) {
         // only node can be ISR so we only need to update the status here
         const { pathname } = new URL(req.url || '/', 'http://n')
@@ -1113,6 +1115,12 @@ async function renderToHTMLOrFlightImpl(
     if (response.collectedTags) {
       metadata.fetchTags = response.collectedTags.join(',')
     }
+
+    // Let the client router know how long to keep the cached entry around.
+    const staleHeader = String(response.collectedStale)
+    res.setHeader(NEXT_ROUTER_STALE_TIME_HEADER, staleHeader)
+    metadata.headers ??= {}
+    metadata.headers[NEXT_ROUTER_STALE_TIME_HEADER] = staleHeader
 
     // If force static is specifically set to false, we should not revalidate
     // the page.

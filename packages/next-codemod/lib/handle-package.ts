@@ -76,6 +76,8 @@ export function installPackages(
     dev?: boolean
   } = {}
 ) {
+  if (packageToInstall.length === 0) return
+
   const {
     packageManager = getPkgManager(process.cwd()),
     silent = false,
