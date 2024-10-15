@@ -142,7 +142,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         'edge-ssr-app',
         {
           VAR_USERLAND: pageModPath,
-          VAR_PAGE: page,
+          VAR_PAGE: page.replace(/%5F/g, '_'),
         },
         {
           sriEnabled: JSON.stringify(sriEnabled),

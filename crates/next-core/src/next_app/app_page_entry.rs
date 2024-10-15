@@ -169,7 +169,7 @@ async fn wrap_edge_page(
         project_root,
         fxindexmap! {
             "VAR_USERLAND" => INNER.into(),
-            "VAR_PAGE" => page.to_string().into(),
+            "VAR_PAGE" => page.to_string().replace("%5F", "_").into(),
         },
         fxindexmap! {
             "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
