@@ -165,7 +165,9 @@ pub async fn follow_reexports(
             .await?
             {
                 ControlFlow::Continue((m, n)) => {
-                    if !is_module_part_with_no_real_export(m).await? {
+                    if !ignore_side_effect_of_entry
+                        || !is_module_part_with_no_real_export(m).await?
+                    {
                         module = m;
                         export_name = n;
                         continue;
