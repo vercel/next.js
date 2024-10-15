@@ -126,22 +126,40 @@ export async function runTransform(
 
   console.log(`Executing command: jscodeshift ${args.join(' ')}`)
 
-  const result = execa.sync(jscodeshiftExecutable, args, {
-    stdio: 'inherit',
+  const cp = execa(jscodeshiftExecutable, args, {
     stripFinalNewline: false,
+    stdio: 'pipe',
+    env: { FORCE_COLOR: 'true' },
   })
 
-  if (result.failed) {
-    throw new Error(`jscodeshift exited with code ${result.exitCode}`)
+  if (cp.stdout) {
+    cp.stdout.pipe(process.stdout)
   }
 
-  if (!dry && transformer === 'built-in-next-font') {
-    const { uninstallNextFont } = await prompts({
-      type: 'confirm',
-      name: 'uninstallNextFont',
-      message: 'Do you want to uninstall `@next/font`?',
-      initial: true,
+  let result
+  try {
+    result = await cp
+  } catch (error) {
+    throw new Error(`jscodeshift exited with code ${cp.exitCode}`, {
+      cause: error,
     })
+  }
+
+  if (
+    !dry &&
+    transformer === 'built-in-next-font' &&
+    // prompt only if there are changes
+    !result.stdout?.includes('0 ok')
+  ) {
+    const { uninstallNextFont } = await prompts(
+      {
+        type: 'confirm',
+        name: 'uninstallNextFont',
+        message: 'Do you want to uninstall `@next/font`?',
+        initial: true,
+      },
+      { onCancel }
+    )
 
     if (uninstallNextFont) {
       console.log('Uninstalling `@next/font`')
@@ -149,13 +167,21 @@ export async function runTransform(
     }
   }
 
-  if (!dry && transformer === 'next-request-geo-ip') {
-    const { installVercelFunctions } = await prompts({
-      type: 'confirm',
-      name: 'installVercelFunctions',
-      message: 'Do you want to install `@vercel/functions`?',
-      initial: true,
-    })
+  if (
+    !dry &&
+    transformer === 'next-request-geo-ip' &&
+    // prompt only if there are changes
+    !result.stdout?.includes('0 ok')
+  ) {
+    const { installVercelFunctions } = await prompts(
+      {
+        type: 'confirm',
+        name: 'installVercelFunctions',
+        message: 'Do you want to install `@vercel/functions`?',
+        initial: true,
+      },
+      { onCancel }
+    )
 
     if (installVercelFunctions) {
       console.log('Installing `@vercel/functions`...')
