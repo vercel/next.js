@@ -30,6 +30,7 @@ mopa = "0.2.0"
 once_cell = { workspace = true }
 parking_lot = { workspace = true, features = ["serde"]}
 pin-project-lite = { workspace = true }
+rayon = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }

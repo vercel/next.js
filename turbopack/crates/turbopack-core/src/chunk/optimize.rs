@@ -45,7 +45,7 @@ where
 
                     Ok((
                         if let Some(common_parent) = &*common_parent {
-                            Some(FileSystemPathKey::new(*common_parent).await?)
+                            Some(FileSystemPathKey::new(**common_parent).await?)
                         } else {
                             None
                         },

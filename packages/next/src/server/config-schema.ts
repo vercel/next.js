@@ -270,6 +270,15 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             static: z.number().optional(),
           })
           .optional(),
+        cacheLife: z
+          .record(
+            z.object({
+              stale: z.number().optional(),
+              revalidate: z.number().optional(),
+              expire: z.number().optional(),
+            })
+          )
+          .optional(),
         clientRouterFilter: z.boolean().optional(),
         clientRouterFilterRedirects: z.boolean().optional(),
         clientRouterFilterAllowedRate: z.number().optional(),
@@ -303,6 +312,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
+        internal_disableSyncDynamicAPIWarnings: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
         linkNoTouchStart: z.boolean().optional(),
@@ -390,6 +400,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             resolveExtensions: z.array(z.string()).optional(),
             useSwcCss: z.boolean().optional(),
             treeShaking: z.boolean().optional(),
+            persistentCaching: z
+              .union([z.number(), z.literal(false)])
+              .optional(),
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
           })
@@ -500,6 +513,15 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     images: z
       .strictObject({
+        localPatterns: z
+          .array(
+            z.strictObject({
+              pathname: z.string().optional(),
+              search: z.string().optional(),
+            })
+          )
+          .max(25)
+          .optional(),
         remotePatterns: z
           .array(
             z.strictObject({
@@ -614,7 +636,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     skipMiddlewareUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
     staticPageGenerationTimeout: z.number().optional(),
-    swrDelta: z.number().optional(),
+    expireTime: z.number().optional(),
     target: z.string().optional(),
     trailingSlash: z.boolean().optional(),
     transpilePackages: z.array(z.string()).optional(),

@@ -41,7 +41,6 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         value: '123',
         assertions: {
           'cache() works in after()': true,
-          'headers() works in after()': true,
         },
       })
     })
@@ -69,7 +68,6 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         assertions: {
           // cache() does not currently work in actions, and after() shouldn't affect that
           'cache() works in after()': false,
-          'headers() works in after()': true,
         },
       })
     })
@@ -85,7 +83,6 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           source: `[page] /nested-after (after #${id})`,
           assertions: {
             'cache() works in after()': true,
-            'headers() works in after()': true,
           },
         })
       }
@@ -248,15 +245,16 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     const cookie1 = await browser.elementById('cookie').text()
     expect(cookie1).toEqual('Cookie: null')
 
+    const cliOutputIndex = next.cliOutput.length
     try {
       await browser.elementByCss('button[type="submit"]').click()
 
       await retry(async () => {
         const cookie1 = await browser.elementById('cookie').text()
         expect(cookie1).toEqual('Cookie: "action"')
-        // const newLogs = next.cliOutput.slice(cliOutputIndex)
+        const newLogs = next.cliOutput.slice(cliOutputIndex)
         // // after() from action
-        // expect(newLogs).toContain(EXPECTED_ERROR)
+        expect(newLogs).toMatch(EXPECTED_ERROR)
       })
     } finally {
       await browser.eval('document.cookie = "testCookie=;path=/;max-age=-1"')

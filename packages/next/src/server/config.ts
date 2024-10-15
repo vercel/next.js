@@ -122,7 +122,7 @@ function warnCustomizedOption(
 
   if (!silent && current !== defaultValue) {
     Log.warn(
-      `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}Please update your ${configFileName}.`
+      `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}It should be removed from your ${configFileName}.`
     )
   }
 }
@@ -327,6 +327,26 @@ function assignDefaults(
       )
     }
 
+    if (images.localPatterns) {
+      if (!Array.isArray(images.localPatterns)) {
+        throw new Error(
+          `Specified images.localPatterns should be an Array received ${typeof images.localPatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+      // avoid double-pushing the same pattern if it already exists
+      const hasMatch = images.localPatterns.some(
+        (pattern) =>
+          pattern.pathname === '/_next/static/media/**' && pattern.search === ''
+      )
+      if (!hasMatch) {
+        // static import images are automatically allowed
+        images.localPatterns.push({
+          pathname: '/_next/static/media/**',
+          search: '',
+        })
+      }
+    }
+
     if (images.remotePatterns) {
       if (!Array.isArray(images.remotePatterns)) {
         throw new Error(
@@ -344,9 +364,9 @@ function assignDefaults(
             matchRemotePattern(pattern, url)
           )
 
-          // avoid double-pushing the same remote if it already can be matched
+          // avoid double-pushing the same pattern if it already can be matched
           if (!hasMatchForAssetPrefix) {
-            images.remotePatterns?.push({
+            images.remotePatterns.push({
               hostname: url.hostname,
               protocol: url.protocol.replace(/:$/, '') as 'http' | 'https',
               port: url.port,
@@ -483,7 +503,7 @@ function assignDefaults(
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'swrDelta',
-    'swrDelta',
+    'expireTime',
     configFileName,
     silent
   )
@@ -784,6 +804,35 @@ function assignDefaults(
           ', '
         )}, received ${buildActivityPosition}`
       )
+    }
+  }
+
+  if (result.experimental?.cacheLife) {
+    const defaultDefault = defaultConfig.experimental?.cacheLife?.['default']
+    if (
+      !defaultDefault ||
+      defaultDefault.revalidate === undefined ||
+      defaultDefault.expire === undefined ||
+      !defaultConfig.experimental?.staleTimes?.static
+    ) {
+      throw new Error('No default cacheLife profile.')
+    }
+    const defaultCacheLifeProfile = result.experimental.cacheLife['default']
+    if (!defaultCacheLifeProfile) {
+      result.experimental.cacheLife['default'] = defaultDefault
+    } else {
+      if (defaultCacheLifeProfile.stale === undefined) {
+        const staticStaleTime = result.experimental.staleTimes?.static
+        defaultCacheLifeProfile.stale =
+          staticStaleTime ?? defaultConfig.experimental?.staleTimes?.static
+      }
+      if (defaultCacheLifeProfile.revalidate === undefined) {
+        defaultCacheLifeProfile.revalidate = defaultDefault.revalidate
+      }
+      if (defaultCacheLifeProfile.expire === undefined) {
+        defaultCacheLifeProfile.expire =
+          result.expireTime ?? defaultDefault.expire
+      }
     }
   }
 

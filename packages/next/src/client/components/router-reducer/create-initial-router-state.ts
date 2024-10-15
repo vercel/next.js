@@ -17,6 +17,7 @@ export interface InitialRouterStateParameters {
   location: Location | null
   couldBeIntercepted: boolean
   postponed: boolean
+  prerendered: boolean
 }
 
 export function createInitialRouterState({
@@ -27,6 +28,7 @@ export function createInitialRouterState({
   location,
   couldBeIntercepted,
   postponed,
+  prerendered,
 }: InitialRouterStateParameters) {
   // When initialized on the server, the canonical URL is provided as an array of parts.
   // This is to ensure that when the RSC payload streamed to the client, crawlers don't interpret it
@@ -118,14 +120,20 @@ export function createInitialRouterState({
         flightData: [normalizedFlightData],
         canonicalUrl: undefined,
         couldBeIntercepted: !!couldBeIntercepted,
-        // TODO: the server should probably send a value for this. Default to false for now.
-        isPrerender: false,
+        prerendered,
         postponed,
+        // TODO: The initial RSC payload includes both static and dynamic data
+        // in the same response, even if PPR is enabled. So if there's any
+        // dynamic data at all, we can't set a stale time. In the future we may
+        // add a way to split a single Flight stream into static and dynamic
+        // parts. But in the meantime we should at least make this work for
+        // fully static pages.
+        staleTime: -1,
       },
       tree: initialState.tree,
       prefetchCache: initialState.prefetchCache,
       nextUrl: initialState.nextUrl,
-      kind: PrefetchKind.AUTO,
+      kind: prerendered ? PrefetchKind.FULL : PrefetchKind.AUTO,
     })
   }
 

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import {
   matchRemotePattern as m,
-  hasMatch,
+  hasRemoteMatch as hasMatch,
 } from 'next/dist/shared/lib/match-remote-pattern'
 
 describe('matchRemotePattern', () => {

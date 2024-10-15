@@ -6,11 +6,11 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use indexmap::{indexmap, map::Entry, IndexMap};
+use indexmap::map::Entry;
 use rustc_demangle::demangle;
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer};
+use crate::{span::SpanIndex, store_container::StoreContainer, FxIndexMap};
 
 #[derive(Debug, Clone, Copy)]
 struct TraceNode {
@@ -96,7 +96,7 @@ pub struct HeaptrackFormat {
     traces: Vec<TraceData>,
     ip_parent_map: HashMap<(usize, SpanIndex), usize>,
     trace_instruction_pointers: Vec<usize>,
-    instruction_pointers: IndexMap<InstructionPointer, InstructionPointerExtraInfo>,
+    instruction_pointers: FxIndexMap<InstructionPointer, InstructionPointerExtraInfo>,
     allocations: Vec<AllocationInfo>,
     spans: usize,
     collapse_crates: HashSet<String>,
@@ -121,21 +121,29 @@ impl HeaptrackFormat {
                 parent_trace_index: 0,
             }],
             ip_parent_map: HashMap::new(),
-            instruction_pointers: indexmap! {
-                InstructionPointer {
-                    module_index: 0,
-                    frames: Vec::new(),
-                    custom_name: Some("root".to_string())
-                } => InstructionPointerExtraInfo {
-                    first_trace_of_ip: None,
-                },
-                InstructionPointer {
-                    module_index: 0,
-                    frames: Vec::new(),
-                    custom_name: Some("recursion".to_string())
-                } => InstructionPointerExtraInfo {
-                    first_trace_of_ip: None,
-                }
+            instruction_pointers: {
+                let mut map = FxIndexMap::with_capacity_and_hasher(2, Default::default());
+                map.insert(
+                    InstructionPointer {
+                        module_index: 0,
+                        frames: Vec::new(),
+                        custom_name: Some("root".to_string()),
+                    },
+                    InstructionPointerExtraInfo {
+                        first_trace_of_ip: None,
+                    },
+                );
+                map.insert(
+                    InstructionPointer {
+                        module_index: 0,
+                        frames: Vec::new(),
+                        custom_name: Some("recursion".to_string()),
+                    },
+                    InstructionPointerExtraInfo {
+                        first_trace_of_ip: None,
+                    },
+                );
+                map
             },
             trace_instruction_pointers: vec![0],
             allocations: vec![],

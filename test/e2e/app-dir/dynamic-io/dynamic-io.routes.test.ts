@@ -1,7 +1,8 @@
+/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 
 describe('dynamic-io', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -9,6 +10,8 @@ describe('dynamic-io', () => {
   if (skipped) {
     return
   }
+
+  const itSkipTurbopack = isTurbopack ? it.skip : it
 
   let cliIndex = 0
   beforeEach(() => {
@@ -205,6 +208,60 @@ describe('dynamic-io', () => {
     expect(message1).toEqual(json.message1)
     expect(message2).toEqual(json.message2)
   })
+
+  itSkipTurbopack(
+    'should prerender GET route handlers that have entirely cached io ("use cache")',
+    async () => {
+      let str = await next.render('/routes/use_cache-cached', {})
+      let json = JSON.parse(str)
+
+      let message1 = json.message1
+      let message2 = json.message2
+
+      if (isNextDev) {
+        expect(json.value).toEqual('at runtime')
+        expect(typeof message1).toBe('string')
+        expect(typeof message2).toBe('string')
+      } else {
+        expect(json.value).toEqual('at buildtime')
+        expect(typeof message1).toBe('string')
+        expect(typeof message2).toBe('string')
+      }
+
+      str = await next.render('/routes/use_cache-cached', {})
+      json = JSON.parse(str)
+
+      if (isNextDev) {
+        expect(json.value).toEqual('at runtime')
+        expect(message1).toEqual(json.message1)
+        expect(message2).toEqual(json.message2)
+      } else {
+        expect(json.value).toEqual('at buildtime')
+        expect(message1).toEqual(json.message1)
+        expect(message2).toEqual(json.message2)
+      }
+
+      // TODO: Edge is missing Server Manifest for routes.
+      /*
+      str = await next.render('/routes/-edge/use_cache-cached', {})
+      json = JSON.parse(str)
+
+      message1 = json.message1
+      message2 = json.message2
+
+      expect(json.value).toEqual('at runtime')
+      expect(typeof message1).toBe('string')
+      expect(typeof message2).toBe('string')
+
+      str = await next.render('/routes/-edge/use_cache-cached', {})
+      json = JSON.parse(str)
+
+      expect(json.value).toEqual('at runtime')
+      expect(message1).toEqual(json.message1)
+      expect(message2).toEqual(json.message2)
+      */
+    }
+  )
 
   it('should not prerender GET route handlers that have some uncached io (unstable_cache)', async () => {
     let str = await next.render('/routes/io-mixed', {})

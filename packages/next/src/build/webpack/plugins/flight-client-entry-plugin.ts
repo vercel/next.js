@@ -94,6 +94,9 @@ const pluginState = getProxiedPluginState({
   serverModuleIds: {} as Record<string, string | number>,
   edgeServerModuleIds: {} as Record<string, string | number>,
 
+  rscModuleIds: {} as Record<string, string | number>,
+  edgeRscModuleIds: {} as Record<string, string | number>,
+
   injectedClientEntries: {} as Record<string, string>,
 })
 
@@ -208,6 +211,20 @@ export class FlightClientEntryPlugin {
             ? formatBarrelOptimizedResource(mod.resource, modPath)
             : modPath + modQuery
           : mod.resource
+
+        if (typeof modId !== 'undefined' && modResource) {
+          if (mod.layer === WEBPACK_LAYERS.reactServerComponents) {
+            const key = path
+              .relative(compiler.context, modResource)
+              .replace(/\/next\/dist\/esm\//, '/next/dist/')
+
+            if (this.isEdgeServer) {
+              pluginState.edgeRscModuleIds[key] = modId
+            } else {
+              pluginState.rscModuleIds[key] = modId
+            }
+          }
+        }
 
         if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
           return

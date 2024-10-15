@@ -10,13 +10,13 @@ import { PathnameContext } from '../../shared/lib/hooks-client-context.shared-ru
 function hasFallbackRouteParams() {
   if (typeof window === 'undefined') {
     // AsyncLocalStorage should not be included in the client bundle.
-    const { staticGenerationAsyncStorage } =
-      require('./static-generation-async-storage.external') as typeof import('./static-generation-async-storage.external')
+    const { workAsyncStorage } =
+      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
 
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-    if (!staticGenerationStore) return false
+    const workStore = workAsyncStorage.getStore()
+    if (!workStore) return false
 
-    const { fallbackRouteParams } = staticGenerationStore
+    const { fallbackRouteParams } = workStore
     if (!fallbackRouteParams || fallbackRouteParams.size === 0) return false
 
     return true

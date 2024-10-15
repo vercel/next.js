@@ -56,13 +56,13 @@ pub struct StoreReadGuard<'a> {
     guard: RwLockReadGuard<'a, StoreWithGeneration>,
 }
 
-impl<'a> StoreReadGuard<'a> {
+impl StoreReadGuard<'_> {
     pub fn generation(&self) -> usize {
         self.guard.generation
     }
 }
 
-impl<'a> Deref for StoreReadGuard<'a> {
+impl Deref for StoreReadGuard<'_> {
     type Target = Store;
 
     fn deref(&self) -> &Self::Target {
@@ -74,7 +74,7 @@ pub struct StoreWriteGuard<'a> {
     guard: RwLockWriteGuard<'a, StoreWithGeneration>,
 }
 
-impl<'a> Deref for StoreWriteGuard<'a> {
+impl Deref for StoreWriteGuard<'_> {
     type Target = Store;
 
     fn deref(&self) -> &Self::Target {
@@ -82,7 +82,7 @@ impl<'a> Deref for StoreWriteGuard<'a> {
     }
 }
 
-impl<'a> DerefMut for StoreWriteGuard<'a> {
+impl DerefMut for StoreWriteGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.guard.store
     }

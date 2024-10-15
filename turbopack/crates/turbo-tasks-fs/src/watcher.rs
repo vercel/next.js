@@ -14,6 +14,7 @@ use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
 };
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -179,23 +180,39 @@ impl DiskWatcher {
         // Best is to start_watching before starting to read
         {
             let _span = tracing::info_span!("invalidate filesystem").entered();
-            for (path, invalidators) in take(&mut *invalidator_map.lock().unwrap())
-                .into_iter()
-                .chain(take(&mut *dir_invalidator_map.lock().unwrap()).into_iter())
-            {
-                if report_invalidation_reason.is_some() {
-                    let path: RcStr = path.into();
-                    for invalidator in invalidators {
-                        invalidator.invalidate_with_reason(WatchStart {
-                            name: name.clone(),
-                            path: path.clone(),
-                        })
-                    }
-                } else {
-                    for invalidator in invalidators {
-                        invalidator.invalidate();
-                    }
-                }
+            let span = tracing::Span::current();
+            let invalidator_map = take(&mut *invalidator_map.lock().unwrap());
+            let dir_invalidator_map = take(&mut *dir_invalidator_map.lock().unwrap());
+            let iter = invalidator_map
+                .into_par_iter()
+                .chain(dir_invalidator_map.into_par_iter());
+            let handle = tokio::runtime::Handle::current();
+            if report_invalidation_reason.is_some() {
+                iter.flat_map(|(path, invalidators)| {
+                    let _span = span.clone().entered();
+                    let reason = WatchStart {
+                        name: name.clone(),
+                        path: path.into(),
+                    };
+                    invalidators
+                        .into_par_iter()
+                        .map(move |i| (reason.clone(), i))
+                })
+                .for_each(|(reason, invalidator)| {
+                    let _span = span.clone().entered();
+                    let _guard = handle.enter();
+                    invalidator.invalidate_with_reason(reason)
+                });
+            } else {
+                iter.flat_map(|(_, invalidators)| {
+                    let _span = span.clone().entered();
+                    invalidators.into_par_iter().map(move |i| i)
+                })
+                .for_each(|invalidator| {
+                    let _span = span.clone().entered();
+                    let _guard = handle.enter();
+                    invalidator.invalidate()
+                });
             }
         }
 

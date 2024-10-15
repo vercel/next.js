@@ -1,5 +1,4 @@
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Vc};
 
 use crate::{
     project::{Instrumentation, Middleware},
@@ -8,7 +7,7 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct Entrypoints {
-    pub routes: IndexMap<RcStr, Route>,
+    pub routes: FxIndexMap<RcStr, Route>,
     pub middleware: Option<Middleware>,
     pub instrumentation: Option<Instrumentation>,
     pub pages_document_endpoint: Vc<Box<dyn Endpoint>>,

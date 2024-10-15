@@ -1243,7 +1243,7 @@ export default function Home() {
         Next.js
         ---
         [project]/app/page.js [app-client] (ecmascript)
-        app/page.js (0:0)
+        app/page.js (2:1)
         ---
         Next.js
         ---

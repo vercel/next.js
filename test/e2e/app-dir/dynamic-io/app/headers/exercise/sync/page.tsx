@@ -1,7 +1,7 @@
 import { headers, type UnsafeUnwrappedHeaders } from 'next/headers'
 
 import { getSentinelValue } from '../../../getSentinelValue'
-import { AllComponents } from '../commponents'
+import { AllComponents } from '../components'
 
 export default async function Page() {
   const xSentinelValues = new Set<string>()
