@@ -303,10 +303,7 @@ async fn follow_reexports_with_side_effects(
             .is_marked_as_side_effect_free(side_effect_free_packages)
             .await?;
         if ignore {
-            side_effects.push(wrap_module_part_asset(
-                current_module,
-                ModulePart::evaluation(),
-            ));
+            side_effects.push(only_effects(current_module));
         }
 
         // We ignore the side effect of the entry module here, because we need to proceed.
@@ -325,7 +322,6 @@ async fn follow_reexports_with_side_effects(
 
         match ty {
             FoundExportType::SideEffects => {
-                side_effects.push(wrap_module_part_asset(*module, ModulePart::evaluation()));
                 current_module = *module;
                 current_export_name = export_name.clone().unwrap_or(current_export_name);
             }
@@ -476,12 +472,11 @@ fn analyze(
 impl EvaluatableAsset for EcmascriptModulePartAsset {}
 
 #[turbo_tasks::function]
-async fn wrap_module_part_asset(
+async fn only_effects(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    part: Vc<ModulePart>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await? {
-        let module = EcmascriptModulePartAsset::select_part(module, part);
+        let module = EcmascriptModulePartAsset::select_part(module, ModulePart::evaluation());
         if let Some(module) =
             Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
         {
