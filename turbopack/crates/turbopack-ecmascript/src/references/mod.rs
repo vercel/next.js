@@ -591,12 +591,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .await?;
 
     for (i, r) in eval_context.imports.references().enumerate() {
-        // If side effect free, ImportedSymbol::PartEvaluation doesn't need to be evaluated
-        let is_fragment_import = matches!(
-            r.imported_symbol,
-            ImportedSymbol::PartEvaluation(_) | ImportedSymbol::Part(_)
-        );
-
         let r = EsmAssetReference::new(
             origin,
             Request::parse(Value::new(RcStr::from(&*r.module_path).into())),
@@ -611,7 +605,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                     ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                     ImportedSymbol::PartEvaluation(part_id) => {
-                        if !is_side_effect_free || !is_fragment_import {
+                        // If side effect free, ImportedSymbol::PartEvaluation is also side effect
+                        // free because ImportedSymbol::PartEvaluation is used only for
+                        // __TURBOPACK_PART__ imports so it doesn't need to be evaluated
+                        if !is_side_effect_free {
                             evaluation_references.push(i);
                         }
                         Some(ModulePart::internal(*part_id))
