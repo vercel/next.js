@@ -1,0 +1,10 @@
+{
+  "name": "basic-app",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "next": "workspace:*",
+    "@opentelemetry/instrumentation": "*"
+  },
+  "scripts": {}
+}

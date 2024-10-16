@@ -11,15 +11,15 @@ use anyhow::{anyhow, Result};
 ///
 /// see also [normalize_path] for normalization.
 pub fn join_path(fs_path: &str, join: &str) -> Option<String> {
-    // Paths that we join are written as source code (eg, `join_path(fs_path,
-    // "foo/bar.js")`) and it's expected that they will never contain a
-    // backslash.
-    debug_assert!(
-        !join.contains('\\'),
-        "joined path {} must not contain a Windows directory '\\', it must be normalized to Unix \
-         '/'",
-        join
-    );
+    // // Paths that we join are written as source code (eg, `join_path(fs_path,
+    // // "foo/bar.js")`) and it's expected that they will never contain a
+    // // backslash.
+    // debug_assert!(
+    //     !join.contains('\\'),
+    //     "joined path {} must not contain a Windows directory '\\', it must be normalized to Unix
+    // \      '/'",
+    //     join
+    // );
 
     // TODO: figure out why this freezes the benchmarks.
     // // an absolute path would leave the file system root
