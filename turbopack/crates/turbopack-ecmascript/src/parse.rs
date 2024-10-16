@@ -29,7 +29,7 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{as_regular_source_map, GenerateSourceMap, OptionSourceMap, SourceMap},
     SOURCE_MAP_PREFIX,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
@@ -119,7 +119,7 @@ impl GenerateSourceMap for ParseResultSourceMap {
             None
         };
         let input_map = if let Some(map) = original_src_map.as_ref() {
-            map.as_regular_source_map()
+            as_regular_source_map(map)
         } else {
             None
         };
