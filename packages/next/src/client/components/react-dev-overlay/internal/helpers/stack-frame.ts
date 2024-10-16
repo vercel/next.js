@@ -142,7 +142,36 @@ function formatFrameSourceFile(file: string) {
 export function getFrameSource(frame: StackFrame): string {
   if (!frame.file) return ''
 
-  let str = formatFrameSourceFile(frame.file)
+  const isWebpackFrame = isWebpackBundled(frame.file)
+
+  let str = ''
+  // Skip URL parsing for webpack internal file paths.
+  if (isWebpackFrame) {
+    str = formatFrameSourceFile(frame.file)
+  } else {
+    try {
+      const u = new URL(frame.file)
+
+      let parsedPath = ''
+      // Strip the origin for same-origin scripts.
+      if (globalThis.location?.origin !== u.origin) {
+        // URLs can be valid without an `origin`, so long as they have a
+        // `protocol`. However, `origin` is preferred.
+        if (u.origin === 'null') {
+          parsedPath += u.protocol
+        } else {
+          parsedPath += u.origin
+        }
+      }
+
+      // Strip query string information as it's typically too verbose to be
+      // meaningful.
+      parsedPath += u.pathname
+      str = formatFrameSourceFile(parsedPath)
+    } catch {
+      str = formatFrameSourceFile(frame.file)
+    }
+  }
 
   if (!isWebpackBundled(frame.file) && frame.lineNumber != null) {
     if (frame.column != null) {
