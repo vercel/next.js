@@ -512,6 +512,8 @@ export const isReactHookName = (name: string) =>
 // use() => true
 // React.use() => false
 // useXxxx() => true
+// Foo.use() => true
+// Foo.useXxxx() => true
 export function containsReactHooksCallExpressions(
   path: ASTPath<FunctionScope>,
   j: API['jscodeshift']
@@ -521,18 +523,18 @@ export function containsReactHooksCallExpressions(
       .find(j.CallExpression)
       .filter((callPath) => {
         // Is it matching use(<callPath>)
-        // Is it matching useXxx(<callPath>)
+        // Is it matching useX*(<callPath>)
         const isUseHookOrReactHookCall =
           j.Identifier.check(callPath.value.callee) &&
           isReactHookName(callPath.value.callee.name)
 
-        // is it matching React.use(<callPath>)
+        // is it matching member access React.use(<callPath>)
+        // is it matching member access <Any>.useX*(<callPath>)
         const isReactUseCall =
           j.MemberExpression.check(callPath.value.callee) &&
           j.Identifier.check(callPath.value.callee.object) &&
-          callPath.value.callee.object.name === 'React' &&
           j.Identifier.check(callPath.value.callee.property) &&
-          callPath.value.callee.property.name === 'use'
+          isReactHookName(callPath.value.callee.property.name)
         return isUseHookOrReactHookCall || isReactUseCall
       })
       .size() > 0
