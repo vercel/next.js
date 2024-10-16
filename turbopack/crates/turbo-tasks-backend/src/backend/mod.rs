@@ -405,9 +405,7 @@ impl TurboTasksBackendInner {
                 drop(task);
                 if !task_ids_to_schedule.is_empty() {
                     let mut queue = AggregationUpdateQueue::new();
-                    queue.push(AggregationUpdateJob::FindAndScheduleDirty {
-                        task_ids: task_ids_to_schedule,
-                    });
+                    queue.extend_find_and_schedule_dirty(task_ids_to_schedule);
                     queue.execute(&mut ctx);
                 }
 
