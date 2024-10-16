@@ -52,14 +52,14 @@ export async function writeDefaultConfig(
     )
   } else if (!exists) {
     await fs.writeFile(
-      path.join(baseDir, '.eslintrc.json'),
-      CommentJson.stringify(selectedConfig, null, 2) + os.EOL
+      path.join(baseDir, 'eslint.config.mjs'),
+      selectedConfig + os.EOL
     )
 
     console.log(
       green(
         `We created the ${bold(
-          '.eslintrc.json'
+          'eslint.config.mjs'
         )} file for you and included your selected configuration.`
       )
     )

@@ -1,5 +1,19 @@
 import findUp from 'next/dist/compiled/find-up'
 
+const getEslintFlatConfig = (compatExtendsStr: string) => {
+  return `import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { FlatCompat } from '@eslint/eslintrc';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+});
+const eslintConfig = [...compat.extends(${compatExtendsStr})];
+export default eslintConfig;`
+}
+
 export const getESLintStrictValue = async (cwd: string) => {
   const tsConfigLocation = await findUp('tsconfig.json', { cwd })
   const hasTSConfig = tsConfigLocation !== undefined
@@ -7,11 +21,9 @@ export const getESLintStrictValue = async (cwd: string) => {
   return {
     title: 'Strict',
     recommended: true,
-    config: {
-      extends: hasTSConfig
-        ? ['next/core-web-vitals', 'next/typescript']
-        : 'next/core-web-vitals',
-    },
+    config: getEslintFlatConfig(
+      `'next/core-web-vitals'${hasTSConfig ? ", 'next/typescript'" : ''}`
+    ),
   }
 }
 
@@ -20,9 +32,7 @@ export const getESLintPromptValues = async (cwd: string) => {
     await getESLintStrictValue(cwd),
     {
       title: 'Base',
-      config: {
-        extends: 'next',
-      },
+      config: getEslintFlatConfig(`'next'`),
     },
     {
       title: 'Cancel',
