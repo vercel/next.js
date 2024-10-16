@@ -559,7 +559,8 @@ function writeOverridesField(
       packageJson.resolutions[key] = value
     }
   } else if (packageManager === 'bun') {
-    // bun supports both bun.overrides and bun.resolutions
+    // bun supports both overrides and resolutions
+    // x-ref: https://bun.sh/docs/install/overrides
     if (packageJson.resolutions) {
       for (const [key, value] of entries) {
         packageJson.resolutions[key] = value
