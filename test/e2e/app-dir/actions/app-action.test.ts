@@ -1256,7 +1256,6 @@ describe('app-dir action handling', () => {
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
       })
-      // TODO: remove custom duration in case we increase the default.
     }, 5000)
 
     it('should handle revalidatePath', async () => {
