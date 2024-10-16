@@ -129,9 +129,9 @@ const packageManager: PackageManager = !!opts.useNpm
       ? 'yarn'
       : !!opts.useBun
         ? 'bun'
-         : !!opts.useDeno
-        ? 'deno'
-        : getPkgManager()
+        : !!opts.useDeno
+          ? 'deno'
+          : getPkgManager()
 
 async function run(): Promise<void> {
   const conf = new Conf({ projectName: 'create-next-app' })

@@ -1,7 +1,7 @@
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun' | 'deno'
 declare global {
   // Declare Deno if it doesn't exist
-  var Deno: { [key: string]: any } | undefined;
+  var Deno: { [key: string]: any } | undefined
 }
 
 export function getPkgManager(): PackageManager {
@@ -19,7 +19,7 @@ export function getPkgManager(): PackageManager {
     return 'bun'
   }
   if (typeof globalThis.Deno !== 'undefined') {
-    return 'deno';
+    return 'deno'
   }
 
   return 'npm'

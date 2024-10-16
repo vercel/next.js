@@ -23,7 +23,7 @@ export async function install(
   }
   // Add special handling for Deno
   if (packageManager === 'deno') {
-    args.push('--allow-scripts')  // Ensure Deno allows post-install scripts
+    args.push('--allow-scripts') // Ensure Deno allows post-install scripts
   }
   /**
    * Return a Promise that resolves once the installation is finished.
