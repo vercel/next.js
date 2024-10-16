@@ -8,14 +8,8 @@ import {
   getHash,
 } from './webpack/plugins/next-trace-entrypoints-plugin'
 
-import {
-  TRACE_OUTPUT_VERSION,
-  TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
-} from '../shared/lib/constants'
-
 import path from 'path'
 import fs from 'fs/promises'
-import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../server/ci-info'
 import debugOriginal from 'next/dist/compiled/debug'
@@ -27,7 +21,6 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
 import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
-import type { ExternalObject, NextTurboTasks } from './swc/generated-native'
 
 const debug = debugOriginal('next:build:build-traces')
 
@@ -104,108 +97,10 @@ export async function collectBuildTraces({
   edgeRuntimeRoutes: RoutesUsingEdgeRuntime
   nextBuildSpan?: Span
   config: NextConfigComplete
-  buildTraceContext?: BuildTraceContext
+  buildTraceContext: BuildTraceContext
 }) {
   const startTime = Date.now()
   debug('starting build traces')
-  let turboTasksForTrace: ExternalObject<NextTurboTasks>
-  let bindings = await loadBindings()
-
-  const runTurbotrace = async function () {
-    if (!config.experimental.turbotrace || !buildTraceContext) {
-      return
-    }
-    if (!bindings?.isWasm && typeof bindings.turbo.startTrace === 'function') {
-      let turbotraceOutputPath: string | undefined
-      let turbotraceFiles: string[] | undefined
-      turboTasksForTrace = bindings.turbo.createTurboTasks(
-        distDir,
-        false,
-        (config.experimental.turbotrace?.memoryLimit ??
-          TURBO_TRACE_DEFAULT_MEMORY_LIMIT) *
-          1024 *
-          1024
-      )
-
-      const { entriesTrace, chunksTrace } = buildTraceContext
-      if (entriesTrace) {
-        const {
-          appDir: buildTraceContextAppDir,
-          depModArray,
-          entryNameMap,
-          outputPath,
-          action,
-        } = entriesTrace
-        const depModSet = new Set(depModArray)
-        const filesTracedInEntries: string[] = await bindings.turbo.startTrace(
-          action,
-          turboTasksForTrace
-        )
-
-        const { contextDirectory, input: entriesToTrace } = action
-
-        // only trace the assets under the appDir
-        // exclude files from node_modules, entries and processed by webpack
-        const filesTracedFromEntries = filesTracedInEntries
-          .map((f) => path.join(contextDirectory, f))
-          .filter(
-            (f) =>
-              !f.includes('/node_modules/') &&
-              f.startsWith(buildTraceContextAppDir) &&
-              !entriesToTrace.includes(f) &&
-              !depModSet.has(f)
-          )
-        if (filesTracedFromEntries.length) {
-          // The turbo trace doesn't provide the traced file type and reason at present
-          // let's write the traced files into the first [entry].nft.json
-          const [[, entryName]] = Array.from<[string, string]>(
-            Object.entries(entryNameMap)
-          ).filter(([k]) => k.startsWith(buildTraceContextAppDir))
-          const traceOutputPath = path.join(
-            outputPath,
-            `../${entryName}.js.nft.json`
-          )
-          const traceOutputDir = path.dirname(traceOutputPath)
-
-          turbotraceOutputPath = traceOutputPath
-          turbotraceFiles = filesTracedFromEntries.map((file) =>
-            path.relative(traceOutputDir, file)
-          )
-        }
-      }
-      if (chunksTrace) {
-        const { action, outputPath } = chunksTrace
-        action.input = action.input.filter((f: any) => {
-          const outputPagesPath = path.join(outputPath, '..', 'pages')
-          return (
-            !f.startsWith(outputPagesPath) ||
-            !staticPages.includes(
-              // strip `outputPagesPath` and file ext from absolute
-              f.substring(outputPagesPath.length, f.length - 3)
-            )
-          )
-        })
-        await bindings.turbo.startTrace(action, turboTasksForTrace)
-        if (turbotraceOutputPath && turbotraceFiles) {
-          const existedNftFile = await fs
-            .readFile(turbotraceOutputPath, 'utf8')
-            .then((existedContent) => JSON.parse(existedContent))
-            .catch(() => ({
-              version: TRACE_OUTPUT_VERSION,
-              files: [],
-            }))
-          existedNftFile.files.push(...turbotraceFiles)
-          const filesSet = new Set(existedNftFile.files)
-          existedNftFile.files = [...filesSet]
-          await fs.writeFile(
-            turbotraceOutputPath,
-            JSON.stringify(existedNftFile),
-            'utf8'
-          )
-        }
-      }
-    }
-  }
 
   const { outputFileTracingIncludes = {}, outputFileTracingExcludes = {} } =
     config
@@ -214,7 +109,9 @@ export async function collectBuildTraces({
 
   await nextBuildSpan
     .traceChild('node-file-trace-build', {
-      isTurbotrace: Boolean(config.experimental.turbotrace) ? 'true' : 'false',
+      // for backwards compat, keep this field
+      // TODO(arlyon): commit to a removal date
+      isTurbotrace: 'false',
     })
     .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
@@ -225,23 +122,16 @@ export async function collectBuildTraces({
         distDir,
         'next-minimal-server.js.nft.json'
       )
-      const root =
-        config.experimental?.turbotrace?.contextDirectory ??
-        outputFileTracingRoot
+      const root = outputFileTracingRoot
 
       // Under standalone mode, we need to trace the extra IPC server and
       // worker files.
       const isStandalone = config.output === 'standalone'
-      const nextServerEntry = require.resolve('next/dist/server/next-server')
-      const sharedEntriesSet = [
-        ...(config.experimental.turbotrace
-          ? []
-          : Object.keys(defaultOverrides).map((value) =>
-              require.resolve(value, {
-                paths: [require.resolve('next/dist/server/require-hook')],
-              })
-            )),
-      ]
+      const sharedEntriesSet = Object.keys(defaultOverrides).map((value) =>
+        require.resolve(value, {
+          paths: [require.resolve('next/dist/server/require-hook')],
+        })
+      )
 
       const { cacheHandler } = config
 
@@ -358,7 +248,6 @@ export async function collectBuildTraces({
 
       const routeIgnoreFn = makeIgnoreFn(routesIgnores)
 
-      const traceContext = path.join(nextServerEntry, '..', '..')
       const serverTracedFiles = new Set<string>()
       const minimalServerTracedFiles = new Set<string>()
 
@@ -381,259 +270,217 @@ export async function collectBuildTraces({
         )
       }
 
-      if (config.experimental.turbotrace) {
-        await runTurbotrace()
-
-        const startTrace = bindings.turbo.startTrace
-        const makeTrace = async (entries: string[]) =>
-          startTrace(
-            {
-              action: 'print',
-              input: entries,
-              contextDirectory: traceContext,
-              logLevel: config.experimental.turbotrace?.logLevel,
-              processCwd: config.experimental.turbotrace?.processCwd,
-              logDetail: config.experimental.turbotrace?.logDetail,
-              showAll: config.experimental.turbotrace?.logAll,
-            },
-            turboTasksForTrace
-          )
-
-        // turbotrace does not handle concurrent tracing
-        const vanillaFiles = await makeTrace(serverEntries)
-        const minimalFiles = await makeTrace(minimalServerEntries)
-
-        for (const [set, files] of [
-          [serverTracedFiles, vanillaFiles],
-          [minimalServerTracedFiles, minimalFiles],
-        ] as [Set<string>, string[]][]) {
-          for (const file of files) {
+      const chunksToTrace: string[] = [
+        ...serverEntries,
+        ...minimalServerEntries,
+      ]
+      const result = await nodeFileTrace(chunksToTrace, {
+        base: outputFileTracingRoot,
+        processCwd: dir,
+        mixedModules: true,
+        async readFile(p) {
+          try {
+            return await fs.readFile(p, 'utf8')
+          } catch (e) {
+            if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
+              // since tracing runs in parallel with static generation server
+              // files might be removed from that step so tolerate ENOENT
+              // errors gracefully
+              return ''
+            }
+            throw e
+          }
+        },
+        async readlink(p) {
+          try {
+            return await fs.readlink(p)
+          } catch (e) {
             if (
-              !(
-                set === minimalServerTracedFiles
-                  ? minimalServerIgnoreFn
-                  : serverIgnoreFn
-              )(path.join(traceContext, file))
+              isError(e) &&
+              (e.code === 'EINVAL' ||
+                e.code === 'ENOENT' ||
+                e.code === 'UNKNOWN')
             ) {
-              addToTracedFiles(traceContext, file, set)
+              return null
+            }
+            throw e
+          }
+        },
+        async stat(p) {
+          try {
+            return await fs.stat(p)
+          } catch (e) {
+            if (isError(e) && (e.code === 'ENOENT' || e.code === 'ENOTDIR')) {
+              return null
+            }
+            throw e
+          }
+        },
+        // handle shared ignores at top-level as it
+        // avoids over-tracing when we don't need to
+        // and speeds up total trace time
+        ignore(p) {
+          if (sharedIgnoresFn(p)) {
+            return true
+          }
+
+          // if a chunk is attempting to be traced that isn't
+          // in our initial list we need to ignore it to prevent
+          // over tracing as webpack needs to be the source of
+          // truth for which chunks should be included for each entry
+          if (
+            p.includes('.next/server/chunks') &&
+            !chunksToTrace.includes(path.join(outputFileTracingRoot, p))
+          ) {
+            return true
+          }
+          return false
+        },
+      })
+      const reasons = result.reasons
+      const fileList = result.fileList
+      for (const file of result.esmFileList) {
+        fileList.add(file)
+      }
+
+      const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
+      const cachedLookupIgnore = new Map<string, boolean>()
+      const cachedLookupIgnoreMinimal = new Map<string, boolean>()
+
+      for (const [entries, tracedFiles] of [
+        [serverEntries, serverTracedFiles],
+        [minimalServerEntries, minimalServerTracedFiles],
+      ] as Array<[string[], Set<string>]>) {
+        for (const file of entries) {
+          const curFiles = [
+            ...(parentFilesMap
+              .get(path.relative(outputFileTracingRoot, file))
+              ?.keys() || []),
+          ]
+          tracedFiles.add(path.relative(distDir, file).replace(/\\/g, '/'))
+
+          for (const curFile of curFiles || []) {
+            const filePath = path.join(outputFileTracingRoot, curFile)
+
+            if (
+              !shouldIgnore(
+                curFile,
+                tracedFiles === minimalServerTracedFiles
+                  ? minimalServerIgnoreFn
+                  : serverIgnoreFn,
+                reasons,
+                tracedFiles === minimalServerTracedFiles
+                  ? cachedLookupIgnoreMinimal
+                  : cachedLookupIgnore
+              )
+            ) {
+              tracedFiles.add(
+                path.relative(distDir, filePath).replace(/\\/g, '/')
+              )
             }
           }
         }
-      } else {
-        const chunksToTrace: string[] = [
-          ...(buildTraceContext?.chunksTrace?.action.input || []),
-          ...serverEntries,
-          ...minimalServerEntries,
-        ]
-        const result = await nodeFileTrace(chunksToTrace, {
-          base: outputFileTracingRoot,
-          processCwd: dir,
-          mixedModules: true,
-          async readFile(p) {
-            try {
-              return await fs.readFile(p, 'utf8')
-            } catch (e) {
-              if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
-                // since tracing runs in parallel with static generation server
-                // files might be removed from that step so tolerate ENOENT
-                // errors gracefully
-                return ''
-              }
-              throw e
-            }
-          },
-          async readlink(p) {
-            try {
-              return await fs.readlink(p)
-            } catch (e) {
-              if (
-                isError(e) &&
-                (e.code === 'EINVAL' ||
-                  e.code === 'ENOENT' ||
-                  e.code === 'UNKNOWN')
-              ) {
-                return null
-              }
-              throw e
-            }
-          },
-          async stat(p) {
-            try {
-              return await fs.stat(p)
-            } catch (e) {
-              if (isError(e) && (e.code === 'ENOENT' || e.code === 'ENOTDIR')) {
-                return null
-              }
-              throw e
-            }
-          },
-          // handle shared ignores at top-level as it
-          // avoids over-tracing when we don't need to
-          // and speeds up total trace time
-          ignore(p) {
-            if (sharedIgnoresFn(p)) {
-              return true
-            }
+      }
 
-            // if a chunk is attempting to be traced that isn't
-            // in our initial list we need to ignore it to prevent
-            // over tracing as webpack needs to be the source of
-            // truth for which chunks should be included for each entry
-            if (
-              p.includes('.next/server/chunks') &&
-              !chunksToTrace.includes(path.join(outputFileTracingRoot, p))
-            ) {
-              return true
-            }
-            return false
-          },
-        })
-        const reasons = result.reasons
-        const fileList = result.fileList
-        for (const file of result.esmFileList) {
-          fileList.add(file)
-        }
+      const { entryNameFilesMap } = buildTraceContext.chunksTrace ?? {}
 
-        const parentFilesMap = getFilesMapFromReasons(fileList, reasons)
-        const cachedLookupIgnore = new Map<string, boolean>()
-        const cachedLookupIgnoreMinimal = new Map<string, boolean>()
+      const cachedLookupIgnoreRoutes = new Map<string, boolean>()
 
-        for (const [entries, tracedFiles] of [
-          [serverEntries, serverTracedFiles],
-          [minimalServerEntries, minimalServerTracedFiles],
-        ] as Array<[string[], Set<string>]>) {
-          for (const file of entries) {
+      await Promise.all(
+        [
+          ...(entryNameFilesMap
+            ? Object.entries(entryNameFilesMap)
+            : new Map()),
+        ].map(async ([entryName, entryNameFiles]) => {
+          const isApp = entryName.startsWith('app/')
+          const isPages = entryName.startsWith('pages/')
+          let route = entryName
+          if (isApp) {
+            route = normalizeAppPath(route.substring('app'.length))
+          }
+          if (isPages) {
+            route = normalizePagePath(route.substring('pages'.length))
+          }
+
+          // we don't need to trace for automatically statically optimized
+          // pages as they don't have server bundles, note there is
+          // the caveat with flying shuttle mode as it needs this for
+          // detecting changed entries
+          if (staticPages.includes(route) && !isFlyingShuttle) {
+            return
+          }
+          const entryOutputPath = path.join(
+            distDir,
+            'server',
+            `${entryName}.js`
+          )
+          const traceOutputPath = `${entryOutputPath}.nft.json`
+          const existingTrace = JSON.parse(
+            await fs.readFile(traceOutputPath, 'utf8')
+          ) as {
+            version: number
+            files: string[]
+            fileHashes: Record<string, string>
+          }
+          const traceOutputDir = path.dirname(traceOutputPath)
+          const curTracedFiles = new Set<string>()
+          const curFileHashes: Record<string, string> = existingTrace.fileHashes
+
+          for (const file of [...entryNameFiles, entryOutputPath]) {
             const curFiles = [
               ...(parentFilesMap
                 .get(path.relative(outputFileTracingRoot, file))
                 ?.keys() || []),
             ]
-            tracedFiles.add(path.relative(distDir, file).replace(/\\/g, '/'))
-
             for (const curFile of curFiles || []) {
-              const filePath = path.join(outputFileTracingRoot, curFile)
-
               if (
                 !shouldIgnore(
                   curFile,
-                  tracedFiles === minimalServerTracedFiles
-                    ? minimalServerIgnoreFn
-                    : serverIgnoreFn,
+                  routeIgnoreFn,
                   reasons,
-                  tracedFiles === minimalServerTracedFiles
-                    ? cachedLookupIgnoreMinimal
-                    : cachedLookupIgnore
+                  cachedLookupIgnoreRoutes
                 )
               ) {
-                tracedFiles.add(
-                  path.relative(distDir, filePath).replace(/\\/g, '/')
-                )
-              }
-            }
-          }
-        }
+                const filePath = path.join(outputFileTracingRoot, curFile)
+                const outputFile = path
+                  .relative(traceOutputDir, filePath)
+                  .replace(/\\/g, '/')
+                curTracedFiles.add(outputFile)
 
-        const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}
+                if (isFlyingShuttle) {
+                  try {
+                    let hash = hashCache[filePath]
 
-        const cachedLookupIgnoreRoutes = new Map<string, boolean>()
-
-        await Promise.all(
-          [
-            ...(entryNameFilesMap
-              ? Object.entries(entryNameFilesMap)
-              : new Map()),
-          ].map(async ([entryName, entryNameFiles]) => {
-            const isApp = entryName.startsWith('app/')
-            const isPages = entryName.startsWith('pages/')
-            let route = entryName
-            if (isApp) {
-              route = normalizeAppPath(route.substring('app'.length))
-            }
-            if (isPages) {
-              route = normalizePagePath(route.substring('pages'.length))
-            }
-
-            // we don't need to trace for automatically statically optimized
-            // pages as they don't have server bundles, note there is
-            // the caveat with flying shuttle mode as it needs this for
-            // detecting changed entries
-            if (staticPages.includes(route) && !isFlyingShuttle) {
-              return
-            }
-            const entryOutputPath = path.join(
-              distDir,
-              'server',
-              `${entryName}.js`
-            )
-            const traceOutputPath = `${entryOutputPath}.nft.json`
-            const existingTrace = JSON.parse(
-              await fs.readFile(traceOutputPath, 'utf8')
-            ) as {
-              version: number
-              files: string[]
-              fileHashes: Record<string, string>
-            }
-            const traceOutputDir = path.dirname(traceOutputPath)
-            const curTracedFiles = new Set<string>()
-            const curFileHashes: Record<string, string> =
-              existingTrace.fileHashes
-
-            for (const file of [...entryNameFiles, entryOutputPath]) {
-              const curFiles = [
-                ...(parentFilesMap
-                  .get(path.relative(outputFileTracingRoot, file))
-                  ?.keys() || []),
-              ]
-              for (const curFile of curFiles || []) {
-                if (
-                  !shouldIgnore(
-                    curFile,
-                    routeIgnoreFn,
-                    reasons,
-                    cachedLookupIgnoreRoutes
-                  )
-                ) {
-                  const filePath = path.join(outputFileTracingRoot, curFile)
-                  const outputFile = path
-                    .relative(traceOutputDir, filePath)
-                    .replace(/\\/g, '/')
-                  curTracedFiles.add(outputFile)
-
-                  if (isFlyingShuttle) {
-                    try {
-                      let hash = hashCache[filePath]
-
-                      if (!hash) {
-                        hash = getHash(await fs.readFile(filePath))
-                      }
-                      curFileHashes[outputFile] = hash
-                    } catch (err: any) {
-                      // handle symlink errors or similar
+                    if (!hash) {
+                      hash = getHash(await fs.readFile(filePath))
                     }
+                    curFileHashes[outputFile] = hash
+                  } catch (err: any) {
+                    // handle symlink errors or similar
                   }
                 }
               }
             }
+          }
 
-            for (const file of existingTrace.files || []) {
-              curTracedFiles.add(file)
-            }
+          for (const file of existingTrace.files || []) {
+            curTracedFiles.add(file)
+          }
 
-            await fs.writeFile(
-              traceOutputPath,
-              JSON.stringify({
-                ...existingTrace,
-                files: [...curTracedFiles].sort(),
-                ...(isFlyingShuttle
-                  ? {
-                      fileHashes: curFileHashes,
-                    }
-                  : {}),
-              })
-            )
-          })
-        )
-      }
+          await fs.writeFile(
+            traceOutputPath,
+            JSON.stringify({
+              ...existingTrace,
+              files: [...curTracedFiles].sort(),
+              ...(isFlyingShuttle
+                ? {
+                    fileHashes: curFileHashes,
+                  }
+                : {}),
+            })
+          )
+        })
+      )
 
       const moduleTypes = ['app-page', 'pages']
 
@@ -704,7 +551,7 @@ export async function collectBuildTraces({
       })
     }
 
-    const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}
+    const { entryNameFilesMap } = buildTraceContext.chunksTrace ?? {}
 
     await Promise.all(
       [

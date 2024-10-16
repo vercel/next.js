@@ -213,6 +213,9 @@ import { stitchBuilds } from './flying-shuttle/stitch-builds'
 import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
+import debugOriginal from 'next/dist/compiled/debug'
+
+const debug = debugOriginal('next:build')
 
 type Fallback = null | boolean | string
 
@@ -1359,7 +1362,6 @@ export default async function build(
 
       async function turbopackBuild(): Promise<{
         duration: number
-        buildTraceContext: undefined
         shutdownPromise: Promise<void>
       }> {
         if (!IS_TURBOPACK_BUILD) {
@@ -1630,7 +1632,6 @@ export default async function build(
         const time = process.hrtime(startTime)
         return {
           duration: time[0] + time[1] / 1e9,
-          buildTraceContext: undefined,
           shutdownPromise,
         }
       }
@@ -1679,15 +1680,10 @@ export default async function build(
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (turboNextBuild) {
-          const {
-            duration: compilerDuration,
-            shutdownPromise: p,
-            ...rest
-          } = await turbopackBuild()
+          const { duration: compilerDuration, shutdownPromise: p } =
+            await turbopackBuild()
           shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
-
-          buildTraceContext = rest.buildTraceContext
 
           let durationString
           if (compilerDuration > 120) {
@@ -1722,7 +1718,7 @@ export default async function build(
               'server',
             ]).then((res) => {
               traceMemoryUsage('Finished server compilation', nextBuildSpan)
-              buildTraceContext = res.buildTraceContext
+
               durationInSeconds += res.duration
 
               if (collectServerBuildTracesInParallel) {
@@ -1743,7 +1739,7 @@ export default async function build(
                     edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(new Map()),
                     staticPages: [],
                     hasSsrAmpPages: false,
-                    buildTraceContext,
+                    buildTraceContext: res.buildTraceContext,
                     outputFileTracingRoot,
                     isFlyingShuttle: Boolean(flyingShuttle),
                   })
@@ -1801,6 +1797,9 @@ export default async function build(
             )
             traceMemoryUsage('Finished build', nextBuildSpan)
 
+            // we need to fetch some additional data to
+            // be able to invoke `collectBuildTraces` so
+            // assign the variable and continue
             buildTraceContext = rest.buildTraceContext
 
             telemetry.record(
@@ -2562,22 +2561,26 @@ export default async function build(
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
-      if (!isGenerateMode && !buildTracesPromise) {
-        buildTracesPromise = collectBuildTraces({
-          dir,
-          config,
-          distDir,
-          edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
-          staticPages: [...staticPages],
-          nextBuildSpan,
-          hasSsrAmpPages,
-          buildTraceContext,
-          outputFileTracingRoot,
-          isFlyingShuttle: Boolean(flyingShuttle),
-        }).catch((err) => {
-          console.error(err)
-          process.exit(1)
-        })
+      if (!buildTracesPromise) {
+        if (buildTraceContext) {
+          buildTracesPromise = collectBuildTraces({
+            dir,
+            config,
+            distDir,
+            edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
+            staticPages: [...staticPages],
+            nextBuildSpan,
+            hasSsrAmpPages,
+            buildTraceContext,
+            outputFileTracingRoot,
+            isFlyingShuttle: Boolean(flyingShuttle),
+          }).catch((err) => {
+            console.error(err)
+            process.exit(1)
+          })
+        } else {
+          debug('skipping tracing due to missing buildTraceContext')
+        }
       }
 
       if (serverPropsPages.size > 0 || ssgPages.size > 0) {
@@ -2675,74 +2678,72 @@ export default async function build(
         path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
       )
 
-      if (!isGenerateMode) {
-        if (flyingShuttle) {
-          await buildTracesPromise
+      if (!isGenerateMode && flyingShuttle) {
+        await buildTracesPromise
 
-          if (isStoreOnlyFlyingShuttle) {
-            console.log('skipping stitching builds due to store-only mode')
-          } else {
-            console.log('stitching builds...')
-            await nextBuildSpan
-              .traceChild('stitch-incremental-builds')
-              .traceAsyncFn(async () => {
-                const stitchResult = await stitchBuilds(
-                  {
-                    config,
-                    buildId,
-                    distDir,
-                    shuttleDir,
-                    rewrites,
-                    redirects,
-                    edgePreviewProps: {
-                      __NEXT_PREVIEW_MODE_ID:
-                        NextBuildContext.previewProps!.previewModeId,
-                      __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
-                        NextBuildContext.previewProps!.previewModeEncryptionKey,
-                      __NEXT_PREVIEW_MODE_SIGNING_KEY:
-                        NextBuildContext.previewProps!.previewModeSigningKey,
-                    },
-                    encryptionKey,
-                    allowedErrorRate:
-                      config.experimental.clientRouterFilterAllowedRate,
+        if (isStoreOnlyFlyingShuttle) {
+          console.log('skipping stitching builds due to store-only mode')
+        } else {
+          console.log('stitching builds...')
+          await nextBuildSpan
+            .traceChild('stitch-incremental-builds')
+            .traceAsyncFn(async () => {
+              const stitchResult = await stitchBuilds(
+                {
+                  config,
+                  buildId,
+                  distDir,
+                  shuttleDir,
+                  rewrites,
+                  redirects,
+                  edgePreviewProps: {
+                    __NEXT_PREVIEW_MODE_ID:
+                      NextBuildContext.previewProps!.previewModeId,
+                    __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
+                      NextBuildContext.previewProps!.previewModeEncryptionKey,
+                    __NEXT_PREVIEW_MODE_SIGNING_KEY:
+                      NextBuildContext.previewProps!.previewModeSigningKey,
                   },
-                  {
-                    changed: {
-                      pages: changedPagePathsResult?.changed.pages || [],
-                      app: changedAppPathsResult?.changed.app || [],
-                    },
-                    unchanged: {
-                      pages: changedPagePathsResult?.unchanged.pages || [],
-                      app: changedAppPathsResult?.unchanged.app || [],
-                    },
-                    pageExtensions: config.pageExtensions,
-                  }
-                )
-                // reload pagesManifest since it's been updated on disk
-                if (stitchResult.pagesManifest) {
-                  pagesManifest = stitchResult.pagesManifest
+                  encryptionKey,
+                  allowedErrorRate:
+                    config.experimental.clientRouterFilterAllowedRate,
+                },
+                {
+                  changed: {
+                    pages: changedPagePathsResult?.changed.pages || [],
+                    app: changedAppPathsResult?.changed.app || [],
+                  },
+                  unchanged: {
+                    pages: changedPagePathsResult?.unchanged.pages || [],
+                    app: changedAppPathsResult?.unchanged.app || [],
+                  },
+                  pageExtensions: config.pageExtensions,
                 }
-              })
-          }
-
-          console.log('storing shuttle')
-          await nextBuildSpan
-            .traceChild('store-cache-shuttle')
-            .traceAsyncFn(async () => {
-              await storeShuttle({
-                config,
-                distDir,
-                shuttleDir,
-              })
-            })
-
-          console.log('inlining static env')
-          await nextBuildSpan
-            .traceChild('inline-static-env')
-            .traceAsyncFn(async () => {
-              await inlineStaticEnv({ config, distDir })
+              )
+              // reload pagesManifest since it's been updated on disk
+              if (stitchResult.pagesManifest) {
+                pagesManifest = stitchResult.pagesManifest
+              }
             })
         }
+
+        console.log('storing shuttle')
+        await nextBuildSpan
+          .traceChild('store-cache-shuttle')
+          .traceAsyncFn(async () => {
+            await storeShuttle({
+              config,
+              distDir,
+              shuttleDir,
+            })
+          })
+
+        console.log('inlining static env')
+        await nextBuildSpan
+          .traceChild('inline-static-env')
+          .traceAsyncFn(async () => {
+            await inlineStaticEnv({ config, distDir })
+          })
       }
 
       const prerenderManifest: PrerenderManifest = {
