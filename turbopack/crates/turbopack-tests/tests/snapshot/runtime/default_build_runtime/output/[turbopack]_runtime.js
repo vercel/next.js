@@ -500,10 +500,18 @@ async function loadChunkAsync(source, chunkData) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     try {
         const contents = await fs.readFile(resolved, "utf-8");
+        const localRequire = (id)=>{
+            let resolvedId = require.resolve(id, {
+                paths: [
+                    path.dirname(resolved)
+                ]
+            });
+            return require(resolvedId);
+        };
         const module1 = {
             exports: {}
         };
-        vm.runInThisContext("(function(module, exports, require, __dirname, __filename) {" + contents + "\n})", resolved)(module1, module1.exports, require, path.dirname(resolved), resolved);
+        vm.runInThisContext("(function(module, exports, require, __dirname, __filename) {" + contents + "\n})", resolved)(module1, module1.exports, localRequire, path.dirname(resolved), resolved);
         const chunkModules = module1.exports;
         for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
             if (!moduleFactories[moduleId]) {
