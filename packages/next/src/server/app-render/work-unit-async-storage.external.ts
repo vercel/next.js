@@ -51,6 +51,7 @@ export type RequestStore = {
 
   // DEV-only
   usedDynamic?: boolean
+  environment?: string
 } & PhasePartial
 
 /**
