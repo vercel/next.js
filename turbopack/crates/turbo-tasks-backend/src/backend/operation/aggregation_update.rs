@@ -34,7 +34,7 @@ pub fn is_root_node(aggregation_number: u32) -> bool {
 }
 
 fn get_followers_with_aggregation_number(
-    task: &TaskGuard<'_>,
+    task: &impl TaskGuard,
     aggregation_number: u32,
 ) -> Vec<TaskId> {
     if is_aggregating_node(aggregation_number) {
@@ -44,19 +44,19 @@ fn get_followers_with_aggregation_number(
     }
 }
 
-fn get_followers(task: &TaskGuard<'_>) -> Vec<TaskId> {
+fn get_followers(task: &impl TaskGuard) -> Vec<TaskId> {
     get_followers_with_aggregation_number(task, get_aggregation_number(task))
 }
 
-pub fn get_uppers(task: &TaskGuard<'_>) -> Vec<TaskId> {
+pub fn get_uppers(task: &impl TaskGuard) -> Vec<TaskId> {
     get_many!(task, Upper { task } count if *count > 0 => *task)
 }
 
-fn iter_uppers<'a>(task: &'a TaskGuard<'a>) -> impl Iterator<Item = TaskId> + 'a {
+fn iter_uppers<'a>(task: &'a (impl TaskGuard + 'a)) -> impl Iterator<Item = TaskId> + 'a {
     iter_many!(task, Upper { task } count if *count > 0 => *task)
 }
 
-pub fn get_aggregation_number(task: &TaskGuard<'_>) -> u32 {
+pub fn get_aggregation_number(task: &impl TaskGuard) -> u32 {
     get!(task, AggregationNumber)
         .map(|a| a.effective)
         .unwrap_or_default()
@@ -112,7 +112,7 @@ pub enum AggregationUpdateJob {
 
 impl AggregationUpdateJob {
     pub fn data_update(
-        task: &mut TaskGuard<'_>,
+        task: &mut impl TaskGuard,
         update: AggregatedDataUpdate,
     ) -> Option<AggregationUpdateJob> {
         let upper_ids: Vec<_> = get_uppers(task);
@@ -134,7 +134,7 @@ pub struct AggregatedDataUpdate {
 }
 
 impl AggregatedDataUpdate {
-    fn from_task(task: &mut TaskGuard<'_>) -> Self {
+    fn from_task(task: &mut impl TaskGuard) -> Self {
         let aggregation = get_aggregation_number(task);
         let mut dirty_container_count = Default::default();
         let mut collectibles_update: Vec<_> =
@@ -192,7 +192,7 @@ impl AggregatedDataUpdate {
 
     fn apply(
         &self,
-        task: &mut TaskGuard<'_>,
+        task: &mut impl TaskGuard,
         session_id: SessionId,
         queue: &mut AggregationUpdateQueue,
     ) -> AggregatedDataUpdate {
@@ -431,13 +431,13 @@ impl AggregationUpdateQueue {
         );
     }
 
-    pub fn run(job: AggregationUpdateJob, ctx: &mut ExecuteContext<'_>) {
+    pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext) {
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
     }
 
-    pub fn process(&mut self, ctx: &mut ExecuteContext<'_>) -> bool {
+    pub fn process(&mut self, ctx: &mut impl ExecuteContext) -> bool {
         if let Some(job) = self.jobs.pop_front() {
             match job {
                 AggregationUpdateJob::UpdateAggregationNumber { .. }
@@ -607,7 +607,7 @@ impl AggregationUpdateQueue {
         }
     }
 
-    fn balance_edge(&mut self, ctx: &mut ExecuteContext, upper_id: TaskId, task_id: TaskId) {
+    fn balance_edge(&mut self, ctx: &mut impl ExecuteContext, upper_id: TaskId, task_id: TaskId) {
         let (mut upper, mut task) = ctx.task_pair(upper_id, task_id, TaskDataCategory::Meta);
         let upper_aggregation_number = get_aggregation_number(&upper);
         let task_aggregation_number = get_aggregation_number(&task);
@@ -731,16 +731,16 @@ impl AggregationUpdateQueue {
         }
     }
 
-    fn find_and_schedule_dirty(&mut self, task_id: TaskId, ctx: &mut ExecuteContext) {
+    fn find_and_schedule_dirty(&mut self, task_id: TaskId, ctx: &mut impl ExecuteContext) {
         let mut task = ctx.task(task_id, TaskDataCategory::Meta);
         let session_id = ctx.session_id();
         // Task need to be scheduled if it's dirty or doesn't have output
         let dirty = get!(task, Dirty).map_or(false, |d| d.get(session_id));
         let should_schedule = dirty || !task.has_key(&CachedDataItemKey::Output {});
         if should_schedule {
-            let description = ctx.backend.get_task_desc_fn(task_id);
+            let description = ctx.get_task_desc_fn(task_id);
             if task.add(CachedDataItem::new_scheduled(description)) {
-                ctx.turbo_tasks.schedule(task_id);
+                ctx.schedule(task_id);
             }
         }
         if is_aggregating_node(get_aggregation_number(&task)) {
@@ -759,7 +759,7 @@ impl AggregationUpdateQueue {
     fn aggregated_data_update(
         &mut self,
         upper_ids: Vec<TaskId>,
-        ctx: &mut ExecuteContext,
+        ctx: &mut impl ExecuteContext,
         update: AggregatedDataUpdate,
     ) {
         for upper_id in upper_ids {
@@ -779,7 +779,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_uppers_lost_follower(
         &mut self,
-        ctx: &mut ExecuteContext,
+        ctx: &mut impl ExecuteContext,
         lost_follower_id: TaskId,
         mut upper_ids: Vec<TaskId>,
     ) {
@@ -853,7 +853,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_upper_lost_followers(
         &mut self,
-        ctx: &mut ExecuteContext,
+        ctx: &mut impl ExecuteContext,
         mut lost_follower_ids: Vec<TaskId>,
         upper_id: TaskId,
     ) {
@@ -924,7 +924,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_uppers_has_new_follower(
         &mut self,
-        ctx: &mut ExecuteContext,
+        ctx: &mut impl ExecuteContext,
         new_follower_id: TaskId,
         mut upper_ids: Vec<TaskId>,
     ) {
@@ -1015,7 +1015,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_upper_has_new_followers(
         &mut self,
-        ctx: &mut ExecuteContext,
+        ctx: &mut impl ExecuteContext,
         new_follower_ids: Vec<TaskId>,
         upper_id: TaskId,
     ) {
@@ -1120,7 +1120,7 @@ impl AggregationUpdateQueue {
 
     fn inner_of_upper_has_new_follower(
         &mut self,
-        ctx: &mut ExecuteContext,
+        ctx: &mut impl ExecuteContext,
         new_follower_id: TaskId,
         upper_id: TaskId,
     ) {
@@ -1185,7 +1185,7 @@ impl AggregationUpdateQueue {
 
     fn update_aggregation_number(
         &mut self,
-        ctx: &mut ExecuteContext,
+        ctx: &mut impl ExecuteContext,
         task_id: TaskId,
         base_effective_distance: Option<std::num::NonZero<u32>>,
         base_aggregation_number: u32,
@@ -1269,7 +1269,7 @@ impl AggregationUpdateQueue {
 }
 
 impl Operation for AggregationUpdateQueue {
-    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext) {
         loop {
             ctx.operation_suspend_point(&self);
             if self.process(ctx) {
