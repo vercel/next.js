@@ -5,9 +5,12 @@ import { setTimeout } from 'timers/promises'
 export const dynamic = 'error'
 
 export default function Index() {
-  after(async () => {
+  const promise = (async () => {
     await setTimeout(500)
-    throw new Error('Error thrown from unstable_after: /page-throws-in-after')
-  })
+    throw new Error(
+      'My cool error thrown inside unstable_after on route "/page-throws-in-after/promise"'
+    )
+  })()
+  after(promise)
   return <div>Page with after()</div>
 }
