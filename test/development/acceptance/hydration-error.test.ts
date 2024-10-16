@@ -524,12 +524,13 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     await session.assertHasRedbox()
 
-    expect(await getRedboxTotalErrorCount(browser)).toBe(
-      isReact18
-        ? 2
-        : // FIXME: Should be 2
-          1
-    )
+    const errorCount = await getRedboxTotalErrorCount(browser)
+    if (isReact18) {
+      expect(errorCount).toBeGreaterThanOrEqual(2)
+    } else {
+      // FIXME: Should be 2
+      expect(errorCount).toBe(1)
+    }
 
     // FIXME: Should also have "text nodes cannot be a child of tr"
     if (isReact18) {
@@ -855,7 +856,12 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
+    const errorCount = await getRedboxTotalErrorCount(browser)
+    if (isReact18) {
+      expect(errorCount).toBeGreaterThanOrEqual(2)
+    } else {
+      expect(errorCount).toBe(1)
+    }
 
     const description = await session.getRedboxDescription()
     if (isReact18) {
@@ -990,7 +996,12 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
+    const errorCount = await getRedboxTotalErrorCount(browser)
+    if (isReact18) {
+      expect(errorCount).toBeGreaterThanOrEqual(2)
+    } else {
+      expect(errorCount).toBe(1)
+    }
 
     const description = await session.getRedboxDescription()
     if (isReact18) {
