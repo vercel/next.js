@@ -379,18 +379,22 @@ describe('AfterContext', () => {
     const promise3 = new DetachedPromise<string>()
     const afterCallback3 = jest.fn(() => promise3.promise)
 
+    const thrownFromPromise4 = new Error('4')
+    const promise4 = Promise.reject(thrownFromPromise4)
+
     workAsyncStorage.run(workStore, () =>
       workUnitAsyncStorage.run(createMockWorkUnitStore(), () => {
         after(afterCallback1)
         after(afterCallback2)
         after(afterCallback3)
+        after(promise4)
       })
     )
 
     expect(afterCallback1).not.toHaveBeenCalled()
     expect(afterCallback2).not.toHaveBeenCalled()
     expect(afterCallback3).not.toHaveBeenCalled()
-    expect(waitUntil).toHaveBeenCalledTimes(1)
+    expect(waitUntil).toHaveBeenCalledTimes(1 + 1) // once for callbacks, once for the promise
 
     // the response is done.
     onCloseCallback!()
@@ -399,8 +403,9 @@ describe('AfterContext', () => {
     expect(afterCallback1).toHaveBeenCalledTimes(1)
     expect(afterCallback2).toHaveBeenCalledTimes(1)
     expect(afterCallback3).toHaveBeenCalledTimes(1)
-    expect(waitUntil).toHaveBeenCalledTimes(1)
+    expect(waitUntil).toHaveBeenCalledTimes(1 + 1) // once for callbacks, once for the promise
 
+    // resolve any pending promises we have
     const thrownFromCallback1 = new Error('1')
     promise1.reject(thrownFromCallback1)
     promise3.resolve('3')
@@ -409,6 +414,7 @@ describe('AfterContext', () => {
     expect(results).toEqual([undefined])
     expect(onTaskError).toHaveBeenCalledWith(thrownFromCallback2)
     expect(onTaskError).toHaveBeenCalledWith(thrownFromCallback1)
+    expect(onTaskError).toHaveBeenCalledWith(thrownFromPromise4)
   })
 
   it('throws from after() if waitUntil is not provided', async () => {
