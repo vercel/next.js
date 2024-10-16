@@ -119,18 +119,7 @@ impl EcmascriptModulePartAsset {
             let side_effect_free_packages = module.asset_context().side_effect_free_packages();
 
             // Exclude local bindings by using exports module part.
-            let source_module = if entrypoints.contains_key(&Key::Exports)
-                && *module
-                    .is_marked_as_side_effect_free(side_effect_free_packages)
-                    .await?
-            {
-                Vc::upcast(EcmascriptModulePartAsset::new(
-                    module,
-                    ModulePart::exports(),
-                ))
-            } else {
-                Vc::upcast(module)
-            };
+            let source_module = Vc::upcast(module);
 
             let FollowExportsWithSideEffectsResult {
                 side_effects,
@@ -299,10 +288,11 @@ async fn follow_reexports_with_side_effects(
     let mut current_module = module;
     let mut current_export_name = export_name;
     let result = loop {
-        let ignore = !*current_module
+        let is_side_effect_free = *current_module
             .is_marked_as_side_effect_free(side_effect_free_packages)
             .await?;
-        if ignore {
+
+        if !is_side_effect_free {
             side_effects.push(only_effects(current_module));
         }
 
