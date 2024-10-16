@@ -471,10 +471,6 @@ export function isPrerenderInterruptedError(
   )
 }
 
-export function isRenderInterruptedReason(reason: string) {
-  return reason === NEXT_PRERENDER_INTERRUPTED
-}
-
 export function accessedDynamicData(
   dynamicTracking: DynamicTrackingState
 ): boolean {
@@ -616,7 +612,6 @@ export function trackAllowedDynamicAccess(
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
-    //
     disallowedDynamic.hasDynamicMetadata = true
     return
   } else if (hasViewportRegex.test(componentStack)) {
