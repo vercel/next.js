@@ -880,8 +880,13 @@ and should be treated with the same security assumptions and authorization check
 
 To improve security, Next.js has the following built-in features:
 
-- **Secure action IDs:** Next.js creates unguessable, non-deterministic IDs to allow the client to reference and call the Server Action. These IDs are periodically recalculated between builds for enhanced security.
-- **Dead code elimination:** Unused Server Actions (referenced by their IDs) are automatically removed.
+- **Secure action IDs:** Next.js creates encrypted, non-deterministic IDs to allow the client to reference and call the Server Action. These IDs are periodically recalculated between builds for enhanced security.
+- **Dead code elimination:** Unused Server Actions (referenced by their IDs) are removed from client bundle to avoid publicly access.
+
+> **Good to know**:
+>
+> The IDs are created during compilation and are cached for a maximum of 14 days. They will be regenerated when a new build is initiated or when the build cache is invalidated.
+> This security improvement reduces the risk in cases where an authentication layer is missing. However, you should still treat Server Actions like public HTTP endpoints.
 
 ```jsx
 // app/actions.js
@@ -999,15 +1004,6 @@ module.exports = {
 ```
 
 Learn more about [Security and Server Actions](https://nextjs.org/blog/security-nextjs-server-components-actions).
-
-### Secured Server Action IDs
-
-Next.js generates encrypted, non-deterministic IDs to allow the client to reference and call Server Actions. These IDs are periodically recalculated between builds for enhanced security.
-The IDs are created during compilation and are cached for a maximum of 14 days. They will be regenerated when a new build is initiated or when the build cache is invalidated.
-
-Note that in Docker environments, IDs are not cached, so each build will generate new Server Action IDs.
-
-This security improvement reduces the risk in cases where an authentication layer is missing. However, you should still treat Server Actions like public HTTP endpoints.
 
 ## Additional resources
 
