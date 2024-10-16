@@ -1,3 +1,4 @@
+import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
 import semver from 'semver'
@@ -296,7 +297,12 @@ export async function runUpgrade(
     addPackageDependency(appPackageJson, dep, version, true)
   }
 
-  fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
+  fs.writeFileSync(
+    appPackageJsonPath,
+    JSON.stringify(appPackageJson, null, 2) +
+      // Common IDE formatters would add a newline as well.
+      os.EOL
+  )
 
   runInstallation(packageManager)
 
