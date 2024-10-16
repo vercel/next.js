@@ -580,22 +580,22 @@ impl AggregationUpdateQueue {
                 }
             }
             false
-        } else if !self.find_and_schedule.is_empty() {
+        } else if !self.balance_queue.is_empty() {
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
-                if let Some(task_id) = self.find_and_schedule.pop() {
-                    self.find_and_schedule_dirty(task_id, ctx);
+                if let Some((upper_id, task_id)) = self.balance_queue.pop() {
+                    self.balance_edge(ctx, upper_id, task_id);
                     remaining -= 1;
                 } else {
                     break;
                 }
             }
             false
-        } else if !self.balance_queue.is_empty() {
+        } else if !self.find_and_schedule.is_empty() {
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
-                if let Some((upper_id, task_id)) = self.balance_queue.pop() {
-                    self.balance_edge(ctx, upper_id, task_id);
+                if let Some(task_id) = self.find_and_schedule.pop() {
+                    self.find_and_schedule_dirty(task_id, ctx);
                     remaining -= 1;
                 } else {
                     break;
