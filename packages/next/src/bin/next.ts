@@ -249,7 +249,7 @@ program
   )
   .option(
     '--strict',
-    'Creates a `.eslintrc.json` file using the Next.js strict configuration.'
+    'Creates a ESLint configuration file using the Next.js strict configuration.'
   )
   .option(
     '--rulesdir, <rulesdir...>',
