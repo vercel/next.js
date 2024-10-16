@@ -188,25 +188,26 @@ impl<C: Comments> ServerActions<C> {
         ids_from_closure: Vec<Name>,
         arrow: &mut ArrowExpr,
     ) -> Box<Expr> {
-        let action_name: JsWord = gen_action_ident(&mut self.reference_index);
+        let action_name = gen_action_ident(&mut self.reference_index).to_string();
 
         self.has_action = true;
         self.export_actions.push(action_name.to_string());
 
-        let action_ident = Ident::new(action_name.clone(), arrow.span, self.private_ctxt);
+        let action_ident = Ident::new(action_name.clone().into(), arrow.span, self.private_ctxt);
+        let action_id = generate_action_id(
+            &self.config.hash_salt,
+            &self.file_name,
+            action_name.to_string().as_str(),
+        );
 
-        let register_action_expr = annotate_ident_as_server_reference(
-            action_ident.clone(),
+        let register_action_expr = bind_args_to_ref_expr(
+            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone()),
             ids_from_closure
                 .iter()
                 .cloned()
                 .map(|id| Some(id.as_arg()))
                 .collect(),
-            generate_action_id(
-                &self.config.hash_salt,
-                &self.file_name,
-                action_name.to_string().as_str(),
-            ),
+            action_id,
         );
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
@@ -348,15 +349,16 @@ impl<C: Comments> ServerActions<C> {
         self.export_actions.push(action_name.to_string());
 
         let action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
+        let action_id = generate_action_id(&self.config.hash_salt, &self.file_name, &action_name);
 
-        let register_action_expr = annotate_ident_as_server_reference(
-            action_ident.clone(),
+        let register_action_expr = bind_args_to_ref_expr(
+            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone()),
             ids_from_closure
                 .iter()
                 .cloned()
                 .map(|id| Some(id.as_arg()))
                 .collect(),
-            generate_action_id(&self.config.hash_salt, &self.file_name, &action_name),
+            action_id,
         );
 
         function.body.visit_mut_with(&mut ClosureReplacer {
@@ -474,16 +476,6 @@ impl<C: Comments> ServerActions<C> {
         let reference_id =
             generate_action_id(&self.config.hash_salt, &self.file_name, &export_name);
 
-        let register_action_expr = annotate_ident_as_server_reference(
-            cache_ident.clone(),
-            ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Some(id.as_arg()))
-                .collect(),
-            reference_id.clone(),
-        );
-
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
@@ -509,7 +501,12 @@ impl<C: Comments> ServerActions<C> {
             let mut pats = vec![];
             for i in 0..ids_from_closure.len() {
                 pats.push(Some(Pat::Ident(
-                    IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                    Ident::new(
+                        format!("$$ACTION_ARG_{i}").into(),
+                        DUMMY_SP,
+                        self.private_ctxt,
+                    )
+                    .into(),
                 )));
             }
             let decryption_decl = VarDecl {
@@ -618,7 +615,45 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        Box::new(register_action_expr.clone())
+        let bound_args: Vec<_> = ids_from_closure
+            .iter()
+            .cloned()
+            .map(|id| Some(id.as_arg()))
+            .collect();
+
+        let register_action_expr =
+            annotate_ident_as_server_reference(cache_ident.clone(), reference_id.clone());
+
+        // If there're any bound args from the closure, we need to hoist the
+        // register action expression to the top-level, and return the bind
+        // expression inline.
+        if !bound_args.is_empty() {
+            let ref_ident = private_ident!(gen_ref_ident(&mut self.reference_index));
+
+            let ref_decl = VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Var,
+                decls: vec![VarDeclarator {
+                    span: DUMMY_SP,
+                    name: Pat::Ident(ref_ident.clone().into()),
+                    init: Some(Box::new(register_action_expr.clone())),
+                    definite: false,
+                }],
+                ..Default::default()
+            };
+
+            // Hoist the register action expression to the top-level.
+            self.extra_items
+                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(ref_decl)))));
+
+            Box::new(bind_args_to_ref_expr(
+                Expr::Ident(ref_ident.clone()),
+                bound_args,
+                reference_id.clone(),
+            ))
+        } else {
+            Box::new(register_action_expr)
+        }
     }
 
     fn maybe_hoist_and_create_proxy_for_cache_function(
@@ -637,15 +672,8 @@ impl<C: Comments> ServerActions<C> {
 
         let reference_id = generate_action_id(&self.config.hash_salt, &self.file_name, &cache_name);
 
-        let register_action_expr = annotate_ident_as_server_reference(
-            cache_ident.clone(),
-            ids_from_closure
-                .iter()
-                .cloned()
-                .map(|id| Some(id.as_arg()))
-                .collect(),
-            reference_id.clone(),
-        );
+        let register_action_expr =
+            annotate_ident_as_server_reference(cache_ident.clone(), reference_id.clone());
 
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
@@ -671,7 +699,13 @@ impl<C: Comments> ServerActions<C> {
             let mut pats = vec![];
             for i in 0..ids_from_closure.len() {
                 pats.push(Some(Pat::Ident(
-                    IdentName::new(format!("$$ACTION_ARG_{i}").into(), DUMMY_SP).into(),
+                    Ident::new(
+                        // $$ACTION_ARG_0
+                        format!("$$ACTION_ARG_{i}").into(),
+                        DUMMY_SP,
+                        self.private_ctxt,
+                    )
+                    .into(),
                 )));
             }
             let decryption_decl = VarDecl {
@@ -751,7 +785,42 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
-        Box::new(register_action_expr)
+        let bound_args: Vec<_> = ids_from_closure
+            .iter()
+            .cloned()
+            .map(|id| Some(id.as_arg()))
+            .collect();
+
+        // If there're any bound args from the closure, we need to hoist the
+        // register action expression to the top-level, and return the bind
+        // expression inline.
+        if !bound_args.is_empty() {
+            let ref_ident = private_ident!(gen_ref_ident(&mut self.reference_index));
+
+            let ref_decl = VarDecl {
+                span: DUMMY_SP,
+                kind: VarDeclKind::Var,
+                decls: vec![VarDeclarator {
+                    span: DUMMY_SP,
+                    name: Pat::Ident(ref_ident.clone().into()),
+                    init: Some(Box::new(register_action_expr.clone())),
+                    definite: false,
+                }],
+                ..Default::default()
+            };
+
+            // Hoist the register action expression to the top-level.
+            self.extra_items
+                .push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(ref_decl)))));
+
+            Box::new(bind_args_to_ref_expr(
+                Expr::Ident(ref_ident.clone()),
+                bound_args,
+                reference_id.clone(),
+            ))
+        } else {
+            Box::new(register_action_expr)
+        }
     }
 }
 
@@ -797,7 +866,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
-            self.should_track_names = is_action_fn || self.should_track_names;
+            self.should_track_names =
+                is_action_fn || cache_type.is_some() || self.should_track_names;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
@@ -921,7 +991,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
-            self.should_track_names = is_action_fn || self.should_track_names;
+            self.should_track_names =
+                is_action_fn || cache_type.is_some() || self.should_track_names;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
@@ -949,8 +1020,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 });
             }
 
+            // Collect all the identifiers defined inside the closure and used
+            // in the cache function. With deduplication.
+            retain_names_from_declared_idents(
+                &mut child_names,
+                &self.declared_idents[..declared_idents_until],
+            );
+
             let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
-                [].to_vec(),
+                child_names,
                 Some(f.ident.clone()),
                 cache_type_str.as_str(),
                 &mut f.function,
@@ -968,9 +1046,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 }],
                 ..Default::default()
             });
-        }
-
-        if is_action_fn {
+        } else if is_action_fn {
             if !f.function.is_async {
                 HANDLER.with(|handler| {
                     handler
@@ -1049,7 +1125,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let old_in_export_decl = self.in_export_decl;
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
-            self.should_track_names = is_action_fn || self.should_track_names;
+            self.should_track_names =
+                is_action_fn || cache_type.is_some() || self.should_track_names;
             self.in_export_decl = false;
             self.in_default_export_decl = false;
             {
@@ -1510,16 +1587,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         new.push(export_expr);
                     }
                 } else if self.in_cache_file.is_none() {
+                    let action_id =
+                        generate_action_id(&self.config.hash_salt, &self.file_name, export_name);
+
                     self.annotations.push(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
                         expr: Box::new(annotate_ident_as_server_reference(
                             ident.clone(),
-                            Vec::new(),
-                            generate_action_id(
-                                &self.config.hash_salt,
-                                &self.file_name,
-                                export_name,
-                            ),
+                            action_id,
                         )),
                     }));
                 }
@@ -1772,6 +1847,12 @@ fn gen_cache_ident(cnt: &mut u32) -> JsWord {
     id
 }
 
+fn gen_ref_ident(cnt: &mut u32) -> JsWord {
+    let id: JsWord = format!("$$RSC_SERVER_REF_{cnt}").into();
+    *cnt += 1;
+    id
+}
+
 fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str) -> Box<Expr> {
     // expr -> $$cache__("name", "id", expr)
     Box::new(Expr::Call(CallExpr {
@@ -1835,13 +1916,9 @@ fn generate_action_id(hash_salt: &str, file_name: &str, export_name: &str) -> St
     hex_encode(result)
 }
 
-fn annotate_ident_as_server_reference(
-    ident: Ident,
-    bound: Vec<Option<ExprOrSpread>>,
-    action_id: String,
-) -> Expr {
+fn annotate_ident_as_server_reference(ident: Ident, action_id: String) -> Expr {
     // registerServerReference(reference, id, null)
-    let proxy_expr = Expr::Call(CallExpr {
+    Expr::Call(CallExpr {
         span: ident.span,
         callee: quote_ident!("registerServerReference").as_callee(),
         args: vec![
@@ -1859,17 +1936,19 @@ fn annotate_ident_as_server_reference(
             },
         ],
         ..Default::default()
-    });
+    })
+}
 
+fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id: String) -> Expr {
     if bound.is_empty() {
-        proxy_expr
+        expr
     } else {
-        // proxy_expr.bind(null, [encryptActionBoundArgs("id", [arg1, ...])])
+        // expr.bind(null, [encryptActionBoundArgs("id", [arg1, ...])])
         Expr::Call(CallExpr {
             span: DUMMY_SP,
             callee: Expr::Member(MemberExpr {
                 span: DUMMY_SP,
-                obj: Box::new(proxy_expr),
+                obj: Box::new(expr),
                 prop: MemberProp::Ident(quote_ident!("bind")),
             })
             .as_callee(),
