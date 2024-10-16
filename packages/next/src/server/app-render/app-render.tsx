@@ -157,6 +157,7 @@ import {
 } from './work-unit-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 import './clean-async-snapshot.external'
 import { INFINITE_CACHE } from '../../lib/constants'
@@ -196,6 +197,7 @@ export type AppRenderContext = {
 }
 
 interface ParseRequestHeadersOptions {
+  readonly isDevWarmup: undefined | boolean
   readonly isRoutePPREnabled: boolean
 }
 
@@ -210,6 +212,7 @@ interface ParsedRequestHeaders {
    */
   readonly flightRouterState: FlightRouterState | undefined
   readonly isPrefetchRequest: boolean
+  readonly isDevWarmupRequest: boolean
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
@@ -219,13 +222,19 @@ function parseRequestHeaders(
   headers: IncomingHttpHeaders,
   options: ParseRequestHeadersOptions
 ): ParsedRequestHeaders {
+  const isDevWarmupRequest = options.isDevWarmup === true
+
+  // dev warmup requests are treated as prefetch RSC requests
   const isPrefetchRequest =
+    isDevWarmupRequest ||
     headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
   const isHmrRefresh =
     headers[NEXT_HMR_REFRESH_HEADER.toLowerCase()] !== undefined
 
-  const isRSCRequest = headers[RSC_HEADER.toLowerCase()] !== undefined
+  // dev warmup requests are treated as prefetch RSC requests
+  const isRSCRequest =
+    isDevWarmupRequest || headers[RSC_HEADER.toLowerCase()] !== undefined
 
   const shouldProvideFlightRouterState =
     isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
@@ -248,6 +257,7 @@ function parseRequestHeaders(
     isPrefetchRequest,
     isHmrRefresh,
     isRSCRequest,
+    isDevWarmupRequest,
     nonce,
   }
 }
@@ -525,6 +535,69 @@ async function generateDynamicFlightRenderResult(
   )
 
   return new FlightRenderResult(flightReadableStream, {
+    fetchMetrics: ctx.workStore.fetchMetrics,
+  })
+}
+
+/**
+ * Performs a "warmup" render of the RSC payload for a given route. This function is called by the server
+ * prior to an actual render request in Dev mode only. It's purpose is to fill caches so the actual render
+ * can accurately log activity in the right render context (Prerender vs Render).
+ *
+ * At the moment this implementation is mostly a fork of generateDynamicFlightRenderResult
+ */
+async function warmupDevRender(
+  req: BaseNextRequest,
+  ctx: AppRenderContext,
+  options?: {
+    actionResult: ActionResult
+    skipFlight: boolean
+    componentTree?: CacheNodeSeedData
+    preloadCallbacks?: PreloadCallbacks
+  }
+): Promise<RenderResult> {
+  const renderOpts = ctx.renderOpts
+  if (!renderOpts.dev) {
+    throw new InvariantError(
+      'generateDynamicFlightRenderResult should never be called in `next start` mode.'
+    )
+  }
+
+  function onFlightDataRenderError(err: DigestedError) {
+    return renderOpts.onInstrumentationRequestError?.(
+      err,
+      req,
+      createErrorContext(ctx, 'react-server-components-payload')
+    )
+  }
+  const onError = createFlightReactServerErrorHandler(
+    true,
+    onFlightDataRenderError
+  )
+
+  const rscPayload = await generateDynamicRSCPayload(ctx, options)
+
+  // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
+  // which contains the subset React.
+  const flightReadableStream = ctx.componentMod.renderToReadableStream(
+    rscPayload,
+    ctx.clientReferenceManifest.clientModules,
+    {
+      onError,
+    }
+  )
+
+  const reader = flightReadableStream.getReader()
+  while (true) {
+    if ((await reader.read()).done) {
+      break
+    }
+  }
+
+  // We don't really want to return a result here but the stack of functions
+  // that calls into renderToHTML... expects a result. We should refactor this to
+  // lift the warmup pathway outside of renderToHTML... but for now this suffices
+  return new FlightRenderResult('', {
     fetchMetrics: ctx.workStore.fetchMetrics,
   })
 }
@@ -989,8 +1062,13 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const { flightRouterState, isPrefetchRequest, isRSCRequest, nonce } =
-    parsedRequestHeaders
+  const {
+    flightRouterState,
+    isPrefetchRequest,
+    isRSCRequest,
+    isDevWarmupRequest,
+    nonce,
+  } = parsedRequestHeaders
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -1171,7 +1249,9 @@ async function renderToHTMLOrFlightImpl(
     return new RenderResult(await streamToString(response.stream), options)
   } else {
     // We're rendering dynamically
-    if (isRSCRequest) {
+    if (isDevWarmupRequest) {
+      return warmupDevRender(req, ctx)
+    } else if (isRSCRequest) {
       return generateDynamicFlightRenderResult(req, ctx)
     }
 
@@ -1289,10 +1369,11 @@ export const renderToHTMLOrFlight: AppPageRender = (
   // We read these values from the request object as, in certain cases,
   // base-server will strip them to opt into different rendering behavior.
   const parsedRequestHeaders = parseRequestHeaders(req.headers, {
+    isDevWarmup: renderOpts.isDevWarmup,
     isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
   })
 
-  const { isHmrRefresh } = parsedRequestHeaders
+  const { isHmrRefresh, isPrefetchRequest } = parsedRequestHeaders
 
   const requestEndedState = { ended: false }
   let postponedState: PostponedState | null = null
@@ -1339,7 +1420,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
         fallbackRouteParams,
         renderOpts,
         requestEndedState,
-        isPrefetchRequest: Boolean(req.headers[NEXT_ROUTER_PREFETCH_HEADER]),
+        // @TODO move to workUnitStore of type Request
+        isPrefetchRequest,
       },
       (workStore) =>
         renderToHTMLOrFlightImpl(
