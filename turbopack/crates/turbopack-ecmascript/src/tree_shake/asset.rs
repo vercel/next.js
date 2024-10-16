@@ -207,6 +207,8 @@ impl Module for SideEffectsModule {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.binding.ident().await?.clone_value();
 
+        ident.add_modifier(Vc::cell(RcStr::from("side effects")));
+
         for (i, side_effect) in self.side_effects.await?.iter().enumerate() {
             ident.add_asset(
                 Vc::cell(RcStr::from(format!("side effect {}", i))),
