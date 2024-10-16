@@ -526,17 +526,18 @@ function writeOverridesField(
   packageManager: PackageManager,
   overrides: Record<string, string>
 ) {
-  if (packageManager === 'bun' || packageManager === 'npm') {
+  const entries = Object.entries(overrides)
+  if (packageManager === 'npm') {
     if (!packageJson.overrides) {
       packageJson.overrides = {}
     }
-    for (const [key, value] of Object.entries(overrides)) {
+    for (const [key, value] of entries) {
       packageJson.overrides[key] = value
     }
   } else if (packageManager === 'pnpm') {
     // pnpm supports pnpm.overrides and pnpm.resolutions
     if (packageJson.resolutions) {
-      for (const [key, value] of Object.entries(overrides)) {
+      for (const [key, value] of entries) {
         packageJson.resolutions[key] = value
       }
     } else {
@@ -546,7 +547,7 @@ function writeOverridesField(
       if (!packageJson.pnpm.overrides) {
         packageJson.pnpm.overrides = {}
       }
-      for (const [key, value] of Object.entries(overrides)) {
+      for (const [key, value] of entries) {
         packageJson.pnpm.overrides[key] = value
       }
     }
@@ -554,8 +555,24 @@ function writeOverridesField(
     if (!packageJson.resolutions) {
       packageJson.resolutions = {}
     }
-    for (const [key, value] of Object.entries(overrides)) {
+    for (const [key, value] of entries) {
       packageJson.resolutions[key] = value
+    }
+  } else if (packageManager === 'bun') {
+    // bun supports both overrides and resolutions
+    // x-ref: https://bun.sh/docs/install/overrides
+    if (packageJson.resolutions) {
+      for (const [key, value] of entries) {
+        packageJson.resolutions[key] = value
+      }
+    } else {
+      // add overrides field if it's missing and add overrides
+      if (!packageJson.overrides) {
+        packageJson.overrides = {}
+      }
+      for (const [key, value] of entries) {
+        packageJson.overrides[key] = value
+      }
     }
   }
 }
