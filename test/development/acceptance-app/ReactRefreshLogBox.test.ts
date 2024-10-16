@@ -1209,40 +1209,36 @@ export default function Home() {
     await cleanup()
   })
 
-  // TODO: Fails with Webpack since
-  // https://github.com/vercel/next.js/pull/71312, not reproducible locally,
-  // investigate why.
-  ;(isTurbopack ? test : test.skip)(
-    'Should collapse bundler internal stack frames',
-    async () => {
-      const { session, browser, cleanup } = await sandbox(
-        next,
-        new Map([
-          [
-            'app/utils.ts',
-            `throw new Error('utils error')
-export function foo(){}`,
-          ],
-          [
-            'app/page.js',
-            `"use client";
-import { foo } from "./utils";
+  test('Should collapse bundler internal stack frames', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/utils.ts',
+          `throw new Error('utils error')
+          export function foo(){}
+          `,
+        ],
+        [
+          'app/page.js',
+          `"use client";
+          import { foo } from "./utils";
 
-export default function Home() {
-  foo();
-  return "hello";
-}`,
-          ],
-        ])
-      )
+          export default function Home() {
+          foo();
+          return "hello";
+          }`,
+        ],
+      ])
+    )
 
-      await session.assertHasRedbox()
+    await session.assertHasRedbox()
 
-      let stack = next.normalizeTestDirContent(
-        await getRedboxCallStackCollapsed(browser)
-      )
-      if (isTurbopack) {
-        expect(stack).toMatchInlineSnapshot(`
+    let stack = next.normalizeTestDirContent(
+      await getRedboxCallStackCollapsed(browser)
+    )
+    if (isTurbopack) {
+      expect(stack).toMatchInlineSnapshot(`
         "app/utils.ts (1:7) @ [project]/app/utils.ts [app-client] (ecmascript)
         ---
         Next.js
@@ -1254,8 +1250,8 @@ export default function Home() {
         ---
         React"
       `)
-      } else {
-        expect(stack).toMatchInlineSnapshot(`
+    } else {
+      expect(stack).toMatchInlineSnapshot(`
         "app/utils.ts (1:7) @ eval
         ---
         (app-pages-browser)/./app/utils.ts
@@ -1273,9 +1269,8 @@ export default function Home() {
         ---
         React"
       `)
-      }
-
-      await cleanup()
     }
-  )
+
+    await cleanup()
+  })
 })
