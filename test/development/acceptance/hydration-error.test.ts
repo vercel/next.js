@@ -526,7 +526,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     expect(await getRedboxTotalErrorCount(browser)).toBe(
       isReact18
-        ? 3
+        ? 2
         : // FIXME: Should be 2
           1
     )
@@ -855,7 +855,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
 
     const description = await session.getRedboxDescription()
     if (isReact18) {
@@ -990,7 +990,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
 
     const description = await session.getRedboxDescription()
     if (isReact18) {
