@@ -75,6 +75,10 @@ const program = new Command(packageJson.name)
     'Explicitly tell the CLI to bootstrap the application using Bun.'
   )
   .option(
+    '--use-deno',
+    'Explicitly tell the CLI to bootstrap the application using Deno.'
+  )
+  .option(
     '--reset, --reset-preferences',
     'Reset the preferences saved for create-next-app.'
   )
@@ -125,6 +129,8 @@ const packageManager: PackageManager = !!opts.useNpm
       ? 'yarn'
       : !!opts.useBun
         ? 'bun'
+         : !!opts.useDeno
+        ? 'deno'
         : getPkgManager()
 
 async function run(): Promise<void> {
@@ -478,6 +484,7 @@ async function notifyUpdate(): Promise<void> {
         yarn: 'yarn global add',
         pnpm: 'pnpm add -g',
         bun: 'bun add -g',
+        deno: 'deno install -g',
       }
       const updateMessage = `${global[packageManager]} create-next-app`
       console.log(
