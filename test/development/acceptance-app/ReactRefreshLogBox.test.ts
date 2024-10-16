@@ -1216,18 +1216,18 @@ export default function Home() {
         [
           'app/utils.ts',
           `throw new Error('utils error')
-          export function foo(){}
+export function foo(){}
           `,
         ],
         [
           'app/page.js',
           `"use client";
-          import { foo } from "./utils";
+import { foo } from "./utils";
 
-          export default function Home() {
-          foo();
-          return "hello";
-          }`,
+export default function Home() {
+  foo();
+  return "hello";
+}`,
         ],
       ])
     )
