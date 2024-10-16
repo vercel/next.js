@@ -1550,6 +1550,7 @@ async function renderToStream(
       renderOpts.experimental.dynamicIO
     ) {
       let environmentName = 'Prerender'
+      requestStore.environment = environmentName
       reactServerResult = new ReactServerResult(
         await workUnitAsyncStorage.run(
           requestStore,
@@ -1565,7 +1566,7 @@ async function renderToStream(
             )
           },
           () => {
-            environmentName = 'Server'
+            environmentName = requestStore.environment = 'Server'
           }
         )
       )
