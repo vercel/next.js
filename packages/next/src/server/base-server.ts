@@ -2971,9 +2971,13 @@ export default abstract class Server<
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
                 postponed: undefined,
-                fallbackRouteParams: isProduction
-                  ? getFallbackRouteParams(pathname)
-                  : null,
+                fallbackRouteParams:
+                  // If we're in production of we're debugging the fallback
+                  // shell then we should postpone when dynamic params are
+                  // accessed.
+                  isProduction || isDebugFallbackShell
+                    ? getFallbackRouteParams(pathname)
+                    : null,
               }),
             {
               routeKind: RouteKind.APP_PAGE,
@@ -3179,7 +3183,10 @@ export default abstract class Server<
       isRoutePPREnabled &&
       cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
       cacheEntry.isFallback &&
-      !isOnDemandRevalidate
+      !isOnDemandRevalidate &&
+      // When we're debugging the fallback shell, we don't want to regenerate
+      // the route shell.
+      !isDebugFallbackShell
     ) {
       scheduleOnNextTick(async () => {
         try {
