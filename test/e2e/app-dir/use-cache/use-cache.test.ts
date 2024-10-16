@@ -41,6 +41,31 @@ describe('use-cache', () => {
     expect(await browser.waitForElementByCss('#r').text()).toContain('rnd')
   })
 
+  it('should cache complex args', async () => {
+    // Use two bytes that can't be encoded as UTF-8 to ensure serialization works.
+    const browser = await next.browser('/complex-args?n=a1')
+    const a1a = await browser.waitForElementByCss('#x').text()
+    expect(a1a.slice(0, 2)).toBe('a1')
+
+    await browser.loadPage(new URL('/complex-args?n=e2', next.url).toString())
+    const e2a = await browser.waitForElementByCss('#x').text()
+    expect(e2a.slice(0, 2)).toBe('e2')
+
+    expect(a1a).not.toBe(e2a)
+
+    await browser.loadPage(new URL('/complex-args?n=a1', next.url).toString())
+    const a1b = await browser.waitForElementByCss('#x').text()
+    expect(a1b.slice(0, 2)).toBe('a1')
+
+    await browser.loadPage(new URL('/complex-args?n=e2', next.url).toString())
+    const e2b = await browser.waitForElementByCss('#x').text()
+    expect(e2b.slice(0, 2)).toBe('e2')
+
+    // The two navigations to n=1 should use a cached value.
+    expect(a1a).toBe(a1b)
+    expect(e2a).toBe(e2b)
+  })
+
   it('should dedupe with react cache inside "use cache"', async () => {
     const browser = await next.browser('/react-cache')
     const a = await browser.waitForElementByCss('#a').text()
@@ -76,7 +101,7 @@ describe('use-cache', () => {
     }
   })
 
-  itSkipTurbopack('should cache results in route handlers', async () => {
+  it('should cache results in route handlers', async () => {
     const response = await next.fetch('/api')
     const { rand1, rand2 } = await response.json()
 
@@ -84,38 +109,29 @@ describe('use-cache', () => {
   })
 
   if (isNextStart) {
-    itSkipTurbopack(
-      'should match the expected revalidate config on the prerender manifest',
-      async () => {
-        const prerenderManifest = JSON.parse(
-          await next.readFile('.next/prerender-manifest.json')
-        )
+    it('should match the expected revalidate config on the prerender manifest', async () => {
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
 
-        expect(prerenderManifest.version).toBe(4)
-        expect(
-          prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
-        ).toBe(100)
-      }
-    )
+      expect(prerenderManifest.version).toBe(4)
+      expect(
+        prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
+      ).toBe(100)
+    })
 
-    itSkipTurbopack(
-      'should match the expected stale config in the page header',
-      async () => {
-        const meta = JSON.parse(
-          await next.readFile('.next/server/app/cache-life.meta')
-        )
-        expect(meta.headers['x-nextjs-stale-time']).toBe('19')
-      }
-    )
+    it('should match the expected stale config in the page header', async () => {
+      const meta = JSON.parse(
+        await next.readFile('.next/server/app/cache-life.meta')
+      )
+      expect(meta.headers['x-nextjs-stale-time']).toBe('19')
+    })
 
-    itSkipTurbopack(
-      'should propagate unstable_cache tags correctly',
-      async () => {
-        const meta = JSON.parse(
-          await next.readFile('.next/server/app/cache-tag.meta')
-        )
-        expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
-      }
-    )
+    it('should propagate unstable_cache tags correctly', async () => {
+      const meta = JSON.parse(
+        await next.readFile('.next/server/app/cache-tag.meta')
+      )
+      expect(meta.headers['x-next-cache-tags']).toContain('a,c,b')
+    })
   }
 })

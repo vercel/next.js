@@ -420,11 +420,11 @@ importers:
         specifier: 5.0.0
         version: 5.0.0
       playwright:
-        specifier: 1.41.2
-        version: 1.41.2
+        specifier: 1.48.0
+        version: 1.48.0
       playwright-chromium:
-        specifier: 1.41.2
-        version: 1.41.2
+        specifier: 1.48.0
+        version: 1.48.0
       postcss:
         specifier: 8.4.31
         version: 8.4.31
@@ -795,7 +795,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.0.0-canary.191
+        specifier: 15.0.0-canary.195
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.10.3
@@ -859,7 +859,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.0.0-canary.191
+        specifier: 15.0.0-canary.195
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -869,7 +869,7 @@ importers:
         version: 0.5.13
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 0.0.0-experimental-fa06e2c-20241014
+        version: 0.0.0-experimental-605e95c-20241015
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -987,19 +987,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 15.0.0-canary.191
+        specifier: 15.0.0-canary.195
         version: link:../font
       '@next/polyfill-module':
-        specifier: 15.0.0-canary.191
+        specifier: 15.0.0-canary.195
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.0.0-canary.191
+        specifier: 15.0.0-canary.195
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.0.0-canary.191
+        specifier: 15.0.0-canary.195
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.0.0-canary.191
+        specifier: 15.0.0-canary.195
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1636,7 +1636,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.0.0-canary.191
+        specifier: 15.0.0-canary.195
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -6176,11 +6176,11 @@ packages:
     peerDependencies:
       '@babel/core': 7.22.5
 
+  babel-plugin-react-compiler@0.0.0-experimental-605e95c-20241015:
+    resolution: {integrity: sha512-ZAaL18BPM4+1PhMnIUmmMD8xCZ2uk342tcoQezbUT1b6jLklfMkW3rNwH93fMnmZNlNkWHSyWCaYXzS7mtoXOQ==}
+
   babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
-
-  babel-plugin-react-compiler@0.0.0-experimental-fa06e2c-20241014:
-    resolution: {integrity: sha512-NZcV9zH8dtPdUB3cLUGuL9CCEBEnMqz5yW/WtK/Gy5W11NKw8TU7c2sGnyOSO4sQ6aOhi9aRZHGqpQWAznOcEw==}
 
   babel-plugin-transform-async-to-promises@0.8.15:
     resolution: {integrity: sha512-fDXP68ZqcinZO2WCiimCL9zhGjGXOnn3D33zvbh+yheZ/qOrNVVDDIBtAaM3Faz8TRvQzHiRKsu3hfrBAhEncQ==}
@@ -11809,6 +11809,11 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
+  playwright-chromium@1.48.0:
+    resolution: {integrity: sha512-jPFKhB4+zGEcAwc+h1mTLa8L08Rb+FwGKFqd/o7mWSGyxAtwBu5R4QxSG/a8KcHbewOj4DLBUVVK2N/uKrYmiQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   playwright-core@1.41.2:
     resolution: {integrity: sha512-VaTvwCA4Y8kxEe+kfm2+uUUw5Lubf38RxF7FpBxLPmGe5sdNkSg5e3ChEigaGrX7qdqT3pt2m/98LiyvU2x6CA==}
     engines: {node: '>=16'}
@@ -11819,6 +11824,11 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  playwright-core@1.48.0:
+    resolution: {integrity: sha512-RBvzjM9rdpP7UUFrQzRwR8L/xR4HyC1QXMzGYTbf1vjw25/ya9NRAVnXi/0fvFopjebvyPzsmoK58xxeEOaVvA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   playwright@1.41.2:
     resolution: {integrity: sha512-v0bOa6H2GJChDL8pAeLa/LZC4feoAMbSQm1/jF/ySsWWoaNItvrMP7GEkvEEFyCTUYKMxjQKaTSg5up7nR6/8A==}
     engines: {node: '>=16'}
@@ -11826,6 +11836,11 @@ packages:
 
   playwright@1.45.1:
     resolution: {integrity: sha512-Hjrgae4kpSQBr98nhCj3IScxVeVUixqj+5oyif8TdIn2opTCPEzqAqNMeK42i3cWDCVu9MI+ZsGWw+gVR4ISBg==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright@1.48.0:
+    resolution: {integrity: sha512-qPqFaMEHuY/ug8o0uteYJSRfMGFikhUysk8ZvAtfKmUK3kc/6oNl/y3EczF8OFGYIi/Ex2HspMfzYArk6+XQSA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -12670,6 +12685,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -21070,7 +21086,7 @@ snapshots:
       - supports-color
     optional: true
 
-  babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
+  babel-plugin-react-compiler@0.0.0-experimental-605e95c-20241015:
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
@@ -21080,7 +21096,7 @@ snapshots:
       zod: 3.23.8
       zod-validation-error: 2.1.0(zod@3.23.8)
 
-  babel-plugin-react-compiler@0.0.0-experimental-fa06e2c-20241014:
+  babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
@@ -28394,9 +28410,15 @@ snapshots:
     dependencies:
       playwright-core: 1.41.2
 
+  playwright-chromium@1.48.0:
+    dependencies:
+      playwright-core: 1.48.0
+
   playwright-core@1.41.2: {}
 
   playwright-core@1.45.1: {}
+
+  playwright-core@1.48.0: {}
 
   playwright@1.41.2:
     dependencies:
@@ -28407,6 +28429,12 @@ snapshots:
   playwright@1.45.1:
     dependencies:
       playwright-core: 1.45.1
+    optionalDependencies:
+      fsevents: 2.3.2
+
+  playwright@1.48.0:
+    dependencies:
+      playwright-core: 1.48.0
     optionalDependencies:
       fsevents: 2.3.2
 

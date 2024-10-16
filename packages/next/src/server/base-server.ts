@@ -1776,25 +1776,27 @@ export default abstract class Server<
     )
   }
 
-  private getWaitUntil(): WaitUntil | undefined {
+  protected getWaitUntil(): WaitUntil | undefined {
     const builtinRequestContext = getBuiltinRequestContext()
     if (builtinRequestContext) {
       // the platform provided a request context.
       // use the `waitUntil` from there, whether actually present or not --
       // if not present, `unstable_after` will error.
+
+      // NOTE: if we're in an edge runtime sandbox, this context will be used to forward the outer waitUntil.
       return builtinRequestContext.waitUntil
     }
 
-    if (process.env.__NEXT_TEST_MODE) {
-      // we're in a test, use a no-op.
-      return Server.noopWaitUntil
-    }
-
-    if (this.minimalMode || process.env.NEXT_RUNTIME === 'edge') {
+    if (this.minimalMode) {
       // we're built for a serverless environment, and `waitUntil` is not available,
       // but using a noop would likely lead to incorrect behavior,
       // because we have no way of keeping the invocation alive.
       // return nothing, and `unstable_after` will error if used.
+      //
+      // NOTE: for edge functions, `NextWebServer` always runs in minimal mode.
+      //
+      // NOTE: if we're in an edge runtime sandbox, waitUntil will be passed in using "@next/request-context",
+      // so we won't get here.
       return undefined
     }
 
@@ -2390,12 +2392,21 @@ export default abstract class Server<
        * The unknown route params for this render.
        */
       fallbackRouteParams: FallbackRouteParams | null
+
+      /**
+       * Whether or not this render is a warmup render for dev mode.
+       */
+      isDevWarmup?: boolean
     }
     type Renderer = (
       context: RendererContext
     ) => Promise<ResponseCacheEntry | null>
 
-    const doRender: Renderer = async ({ postponed, fallbackRouteParams }) => {
+    const doRender: Renderer = async ({
+      postponed,
+      fallbackRouteParams,
+      isDevWarmup,
+    }) => {
       // In development, we always want to generate dynamic HTML.
       let supportsDynamicResponse: boolean =
         // If we're in development, we always support dynamic HTML, unless it's
@@ -2468,6 +2479,7 @@ export default abstract class Server<
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
         isServerAction,
+        isDevWarmup,
         postponed,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
@@ -2788,6 +2800,7 @@ export default abstract class Server<
       hasResolved,
       previousCacheEntry,
       isRevalidating,
+      isDevWarmup,
     }): Promise<ResponseCacheEntry | null> => {
       const isProduction = !this.renderOpts.dev
       const didRespond = hasResolved || res.sent
@@ -3026,6 +3039,7 @@ export default abstract class Server<
       const result = await doRender({
         postponed,
         fallbackRouteParams,
+        isDevWarmup,
       })
       if (!result) return null
 
@@ -3039,7 +3053,7 @@ export default abstract class Server<
       const originalResponseGenerator = responseGenerator
 
       responseGenerator = async (
-        ...args: Parameters<typeof responseGenerator>
+        state: Parameters<ResponseGenerator>[0]
       ): ReturnType<typeof responseGenerator> => {
         if (this.renderOpts.dev) {
           let cache = this.prefetchCacheScopesDev.get(urlPathname)
@@ -3053,23 +3067,17 @@ export default abstract class Server<
             routeModule?.definition.kind === RouteKind.APP_PAGE &&
             !isServerAction
           ) {
-            req.headers[RSC_HEADER] = '1'
-            req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
-
             cache = new Map()
 
             await runWithCacheScope({ cache }, () =>
-              originalResponseGenerator(...args)
+              originalResponseGenerator({ ...state, isDevWarmup: true })
             )
             this.prefetchCacheScopesDev.set(urlPathname, cache)
-
-            delete req.headers[RSC_HEADER]
-            delete req.headers[NEXT_ROUTER_PREFETCH_HEADER]
           }
 
           if (cache) {
             return runWithCacheScope({ cache }, () =>
-              originalResponseGenerator(...args)
+              originalResponseGenerator(state)
             ).finally(() => {
               if (isPrefetchRSCRequest) {
                 this.prefetchCacheScopesDev.set(urlPathname, cache)
@@ -3080,7 +3088,7 @@ export default abstract class Server<
           }
         }
 
-        return originalResponseGenerator(...args)
+        return originalResponseGenerator(state)
       }
     }
 
