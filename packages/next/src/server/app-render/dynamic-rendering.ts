@@ -609,10 +609,7 @@ export function trackAllowedDynamicAccess(
   dynamicTracking: DynamicTrackingState
 ) {
   const disallowedDynamic = dynamicTracking.disallowedDynamic
-  if (hasSuspenseRegex.test(componentStack)) {
-    disallowedDynamic.hasSuspendedDynamic = true
-    return
-  } else if (hasOutletRegex.test(componentStack)) {
+  if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
@@ -621,6 +618,9 @@ export function trackAllowedDynamicAccess(
     return
   } else if (hasViewportRegex.test(componentStack)) {
     disallowedDynamic.hasDynamicViewport = true
+    return
+  } else if (hasSuspenseRegex.test(componentStack)) {
+    disallowedDynamic.hasSuspendedDynamic = true
     return
   } else if (isPrerenderInterruptedError(thrownValue)) {
     const syncDynamicExpression = disallowedDynamic.syncDynamicExpression
