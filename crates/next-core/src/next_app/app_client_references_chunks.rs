@@ -28,18 +28,11 @@ pub fn client_modules_ssr_modifier() -> Vc<RcStr> {
     Vc::cell("client modules ssr".into())
 }
 
-#[turbo_tasks::function]
-pub fn client_modules_rsc_modifier() -> Vc<RcStr> {
-    Vc::cell("client modules rsc".into())
-}
-
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
     pub client_component_client_chunks:
         FxIndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
     pub client_component_ssr_chunks:
-        FxIndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
-    pub client_component_rsc_chunks:
         FxIndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
     pub layout_segment_client_chunks: FxIndexMap<Vc<NextServerComponentModule>, Vc<OutputAssets>>,
 }
@@ -149,12 +142,6 @@ pub async fn get_app_client_references_chunks(
                         ssr_chunks.map(|ssr_chunks| (client_reference_ty, ssr_chunks))
                     })
                     .collect(),
-                client_component_rsc_chunks: app_client_references_chunks
-                    .iter()
-                    .flat_map(|&(client_reference_ty, (_, _, rsc_chunks))| {
-                        rsc_chunks.map(|rsc_chunks| (client_reference_ty, rsc_chunks))
-                    })
-                    .collect(),
                 layout_segment_client_chunks: FxIndexMap::default(),
             }
             .cell())
@@ -186,12 +173,9 @@ pub async fn get_app_client_references_chunks(
             let mut current_client_chunks = OutputAssets::empty();
             let mut current_ssr_availability_info = AvailabilityInfo::Root;
             let mut current_ssr_chunks = OutputAssets::empty();
-            let mut current_rsc_availability_info = AvailabilityInfo::Root;
-            let mut current_rsc_chunks = OutputAssets::empty();
 
             let mut layout_segment_client_chunks = FxIndexMap::default();
             let mut client_component_ssr_chunks = FxIndexMap::default();
-            let mut client_component_rsc_chunks = FxIndexMap::default();
             let mut client_component_client_chunks = FxIndexMap::default();
 
             for (server_component, client_reference_types) in
@@ -222,20 +206,6 @@ pub async fn get_app_client_references_chunks(
                     .try_flat_join()
                     .await?;
 
-                let rsc_modules = client_reference_types
-                    .iter()
-                    .map(|client_reference_ty| async move {
-                        Ok(match client_reference_ty {
-                            ClientReferenceType::EcmascriptClientReference {
-                                parent_module,
-                                ..
-                            } => Some(Vc::upcast(*parent_module)),
-                            _ => None,
-                        })
-                    })
-                    .try_flat_join()
-                    .await?;
-
                 let ssr_chunk_group = if !ssr_modules.is_empty() {
                     ssr_chunking_context.map(|ssr_chunking_context| {
                         let _span = tracing::info_span!(
@@ -252,28 +222,6 @@ pub async fn get_app_client_references_chunks(
                             ssr_entry_module.ident(),
                             Vc::upcast(ssr_entry_module),
                             Value::new(current_ssr_availability_info),
-                        )
-                    })
-                } else {
-                    None
-                };
-
-                let rsc_chunk_group = if !rsc_modules.is_empty() {
-                    ssr_chunking_context.map(|ssr_chunking_context| {
-                        let _span = tracing::info_span!(
-                            "server side rendering",
-                            layout_segment = display(&server_component_path),
-                        )
-                        .entered();
-
-                        let rsc_entry_module = IncludeModulesModule::new(
-                            base_ident.with_modifier(client_modules_rsc_modifier()),
-                            rsc_modules,
-                        );
-                        ssr_chunking_context.chunk_group(
-                            rsc_entry_module.ident(),
-                            Vc::upcast(rsc_entry_module),
-                            Value::new(current_rsc_availability_info),
                         )
                     })
                 } else {
@@ -367,35 +315,11 @@ pub async fn get_app_client_references_chunks(
                         }
                     }
                 }
-
-                if let Some(rsc_chunk_group) = rsc_chunk_group {
-                    let rsc_chunk_group = rsc_chunk_group.await?;
-
-                    let rsc_chunks = current_rsc_chunks.concatenate(rsc_chunk_group.assets);
-                    let rsc_chunks = rsc_chunks.resolve().await?;
-
-                    if is_layout {
-                        current_rsc_availability_info = rsc_chunk_group.availability_info;
-                        current_rsc_chunks = rsc_chunks;
-                    }
-
-                    for &client_reference_ty in client_reference_types.iter() {
-                        if let ClientReferenceType::EcmascriptClientReference { .. } =
-                            client_reference_ty
-                        {
-                            client_component_rsc_chunks.insert(
-                                client_reference_ty,
-                                (rsc_chunks, rsc_chunk_group.availability_info),
-                            );
-                        }
-                    }
-                }
             }
 
             Ok(ClientReferencesChunks {
                 client_component_client_chunks,
                 client_component_ssr_chunks,
-                client_component_rsc_chunks,
                 layout_segment_client_chunks,
             }
             .cell())
