@@ -11,16 +11,14 @@ import {
   type RouteModuleHandleContext,
   type RouteModuleOptions,
 } from '../route-module'
-import {
-  withRequestStore,
-  type RequestContext,
-} from '../../async-storage/with-request-store'
+import { createRequestStoreForAPI } from '../../async-storage/request-store'
 import {
   withWorkStore,
   type WorkStoreContext,
 } from '../../async-storage/with-work-store'
 import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
-import { getImplicitTags, patchFetch } from '../../lib/patch-fetch'
+import { getImplicitTags } from '../../lib/implicit-tags'
+import { patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
 import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
@@ -33,6 +31,7 @@ import {
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 import { RequestCookiesAdapter } from '../../web/spec-extension/adapters/request-cookies'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
+import { printDebugThrownValueForProspectiveRender } from '../../app-render/prospective-render-utils'
 
 import * as serverHooks from '../../../client/components/hooks-server-context'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
@@ -40,16 +39,16 @@ import { DynamicServerError } from '../../../client/components/hooks-server-cont
 import {
   workAsyncStorage,
   type WorkStore,
-} from '../../../client/components/work-async-storage.external'
+} from '../../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
-  type WorkUnitStore,
+  type RequestStore,
   type PrerenderStore,
 } from '../../app-render/work-unit-async-storage.external'
 import {
   actionAsyncStorage,
   type ActionStore,
-} from '../../../client/components/action-async-storage.external'
+} from '../../app-render/action-async-storage.external'
 import * as sharedModules from './shared-modules'
 import { getIsServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
@@ -278,7 +277,11 @@ export class AppRouteRouteModule extends RouteModule<
     handler: AppRouteHandlerFn,
     actionStore: ActionStore,
     workStore: WorkStore,
-    workUnitStore: WorkUnitStore,
+    // @TODO refactor to not take this argument but instead construct the RequestStore
+    // inside this function. Right now we get passed a RequestStore even when
+    // we're going to do a prerender. We should probably just split do up into prexecute and execute
+    requestStore: RequestStore,
+    implicitTags: string[],
     request: NextRequest,
     context: AppRouteRouteHandlerContext
   ) {
@@ -299,15 +302,6 @@ export class AppRouteRouteModule extends RouteModule<
           )
         : undefined,
     }
-
-    const pathname =
-      workUnitStore.type === 'request'
-        ? workUnitStore.url.pathname
-        : workUnitStore.type === 'prerender' ||
-            workUnitStore.type === 'prerender-ppr' ||
-            workUnitStore.type === 'prerender-legacy'
-          ? workUnitStore.pathname
-          : undefined
 
     let prerenderStore: null | PrerenderStore = null
 
@@ -334,7 +328,7 @@ export class AppRouteRouteModule extends RouteModule<
            *
            * Next we run the handler again and we check if we get a result back in a microtask.
            * Next.js expects the return value to be a Response or a Thenable that resolves to a Response.
-           * Unfortunately Response's do not allow for acessing the response body synchronously or in
+           * Unfortunately Response's do not allow for accessing the response body synchronously or in
            * a microtask so we need to allow one more task to unwrap the response body. This is a slightly
            * different semantic than what we have when we render and it means that certain tasks can still
            * execute before a prerender completes such as a carefully timed setImmediate.
@@ -350,21 +344,19 @@ export class AppRouteRouteModule extends RouteModule<
           const prospectiveRoutePrerenderStore: PrerenderStore =
             (prerenderStore = {
               type: 'prerender',
+              phase: 'action',
+              implicitTags: implicitTags,
               renderSignal: prospectiveController.signal,
-              pathname,
               cacheSignal,
               // During prospective render we don't use a controller
               // because we need to let all caches fill.
               controller: null,
               dynamicTracking,
               revalidate: defaultRevalidate,
-              tags: null,
+              expire: INFINITE_CACHE,
+              stale: INFINITE_CACHE,
+              tags: [...implicitTags],
             })
-          // This cycle is a bit unfortunate.
-          prospectiveRoutePrerenderStore.tags = getImplicitTags(
-            workStore,
-            prospectiveRoutePrerenderStore
-          )
 
           let prospectiveResult
           try {
@@ -379,6 +371,8 @@ export class AppRouteRouteModule extends RouteModule<
               // the route handler called an API which is always dynamic
               // there is no need to try again
               prospectiveRenderIsDynamic = true
+            } else if (process.env.NEXT_DEBUG_BUILD) {
+              printDebugThrownValueForProspectiveRender(err, workStore.route)
             }
           }
           if (
@@ -395,6 +389,11 @@ export class AppRouteRouteModule extends RouteModule<
                   // the route handler called an API which is always dynamic
                   // there is no need to try again
                   prospectiveRenderIsDynamic = true
+                } else if (process.env.NEXT_DEBUG_BUILD) {
+                  printDebugThrownValueForProspectiveRender(
+                    err,
+                    workStore.route
+                  )
                 }
               }
             )
@@ -427,19 +426,17 @@ export class AppRouteRouteModule extends RouteModule<
 
           const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
             type: 'prerender',
+            phase: 'action',
+            implicitTags: implicitTags,
             renderSignal: finalController.signal,
-            pathname,
             cacheSignal: null,
             controller: finalController,
             dynamicTracking,
             revalidate: defaultRevalidate,
-            tags: null,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
+            tags: [...implicitTags],
           })
-          // This cycle is a bit unfortunate.
-          finalRoutePrerenderStore.tags = getImplicitTags(
-            workStore,
-            finalRoutePrerenderStore
-          )
 
           let responseHandled = false
           res = await new Promise((resolve, reject) => {
@@ -507,12 +504,13 @@ export class AppRouteRouteModule extends RouteModule<
         } else {
           prerenderStore = {
             type: 'prerender-legacy',
-            pathname,
+            phase: 'action',
+            implicitTags: implicitTags,
             revalidate: defaultRevalidate,
-            tags: null,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
+            tags: [...implicitTags],
           }
-          // This cycle is a bit unfortunate.
-          prerenderStore.tags = getImplicitTags(workStore, prerenderStore)
 
           res = await workUnitAsyncStorage.run(
             prerenderStore,
@@ -522,7 +520,12 @@ export class AppRouteRouteModule extends RouteModule<
           )
         }
       } else {
-        res = await handler(request, handlerContext)
+        res = await workUnitAsyncStorage.run(
+          requestStore,
+          handler,
+          request,
+          handlerContext
+        )
       }
     } catch (err) {
       if (isRedirectError(err)) {
@@ -537,8 +540,10 @@ export class AppRouteRouteModule extends RouteModule<
 
         // Let's append any cookies that were added by the
         // cookie API.
-        if (workUnitStore.type === 'request') {
-          appendMutableCookies(headers, workUnitStore.mutableCookies)
+        // TODO leaving the gate here b/c it indicates that we we might not actually want to do this
+        // on every `do` call. During prerender there should be no mutableCookies because
+        if (requestStore.type === 'request') {
+          appendMutableCookies(headers, requestStore.mutableCookies)
         }
 
         // Return the redirect response.
@@ -579,6 +584,8 @@ export class AppRouteRouteModule extends RouteModule<
         prerenderStore.tags?.join(',')
       ;(context.renderOpts as any).collectedRevalidate =
         prerenderStore.revalidate
+      ;(context.renderOpts as any).collectedExpire = prerenderStore.expire
+      ;(context.renderOpts as any).collectedStale = prerenderStore.stale
     }
 
     // It's possible cookies were set in the handler, so we need
@@ -586,8 +593,8 @@ export class AppRouteRouteModule extends RouteModule<
     // here.
     const headers = new Headers(res.headers)
     if (
-      workUnitStore.type === 'request' &&
-      appendMutableCookies(headers, workUnitStore.mutableCookies)
+      requestStore.type === 'request' &&
+      appendMutableCookies(headers, requestStore.mutableCookies)
     ) {
       return new Response(res.body, {
         status: res.status,
@@ -606,16 +613,6 @@ export class AppRouteRouteModule extends RouteModule<
     // Get the handler function for the given method.
     const handler = this.resolve(req.method)
 
-    // Get the context for the request.
-    const requestContext: RequestContext = {
-      req,
-      res: undefined,
-      url: req.nextUrl,
-      renderOpts: {
-        previewProps: context.prerenderManifest.preview,
-      },
-    }
-
     // Get the context for the static generation.
     const staticGenerationContext: WorkStoreContext = {
       // App Routes don't support unknown route params.
@@ -632,92 +629,105 @@ export class AppRouteRouteModule extends RouteModule<
       isAction: getIsServerAction(req),
     }
 
+    const implicitTags = getImplicitTags(
+      this.definition.page,
+      req.nextUrl,
+      // App Routes don't support unknown route params.
+      null
+    )
+
+    const requestStore = createRequestStoreForAPI(
+      req,
+      req.nextUrl,
+      implicitTags,
+      undefined,
+      context.prerenderManifest.preview
+    )
+
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support. We set this to `unknown` because the type is not known until
     // runtime when we do a instanceof check below.
     const response: unknown = await this.actionAsyncStorage.run(
       actionStore,
       () =>
-        withRequestStore(
-          this.workUnitAsyncStorage,
-          requestContext,
-          (workUnitStore) =>
-            withWorkStore(
-              this.workAsyncStorage,
-              staticGenerationContext,
-              async (workStore) => {
-                // Check to see if we should bail out of static generation based on
-                // having non-static methods.
-                if (this.hasNonStaticMethods) {
-                  if (workStore.isStaticGeneration) {
-                    const err = new DynamicServerError(
-                      'Route is configured with methods that cannot be statically generated.'
-                    )
-                    workStore.dynamicUsageDescription = err.message
-                    workStore.dynamicUsageStack = err.stack
-                    throw err
-                  }
+        this.workUnitAsyncStorage.run(requestStore, () =>
+          withWorkStore(
+            this.workAsyncStorage,
+            staticGenerationContext,
+            async (workStore) => {
+              // Check to see if we should bail out of static generation based on
+              // having non-static methods.
+              if (this.hasNonStaticMethods) {
+                if (workStore.isStaticGeneration) {
+                  const err = new DynamicServerError(
+                    'Route is configured with methods that cannot be statically generated.'
+                  )
+                  workStore.dynamicUsageDescription = err.message
+                  workStore.dynamicUsageStack = err.stack
+                  throw err
                 }
-
-                // We assume we can pass the original request through however we may end up
-                // proxying it in certain circumstances based on execution type and configuration
-                let request = req
-
-                // Update the static generation store based on the dynamic property.
-                switch (this.dynamic) {
-                  case 'force-dynamic': {
-                    // Routes of generated paths should be dynamic
-                    workStore.forceDynamic = true
-                    break
-                  }
-                  case 'force-static':
-                    // The dynamic property is set to force-static, so we should
-                    // force the page to be static.
-                    workStore.forceStatic = true
-                    // We also Proxy the request to replace dynamic data on the request
-                    // with empty stubs to allow for safely executing as static
-                    request = new Proxy(req, forceStaticRequestHandlers)
-                    break
-                  case 'error':
-                    // The dynamic property is set to error, so we should throw an
-                    // error if the page is being statically generated.
-                    workStore.dynamicShouldError = true
-                    if (workStore.isStaticGeneration)
-                      request = new Proxy(req, requireStaticRequestHandlers)
-                    break
-                  default:
-                    // We proxy `NextRequest` to track dynamic access, and potentially bail out of static generation
-                    request = proxyNextRequest(req, workStore)
-                }
-
-                // TODO: propagate this pathname from route matcher
-                const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
-
-                const tracer = getTracer()
-
-                // Update the root span attribute for the route.
-                tracer.setRootSpanAttribute('next.route', route)
-
-                return tracer.trace(
-                  AppRouteRouteHandlersSpan.runHandler,
-                  {
-                    spanName: `executing api route (app) ${route}`,
-                    attributes: {
-                      'next.route': route,
-                    },
-                  },
-                  async () =>
-                    this.do(
-                      handler,
-                      actionStore,
-                      workStore,
-                      workUnitStore,
-                      request,
-                      context
-                    )
-                )
               }
-            )
+
+              // We assume we can pass the original request through however we may end up
+              // proxying it in certain circumstances based on execution type and configuration
+              let request = req
+
+              // Update the static generation store based on the dynamic property.
+              switch (this.dynamic) {
+                case 'force-dynamic': {
+                  // Routes of generated paths should be dynamic
+                  workStore.forceDynamic = true
+                  break
+                }
+                case 'force-static':
+                  // The dynamic property is set to force-static, so we should
+                  // force the page to be static.
+                  workStore.forceStatic = true
+                  // We also Proxy the request to replace dynamic data on the request
+                  // with empty stubs to allow for safely executing as static
+                  request = new Proxy(req, forceStaticRequestHandlers)
+                  break
+                case 'error':
+                  // The dynamic property is set to error, so we should throw an
+                  // error if the page is being statically generated.
+                  workStore.dynamicShouldError = true
+                  if (workStore.isStaticGeneration)
+                    request = new Proxy(req, requireStaticRequestHandlers)
+                  break
+                default:
+                  // We proxy `NextRequest` to track dynamic access, and potentially bail out of static generation
+                  request = proxyNextRequest(req, workStore)
+              }
+
+              // TODO: propagate this pathname from route matcher
+              const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
+
+              const tracer = getTracer()
+
+              // Update the root span attribute for the route.
+              tracer.setRootSpanAttribute('next.route', route)
+
+              return tracer.trace(
+                AppRouteRouteHandlersSpan.runHandler,
+                {
+                  spanName: `executing api route (app) ${route}`,
+                  attributes: {
+                    'next.route': route,
+                  },
+                },
+                async () =>
+                  this.do(
+                    handler,
+                    actionStore,
+                    workStore,
+                    requestStore,
+                    implicitTags,
+                    request,
+                    context
+                  )
+              )
+            }
+          )
         )
     )
 

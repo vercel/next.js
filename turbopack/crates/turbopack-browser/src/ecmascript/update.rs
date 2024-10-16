@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, Vc};
 use turbopack_core::{chunk::ModuleId, code_builder::Code};
 
 use super::{content::EcmascriptDevChunkContent, version::EcmascriptDevChunkVersion};
@@ -12,9 +11,9 @@ pub(super) enum EcmascriptChunkUpdate {
 }
 
 pub(super) struct EcmascriptChunkPartialUpdate {
-    pub added: IndexMap<ReadRef<ModuleId>, (u64, Vc<Code>)>,
-    pub deleted: IndexMap<ReadRef<ModuleId>, u64>,
-    pub modified: IndexMap<ReadRef<ModuleId>, Vc<Code>>,
+    pub added: FxIndexMap<ReadRef<ModuleId>, (u64, Vc<Code>)>,
+    pub deleted: FxIndexMap<ReadRef<ModuleId>, u64>,
+    pub modified: FxIndexMap<ReadRef<ModuleId>, Vc<Code>>,
 }
 
 pub(super) async fn update_ecmascript_chunk(
@@ -34,9 +33,9 @@ pub(super) async fn update_ecmascript_chunk(
     let content = content.await?;
 
     let entries = content.entries.await?;
-    let mut added = IndexMap::default();
-    let mut modified = IndexMap::default();
-    let mut deleted = IndexMap::default();
+    let mut added = FxIndexMap::default();
+    let mut modified = FxIndexMap::default();
+    let mut deleted = FxIndexMap::default();
 
     for (id, from_hash) in &from.entries_hashes {
         if let Some(entry) = entries.get(id) {

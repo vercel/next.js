@@ -1,8 +1,8 @@
 import {
   HeadersAdapter,
   type ReadonlyHeaders,
-} from '../../server/web/spec-extension/adapters/headers'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+} from '../web/spec-extension/adapters/headers'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
   workUnitAsyncStorage,
@@ -30,11 +30,8 @@ import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-b
  * from outside and await the return value before passing it into this function.
  *
  * You can find instances that require manual migration by searching for `UnsafeUnwrappedHeaders` in your codebase or by search for a comment that
- * starts with:
+ * starts with `@next-codemod-error`.
  *
- * ```
- * // TODO [sync-headers-usage]
- * ```
  * In a future version of Next.js `headers()` will only return a Promise and you will not be able to access the underlying Headers instance
  * without awaiting the return value first. When this change happens the type `UnsafeUnwrappedHeaders` will be updated to reflect that is it no longer
  * usable.
@@ -74,6 +71,10 @@ export function headers(): Promise<ReadonlyHeaders> {
       } else if (workUnitStore.type === 'unstable-cache') {
         throw new Error(
           `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      } else if (workUnitStore.phase === 'after') {
+        throw new Error(
+          `Route ${workStore.route} used "headers" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "headers" outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
         )
       }
     }
@@ -138,7 +139,10 @@ function makeDynamicallyTrackedExoticHeaders(
     return cachedHeaders
   }
 
-  const promise = makeHangingPromise<ReadonlyHeaders>()
+  const promise = makeHangingPromise<ReadonlyHeaders>(
+    prerenderStore.renderSignal,
+    '`headers()`'
+  )
   CachedHeaders.set(prerenderStore, promise)
 
   Object.defineProperties(promise, {

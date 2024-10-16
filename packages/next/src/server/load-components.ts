@@ -19,7 +19,6 @@ import {
   REACT_LOADABLE_MANIFEST,
   CLIENT_REFERENCE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
-  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -31,6 +30,7 @@ import { wait } from '../lib/wait'
 import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
 import { createServerModuleMap } from './app-render/action-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { isMetadataRoute } from '../lib/metadata/is-metadata-route'
 
 export type ManifestItem = {
   id: number | string
@@ -140,9 +140,8 @@ async function loadComponentsImpl<N = any>({
     ])
   }
 
-  // Make sure to avoid loading the manifest for Route Handlers
-  const hasClientManifest =
-    isAppPath && (page.endsWith('/page') || page === UNDERSCORE_NOT_FOUND_ROUTE)
+  // Make sure to avoid loading the manifest for metadata route handlers.
+  const hasClientManifest = isAppPath && !isMetadataRoute(page)
 
   // Load the manifest files first
   const [

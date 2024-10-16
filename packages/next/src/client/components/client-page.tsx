@@ -27,7 +27,7 @@ export function ClientPageRoot({
 }) {
   if (typeof window === 'undefined') {
     const { workAsyncStorage } =
-      require('./work-async-storage.external') as typeof import('./work-async-storage.external')
+      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
 
     let clientSearchParams: Promise<ParsedUrlQuery>
     let clientParams: Promise<Params>

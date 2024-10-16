@@ -14,6 +14,7 @@ __turbo_tasks_internal_primitive!(Option<String>);
 __turbo_tasks_internal_primitive!(Option<RcStr>);
 __turbo_tasks_internal_primitive!(Vec<RcStr>);
 __turbo_tasks_internal_primitive!(Option<u16>);
+__turbo_tasks_internal_primitive!(Option<u64>);
 __turbo_tasks_internal_primitive!(bool);
 __turbo_tasks_internal_primitive!(u8);
 __turbo_tasks_internal_primitive!(u16);

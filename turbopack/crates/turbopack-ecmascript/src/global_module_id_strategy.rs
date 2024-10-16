@@ -1,8 +1,7 @@
 use anyhow::Result;
-use indexmap::{IndexMap, IndexSet};
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    RcStr, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, RcStr, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -18,7 +17,7 @@ pub struct PreprocessedChildrenIdents {
     // ident.to_string() -> full hash
     // We save the full hash to avoid re-hashing in `merge_preprocessed_module_ids`
     // if this endpoint did not change.
-    modules_idents: IndexMap<RcStr, u64>,
+    modules_idents: FxIndexMap<RcStr, u64>,
 }
 
 #[derive(Clone, Hash)]
@@ -48,7 +47,7 @@ pub struct ReferencedModules(Vec<Vc<ReferencedModule>>);
 async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<ReferencedModules>> {
     let references = module.references().await?;
 
-    let mut set = IndexSet::new();
+    let mut set = FxIndexSet::default();
     let modules_and_async_loaders: ModulesAndAsyncLoaders = references
         .iter()
         .map(|reference| async move {
@@ -133,7 +132,7 @@ pub async fn children_modules_idents(
         .into_reverse_topological();
 
     // module_id -> full hash
-    let mut modules_idents = IndexMap::new();
+    let mut modules_idents = FxIndexMap::default();
     for child_module in children_modules_iter {
         match *child_module.await? {
             ReferencedModule::Module(module) => {
@@ -169,8 +168,8 @@ const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
 // ids and another that generates the final, optimized module ids. Thoughts?
 pub async fn merge_preprocessed_module_ids(
     preprocessed_module_ids: Vec<Vc<PreprocessedChildrenIdents>>,
-) -> Result<IndexMap<RcStr, ModuleId>> {
-    let mut merged_module_ids = IndexMap::new();
+) -> Result<FxIndexMap<RcStr, ModuleId>> {
+    let mut merged_module_ids = FxIndexMap::default();
 
     for preprocessed_module_ids in preprocessed_module_ids {
         for (module_ident, full_hash) in &preprocessed_module_ids.await?.modules_idents {
@@ -186,8 +185,8 @@ pub async fn merge_preprocessed_module_ids(
         JS_MAX_SAFE_INTEGER,
     );
 
-    let mut module_id_map = IndexMap::new();
-    let mut used_ids = IndexSet::new();
+    let mut module_id_map = FxIndexMap::default();
+    let mut used_ids = FxIndexSet::default();
 
     for (module_ident, full_hash) in merged_module_ids.iter() {
         let mut trimmed_hash = full_hash % digit_mask;

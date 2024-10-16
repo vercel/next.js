@@ -65,6 +65,15 @@ impl AssetContent {
     }
 
     #[turbo_tasks::function]
+    pub async fn len(self: Vc<Self>) -> Result<Vc<Option<u64>>> {
+        let this = self.await?;
+        match &*this {
+            AssetContent::File(content) => Ok(content.len()),
+            AssetContent::Redirect { .. } => Ok(Vc::cell(None)),
+        }
+    }
+
+    #[turbo_tasks::function]
     pub async fn parse_json_with_comments(self: Vc<Self>) -> Result<Vc<FileJsonContent>> {
         let this = self.await?;
         match &*this {

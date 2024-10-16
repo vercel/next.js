@@ -146,6 +146,12 @@ export default function Page() {
 }
 ```
 
+```jsx filename="pages/index.js" switcher
+export default function Page() {
+  return <h1>Hello, Next.js!</h1>
+}
+```
+
 Next, add an `_app.tsx` file inside `pages/` to define the global layout. Learn more about the [custom App file](/docs/pages/building-your-application/routing/custom-app).
 
 ```tsx filename="pages/_app.tsx" switcher
@@ -165,6 +171,22 @@ export default function App({ Component, pageProps }) {
 Finally, add a `_document.tsx` file inside `pages/` to control the initial response from the server. Learn more about the [custom Document file](/docs/pages/building-your-application/routing/custom-document).
 
 ```tsx filename="pages/_document.tsx" switcher
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
+```jsx filename="pages/_document.js" switcher
 import { Html, Head, Main, NextScript } from 'next/document'
 
 export default function Document() {

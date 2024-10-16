@@ -20,8 +20,8 @@
  * read that data outside the cache and pass it in as an argument to the cached function.
  */
 
-import type { WorkStore } from '../../client/components/work-async-storage.external'
-import type { WorkUnitStore } from '../../server/app-render/work-unit-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
 import React from 'react'
@@ -33,7 +33,7 @@ import {
   type PrerenderStoreLegacy,
   type PrerenderStoreModern,
 } from './work-unit-async-storage.external'
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
@@ -116,7 +116,7 @@ export function getFirstDynamicReason(
  */
 export function markCurrentScopeAsDynamic(
   store: WorkStore,
-  workUnitStore: undefined | WorkUnitStore,
+  workUnitStore: undefined | Exclude<WorkUnitStore, PrerenderStoreModern>,
   expression: string
 ): void {
   if (workUnitStore) {
@@ -143,17 +143,7 @@ export function markCurrentScopeAsDynamic(
   }
 
   if (workUnitStore) {
-    if (workUnitStore.type === 'prerender') {
-      // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
-      // current render because something dynamic is being used.
-      // This won't throw so we still need to fall through to determine if/how we handle
-      // this specific dynamic request.
-      abortAndThrowOnSynchronousDynamicDataAccess(
-        store.route,
-        expression,
-        workUnitStore
-      )
-    } else if (workUnitStore.type === 'prerender-ppr') {
+    if (workUnitStore.type === 'prerender-ppr') {
       postponeWithTracking(
         store.route,
         expression,
@@ -481,10 +471,6 @@ export function isPrerenderInterruptedError(
   )
 }
 
-export function isRenderInterruptedReason(reason: string) {
-  return reason === NEXT_PRERENDER_INTERRUPTED
-}
-
 export function accessedDynamicData(
   dynamicTracking: DynamicTrackingState
 ): boolean {
@@ -587,7 +573,7 @@ export function useDynamicRouteParams(expression: string) {
           // We are in a prerender with dynamicIO semantics
           // We are going to hang here and never resolve. This will cause the currently
           // rendering component to effectively be a dynamic hole
-          React.use(makeHangingPromise())
+          React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
         } else if (workUnitStore.type === 'prerender-ppr') {
           // We're prerendering with PPR
           postponeWithTracking(
@@ -626,7 +612,6 @@ export function trackAllowedDynamicAccess(
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
-    //
     disallowedDynamic.hasDynamicMetadata = true
     return
   } else if (hasViewportRegex.test(componentStack)) {

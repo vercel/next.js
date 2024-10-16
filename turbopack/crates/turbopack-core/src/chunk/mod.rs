@@ -18,14 +18,14 @@ use std::{
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
-use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use tracing::{info_span, Span};
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    RcStr, ReadRef, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, RcStr, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -125,6 +125,10 @@ pub trait Chunk: Asset {
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }
+
+    fn chunk_items(self: Vc<Self>) -> Vc<ChunkItems> {
+        ChunkItems(vec![]).cell()
+    }
 }
 
 /// Aggregated information about a chunk content that can be used by the runtime
@@ -133,7 +137,7 @@ pub trait Chunk: Asset {
 #[derive(Default)]
 pub struct OutputChunkRuntimeInfo {
     pub included_ids: Option<Vc<ModuleIds>>,
-    pub excluded_ids: Option<Vc<ModuleIds>>,
+    pub excluded_ids: Option<ResolvedVc<ModuleIds>>,
     /// List of paths of chunks containing individual modules that are part of
     /// this chunk. This is useful for selectively loading modules from a chunk
     /// without loading the whole chunk.
@@ -182,12 +186,12 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     }
 }
 
-type AsyncInfo = IndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>;
+type AsyncInfo = FxIndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>;
 
 pub struct ChunkContentResult {
-    pub chunk_items: IndexSet<Vc<Box<dyn ChunkItem>>>,
-    pub async_modules: IndexSet<Vc<Box<dyn ChunkableModule>>>,
-    pub external_module_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
+    pub chunk_items: FxIndexSet<Vc<Box<dyn ChunkItem>>>,
+    pub async_modules: FxIndexSet<Vc<Box<dyn ChunkableModule>>>,
+    pub external_module_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
     /// A map from local module to all children from which the async module
     /// status is inherited
     pub forward_edges_inherit_async: AsyncInfo,
@@ -201,10 +205,10 @@ pub struct ChunkContentResult {
 
 pub async fn chunk_content(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    chunk_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<ChunkContentResult> {
-    chunk_content_internal_parallel(chunking_context, entries, availability_info).await
+    chunk_content_internal_parallel(chunking_context, chunk_entries, availability_info).await
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, Debug)]
@@ -565,10 +569,10 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
 
 async fn chunk_content_internal_parallel(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    chunk_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<ChunkContentResult> {
-    let root_edges = entries
+    let root_edges = chunk_entries
         .into_iter()
         .map(|entry| async move {
             let entry = entry.resolve().await?;
@@ -605,12 +609,12 @@ async fn chunk_content_internal_parallel(
 
     let graph_nodes: Vec<_> = traversal_result?.into_reverse_topological().collect();
 
-    let mut chunk_items = IndexSet::new();
-    let mut async_modules = IndexSet::new();
-    let mut external_module_references = IndexSet::new();
-    let mut forward_edges_inherit_async = IndexMap::new();
-    let mut local_back_edges_inherit_async = IndexMap::new();
-    let mut available_async_modules_back_edges_inherit_async = IndexMap::new();
+    let mut chunk_items = FxIndexSet::default();
+    let mut async_modules = FxIndexSet::default();
+    let mut external_module_references = FxIndexSet::default();
+    let mut forward_edges_inherit_async = FxIndexMap::default();
+    let mut local_back_edges_inherit_async = FxIndexMap::default();
+    let mut available_async_modules_back_edges_inherit_async = FxIndexMap::default();
 
     for graph_node in graph_nodes {
         match graph_node {
@@ -719,7 +723,7 @@ pub fn round_chunk_item_size(size: usize) -> usize {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkItems(Vec<Vc<Box<dyn ChunkItem>>>);
+pub struct ChunkItems(pub Vec<Vc<Box<dyn ChunkItem>>>);
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {

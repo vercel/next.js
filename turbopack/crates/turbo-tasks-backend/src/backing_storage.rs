@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use turbo_tasks::{backend::CachedTaskType, TaskId};
+use turbo_tasks::{backend::CachedTaskType, SessionId, TaskId};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
@@ -14,9 +14,11 @@ pub struct ReadTransaction(pub *const ());
 
 pub trait BackingStorage {
     fn next_free_task_id(&self) -> TaskId;
+    fn next_session_id(&self) -> SessionId;
     fn uncompleted_operations(&self) -> Vec<AnyOperation>;
     fn save_snapshot(
         &self,
+        session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
         meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,

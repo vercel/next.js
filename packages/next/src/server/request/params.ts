@@ -1,4 +1,4 @@
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { FallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -103,7 +103,7 @@ export function createPrerenderParamsForClientSegment(
           // This params object has one of more fallback params so we need to consider
           // the awaiting of this params object "dynamic". Since we are in dynamicIO mode
           // we encode this as a promise that never resolves
-          return makeHangingPromise()
+          return makeHangingPromise(prerenderStore.renderSignal, '`params`')
         }
       }
     }
@@ -190,7 +190,10 @@ function makeAbortingExoticParams(
     return cachedParams
   }
 
-  const promise = makeHangingPromise<Params>()
+  const promise = makeHangingPromise<Params>(
+    prerenderStore.renderSignal,
+    '`params`'
+  )
   CachedParams.set(underlyingParams, promise)
 
   Object.keys(underlyingParams).forEach((prop) => {

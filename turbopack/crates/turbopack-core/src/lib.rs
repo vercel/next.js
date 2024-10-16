@@ -49,7 +49,7 @@ pub const SOURCE_MAP_PREFIX: &str = "turbopack://";
 
 #[doc(hidden)]
 pub mod __private {
-    pub use indexmap::IndexMap;
+    pub use turbo_tasks::FxIndexMap;
 }
 
 pub fn register() {

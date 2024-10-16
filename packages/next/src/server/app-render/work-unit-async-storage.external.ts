@@ -1,14 +1,21 @@
 import type { AsyncLocalStorage } from 'async_hooks'
-import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
-import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
-import type { ReadonlyHeaders } from '../../server/web/spec-extension/adapters/headers'
-import type { ReadonlyRequestCookies } from '../../server/web/spec-extension/adapters/request-cookies'
+import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
+import type { ResponseCookies } from '../web/spec-extension/cookies'
+import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
+import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
 import type { DynamicTrackingState } from './dynamic-rendering'
 
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorage } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
-import type { ServerComponentsHmrCache } from '../../server/response-cache'
+import type { ServerComponentsHmrCache } from '../response-cache'
+
+type WorkUnitPhase = 'action' | 'render' | 'after'
+
+type PhasePartial = {
+  /** NOTE: Will be mutated as phases change */
+  phase: WorkUnitPhase
+}
 
 export type RequestStore = {
   type: 'request'
@@ -31,15 +38,20 @@ export type RequestStore = {
   }
 
   readonly headers: ReadonlyHeaders
-  readonly cookies: ReadonlyRequestCookies
+  // This is mutable because we need to reassign it when transitioning from the action phase to the render phase.
+  // The cookie object itself is deliberately read only and thus can't be updated.
+  cookies: ReadonlyRequestCookies
   readonly mutableCookies: ResponseCookies
+  readonly userspaceMutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
   readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 
+  readonly implicitTags: string[]
+
   // DEV-only
   usedDynamic?: boolean
-}
+} & PhasePartial
 
 /**
  * The Prerender store is for tracking information related to prerenders.
@@ -53,7 +65,7 @@ export type RequestStore = {
  */
 export type PrerenderStoreModern = {
   type: 'prerender'
-  pathname: string | undefined
+  readonly implicitTags: string[]
   /**
    * This is the AbortController passed to React. It can be used to abort the prerender
    * if we encounter conditions that do not require further rendering
@@ -78,25 +90,31 @@ export type PrerenderStoreModern = {
 
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
+  expire: number // server expiration time
+  stale: number // client expiration time
   tags: null | string[]
-}
+} & PhasePartial
 
 export type PrerenderStorePPR = {
   type: 'prerender-ppr'
-  pathname: string | undefined
+  readonly implicitTags: string[]
   readonly dynamicTracking: null | DynamicTrackingState
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
+  expire: number // server expiration time
+  stale: number // client expiration time
   tags: null | string[]
-}
+} & PhasePartial
 
 export type PrerenderStoreLegacy = {
   type: 'prerender-legacy'
-  pathname: string | undefined
+  readonly implicitTags: string[]
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
+  expire: number // server expiration time
+  stale: number // client expiration time
   tags: null | string[]
-}
+} & PhasePartial
 
 export type PrerenderStore =
   | PrerenderStoreLegacy
@@ -105,14 +123,20 @@ export type PrerenderStore =
 
 export type UseCacheStore = {
   type: 'cache'
+  readonly implicitTags: string[]
   // Collected revalidate times and tags for this cache entry during the cache render.
-  revalidate: number // in seconds. INFINITE_CACHE and higher means never revalidate.
+  revalidate: number // implicit revalidate time from inner caches / fetches
+  expire: number // server expiration time
+  stale: number // client expiration time
+  explicitRevalidate: undefined | number // explicit revalidate time from cacheLife() calls
+  explicitExpire: undefined | number // server expiration time
+  explicitStale: undefined | number // client expiration time
   tags: null | string[]
-}
+} & PhasePartial
 
 export type UnstableCacheStore = {
   type: 'unstable-cache'
-}
+} & PhasePartial
 
 /**
  * The Cache store is for tracking information inside a "use cache" or unstable_cache context.

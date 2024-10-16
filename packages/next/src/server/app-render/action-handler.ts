@@ -1,8 +1,8 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { SizeLimit } from '../../types'
-import type { RequestStore } from '../../server/app-render/work-unit-async-storage.external'
+import type { RequestStore } from '../app-render/work-unit-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
-import type { AppPageModule } from '../../server/route-modules/app-page/module'
+import type { AppPageModule } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 
 import {
@@ -19,7 +19,7 @@ import {
   type RedirectType,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
   filterReqHeaders,
@@ -43,6 +43,8 @@ import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 import { selectWorkerForForwarding } from './action-utils'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
+import { synchronizeMutableCookies } from '../async-storage/request-store'
+import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -393,12 +395,11 @@ function limitUntrustedHeaderValueForLogs(value: string) {
 
 type ServerModuleMap = Record<
   string,
-  | {
-      id: string
-      chunks: string[]
-      name: string
-    }
-  | undefined
+  {
+    id: string
+    chunks: string[]
+    name: string
+  }
 >
 
 type ServerActionsConfig = {
@@ -458,6 +459,19 @@ export async function handleAction({
       "Invariant: server actions can't be handled during static rendering"
     )
   }
+
+  let temporaryReferences: TemporaryReferenceSet | undefined
+
+  const finalizeAndGenerateFlight: GenerateFlight = (...args) => {
+    // When we switch to the render phase, cookies() will return
+    // `workUnitStore.cookies` instead of `workUnitStore.userspaceMutableCookies`.
+    // We want the render to see any cookie writes that we performed during the action,
+    // so we need to update the immutable cookies to reflect the changes.
+    synchronizeMutableCookies(requestStore)
+    return generateFlight(...args)
+  }
+
+  requestStore.phase = 'action'
 
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
   workStore.fetchCache = 'default-no-store'
@@ -546,10 +560,11 @@ export async function handleAction({
 
         return {
           type: 'done',
-          result: await generateFlight(req, ctx, {
+          result: await finalizeAndGenerateFlight(req, ctx, {
             actionResult: promise,
             // if the page was not revalidated, we can skip the rendering the flight tree
             skipFlight: !workStore.pathWasRevalidated,
+            temporaryReferences,
           }),
         }
       }
@@ -605,19 +620,31 @@ export async function handleAction({
         process.env.NEXT_RUNTIME === 'edge' &&
         isWebNextRequest(req)
       ) {
-        // Use react-server-dom-webpack/server.edge
-        const { decodeReply, decodeAction, decodeFormState } = ComponentMod
         if (!req.body) {
           throw new Error('invariant: Missing request body.')
         }
 
         // TODO: add body limit
 
+        // Use react-server-dom-webpack/server.edge
+        const {
+          createTemporaryReferenceSet,
+          decodeReply,
+          decodeAction,
+          decodeFormState,
+        } = ComponentMod
+
+        temporaryReferences = createTemporaryReferenceSet()
+
         if (isMultipartAction) {
           // TODO-APP: Add streaming support
           const formData = await req.request.formData()
           if (isFetchAction) {
-            boundActionArguments = await decodeReply(formData, serverModuleMap)
+            boundActionArguments = await decodeReply(
+              formData,
+              serverModuleMap,
+              { temporaryReferences }
+            )
           } else {
             const action = await decodeAction(formData, serverModuleMap)
             if (typeof action === 'function') {
@@ -660,11 +687,16 @@ export async function handleAction({
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
-            boundActionArguments = await decodeReply(formData, serverModuleMap)
+            boundActionArguments = await decodeReply(
+              formData,
+              serverModuleMap,
+              { temporaryReferences }
+            )
           } else {
             boundActionArguments = await decodeReply(
               actionData,
-              serverModuleMap
+              serverModuleMap,
+              { temporaryReferences }
             )
           }
         }
@@ -676,11 +708,16 @@ export async function handleAction({
       ) {
         // Use react-server-dom-webpack/server.node which supports streaming
         const {
+          createTemporaryReferenceSet,
           decodeReply,
           decodeReplyFromBusboy,
           decodeAction,
           decodeFormState,
-        } = require(`./react-server.node`)
+        } = require(
+          `./react-server.node`
+        ) as typeof import('./react-server.node')
+
+        temporaryReferences = createTemporaryReferenceSet()
 
         const { Transform } =
           require('node:stream') as typeof import('node:stream')
@@ -730,7 +767,8 @@ export async function handleAction({
 
             boundActionArguments = await decodeReplyFromBusboy(
               busboy,
-              serverModuleMap
+              serverModuleMap,
+              { temporaryReferences }
             )
           } else {
             // React doesn't yet publish a busboy version of decodeAction
@@ -760,7 +798,11 @@ export async function handleAction({
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
               const actionReturnedState = await action()
-              formState = await decodeFormState(actionReturnedState, formData)
+              formState = await decodeFormState(
+                actionReturnedState,
+                formData,
+                serverModuleMap
+              )
             }
 
             // Skip the fetch path
@@ -787,11 +829,16 @@ export async function handleAction({
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
-            boundActionArguments = await decodeReply(formData, serverModuleMap)
+            boundActionArguments = await decodeReply(
+              formData,
+              serverModuleMap,
+              { temporaryReferences }
+            )
           } else {
             boundActionArguments = await decodeReply(
               actionData,
-              serverModuleMap
+              serverModuleMap,
+              { temporaryReferences }
             )
           }
         }
@@ -839,10 +886,11 @@ export async function handleAction({
           requestStore,
         })
 
-        actionResult = await generateFlight(req, ctx, {
+        actionResult = await finalizeAndGenerateFlight(req, ctx, {
           actionResult: Promise.resolve(returnVal),
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
+          temporaryReferences,
         })
       }
     })
@@ -914,9 +962,10 @@ export async function handleAction({
         }
         return {
           type: 'done',
-          result: await generateFlight(req, ctx, {
+          result: await finalizeAndGenerateFlight(req, ctx, {
             skipFlight: false,
             actionResult: promise,
+            temporaryReferences,
           }),
         }
       }
@@ -951,6 +1000,7 @@ export async function handleAction({
           actionResult: promise,
           // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
           skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
+          temporaryReferences,
         }),
       }
     }

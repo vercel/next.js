@@ -1216,7 +1216,8 @@ export default function Home() {
         [
           'app/utils.ts',
           `throw new Error('utils error')
-export function foo(){}`,
+export function foo(){}
+          `,
         ],
         [
           'app/page.js',

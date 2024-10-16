@@ -5,7 +5,6 @@ use std::{
 };
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -15,7 +14,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TryFlatJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, TryFlatJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     chunk::ChunkingContext,
@@ -262,7 +261,7 @@ async fn handle_declared_export(
 
 #[turbo_tasks::value]
 struct AllExportNamesResult {
-    esm_exports: IndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    esm_exports: FxIndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
     dynamic_exporting_modules: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
@@ -273,14 +272,14 @@ async fn get_all_export_names(
     let exports = module.get_exports().await?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {
         return Ok(AllExportNamesResult {
-            esm_exports: IndexMap::new(),
+            esm_exports: FxIndexMap::default(),
             dynamic_exporting_modules: vec![module],
         }
         .cell());
     };
 
     let exports = exports.await?;
-    let mut esm_exports = IndexMap::new();
+    let mut esm_exports = FxIndexMap::default();
     let mut dynamic_exporting_modules = Vec::new();
     esm_exports.extend(exports.exports.keys().cloned().map(|n| (n, module)));
     let star_export_names = exports

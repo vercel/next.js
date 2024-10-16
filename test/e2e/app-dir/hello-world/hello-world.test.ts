@@ -11,7 +11,7 @@ describe('hello-world', () => {
     expect($('p').text()).toBe('hello world')
   })
 
-  // Recommended for tests that need a full browser
+  // Recommended for tests that need a full browser.
   it('should work using browser', async () => {
     const browser = await next.browser('/')
     expect(await browser.elementByCss('p').text()).toBe('hello world')
@@ -23,7 +23,7 @@ describe('hello-world', () => {
     expect(html).toContain('hello world')
   })
 
-  // In case you need to test the response object
+  // In case you need to test the response object.
   it('should work with fetch', async () => {
     const res = await next.fetch('/')
     const html = await res.text()

@@ -422,7 +422,8 @@ export default class DevServer extends Server {
        */
       if (
         request.url.includes('/_next/static') ||
-        request.url.includes('/__nextjs_original-stack-frame')
+        request.url.includes('/__nextjs_original-stack-frame') ||
+        request.url.includes('/__nextjs_source-map')
       ) {
         return { finished: false }
       }
@@ -775,7 +776,6 @@ export default class DevServer extends Server {
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
-          isAppPPRFallbacksEnabled: this.nextConfig.experimental.pprFallbacks,
           buildId: this.renderOpts.buildId,
         })
         return pathsResult
