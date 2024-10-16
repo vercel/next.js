@@ -160,7 +160,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
         code.push_bytes(
             format!(
                 "__turbopack_export_namespace__(__turbopack_import__({}));\n",
-                StringifyJs(&*module.module.ident().to_string().await?)
+                StringifyJs(&*module.binding.ident().to_string().await?)
             )
             .as_bytes(),
         );
