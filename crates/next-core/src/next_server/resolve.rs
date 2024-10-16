@@ -81,9 +81,12 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let request_value = &*request.await?;
-        if !matches!(request_value, Request::Module { .. }) {
+        let Request::Module {
+            module: package, ..
+        } = request_value
+        else {
             return Ok(ResolveResultOption::none());
-        }
+        };
 
         // from https://github.com/vercel/next.js/blob/8d1c619ad650f5d147207f267441caf12acd91d1/packages/next/src/build/handle-externals.ts#L188
         let never_external_regex = lazy_regex::regex!("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|document|link|image|legacy\\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference$)");
@@ -190,12 +193,13 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             Ok(FileType::UnsupportedExtension)
         }
 
-        let unable_to_externalize = |request_str: RcStr, reason: &str| {
+        let unable_to_externalize = |request_str: RcStr, reason: Vec<StyledString>| {
             if must_be_external {
-                UnableToExternalize {
-                    file_path: fs_path,
+                ExternalizeIssue {
+                    file_path: lookup_path,
+                    package: package.clone(),
                     request: request_str,
-                    reason: reason.into(),
+                    reason,
                 }
                 .cell()
                 .emit();
@@ -231,11 +235,15 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // this can't resolve with node.js from the original location, so bundle it
                 return unable_to_externalize(
                     request_str.into(),
-                    "The request could not be resolved by Node.js from the importing module. The \
-                     way Node.js resolves modules is slightly different from the way Next.js \
-                     resolves modules. Next.js was able to resolve it, while Node.js would not be \
-                     able to.\nTry to remove this package from serverExternalPackages.\nOr update \
-                     the import side to use a compatible request that can be resolved by Node.js.",
+                    vec![StyledString::Text(
+                        "The request could not be resolved by Node.js from the importing module. \
+                         The way Node.js resolves modules is slightly different from the way \
+                         Next.js resolves modules. Next.js was able to resolve it, while Node.js \
+                         would not be able to.\nTry to remove this package from \
+                         serverExternalPackages.\nOr update the import side to use a compatible \
+                         request that can be resolved by Node.js."
+                            .into(),
+                    )],
                 );
             };
             break result_from_original_location;
@@ -251,10 +259,15 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             // this can't resolve with node.js from the project directory, so bundle it
             return unable_to_externalize(
                 request_str.into(),
-                "The request could not be resolved by Node.js from the project \
-                 directory.\nPackages that should be external need to be installed in the project \
-                 directory, so they can be resolved from the output files.\nTry to install the \
-                 package into the project directory.",
+                vec![
+                    StyledString::Text(
+                        "The request could not be resolved by Node.js from the project \
+                         directory.\nInstall it by running "
+                            .into(),
+                    ),
+                    StyledString::Code(format!("pnpm install {package}").into()),
+                    StyledString::Text(" from the project directory.".into()),
+                ],
             );
         };
 
@@ -278,8 +291,11 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             else {
                 return unable_to_externalize(
                     request_str.into(),
-                    "The package.json of the package resolved from the project directory can't be \
-                     found.",
+                    vec![StyledString::Text(
+                        "The package.json of the package resolved from the project directory \
+                         can't be found."
+                            .into(),
+                    )],
                 );
             };
             let FindContextFileResult::Found(package_json_from_original_location, _) =
@@ -287,7 +303,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             else {
                 return unable_to_externalize(
                     request_str.into(),
-                    "The package.json of the package can't be found.",
+                    vec![StyledString::Text(
+                        "The package.json of the package can't be found.".into(),
+                    )],
                 );
             };
             let FileJsonContent::Content(package_json_file) =
@@ -295,8 +313,11 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             else {
                 return unable_to_externalize(
                     request_str.into(),
-                    "The package.json of the package resolved from project directory can't be \
-                     parsed.",
+                    vec![StyledString::Text(
+                        "The package.json of the package resolved from project directory can't be \
+                         parsed."
+                            .into(),
+                    )],
                 );
             };
             let FileJsonContent::Content(package_json_from_original_location) =
@@ -304,7 +325,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             else {
                 return unable_to_externalize(
                     request_str.into(),
-                    "The package.json of the package can't be parsed.",
+                    vec![StyledString::Text(
+                        "The package.json of the package can't be parsed.".into(),
+                    )],
                 );
             };
             let (Some(name), Some(version)) = (
@@ -313,7 +336,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             ) else {
                 return unable_to_externalize(
                     request_str.into(),
-                    "The package.json of the package has no name or version.",
+                    vec![StyledString::Text(
+                        "The package.json of the package has no name or version.".into(),
+                    )],
                 );
             };
             let (Some(name2), Some(version2)) = (
@@ -326,20 +351,26 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             ) else {
                 return unable_to_externalize(
                     request_str.into(),
-                    "The package.json of the package resolved from project directory has no name \
-                     or version.",
+                    vec![StyledString::Text(
+                        "The package.json of the package resolved from project directory has no \
+                         name or version."
+                            .into(),
+                    )],
                 );
             };
             if (name, version) != (name2, version2) {
                 // this can't resolve with node.js from the original location, so bundle it
                 return unable_to_externalize(
                     request_str.into(),
-                    &format!(
-                        "The package resolves to a different version when requested from the \
-                         project directory ({version}) compared to the package requested from the \
-                         importing module ({version2}).\nMake sure to install the same version of \
-                         the package in both locations."
-                    ),
+                    vec![StyledString::Text(
+                        format!(
+                            "The package resolves to a different version when requested from the \
+                             project directory ({version}) compared to the package requested from \
+                             the importing module ({version2}).\nMake sure to install the same \
+                             version of the package in both locations."
+                        )
+                        .into(),
+                    )],
                 );
             }
         }
@@ -351,14 +382,18 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // unsupported file type, bundle it
                 unable_to_externalize(
                     request_str.into(),
-                    "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js.",
+                    vec![StyledString::Text(
+                        "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js.".into(),
+                    )],
                 )
             }
             (FileType::InvalidPackageJson, _) => {
                 // invalid package.json, bundle it
                 unable_to_externalize(
                     request_str.into(),
-                    "The package.json can't be found or parsed.",
+                    vec![StyledString::Text(
+                        "The package.json can't be found or parsed.".into(),
+                    )],
                 )
             }
             (FileType::CommonJs, false) => {
@@ -428,8 +463,11 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // which would break node.js, bundle it
                 unable_to_externalize(
                     request_str.into(),
-                    "The package seems invalid. require() resolves to a EcmaScript module, which \
-                     would result in an error in Node.js.",
+                    vec![StyledString::Text(
+                        "The package seems invalid. require() resolves to a EcmaScript module, \
+                         which would result in an error in Node.js."
+                            .into(),
+                    )],
                 )
             }
         }
@@ -462,14 +500,15 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
 }
 
 #[turbo_tasks::value]
-struct UnableToExternalize {
+struct ExternalizeIssue {
     file_path: Vc<FileSystemPath>,
+    package: RcStr,
     request: RcStr,
-    reason: RcStr,
+    reason: Vec<StyledString>,
 }
 
 #[turbo_tasks::value_impl]
-impl Issue for UnableToExternalize {
+impl Issue for ExternalizeIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
         IssueSeverity::Error.cell()
@@ -477,25 +516,10 @@ impl Issue for UnableToExternalize {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Vc<StyledString> {
-        let request = &self.request;
-        let package = if request.starts_with('@') {
-            request
-                .splitn(3, '/')
-                .take(2)
-                .intersperse("/")
-                .collect::<String>()
-                .into()
-        } else if let Some((package, _)) = request.split_once('/') {
-            package.into()
-        } else {
-            request.clone()
-        };
         StyledString::Line(vec![
             StyledString::Text("Package ".into()),
-            StyledString::Code(package),
-            StyledString::Text(" (".into()),
-            StyledString::Code("serverExternalPackages".into()),
-            StyledString::Text(" or default list) can't be external".into()),
+            StyledString::Code(self.package.clone()),
+            StyledString::Text(" can't be external".into()),
         ])
         .cell()
     }
@@ -511,19 +535,24 @@ impl Issue for UnableToExternalize {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(
             StyledString::Stack(vec![
                 StyledString::Line(vec![
                     StyledString::Text("The request ".into()),
                     StyledString::Code(self.request.clone()),
                     StyledString::Text(" matches ".into()),
                     StyledString::Code("serverExternalPackages".into()),
-                    StyledString::Text(" (or the default list), but it can't be external:".into()),
+                    StyledString::Text(" (or the default list).".into()),
                 ]),
-                StyledString::Line(vec![StyledString::Text(self.reason.clone())]),
+                StyledString::Line(self.reason.clone()),
             ])
             .cell(),
-        ))
+        )))
+    }
+
+    #[turbo_tasks::function]
+    fn documentation_link(&self) -> Vc<RcStr> {
+        Vc::cell("https://nextjs.org/docs/TODO".into())
     }
 }
