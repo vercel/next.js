@@ -133,7 +133,7 @@ export async function runUpgrade(
     // we should only let the user stay on React 18 if they are using pure Pages Router.
     // x-ref(PR): https://github.com/vercel/next.js/pull/65058
     // x-ref(release): https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
-    compareVersions(installedNextVersion, '14.3.0-canary.45') >= 0 &&
+    compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0 &&
     installedReactVersion.startsWith('18')
   ) {
     const shouldStayOnReact18Res = await prompts(
