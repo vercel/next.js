@@ -1,4 +1,4 @@
-use std::num::NonZeroU32;
+use std::{cmp::max, num::NonZeroU32};
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
@@ -59,19 +59,26 @@ impl ConnectChildOperation {
             let current_parent_aggregation = get!(parent_task, AggregationNumber)
                 .copied()
                 .unwrap_or_default();
-            let parent_aggregation = if is_root_node(current_parent_aggregation.base) {
-                u32::MAX
-            } else {
-                let target_distance = children_count.ilog2() * 2;
-                if target_distance != current_parent_aggregation.distance {
-                    queue.push(AggregationUpdateJob::UpdateAggregationNumber {
-                        task_id: parent_task_id,
-                        base_aggregation_number: 0,
-                        distance: NonZeroU32::new(target_distance),
-                    })
-                }
-                current_parent_aggregation.effective
-            };
+            let (parent_aggregation, future_parent_aggregation) =
+                if is_root_node(current_parent_aggregation.base) {
+                    (u32::MAX, u32::MAX)
+                } else {
+                    let target_distance = children_count.ilog2() * 2;
+                    if target_distance > current_parent_aggregation.distance {
+                        queue.push(AggregationUpdateJob::UpdateAggregationNumber {
+                            task_id: parent_task_id,
+                            base_aggregation_number: 0,
+                            distance: NonZeroU32::new(target_distance),
+                        })
+                    }
+                    (
+                        current_parent_aggregation.effective,
+                        current_parent_aggregation.base.saturating_add(max(
+                            target_distance,
+                            current_parent_aggregation.distance,
+                        )),
+                    )
+                };
 
             // Update child aggregation number based on parent aggregation number
             let aggregating_node = is_aggregating_node(parent_aggregation);
@@ -83,7 +90,7 @@ impl ConnectChildOperation {
                 });
             } else if !aggregating_node {
                 let base_aggregation_number =
-                    parent_aggregation.saturating_add(AGGREGATION_NUMBER_BUFFER_SPACE);
+                    future_parent_aggregation.saturating_add(AGGREGATION_NUMBER_BUFFER_SPACE);
                 queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                     task_id: child_task_id,
                     base_aggregation_number: if is_aggregating_node(
