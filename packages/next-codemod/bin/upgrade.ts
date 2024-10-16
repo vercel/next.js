@@ -16,6 +16,23 @@ import { BadInput } from './shared'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
+const optionalNextjsPackages = [
+  'create-next-app',
+  'eslint-config-next',
+  '@next/bundle-analyzer',
+  '@next/codemod',
+  '@next/env',
+  '@next/eslint-plugin-next',
+  '@next/font',
+  '@next/mdx',
+  '@next/plugin-storybook',
+  '@next/polyfill-module',
+  '@next/polyfill-nomodule',
+  '@next/swc',
+  '@next/react-refresh-utils',
+  '@next/third-parties',
+]
+
 /**
  * @param query
  * @example loadHighestNPMVersionMatching("react@^18.3.0 || ^19.0.0") === Promise<"19.0.0">
@@ -191,6 +208,12 @@ export async function runUpgrade(
       'react-dom': { version: targetReactVersion, required: true },
       'react-is': { version: targetReactVersion, required: false },
     }
+  for (const optionalNextjsPackage of optionalNextjsPackages) {
+    versionMapping[optionalNextjsPackage] = {
+      version: targetNextVersion,
+      required: false,
+    }
+  }
 
   if (
     targetReactVersion.startsWith('19.0.0-canary') ||
