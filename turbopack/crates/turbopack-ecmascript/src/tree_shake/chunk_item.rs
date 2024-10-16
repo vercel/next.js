@@ -157,14 +157,6 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
 
         let module = self.module.await?;
 
-        code.push_bytes(
-            format!(
-                "__turbopack_export_namespace__(__turbopack_import__({}));\n",
-                StringifyJs(&*module.binding.ident().to_string().await?)
-            )
-            .as_bytes(),
-        );
-
         for &side_effect in self.module.await?.side_effects.await?.iter() {
             if !has_top_level_await {
                 let async_module = *side_effect.get_async_module().await?;
@@ -183,6 +175,14 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
                 .as_bytes(),
             );
         }
+
+        code.push_bytes(
+            format!(
+                "__turbopack_export_namespace__(__turbopack_import__({}));\n",
+                StringifyJs(&*module.binding.ident().to_string().await?)
+            )
+            .as_bytes(),
+        );
 
         let code = code.build();
 
