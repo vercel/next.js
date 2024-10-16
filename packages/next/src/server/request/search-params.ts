@@ -2,7 +2,7 @@ import type { WorkStore } from '../app-render/work-async-storage.external'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  abortAndThrowOnSynchronousDynamicDataAccess,
+  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   postponeWithTracking,
   trackDynamicDataInDynamicRender,
@@ -222,7 +222,7 @@ function makeAbortingExoticSearchParams(
               'searchParams',
               prop
             )
-            abortAndThrowOnSynchronousDynamicDataAccess(
+            abortAndThrowOnSynchronousRequestDataAccess(
               route,
               expression,
               prerenderStore
@@ -242,7 +242,7 @@ function makeAbortingExoticSearchParams(
           'searchParams',
           prop
         )
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -253,7 +253,7 @@ function makeAbortingExoticSearchParams(
     ownKeys() {
       const expression =
         '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
-      abortAndThrowOnSynchronousDynamicDataAccess(
+      abortAndThrowOnSynchronousRequestDataAccess(
         route,
         expression,
         prerenderStore
