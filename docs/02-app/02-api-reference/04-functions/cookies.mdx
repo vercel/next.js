@@ -132,7 +132,7 @@ export default async function Page() {
 
 ### Setting a cookie
 
-You can use the `cookies().set(name, value, options)` method in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to set a cookie. The [`options` object](#options) is optional.
+You can use the `(await cookies()).set(name, value, options)` method in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers) to set a cookie. The [`options` object](#options) is optional.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -142,11 +142,11 @@ import { cookies } from 'next/headers'
 export async function create(data) {
   const cookieStore = await cookies()
 
-  cookieStore().set('name', 'lee')
+  cookieStore.set('name', 'lee')
   // or
-  cookieStore().set('name', 'lee', { secure: true })
+  cookieStore.set('name', 'lee', { secure: true })
   // or
-  cookieStore().set({
+  cookieStore.set({
     name: 'name',
     value: 'lee',
     httpOnly: true,
