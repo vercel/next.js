@@ -881,7 +881,7 @@ and should be treated with the same security assumptions and authorization check
 To improve security, Next.js has the following built-in features:
 
 - **Secure action IDs:** Next.js creates encrypted, non-deterministic IDs to allow the client to reference and call the Server Action. These IDs are periodically recalculated between builds for enhanced security.
-- **Dead code elimination:** Unused Server Actions (referenced by their IDs) are removed from client bundle to avoid publicly access.
+- **Dead code elimination:** Unused Server Actions (referenced by their IDs) are removed from client bundle to avoid public access by third-party.
 
 > **Good to know**:
 >
