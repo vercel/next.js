@@ -11,6 +11,8 @@ import {
   insertCommentOnce,
   NEXTJS_ENTRY_FILES,
   NEXT_CODEMOD_ERROR_PREFIX,
+  containsReactHooksCallExpressions,
+  isParentUseCallExpression,
 } from './utils'
 import { createParserFromPath } from '../../../lib/parser'
 
@@ -151,12 +153,13 @@ export function transformDynamicAPI(
           // check if current path is under the default export function
           if (isEntryFileExport) {
             // if default export function is not async, convert it to async, and await the api call
-            if (!isCallAwaited) {
+            if (!isCallAwaited && isFunctionType(exportFunctionNode.type)) {
+              const hasReactHooksUsage = containsReactHooksCallExpressions(
+                closetScopePath,
+                j
+              )
               // If the scoped function is async function
-              if (
-                isFunctionType(exportFunctionNode.type) &&
-                exportFunctionNode.async === false
-              ) {
+              if (exportFunctionNode.async === false && !hasReactHooksUsage) {
                 canConvertToAsync = true
                 exportFunctionNode.async = true
               }
@@ -170,8 +173,18 @@ export function transformDynamicAPI(
                 )
 
                 turnFunctionReturnTypeToAsync(closetScopePath.node, j)
-
                 modified = true
+              } else {
+                // If it's still sync function that cannot be converted to async, wrap the api call with 'use()' if needed
+                if (!isParentUseCallExpression(path, j)) {
+                  j(path).replaceWith(
+                    j.callExpression(j.identifier('use'), [
+                      j.callExpression(j.identifier(asyncRequestApiName), []),
+                    ])
+                  )
+                  needsReactUseImport = true
+                  modified = true
+                }
               }
             }
           } else {
@@ -181,7 +194,7 @@ export function transformDynamicAPI(
             if (parentFunction) {
               const parentFunctionName = parentFunction.get().node.id?.name
               const isParentFunctionHook = parentFunctionName?.startsWith('use')
-              if (isParentFunctionHook) {
+              if (isParentFunctionHook && !isParentUseCallExpression(path, j)) {
                 j(path).replaceWith(
                   j.callExpression(j.identifier('use'), [
                     j.callExpression(j.identifier(asyncRequestApiName), []),

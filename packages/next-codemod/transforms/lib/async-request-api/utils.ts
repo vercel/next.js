@@ -492,3 +492,66 @@ export function getVariableDeclaratorId(
   }
   return undefined
 }
+
+export function findFunctionBody(path: ASTPath<FunctionScope>) {
+  let functionBody = path.node.body
+  if (functionBody && functionBody.type === 'BlockStatement') {
+    return functionBody.body
+  }
+  return null
+}
+
+export function containsReactHooksCallExpressions(
+  path: ASTPath<FunctionScope>,
+  j: API['jscodeshift']
+) {
+  const hasReactHooks =
+    j(path)
+      .find(j.CallExpression)
+      .filter((callPath) => {
+        return (
+          j.Identifier.check(callPath.value.callee) &&
+          callPath.value.callee.name.startsWith('use')
+        )
+      })
+      .size() > 0
+  return hasReactHooks
+}
+
+export function isParentUseCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  if (
+    // member access parentPath is argument
+    j.CallExpression.check(path.parent.value) &&
+    // member access is first argument
+    path.parent.value.arguments[0] === path.value &&
+    // function name is `use`
+    j.Identifier.check(path.parent.value.callee) &&
+    path.parent.value.callee.name === 'use'
+  ) {
+    return true
+  }
+  return false
+}
+
+export function isParentPromiseAllCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  const argsParent = path.parent
+  const callParent = argsParent?.parent
+  if (
+    j.ArrayExpression.check(argsParent.value) &&
+    j.CallExpression.check(callParent.value) &&
+    j.MemberExpression.check(callParent.value.callee) &&
+    j.Identifier.check(callParent.value.callee.object) &&
+    callParent.value.callee.object.name === 'Promise' &&
+    j.Identifier.check(callParent.value.callee.property) &&
+    callParent.value.callee.property.name === 'all'
+  ) {
+    return true
+  }
+  return false
+}
