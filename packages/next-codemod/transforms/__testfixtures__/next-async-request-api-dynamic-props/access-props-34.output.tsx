@@ -1,16 +1,7 @@
-function useHook() {}
+import React, { use } from 'react';
 
-function Child() {
-  useHook()
-  return <p>child</p>
-}
-
-export default async function Page(props: { params: Promise<{ slug: string }> }) {
-  const params = await props.params;
-  return (
-    <div>
-      <Child />
-      <p>child {params.slug}</p>
-    </div>
-  )
+export default function Page(props: { params: Promise<{ slug: string }> }) {
+  const params = use(props.params);
+  React.use()
+  return <p>child {params.slug}</p>
 }

@@ -509,31 +509,52 @@ export function containsReactHooksCallExpressions(
     j(path)
       .find(j.CallExpression)
       .filter((callPath) => {
-        return (
+        // use()
+        const isUseCall =
           j.Identifier.check(callPath.value.callee) &&
           callPath.value.callee.name.startsWith('use')
-        )
+        // React.use()
+        const isReactUseCall =
+          j.MemberExpression.check(callPath.value.callee) &&
+          j.Identifier.check(callPath.value.callee.object) &&
+          callPath.value.callee.object.name === 'React' &&
+          j.Identifier.check(callPath.value.callee.property) &&
+          callPath.value.callee.property.name === 'use'
+        return isUseCall || isReactUseCall
       })
       .size() > 0
   return hasReactHooks
 }
 
+// Capture the parent of the current path is a `use` call expression
+// e.g. passing the path of `props.params`
+// check if the parent is use(props.params) or React.use(props.params)
 export function isParentUseCallExpression(
   path: ASTPath<any>,
   j: API['jscodeshift']
 ) {
-  if (
+  const isParentUseCall =
     // member access parentPath is argument
     j.CallExpression.check(path.parent.value) &&
     // member access is first argument
     path.parent.value.arguments[0] === path.value &&
+    path.parent.value.arguments.length === 1 &&
     // function name is `use`
     j.Identifier.check(path.parent.value.callee) &&
     path.parent.value.callee.name === 'use'
-  ) {
-    return true
-  }
-  return false
+  const isParentReactUseCall =
+    // member access parentPath is argument
+    j.CallExpression.check(path.parent.value) &&
+    // member access is first argument
+    path.parent.value.arguments[0] === path.value &&
+    path.parent.value.arguments.length === 1 &&
+    // function name is `use`
+    j.MemberExpression.check(path.parent.value.callee) &&
+    j.Identifier.check(path.parent.value.callee.object) &&
+    path.parent.value.callee.object.name === 'React' &&
+    j.Identifier.check(path.parent.value.callee.property) &&
+    path.parent.value.callee.property.name === 'use'
+  return isParentUseCall || isParentReactUseCall
 }
 
 export function isParentPromiseAllCallExpression(
@@ -543,6 +564,8 @@ export function isParentPromiseAllCallExpression(
   const argsParent = path.parent
   const callParent = argsParent?.parent
   if (
+    argsParent &&
+    callParent &&
     j.ArrayExpression.check(argsParent.value) &&
     j.CallExpression.check(callParent.value) &&
     j.MemberExpression.check(callParent.value.callee) &&

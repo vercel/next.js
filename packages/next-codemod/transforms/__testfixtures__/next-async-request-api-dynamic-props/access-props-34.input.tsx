@@ -1,15 +1,6 @@
-function useHook() {}
-
-function Child() {
-  useHook()
-  return <p>child</p>
-}
+import React from 'react'
 
 export default function Page({ params }: { params: { slug: string } }) {
-  return (
-    <div>
-      <Child />
-      <p>child {params.slug}</p>
-    </div>
-  )
+  React.use()
+  return <p>child {params.slug}</p>
 }
