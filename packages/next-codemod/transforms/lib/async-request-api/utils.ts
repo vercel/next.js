@@ -501,9 +501,17 @@ export function findFunctionBody(path: ASTPath<FunctionScope>): null | any[] {
   return null
 }
 
-export const isReactHookLikeName = (name: string) =>
-  name.startsWith('use') && name[3] === name[3].toUpperCase()
+export const isReactHookName = (name: string) =>
+  // function name is `use`
+  name === 'use' ||
+  // function name is `useX*`
+  (name.startsWith('use') && name[3] === name[3].toUpperCase())
 
+// Determine a path of function contains any React hooks call expressions.
+// e.g. if there's any of those call expressions in the function body:
+// use() => true
+// React.use() => false
+// useXxxx() => true
 export function containsReactHooksCallExpressions(
   path: ASTPath<FunctionScope>,
   j: API['jscodeshift']
@@ -512,26 +520,31 @@ export function containsReactHooksCallExpressions(
     j(path)
       .find(j.CallExpression)
       .filter((callPath) => {
-        // use()
-        const isUseCall =
+        // Is it matching use(<callPath>)
+        // Is it matching useXxx(<callPath>)
+        const isUseHookOrReactHookCall =
           j.Identifier.check(callPath.value.callee) &&
-          isReactHookLikeName(callPath.value.callee.name)
-        // React.use()
+          isReactHookName(callPath.value.callee.name)
+
+        // is it matching React.use(<callPath>)
         const isReactUseCall =
           j.MemberExpression.check(callPath.value.callee) &&
           j.Identifier.check(callPath.value.callee.object) &&
           callPath.value.callee.object.name === 'React' &&
           j.Identifier.check(callPath.value.callee.property) &&
           callPath.value.callee.property.name === 'use'
-        return isUseCall || isReactUseCall
+        return isUseHookOrReactHookCall || isReactUseCall
       })
       .size() > 0
   return hasReactHooks
 }
 
-// Capture the parent of the current path is a `use` call expression
-// e.g. passing the path of `props.params`
-// check if the parent is use(props.params) or React.use(props.params)
+// Capture the parent of the current path is wrapped by `use()` call expression
+// e.g.
+// use(<path>) => true
+// use2(<path>) => false
+// React.use(<path>) => true
+// Robust.use(<path>) => false
 export function isParentUseCallExpression(
   path: ASTPath<any>,
   j: API['jscodeshift']
@@ -560,6 +573,10 @@ export function isParentUseCallExpression(
   return isParentUseCall || isParentReactUseCall
 }
 
+// Determine if a path is wrapped by `Promise.all()`
+// e.g.
+// Promise.all(<path>) => true
+// Promise.allSettled(<path>) => false
 export function isParentPromiseAllCallExpression(
   path: ASTPath<any>,
   j: API['jscodeshift']

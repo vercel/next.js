@@ -13,7 +13,7 @@ import {
   NEXT_CODEMOD_ERROR_PREFIX,
   containsReactHooksCallExpressions,
   isParentUseCallExpression,
-  isReactHookLikeName,
+  isReactHookName,
 } from './utils'
 import { createParserFromPath } from '../../../lib/parser'
 
@@ -195,8 +195,7 @@ export function transformDynamicAPI(
             if (parentFunction) {
               const parentFunctionName =
                 parentFunction.get().node.id?.name || ''
-              const isParentFunctionHook =
-                isReactHookLikeName(parentFunctionName)
+              const isParentFunctionHook = isReactHookName(parentFunctionName)
               if (isParentFunctionHook && !isParentUseCallExpression(path, j)) {
                 j(path).replaceWith(
                   j.callExpression(j.identifier('use'), [
