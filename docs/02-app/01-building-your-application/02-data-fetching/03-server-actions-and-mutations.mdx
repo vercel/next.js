@@ -1000,6 +1000,15 @@ module.exports = {
 
 Learn more about [Security and Server Actions](https://nextjs.org/blog/security-nextjs-server-components-actions).
 
+### Secured Server Action IDs
+
+Next.js generates encrypted, non-deterministic IDs to allow the client to reference and call Server Actions. These IDs are periodically recalculated between builds for enhanced security.
+The IDs are created during compilation and are cached for a maximum of 14 days. They will be regenerated when a new build is initiated or when the build cache is invalidated.
+
+Note that in Docker environments, IDs are not cached, so each build will generate new Server Action IDs.
+
+This security improvement reduces the risk in cases where an authentication layer is missing. However, you should still treat Server Actions like public HTTP endpoints.
+
 ## Additional resources
 
 For more information, check out the following React docs:
