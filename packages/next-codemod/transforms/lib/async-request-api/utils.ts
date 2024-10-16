@@ -501,6 +501,9 @@ export function findFunctionBody(path: ASTPath<FunctionScope>): null | any[] {
   return null
 }
 
+export const isReactHookLikeName = (name: string) =>
+  name.startsWith('use') && name[3] === name[3].toUpperCase()
+
 export function containsReactHooksCallExpressions(
   path: ASTPath<FunctionScope>,
   j: API['jscodeshift']
@@ -512,7 +515,7 @@ export function containsReactHooksCallExpressions(
         // use()
         const isUseCall =
           j.Identifier.check(callPath.value.callee) &&
-          callPath.value.callee.name.startsWith('use')
+          isReactHookLikeName(callPath.value.callee.name)
         // React.use()
         const isReactUseCall =
           j.MemberExpression.check(callPath.value.callee) &&
