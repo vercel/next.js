@@ -2958,7 +2958,6 @@ export default abstract class Server<
         // enabled, then we should use the fallback renderer.
         else if (
           isRoutePPREnabled &&
-          this.nextConfig.experimental.pprFallbacks &&
           isAppPageRouteModule(components.routeModule) &&
           !isRSCRequest
         ) {
@@ -3178,7 +3177,6 @@ export default abstract class Server<
       ssgCacheKey &&
       !this.minimalMode &&
       isRoutePPREnabled &&
-      this.nextConfig.experimental.pprFallbacks &&
       cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
       cacheEntry.isFallback &&
       !isOnDemandRevalidate
