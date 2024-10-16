@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{vdbg, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -204,10 +204,17 @@ pub(super) struct SideEffectsModule {
 #[turbo_tasks::value_impl]
 impl Module for SideEffectsModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.binding
-            .ident()
-            .with_modifier(Vc::cell(RcStr::from("with intermediate side-effects")))
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        let mut ident = self.binding.ident().await?.clone_value();
+
+        for (i, side_effect) in self.side_effects.await?.iter().enumerate() {
+            ident.add_asset(
+                Vc::cell(RcStr::from(format!("side effect {}", i))),
+                side_effect.ident(),
+            );
+        }
+
+        Ok(AssetIdent::new(Value::new(ident)))
     }
 
     #[turbo_tasks::function]
@@ -247,7 +254,7 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
 
     #[turbo_tasks::function]
     async fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(false)
+        Vc::cell(true)
     }
 }
 
