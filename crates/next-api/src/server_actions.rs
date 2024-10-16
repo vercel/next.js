@@ -58,7 +58,7 @@ pub(crate) async fn create_server_actions_manifest(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     page_name: RcStr,
-    runtime: Value<NextRuntime>,
+    runtime: NextRuntime,
     asset_context: Vc<Box<dyn AssetContext>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ServerActionsManifest>> {
@@ -141,7 +141,7 @@ async fn build_server_actions_loader(
 async fn build_manifest(
     node_root: Vc<FileSystemPath>,
     page_name: RcStr,
-    runtime: Value<NextRuntime>,
+    runtime: NextRuntime,
     actions: Vc<AllActions>,
     loader_id: Vc<RcStr>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
@@ -156,7 +156,7 @@ async fn build_manifest(
 
     let actions_value = actions.await?;
     let loader_id_value = loader_id.await?;
-    let mapping = match *runtime {
+    let mapping = match runtime {
         NextRuntime::Edge => &mut manifest.edge,
         NextRuntime::NodeJs => &mut manifest.node,
     };

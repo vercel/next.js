@@ -1096,7 +1096,7 @@ impl AppEndpoint {
                     this.app_project.project().project_path(),
                     node_root,
                     app_entry.original_name.clone(),
-                    Value::new(NextRuntime::NodeJs),
+                    runtime,
                     Vc::upcast(this.app_project.rsc_module_context()),
                     this.app_project
                         .project()
