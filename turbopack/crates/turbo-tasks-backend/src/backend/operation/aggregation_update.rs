@@ -6,7 +6,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use turbo_tasks::{SessionId, TaskId};
+use turbo_tasks::{FxIndexSet, SessionId, TaskId};
 
 use crate::{
     backend::{
@@ -90,9 +90,6 @@ pub enum AggregationUpdateJob {
     AggregatedDataUpdate {
         upper_ids: Vec<TaskId>,
         update: AggregatedDataUpdate,
-    },
-    FindAndScheduleDirty {
-        task_ids: Vec<TaskId>,
     },
     Invalidate {
         task_ids: SmallVec<[TaskId; 4]>,
@@ -199,9 +196,7 @@ impl AggregatedDataUpdate {
             // `AggregateRoot` we need to schedule the dirty tasks in the new dirty container
             let current_session_update = count.get(session_id);
             if current_session_update > 0 && task.has_key(&CachedDataItemKey::AggregateRoot {}) {
-                queue.push(AggregationUpdateJob::FindAndScheduleDirty {
-                    task_ids: vec![*dirty_container_id],
-                })
+                queue.push_find_and_schedule_dirty(*dirty_container_id)
             }
 
             let mut aggregated_update = DirtyContainerCount::default();
@@ -322,12 +317,14 @@ impl AggregatedDataUpdate {
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct AggregationUpdateQueue {
     jobs: VecDeque<AggregationUpdateJob>,
+    find_and_schedule: FxIndexSet<TaskId>,
 }
 
 impl AggregationUpdateQueue {
     pub fn new() -> Self {
         Self {
             jobs: VecDeque::with_capacity(8),
+            find_and_schedule: FxIndexSet::default(),
         }
     }
 
@@ -341,6 +338,14 @@ impl AggregationUpdateQueue {
 
     pub fn extend(&mut self, jobs: impl IntoIterator<Item = AggregationUpdateJob>) {
         self.jobs.extend(jobs);
+    }
+
+    pub fn push_find_and_schedule_dirty(&mut self, task_id: TaskId) {
+        self.find_and_schedule.insert(task_id);
+    }
+
+    pub fn extend_find_and_schedule_dirty(&mut self, task_ids: impl IntoIterator<Item = TaskId>) {
+        self.find_and_schedule.extend(task_ids);
     }
 
     pub fn run(job: AggregationUpdateJob, ctx: &mut ExecuteContext<'_>) {
@@ -465,9 +470,6 @@ impl AggregationUpdateQueue {
                 AggregationUpdateJob::AggregatedDataUpdate { upper_ids, update } => {
                     self.aggregated_data_update(upper_ids, ctx, update);
                 }
-                AggregationUpdateJob::FindAndScheduleDirty { task_ids } => {
-                    self.find_and_schedule_dirty(task_ids, ctx);
-                }
                 AggregationUpdateJob::BalanceEdge { upper_id, task_id } => {
                     self.balance_edge(ctx, upper_id, task_id);
                 }
@@ -477,9 +479,21 @@ impl AggregationUpdateQueue {
                     }
                 }
             }
+            false
+        } else if !self.find_and_schedule.is_empty() {
+            let mut remaining = MAX_COUNT_BEFORE_YIELD;
+            while remaining > 0 {
+                if let Some(task_id) = self.find_and_schedule.pop() {
+                    self.find_and_schedule_dirty(task_id, ctx);
+                    remaining -= 1;
+                } else {
+                    break;
+                }
+            }
+            false
+        } else {
+            true
         }
-
-        self.jobs.is_empty()
     }
 
     fn balance_edge(&mut self, ctx: &mut ExecuteContext, upper_id: TaskId, task_id: TaskId) {
@@ -527,9 +541,7 @@ impl AggregationUpdateQueue {
                         if upper.has_key(&CachedDataItemKey::AggregateRoot {}) {
                             // If the upper node is an `AggregateRoot` we need to schedule the
                             // dirty tasks in the new dirty container
-                            self.push(AggregationUpdateJob::FindAndScheduleDirty {
-                                task_ids: vec![task_id],
-                            });
+                            self.push_find_and_schedule_dirty(task_id);
                         }
                     }
 
@@ -597,38 +609,28 @@ impl AggregationUpdateQueue {
         }
     }
 
-    fn find_and_schedule_dirty(&mut self, mut task_ids: Vec<TaskId>, ctx: &mut ExecuteContext) {
-        let start = task_ids.len().saturating_sub(MAX_COUNT_BEFORE_YIELD);
-        for task_id in task_ids.drain(start..) {
-            let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-            let session_id = ctx.session_id();
-            // Task need to be scheduled if it's dirty or doesn't have output
-            let dirty = get!(task, Dirty).map_or(false, |d| d.get(session_id));
-            let should_schedule = dirty || !task.has_key(&CachedDataItemKey::Output {});
-            if should_schedule {
-                let description = ctx.backend.get_task_desc_fn(task_id);
-                if task.add(CachedDataItem::new_scheduled(description)) {
-                    ctx.turbo_tasks.schedule(task_id);
-                }
-            }
-            if is_aggregating_node(get_aggregation_number(&task)) {
-                // if it has an `AggregateRoot` we can skip visiting the nested nodes since
-                // this would already be scheduled by the `AggregateRoot`
-                if !task.has_key(&CachedDataItemKey::AggregateRoot {}) {
-                    task.insert(CachedDataItem::AggregateRoot {
-                        value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
-                    });
-                    let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => *task);
-                    if !dirty_containers.is_empty() {
-                        self.push(AggregationUpdateJob::FindAndScheduleDirty {
-                            task_ids: dirty_containers,
-                        });
-                    }
-                }
+    fn find_and_schedule_dirty(&mut self, task_id: TaskId, ctx: &mut ExecuteContext) {
+        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        let session_id = ctx.session_id();
+        // Task need to be scheduled if it's dirty or doesn't have output
+        let dirty = get!(task, Dirty).map_or(false, |d| d.get(session_id));
+        let should_schedule = dirty || !task.has_key(&CachedDataItemKey::Output {});
+        if should_schedule {
+            let description = ctx.backend.get_task_desc_fn(task_id);
+            if task.add(CachedDataItem::new_scheduled(description)) {
+                ctx.turbo_tasks.schedule(task_id);
             }
         }
-        if !task_ids.is_empty() {
-            self.push(AggregationUpdateJob::FindAndScheduleDirty { task_ids });
+        if is_aggregating_node(get_aggregation_number(&task)) {
+            // if it has an `AggregateRoot` we can skip visiting the nested nodes since
+            // this would already be scheduled by the `AggregateRoot`
+            if !task.has_key(&CachedDataItemKey::AggregateRoot {}) {
+                task.insert(CachedDataItem::AggregateRoot {
+                    value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
+                });
+                let dirty_containers = iter_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => *task);
+                self.find_and_schedule.extend(dirty_containers);
+            }
         }
     }
 
@@ -809,9 +811,7 @@ impl AggregationUpdateQueue {
             )
         });
         if is_aggregate_root {
-            self.push(AggregationUpdateJob::FindAndScheduleDirty {
-                task_ids: vec![new_follower_id],
-            });
+            self.push_find_and_schedule_dirty(new_follower_id);
         }
         if !upper_ids_as_follower.is_empty() {
             self.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
@@ -910,12 +910,11 @@ impl AggregationUpdateQueue {
             }
         }
         if is_aggregate_root {
-            self.push(AggregationUpdateJob::FindAndScheduleDirty {
-                task_ids: followers_with_aggregation_number
+            self.find_and_schedule.extend(
+                followers_with_aggregation_number
                     .into_iter()
-                    .map(|(id, _)| id)
-                    .collect(),
-            });
+                    .map(|(id, _)| id),
+            );
         }
         if !followers_of_upper.is_empty() {
             let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
