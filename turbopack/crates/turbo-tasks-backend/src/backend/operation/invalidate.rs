@@ -8,7 +8,7 @@ use crate::{
             aggregation_update::{
                 AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue,
             },
-            ExecuteContext, Operation,
+            ExecuteContext, Operation, TaskGuard,
         },
         storage::{get, get_mut},
         TaskDataCategory,
@@ -31,13 +31,13 @@ pub enum InvalidateOperation {
 }
 
 impl InvalidateOperation {
-    pub fn run(task_ids: SmallVec<[TaskId; 4]>, mut ctx: ExecuteContext<'_>) {
+    pub fn run(task_ids: SmallVec<[TaskId; 4]>, mut ctx: impl ExecuteContext) {
         InvalidateOperation::MakeDirty { task_ids }.execute(&mut ctx)
     }
 }
 
 impl Operation for InvalidateOperation {
-    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -69,7 +69,7 @@ impl Operation for InvalidateOperation {
 pub fn make_task_dirty(
     task_id: TaskId,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut ExecuteContext,
+    ctx: &mut impl ExecuteContext,
 ) {
     if ctx.is_once_task(task_id) {
         return;
@@ -81,11 +81,11 @@ pub fn make_task_dirty(
 }
 
 pub fn make_task_dirty_internal(
-    task: &mut super::TaskGuard,
+    task: &mut impl TaskGuard,
     task_id: TaskId,
     make_stale: bool,
     queue: &mut AggregationUpdateQueue,
-    ctx: &mut ExecuteContext,
+    ctx: &impl ExecuteContext,
 ) {
     if make_stale {
         if let Some(InProgressState::InProgress { stale, .. }) = get_mut!(task, InProgress) {
@@ -137,7 +137,7 @@ pub fn make_task_dirty_internal(
     }
     let root = task.has_key(&CachedDataItemKey::AggregateRoot {});
     if root {
-        let description = ctx.backend.get_task_desc_fn(task_id);
+        let description = ctx.get_task_desc_fn(task_id);
         if task.add(CachedDataItem::new_scheduled(description)) {
             ctx.schedule(task_id);
         }

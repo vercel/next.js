@@ -11,7 +11,7 @@ use crate::{
                 AggregationUpdateQueue,
             },
             invalidate::make_task_dirty,
-            AggregatedDataUpdate, ExecuteContext, Operation,
+            AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
         },
         storage::{update, update_count},
         TaskDataCategory,
@@ -45,7 +45,7 @@ pub enum OutdatedEdge {
 }
 
 impl CleanupOldEdgesOperation {
-    pub fn run(task_id: TaskId, outdated: Vec<OutdatedEdge>, ctx: &mut ExecuteContext<'_>) {
+    pub fn run(task_id: TaskId, outdated: Vec<OutdatedEdge>, ctx: &mut impl ExecuteContext) {
         let queue = AggregationUpdateQueue::new();
         CleanupOldEdgesOperation::RemoveEdges {
             task_id,
@@ -57,7 +57,7 @@ impl CleanupOldEdgesOperation {
 }
 
 impl Operation for CleanupOldEdgesOperation {
-    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {

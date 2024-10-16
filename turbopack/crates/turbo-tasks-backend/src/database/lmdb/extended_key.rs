@@ -1,14 +1,14 @@
 use std::hash::{Hash, Hasher};
 
 use byteorder::ByteOrder;
-use lmdb::{Database, RoTransaction, RwTransaction, Transaction, WriteFlags};
+use lmdb::{Database, RwTransaction, Transaction, WriteFlags};
 use rustc_hash::FxHasher;
 
 const MAX_KEY_SIZE: usize = 511;
 const SHARED_KEY: usize = MAX_KEY_SIZE - 8;
 
-pub fn get<'tx>(
-    tx: &'tx RoTransaction<'tx>,
+pub fn get<'tx, T: Transaction>(
+    tx: &'tx T,
     database: Database,
     key: &[u8],
 ) -> lmdb::Result<&'tx [u8]> {
@@ -61,6 +61,44 @@ pub fn put(
         Ok(())
     } else {
         tx.put(database, &key, &value, flags)
+    }
+}
+
+pub fn delete(
+    tx: &mut RwTransaction<'_>,
+    database: Database,
+    key: &[u8],
+    flags: WriteFlags,
+) -> lmdb::Result<()> {
+    if key.len() > MAX_KEY_SIZE - 1 {
+        let hashed_key = hashed_key(key);
+
+        let old = match tx.get(database, &hashed_key) {
+            Ok(data) => data,
+            Err(lmdb::Error::NotFound) => return Ok(()),
+            Err(err) => return Err(err),
+        };
+        let mut data = Vec::with_capacity(old.len());
+        let iter = ExtendedValueIter::new(old);
+        for (k, v) in iter {
+            if k != &key[SHARED_KEY..] {
+                data.extend_from_slice(&(k.len() as u32).to_be_bytes());
+                data.extend_from_slice(&(v.len() as u32).to_be_bytes());
+                data.extend_from_slice(k);
+                data.extend_from_slice(v);
+            }
+        }
+        if data.len() == 0 {
+            tx.del(database, &hashed_key, None)?;
+            Ok(())
+        } else if data.len() != old.len() {
+            tx.put(database, &hashed_key, &data, flags)?;
+            Ok(())
+        } else {
+            Ok(())
+        }
+    } else {
+        tx.del(database, &key, None)
     }
 }
 
