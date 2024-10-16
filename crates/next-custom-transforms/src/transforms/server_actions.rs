@@ -825,40 +825,38 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if let Some(cache_type_str) = cache_type {
-            if !(self.in_cache_file.is_some() && self.in_export_decl) {
-                // It's a cache function. If it doesn't have a name, give it one.
-                match f.ident.as_mut() {
-                    None => {
-                        let action_name = gen_cache_ident(&mut self.reference_index);
-                        let ident = Ident::new(action_name, DUMMY_SP, Default::default());
-                        f.ident.insert(ident)
-                    }
-                    Some(i) => i,
-                };
-
-                // Collect all the identifiers defined inside the closure and used
-                // in the cache function. With deduplication.
-                retain_names_from_declared_idents(
-                    &mut child_names,
-                    &self.declared_idents[..declared_idents_until],
-                );
-
-                let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
-                    child_names.clone(),
-                    f.ident.clone(),
-                    cache_type_str.as_str(),
-                    &mut f.function,
-                );
-
-                if self.in_default_export_decl {
-                    // This function expression is also the default export:
-                    // `export default async function() {}`
-                    // This specific case (default export) isn't handled by `visit_mut_expr`.
-                    // Replace the original function expr with a action proxy expr.
-                    self.rewrite_default_fn_expr_to_proxy_expr = Some(new_expr);
-                } else {
-                    self.rewrite_expr_to_proxy_expr = Some(new_expr);
+            // It's a cache function. If it doesn't have a name, give it one.
+            match f.ident.as_mut() {
+                None => {
+                    let action_name = gen_cache_ident(&mut self.reference_index);
+                    let ident = Ident::new(action_name, DUMMY_SP, Default::default());
+                    f.ident.insert(ident)
                 }
+                Some(i) => i,
+            };
+
+            // Collect all the identifiers defined inside the closure and used
+            // in the cache function. With deduplication.
+            retain_names_from_declared_idents(
+                &mut child_names,
+                &self.declared_idents[..declared_idents_until],
+            );
+
+            let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
+                child_names.clone(),
+                f.ident.clone(),
+                cache_type_str.as_str(),
+                &mut f.function,
+            );
+
+            if self.in_default_export_decl {
+                // This function expression is also the default export:
+                // `export default async function() {}`
+                // This specific case (default export) isn't handled by `visit_mut_expr`.
+                // Replace the original function expr with a action proxy expr.
+                self.rewrite_default_fn_expr_to_proxy_expr = Some(new_expr);
+            } else {
+                self.rewrite_expr_to_proxy_expr = Some(new_expr);
             }
         }
 
