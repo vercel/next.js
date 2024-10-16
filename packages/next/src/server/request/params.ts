@@ -6,6 +6,7 @@ import {
   abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   postponeWithTracking,
+  trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 
 import {
@@ -15,13 +16,10 @@ import {
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import {
-  makeResolvedReactPromise,
-  describeStringPropertyAccess,
-  wellKnownProperties,
-} from './utils'
+import { describeStringPropertyAccess, wellKnownProperties } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
+import { scheduleImmediate } from '../../lib/scheduler'
 
 export type Params = Record<string, string | Array<string> | undefined>
 
@@ -115,7 +113,7 @@ export function createPrerenderParamsForClientSegment(
   // We're prerendering in a mode that does not abort. We resolve the promise without
   // any tracking because we're just transporting a value from server to client where the tracking
   // will be applied.
-  return makeResolvedReactPromise(underlyingParams)
+  return Promise.resolve(underlyingParams)
 }
 
 function createPrerenderParams(
@@ -366,7 +364,17 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   // We don't use makeResolvedReactPromise here because params
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(underlyingParams)
+  const promise = new Promise<Params>((resolve) => {
+    scheduleImmediate(() =>
+      // @TODO the fact that we need to wait two ticks tells us that there
+      // is something not quite right about how we cut off the RSC stream
+      // for validating dynamic rendering in dynamicIO. This is fine for now
+      // for dev b/c it helps surface what will be build issues but we may
+      // need to just do a clean prerender to avoid subtle timing issues that
+      // require workarounds like this double schedule
+      scheduleImmediate(() => resolve(underlyingParams))
+    )
+  })
 
   const proxiedProperties = new Set<string>()
   const unproxiedProperties: Array<string> = []
@@ -390,7 +398,7 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
           proxiedProperties.has(prop)
         ) {
           const expression = describeStringPropertyAccess('params', prop)
-          warnForSyncAccess(store.route, expression)
+          syncIODev(store.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -402,7 +410,8 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
       return ReflectAdapter.set(target, prop, value, receiver)
     },
     ownKeys(target) {
-      warnForEnumeration(store.route, unproxiedProperties)
+      const expression = '`Object.keys(params)` or similar expression'
+      syncIODev(store.route, expression, unproxiedProperties)
       return Reflect.ownKeys(target)
     },
   })
@@ -411,45 +420,94 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   return proxiedPromise
 }
 
+function syncIODev(
+  route: string | undefined,
+  expression: string,
+  missingProperties?: Array<string>
+) {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore && workUnitStore.type === 'request') {
+    const requestStore = workUnitStore
+    const dynamicTracking = requestStore.dynamicTracking
+    if (dynamicTracking) {
+      // We are in a dynamic IO dev render context
+      if (
+        !dynamicTracking.syncDynamicErrorWithStack &&
+        requestStore.prerenderPhase === true
+      ) {
+        const errorWithStack =
+          missingProperties && missingProperties.length > 0
+            ? createIncompleteEnumerationError(
+                route,
+                expression,
+                missingProperties
+              )
+            : createParamsAccessError(route, expression)
+        trackSynchronousRequestDataAccessInDev(
+          expression,
+          errorWithStack,
+          requestStore,
+          dynamicTracking
+        )
+      } else if (requestStore.prospectiveRender !== true) {
+        if (missingProperties && missingProperties.length > 0) {
+          warnForIncompleteEnumeration(route, expression, missingProperties)
+        } else {
+          warnForSyncAccess(route, expression)
+        }
+      }
+    } else {
+      // We are in a legacy dev render context
+      if (missingProperties && missingProperties.length > 0) {
+        warnForIncompleteEnumeration(route, expression, missingProperties)
+      } else {
+        warnForSyncAccess(route, expression)
+      }
+    }
+  }
+}
+
 const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
-      route: undefined | string,
-      expression: string
-    ) {
-      const prefix = route ? ` In route ${route} a ` : 'A '
-      return new Error(
-        `${prefix}param property was accessed directly with ${expression}. ` +
-          `\`params\` should be awaited before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-      )
-    })
+  : createDedupedByCallsiteServerErrorLoggerDev(createParamsAccessError, 1)
 
-const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+const warnForIncompleteEnumeration = process.env
+  .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(function getEnumerationMessage(
-      route: undefined | string,
-      missingProperties: Array<string>
-    ) {
-      const prefix = route ? ` In route ${route} ` : ''
-      if (missingProperties.length) {
-        const describedMissingProperties =
-          describeListOfPropertyNames(missingProperties)
-        return new Error(
-          `${prefix}params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
-            `\`params\` should be awaited before accessing its properties. ` +
-            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-        )
-      } else {
-        return new Error(
-          `${prefix}params are being enumerated. ` +
-            `\`params\` should be awaited before accessing its properties. ` +
-            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-        )
-      }
-    })
+  : createDedupedByCallsiteServerErrorLoggerDev(
+      createIncompleteEnumerationError,
+      1
+    )
+
+function createParamsAccessError(
+  route: string | undefined,
+  expression: string
+) {
+  const prefix = route ? ` Route "${route}" ` : 'This route '
+  return new Error(
+    `${prefix}used ${expression}. ` +
+      `\`params\` should be awaited before using its properties. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
+}
+
+function createIncompleteEnumerationError(
+  route: string | undefined,
+  expression: string,
+  missingProperties: Array<string>
+) {
+  const prefix = route ? ` Route "${route}" ` : 'This route '
+  return new Error(
+    `${prefix}used ${expression}. ` +
+      `\`params\` should be awaited before using its properties. ` +
+      `The following properties were not available through enumeration ` +
+      `because they conflict with builtin property names: ` +
+      `${describeListOfPropertyNames(missingProperties)}. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
+}
 
 function describeListOfPropertyNames(properties: Array<string>) {
   switch (properties.length) {

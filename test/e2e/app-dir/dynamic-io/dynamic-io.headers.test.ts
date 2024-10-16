@@ -284,7 +284,12 @@ describe('dynamic-io', () => {
     }
 
     if (isNextDev) {
-      expect(i).toBe(headerWarnings.length)
+      // TODO currently we double render in RSC during dev to account for
+      // flushing out module scope dynamic errors. This is leading the server logs to be doubled
+      // The client logs aren't doubled because we only send the second render to the client.
+      // We should fix this by not logging in the prospective render. But We will land that fix
+      // later and separately
+      expect(i * 2).toBe(headerWarnings.length)
     }
   })
 })

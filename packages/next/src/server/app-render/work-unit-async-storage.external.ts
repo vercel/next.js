@@ -51,7 +51,9 @@ export type RequestStore = {
 
   // DEV-only
   usedDynamic?: boolean
-  environment?: 'Prerender' | 'Server'
+  dynamicTracking?: DynamicTrackingState
+  prerenderPhase?: boolean
+  prospectiveRender?: boolean
 } & PhasePartial
 
 /**

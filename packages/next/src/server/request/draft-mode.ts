@@ -7,6 +7,7 @@ import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.exte
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
   postponeWithTracking,
+  trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
@@ -125,7 +126,7 @@ function createExoticDraftModeWithDevWarnings(
 
   Object.defineProperty(promise, 'isEnabled', {
     get() {
-      const expression = 'draftMode().isEnabled'
+      const expression = '`draftMode().isEnabled`'
       warnForSyncAccess(route, expression)
       return instance.isEnabled
     },
@@ -142,16 +143,16 @@ function createExoticDraftModeWithDevWarnings(
 
   Object.defineProperty(promise, 'enable', {
     value: function get() {
-      const expression = 'draftMode().enable()'
-      warnForSyncAccess(route, expression)
+      const expression = '`draftMode().enable()`'
+      syncIODev(route, expression)
       return instance.enable.apply(instance, arguments as any)
     },
   })
 
   Object.defineProperty(promise, 'disable', {
     value: function get() {
-      const expression = 'draftMode().disable()'
-      warnForSyncAccess(route, expression)
+      const expression = '`draftMode().disable()`'
+      syncIODev(route, expression)
       return instance.disable.apply(instance, arguments as any)
     },
   })
@@ -190,21 +191,51 @@ class DraftMode {
   }
 }
 
+function syncIODev(route: string | undefined, expression: string) {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore && workUnitStore.type === 'request') {
+    const requestStore = workUnitStore
+    const dynamicTracking = requestStore.dynamicTracking
+    if (dynamicTracking) {
+      // We are in a dynamic IO dev render context
+      if (
+        !dynamicTracking.syncDynamicErrorWithStack &&
+        requestStore.prerenderPhase === true
+      ) {
+        const errorWithStack = createDraftModeAccessError(route, expression)
+        trackSynchronousRequestDataAccessInDev(
+          expression,
+          errorWithStack,
+          requestStore,
+          dynamicTracking
+        )
+      } else if (requestStore.prospectiveRender !== true) {
+        warnForSyncAccess(route, expression)
+      }
+    } else {
+      // We are in a legacy dev render context
+      warnForSyncAccess(route, expression)
+    }
+  }
+}
+
 const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessWarning(
-      route: undefined | string,
-      expression: string
-    ) {
-      const prefix = route ? ` In route ${route} a ` : 'A '
-      return new Error(
-        `${prefix}\`draftMode()\` property was accessed directly with \`${expression}\`. ` +
-          `\`draftMode()\` should be awaited before using its value. ` +
-          `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
-      )
-    })
+  : createDedupedByCallsiteServerErrorLoggerDev(createDraftModeAccessError, 1)
+
+function createDraftModeAccessError(
+  route: string | undefined,
+  expression: string
+) {
+  const prefix = route ? ` Route "${route}" ` : 'This route '
+  return new Error(
+    `${prefix}used ${expression}. ` +
+      `\`draftMode()\` should be awaited before using its value. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
+}
 
 function trackDynamicDraftMode(expression: string) {
   const store = workAsyncStorage.getStore()

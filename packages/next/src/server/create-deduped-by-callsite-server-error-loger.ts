@@ -33,7 +33,8 @@ const flushCurrentErrorIfNew = cache(
  * @returns
  */
 export function createDedupedByCallsiteServerErrorLoggerDev<Args extends any[]>(
-  getMessage: (...args: Args) => Error
+  getMessage: (...args: Args) => Error,
+  indirections: number = 0
 ) {
   return function logDedupedError(...args: Args) {
     const message = getMessage(...args)
@@ -48,7 +49,7 @@ export function createDedupedByCallsiteServerErrorLoggerDev<Args extends any[]>(
         //   asyncApiBeingAccessedSynchronously
         //   <userland callsite>
         // TODO: This breaks if sourcemaps with ignore lists are enabled.
-        const key = callStackFrames[3]
+        const key = callStackFrames[3 + indirections]
         errorRef.current = message
         flushCurrentErrorIfNew(key)
       }

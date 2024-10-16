@@ -124,6 +124,9 @@ describe('dynamic-io', () => {
           expect.stringContaining(
             'searchParam property was accessed directly with `searchParams.sentinel`'
           ),
+          expect.stringContaining(
+            'Route "/search/sync/server/access" used `searchParams.sentinel`. `search` is a Promise and must be awaited'
+          ),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)

@@ -13,11 +13,12 @@ import {
   abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
+  trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { makeResolvedReactPromise } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
+import { scheduleImmediate } from '../../lib/scheduler'
 
 /**
  * In this version of Next.js `headers()` returns a Promise however you can still reference the properties of the underlying Headers instance
@@ -291,7 +292,7 @@ function makeUntrackedExoticHeaders(
     return cachedHeaders
   }
 
-  const promise = makeResolvedReactPromise(underlyingHeaders)
+  const promise = Promise.resolve(underlyingHeaders)
   CachedHeaders.set(underlyingHeaders, promise)
 
   Object.defineProperties(promise, {
@@ -342,14 +343,24 @@ function makeUntrackedExoticHeadersWithDevWarnings(
     return cachedHeaders
   }
 
-  const promise = makeResolvedReactPromise(underlyingHeaders)
+  const promise = new Promise<ReadonlyHeaders>((resolve) => {
+    scheduleImmediate(() =>
+      // @TODO the fact that we need to wait two ticks tells us that there
+      // is something not quite right about how we cut off the RSC stream
+      // for validating dynamic rendering in dynamicIO. This is fine for now
+      // for dev b/c it helps surface what will be build issues but we may
+      // need to just do a clean prerender to avoid subtle timing issues that
+      // require workarounds like this double schedule
+      scheduleImmediate(() => resolve(underlyingHeaders))
+    )
+  })
   CachedHeaders.set(underlyingHeaders, promise)
 
   Object.defineProperties(promise, {
     append: {
       value: function append() {
-        const expression = `headers().append(${describeNameArg(arguments[0])}, ...)`
-        warnForSyncAccess(route, expression)
+        const expression = `\`headers().append(${describeNameArg(arguments[0])}, ...)\``
+        syncIODev(route, expression)
         return underlyingHeaders.append.apply(
           underlyingHeaders,
           arguments as any
@@ -358,8 +369,8 @@ function makeUntrackedExoticHeadersWithDevWarnings(
     },
     delete: {
       value: function _delete() {
-        const expression = `headers().delete(${describeNameArg(arguments[0])})`
-        warnForSyncAccess(route, expression)
+        const expression = `\`headers().delete(${describeNameArg(arguments[0])})\``
+        syncIODev(route, expression)
         return underlyingHeaders.delete.apply(
           underlyingHeaders,
           arguments as any
@@ -368,29 +379,29 @@ function makeUntrackedExoticHeadersWithDevWarnings(
     },
     get: {
       value: function get() {
-        const expression = `headers().get(${describeNameArg(arguments[0])})`
-        warnForSyncAccess(route, expression)
+        const expression = `\`headers().get(${describeNameArg(arguments[0])})\``
+        syncIODev(route, expression)
         return underlyingHeaders.get.apply(underlyingHeaders, arguments as any)
       },
     },
     has: {
       value: function has() {
-        const expression = `headers().has(${describeNameArg(arguments[0])})`
-        warnForSyncAccess(route, expression)
+        const expression = `\`headers().has(${describeNameArg(arguments[0])})\``
+        syncIODev(route, expression)
         return underlyingHeaders.has.apply(underlyingHeaders, arguments as any)
       },
     },
     set: {
       value: function set() {
-        const expression = `headers().set(${describeNameArg(arguments[0])}, ...)`
-        warnForSyncAccess(route, expression)
+        const expression = `\`headers().set(${describeNameArg(arguments[0])}, ...)\``
+        syncIODev(route, expression)
         return underlyingHeaders.set.apply(underlyingHeaders, arguments as any)
       },
     },
     getSetCookie: {
       value: function getSetCookie() {
-        const expression = `headers().getSetCookie()`
-        warnForSyncAccess(route, expression)
+        const expression = '`headers().getSetCookie()`'
+        syncIODev(route, expression)
         return underlyingHeaders.getSetCookie.apply(
           underlyingHeaders,
           arguments as any
@@ -399,8 +410,8 @@ function makeUntrackedExoticHeadersWithDevWarnings(
     },
     forEach: {
       value: function forEach() {
-        const expression = `headers().forEach(...)`
-        warnForSyncAccess(route, expression)
+        const expression = '`headers().forEach(...)`'
+        syncIODev(route, expression)
         return underlyingHeaders.forEach.apply(
           underlyingHeaders,
           arguments as any
@@ -409,15 +420,15 @@ function makeUntrackedExoticHeadersWithDevWarnings(
     },
     keys: {
       value: function keys() {
-        const expression = `headers().keys()`
-        warnForSyncAccess(route, expression)
+        const expression = '`headers().keys()`'
+        syncIODev(route, expression)
         return underlyingHeaders.keys.apply(underlyingHeaders, arguments as any)
       },
     },
     values: {
       value: function values() {
-        const expression = `headers().values()`
-        warnForSyncAccess(route, expression)
+        const expression = '`headers().values()`'
+        syncIODev(route, expression)
         return underlyingHeaders.values.apply(
           underlyingHeaders,
           arguments as any
@@ -426,8 +437,8 @@ function makeUntrackedExoticHeadersWithDevWarnings(
     },
     entries: {
       value: function entries() {
-        const expression = `headers().entries()`
-        warnForSyncAccess(route, expression)
+        const expression = '`headers().entries()`'
+        syncIODev(route, expression)
         return underlyingHeaders.entries.apply(
           underlyingHeaders,
           arguments as any
@@ -436,7 +447,8 @@ function makeUntrackedExoticHeadersWithDevWarnings(
     },
     [Symbol.iterator]: {
       value: function () {
-        warnForSyncIteration(route)
+        const expression = '`...headers()` or similar iteration'
+        syncIODev(route, expression)
         return underlyingHeaders[Symbol.iterator].apply(
           underlyingHeaders,
           arguments as any
@@ -452,35 +464,51 @@ function describeNameArg(arg: unknown) {
   return typeof arg === 'string' ? `'${arg}'` : '...'
 }
 
-const noop = () => {}
-
-const warnForSyncIteration = process.env
-  .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(
-      function getSyncIterationMessage(route?: string) {
-        const prefix = route ? ` In route ${route} ` : ''
-        return new Error(
-          `${prefix}headers were iterated over. ` +
-            `\`headers()\` should be awaited before using its value. ` +
-            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+function syncIODev(route: string | undefined, expression: string) {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore && workUnitStore.type === 'request') {
+    const requestStore = workUnitStore
+    const dynamicTracking = requestStore.dynamicTracking
+    if (dynamicTracking) {
+      // We are in a dynamic IO dev render context
+      if (
+        !dynamicTracking.syncDynamicErrorWithStack &&
+        requestStore.prerenderPhase === true
+      ) {
+        const errorWithStack = createHeadersAccessError(route, expression)
+        trackSynchronousRequestDataAccessInDev(
+          expression,
+          errorWithStack,
+          requestStore,
+          dynamicTracking
         )
+      } else if (requestStore.prospectiveRender !== true) {
+        warnForSyncAccess(route, expression)
       }
-    )
+    } else {
+      // We are in a legacy dev render context
+      warnForSyncAccess(route, expression)
+    }
+  }
+}
+
+const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
-      route: undefined | string,
-      expression: string
-    ) {
-      const prefix = route ? ` In route ${route} a ` : 'A '
-      return new Error(
-        `${prefix}header property was accessed directly with \`${expression}\`. ` +
-          `\`headers()\` should be awaited before using its value. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-      )
-    })
+  : createDedupedByCallsiteServerErrorLoggerDev(createHeadersAccessError, 1)
+
+function createHeadersAccessError(
+  route: string | undefined,
+  expression: string
+) {
+  const prefix = route ? ` Route "${route}" ` : 'This route '
+  return new Error(
+    `${prefix}used ${expression}. ` +
+      `\`headers()\` should be awaited before using its value. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
+}
 
 type HeadersExtensions = {
   [K in keyof ReadonlyHeaders]: unknown

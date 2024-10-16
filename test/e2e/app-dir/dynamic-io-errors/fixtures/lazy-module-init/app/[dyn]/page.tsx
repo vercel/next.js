@@ -1,6 +1,6 @@
 import { BuildID } from './build-id'
 
-export default async function Page({ searchParams }) {
+export default async function Page({ params }) {
   return (
     <>
       <p>
