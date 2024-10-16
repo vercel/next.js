@@ -493,7 +493,7 @@ export function getVariableDeclaratorId(
   return undefined
 }
 
-export function findFunctionBody(path: ASTPath<FunctionScope>) {
+export function findFunctionBody(path: ASTPath<FunctionScope>): null | any[] {
   let functionBody = path.node.body
   if (functionBody && functionBody.type === 'BlockStatement') {
     return functionBody.body
