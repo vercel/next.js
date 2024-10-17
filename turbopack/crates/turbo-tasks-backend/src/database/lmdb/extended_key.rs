@@ -88,7 +88,7 @@ pub fn delete(
                 data.extend_from_slice(v);
             }
         }
-        if data.len() == 0 {
+        if data.is_empty() {
             tx.del(database, &hashed_key, None)?;
             Ok(())
         } else if data.len() != old.len() {

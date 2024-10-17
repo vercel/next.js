@@ -29,7 +29,7 @@ pub trait KeyValueDatabase {
         tx: &'r Self::ReadTransaction<'l>,
     ) -> &'r Self::ReadTransaction<'i>;
 
-    fn begin_read_transaction<'l>(&'l self) -> Result<Self::ReadTransaction<'l>>;
+    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>>;
 
     fn get<'l, 'db: 'l>(
         &'l self,

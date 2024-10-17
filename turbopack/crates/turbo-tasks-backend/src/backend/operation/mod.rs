@@ -299,11 +299,11 @@ where
         let parent_op = take(parent_op_ref);
         let parent_op: AnyOperation = parent_op.into();
         let this = &*self;
-        fn run_with_inner_ctx<'a, 'tx, B: BackingStorage>(
+        fn run_with_inner_ctx<'a, B: BackingStorage>(
             backend: &'a TurboTasksBackendInner<B>,
             turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
             parent: ParentRef<'a>,
-            transaction: TransactionState<'a, 'tx, B>,
+            transaction: TransactionState<'a, '_, B>,
             run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, B>),
         ) {
             let mut inner_ctx: ExecuteContextImpl<'_, '_, B> = ExecuteContextImpl {

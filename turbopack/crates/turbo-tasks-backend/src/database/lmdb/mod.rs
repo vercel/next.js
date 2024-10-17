@@ -21,7 +21,7 @@ pub struct LmbdKeyValueDatabase {
 
 impl LmbdKeyValueDatabase {
     pub fn new(path: &Path) -> Result<Self> {
-        create_dir_all(&path).context("Creating database directory failed")?;
+        create_dir_all(path).context("Creating database directory failed")?;
 
         #[cfg(target_arch = "x86")]
         const MAP_SIZE: usize = usize::MAX;
@@ -37,7 +37,7 @@ impl LmbdKeyValueDatabase {
             .set_max_readers((available_parallelism().map_or(16, |v| v.get()) * 8) as u32)
             .set_max_dbs(5)
             .set_map_size(MAP_SIZE)
-            .open(&path)?;
+            .open(path)?;
         let infra_db = env.create_db(Some("infra"), DatabaseFlags::INTEGER_KEY)?;
         let data_db = env.create_db(Some("data"), DatabaseFlags::INTEGER_KEY)?;
         let meta_db = env.create_db(Some("meta"), DatabaseFlags::INTEGER_KEY)?;
@@ -132,8 +132,8 @@ impl<'a> WriteBatch<'a> for LmbdWriteBatch<'a> {
         extended_key::put(
             &mut self.tx,
             self.this.db(key_space),
-            &*key,
-            &*value,
+            &key,
+            &value,
             WriteFlags::empty(),
         )?;
         Ok(())
@@ -143,7 +143,7 @@ impl<'a> WriteBatch<'a> for LmbdWriteBatch<'a> {
         extended_key::delete(
             &mut self.tx,
             self.this.db(key_space),
-            &*key,
+            &key,
             WriteFlags::empty(),
         )?;
         Ok(())

@@ -111,10 +111,6 @@ impl PersistanceState {
     pub fn is_restored(&self, category: TaskDataCategory) -> bool {
         self.value & category.flag() == 0
     }
-
-    pub fn is_fully_persisted(&self) -> bool {
-        self.value & !TaskDataCategory::All.flag() == 0
-    }
 }
 
 const INDEX_THRESHOLD: usize = 1024;
@@ -302,23 +298,6 @@ where
         } else if let Some(v) = update(None) {
             map.insert(key.clone(), v);
         }
-    }
-}
-
-impl<T: KeyValuePair + Default> InnerStorage<T>
-where
-    T::Key: Indexed,
-    T::Value: PartialEq,
-{
-    pub fn has(&self, item: &mut T) -> bool {
-        let (key, value) = take(item).into_key_and_value();
-        let result = if let Some(stored_value) = self.get(&key) {
-            *stored_value == value
-        } else {
-            false
-        };
-        *item = T::from_key_and_value(key, value);
-        result
     }
 }
 
