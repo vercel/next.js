@@ -197,9 +197,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    const errorCount = await getRedboxTotalErrorCount(browser)
     await retry(async () => {
-      await expect(errorCount).toBe(isReact18 ? 3 : 1)
+      await expect(await getRedboxTotalErrorCount(browser)).toBe(
+        isReact18 ? 3 : 1
+      )
     })
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -284,9 +285,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    const errorCount = await getRedboxTotalErrorCount(browser)
     await retry(async () => {
-      await expect(errorCount).toBe(isReact18 ? 3 : 1)
+      await expect(await getRedboxTotalErrorCount(browser)).toBe(
+        isReact18 ? 3 : 1
+      )
     })
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -525,9 +527,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     await session.assertHasRedbox()
 
-    const errorCount = await getRedboxTotalErrorCount(browser)
     await retry(async () => {
-      await expect(errorCount).toBe(
+      await expect(await getRedboxTotalErrorCount(browser)).toBe(
         isReact18
           ? 3
           : // FIXME: Should be 2
@@ -773,9 +774,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    const errorCount = await getRedboxTotalErrorCount(browser)
     await retry(async () => {
-      await expect(errorCount).toBe(isReact18 ? 3 : 1)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
 
     const description = await session.getRedboxDescription()
@@ -862,9 +862,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    const errorCount = await getRedboxTotalErrorCount(browser)
     await retry(async () => {
-      await expect(errorCount).toBe(isReact18 ? 3 : 1)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
 
     const description = await session.getRedboxDescription()
@@ -920,9 +919,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    const errorCount = await getRedboxTotalErrorCount(browser)
     await retry(async () => {
-      await expect(errorCount).toBe(isReact18 ? 3 : 1)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
 
     const description = await session.getRedboxDescription()
@@ -1003,9 +1001,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    const errorCount = await getRedboxTotalErrorCount(browser)
     await retry(async () => {
-      await expect(errorCount).toBe(isReact18 ? 3 : 1)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
 
     const description = await session.getRedboxDescription()
@@ -1156,9 +1153,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    const errorCount = await getRedboxTotalErrorCount(browser)
     await retry(async () => {
-      await expect(errorCount).toBe(isReact18 ? 3 : 1)
+      await expect(await getRedboxTotalErrorCount(browser)).toBe(
+        isReact18 ? 3 : 1
+      )
     })
 
     const pseudoHtml = await session.getRedboxComponentStack()
