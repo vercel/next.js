@@ -1,0 +1,189 @@
+*arrow function 425* = (...) => *arrow function 431*
+
+*arrow function 431* = (...) => *arrow function 437*
+
+*arrow function 437* = (...) => *arrow function 443*
+
+*arrow function 443* = (...) => *arrow function 449*
+
+*arrow function 449* = (...) => 1
+
+*arrow function 468* = (...) => *arrow function 474*
+
+*arrow function 474* = (...) => *arrow function 480*
+
+*arrow function 480* = (...) => *arrow function 486*
+
+*arrow function 486* = (...) => *arrow function 492*
+
+*arrow function 492* = (...) => 2
+
+*arrow function 511* = (...) => *arrow function 517*
+
+*arrow function 517* = (...) => *arrow function 523*
+
+*arrow function 523* = (...) => *arrow function 529*
+
+*arrow function 529* = (...) => *arrow function 535*
+
+*arrow function 535* = (...) => 2
+
+*arrow function 554* = (...) => *arrow function 560*
+
+*arrow function 560* = (...) => *arrow function 566*
+
+*arrow function 566* = (...) => *arrow function 572*
+
+*arrow function 572* = (...) => *arrow function 578*
+
+*arrow function 578* = (...) => 1
+
+a = (1 | 2 | 3 | b)
+
+b = (4 | 5 | 6 | c)
+
+c = (7 | 8 | 9 | a)
+
+d = (
+  | f11
+  | f22
+  | f32
+  | f42
+  | f52
+  | f62
+  | f72
+  | f82
+  | f92
+  | fa2
+  | fb2
+  | fc2
+  | fd2
+  | fe2
+  | ff2
+  | fg2
+  | fh2
+  | fi2
+  | fj2
+  | fk2
+  | fl2
+)
+
+f11 = (*arrow function 425* | *arrow function 468*)
+
+f12 = (*arrow function 511* | *arrow function 554*)
+
+f21 = (f11 | f12)
+
+f22 = (f12 | f11)
+
+f31 = (f21 | f22)
+
+f32 = (f22 | f21)
+
+f41 = (f31 | f32)
+
+f42 = (f32 | f31)
+
+f51 = (f41 | f42)
+
+f52 = (f42 | f41)
+
+f61 = (f51 | f52)
+
+f62 = (f52 | f51)
+
+f71 = (f61 | f62)
+
+f72 = (f62 | f61)
+
+f81 = (f71 | f72)
+
+f82 = (f72 | f71)
+
+f91 = (f81 | f82)
+
+f92 = (f82 | f81)
+
+fa1 = (f91 | f92)
+
+fa2 = (f92 | f91)
+
+fb1 = (fa1 | fa2)
+
+fb2 = (fa2 | fa1)
+
+fc1 = (fb1 | fb2)
+
+fc2 = (fb2 | fb1)
+
+fd1 = (fc1 | fc2)
+
+fd2 = (fc2 | fc1)
+
+fe1 = (fd1 | fd2)
+
+fe2 = (fd2 | fd1)
+
+ff1 = (fe1 | fe2)
+
+ff2 = (fe2 | fe1)
+
+fg1 = (ff1 | ff2)
+
+fg2 = (ff2 | ff1)
+
+fh1 = (fg1 | fg2)
+
+fh2 = (fg2 | fg1)
+
+fi1 = (fh1 | fh2)
+
+fi2 = (fh2 | fh1)
+
+fj1 = (fi1 | fi2)
+
+fj2 = (fi2 | fi1)
+
+fk1 = (fj1 | fj2)
+
+fk2 = (fj2 | fj1)
+
+fl1 = (fk1 | fk2)
+
+fl2 = (fk2 | fk1)
+
+x = (a | b | c)
+
+x1 = (x1 | x2 | x3 | x4 | x5 | x6)
+
+x2 = (x1 | x2 | x3 | x4 | x5 | x6)
+
+x3 = (x1 | x2 | x3 | x4 | x5 | x6)
+
+x4 = (x1 | x2 | x3 | x4 | x5 | x6)
+
+x5 = (x1 | x2 | x3 | x4 | x5 | x6)
+
+x6 = (x1 | x2 | x3 | x4 | x5 | x6)
+
+y = (a | b | c | x)
+
+z = (a | b | c | y)
+
+z1 = z
+
+z2 = z1
+
+z3 = z2
+
+z4 = z3
+
+z5 = z4
+
+z6 = z5
+
+z7 = z6
+
+z8 = z7
+
+z9 = z8

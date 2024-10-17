@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, getRedboxSource, hasRedbox } from 'next-test-utils'
+import { assertHasRedbox, check, getRedboxSource } from 'next-test-utils'
 
 describe('app-dir root layout', () => {
   const {
@@ -23,7 +23,7 @@ describe('app-dir root layout', () => {
           waitHydration: false,
         })
 
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
         "Please make sure to include the following tags in your root layout: <html>, <body>.
 
@@ -37,7 +37,7 @@ describe('app-dir root layout', () => {
         })
         await browser.elementByCss('a').click()
 
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
         "Please make sure to include the following tags in your root layout: <html>, <body>.
 
@@ -50,7 +50,7 @@ describe('app-dir root layout', () => {
           waitHydration: false,
         })
 
-        expect(await hasRedbox(browser)).toBe(true)
+        await assertHasRedbox(browser)
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
         "Please make sure to include the following tags in your root layout: <html>, <body>.
 

@@ -7,7 +7,8 @@ import escapeStringRegexp from 'escape-string-regexp'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
-describe('CSS Customization', () => {
+// Test checks webpack loaders and plugins.
+;(process.env.TURBOPACK ? describe.skip : describe)('CSS Customization', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {

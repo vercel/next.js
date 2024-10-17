@@ -125,3 +125,72 @@ To run the test suite using Turbopack, you can use the `TURBOPACK=1` environment
 ```sh
 TURBOPACK=1 pnpm test-dev test/e2e/app-dir/app/
 ```
+
+## Integration testing outside the repository with local builds
+
+You can locally generate tarballs for each package in this repository with:
+
+```
+pnpm pack-next
+```
+
+The tarballs will be written to a `tarballs` directory in the root of the repository, and you will
+be shown information about how to use these tarballs in a project by modifying the workspace
+`package.json` file.
+
+Alternatively, you can automatically apply these `package.json` modifications by passing in your
+project directory:
+
+```
+pnpm pack-next --project ~/shadcn-ui/apps/www/
+```
+
+This will find and modify parent workspaces when relevant. These automatic overrides should work
+with `npm` and `pnpm`. There are known issues preventing it from working with `bun` and `yarn`.
+
+On some platforms, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB, [which is
+known to cause problems with `pnpm`](https://github.com/libuv/libuv/pull/1501). That behavior can be
+overridden with `PACK_NEXT_COMPRESS=objcopy-zstd` on Linux (which is slower, but retains debuginfo),
+or with `PACK_NEXT_COMPRESS=none` on all platforms (which disables stripping entirely).
+
+These tarballs can be extracted directly into a project's `node_modules` directory (bypassing the
+package manager) by using:
+
+```
+pnpm unpack-next ~/shadcn-ui
+```
+
+However, this is not typically recommended, unless you're running into issues like the 2 GiB file
+size limit.
+
+## Integration testing outside the repository with preview builds
+
+Every branch build will create a tarball for each package in this repository<sup>1</sup> that can be used in external repositories.
+
+You can use this preview build in other packages by using a https://vercel-packages.vercel.app URL instead of a version in the `package.json`.
+Dependencies are automatically rewritten to use the same commit SHA as the package you are using.
+For example, if you install `next` from commit `abc`, `next` will have a dependency on `@next/env` at commit `abc` **and** use `next-swc` from commit `abc` as well.
+
+To use `next` from a specific commit (full SHA required):
+
+```json
+{
+  "dependencies": {
+    "next": "https://vercel-packages.vercel.app/next/commits/188f76947389a27e9bcff8ebf9079433679256a7/next"
+  }
+}
+```
+
+or, to use `next` from a specific Pull Request (PR number required):
+
+```json
+{
+  "dependencies": {
+    "next": "https://vercel-packages.vercel.app/next/prs/66445/next"
+  }
+}
+```
+
+<sup>1</sup> Not all native packages are built automatically.
+`build-and-deploy` excludes slow, rarely used native variants of `next-swc`.
+To force a build of all packages, you can trigger `build-and-deploy` manually (i.e. `workflow_dispatch`).

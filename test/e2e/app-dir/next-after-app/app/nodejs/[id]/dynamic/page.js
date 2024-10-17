@@ -1,0 +1,23 @@
+import { unstable_after as after } from 'next/server'
+import { cache } from 'react'
+import { cliLog } from '../../../../utils/log'
+
+const thing = cache(() => Symbol('cache me please'))
+
+export default function Index({ params }) {
+  const valueFromRender = thing()
+
+  after(() => {
+    const valueFromAfter = thing()
+
+    cliLog({
+      source: '[page] /[id]/dynamic',
+      value: params.id,
+      assertions: {
+        'cache() works in after()': valueFromRender === valueFromAfter,
+      },
+    })
+  })
+
+  return <div>Page with after()</div>
+}

@@ -55,17 +55,24 @@ async function run() {
 
     if (data.items.length > 0) {
       data.items.forEach(async (item) => {
+        const labelType = item.labels.some(
+          (label) => label.name === 'Turbopack'
+        )
+          ? 'turbopack'
+          : 'next'
+        const syncLabel = `linear: ${labelType}`
+
         await octoClient.rest.issues.addLabels({
           owner,
           repo,
           issue_number: item.number,
-          labels: ['linear: next'],
+          labels: [syncLabel],
         })
       })
 
       await slackClient.chat.postMessage({
         blocks: generateBlocks(data.items),
-        channel: '#next-info',
+        channel: '#coord-next-triage',
         icon_emoji: ':github:',
         username: 'GitHub Notifier',
       })

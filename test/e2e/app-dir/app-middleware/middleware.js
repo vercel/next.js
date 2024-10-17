@@ -21,7 +21,7 @@ export async function middleware(request) {
   }
 
   if (request.nextUrl.searchParams.get('draft')) {
-    draftMode().enable()
+    ;(await draftMode()).enable()
   }
 
   const removeHeaders = request.nextUrl.searchParams.get('remove-headers')
@@ -48,6 +48,16 @@ export async function middleware(request) {
     const res = NextResponse.next()
     res.cookies.set('rsc-cookie-value-1', `${Math.random()}`)
     res.cookies.set('rsc-cookie-value-2', `${Math.random()}`)
+
+    return res
+  }
+
+  if (request.nextUrl.pathname === '/rsc-cookies/cookie-options') {
+    const res = NextResponse.next()
+    res.cookies.set('rsc-secure-cookie', `${Math.random()}`, {
+      secure: true,
+      httpOnly: true,
+    })
 
     return res
   }

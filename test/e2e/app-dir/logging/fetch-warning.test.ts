@@ -1,8 +1,8 @@
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - fetch warnings', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextDev } = nextTestSetup({
     skipDeployment: true,
     files: __dirname,
   })
@@ -20,33 +20,37 @@ describe('app-dir - fetch warnings', () => {
     await next.fetch('/cache-revalidate')
   })
 
-  it('should log when request input is a string', async () => {
-    await check(() => {
-      return next.cliOutput.includes(
-        'fetch for https://next-data-api-endpoint.vercel.app/api/random?request-string on /cache-revalidate specified "cache: force-cache" and "revalidate: 3", only one should be specified'
-      )
-        ? 'success'
-        : 'fail'
-    }, 'success')
-  })
+  if (isNextDev) {
+    it('should log when request input is a string', async () => {
+      await retry(() => {
+        expect(next.cliOutput).toInclude(`
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?request-string
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
+      })
+    })
 
-  it('should log when request input is a Request instance', async () => {
-    await check(() => {
-      return next.cliOutput.includes(
-        'fetch for https://next-data-api-endpoint.vercel.app/api/random?request-input-cache-override on /cache-revalidate specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
-      )
-        ? 'success'
-        : 'fail'
-    }, 'success')
-  })
+    it('should log when request input is a Request instance', async () => {
+      await retry(() => {
+        expect(next.cliOutput).toInclude(`
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input-cache-override
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
+      })
+    })
 
-  it('should not log when overriding cache within the Request object', async () => {
-    await check(() => {
-      return next.cliOutput.includes(
-        `fetch for https://next-data-api-endpoint.vercel.app/api/random?request-input on /cache-revalidate specified "cache: default" and "revalidate: 3", only one should be specified.`
-      )
-        ? 'fail'
-        : 'success'
-    }, 'success')
-  })
+    it('should not log when overriding cache within the Request object', async () => {
+      await retry(() => {
+        expect(next.cliOutput).not.toInclude(`
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
+      })
+    })
+  } else {
+    it('should not log fetch warnings in production', async () => {
+      await retry(() => {
+        expect(next.cliOutput).not.toInclude(
+          '⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.'
+        )
+      })
+    })
+  }
 })

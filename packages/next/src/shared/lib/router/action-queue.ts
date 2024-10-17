@@ -1,5 +1,4 @@
 import {
-  isThenable,
   type AppRouterState,
   type ReducerActions,
   type ReducerState,
@@ -8,15 +7,14 @@ import {
   ACTION_NAVIGATE,
   ACTION_RESTORE,
 } from '../../../client/components/router-reducer/router-reducer-types'
-import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
-import React, { startTransition } from 'react'
+import { startTransition } from 'react'
+import { isThenable } from '../is-thenable'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
 export type AppRouterActionQueue = {
-  state: AppRouterState | null
-  devToolsInstance?: ReduxDevToolsInstance
+  state: AppRouterState
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
   action: (state: AppRouterState, action: ReducerActions) => ReducerState
   pending: ActionQueueNode | null
@@ -31,9 +29,6 @@ export type ActionQueueNode = {
   reject: (err: Error) => void
   discarded?: boolean
 }
-
-export const ActionQueueContext =
-  React.createContext<AppRouterActionQueue | null>(null)
 
 function runRemainingActions(
   actionQueue: AppRouterActionQueue,
@@ -74,10 +69,6 @@ async function runAction({
   setState: DispatchStatePromise
 }) {
   const prevState = actionQueue.state
-  if (!prevState) {
-    // This shouldn't happen as the state is initialized in the dispatcher if it's not set
-    throw new Error('Invariant: Router state not initialized')
-  }
 
   actionQueue.pending = action
 
@@ -91,10 +82,6 @@ async function runAction({
     }
 
     actionQueue.state = nextState
-
-    if (actionQueue.devToolsInstance) {
-      actionQueue.devToolsInstance.send(payload, nextState)
-    }
 
     runRemainingActions(actionQueue, setState)
     action.resolve(nextState)
@@ -187,15 +174,14 @@ function dispatchAction(
   }
 }
 
-export function createMutableActionQueue(): AppRouterActionQueue {
+export function createMutableActionQueue(
+  initialState: AppRouterState
+): AppRouterActionQueue {
   const actionQueue: AppRouterActionQueue = {
-    state: null,
+    state: initialState,
     dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
       dispatchAction(actionQueue, payload, setState),
     action: async (state: AppRouterState, action: ReducerActions) => {
-      if (state === null) {
-        throw new Error('Invariant: Router state not initialized')
-      }
       const result = reducer(state, action)
       return result
     },

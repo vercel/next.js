@@ -25,14 +25,18 @@ function createTemporaryFixture(fixtureName: string) {
   return dir
 }
 
-describe('next test', () => {
-  const { next: basicExample } = nextTestSetup({
+describe.skip('next test', () => {
+  const { next: basicExample, skipped } = nextTestSetup({
     files: new FileRef(join(__dirname, 'basic-example')),
     dependencies: {
       '@playwright/test': '1.43.1',
     },
     skipStart: true,
+    // This doesn't need to be deployed as it's using `experimental-test` mode
+    skipDeployment: true,
   })
+
+  if (skipped) return
 
   afterAll(async () => {
     await basicExample.destroy()

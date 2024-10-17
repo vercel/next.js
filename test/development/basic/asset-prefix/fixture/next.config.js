@@ -15,6 +15,16 @@ module.exports = {
           locale: false,
         },
       ],
+      afterFiles: [
+        {
+          source: `/${ASSET_PREFIX}/:path*`,
+          destination: '/:path*',
+        },
+        {
+          source: '/not-custom-asset-prefix/:path*',
+          destination: '/:path*',
+        },
+      ],
     }
   },
 }

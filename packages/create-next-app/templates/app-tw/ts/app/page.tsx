@@ -18,6 +18,7 @@ export default function Home() {
             <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
               app/page.tsx
             </code>
+            .
           </li>
           <li>Save and see your changes instantly.</li>
         </ol>
@@ -57,7 +58,7 @@ export default function Home() {
         >
           <Image
             aria-hidden
-            src="/file-text.svg"
+            src="/file.svg"
             alt="File icon"
             width={16}
             height={16}

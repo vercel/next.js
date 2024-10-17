@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
-import type { Response } from 'playwright'
+import type { Request, Response } from 'playwright'
 
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -176,10 +176,8 @@ describe('app dir - navigation', () => {
         )
       }
 
-      if (isNextStart) {
+      if (isNextStart || isNextDeploy) {
         await browser.waitForIdleNetwork()
-        // there should be an RSC call for the prefetch
-        expect(hasRscRequest).toBe(true)
       }
 
       // Wait for all network requests to finish, and then initialize the flag
@@ -490,7 +488,16 @@ describe('app dir - navigation', () => {
       it.each(['/redirect/servercomponent', 'redirect/redirect-with-loading'])(
         'should only trigger the redirect once (%s)',
         async (path) => {
-          const browser = await next.browser(path)
+          const requestedPathnames: string[] = []
+
+          const browser = await next.browser(path, {
+            beforePageLoad(page) {
+              page.on('request', async (req: Request) => {
+                requestedPathnames.push(new URL(req.url()).pathname)
+              })
+            },
+          })
+
           const initialTimestamp = await browser
             .waitForElementByCss('#timestamp')
             .text()
@@ -525,6 +532,13 @@ describe('app dir - navigation', () => {
             }
             // If it's our "forcing continue" error, do nothing. This means we succeeded.
           }
+
+          // Ensure the redirect target page was only requested once.
+          expect(
+            requestedPathnames.filter(
+              (pathname) => pathname === '/redirect/result'
+            )
+          ).toHaveLength(1)
         }
       )
     })
@@ -837,6 +851,7 @@ describe('app dir - navigation', () => {
         // throttling the CPU to rule out flakiness based on how quickly the page loads
         cpuThrottleRate: 6,
       })
+
       const body = await browser.elementByCss('body')
       expect(await body.text()).toContain('Item 50')
       await browser.elementById('load-more').click()

@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 export default function Home() {
   return (
-    <ul>
+    <ul id="home">
       <li>
         <Link href="/foo">foo</Link>
       </li>

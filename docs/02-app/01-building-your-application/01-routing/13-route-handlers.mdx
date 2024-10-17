@@ -46,7 +46,7 @@ In addition to supporting the native [Request](https://developer.mozilla.org/doc
 
 ### Caching
 
-Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. To do so, use a [route config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) such as `export const dynamic = 'force-static'` in your Route Handler file.
+Route Handlers are not cached by default. You can, however, opt into caching for `GET` methods. Other supported HTTP methods are **not** cached. To cache a `GET` method, use a [route config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) such as `export const dynamic = 'force-static'` in your Route Handler file.
 
 ```ts filename="app/items/route.ts" switcher
 export const dynamic = 'force-static'
@@ -80,9 +80,11 @@ export async function GET() {
 }
 ```
 
+> **Good to know**: Other supported HTTP methods are **not** cached, even if they are placed alongside a `GET` method that is cached, in the same file.
+
 ### Special Route Handlers
 
-Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) remain static by default unless they use dynamic functions or dynamic config options.
+Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) remain static by default unless they use Dynamic APIs or dynamic config options.
 
 ### Route Resolution
 
@@ -115,41 +117,31 @@ The following examples show how to combine Route Handlers with other Next.js API
 
 ### Revalidating Cached Data
 
-You can [revalidate cached data](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data) using the [`next.revalidate`](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data) option:
+You can [revalidate cached data](/docs/app/building-your-application/data-fetching/incremental-static-regeneration) using Incremental Static Regeneration (ISR):
 
-```ts filename="app/items/route.ts" switcher
-export async function GET() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    next: { revalidate: 60 }, // Revalidate every 60 seconds
-  })
-  const data = await res.json()
-
-  return Response.json(data)
-}
-```
-
-```js filename="app/items/route.js" switcher
-export async function GET() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    next: { revalidate: 60 }, // Revalidate every 60 seconds
-  })
-  const data = await res.json()
-
-  return Response.json(data)
-}
-```
-
-Alternatively, you can use the [`revalidate` segment config option](/docs/app/api-reference/file-conventions/route-segment-config#revalidate):
-
-```ts
+```ts filename="app/posts/route.ts" switcher
 export const revalidate = 60
+
+export async function GET() {
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
+
+  return Response.json(posts)
+}
 ```
 
-### Dynamic Functions
+```js filename="app/posts/route.js" switcher
+export const revalidate = 60
 
-Route Handlers can be used with dynamic functions from Next.js, like [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers).
+export async function GET() {
+  const data = await fetch('https://api.vercel.app/blog')
+  const posts = await data.json()
 
-#### Cookies
+  return Response.json(posts)
+}
+```
+
+### Cookies
 
 You can read or set cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
 
@@ -159,7 +151,7 @@ Alternatively, you can return a new `Response` using the [`Set-Cookie`](https://
 import { cookies } from 'next/headers'
 
 export async function GET(request: Request) {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get('token')
 
   return new Response('Hello, Next.js!', {
@@ -173,7 +165,7 @@ export async function GET(request: Request) {
 import { cookies } from 'next/headers'
 
 export async function GET(request) {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get('token')
 
   return new Response('Hello, Next.js!', {
@@ -199,7 +191,7 @@ export async function GET(request) {
 }
 ```
 
-#### Headers
+### Headers
 
 You can read headers with [`headers`](/docs/app/api-reference/functions/headers) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
 
@@ -209,7 +201,7 @@ This `headers` instance is read-only. To set headers, you need to return a new `
 import { headers } from 'next/headers'
 
 export async function GET(request: Request) {
-  const headersList = headers()
+  const headersList = await headers()
   const referer = headersList.get('referer')
 
   return new Response('Hello, Next.js!', {
@@ -223,7 +215,7 @@ export async function GET(request: Request) {
 import { headers } from 'next/headers'
 
 export async function GET(request) {
-  const headersList = headers()
+  const headersList = await headers()
   const referer = headersList.get('referer')
 
   return new Response('Hello, Next.js!', {
@@ -276,23 +268,23 @@ Route Handlers can use [Dynamic Segments](/docs/app/building-your-application/ro
 ```ts filename="app/items/[slug]/route.ts" switcher
 export async function GET(
   request: Request,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
-  const slug = params.slug // 'a', 'b', or 'c'
+  const slug = (await params).slug // 'a', 'b', or 'c'
 }
 ```
 
 ```js filename="app/items/[slug]/route.js" switcher
 export async function GET(request, { params }) {
-  const slug = params.slug // 'a', 'b', or 'c'
+  const slug = (await params).slug // 'a', 'b', or 'c'
 }
 ```
 
-| Route                       | Example URL | `params`        |
-| --------------------------- | ----------- | --------------- |
-| `app/items/[slug]/route.js` | `/items/a`  | `{ slug: 'a' }` |
-| `app/items/[slug]/route.js` | `/items/b`  | `{ slug: 'b' }` |
-| `app/items/[slug]/route.js` | `/items/c`  | `{ slug: 'c' }` |
+| Route                       | Example URL | `params`                 |
+| --------------------------- | ----------- | ------------------------ |
+| `app/items/[slug]/route.js` | `/items/a`  | `Promise<{ slug: 'a' }>` |
+| `app/items/[slug]/route.js` | `/items/b`  | `Promise<{ slug: 'b' }>` |
+| `app/items/[slug]/route.js` | `/items/c`  | `Promise<{ slug: 'c' }>` |
 
 ### URL Query Parameters
 
@@ -324,7 +316,7 @@ Streaming is commonly used in combination with Large Language Models (LLMs), suc
 import { openai } from '@ai-sdk/openai'
 import { StreamingTextResponse, streamText } from 'ai'
 
-export async function POST(req) {
+export async function POST(req: Request) {
   const { messages } = await req.json()
   const result = await streamText({
     model: openai('gpt-4-turbo'),
@@ -339,7 +331,7 @@ export async function POST(req) {
 import { openai } from '@ai-sdk/openai'
 import { StreamingTextResponse, streamText } from 'ai'
 
-export async function POST(req: Request) {
+export async function POST(req) {
   const { messages } = await req.json()
   const result = await streamText({
     model: openai('gpt-4-turbo'),

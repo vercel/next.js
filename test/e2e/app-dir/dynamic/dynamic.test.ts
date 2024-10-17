@@ -1,7 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('app dir - next/dynamic', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -32,19 +33,10 @@ describe('app dir - next/dynamic', () => {
     expect(serverContent).toContain('next-dynamic dynamic on client')
     expect(serverContent).toContain('next-dynamic server import client')
     expect(serverContent).not.toContain('next-dynamic dynamic no ssr on client')
-
-    expect(serverContent).not.toContain('next-dynamic dynamic no ssr on server')
-
-    // client component under server component with ssr: false will not be rendered either in flight or SSR
-    expect($.html()).not.toContain('client component under sever no ssr')
   })
 
   it('should handle next/dynamic in hydration correctly', async () => {
-    const selector = 'body div'
     const browser = await next.browser('/dynamic')
-    const clientContent = await browser.elementByCss(selector).text()
-    expect(clientContent).toContain('next-dynamic dynamic no ssr on server')
-    expect(clientContent).toContain('client component under sever no ssr')
     await browser.waitForElementByCss('#css-text-dynamic-no-ssr-client')
 
     expect(
@@ -57,21 +49,44 @@ describe('app dir - next/dynamic', () => {
     expect($('h1').text()).toBe('hello')
   })
 
+  it('should render loading by default if loading is specified and loader is slow', async () => {
+    const $ = await next.render$('/default-loading')
+
+    // First render in dev should show loading, production build will resolve the content.
+    expect($('body').text()).toContain(
+      isNextDev ? 'Loading...' : 'This is a dynamically imported component'
+    )
+  })
+
+  it('should not render loading by default', async () => {
+    const $ = await next.render$('/default')
+    expect($('#dynamic-component').text()).not.toContain('loading')
+  })
+
+  if (isNextDev) {
+    it('should directly raise error when dynamic component error on server', async () => {
+      const pagePath = 'app/default-loading/dynamic-component.js'
+      const page = await next.readFile(pagePath)
+      await next.patchFile(
+        pagePath,
+        page.replace('const isDevTest = false', 'const isDevTest = true')
+      )
+      await retry(async () => {
+        const { status } = await next.fetch('/default-loading')
+        expect(status).toBe(200)
+      })
+    })
+  }
+
   describe('no SSR', () => {
     it('should not render client component imported through ssr: false in client components in edge runtime', async () => {
       // noSSR should not show up in html
       const $ = await next.render$('/dynamic-mixed-ssr-false/client-edge')
-      expect($('#server-false-server-module')).not.toContain(
-        'ssr-false-server-module-text'
-      )
       expect($('#server-false-client-module')).not.toContain(
         'ssr-false-client-module-text'
       )
       // noSSR should not show up in browser
       const browser = await next.browser('/dynamic-mixed-ssr-false/client-edge')
-      expect(
-        await browser.elementByCss('#ssr-false-server-module').text()
-      ).toBe('ssr-false-server-module-text')
       expect(
         await browser.elementByCss('#ssr-false-client-module').text()
       ).toBe('ssr-false-client-module-text')
@@ -89,17 +104,11 @@ describe('app dir - next/dynamic', () => {
     it('should not render client component imported through ssr: false in client components', async () => {
       // noSSR should not show up in html
       const $ = await next.render$('/dynamic-mixed-ssr-false/client')
-      expect($('#client-false-server-module')).not.toContain(
-        'ssr-false-server-module-text'
-      )
       expect($('#client-false-client-module')).not.toContain(
         'ssr-false-client-module-text'
       )
       // noSSR should not show up in browser
       const browser = await next.browser('/dynamic-mixed-ssr-false/client')
-      expect(
-        await browser.elementByCss('#ssr-false-server-module').text()
-      ).toBe('ssr-false-server-module-text')
       expect(
         await browser.elementByCss('#ssr-false-client-module').text()
       ).toBe('ssr-false-client-module-text')
@@ -109,7 +118,6 @@ describe('app dir - next/dynamic', () => {
         const pageServerChunk = await next.readFile(
           '.next/server/app/dynamic-mixed-ssr-false/client/page.js'
         )
-        expect(pageServerChunk).not.toContain('ssr-false-server-module-text')
         expect(pageServerChunk).not.toContain('ssr-false-client-module-text')
       }
     })
@@ -117,6 +125,22 @@ describe('app dir - next/dynamic', () => {
     it('should support dynamic import with accessing named exports from client component', async () => {
       const $ = await next.render$('/dynamic/named-export')
       expect($('#client-button').text()).toBe('this is a client button')
+    })
+
+    it('should support dynamic import with TLA in client components', async () => {
+      const $ = await next.render$('/dynamic/async-client')
+      expect($('#client-button').text()).toBe(
+        'this is an async client button with SSR'
+      )
+      expect($('#client-button-no-ssr').text()).toBe('')
+
+      const browser = await next.browser('/dynamic/async-client')
+      expect(await browser.elementByCss('#client-button').text()).toBe(
+        'this is an async client button with SSR'
+      )
+      expect(await browser.elementByCss('#client-button-no-ssr').text()).toBe(
+        'this is an async client button'
+      )
     })
   })
 })

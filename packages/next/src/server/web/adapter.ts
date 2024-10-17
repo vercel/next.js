@@ -1,27 +1,33 @@
 import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
-import type { PrerenderManifest } from '../../build'
 import { PageSignatureError } from './error'
 import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
-import { NextFetchEvent } from './spec-extension/fetch-event'
+import {
+  NextFetchEvent,
+  getWaitUntilPromiseFromEvent,
+} from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
 import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
-import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
-import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
+import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
+import { createRequestStoreForAPI } from '../async-storage/request-store'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
-  RequestAsyncStorageWrapper,
-  type WrapperRenderOpts,
-} from '../async-storage/request-async-storage-wrapper'
-import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
+  withWorkStore,
+  type WorkStoreContext,
+} from '../async-storage/with-work-store'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
+import { getEdgePreviewProps } from './get-edge-preview-props'
+import { getBuiltinRequestContext } from '../after/builtin-request-context'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -93,10 +99,6 @@ export async function adapter(
 
   // TODO-APP: use explicit marker for this
   const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
-  const prerenderManifest: PrerenderManifest | undefined =
-    typeof self.__PRERENDER_MANIFEST === 'string'
-      ? JSON.parse(self.__PRERENDER_MANIFEST)
-      : undefined
 
   params.request.url = normalizeRscURL(params.request.url)
 
@@ -133,13 +135,13 @@ export async function adapter(
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const flightHeaders = new Map()
-  // Parameters should only be stripped for middleware
+  // Headers should only be stripped for middleware
   if (!isEdgeRendering) {
-    for (const param of FLIGHT_PARAMETERS) {
-      const key = param.toString().toLowerCase()
+    for (const header of FLIGHT_HEADERS) {
+      const key = header.toLowerCase()
       const value = requestHeaders.get(key)
       if (value) {
-        flightHeaders.set(key, requestHeaders.get(key))
+        flightHeaders.set(key, value)
         requestHeaders.delete(key)
       }
     }
@@ -155,9 +157,7 @@ export async function adapter(
     input: stripInternalSearchParams(normalizeUrl, true).toString(),
     init: {
       body: params.request.body,
-      geo: params.request.geo,
       headers: requestHeaders,
-      ip: params.request.ip,
       method: params.request.method,
       nextConfig: params.request.nextConfig,
       signal: params.request.signal,
@@ -196,15 +196,22 @@ export async function adapter(
           routes: {},
           dynamicRoutes: {},
           notFoundRoutes: [],
-          preview: {
-            previewModeId: 'development-id',
-          } as any, // `preview` is special case read in next-dev-server
+          preview: getEdgePreviewProps(),
         }
       },
     })
   }
 
-  const event = new NextFetchEvent({ request, page: params.page })
+  // if we're in an edge runtime sandbox, we should use the waitUntil
+  // that we receive from the enclosing NextServer
+  const outerWaitUntil =
+    params.request.waitUntil ?? getBuiltinRequestContext()?.waitUntil
+
+  const event = new NextFetchEvent({
+    request,
+    page: params.page,
+    context: outerWaitUntil ? { waitUntil: outerWaitUntil } : undefined,
+  })
   let response
   let cookiesFromResponse
 
@@ -217,11 +224,12 @@ export async function adapter(
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
       // so we have to inject it via DefinePlugin.
       // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
+
       const isAfterEnabled =
         params.request.nextConfig?.experimental?.after ??
         !!process.env.__NEXT_AFTER
 
-      let waitUntil: WrapperRenderOpts['waitUntil'] = undefined
+      let waitUntil: WorkStoreContext['renderOpts']['waitUntil'] = undefined
       let closeController: CloseController | undefined = undefined
 
       if (isAfterEnabled) {
@@ -240,30 +248,51 @@ export async function adapter(
         },
         async () => {
           try {
-            return await RequestAsyncStorageWrapper.wrap(
-              requestAsyncStorage,
+            const onUpdateCookies = (cookies: Array<string>) => {
+              cookiesFromResponse = cookies
+            }
+            const previewProps = getEdgePreviewProps()
+
+            const requestStore = createRequestStoreForAPI(
+              request,
+              request.nextUrl,
+              undefined,
+              onUpdateCookies,
+              previewProps
+            )
+
+            return await withWorkStore(
+              workAsyncStorage,
               {
-                req: request,
+                page: '/', // Fake Work
+                fallbackRouteParams: null,
                 renderOpts: {
-                  onUpdateCookies: (cookies) => {
-                    cookiesFromResponse = cookies
+                  cacheLifeProfiles:
+                    params.request.nextConfig?.experimental?.cacheLife,
+                  experimental: {
+                    after: isAfterEnabled,
+                    isRoutePPREnabled: false,
+                    dynamicIO: false,
                   },
-                  // @ts-expect-error TODO: investigate why previewProps isn't on RenderOpts
-                  previewProps: prerenderManifest?.preview || {
-                    previewModeId: 'development-id',
-                    previewModeEncryptionKey: '',
-                    previewModeSigningKey: '',
-                  },
+                  buildId: buildId ?? '',
+                  supportsDynamicResponse: true,
                   waitUntil,
                   onClose: closeController
                     ? closeController.onClose.bind(closeController)
                     : undefined,
-                  experimental: {
-                    after: isAfterEnabled,
-                  },
                 },
+                requestEndedState: { ended: false },
+                isPrefetchRequest: request.headers.has(
+                  NEXT_ROUTER_PREFETCH_HEADER
+                ),
               },
-              () => params.handler(request, event)
+              () =>
+                workUnitAsyncStorage.run(
+                  requestStore,
+                  params.handler,
+                  request,
+                  event
+                )
             )
           } finally {
             // middleware cannot stream, so we can consider the response closed
@@ -298,7 +327,7 @@ export async function adapter(
    * a data URL if the request was a data request.
    */
   const rewrite = response?.headers.get('x-middleware-rewrite')
-  if (response && rewrite) {
+  if (response && rewrite && !isEdgeRendering) {
     const rewriteUrl = new NextURL(rewrite, {
       forceLocale: true,
       headers: params.request.headers,
@@ -399,7 +428,7 @@ export async function adapter(
 
   return {
     response: finalResponse,
-    waitUntil: Promise.all(event[waitUntilSymbol]),
+    waitUntil: getWaitUntilPromiseFromEvent(event) ?? Promise.resolve(),
     fetchMetrics: request.fetchMetrics,
   }
 }

@@ -24,16 +24,58 @@ npm install --save-dev sass
 
 ### Customizing Sass Options
 
-If you want to configure the Sass compiler, use `sassOptions` in `next.config.js`.
+If you want to configure your Sass options, use `sassOptions` in `next.config`.
 
-```js filename="next.config.js"
-const path = require('path')
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
 
-module.exports = {
+const nextConfig: NextConfig = {
   sassOptions: {
-    includePaths: [path.join(__dirname, 'styles')],
+    additionalData: `$var: red;`,
   },
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+
+const nextConfig = {
+  sassOptions: {
+    additionalData: `$var: red;`,
+  },
+}
+
+module.exports = nextConfig
+```
+
+#### Implementation
+
+You can use the `implementation` property to specify the Sass implementation to use. By default, Next.js uses the [`sass`](https://www.npmjs.com/package/sass) package.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  sassOptions: {
+    implementation: 'sass-embedded',
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+
+const nextConfig = {
+  sassOptions: {
+    implementation: 'sass-embedded',
+  },
+}
+
+module.exports = nextConfig
 ```
 
 ### Sass Variables

@@ -51,12 +51,12 @@ describe('Error overlay - RSC build errors', () => {
           await session.patch(pagePath, break2.replace('break 3', '<Hello />'))
 
           await session.patch(pagePath, break2)
-          expect(await session.hasRedbox()).toBe(true)
+          await session.assertHasRedbox()
 
           await session.patch(pagePath, break1)
 
           await session.patch(pagePath, originalPage)
-          expect(await session.hasRedbox()).toBe(false)
+          await session.assertNoRedbox()
         }
 
         expect(

@@ -20,13 +20,9 @@ let initializations: Record<
 > = {}
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
-let requireCacheHotReloader:
-  | undefined
-  | typeof import('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
 
 if (process.env.NODE_ENV !== 'production') {
   sandboxContext = require('../web/sandbox/context')
-  requireCacheHotReloader = require('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
 }
 
 export function clearAllModuleContexts() {
@@ -37,14 +33,17 @@ export function clearModuleContext(target: string) {
   return sandboxContext?.clearModuleContext(target)
 }
 
-export function deleteAppClientCache() {
-  return requireCacheHotReloader?.deleteAppClientCache()
-}
-
-export function deleteCache(filePaths: string[]) {
-  for (const filePath of filePaths) {
-    requireCacheHotReloader?.deleteCache(filePath)
+export async function getServerField(
+  dir: string,
+  field: PropagateToWorkersField
+) {
+  const initialization = await initializations[dir]
+  if (!initialization) {
+    throw new Error('Invariant cant propagate server field, no app initialized')
   }
+  const { app } = initialization
+  let appField = (app as any).server
+  return appField[field]
 }
 
 export async function propagateServerField(
@@ -77,7 +76,6 @@ async function initializeImpl(opts: {
   dev: boolean
   minimalMode?: boolean
   hostname?: string
-  isNodeDebugging: boolean
   keepAliveTimeout?: number
   serverFields?: any
   server?: any
@@ -103,7 +101,6 @@ async function initializeImpl(opts: {
     customServer: false,
     httpServer: opts.server,
     port: opts.port,
-    isNodeDebugging: opts.isNodeDebugging,
   })
   requestHandler = app.getRequestHandler()
   upgradeHandler = app.getUpgradeHandler()

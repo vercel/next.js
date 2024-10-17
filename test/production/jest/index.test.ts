@@ -1,6 +1,7 @@
-import { createNext } from 'e2e-utils'
+import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
+import { join } from 'node:path'
 
 describe('next/jest', () => {
   let next: NextInstance
@@ -31,7 +32,7 @@ describe('next/jest', () => {
             loading: () => <h1>Loading...</h1>,
           });
 
-          export default function Page() { 
+          export default function Page() {
             return <>
               <Comp />
               <Image src={img} alt="logo" placeholder="blur"/>
@@ -39,17 +40,17 @@ describe('next/jest', () => {
               <p className={styles.home}>hello world</p>
               <p style={{ fontFamily: inter.style.fontFamily }} className={myFont.className}>hello world</p>
             </>
-          } 
+          }
         `,
         'jest.config.js': `
           // jest.config.js
           const nextJest = require('next/jest')
-          
+
           const createJestConfig = nextJest({
             // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
             dir: './',
           })
-          
+
           // Add any custom config to be passed to Jest
           const customJestConfig = {
             // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
@@ -62,7 +63,7 @@ describe('next/jest', () => {
               '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
             },
           }
-          
+
           // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
           module.exports = createJestConfig(customJestConfig)
         `,
@@ -125,7 +126,9 @@ describe('next/jest', () => {
             expect(router.push._isMockFunction).toBeTruthy()
           })
         `,
-        'pages/my-font.woff2': 'fake font',
+        'pages/my-font.woff2': new FileRef(
+          join(__dirname, 'basic', 'my-font.woff2')
+        ),
       },
       dependencies: {
         '@next/font': 'canary',

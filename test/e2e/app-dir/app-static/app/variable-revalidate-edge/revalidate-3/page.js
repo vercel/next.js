@@ -1,6 +1,6 @@
 import { cache, use } from 'react'
 
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'
 export const dynamic = 'force-static'
 
 export default function Page() {

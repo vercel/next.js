@@ -2,16 +2,18 @@ import { generateActionId } from './utils'
 
 export type NextFlightActionEntryLoaderOptions = {
   actions: string
+  encryptionKey: string
 }
 
 function nextFlightActionEntryLoader(this: any) {
-  const { actions }: NextFlightActionEntryLoaderOptions = this.getOptions()
+  const { actions, encryptionKey }: NextFlightActionEntryLoaderOptions =
+    this.getOptions()
 
   const actionList = JSON.parse(actions) as [string, string[]][]
   const individualActions = actionList
     .map(([path, names]) => {
       return names.map((name) => {
-        const id = generateActionId(path, name)
+        const id = generateActionId(encryptionKey, path, name)
         return [id, path, name] as [string, string, string]
       })
     })

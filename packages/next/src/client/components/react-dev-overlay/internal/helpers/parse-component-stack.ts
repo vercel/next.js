@@ -21,7 +21,7 @@ function getLocationType(location: string): LocationType {
   if (location.startsWith('file://')) {
     return LocationType.FILE
   }
-  if (location.startsWith('webpack-internal://')) {
+  if (location.includes('webpack-internal://')) {
     return LocationType.WEBPACK_INTERNAL
   }
   if (location.startsWith('http://') || location.startsWith('https://')) {

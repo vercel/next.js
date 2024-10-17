@@ -5,5 +5,4 @@ export {
   hasCustomGetInitialProps,
   isPageStatic,
 } from './utils'
-import exportPage from '../export/worker'
-export { exportPage }
+export { exportPages } from '../export/worker'

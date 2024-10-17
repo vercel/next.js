@@ -17,7 +17,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
-import * as ciEnvironment from '../telemetry/ci-info'
+import * as ciEnvironment from '../server/ci-info'
 import debugOriginal from 'next/dist/compiled/debug'
 import picomatch from 'next/dist/compiled/picomatch'
 import { defaultOverrides } from '../server/require-hook'
@@ -27,6 +27,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
 import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
+import type { ExternalObject, NextTurboTasks } from './swc/generated-native'
 
 const debug = debugOriginal('next:build:build-traces')
 
@@ -107,7 +108,7 @@ export async function collectBuildTraces({
 }) {
   const startTime = Date.now()
   debug('starting build traces')
-  let turboTasksForTrace: unknown
+  let turboTasksForTrace: ExternalObject<NextTurboTasks>
   let bindings = await loadBindings()
 
   const runTurbotrace = async function () {
@@ -118,6 +119,8 @@ export async function collectBuildTraces({
       let turbotraceOutputPath: string | undefined
       let turbotraceFiles: string[] | undefined
       turboTasksForTrace = bindings.turbo.createTurboTasks(
+        distDir,
+        false,
         (config.experimental.turbotrace?.memoryLimit ??
           TURBO_TRACE_DEFAULT_MEMORY_LIMIT) *
           1024 *
@@ -205,7 +208,7 @@ export async function collectBuildTraces({
   }
 
   const { outputFileTracingIncludes = {}, outputFileTracingExcludes = {} } =
-    config.experimental
+    config
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
@@ -319,7 +322,6 @@ export async function collectBuildTraces({
 
         ...(isStandalone ? [] : TRACE_IGNORES),
         ...additionalIgnores,
-        ...(config.experimental.outputFileTracingIgnores || []),
       ]
 
       const sharedIgnoresFn = makeIgnoreFn(sharedIgnores)

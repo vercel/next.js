@@ -1,4 +1,5 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
+import type { Route as PlaywrightRoute, Page } from 'playwright'
 
 type Route = {
   route: string
@@ -144,11 +145,39 @@ describe('ppr-incremental', () => {
           it.each(pathnames)('%s', async (pathname) => {
             const $ = await next.render$(pathname)
             expect($('#dynamic')).toHaveLength(1)
-            expect($('#dynamic').parent('[hidden]')).toHaveLength(0)
+            expect($('#dynamic').closest('[hidden]')).toHaveLength(0)
           })
         })
       }
     )
+
+    it('should not trigger a dynamic request for static pages', async () => {
+      let rscRequests = []
+      const browser = await next.browser('/', {
+        beforePageLoad(page: Page) {
+          page.route('**/static*', async (route: PlaywrightRoute) => {
+            const request = route.request()
+            const headers = await request.allHeaders()
+            const url = new URL(request.url())
+
+            if (headers['rsc'] === '1') {
+              rscRequests.push(url.pathname)
+              await route.continue()
+            }
+          })
+        },
+      })
+
+      await browser.waitForIdleNetwork()
+      // we should see an RSC request for the initial prefetch to the static page
+      expect(rscRequests).toEqual(expect.arrayContaining(['/static']))
+
+      rscRequests = []
+
+      await browser.elementByCss('[href="/static"]').click()
+      await browser.waitForElementByCss('#static-page')
+      expect(rscRequests.length).toBe(0)
+    })
   })
 
   describe('ppr enabled', () => {
@@ -168,7 +197,7 @@ describe('ppr-incremental', () => {
           it.each(pathnames)('%s', async (pathname) => {
             const $ = await next.render$(pathname)
             expect($('#dynamic')).toHaveLength(1)
-            expect($('#dynamic').parent('[hidden]')).toHaveLength(1)
+            expect($('#dynamic').closest('[hidden]')).toHaveLength(1)
           })
         })
       }

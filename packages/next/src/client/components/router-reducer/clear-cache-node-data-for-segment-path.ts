@@ -1,5 +1,6 @@
 import type { FlightSegmentPath } from '../../../server/app-render/types'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import { getNextFlightSegmentPath } from '../../flight-data-helpers'
 import { createRouterCacheKey } from './create-router-cache-key'
 
 /**
@@ -40,11 +41,8 @@ export function clearCacheNodeDataForSegmentPath(
         rsc: null,
         prefetchRsc: null,
         head: null,
-        layerAssets: null,
-        prefetchLayerAssets: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
-        lazyDataResolved: false,
         loading: null,
       })
     }
@@ -59,11 +57,8 @@ export function clearCacheNodeDataForSegmentPath(
         rsc: null,
         prefetchRsc: null,
         head: null,
-        layerAssets: null,
-        prefetchLayerAssets: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
-        lazyDataResolved: false,
         loading: null,
       })
     }
@@ -76,11 +71,8 @@ export function clearCacheNodeDataForSegmentPath(
       rsc: childCacheNode.rsc,
       prefetchRsc: childCacheNode.prefetchRsc,
       head: childCacheNode.head,
-      layerAssets: childCacheNode.layerAssets,
-      prefetchLayerAssets: childCacheNode.prefetchLayerAssets,
       prefetchHead: childCacheNode.prefetchHead,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
-      lazyDataResolved: childCacheNode.lazyDataResolved,
       loading: childCacheNode.loading,
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)
@@ -89,6 +81,6 @@ export function clearCacheNodeDataForSegmentPath(
   return clearCacheNodeDataForSegmentPath(
     childCacheNode,
     existingChildCacheNode,
-    flightSegmentPath.slice(2)
+    getNextFlightSegmentPath(flightSegmentPath)
   )
 }

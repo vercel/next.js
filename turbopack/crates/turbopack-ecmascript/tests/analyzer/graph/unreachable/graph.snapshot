@@ -1,0 +1,214 @@
+[
+    (
+        "*arrow function 567*",
+        Function(
+            4,
+            567,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "a",
+        Function(
+            4,
+            1,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "b",
+        Function(
+            4,
+            45,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "c",
+        Function(
+            4,
+            125,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "d",
+        Function(
+            4,
+            209,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "e#16",
+        Unknown {
+            original_value: Some(
+                Variable(
+                    (
+                        "e",
+                        #16,
+                    ),
+                ),
+            ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
+    ),
+    (
+        "e#2",
+        Function(
+            4,
+            284,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "f",
+        Function(
+            4,
+            368,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "g",
+        Function(
+            4,
+            452,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "h",
+        Function(
+            2,
+            540,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "x#10",
+        Unknown {
+            original_value: Some(
+                Variable(
+                    (
+                        "x",
+                        #10,
+                    ),
+                ),
+            ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
+    ),
+    (
+        "x#17",
+        Variable(
+            (
+                "*arrow function 567*",
+                #0,
+            ),
+        ),
+    ),
+    (
+        "y",
+        Iterated(
+            2,
+            Array {
+                total_nodes: 1,
+                items: [],
+                mutable: true,
+            },
+        ),
+    ),
+]

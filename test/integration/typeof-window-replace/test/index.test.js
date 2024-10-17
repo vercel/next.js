@@ -6,7 +6,6 @@ import { nextBuild } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '../app')
 let buildManifest
-let pagesManifest
 
 describe('typeof window replace', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -18,45 +17,69 @@ describe('typeof window replace', () => {
           appDir,
           '.next/build-manifest.json'
         ), 'utf8')
-        pagesManifest = require(path.join(
-          appDir,
-          '.next/server/pages-manifest.json'
-        ), 'utf8')
       })
 
       it('Replaces `typeof window` with object for client code', async () => {
-        const pageFile = buildManifest.pages['/'].find(
-          (file) => file.endsWith('.js') && file.includes('pages/index')
+        let allContent = ''
+        const files = buildManifest.pages['/'].filter((item) =>
+          item.endsWith('.js')
         )
-
-        const content = await fs.readFile(
-          path.join(appDir, '.next', pageFile),
-          'utf8'
-        )
-        expect(content).toMatch(/Hello.*?,.*?\n?.*?("|')object("|')/)
+        for (const file of files) {
+          const content = await fs.readFile(
+            path.join(appDir, '.next', file),
+            'utf8'
+          )
+          allContent += content
+        }
+        expect(allContent).toMatch(/Hello.*?,.*?\n?.*?("|')object("|')/)
       })
 
       it('Replaces `typeof window` with undefined for server code', async () => {
-        const pageFile = pagesManifest['/']
+        let allContent = ''
+        const chunksFilesDir = path.join(appDir, '.next', 'server', 'chunks')
+        const allFilesInDotNextServerChunks = await fs
+          .readdirSync(chunksFilesDir, {
+            recursive: true,
+          })
+          .filter((item) => item.endsWith('.js'))
+        for (const file of allFilesInDotNextServerChunks) {
+          const content = await fs.readFile(
+            path.join(chunksFilesDir, file),
+            'utf8'
+          )
+          allContent += content
+        }
 
-        const content = await fs.readFile(
-          path.join(appDir, '.next', 'server', pageFile),
-          'utf8'
-        )
+        const pagesFilesDir = path.join(appDir, '.next', 'server', 'pages')
+        const allFilesInDotNextServerPages = await fs
+          .readdirSync(pagesFilesDir, {
+            recursive: true,
+          })
+          .filter((item) => item.endsWith('.js'))
+        for (const file of allFilesInDotNextServerPages) {
+          const content = await fs.readFile(
+            path.join(pagesFilesDir, file),
+            'utf8'
+          )
+          allContent += content
+        }
 
-        expect(content).toMatch(/Hello.*?,.*?\n?.*?("|')undefined("|')/)
+        expect(allContent).toMatch(/Hello.*?,.*?\n?.*?("|')undefined("|')/)
       })
 
       it('Does not replace `typeof window` for `node_modules` code', async () => {
-        const pageFile = buildManifest.pages['/'].find(
-          (file) => file.endsWith('.js') && file.includes('pages/index')
+        let allContent = ''
+        const files = buildManifest.pages['/'].filter((item) =>
+          item.endsWith('.js')
         )
-
-        const content = await fs.readFile(
-          path.join(appDir, '.next', pageFile),
-          'utf8'
-        )
-        expect(content).toMatch(/MyComp:.*?,.*?typeof window/)
+        for (const file of files) {
+          const content = await fs.readFile(
+            path.join(appDir, '.next', file),
+            'utf8'
+          )
+          allContent += content
+        }
+        expect(allContent).toMatch(/MyComp:.*?,.*?typeof window/)
       })
     }
   )

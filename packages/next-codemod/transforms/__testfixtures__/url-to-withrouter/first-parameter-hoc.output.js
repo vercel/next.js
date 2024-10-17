@@ -4,14 +4,13 @@ class Plan extends React.Component {
     const { router} = this.props
 
     return (
-      <Page>
+      (<Page>
         <Header
           user={user}
           pathname={router.pathname}
           onLogout={() => onUser(null)}
           onLogoRightClick={() => Router.push('/logos')}
         />
-
         <SubMenu
           subscription={subscription}
           teamsAndUser={teamsAndUser}
@@ -19,7 +18,7 @@ class Plan extends React.Component {
           user={user}
           url={router}
         />
-      </Page>
+      </Page>)
     );
   }
 }

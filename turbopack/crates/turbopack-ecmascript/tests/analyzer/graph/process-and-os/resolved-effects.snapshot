@@ -1,0 +1,79 @@
+0 -> 1 free var = FreeVar(require)
+
+0 -> 2 call = require*0*("os")
+- *0* require: The require method from CommonJS
+
+0 -> 3 free var = FreeVar(require)
+
+0 -> 4 call = require*0*("process")
+- *0* require: The require method from CommonJS
+
+0 -> 5 free var = FreeVar(process)
+
+0 -> 6 free var = FreeVar(require)
+
+0 -> 8 free var = FreeVar(process)
+
+0 -> 9 call = os.process*0*()
+- *0* os.process: The Node.js os.process method: https://nodejs.org/api/os.html#os_os_process
+
+0 -> 10 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 11 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS
+
+0 -> 12 free var = FreeVar(require)
+
+0 -> 13 call = os.arch*0*()
+- *0* os.arch: The Node.js os.arch method: https://nodejs.org/api/os.html#os_os_arch
+
+0 -> 14 call = os.process*0*()
+- *0* os.process: The Node.js os.process method: https://nodejs.org/api/os.html#os_os_process
+
+0 -> 15 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 16 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS
+
+0 -> 17 free var = FreeVar(require)
+
+0 -> 18 call = os.arch*0*()
+- *0* os.arch: The Node.js os.arch method: https://nodejs.org/api/os.html#os_os_arch
+
+0 -> 20 free var = FreeVar(process)
+
+0 -> 21 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 22 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS
+
+0 -> 23 free var = FreeVar(require)
+
+0 -> 25 free var = FreeVar(process)
+
+0 -> 27 free var = FreeVar(process)
+
+0 -> 28 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 29 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS
+
+0 -> 30 free var = FreeVar(require)
+
+0 -> 33 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 34 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS
+
+0 -> 35 free var = FreeVar(require)
+
+0 -> 37 call = os.endianness*0*()
+- *0* os.endianness: The Node.js os.endianness method: https://nodejs.org/api/os.html#os_os_endianness
+
+0 -> 38 call = require*0*("esbuild-x64-linux-LE")
+- *0* require: The require method from CommonJS

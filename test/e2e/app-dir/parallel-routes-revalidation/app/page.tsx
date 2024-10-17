@@ -8,7 +8,7 @@ export default async function Home() {
   ).then((res) => res.text())
 
   return (
-    <div>
+    <div id="root-page">
       <Link href="/revalidate-modal">Open Revalidate Modal</Link>
       <Link href="/refresh-modal">Open Refresh Modal</Link>
       <Link href="/redirect-modal">Open Redirect Modal</Link>

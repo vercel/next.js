@@ -16,7 +16,10 @@ export default async function Page({ searchParams }) {
         </div>
         <RefreshButton />
         <RevalidateButton />
-        <UpdateSearchParamsButton searchParams={searchParams} id="modal" />
+        <UpdateSearchParamsButton
+          searchParams={await searchParams}
+          id="modal"
+        />
       </div>
     </dialog>
   )

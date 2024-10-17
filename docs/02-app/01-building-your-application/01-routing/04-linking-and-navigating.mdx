@@ -40,121 +40,6 @@ export default function Page() {
 
 There are other optional props you can pass to `<Link>`. See the [API reference](/docs/app/api-reference/components/link) for more.
 
-### Examples
-
-#### Linking to Dynamic Segments
-
-When linking to [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes), you can use [template literals and interpolation](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Template_literals) to generate a list of links. For example, to generate a list of blog posts:
-
-```jsx filename="app/blog/PostList.js"
-import Link from 'next/link'
-
-export default function PostList({ posts }) {
-  return (
-    <ul>
-      {posts.map((post) => (
-        <li key={post.id}>
-          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
-        </li>
-      ))}
-    </ul>
-  )
-}
-```
-
-#### Checking Active Links
-
-You can use [`usePathname()`](/docs/app/api-reference/functions/use-pathname) to determine if a link is active. For example, to add a class to the active link, you can check if the current `pathname` matches the `href` of the link:
-
-```tsx filename="@/app/ui/nav-links.tsx" switcher
-'use client'
-
-import { usePathname } from 'next/navigation'
-import Link from 'next/link'
-
-export function Links() {
-  const pathname = usePathname()
-
-  return (
-    <nav>
-      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
-        Home
-      </Link>
-
-      <Link
-        className={`link ${pathname === '/about' ? 'active' : ''}`}
-        href="/about"
-      >
-        About
-      </Link>
-    </nav>
-  )
-}
-```
-
-```jsx filename="@/app/ui/nav-links.tsx" switcher
-'use client'
-
-import { usePathname } from 'next/navigation'
-import Link from 'next/link'
-
-export function Links() {
-  const pathname = usePathname()
-
-  return (
-    <nav>
-      <Link className={`link ${pathname === '/' ? 'active' : ''}`} href="/">
-        Home
-      </Link>
-
-      <Link
-        className={`link ${pathname === '/about' ? 'active' : ''}`}
-        href="/about"
-      >
-        About
-      </Link>
-    </nav>
-  )
-}
-```
-
-#### Scrolling to an `id`
-
-The default behavior of the Next.js App Router is to **scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.**
-
-If you'd like to scroll to a specific `id` on navigation, you can append your URL with a `#` hash link or just pass a hash link to the `href` prop. This is possible since `<Link>` renders to an `<a>` element.
-
-```jsx
-<Link href="/dashboard#settings">Settings</Link>
-
-// Output
-<a href="/dashboard#settings">Settings</a>
-```
-
-> **Good to know**:
->
-> - Next.js will scroll to the [Page](/docs/app/building-your-application/routing/pages) if it is not visible in the viewport upon navigation.
-
-#### Disabling scroll restoration
-
-The default behavior of the Next.js App Router is to **scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation.** If you'd like to disable this behavior, you can pass `scroll={false}` to the `<Link>` component, or `scroll: false` to `router.push()` or `router.replace()`.
-
-```jsx
-// next/link
-<Link href="/dashboard" scroll={false}>
-  Dashboard
-</Link>
-```
-
-```jsx
-// useRouter
-import { useRouter } from 'next/navigation'
-
-const router = useRouter()
-
-router.push('/dashboard', { scroll: false })
-```
-
 ## `useRouter()` hook
 
 The `useRouter` hook allows you to programmatically change routes from [Client Components](/docs/app/building-your-application/rendering/client-components).
@@ -378,7 +263,7 @@ Learn more about how the [Router Cache](/docs/app/building-your-application/cach
 
 Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
 
-For example, when navigating between two sibling routes, `/dashboard/settings` and `/dashboard/analytics`, the `settings` and `analytics` pages will be rendered, and the shared `dashboard` layout will be preserved.
+For example, when navigating between two sibling routes, `/dashboard/settings` and `/dashboard/analytics`, the `settings` page will be unmounted, the `analytics` page will be mounted with fresh state, and the shared `dashboard` layout will be preserved. This behavior is also present between two routes on the same dynamic segment e.g. with `/blog/[slug]/page` and navigating from `/blog/first` to `/blog/second`.
 
 <Image
   alt="How partial rendering works"

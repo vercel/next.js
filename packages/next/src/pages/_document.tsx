@@ -1,9 +1,5 @@
 import React, { type JSX } from 'react'
-import type { ReactElement, ReactNode } from 'react'
-import {
-  OPTIMIZED_FONT_PROVIDERS,
-  NEXT_BUILTIN_DOCUMENT,
-} from '../shared/lib/constants'
+import { NEXT_BUILTIN_DOCUMENT } from '../shared/lib/constants'
 import type {
   DocumentContext,
   DocumentInitialProps,
@@ -26,6 +22,8 @@ import {
 import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getTracer } from '../server/lib/trace/tracer'
+import { getTracedMetadata } from '../server/lib/trace/utils'
 
 export type { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -433,14 +431,13 @@ export class Head extends React.Component<HeadProps> {
       dynamicImports,
       crossOrigin,
       optimizeCss,
-      optimizeFonts,
     } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
     const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
     // Unmanaged files are CSS files that will be handled directly by the
     // webpack runtime (`mini-css-extract-plugin`).
-    let unmangedFiles: Set<string> = new Set([])
+    let unmanagedFiles: Set<string> = new Set([])
     let dynamicCssFiles = Array.from(
       new Set(dynamicImports.filter((file) => file.endsWith('.css')))
     )
@@ -449,7 +446,7 @@ export class Head extends React.Component<HeadProps> {
       dynamicCssFiles = dynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
-      unmangedFiles = new Set(dynamicCssFiles)
+      unmanagedFiles = new Set(dynamicCssFiles)
       cssFiles.push(...dynamicCssFiles)
     }
 
@@ -472,7 +469,7 @@ export class Head extends React.Component<HeadProps> {
         )
       }
 
-      const isUnmanagedFile = unmangedFiles.has(file)
+      const isUnmanagedFile = unmanagedFiles.has(file)
       cssLinkElements.push(
         <link
           key={file}
@@ -487,12 +484,6 @@ export class Head extends React.Component<HeadProps> {
         />
       )
     })
-
-    if (process.env.NODE_ENV !== 'development' && optimizeFonts) {
-      cssLinkElements = this.makeStylesheetInert(
-        cssLinkElements
-      ) as ReactElement[]
-    }
 
     return cssLinkElements.length === 0 ? null : cssLinkElements
   }
@@ -623,36 +614,6 @@ export class Head extends React.Component<HeadProps> {
     return getPolyfillScripts(this.context, this.props)
   }
 
-  makeStylesheetInert(node: ReactNode[]): ReactNode[] {
-    return React.Children.map(node, (c: any) => {
-      if (
-        c?.type === 'link' &&
-        c?.props?.href &&
-        OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
-          c?.props?.href?.startsWith(url)
-        )
-      ) {
-        const newProps = {
-          ...(c.props || {}),
-          'data-href': c.props.href,
-          href: undefined,
-        }
-
-        return React.cloneElement(c, newProps)
-      } else if (c?.props?.children) {
-        const newProps = {
-          ...(c.props || {}),
-          children: this.makeStylesheetInert(c.props.children),
-        }
-
-        return React.cloneElement(c, newProps)
-      }
-
-      return c
-      // @types/react bug. Returned value from .map will not be `null` if you pass in `[null]`
-    })!.filter(Boolean)
-  }
-
   render() {
     const {
       styles,
@@ -667,7 +628,6 @@ export class Head extends React.Component<HeadProps> {
       unstable_JsPreload,
       disableOptimizedLoading,
       optimizeCss,
-      optimizeFonts,
       assetPrefix,
       nextFontManifest,
     } = this.context
@@ -740,14 +700,6 @@ export class Head extends React.Component<HeadProps> {
         )
     }
 
-    if (
-      process.env.NODE_ENV !== 'development' &&
-      optimizeFonts &&
-      !(process.env.NEXT_RUNTIME !== 'edge' && inAmpMode)
-    ) {
-      children = this.makeStylesheetInert(children)
-    }
-
     let hasAmphtmlRel = false
     let hasCanonicalRel = false
 
@@ -808,6 +760,17 @@ export class Head extends React.Component<HeadProps> {
       assetPrefix
     )
 
+    const tracingMetadata = getTracedMetadata(
+      getTracer().getTracePropagationData(),
+      this.context.experimentalClientTraceMetadata
+    )
+
+    const traceMetaTags = (tracingMetadata || []).map(
+      ({ key, value }, index) => (
+        <meta key={`next-trace-data-${index}`} name={key} content={value} />
+      )
+    )
+
     return (
       <head {...getHeadHTMLProps(this.props)}>
         {this.context.isDevelopment && (
@@ -848,7 +811,6 @@ export class Head extends React.Component<HeadProps> {
         )}
 
         {children}
-        {optimizeFonts && <meta name="next-font-preconnect" />}
 
         {nextFontLinkTags.preconnect}
         {nextFontLinkTags.preload}
@@ -933,6 +895,7 @@ export class Head extends React.Component<HeadProps> {
               // (by default, style-loader injects at the bottom of <head />)
               <noscript id="__next_css__DO_NOT_USE__" />
             )}
+            {traceMetaTags}
             {styles || null}
           </>
         )}

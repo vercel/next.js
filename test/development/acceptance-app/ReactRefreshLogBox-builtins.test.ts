@@ -45,7 +45,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     if (process.env.TURBOPACK) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/my-package/index.js:1:13
@@ -92,7 +92,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
@@ -145,7 +145,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
@@ -195,7 +195,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         ],
       ])
     )
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
@@ -234,7 +234,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
     expect(
       await session.evaluate(() => document.documentElement.innerHTML)
     ).toContain('index page')

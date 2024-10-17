@@ -7,6 +7,11 @@ function getTestFilter() {
     : null
   if (!manifest) return null
 
+  console.log(
+    'Filtering tests using manifest:',
+    process.env.NEXT_EXTERNAL_TESTS_FILTERS
+  )
+
   // For the legacy manifest without a version, we assume it's a complete list
   // of all the tests.
   if (!manifest.version || typeof manifest.version !== 'number') {

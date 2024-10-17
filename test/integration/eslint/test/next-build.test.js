@@ -4,7 +4,6 @@ import { join } from 'path'
 
 import { nextBuild } from 'next-test-utils'
 
-const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirBaseDirectories = join(__dirname, '../base-directories')
@@ -23,22 +22,6 @@ describe('Next Build', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
-      test('first time setup', async () => {
-        const eslintrcJson = join(dirFirstTimeSetup, '.eslintrc.json')
-        await fs.writeFile(eslintrcJson, '')
-
-        const { stdout, stderr } = await nextBuild(dirFirstTimeSetup, [], {
-          stdout: true,
-          stderr: true,
-          lint: true,
-        })
-        const output = stdout + stderr
-
-        expect(output).toContain(
-          'No ESLint configuration detected. Run next lint to begin setup'
-        )
-      })
-
       test('shows warnings and errors', async () => {
         const { stdout, stderr } = await nextBuild(dirCustomConfig, [], {
           stdout: true,

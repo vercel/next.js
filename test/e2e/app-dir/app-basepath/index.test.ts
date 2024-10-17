@@ -1,18 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
+import type { Request, Response } from 'playwright'
 
 describe('app dir - basepath', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       sass: 'latest',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should successfully hard navigate from pages -> app', async () => {
     const browser = await next.browser('/base/pages-path')
@@ -94,4 +90,110 @@ describe('app dir - basepath', () => {
       })
     }
   )
+
+  it.each([
+    { redirectType: 'relative', buttonId: 'redirect-relative' },
+    { redirectType: 'absolute', buttonId: 'redirect-absolute-internal' },
+  ])(
+    `should properly stream an internal server action redirect() with a $redirectType URL`,
+    async ({ buttonId }) => {
+      const initialPagePath = '/base/client'
+      const destinationPagePath = '/base/another'
+
+      const requests: Request[] = []
+      const responses: Response[] = []
+
+      const browser = await next.browser(initialPagePath)
+
+      browser.on('request', (req: Request) => {
+        const url = req.url()
+
+        if (
+          url.includes(initialPagePath) ||
+          url.includes(destinationPagePath)
+        ) {
+          requests.push(req)
+        }
+      })
+
+      browser.on('response', (res: Response) => {
+        const url = res.url()
+
+        if (
+          url.includes(initialPagePath) ||
+          url.includes(destinationPagePath)
+        ) {
+          responses.push(res)
+        }
+      })
+
+      await browser.elementById(buttonId).click()
+      await check(() => browser.url(), /\/base\/another/)
+
+      expect(await browser.waitForElementByCss('#page-2').text()).toBe(`Page 2`)
+
+      // This verifies the redirect & server response happens in a single roundtrip,
+      // if the redirect resource was static. In development, these responses are always
+      // dynamically generated, so we only expect a single request for build/deploy.
+      if (!isNextDev) {
+        expect(requests).toHaveLength(1)
+        expect(responses).toHaveLength(1)
+      }
+
+      const request = requests[0]
+      const response = responses[0]
+
+      expect(request.method()).toEqual('POST')
+      expect(request.url()).toEqual(`${next.url}${initialPagePath}`)
+      expect(response.status()).toEqual(303)
+    }
+  )
+
+  it('should redirect externally when encountering absolute URLs on the same host outside the basePath', async () => {
+    const initialPagePath = '/base/client'
+    const destinationPagePath = '/outsideBasePath'
+
+    const requests: Request[] = []
+    const responses: Response[] = []
+
+    const browser = await next.browser(initialPagePath)
+
+    browser.on('request', (req: Request) => {
+      const url = req.url()
+
+      if (!url.includes('_next')) {
+        requests.push(req)
+      }
+    })
+
+    browser.on('response', (res: Response) => {
+      const url = res.url()
+
+      if (!url.includes('_next')) {
+        responses.push(res)
+      }
+    })
+
+    await browser.elementById('redirect-absolute-external').click()
+    await check(() => browser.url(), /\/outsideBasePath/)
+
+    // We expect to see two requests, first a POST invoking the server
+    // action. And second a GET request resolving the redirect.
+    expect(requests).toHaveLength(2)
+    expect(responses).toHaveLength(2)
+
+    const [firstRequest, secondRequest] = requests
+    const [firstResponse, secondResponse] = responses
+
+    expect(firstRequest.method()).toEqual('POST')
+    expect(firstRequest.url()).toEqual(`${next.url}${initialPagePath}`)
+
+    expect(secondRequest.method()).toEqual('GET')
+    expect(secondRequest.url()).toEqual(`${next.url}${destinationPagePath}`)
+
+    expect(firstResponse.status()).toEqual(303)
+    // Since this is an external request to a resource outside of NextJS
+    // we expect to see a seperate request resolving the external URL.
+    expect(secondResponse.status()).toEqual(200)
+  })
 })
