@@ -368,7 +368,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
+      afterBuild: NEXT_E2E_TEST_TIMEOUT=240000 node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
       stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
     secrets: inherit

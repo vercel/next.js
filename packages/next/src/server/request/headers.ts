@@ -10,7 +10,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
-  abortAndThrowOnSynchronousDynamicDataAccess,
+  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -149,7 +149,7 @@ function makeDynamicallyTrackedExoticHeaders(
     append: {
       value: function append() {
         const expression = `headers().append(${describeNameArg(arguments[0])}, ...)`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -159,7 +159,7 @@ function makeDynamicallyTrackedExoticHeaders(
     delete: {
       value: function _delete() {
         const expression = `headers().delete(${describeNameArg(arguments[0])})`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -169,7 +169,7 @@ function makeDynamicallyTrackedExoticHeaders(
     get: {
       value: function get() {
         const expression = `headers().get(${describeNameArg(arguments[0])})`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -179,7 +179,7 @@ function makeDynamicallyTrackedExoticHeaders(
     has: {
       value: function has() {
         const expression = `headers().has(${describeNameArg(arguments[0])})`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -189,7 +189,7 @@ function makeDynamicallyTrackedExoticHeaders(
     set: {
       value: function set() {
         const expression = `headers().set(${describeNameArg(arguments[0])}, ...)`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -199,7 +199,7 @@ function makeDynamicallyTrackedExoticHeaders(
     getSetCookie: {
       value: function getSetCookie() {
         const expression = `headers().getSetCookie()`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -209,7 +209,7 @@ function makeDynamicallyTrackedExoticHeaders(
     forEach: {
       value: function forEach() {
         const expression = `headers().forEach(...)`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -219,7 +219,7 @@ function makeDynamicallyTrackedExoticHeaders(
     keys: {
       value: function keys() {
         const expression = `headers().keys()`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -229,7 +229,7 @@ function makeDynamicallyTrackedExoticHeaders(
     values: {
       value: function values() {
         const expression = `headers().values()`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -239,7 +239,7 @@ function makeDynamicallyTrackedExoticHeaders(
     entries: {
       value: function entries() {
         const expression = `headers().entries()`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -249,7 +249,7 @@ function makeDynamicallyTrackedExoticHeaders(
     [Symbol.iterator]: {
       value: function () {
         const expression = 'headers()[Symbol.iterator]()'
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore

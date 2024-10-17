@@ -170,12 +170,13 @@ impl<C: Comments> ServerActions<C> {
             }
         }
 
-        if self.in_export_decl {
-            if self.in_action_file {
-                // All export functions in a server file are actions
-                is_action_fn = true;
-            } else if let Some(cache_file_type) = &self.in_cache_file {
-                // All export functions in a cache file are cache functions
+        if self.in_export_decl && self.in_action_file {
+            // All export functions in a server file are actions
+            is_action_fn = true;
+        }
+
+        if self.in_module_level {
+            if let Some(cache_file_type) = &self.in_cache_file {
                 cache_type = Some(cache_file_type.clone());
             }
         }
@@ -471,7 +472,10 @@ impl<C: Comments> ServerActions<C> {
 
         self.has_cache = true;
         self.has_action = true;
-        self.export_actions.push(export_name.to_string());
+
+        if self.config.is_react_server_layer {
+            self.export_actions.push(export_name.to_string());
+        }
 
         let reference_id =
             generate_action_id(&self.config.hash_salt, &self.file_name, &export_name);
@@ -668,7 +672,10 @@ impl<C: Comments> ServerActions<C> {
 
         self.has_cache = true;
         self.has_action = true;
-        self.export_actions.push(cache_name.to_string());
+
+        if self.config.is_react_server_layer {
+            self.export_actions.push(cache_name.to_string());
+        }
 
         let reference_id = generate_action_id(&self.config.hash_salt, &self.file_name, &cache_name);
 
@@ -1659,7 +1666,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let mut actions = self.export_actions.clone();
 
             // All exported values are considered as actions if the file is an action file.
-            if self.in_action_file {
+            if self.in_action_file
+                || self.in_cache_file.is_some() && !self.config.is_react_server_layer
+            {
                 actions.extend(self.exported_idents.iter().map(|e| e.1.clone()));
             };
 

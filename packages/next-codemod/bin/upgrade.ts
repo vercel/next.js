@@ -1,3 +1,4 @@
+import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
 import semver from 'semver'
@@ -133,7 +134,7 @@ export async function runUpgrade(
     // we should only let the user stay on React 18 if they are using pure Pages Router.
     // x-ref(PR): https://github.com/vercel/next.js/pull/65058
     // x-ref(release): https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
-    compareVersions(installedNextVersion, '14.3.0-canary.45') >= 0 &&
+    compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0 &&
     installedReactVersion.startsWith('18')
   ) {
     const shouldStayOnReact18Res = await prompts(
@@ -296,7 +297,12 @@ export async function runUpgrade(
     addPackageDependency(appPackageJson, dep, version, true)
   }
 
-  fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
+  fs.writeFileSync(
+    appPackageJsonPath,
+    JSON.stringify(appPackageJson, null, 2) +
+      // Common IDE formatters would add a newline as well.
+      os.EOL
+  )
 
   runInstallation(packageManager)
 
@@ -526,17 +532,24 @@ function writeOverridesField(
   packageManager: PackageManager,
   overrides: Record<string, string>
 ) {
-  if (packageManager === 'bun' || packageManager === 'npm') {
+  const entries = Object.entries(overrides)
+  // Avoids writing an empty overrides field into package.json
+  // which would be an unnecessary diff.
+  if (entries.length === 0) {
+    return
+  }
+
+  if (packageManager === 'npm') {
     if (!packageJson.overrides) {
       packageJson.overrides = {}
     }
-    for (const [key, value] of Object.entries(overrides)) {
+    for (const [key, value] of entries) {
       packageJson.overrides[key] = value
     }
   } else if (packageManager === 'pnpm') {
     // pnpm supports pnpm.overrides and pnpm.resolutions
     if (packageJson.resolutions) {
-      for (const [key, value] of Object.entries(overrides)) {
+      for (const [key, value] of entries) {
         packageJson.resolutions[key] = value
       }
     } else {
@@ -546,7 +559,7 @@ function writeOverridesField(
       if (!packageJson.pnpm.overrides) {
         packageJson.pnpm.overrides = {}
       }
-      for (const [key, value] of Object.entries(overrides)) {
+      for (const [key, value] of entries) {
         packageJson.pnpm.overrides[key] = value
       }
     }
@@ -554,8 +567,24 @@ function writeOverridesField(
     if (!packageJson.resolutions) {
       packageJson.resolutions = {}
     }
-    for (const [key, value] of Object.entries(overrides)) {
+    for (const [key, value] of entries) {
       packageJson.resolutions[key] = value
+    }
+  } else if (packageManager === 'bun') {
+    // bun supports both overrides and resolutions
+    // x-ref: https://bun.sh/docs/install/overrides
+    if (packageJson.resolutions) {
+      for (const [key, value] of entries) {
+        packageJson.resolutions[key] = value
+      }
+    } else {
+      // add overrides field if it's missing and add overrides
+      if (!packageJson.overrides) {
+        packageJson.overrides = {}
+      }
+      for (const [key, value] of entries) {
+        packageJson.overrides[key] = value
+      }
     }
   }
 }

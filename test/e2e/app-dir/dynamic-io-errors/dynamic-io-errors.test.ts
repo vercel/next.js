@@ -83,6 +83,47 @@ function runTests(options: { withMinification: boolean }) {
         )
       })
     })
+    describe('Dynamic Metadata - Static Route With Suspense', () => {
+      const { next, isNextDev, skipped } = nextTestSetup({
+        files: __dirname + '/fixtures/dynamic-metadata-static-with-suspense',
+        skipStart: true,
+        skipDeployment: true,
+      })
+
+      if (skipped) {
+        return
+      }
+
+      if (isNextDev) {
+        it('does not run in dev', () => {})
+        return
+      }
+
+      beforeEach(async () => {
+        if (!withMinification) {
+          await next.patchFile('next.config.js', (content) =>
+            content.replace(
+              'serverMinification: true,',
+              'serverMinification: false,'
+            )
+          )
+        }
+      })
+
+      it('should error the build if generateMetadata is dynamic', async () => {
+        try {
+          await next.start()
+        } catch {
+          // we expect the build to fail
+        }
+        const expectError = createExpectError(next.cliOutput)
+
+        expectError('Error occurred prerendering page "/"')
+        expectError(
+          'Error: Route / has a dynamic `generateMetadata` but nothing else is dynamic.'
+        )
+      })
+    })
 
     describe('Dynamic Metadata - Dynamic Route', () => {
       const { next, isNextDev, skipped } = nextTestSetup({
