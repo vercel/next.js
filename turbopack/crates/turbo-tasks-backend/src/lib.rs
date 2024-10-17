@@ -13,7 +13,7 @@ use anyhow::Result;
 
 pub use self::{backend::TurboTasksBackend, kv_backing_storage::KeyValueDatabaseBackingStorage};
 use crate::database::{
-    handle_db_versioning, is_fresh, lmdb::LmbdKeyValueDatabase, FreshDbOptimization,
+    handle_db_versioning, is_fresh, lmdb::LmbdKeyValueDatabase, FreshDbOptimization, NoopKvDb,
     ReadTransactionCache,
 };
 
@@ -27,6 +27,12 @@ pub fn lmdb_backing_storage(path: &Path) -> Result<LmdbBackingStorage> {
     let database = FreshDbOptimization::new(database, fresh_db);
     let database = ReadTransactionCache::new(database);
     Ok(KeyValueDatabaseBackingStorage::new(database))
+}
+
+pub type NoopBackingStorage = KeyValueDatabaseBackingStorage<NoopKvDb>;
+
+pub fn noop_backing_storage(_path: &Path) -> Result<NoopBackingStorage> {
+    Ok(KeyValueDatabaseBackingStorage::new(NoopKvDb::new()))
 }
 
 pub type DefaultBackingStorage = LmdbBackingStorage;
