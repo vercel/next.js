@@ -131,7 +131,7 @@ import {
   // getSupportedBrowsers,
 } from './utils'
 import type { PageInfo, PageInfos, PrerenderedRoute } from './utils'
-import type { AppSegmentConfig } from './app-segments/app-segment-config'
+import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -157,6 +157,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext, type MappedPages } from './build-context'
@@ -188,6 +189,7 @@ import {
   handlePagesErrorRoute,
   formatIssue,
   isRelevantWarning,
+  isPersistentCachingEnabled,
 } from '../server/dev/turbopack-utils'
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
@@ -462,7 +464,12 @@ async function writeClientSsgManifest(
 
 interface FunctionsConfigManifest {
   version: number
-  functions: Record<string, Record<string, string | number>>
+  functions: Record<
+    string,
+    {
+      maxDuration?: number | undefined
+    }
+  >
 }
 
 async function writeFunctionsConfigManifest(
@@ -501,6 +508,8 @@ async function writeImagesManifest(
   const images = { ...config.images }
   const { deviceSizes, imageSizes } = images
   ;(images as any).sizes = [...deviceSizes, ...imageSizes]
+
+  // By default, remotePatterns will allow no remote images ([])
   images.remotePatterns = (config?.images?.remotePatterns || []).map((p) => ({
     // Modifying the manifest should also modify matchRemotePattern()
     protocol: p.protocol,
@@ -509,11 +518,15 @@ async function writeImagesManifest(
     pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
     search: p.search,
   }))
-  images.localPatterns = (config?.images?.localPatterns || []).map((p) => ({
-    // Modifying the manifest should also modify matchLocalPattern()
-    pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
-    search: p.search,
-  }))
+
+  // By default, localPatterns will allow all local images (undefined)
+  if (config?.images?.localPatterns) {
+    images.localPatterns = config.images.localPatterns.map((p) => ({
+      // Modifying the manifest should also modify matchLocalPattern()
+      pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
+      search: p.search,
+    }))
+  }
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
     version: 1,
@@ -1247,7 +1260,7 @@ export default async function build(
               header: RSC_HEADER,
               // This vary header is used as a default. It is technically re-assigned in `base-server`,
               // and may include an additional Vary option for `Next-URL`.
-              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}`,
+              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE_HEADER}, ${NEXT_ROUTER_PREFETCH_HEADER}, ${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}`,
               prefetchHeader: NEXT_ROUTER_PREFETCH_HEADER,
               didPostponeHeader: NEXT_DID_POSTPONE_HEADER,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
@@ -1373,6 +1386,7 @@ export default async function build(
               config.experimental?.turbo?.root ||
               config.outputFileTracingRoot ||
               dir,
+            distDir,
             nextConfig: config,
             jsConfig: await getTurbopackJsConfig(dir, config),
             watch: {
@@ -1397,6 +1411,7 @@ export default async function build(
             browserslistQuery: supportedBrowsers.join(', '),
           },
           {
+            persistentCaching: isPersistentCachingEnabled(config),
             memoryLimit: config.experimental.turbo?.memoryLimit,
           }
         )
@@ -1480,7 +1495,15 @@ export default async function build(
           'Building'
         )
         const promises: Promise<any>[] = []
-        const sema = new Sema(10)
+
+        // Concurrency will start at INITIAL_CONCURRENCY and
+        // slowly ramp up to CONCURRENCY by increasing the
+        // concurrency by 1 every time a task is completed.
+        const INITIAL_CONCURRENCY = 5
+        const CONCURRENCY = 10
+
+        const sema = new Sema(INITIAL_CONCURRENCY)
+        let remainingRampup = CONCURRENCY - INITIAL_CONCURRENCY
         const enqueue = (fn: () => Promise<void>) => {
           promises.push(
             (async () => {
@@ -1489,6 +1512,10 @@ export default async function build(
                 await fn()
               } finally {
                 sema.release()
+                if (remainingRampup > 0) {
+                  remainingRampup--
+                  sema.release()
+                }
                 progress()
               }
             })()
@@ -1599,8 +1626,9 @@ export default async function build(
           )
         }
 
+        const time = process.hrtime(startTime)
         return {
-          duration: process.hrtime(startTime)[0],
+          duration: time[0] + time[1] / 1e9,
           buildTraceContext: undefined,
           shutdownPromise,
         }
@@ -1660,11 +1688,21 @@ export default async function build(
 
           buildTraceContext = rest.buildTraceContext
 
-          Log.event('Compiled successfully')
+          let durationString
+          if (compilerDuration > 120) {
+            durationString = `${Math.round(compilerDuration / 6) / 10}min`
+          } else if (compilerDuration > 20) {
+            durationString = `${Math.round(compilerDuration)}s`
+          } else if (compilerDuration > 2) {
+            durationString = `${Math.round(compilerDuration * 10) / 10}s`
+          } else {
+            durationString = `${Math.round(compilerDuration * 1000)}ms`
+          }
+          Log.event(`Compiled successfully in ${durationString}`)
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
-              durationInSeconds: compilerDuration,
+              durationInSeconds: Math.round(compilerDuration),
               totalAppPagesCount,
             })
           )
@@ -1914,7 +1952,6 @@ export default async function build(
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
-              isAppPPRFallbacksEnabled: config.experimental.pprFallbacks,
               buildId,
             })
         )
@@ -2074,9 +2111,15 @@ export default async function build(
                     })
                   : undefined
 
-                if (staticInfo?.extraConfig) {
-                  functionsConfigManifest.functions[page] =
-                    staticInfo.extraConfig
+                // If there's any thing that would contribute to the functions
+                // configuration, we need to add it to the manifest.
+                if (
+                  typeof staticInfo?.runtime !== 'undefined' ||
+                  typeof staticInfo?.maxDuration !== 'undefined'
+                ) {
+                  functionsConfigManifest.functions[page] = {
+                    maxDuration: staticInfo?.maxDuration,
+                  }
                 }
 
                 const pageRuntime = middlewareManifest.functions[
@@ -2133,8 +2176,6 @@ export default async function build(
                             maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
-                            isAppPPRFallbacksEnabled:
-                              config.experimental.pprFallbacks,
                             buildId,
                           })
                         }
@@ -3109,7 +3150,7 @@ export default async function build(
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
-              if (!isRoutePPREnabled || !config.experimental.pprFallbacks) {
+              if (!isRoutePPREnabled) {
                 dynamicRoutes.push(page)
               }
 

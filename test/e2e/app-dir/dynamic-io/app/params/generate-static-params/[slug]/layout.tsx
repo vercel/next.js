@@ -1,3 +1,5 @@
+import { Suspense } from 'react'
+
 // TODO once we make fetchCache inert with dynamicIO this test is expected
 // to start failing. Right now the force cache causes the fetches to be identical
 // and we get only one prebuilt route. once we remove the caching behavior of fetchCache
@@ -19,6 +21,14 @@ export async function generateStaticParams() {
 }
 
 export default async function Layout({ children, params }) {
+  return (
+    <Suspense fallback="loading">
+      <Inner params={params}>{children}</Inner>
+    </Suspense>
+  )
+}
+
+async function Inner({ children, params }) {
   return (
     <>
       <h1>{await params.slug}</h1>

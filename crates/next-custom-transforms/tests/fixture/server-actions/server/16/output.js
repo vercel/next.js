@@ -4,7 +4,7 @@ import deleteFromDb from 'db';
 const v1 = 'v1';
 export function Item({ id1, id2 }) {
     const v2 = id2;
-    const deleteItem = registerServerReference("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$RSC_SERVER_ACTION_0).bind(null, encryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
+    const deleteItem = registerServerReference($$RSC_SERVER_ACTION_0, "6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
         id1,
         v2
     ]));
@@ -17,7 +17,7 @@ export async function $$RSC_SERVER_ACTION_0($$ACTION_CLOSURE_BOUND) {
     await deleteFromDb($$ACTION_ARG_1);
 }
 const f = (x)=>{
-    var g = registerServerReference("90b5db271335765a4b0eab01f044b381b5ebd5cd", $$RSC_SERVER_ACTION_1).bind(null, encryptActionBoundArgs("90b5db271335765a4b0eab01f044b381b5ebd5cd", [
+    var g = registerServerReference($$RSC_SERVER_ACTION_1, "90b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("90b5db271335765a4b0eab01f044b381b5ebd5cd", [
         x
     ]));
 };
@@ -26,7 +26,7 @@ export async function $$RSC_SERVER_ACTION_1($$ACTION_CLOSURE_BOUND, y, ...z) {
     return $$ACTION_ARG_0 + y + z[0];
 }
 const g = (x)=>{
-    f = registerServerReference("1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$RSC_SERVER_ACTION_2).bind(null, encryptActionBoundArgs("1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
+    f = registerServerReference($$RSC_SERVER_ACTION_2, "1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
         x
     ]));
 };

@@ -210,7 +210,7 @@ impl<'a> CowComments<'a> {
     }
 }
 
-impl<'a> Comments for CowComments<'a> {
+impl Comments for CowComments<'_> {
     fn add_leading(
         &self,
         _pos: swc_core::common::BytePos,

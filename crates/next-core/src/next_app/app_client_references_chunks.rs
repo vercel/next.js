@@ -1,10 +1,11 @@
 use anyhow::Result;
-use indexmap::IndexMap;
 use tracing::Instrument;
-use turbo_tasks::{RcStr, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, RcStr, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
+};
 use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
-    module::Module,
+    module::{Module, Modules},
     output::OutputAssets,
 };
 
@@ -30,10 +31,10 @@ pub fn client_modules_ssr_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
     pub client_component_client_chunks:
-        IndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
+        FxIndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
     pub client_component_ssr_chunks:
-        IndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
-    pub layout_segment_client_chunks: IndexMap<Vc<NextServerComponentModule>, Vc<OutputAssets>>,
+        FxIndexMap<ClientReferenceType, (Vc<OutputAssets>, AvailabilityInfo)>,
+    pub layout_segment_client_chunks: FxIndexMap<Vc<NextServerComponentModule>, Vc<OutputAssets>>,
 }
 
 /// Computes all client references chunks.
@@ -125,11 +126,12 @@ pub async fn get_app_client_references_chunks(
                         ssr_chunks.map(|ssr_chunks| (client_reference_ty, ssr_chunks))
                     })
                     .collect(),
-                layout_segment_client_chunks: IndexMap::new(),
+                layout_segment_client_chunks: FxIndexMap::default(),
             }
             .cell())
         } else {
-            let mut client_references_by_server_component: IndexMap<_, Vec<_>> = IndexMap::new();
+            let mut client_references_by_server_component: FxIndexMap<_, Vec<_>> =
+                FxIndexMap::default();
             let mut framework_reference_types = Vec::new();
             for &server_component in app_client_references.server_component_entries.iter() {
                 client_references_by_server_component
@@ -156,9 +158,9 @@ pub async fn get_app_client_references_chunks(
             let mut current_ssr_availability_info = AvailabilityInfo::Root;
             let mut current_ssr_chunks = OutputAssets::empty();
 
-            let mut layout_segment_client_chunks = IndexMap::new();
-            let mut client_component_ssr_chunks = IndexMap::new();
-            let mut client_component_client_chunks = IndexMap::new();
+            let mut layout_segment_client_chunks = FxIndexMap::default();
+            let mut client_component_ssr_chunks = FxIndexMap::default();
+            let mut client_component_client_chunks = FxIndexMap::default();
 
             for (server_component, client_reference_types) in
                 client_references_by_server_component.into_iter()
@@ -313,7 +315,7 @@ pub async fn get_app_client_references_chunks(
 #[turbo_tasks::function]
 pub async fn get_app_server_reference_modules(
     app_client_reference_types: Vc<ClientReferenceTypes>,
-) -> Result<Vc<Vec<Vc<Box<dyn Module>>>>> {
+) -> Result<Vc<Modules>> {
     Ok(Vc::cell(
         app_client_reference_types
             .await?

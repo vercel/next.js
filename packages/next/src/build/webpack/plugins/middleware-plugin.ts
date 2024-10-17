@@ -120,7 +120,7 @@ function getEntryFiles(
           .map(
             (file) =>
               'server/' +
-              file.replace('.js', '_' + CLIENT_REFERENCE_MANIFEST + '.js')
+              file.replace(/\.js$/, '_' + CLIENT_REFERENCE_MANIFEST + '.js')
           )
       )
     }
@@ -295,7 +295,7 @@ function isDynamicCodeEvaluationAllowed(
 
   const name = fileName.replace(rootDir ?? '', '')
 
-  return picomatch(middlewareConfig?.unstable_allowDynamicGlobs ?? [])(name)
+  return picomatch(middlewareConfig?.unstable_allowDynamic ?? [])(name)
 }
 
 function buildUnsupportedApiError({
@@ -647,7 +647,7 @@ function getExtractMetadata(params: {
           if (/node_modules[\\/]regenerator-runtime[\\/]runtime\.js/.test(id)) {
             continue
           }
-          if (route?.middlewareConfig?.unstable_allowDynamicGlobs) {
+          if (route?.middlewareConfig?.unstable_allowDynamic) {
             telemetry?.record({
               eventName: 'NEXT_EDGE_ALLOW_DYNAMIC_USED',
               payload: {

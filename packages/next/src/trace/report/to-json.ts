@@ -5,6 +5,7 @@ import path from 'path'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import type { TraceEvent } from '../types'
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const localEndpoint = {
   serviceName: 'nextjs',
   ipv4: '127.0.0.1',
@@ -147,12 +148,12 @@ const reportToLocalHost = (event: TraceEvent) => {
 }
 
 export default {
-  flushAll: () =>
+  flushAll: (opts?: { end: boolean }) =>
     batch
       ? batch.flushAll().then(() => {
           const phase = traceGlobals.get('phase')
           // Only end writeStream when manually flushing in production
-          if (phase !== PHASE_DEVELOPMENT_SERVER) {
+          if (opts?.end || phase !== PHASE_DEVELOPMENT_SERVER) {
             return writeStream.end()
           }
         })

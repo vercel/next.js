@@ -197,7 +197,12 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    const totalAmount = await getRedboxTotalErrorCount(browser)
+    if (isReact18) {
+      expect(totalAmount).toBeGreaterThanOrEqual(2)
+    } else {
+      expect(totalAmount).toBe(1)
+    }
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {

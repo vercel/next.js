@@ -4,7 +4,7 @@ import deleteFromDb from 'db';
 const v1 = 'v1';
 export function Item({ id1, id2, id3, id4 }) {
     const v2 = id2;
-    var deleteItem = registerServerReference("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$RSC_SERVER_ACTION_0).bind(null, encryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
+    var deleteItem = registerServerReference($$RSC_SERVER_ACTION_0, "6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
         id1,
         v2,
         id3,

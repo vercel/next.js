@@ -93,7 +93,7 @@ function logFetchMetric(
 
     writeLine(
       white(
-        `${method} ${url} ${status} in ${end - start}ms ${formatCacheStatus(cacheStatus)}`
+        `${method} ${url} ${status} in ${Math.round(end - start)}ms ${formatCacheStatus(cacheStatus)}`
       ),
       1
     )

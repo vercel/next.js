@@ -19,7 +19,7 @@ export function y(p, [p1, { p2 }], ...p3) {
     if (true) {
         const f8 = 1;
     }
-    var action = registerServerReference("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$RSC_SERVER_ACTION_0).bind(null, encryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
+    var action = registerServerReference($$RSC_SERVER_ACTION_0, "6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
         f2,
         f11,
         p,

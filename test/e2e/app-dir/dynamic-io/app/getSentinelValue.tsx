@@ -6,14 +6,6 @@ export function getSentinelValue() {
     : 'at runtime'
 }
 
-export function LayoutSentinel() {
-  return <div id="layout">{getSentinelValue()}</div>
-}
-
-export function PageSentinel() {
-  return <div id="page">{getSentinelValue()}</div>
-}
-
-export function InnerSentinel() {
-  return <div id="inner">{getSentinelValue()}</div>
+export function SentinelValue() {
+  return getSentinelValue()
 }

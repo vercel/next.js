@@ -45,6 +45,7 @@ swc-ast-explorer = { path = "turbopack/crates/turbopack-swc-ast-explorer" }
 turbo-prehash = { path = "turbopack/crates/turbo-prehash" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
+turbo-tasks-backend = { path = "turbopack/crates/turbo-tasks-backend" }
 turbo-tasks-build = { path = "turbopack/crates/turbo-tasks-build" }
 turbo-tasks-bytes = { path = "turbopack/crates/turbo-tasks-bytes" }
 turbo-tasks-env = { path = "turbopack/crates/turbo-tasks-env" }
@@ -85,21 +86,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "0.103.1", features = [
+swc_core = { version = "0.106.3", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.39.0" }
+testing = { version = "0.42.0" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.16.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
-mdxjs = "0.2.9"
-modularize_imports = { version = "0.68.25" }
-styled_components = { version = "0.96.23" }
-styled_jsx = { version = "0.73.34" }
-swc_emotion = { version = "0.72.22" }
-swc_relay = { version = "0.44.25" }
+mdxjs = "0.2.10"
+modularize_imports = { version = "0.68.26" }
+styled_components = { version = "0.96.24" }
+styled_jsx = { version = "0.73.35" }
+swc_emotion = { version = "0.72.23" }
+swc_relay = { version = "0.44.26" }
 
 # General Deps
 
@@ -143,6 +144,7 @@ dunce = "1.0.3"
 either = "1.9.0"
 futures = "0.3.26"
 futures-retry = "0.6.0"
+hashbrown = "0.14.5"
 httpmock = { version = "0.6.8", default-features = false }
 image = { version = "0.25.0", default-features = false }
 indexmap = "1.9.2"
@@ -177,6 +179,7 @@ proc-macro2 = "1.0.79"
 qstring = "0.7.2"
 quote = "1.0.23"
 rand = "0.8.5"
+rayon = "1.10.0"
 regex = "1.10.6"
 rstest = "0.16.0"
 rustc-hash = "1.1.0"
@@ -188,7 +191,7 @@ serde_path_to_error = "0.1.9"
 serde_qs = "0.11.0"
 serde_with = "2.3.2"
 serde_yaml = "0.9.17"
-shadow-rs = { version = "0.23.0", default-features = false, features = [
+shadow-rs = { version = "0.35.0", default-features = false, features = [
   "tzdb",
 ] }
 smallvec = { version = "1.13.1", features = [

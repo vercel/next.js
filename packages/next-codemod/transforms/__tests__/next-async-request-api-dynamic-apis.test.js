@@ -37,16 +37,26 @@ describe('next-async-request-api - dynamic-apis', () => {
     const prefix = `${fixtureDir}/${fixture}`;
     const [inputPath, input] = getSourceByInputPath(path.join(`${__dirname}`, `../__testfixtures__/${prefix}.input`))
     const [outputPath, expectedOutput] = getSourceByInputPath(path.join(`${__dirname}`, `../__testfixtures__/${prefix}.output`))
+    const extension = path.extname(inputPath)
 
     const transformPath = `${__dirname}/../${transformName}`
     const transform = require(transformPath).default
+
+    // Override test fixture input filename with `page.tsx` to always match the expected output,
+    // otherwise fallback to the original filename.
+    const overrideFilename = /[\\/]origin-name-\d{2}-/.test(inputPath) 
+      // extract the <name> from `origin-name-<name>-<number>.input.js`
+      ? inputPath
+        .replace(/origin-name-(\d{2})-/, '')
+        .replace(/\.input\./, '.')
+      : 'page' + extension
 
     it(`transforms correctly ${prefix}`, () => {
       runInlineTest(
         transform,
         null,
         {
-          path: inputPath,
+          path: overrideFilename,
           source: input,
         },
         expectedOutput, 

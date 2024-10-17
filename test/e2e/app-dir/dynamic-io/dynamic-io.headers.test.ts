@@ -14,7 +14,7 @@ describe('dynamic-io', () => {
 
   if (WITH_PPR) {
     it('should partially prerender pages that use async headers', async () => {
-      let $ = await next.render$('/headers/static-behavior/async_boundary', {})
+      let $ = await next.render$('/headers/static-behavior/async', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -24,45 +24,23 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at buildtime')
         expect($('#x-sentinel').text()).toBe('hello')
       }
-
-      $ = await next.render$('/headers/static-behavior/async_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
     })
 
     it('should partially prerender pages that use sync headers', async () => {
-      let $ = await next.render$('/headers/static-behavior/sync_boundary', {})
+      let $ = await next.render$('/headers/static-behavior/sync', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
         expect($('#x-sentinel').text()).toBe('hello')
       } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/headers/static-behavior/sync_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
+        expect($('#layout').text()).toBe('at buildtime')
+        expect($('#page').text()).toBe('at buildtime')
         expect($('#x-sentinel').text()).toBe('hello')
       }
     })
   } else {
     it('should produce dynamic pages when using async or sync headers', async () => {
-      let $ = await next.render$('/headers/static-behavior/sync_boundary', {})
+      let $ = await next.render$('/headers/static-behavior/sync', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -73,29 +51,7 @@ describe('dynamic-io', () => {
         expect($('#x-sentinel').text()).toBe('hello')
       }
 
-      $ = await next.render$('/headers/static-behavior/sync_root', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/headers/static-behavior/async_boundary', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#x-sentinel').text()).toBe('hello')
-      }
-
-      $ = await next.render$('/headers/static-behavior/async_root', {})
+      $ = await next.render$('/headers/static-behavior/async', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -314,7 +270,7 @@ describe('dynamic-io', () => {
     )
     expect($('#for-of-x-sentinel-rand').length).toBe(1)
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('for...of headers()')
+      expect(headerWarnings[i++]).toContain('headers were iterated over.')
     }
 
     // ...headers()
@@ -324,7 +280,7 @@ describe('dynamic-io', () => {
     )
     expect($('#spread-x-sentinel-rand').length).toBe(1)
     if (isNextDev) {
-      expect(headerWarnings[i++]).toContain('...headers()')
+      expect(headerWarnings[i++]).toContain('headers were iterated over.')
     }
 
     if (isNextDev) {

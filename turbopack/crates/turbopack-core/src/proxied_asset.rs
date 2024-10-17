@@ -8,9 +8,10 @@ use crate::{
     version::VersionedContent,
 };
 
-/// An [`Asset`] with an overwritten path. This is helpful to expose an asset at
-/// a different path than it was originally set up to be, e.g. to expose layout
-/// CSS chunks under the server FS instead of the output FS when rendering
+/// An [`Asset`] with an overwritten path.
+///
+/// This is helpful to expose an asset at a different path than it was originally set up to be, e.g.
+/// to expose layout CSS chunks under the server FS instead of the output FS when rendering
 /// Next.js apps.
 #[turbo_tasks::value]
 pub struct ProxiedAsset {

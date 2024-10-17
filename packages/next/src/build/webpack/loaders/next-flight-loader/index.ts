@@ -2,19 +2,35 @@ import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import {
   BARREL_OPTIMIZATION_PREFIX,
+  DEFAULT_RUNTIME_WEBPACK,
+  EDGE_RUNTIME_WEBPACK,
   RSC_MODULE_TYPES,
 } from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
 import { formatBarrelOptimizedResource } from '../../utils'
 import { getModuleBuildInfo } from '../get-module-build-info'
+import type {
+  javascript,
+  LoaderContext,
+} from 'next/dist/compiled/webpack/webpack'
+import picomatch from 'next/dist/compiled/picomatch'
+
+export interface NextFlightLoaderOptions {
+  isEdgeServer: boolean
+}
+
+type SourceType = javascript.JavascriptParser['sourceType'] | 'commonjs'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
 // For edge runtime it will be aliased to esm version by webpack
 const MODULE_PROXY_PATH =
   'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
 
-type SourceType = 'auto' | 'commonjs' | 'module'
+const isSharedRuntime = picomatch('**/next/dist/**/*.shared-runtime.js', {
+  dot: true, // required for .pnpm paths
+})
+
 export function getAssumedSourceType(
   mod: webpack.Module,
   sourceType: SourceType
@@ -45,7 +61,7 @@ export function getAssumedSourceType(
 }
 
 export default function transformSource(
-  this: any,
+  this: LoaderContext<NextFlightLoaderOptions>,
   source: string,
   sourceMap: any
 ) {
@@ -56,10 +72,11 @@ export default function transformSource(
 
   const options = this.getOptions()
   const { isEdgeServer } = options
+  const module = this._module!
 
   // Assign the RSC meta information to buildInfo.
   // Exclude next internal files which are not marked as client files
-  const buildInfo = getModuleBuildInfo(this._module)
+  const buildInfo = getModuleBuildInfo(module)
   buildInfo.rsc = getRSCModuleInformation(source, true)
 
   // Resource key is the unique identifier for the resource. When RSC renders
@@ -75,19 +92,20 @@ export default function transformSource(
   // Because of that, we must add another query param to the resource key to
   // differentiate them.
   let resourceKey: string = this.resourcePath
-  if (this._module?.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+  if (module.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
     resourceKey = formatBarrelOptimizedResource(
       resourceKey,
-      this._module.matchResource
+      module.matchResource
     )
   }
 
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
     const assumedSourceType = getAssumedSourceType(
-      this._module,
-      this._module?.parser?.sourceType
+      module,
+      (module.parser as javascript.JavascriptParser).sourceType
     )
+
     const clientRefs = buildInfo.rsc.clientRefs!
 
     if (assumedSourceType === 'module') {
@@ -98,6 +116,18 @@ export default function transformSource(
           )
         )
         return
+      }
+
+      if (!isSharedRuntime(resourceKey)) {
+        // Prevent module concatenation, and prevent export names from being
+        // mangled, in production builds, so that exports of client reference
+        // modules can be resolved by React using the metadata from the client
+        // manifest.
+        this._compilation!.moduleGraph.getExportsInfo(
+          module
+        ).setUsedInUnknownWay(
+          isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
+        )
       }
 
       // `proxy` is the module proxy that we treat the module as a client boundary.

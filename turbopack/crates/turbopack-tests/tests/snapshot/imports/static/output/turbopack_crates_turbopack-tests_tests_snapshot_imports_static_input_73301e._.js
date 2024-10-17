@@ -12,7 +12,6 @@ var { r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_
 {
 __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2f$input$2f$vercel$2e$svg__$5b$test$5d$__$28$static$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/static/input/vercel.svg [test] (static)");
-"__TURBOPACK__ecmascript__hoisting__location__";
 ;
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$static$2f$input$2f$vercel$2e$svg__$5b$test$5d$__$28$static$29$__["default"]);
 }}),

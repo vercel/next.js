@@ -168,6 +168,7 @@ describe('Error overlay for hydration errors in App router', () => {
       expect(pseudoHtml).toMatchInlineSnapshot(`
         "...
           <div className="parent">
+            ...
         +    <main className="only">"
       `)
     }
@@ -374,6 +375,7 @@ describe('Error overlay for hydration errors in App router', () => {
     } else {
       expect(pseudoHtml).toEqual(outdent`
         ...
+          ...
         +  <table>
         -  test
     }`)
@@ -871,10 +873,10 @@ describe('Error overlay for hydration errors in App router', () => {
     if (isTurbopack) {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <RedirectBoundary>
-            <RedirectErrorBoundary router={{...}}>
-              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
-                <Segment>
+          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
+            <RedirectBoundary>
+              <RedirectErrorBoundary router={{...}}>
+                <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
                   <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
                     <Page params={Promise} searchParams={Promise}>
                       <div>
@@ -891,10 +893,10 @@ describe('Error overlay for hydration errors in App router', () => {
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
         "...
-          <RedirectBoundary>
-            <RedirectErrorBoundary router={{...}}>
-              <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
-                <Segment>
+          <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} missingSlots={Set}>
+            <RedirectBoundary>
+              <RedirectErrorBoundary router={{...}}>
+                <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} segmentPath={[...]} ...>
                   <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
                     <Page params={Promise} searchParams={Promise}>
                       <div>

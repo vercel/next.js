@@ -852,7 +852,17 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       const stackFrames = await Promise.all(
         stackFrameElements.map((f) => f.innerText())
       )
-      expect(stackFrames).toEqual([])
+      expect(stackFrames).toEqual(
+        // TODO: Show useful stack
+        [
+          // Internal frames of React.
+          // Feel free to adjust until we show useful stacks.
+          '',
+          '',
+          '',
+          '',
+        ]
+      )
     } finally {
       await cleanup()
     }
@@ -909,12 +919,26 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
                 Page
                 app/page.js (5:6)
               `,
+              // TODO: Show useful stack
+              // Internal frames of React.
+              // Feel free to adjust until we show useful stacks.
+              '',
+              '',
+              '',
+              '',
             ]
           : [
               outdent`
                 Page
                 app/page.js (5:5)
               `,
+              // TODO: Show useful stack
+              // Internal frames of React.
+              // Feel free to adjust until we show useful stacks.
+              '',
+              '',
+              '',
+              '',
             ]
       )
     } finally {
@@ -957,7 +981,17 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       const stackFrames = await Promise.all(
         stackFrameElements.map((f) => f.innerText())
       )
-      expect(stackFrames).toEqual([])
+      expect(stackFrames).toEqual(
+        // TODO: Show useful stack
+        [
+          // Internal frames of React.
+          // Feel free to adjust until we show useful stacks.
+          '',
+          '',
+          '',
+          '',
+        ]
+      )
     } finally {
       await cleanup()
     }
@@ -1216,7 +1250,8 @@ export default function Home() {
         [
           'app/utils.ts',
           `throw new Error('utils error')
-export function foo(){}`,
+export function foo(){}
+          `,
         ],
         [
           'app/page.js',
@@ -1243,7 +1278,7 @@ export default function Home() {
         Next.js
         ---
         [project]/app/page.js [app-client] (ecmascript)
-        app/page.js (0:0)
+        app/page.js (2:1)
         ---
         Next.js
         ---

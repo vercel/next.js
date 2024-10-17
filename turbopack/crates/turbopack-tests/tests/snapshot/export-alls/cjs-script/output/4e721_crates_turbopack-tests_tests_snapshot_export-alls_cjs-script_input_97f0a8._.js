@@ -17,7 +17,6 @@ var { r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_
 __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$script$2f$input$2f$exported$2e$cjs__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-script/input/exported.cjs [test] (ecmascript)");
 __turbopack_dynamic__(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$script$2f$input$2f$exported$2e$cjs__$5b$test$5d$__$28$ecmascript$29$__);
-"__TURBOPACK__ecmascript__hoisting__location__";
 ;
 console.log('Hoist test');
 }}),
@@ -28,7 +27,6 @@ var { r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_
 {
 __turbopack_esm__({});
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$script$2f$input$2f$mod$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-script/input/mod.js [test] (ecmascript)");
-"__TURBOPACK__ecmascript__hoisting__location__";
 ;
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$export$2d$alls$2f$cjs$2d$script$2f$input$2f$mod$2e$js__$5b$test$5d$__$28$ecmascript$29$__);
 }}),

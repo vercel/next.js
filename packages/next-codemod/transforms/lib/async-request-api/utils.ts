@@ -9,10 +9,16 @@ import type {
   FunctionExpression,
 } from 'jscodeshift'
 
+export const NEXTJS_ENTRY_FILES =
+  /([\\/]|^)(page|layout|route|default)\.(t|j)sx?$/
+
 export type FunctionScope =
   | FunctionDeclaration
   | FunctionExpression
   | ArrowFunctionExpression
+
+export const NEXT_CODEMOD_ERROR_PREFIX = '@next-codemod-error'
+const NEXT_CODEMOD_IGNORE_ERROR_PREFIX = '@next-codemod-ignore'
 
 export const TARGET_ROUTE_EXPORTS = new Set([
   'GET',
@@ -27,6 +33,7 @@ export const TARGET_ROUTE_EXPORTS = new Set([
 export const TARGET_NAMED_EXPORTS = new Set([
   // For page and layout
   'generateMetadata',
+  'generateViewport',
   ...TARGET_ROUTE_EXPORTS,
 ])
 
@@ -182,28 +189,21 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
   if (!hasReactUseImport) {
     const reactImportDeclaration = root.find(j.ImportDeclaration, {
       source: {
-        type: 'Literal',
         value: 'react',
       },
+      // Skip the type only react imports
+      importKind: 'value',
     })
 
     if (reactImportDeclaration.size() > 0) {
+      const importNode = reactImportDeclaration.get().node
+
       // Add 'use' to existing 'react' import declaration
-      reactImportDeclaration
-        .get()
-        .node.specifiers.push(j.importSpecifier(j.identifier('use')))
+      importNode.specifiers.push(j.importSpecifier(j.identifier('use')))
     } else {
       // Final all type imports to 'react'
-
-      const reactImport = root.find(j.ImportDeclaration, {
-        source: {
-          type: 'Literal',
-          value: 'react',
-        },
-      })
-
-      if (reactImport.size() > 0) {
-        reactImport
+      if (reactImportDeclaration.size() > 0) {
+        reactImportDeclaration
           .get()
           .node.specifiers.push(j.importSpecifier(j.identifier('use')))
       } else {
@@ -425,20 +425,58 @@ export function wrapParentheseIfNeeded(
   return hasChainAccess ? j.parenthesizedExpression(expression) : expression
 }
 
+function existsComment(
+  comments: ASTPath<any>['node']['comments'],
+  comment: string
+): boolean {
+  const isCodemodErrorComment = comment
+    .trim()
+    .startsWith(NEXT_CODEMOD_ERROR_PREFIX)
+
+  let hasIgnoreComment = false
+  let hasComment = false
+
+  if (comments) {
+    comments.forEach((commentNode) => {
+      const currentComment = commentNode.value
+      if (currentComment.trim().startsWith(NEXT_CODEMOD_IGNORE_ERROR_PREFIX)) {
+        hasIgnoreComment = true
+      }
+      if (currentComment === comment) {
+        hasComment = true
+      }
+    })
+    // If it's inserting codemod error comment,
+    // check if there's already a @next-codemod-ignore comment.
+    // if ignore comment exists, bypass the comment insertion.
+    if (hasIgnoreComment && isCodemodErrorComment) {
+      return true
+    }
+    if (hasComment) {
+      return true
+    }
+  }
+  return false
+}
+
 export function insertCommentOnce(
   node: ASTPath<any>['node'],
   j: API['j'],
   comment: string
-) {
-  if (node.comments) {
-    const hasComment = node.comments.some(
-      (commentNode) => commentNode.value === comment
-    )
-    if (hasComment) {
-      return
-    }
+): boolean {
+  const hasCommentInInlineComments = existsComment(node.comments, comment)
+  const hasCommentInLeadingComments = existsComment(
+    node.leadingComments,
+    comment
+  )
+
+  if (!hasCommentInInlineComments && !hasCommentInLeadingComments) {
+    // Always insert into inline comment
+    node.comments = [j.commentBlock(comment), ...(node.comments || [])]
+    return true
   }
-  node.comments = [j.commentBlock(comment), ...(node.comments || [])]
+
+  return false
 }
 
 export function getVariableDeclaratorId(

@@ -1,5 +1,6 @@
 #![allow(clippy::items_after_test_module)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 mod helpers;
 #[cfg(feature = "bench_against_node_nft")]

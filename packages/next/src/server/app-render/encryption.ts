@@ -23,7 +23,7 @@ import {
   stringToUint8Array,
 } from './encryption-utils'
 
-import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
@@ -96,16 +96,11 @@ export async function decryptActionBoundArgs(
   actionId: string,
   encrypted: Promise<string>
 ) {
+  const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
+
   // Decrypt the serialized string with the action id as the salt.
   const decryped = await decodeActionBoundArg(actionId, await encrypted)
 
-  // TODO: We can't use the client reference manifest to resolve the modules
-  // on the server side - instead they need to be recovered as the module
-  // references (proxies) again.
-  // For now, we'll just use an empty module map.
-  const ssrModuleMap: {
-    [moduleExport: string]: ManifestNode
-  } = {}
   // Using Flight to deserialize the args from the string.
   const deserialized = await createFromReadableStream(
     new ReadableStream({
@@ -120,7 +115,9 @@ export async function decryptActionBoundArgs(
         // to be added to the current execution. Instead, we'll wait for any ClientReference
         // to be emitted which themselves will handle the preloading.
         moduleLoading: null,
-        moduleMap: ssrModuleMap,
+        moduleMap: isEdgeRuntime
+          ? clientReferenceManifestSingleton.edgeRscModuleMapping
+          : clientReferenceManifestSingleton.rscModuleMapping,
       },
     }
   )
