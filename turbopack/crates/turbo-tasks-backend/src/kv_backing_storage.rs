@@ -1,14 +1,11 @@
 use std::{
     borrow::Cow,
-    cell::UnsafeCell,
     collections::{hash_map::Entry, HashMap},
     sync::Arc,
 };
 
 use anyhow::{anyhow, Context, Result};
-use lmdb::RoTransaction;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use smallvec::SmallVec;
 use tracing::Span;
 use turbo_tasks::{backend::CachedTaskType, KeyValuePair, SessionId, TaskId};
 
@@ -23,11 +20,6 @@ use crate::{
 const META_KEY_OPERATIONS: u32 = 0;
 const META_KEY_NEXT_FREE_TASK_ID: u32 = 1;
 const META_KEY_SESSION_ID: u32 = 2;
-
-/// Specifies many databases that have a different version than the current one are retained.
-/// For example if MAX_OTHER_DB_VERSIONS is 2, there can be at most 3 databases in the directory,
-/// the current one and two older/newer ones.
-const MAX_OTHER_DB_VERSIONS: usize = 2;
 
 struct IntKey([u8; 4]);
 
@@ -47,30 +39,6 @@ fn as_u32(bytes: Cow<[u8]>) -> Result<u32> {
     let n = u32::from_be_bytes(bytes.as_ref().try_into()?);
     Ok(n)
 }
-
-struct ThreadLocalReadTransactionsContainer(UnsafeCell<SmallVec<[RoTransaction<'static>; 4]>>);
-
-impl ThreadLocalReadTransactionsContainer {
-    unsafe fn pop(&self) -> Option<RoTransaction<'static>> {
-        // Safety: Access only happens via `push` and `pop`, and
-        // `ThreadLocalReadTransactionsContainer` is not `Sync`, so we can know we can know this
-        // block is the only one currently reading or writing to the cell.
-        let vec = unsafe { &mut *self.0.get() };
-        vec.pop()
-    }
-
-    unsafe fn push(&self, tx: RoTransaction<'static>) {
-        // Safety: Access only happens via `push` and `pop`, and
-        // `ThreadLocalReadTransactionsContainer` is not `Sync`, so we can know we can know this
-        // block is the only one currently reading or writing to the cell.
-        let vec = unsafe { &mut *self.0.get() };
-        vec.push(tx)
-    }
-}
-
-// Safety: It's safe to send `RoTransaction` between threads as we construct `Environment` with
-// `EnvironmentFlags::NO_TLS`, but the types don't allow that.
-unsafe impl Send for ThreadLocalReadTransactionsContainer {}
 
 pub struct KeyValueDatabaseBackingStorage<T: KeyValueDatabase> {
     database: T,
@@ -137,7 +105,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             else {
                 return Ok(Vec::new());
             };
-            let operations = pot::from_slice(&*operations)?;
+            let operations = pot::from_slice(&operations)?;
             Ok(operations)
         }
         get(&self.database).unwrap_or_default()
@@ -327,7 +295,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
         Ok(())
     }
 
-    fn start_read_transaction<'tx>(&'tx self) -> Option<Self::ReadTransaction<'tx>> {
+    fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>> {
         self.database.begin_read_transaction().ok()
     }
 

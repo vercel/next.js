@@ -80,7 +80,7 @@ impl<T: KeyValueDatabase + 'static> KeyValueDatabase for ReadTransactionCache<T>
         key: &[u8],
     ) -> anyhow::Result<Option<std::borrow::Cow<'l, [u8]>>> {
         self.database
-            .get(&transaction.tx.as_ref().unwrap(), key_space, key)
+            .get(transaction.tx.as_ref().unwrap(), key_space, key)
     }
 
     type WriteBatch<'l> = ReadTransactionCacheWriteBatch<'l, T>;
@@ -98,7 +98,7 @@ pub struct CachedReadTransaction<'l, T: KeyValueDatabase + 'static> {
     this: &'l ReadTransactionCache<T>,
 }
 
-impl<'l, T: KeyValueDatabase> Drop for CachedReadTransaction<'l, T> {
+impl<T: KeyValueDatabase> Drop for CachedReadTransaction<'_, T> {
     fn drop(&mut self) {
         let guard = self.this.read_transactions_cache.load();
         let container = guard

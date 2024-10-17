@@ -21,6 +21,7 @@ use crate::{
 const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 3;
 
 #[derive(Serialize, Deserialize, Clone, Default)]
+#[allow(clippy::large_enum_variant)]
 pub enum ConnectChildOperation {
     UpdateAggregation {
         aggregation_update: AggregationUpdateQueue,

@@ -17,6 +17,7 @@ use crate::{
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
+#[allow(clippy::large_enum_variant)]
 pub enum InvalidateOperation {
     // TODO DetermineActiveness
     MakeDirty {

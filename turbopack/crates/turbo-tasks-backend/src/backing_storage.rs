@@ -25,7 +25,7 @@ pub trait BackingStorage: 'static + Send + Sync {
         meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
         data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
     ) -> Result<()>;
-    fn start_read_transaction<'tx>(&'tx self) -> Option<Self::ReadTransaction<'tx>>;
+    fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>>;
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
@@ -37,17 +37,17 @@ pub trait BackingStorage: 'static + Send + Sync {
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn reverse_lookup_task_cache<'l>(
+    unsafe fn reverse_lookup_task_cache(
         &self,
-        tx: Option<&Self::ReadTransaction<'l>>,
+        tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
     ) -> Option<Arc<CachedTaskType>>;
     /// # Safety
     ///
     /// `tx` must be a transaction from this BackingStorage instance.
-    unsafe fn lookup_data<'l>(
+    unsafe fn lookup_data(
         &self,
-        tx: Option<&Self::ReadTransaction<'l>>,
+        tx: Option<&Self::ReadTransaction<'_>>,
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Vec<CachedDataItem>;

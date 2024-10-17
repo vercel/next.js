@@ -7,6 +7,7 @@ use crate::database::key_value_database::{KeySpace, KeyValueDatabase, WriteBatch
 pub struct NoopKvDb;
 
 impl NoopKvDb {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self
     }
@@ -24,7 +25,7 @@ impl KeyValueDatabase for NoopKvDb {
         tx
     }
 
-    fn begin_read_transaction<'l>(&'l self) -> Result<Self::ReadTransaction<'l>> {
+    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
         Ok(())
     }
 
