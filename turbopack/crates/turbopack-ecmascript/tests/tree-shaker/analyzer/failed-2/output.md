@@ -337,10 +337,7 @@ graph TD
     Item28;
     Item28["export createPostponedAbortSignal"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
 ```
 # Phase 2
@@ -384,15 +381,9 @@ graph TD
     Item28;
     Item28["export createPostponedAbortSignal"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
     Item9 --> Item5;
-    Item9 --> Item1;
-    Item9 --> Item2;
-    Item9 --> Item3;
     Item9 --> Item4;
     Item9 -.-> Item8;
     Item9 -.-> Item7;
@@ -449,15 +440,9 @@ graph TD
     Item28;
     Item28["export createPostponedAbortSignal"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
     Item9 --> Item5;
-    Item9 --> Item1;
-    Item9 --> Item2;
-    Item9 --> Item3;
     Item9 --> Item4;
     Item9 -.-> Item8;
     Item9 -.-> Item7;
@@ -531,15 +516,9 @@ graph TD
     Item28;
     Item28["export createPostponedAbortSignal"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
-    Item4 --> Item1;
-    Item4 --> Item2;
     Item4 --> Item3;
     Item9 --> Item5;
-    Item9 --> Item1;
-    Item9 --> Item2;
-    Item9 --> Item3;
     Item9 --> Item4;
     Item9 -.-> Item8;
     Item9 -.-> Item7;
@@ -603,15 +582,9 @@ graph TD
     N24["Items: [ItemId(12, Normal)]"];
     N25["Items: [ItemId(14, Normal)]"];
     N11 --> N9;
-    N13 --> N9;
     N13 --> N11;
-    N15 --> N9;
-    N15 --> N11;
     N15 --> N13;
     N17 --> N10;
-    N17 --> N9;
-    N17 --> N11;
-    N17 --> N13;
     N17 --> N15;
     N17 -.-> N16;
     N17 -.-> N14;
@@ -784,9 +757,6 @@ export { DynamicServerError as j } from "__TURBOPACK_VAR__" assert {
 ## Part 13
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
 import '../../client/components/static-generation-bailout';
@@ -805,12 +775,6 @@ export { StaticGenBailoutError as k } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 15
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
@@ -832,15 +796,6 @@ export { getPathname as l } from "__TURBOPACK_VAR__" assert {
 ```js
 import { i as React } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -10
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
@@ -1232,9 +1187,6 @@ export { DynamicServerError as j } from "__TURBOPACK_VAR__" assert {
 ## Part 13
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
 import '../../client/components/static-generation-bailout';
@@ -1253,12 +1205,6 @@ export { StaticGenBailoutError as k } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 15
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
@@ -1280,15 +1226,6 @@ export { getPathname as l } from "__TURBOPACK_VAR__" assert {
 ```js
 import { i as React } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -10
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 13
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
