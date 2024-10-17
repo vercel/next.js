@@ -201,12 +201,10 @@ impl TurboTasksBackendInner {
         unsafe { ExecuteContext::new_with_tx(self, tx, turbo_tasks) }
     }
 
-    #[inline]
     fn suspending_requested(&self) -> bool {
         (self.in_progress_operations.load(Ordering::Relaxed) & SNAPSHOT_REQUESTED_BIT) != 0
     }
 
-    #[inline]
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
         #[cold]
         fn operation_suspend_point_cold(
