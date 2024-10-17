@@ -64,7 +64,7 @@ impl KeyValueDatabase for DumpKeyValueDatabase {
             current_file: BufWriter::new(File::create(&self.path.join("0"))?),
             current_file_size: 0,
             current_file_index: 0,
-            _this: self,
+            path: &self.path,
         })
     }
 }
@@ -75,7 +75,7 @@ pub struct DumpWriteBatch<'a> {
     current_file: BufWriter<File>,
     current_file_size: usize,
     current_file_index: usize,
-    _this: &'a DumpKeyValueDatabase,
+    path: &'a Path,
 }
 
 impl<'a> DumpWriteBatch<'a> {
@@ -83,7 +83,9 @@ impl<'a> DumpWriteBatch<'a> {
         self.current_file_size += size;
         if self.current_file_size > MAX_FILE_SIZE {
             self.current_file_index += 1;
-            self.current_file = BufWriter::new(File::create(&self.current_file_index.to_string())?);
+            self.current_file = BufWriter::new(File::create(
+                &self.path.join(self.current_file_index.to_string()),
+            )?);
             self.current_file_size = size;
         }
         Ok(())
