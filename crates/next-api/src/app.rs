@@ -1091,7 +1091,10 @@ impl AppEndpoint {
                     node_root,
                     app_entry.original_name.clone(),
                     runtime,
-                    Vc::upcast(this.app_project.rsc_module_context()),
+                    match runtime {
+                        NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                        NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+                    },
                     this.app_project
                         .project()
                         .chunking_context(process_client_assets, runtime),
