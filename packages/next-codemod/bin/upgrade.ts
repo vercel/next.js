@@ -1,3 +1,4 @@
+import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
 import semver from 'semver'
@@ -5,12 +6,33 @@ import compareVersions from 'semver/functions/compare'
 import { execSync } from 'child_process'
 import path from 'path'
 import pc from 'picocolors'
-import { getPkgManager, installPackages } from '../lib/handle-package'
+import {
+  getPkgManager,
+  addPackageDependency,
+  runInstallation,
+} from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 import { BadInput } from './shared'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
+
+const optionalNextjsPackages = [
+  'create-next-app',
+  'eslint-config-next',
+  '@next/bundle-analyzer',
+  '@next/codemod',
+  '@next/env',
+  '@next/eslint-plugin-next',
+  '@next/font',
+  '@next/mdx',
+  '@next/plugin-storybook',
+  '@next/polyfill-module',
+  '@next/polyfill-nomodule',
+  '@next/swc',
+  '@next/react-refresh-utils',
+  '@next/third-parties',
+]
 
 /**
  * @param query
@@ -49,23 +71,6 @@ function endMessage() {
       'https://nextjs.org/docs/canary/app/building-your-application/upgrading/version-15'
     )
   )
-}
-
-function addDependencyIfNeeded(
-  packageName: string,
-  version: string,
-  appPackageJson: any,
-  dependenciesToInstall: string[],
-  devDependenciesToInstall: string[]
-) {
-  const specifiedDependency = `${packageName}@${version}`
-  // First check if it's dev dependencies, then add into dev deps;
-  // If it's not, fallback into dependencies.
-  if (appPackageJson.devDependencies?.[packageName]) {
-    devDependenciesToInstall.push(specifiedDependency)
-  } else if (appPackageJson.dependencies?.[packageName]) {
-    dependenciesToInstall.push(specifiedDependency)
-  }
 }
 
 export async function runUpgrade(
@@ -129,7 +134,7 @@ export async function runUpgrade(
     // we should only let the user stay on React 18 if they are using pure Pages Router.
     // x-ref(PR): https://github.com/vercel/next.js/pull/65058
     // x-ref(release): https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
-    compareVersions(installedNextVersion, '14.3.0-canary.45') >= 0 &&
+    compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0 &&
     installedReactVersion.startsWith('18')
   ) {
     const shouldStayOnReact18Res = await prompts(
@@ -189,23 +194,26 @@ export async function runUpgrade(
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
 
-  const dependenciesToInstall = []
-  const devDependenciesToInstall = []
+  const dependenciesToInstall: [string, string][] = []
+  const devDependenciesToInstall: [string, string][] = []
 
-  const corePackageNameVersionMapping = {
-    react: targetReactVersion,
-    'react-dom': targetReactVersion,
-    next: targetNextVersion,
+  const allDependencies = {
+    ...appPackageJson.dependencies,
+    ...appPackageJson.devDependencies,
   }
 
-  for (const packageName of Object.keys(corePackageNameVersionMapping)) {
-    addDependencyIfNeeded(
-      packageName,
-      corePackageNameVersionMapping[packageName],
-      appPackageJson,
-      dependenciesToInstall,
-      devDependenciesToInstall
-    )
+  const versionMapping: Record<string, { version: string; required: boolean }> =
+    {
+      next: { version: targetNextVersion, required: true },
+      react: { version: targetReactVersion, required: true },
+      'react-dom': { version: targetReactVersion, required: true },
+      'react-is': { version: targetReactVersion, required: false },
+    }
+  for (const optionalNextjsPackage of optionalNextjsPackages) {
+    versionMapping[optionalNextjsPackage] = {
+      version: targetNextVersion,
+      required: false,
+    }
   }
 
   if (
@@ -213,8 +221,23 @@ export async function runUpgrade(
     targetReactVersion.startsWith('19.0.0-beta') ||
     targetReactVersion.startsWith('19.0.0-rc')
   ) {
-    corePackageNameVersionMapping['@types/react'] = 'npm:types-react@rc'
-    corePackageNameVersionMapping['@types/react-dom'] = 'npm:types-react-dom@rc'
+    const [targetReactTypesVersion, targetReactDOMTypesVersion] =
+      await Promise.all([
+        loadHighestNPMVersionMatching(`types-react@rc`),
+        loadHighestNPMVersionMatching(`types-react-dom@rc`),
+      ])
+    if (allDependencies['@types/react']) {
+      versionMapping['@types/react'] = {
+        version: `npm:types-react@${targetReactTypesVersion}`,
+        required: false,
+      }
+    }
+    if (allDependencies['@types/react-dom']) {
+      versionMapping['@types/react-dom'] = {
+        version: `npm:types-react-dom@${targetReactDOMTypesVersion}`,
+        required: false,
+      }
+    }
   } else {
     const [targetReactTypesVersion, targetReactDOMTypesVersion] =
       await Promise.all([
@@ -225,24 +248,63 @@ export async function runUpgrade(
           `@types/react-dom@${targetNextPackageJson.peerDependencies['react']}`
         ),
       ])
-    corePackageNameVersionMapping['@types/react'] = targetReactTypesVersion
-    corePackageNameVersionMapping['@types/react-dom'] =
-      targetReactDOMTypesVersion
+
+    if (allDependencies['@types/react']) {
+      versionMapping['@types/react'] = {
+        version: targetReactTypesVersion,
+        required: false,
+      }
+    }
+    if (allDependencies['@types/react-dom']) {
+      versionMapping['@types/react-dom'] = {
+        version: targetReactDOMTypesVersion,
+        required: false,
+      }
+    }
+  }
+
+  // Even though we only need those if we alias `@types/react` to types-react,
+  // we still do it out of safety due to https://github.com/microsoft/DefinitelyTyped-tools/issues/433.
+  const overrides: Record<string, string> = {}
+
+  if (allDependencies['@types/react']) {
+    overrides['@types/react'] = versionMapping['@types/react'].version
+  }
+  if (allDependencies['@types/react-dom']) {
+    overrides['@types/react-dom'] = versionMapping['@types/react-dom'].version
+  }
+
+  writeOverridesField(appPackageJson, packageManager, overrides)
+
+  for (const [packageName, { version, required }] of Object.entries(
+    versionMapping
+  )) {
+    if (appPackageJson.devDependencies?.[packageName]) {
+      devDependenciesToInstall.push([packageName, version])
+    } else if (required || appPackageJson.dependencies?.[packageName]) {
+      dependenciesToInstall.push([packageName, version])
+    }
   }
 
   console.log(
     `Upgrading your project to ${pc.blue('Next.js ' + targetNextVersion)}...\n`
   )
 
-  installPackages(dependenciesToInstall, {
-    packageManager,
-    silent: !verbose,
-  })
-  installPackages(devDependenciesToInstall, {
-    packageManager,
-    silent: !verbose,
-    dev: true,
-  })
+  for (const [dep, version] of dependenciesToInstall) {
+    addPackageDependency(appPackageJson, dep, version, false)
+  }
+  for (const [dep, version] of devDependenciesToInstall) {
+    addPackageDependency(appPackageJson, dep, version, true)
+  }
+
+  fs.writeFileSync(
+    appPackageJsonPath,
+    JSON.stringify(appPackageJson, null, 2) +
+      // Common IDE formatters would add a newline as well.
+      os.EOL
+  )
+
+  runInstallation(packageManager)
 
   for (const codemod of codemods) {
     await runTransform(codemod, process.cwd(), { force: true, verbose })
@@ -463,4 +525,66 @@ async function suggestReactTypesCodemods(): Promise<boolean> {
   )
 
   return runReactTypesCodemod
+}
+
+function writeOverridesField(
+  packageJson: any,
+  packageManager: PackageManager,
+  overrides: Record<string, string>
+) {
+  const entries = Object.entries(overrides)
+  // Avoids writing an empty overrides field into package.json
+  // which would be an unnecessary diff.
+  if (entries.length === 0) {
+    return
+  }
+
+  if (packageManager === 'npm') {
+    if (!packageJson.overrides) {
+      packageJson.overrides = {}
+    }
+    for (const [key, value] of entries) {
+      packageJson.overrides[key] = value
+    }
+  } else if (packageManager === 'pnpm') {
+    // pnpm supports pnpm.overrides and pnpm.resolutions
+    if (packageJson.resolutions) {
+      for (const [key, value] of entries) {
+        packageJson.resolutions[key] = value
+      }
+    } else {
+      if (!packageJson.pnpm) {
+        packageJson.pnpm = {}
+      }
+      if (!packageJson.pnpm.overrides) {
+        packageJson.pnpm.overrides = {}
+      }
+      for (const [key, value] of entries) {
+        packageJson.pnpm.overrides[key] = value
+      }
+    }
+  } else if (packageManager === 'yarn') {
+    if (!packageJson.resolutions) {
+      packageJson.resolutions = {}
+    }
+    for (const [key, value] of entries) {
+      packageJson.resolutions[key] = value
+    }
+  } else if (packageManager === 'bun') {
+    // bun supports both overrides and resolutions
+    // x-ref: https://bun.sh/docs/install/overrides
+    if (packageJson.resolutions) {
+      for (const [key, value] of entries) {
+        packageJson.resolutions[key] = value
+      }
+    } else {
+      // add overrides field if it's missing and add overrides
+      if (!packageJson.overrides) {
+        packageJson.overrides = {}
+      }
+      for (const [key, value] of entries) {
+        packageJson.overrides[key] = value
+      }
+    }
+  }
 }

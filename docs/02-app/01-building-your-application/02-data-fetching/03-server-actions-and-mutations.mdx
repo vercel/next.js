@@ -880,8 +880,13 @@ and should be treated with the same security assumptions and authorization check
 
 To improve security, Next.js has the following built-in features:
 
-- **Dead code elimination:** Unused Server Actions won’t have their IDs exposed to the client-side JavaScript bundle, reducing bundle size and improving performance.
-- **Secure action IDs:** Next.js creates unguessable, non-deterministic IDs to allow the client to reference and call the Server Action. These IDs are periodically recalculated for enhanced security.
+- **Secure action IDs:** Next.js creates encrypted, non-deterministic IDs to allow the client to reference and call the Server Action. These IDs are periodically recalculated between builds for enhanced security.
+- **Dead code elimination:** Unused Server Actions (referenced by their IDs) are removed from client bundle to avoid public access by third-party.
+
+> **Good to know**:
+>
+> The IDs are created during compilation and are cached for a maximum of 14 days. They will be regenerated when a new build is initiated or when the build cache is invalidated.
+> This security improvement reduces the risk in cases where an authentication layer is missing. However, you should still treat Server Actions like public HTTP endpoints.
 
 ```jsx
 // app/actions.js

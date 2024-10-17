@@ -6,7 +6,9 @@ export const dynamic = 'error'
 export async function GET() {
   after(async () => {
     await setTimeout(500)
-    throw new Error('Error thrown from unstable_after: /route-throws-in-after')
+    throw new Error(
+      'My cool error thrown inside unstable_after on route "/route-throws-in-after/callback"'
+    )
   })
   return new Response()
 }

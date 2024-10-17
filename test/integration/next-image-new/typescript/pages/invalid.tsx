@@ -51,6 +51,8 @@ const Invalid = () => {
         width={500}
         height={500}
       />
+      <Image id="missing-src" alt="missing-src" width={500} height={500} />
+      <Image id="null-src" alt="null-src" src={null} width={500} height={500} />
       <p id="stubtext">This is the invalid usage</p>
     </div>
   )

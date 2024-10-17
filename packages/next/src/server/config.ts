@@ -227,19 +227,8 @@ function assignDefaults(
       `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
     )
   }
-  if (defaultConfig.experimental?.pprFallbacks) {
-    Log.warn(
-      `\`experimental.pprFallbacks\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
-    )
-  }
 
   const result = { ...defaultConfig, ...config }
-
-  if (result.experimental?.pprFallbacks && !result.experimental?.ppr) {
-    throw new Error(
-      `The experimental.pprFallbacks option requires experimental.ppr to be set to \`true\` or \`"incremental"\`.`
-    )
-  }
 
   if (
     result.experimental?.allowDevelopmentBuild &&
@@ -248,6 +237,20 @@ function assignDefaults(
     throw new Error(
       `The experimental.allowDevelopmentBuild option requires NODE_ENV to be explicitly set to 'development'.`
     )
+  }
+
+  if (
+    !process.env.__NEXT_VERSION?.includes('canary') &&
+    !process.env.__NEXT_TEST_MODE
+  ) {
+    // Prevents usage of certain experimental features outside of canary
+    if (result.experimental?.ppr) {
+      throw new CanaryOnlyError('experimental.ppr')
+    } else if (result.experimental?.dynamicIO) {
+      throw new CanaryOnlyError('experimental.dynamicIO')
+    } else if (result.experimental?.turbo?.unstablePersistentCaching) {
+      throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
+    }
   }
 
   if (result.output === 'export') {
@@ -834,6 +837,18 @@ function assignDefaults(
           result.expireTime ?? defaultDefault.expire
       }
     }
+    // This is the most dynamic cache life profile.
+    const secondsCacheLifeProfile = result.experimental.cacheLife['seconds']
+    if (
+      secondsCacheLifeProfile &&
+      secondsCacheLifeProfile.stale === undefined
+    ) {
+      // We default this to whatever stale time you had configured for dynamic content.
+      // Since this is basically a dynamic cache life profile.
+      const dynamicStaleTime = result.experimental.staleTimes?.dynamic
+      secondsCacheLifeProfile.stale =
+        dynamicStaleTime ?? defaultConfig.experimental?.staleTimes?.dynamic
+    }
   }
 
   const userProvidedModularizeImports = result.modularizeImports
@@ -1034,9 +1049,6 @@ export default async function loadConfig(
           nextConfigPath: path,
           cwd: dir,
         })
-        curLog.warn(
-          `Configuration with ${configFileName} is currently an experimental feature, use with caution.`
-        )
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
@@ -1223,4 +1235,12 @@ export function getEnabledExperimentalFeatures(
     }
   }
   return enabledExperiments
+}
+
+class CanaryOnlyError extends Error {
+  constructor(feature: string) {
+    super(
+      `The experimental feature "${feature}" can only be enabled when using the latest canary version of Next.js.`
+    )
+  }
 }

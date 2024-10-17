@@ -1,4 +1,8 @@
-use std::{cmp::max, collections::VecDeque, num::NonZeroU32};
+use std::{
+    cmp::{max, Ordering},
+    collections::VecDeque,
+    num::NonZeroU32,
+};
 
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -6,7 +10,7 @@ use turbo_tasks::{SessionId, TaskId};
 
 use crate::{
     backend::{
-        operation::{ExecuteContext, InvalidateOperation, Operation, TaskGuard},
+        operation::{invalidate::make_task_dirty, ExecuteContext, Operation, TaskGuard},
         storage::{get, get_many, iter_many, remove, update, update_count},
         TaskDataCategory,
     },
@@ -467,7 +471,9 @@ impl AggregationUpdateQueue {
                     self.balance_edge(ctx, upper_id, task_id);
                 }
                 AggregationUpdateJob::Invalidate { task_ids } => {
-                    ctx.run_operation(self, |ctx| InvalidateOperation::run(task_ids, ctx));
+                    for task_id in task_ids {
+                        make_task_dirty(task_id, self, ctx);
+                    }
                 }
             }
         }
@@ -539,37 +545,44 @@ impl AggregationUpdateQueue {
         } else if should_be_follower {
             // Remove the upper edge
             let count = remove!(task, Upper { task: upper_id }).unwrap_or_default();
-            if count > 0 {
-                let upper_ids: Vec<_> = get_uppers(&upper);
+            match count.cmp(&0) {
+                Ordering::Less => task.add_new(CachedDataItem::Upper {
+                    task: upper_id,
+                    value: count,
+                }),
+                Ordering::Greater => {
+                    let upper_ids: Vec<_> = get_uppers(&upper);
 
-                // Add the same amount of follower edges
-                if update_count!(upper, Follower { task: task_id }, count) {
-                    // notify uppers about new follower
-                    if !upper_ids.is_empty() {
-                        self.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
+                    // Add the same amount of follower edges
+                    if update_count!(upper, Follower { task: task_id }, count) {
+                        // notify uppers about new follower
+                        if !upper_ids.is_empty() {
+                            self.push(AggregationUpdateJob::InnerOfUppersHasNewFollower {
+                                upper_ids: upper_ids.clone(),
+                                new_follower_id: task_id,
+                            });
+                        }
+                    }
+
+                    // Since this is no longer an inner node, update the aggregated data and
+                    // followers
+                    let data = AggregatedDataUpdate::from_task(&mut task).invert();
+                    let followers = get_followers(&task);
+                    let diff = data.apply(&mut upper, ctx.session_id(), self);
+                    if !upper_ids.is_empty() && !diff.is_empty() {
+                        self.push(AggregationUpdateJob::AggregatedDataUpdate {
                             upper_ids: upper_ids.clone(),
-                            new_follower_id: task_id,
+                            update: diff,
+                        });
+                    }
+                    if !followers.is_empty() {
+                        self.push(AggregationUpdateJob::InnerLostFollowers {
+                            upper_ids: vec![upper_id],
+                            lost_follower_ids: followers,
                         });
                     }
                 }
-
-                // Since this is no longer an inner node, update the aggregated data and
-                // followers
-                let data = AggregatedDataUpdate::from_task(&mut task).invert();
-                let followers = get_followers(&task);
-                let diff = data.apply(&mut upper, ctx.session_id(), self);
-                if !upper_ids.is_empty() && !diff.is_empty() {
-                    self.push(AggregationUpdateJob::AggregatedDataUpdate {
-                        upper_ids: upper_ids.clone(),
-                        update: diff,
-                    });
-                }
-                if !followers.is_empty() {
-                    self.push(AggregationUpdateJob::InnerLostFollowers {
-                        upper_ids: vec![upper_id],
-                        lost_follower_ids: followers,
-                    });
-                }
+                Ordering::Equal => {}
             }
         } else {
             // both nodes have the same aggregation number

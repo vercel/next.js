@@ -1,4 +1,4 @@
-use std::{cmp::max, num::NonZeroU32};
+use std::num::NonZeroU32;
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
@@ -65,9 +65,6 @@ impl ConnectChildOperation {
                     })
                     .count();
                 let target_distance = children_count.ilog2() * 2;
-                let parent_aggregation = current_parent_aggregation
-                    .base
-                    .saturating_add(target_distance);
                 if target_distance != current_parent_aggregation.distance {
                     queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                         task_id: parent_task_id,
@@ -75,7 +72,7 @@ impl ConnectChildOperation {
                         distance: NonZeroU32::new(target_distance),
                     })
                 }
-                max(current_parent_aggregation.effective, parent_aggregation)
+                current_parent_aggregation.effective
             };
 
             // Update child aggregation number based on parent aggregation number

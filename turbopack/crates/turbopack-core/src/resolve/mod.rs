@@ -2485,7 +2485,10 @@ async fn resolve_into_package(
 
     // apply main field(s) or fallback to index.js if there's no subpath
     if is_root_match {
-        results.push(resolve_into_folder(package_path, options));
+        results.push(resolve_into_folder(
+            package_path,
+            options.with_fully_specified(false),
+        ));
     }
 
     if could_match_others {
