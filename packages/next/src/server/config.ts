@@ -244,9 +244,7 @@ function assignDefaults(
     !process.env.__NEXT_TEST_MODE
   ) {
     // Prevents usage of certain experimental features outside of canary
-    if (result.experimental?.ppr) {
-      throw new CanaryOnlyError('experimental.ppr')
-    } else if (result.experimental?.dynamicIO) {
+    if (result.experimental?.dynamicIO) {
       throw new CanaryOnlyError('experimental.dynamicIO')
     } else if (result.experimental?.turbo?.unstablePersistentCaching) {
       throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
