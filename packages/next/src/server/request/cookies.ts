@@ -12,7 +12,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
-  abortAndThrowOnSynchronousDynamicDataAccess,
+  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -167,7 +167,7 @@ function makeDynamicallyTrackedExoticCookies(
     [Symbol.iterator]: {
       value: function () {
         const expression = 'cookies()[Symbol.iterator]()'
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -177,7 +177,7 @@ function makeDynamicallyTrackedExoticCookies(
     size: {
       get() {
         const expression = `cookies().size`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -192,7 +192,7 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().get(${describeNameArg(arguments[0])})`
         }
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -207,7 +207,7 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().getAll(${describeNameArg(arguments[0])})`
         }
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -222,7 +222,7 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().has(${describeNameArg(arguments[0])})`
         }
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -242,7 +242,7 @@ function makeDynamicallyTrackedExoticCookies(
             expression = `cookies().set(...)`
           }
         }
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -259,7 +259,7 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().delete(${describeNameArg(arguments[0])}, ...)`
         }
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -269,7 +269,7 @@ function makeDynamicallyTrackedExoticCookies(
     clear: {
       value: function clear() {
         const expression = 'cookies().clear()'
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
@@ -279,7 +279,7 @@ function makeDynamicallyTrackedExoticCookies(
     toString: {
       value: function toString() {
         const expression = 'cookies().toString()'
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
           prerenderStore
