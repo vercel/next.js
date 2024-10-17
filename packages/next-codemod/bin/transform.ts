@@ -126,31 +126,31 @@ export async function runTransform(
 
   console.log(`Executing command: jscodeshift ${args.join(' ')}`)
 
-  const cp = execa(jscodeshiftExecutable, args, {
-    stripFinalNewline: false,
-    stdio: 'pipe',
+  const execaChildProcess = execa(jscodeshiftExecutable, args, {
+    // include ANSI color codes
     env: { FORCE_COLOR: 'true' },
   })
 
-  if (cp.stdout) {
-    cp.stdout.pipe(process.stdout)
+  if (execaChildProcess.stdout) {
+    execaChildProcess.stdout.pipe(process.stdout)
   }
 
   let result
   try {
-    result = await cp
+    result = await execaChildProcess
   } catch (error) {
-    throw new Error(`jscodeshift exited with code ${cp.exitCode}`, {
-      cause: error,
-    })
+    throw new Error(
+      `jscodeshift exited with code ${execaChildProcess.exitCode}`,
+      {
+        cause: error,
+      }
+    )
   }
 
-  if (
-    !dry &&
-    transformer === 'built-in-next-font' &&
-    // prompt only if there are changes
-    !result.stdout?.includes('0 ok')
-  ) {
+  // eol N-2 has 'M ok'; M as number of successful transformations
+  const hasNoChanges = result.stdout?.split('\n').at(-2)?.includes('0 ok')
+
+  if (!dry && transformer === 'built-in-next-font' && !hasNoChanges) {
     const { uninstallNextFont } = await prompts(
       {
         type: 'confirm',
@@ -167,12 +167,7 @@ export async function runTransform(
     }
   }
 
-  if (
-    !dry &&
-    transformer === 'next-request-geo-ip' &&
-    // prompt only if there are changes
-    !result.stdout?.includes('0 ok')
-  ) {
+  if (!dry && transformer === 'next-request-geo-ip' && !hasNoChanges) {
     const { installVercelFunctions } = await prompts(
       {
         type: 'confirm',
