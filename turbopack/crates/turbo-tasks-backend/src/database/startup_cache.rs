@@ -95,7 +95,8 @@ pub struct StartupCacheLayer<T: KeyValueDatabase> {
     cache_size: AtomicUsize,
     cache: Cache,
     restored_map: ByKeySpace<FxHashMap<&'static [u8], &'static [u8]>>,
-    restored: Vec<u8>,
+    // Need to be kept around to keep the restored_map reference alive
+    _restored: Vec<u8>,
 }
 
 impl<T: KeyValueDatabase> StartupCacheLayer<T> {
@@ -138,7 +139,7 @@ impl<T: KeyValueDatabase> StartupCacheLayer<T> {
                     Default::default(),
                 )
             }),
-            restored,
+            _restored: restored,
             restored_map,
         })
     }
