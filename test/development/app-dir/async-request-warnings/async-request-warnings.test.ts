@@ -229,4 +229,40 @@ describe('dynamic-requests warnings', () => {
       ],
     })
   })
+
+  describe('no warnings', () => {
+    it('should have no warnings on normal rsc page without accessing params', async () => {
+      const browser = await next.browser('/no-access/normal')
+      const browserLogItems = await browser.log()
+      const browserConsoleErrors = browserLogItems
+        .filter((log) => log.source === 'error')
+        .map((log) => log.message)
+
+      expect(browserConsoleErrors.length).toBe(0)
+    })
+
+    it('should only have hydration warnings on hydration mismatch page without accessing params', async () => {
+      const browser = await next.browser('/no-access/mismatch')
+      const browserLogItems = await browser.log()
+      console.log('browserLogItems', browserLogItems)
+      const browserConsoleErrors = browserLogItems
+        .filter((log) => log.source === 'error')
+        .map((log) => log.message)
+
+      // We assert there are zero logged errors but first we assert specific strings b/c we want a better
+      // failure message if these do appear
+      expect(browserConsoleErrors).toEqual(
+        expect.not.arrayContaining([
+          expect.stringContaining('param property was accessed directly with'),
+          expect.stringContaining(
+            'searchParam property was accessed directly with'
+          ),
+        ])
+      )
+
+      // Even though there is a hydration error it does show up in the logs list b/c it is an
+      // uncaught Error not a console.error. We expect there to be no logged errors
+      expect(browserConsoleErrors.length).toBe(0)
+    })
+  })
 })
