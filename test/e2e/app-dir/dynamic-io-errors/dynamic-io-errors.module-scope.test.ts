@@ -23,8 +23,14 @@ describe('Lazy Module Init', () => {
       throw new Error('expected build not to fail for fully static project')
     }
 
-    expect(next.cliOutput).toContain('○ / ')
-    const $ = await next.render$('/')
+    expect(next.cliOutput).toContain('○ /server ')
+    expect(next.cliOutput).toContain('○ /client ')
+    let $
+
+    $ = await next.render$('/server')
+    expect($('#id').text().length).toBeGreaterThan(0)
+
+    $ = await next.render$('/client')
     expect($('#id').text().length).toBeGreaterThan(0)
   })
 })
