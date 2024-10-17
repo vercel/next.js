@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('dynamic-requests warnings', () => {
   const { next } = nextTestSetup({
@@ -227,6 +228,40 @@ describe('dynamic-requests warnings', () => {
           'In route /request/searchParams searchParams are being enumerated'
         ),
       ],
+    })
+  })
+
+  describe('no warnings', () => {
+    it('should have no warnings on normal rsc page without accessing params', async () => {
+      const browser = await next.browser('/no-access/normal')
+      const browserLogItems = await browser.log()
+      const browserConsoleErrors = browserLogItems
+        .filter((log) => log.source === 'error')
+        .map((log) => log.message)
+
+      expect(browserConsoleErrors.length).toBe(0)
+    })
+
+    // FIXME: this test should be enabled, when hydration error happens only on mismatch errors are displayed.
+    it.skip('should only have hydration warnings on hydration mismatch page without accessing params', async () => {
+      const browser = await next.browser('/no-access/mismatch')
+      const browserLogItems = await browser.log()
+      const browserConsoleErrors = browserLogItems
+        .filter((log) => log.source === 'error')
+        .map((log) => log.message)
+
+      await retry(async () => {
+        expect(browserConsoleErrors.length).toBeGreaterThan(0)
+      })
+
+      expect(browserConsoleErrors).toEqual(
+        expect.not.arrayContaining([
+          expect.stringContaining('param property was accessed directly with'),
+          expect.stringContaining(
+            'searchParam property was accessed directly with'
+          ),
+        ])
+      )
     })
   })
 })
