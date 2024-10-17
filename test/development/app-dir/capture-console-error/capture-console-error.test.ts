@@ -3,6 +3,7 @@ import {
   assertHasRedbox,
   getRedboxCallStack,
   getRedboxDescription,
+  getRedboxSource,
   getRedboxTotalErrorCount,
   waitForAndOpenRuntimeError,
 } from 'next-test-utils'
@@ -11,8 +12,10 @@ async function getRedboxResult(browser: any) {
   const description = await getRedboxDescription(browser)
   const callStacks = await getRedboxCallStack(browser)
   const count = await getRedboxTotalErrorCount(browser)
+  const source = await getRedboxSource(browser)
   const result = {
     count,
+    source,
     description,
     callStacks,
   }
@@ -39,6 +42,15 @@ describe('app-dir - capture-console-error', () => {
           "callStacks": "",
           "count": 1,
           "description": "Error: trigger an console <error>",
+          "source": "app/browser/page.js (7:17) @ onClick
+
+           5 |     <button
+           6 |       onClick={() => {
+        >  7 |         console.error('trigger an console <%s>', 'error')
+             |                 ^
+           8 |       }}
+           9 |     >
+          10 |       click to error",
         }
       `)
     } else {
@@ -47,6 +59,15 @@ describe('app-dir - capture-console-error', () => {
           "callStacks": "",
           "count": 1,
           "description": "Error: trigger an console <error>",
+          "source": "app/browser/page.js (7:17) @ error
+
+           5 |     <button
+           6 |       onClick={() => {
+        >  7 |         console.error('trigger an console <%s>', 'error')
+             |                 ^
+           8 |       }}
+           9 |     >
+          10 |       click to error",
         }
       `)
     }
@@ -66,6 +87,15 @@ describe('app-dir - capture-console-error', () => {
           "callStacks": "",
           "count": 2,
           "description": "Error: ssr console error:client",
+          "source": "app/ssr/page.js (4:11) @ Page
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error(
+            |           ^
+          5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
+          6 |   )
+          7 |   if (typeof window === 'undefined') {",
         }
       `)
     } else {
@@ -74,6 +104,15 @@ describe('app-dir - capture-console-error', () => {
           "callStacks": "",
           "count": 2,
           "description": "Error: ssr console error:client",
+          "source": "app/ssr/page.js (4:11) @ error
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error(
+            |           ^
+          5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
+          6 |   )
+          7 |   if (typeof window === 'undefined') {",
         }
       `)
     }
