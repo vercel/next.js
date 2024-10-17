@@ -27,7 +27,7 @@ describe('app-dir - capture-console-error', () => {
     files: __dirname,
   })
 
-  it('should error on capture browser console error and format the error message', async () => {
+  it('should capture browser console error and format the error message', async () => {
     const browser = await next.browser('/browser')
     await browser.elementByCss('button').click()
 
@@ -73,7 +73,7 @@ describe('app-dir - capture-console-error', () => {
     }
   })
 
-  it('should error on capture server replay console error', async () => {
+  it('should capture server replay console error', async () => {
     const browser = await next.browser('/ssr')
 
     await waitForAndOpenRuntimeError(browser)
