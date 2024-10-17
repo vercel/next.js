@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rustc_hash::FxHashMap;
 use tracing::Span;
 use turbo_tasks::{backend::CachedTaskType, KeyValuePair, SessionId, TaskId};
 
@@ -384,9 +385,9 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
     }
 }
 
-type OrganizedTaskData = HashMap<
+type OrganizedTaskData = FxHashMap<
     TaskId,
-    HashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
+    FxHashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>,
 >;
 type ShardedOrganizedTaskData = Vec<OrganizedTaskData>;
 
@@ -396,7 +397,8 @@ fn organize_task_data(updates: Vec<ChunkedVec<CachedDataUpdate>>) -> ShardedOrga
         .into_par_iter()
         .map(|updates| {
             let _span = span.clone().entered();
-            let mut task_updates: OrganizedTaskData = HashMap::new();
+            let mut task_updates: OrganizedTaskData =
+                FxHashMap::with_capacity_and_hasher(updates.len() / 10, Default::default());
             for CachedDataUpdate {
                 task,
                 key,
