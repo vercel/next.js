@@ -62,7 +62,7 @@ function ErrorDescription({
   hydrationWarning: string | null
 }) {
   const isFromConsoleError = error instanceof ConsoleError
-  // If there's hydration warning, skip displaying the error name
+  // If there's hydration warning or console error, skip displaying the error name
   return (
     <>
       {isFromConsoleError || hydrationWarning ? '' : error.name + ': '}
