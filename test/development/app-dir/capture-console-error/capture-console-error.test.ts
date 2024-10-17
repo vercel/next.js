@@ -135,7 +135,7 @@ describe('app-dir - capture-console-error', () => {
           "source": "app/rsc/page.js (2:11) @ Page
 
           1 | export default function Page() {
-        > 2 |   console.error(new Error('boom'))  
+        > 2 |   console.error(new Error('boom'))
             |           ^
           3 |   return <p>rsc</p>
           4 | }
@@ -151,7 +151,7 @@ describe('app-dir - capture-console-error', () => {
           "source": "app/rsc/page.js (2:11) @ error
 
           1 | export default function Page() {
-        > 2 |   console.error(new Error('boom'))  
+        > 2 |   console.error(new Error('boom'))
             |           ^
           3 |   return <p>rsc</p>
           4 | }
