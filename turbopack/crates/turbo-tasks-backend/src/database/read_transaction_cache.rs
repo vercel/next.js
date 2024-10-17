@@ -73,12 +73,12 @@ impl<T: KeyValueDatabase + 'static> KeyValueDatabase for ReadTransactionCache<T>
         })
     }
 
-    fn get<'txn, 'db: 'txn>(
-        &self,
-        transaction: &'txn Self::ReadTransaction<'db>,
+    fn get<'l, 'db: 'l>(
+        &'l self,
+        transaction: &'l Self::ReadTransaction<'db>,
         key_space: super::key_value_database::KeySpace,
         key: &[u8],
-    ) -> anyhow::Result<Option<std::borrow::Cow<'txn, [u8]>>> {
+    ) -> anyhow::Result<Option<std::borrow::Cow<'l, [u8]>>> {
         self.database
             .get(&transaction.tx.as_ref().unwrap(), key_space, key)
     }

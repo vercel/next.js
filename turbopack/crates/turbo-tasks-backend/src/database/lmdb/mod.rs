@@ -82,12 +82,12 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
         Ok(self.env.begin_ro_txn()?)
     }
 
-    fn get<'txn, 'db: 'txn>(
-        &self,
-        transaction: &'txn Self::ReadTransaction<'db>,
+    fn get<'l, 'db: 'l>(
+        &'l self,
+        transaction: &'l Self::ReadTransaction<'db>,
         key_space: super::key_value_database::KeySpace,
         key: &[u8],
-    ) -> Result<Option<Cow<'txn, [u8]>>> {
+    ) -> Result<Option<Cow<'l, [u8]>>> {
         let db = match key_space {
             KeySpace::Infra => self.infra_db,
             KeySpace::TaskMeta => self.meta_db,
