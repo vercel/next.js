@@ -41,6 +41,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 
 interface Options {
   dev: boolean
@@ -394,16 +395,18 @@ export class FlightClientEntryPlugin {
         addClientEntryAndSSRModulesList.push(injected)
       }
 
-      // Create internal app
-      addClientEntryAndSSRModulesList.push(
-        this.injectClientEntryAndSSRModules({
-          compiler,
-          compilation,
-          entryName: name,
-          clientImports: { ...internalClientComponentEntryImports },
-          bundlePath: APP_CLIENT_INTERNALS,
-        })
-      )
+      if (!isAppRouteRoute(name)) {
+        // Create internal app
+        addClientEntryAndSSRModulesList.push(
+          this.injectClientEntryAndSSRModules({
+            compiler,
+            compilation,
+            entryName: name,
+            clientImports: { ...internalClientComponentEntryImports },
+            bundlePath: APP_CLIENT_INTERNALS,
+          })
+        )
+      }
 
       if (actionEntryImports.size > 0) {
         if (!actionMapsPerEntry[name]) {

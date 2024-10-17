@@ -1688,15 +1688,17 @@ export default async function build(
 
           buildTraceContext = rest.buildTraceContext
 
-          if (compilerDuration > 2) {
-            Log.event(
-              `Compiled successfully in ${Math.round(compilerDuration)}s`
-            )
+          let durationString
+          if (compilerDuration > 120) {
+            durationString = `${Math.round(compilerDuration / 6) / 10}min`
+          } else if (compilerDuration > 20) {
+            durationString = `${Math.round(compilerDuration)}s`
+          } else if (compilerDuration > 2) {
+            durationString = `${Math.round(compilerDuration * 10) / 10}s`
           } else {
-            Log.event(
-              `Compiled successfully in ${Math.round(compilerDuration * 1000)}ms`
-            )
+            durationString = `${Math.round(compilerDuration * 1000)}ms`
           }
+          Log.event(`Compiled successfully in ${durationString}`)
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
@@ -1950,7 +1952,6 @@ export default async function build(
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
-              isAppPPRFallbacksEnabled: config.experimental.pprFallbacks,
               buildId,
             })
         )
@@ -2175,8 +2176,6 @@ export default async function build(
                             maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
-                            isAppPPRFallbacksEnabled:
-                              config.experimental.pprFallbacks,
                             buildId,
                           })
                         }
@@ -3151,7 +3150,7 @@ export default async function build(
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
-              if (!isRoutePPREnabled || !config.experimental.pprFallbacks) {
+              if (!isRoutePPREnabled) {
                 dynamicRoutes.push(page)
               }
 

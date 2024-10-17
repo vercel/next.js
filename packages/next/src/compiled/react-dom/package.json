@@ -67,10 +67,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "scheduler": "0.25.0-rc-70fb1363-20241010"
+    "scheduler": "0.25.0-rc-77b637d6-20241016"
   },
   "peerDependencies": {
-    "react": "19.0.0-rc-70fb1363-20241010"
+    "react": "19.0.0-rc-77b637d6-20241016"
   },
   "browser": {
     "./server.js": "./server.browser.js",

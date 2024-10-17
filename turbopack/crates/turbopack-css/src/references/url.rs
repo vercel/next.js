@@ -17,7 +17,7 @@ use turbopack_core::{
         ChunkingTypeOption,
     },
     ident::AssetIdent,
-    issue::{IssueSeverity, IssueSource},
+    issue::IssueSource,
     output::OutputAsset,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
@@ -90,7 +90,7 @@ impl ModuleReference for UrlAssetReference {
             self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
             Some(self.issue_source),
-            IssueSeverity::Error.cell(),
+            false,
         )
     }
 }

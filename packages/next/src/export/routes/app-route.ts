@@ -26,6 +26,7 @@ import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { Params } from '../../server/request/params'
+import { AfterRunner } from '../../server/after/run-with-after'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -39,6 +40,11 @@ export async function exportAppRoute(
   page: string,
   module: AppRouteRouteModule,
   incrementalCache: IncrementalCache | undefined,
+  cacheLifeProfiles:
+    | undefined
+    | {
+        [profile: string]: import('../../server/use-cache/cache-life').CacheLife
+      },
   htmlFilepath: string,
   fileWriter: FileWriter,
   experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>,
@@ -52,6 +58,8 @@ export async function exportAppRoute(
     new NodeNextRequest(req),
     signalFromNodeResponse(res)
   )
+
+  const afterRunner = new AfterRunner()
 
   // Create the context for the handler. This contains the params from
   // the route and the context for the request.
@@ -73,8 +81,10 @@ export async function exportAppRoute(
       nextExport: true,
       supportsDynamicResponse: false,
       incrementalCache,
-      waitUntil: undefined,
-      onClose: undefined,
+      waitUntil: afterRunner.context.waitUntil,
+      onClose: afterRunner.context.onClose,
+      onAfterTaskError: afterRunner.context.onTaskError,
+      cacheLifeProfiles,
       buildId,
     },
   }
@@ -110,6 +120,11 @@ export async function exportAppRoute(
     }
 
     const blob = await response.blob()
+
+    // TODO(after): if we abort a prerender because of an error in an after-callback
+    // we should probably communicate that better (and not log the error twice)
+    await afterRunner.executeAfter()
+
     const revalidate =
       typeof (context.renderOpts as any).collectedRevalidate === 'undefined' ||
       (context.renderOpts as any).collectedRevalidate >= INFINITE_CACHE

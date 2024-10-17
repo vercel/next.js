@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use indexmap::{indexset, IndexMap, IndexSet};
 use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
@@ -39,7 +38,8 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, RcStr, TryJoinIterExt,
+    Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -57,7 +57,6 @@ use turbopack_core::{
     },
     file_source::FileSource,
     ident::AssetIdent,
-    issue::IssueSeverity,
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
@@ -604,7 +603,7 @@ impl AppProject {
                 "next/dist/client/app-next-turbopack.js".into(),
             ))),
             None,
-            IssueSeverity::Error.cell(),
+            false,
         )
         .resolve()
         .await?
@@ -816,13 +815,12 @@ impl AppEndpoint {
 
         let app_entry = self.app_endpoint_entry().await?;
 
-        let (process_client, process_ssr) = match this.ty {
-            AppEndpointType::Page { ty, .. } => (true, matches!(ty, AppPageEndpointType::Html)),
-            // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
-            // as we know we won't have any client references. However, for now, for simplicity's
-            // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { .. } => (false, false),
-            AppEndpointType::Metadata { .. } => (false, false),
+        let (process_client_components, process_client_assets, process_ssr) = match this.ty {
+            AppEndpointType::Page { ty, .. } => {
+                (true, true, matches!(ty, AppPageEndpointType::Html))
+            }
+            AppEndpointType::Route { .. } => (true, false, false),
+            AppEndpointType::Metadata { .. } => (false, false, false),
         };
 
         let node_root = this.app_project.project().node_root();
@@ -832,8 +830,8 @@ impl AppEndpoint {
 
         let server_path = node_root.join("server".into());
 
-        let mut server_assets = indexset![];
-        let mut client_assets = indexset![];
+        let mut server_assets = fxindexset![];
+        let mut client_assets = fxindexset![];
         // assets to add to the middleware manifest (to be loaded in the edge runtime).
         let mut middleware_assets = vec![];
 
@@ -844,7 +842,7 @@ impl AppEndpoint {
         let client_chunking_context = this.app_project.project().client_chunking_context();
 
         let (app_server_reference_modules, client_dynamic_imports, client_references) =
-            if process_client {
+            if process_client_components {
                 let client_shared_chunk_group = get_app_client_shared_chunk_group(
                     AssetIdent::from_path(this.app_project.project().project_path())
                         .with_modifier(client_shared_chunks()),
@@ -903,14 +901,14 @@ impl AppEndpoint {
                         NextRuntime::Edge => this
                             .app_project
                             .project()
-                            .edge_chunking_context(process_client),
+                            .edge_chunking_context(process_client_assets),
                     })
                 } else {
                     None
                 };
 
                 let client_dynamic_imports = {
-                    let mut client_dynamic_imports = IndexMap::new();
+                    let mut client_dynamic_imports = FxIndexMap::default();
                     let mut visited_modules = VisitedDynamicImportModules::empty();
 
                     for refs in client_references
@@ -943,9 +941,9 @@ impl AppEndpoint {
                 );
                 let client_references_chunks_ref = client_references_chunks.await?;
 
-                let mut entry_client_chunks = IndexSet::new();
+                let mut entry_client_chunks = FxIndexSet::default();
                 // TODO(alexkirsz) In which manifest does this go?
-                let mut entry_ssr_chunks = IndexSet::new();
+                let mut entry_ssr_chunks = FxIndexSet::default();
                 for chunks in client_references_chunks_ref
                     .layout_segment_client_chunks
                     .values()
@@ -1139,7 +1137,7 @@ impl AppEndpoint {
                 let chunking_context = this
                     .app_project
                     .project()
-                    .edge_chunking_context(process_client);
+                    .edge_chunking_context(process_client_assets);
                 let mut evaluatable_assets = this
                     .app_project
                     .edge_rsc_runtime_entries()
@@ -1301,7 +1299,7 @@ impl AppEndpoint {
                 let chunking_context = this
                     .app_project
                     .project()
-                    .server_chunking_context(process_client);
+                    .server_chunking_context(process_client_assets);
 
                 if let Some(app_server_reference_modules) = app_server_reference_modules {
                     let (loader, manifest) = create_server_actions_manifest(
@@ -1355,7 +1353,12 @@ impl AppEndpoint {
                             .server_component_entries
                             .iter()
                             .copied()
-                            .take(client_references.server_component_entries.len() - 1)
+                            .take(
+                                client_references
+                                    .server_component_entries
+                                    .len()
+                                    .saturating_sub(1),
+                            )
                         {
                             let span = tracing::trace_span!(
                                 "layout segment",

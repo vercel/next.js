@@ -46,7 +46,7 @@ import {
   type FallbackRouteParams,
 } from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { runWithCacheScope } from '../server/async-storage/cache-scope'
+import { runWithCacheScope } from '../server/async-storage/cache-scope.external'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module.compiled'
 
 const envConfig = require('../shared/lib/runtime-config.external')
@@ -251,6 +251,7 @@ async function exportPageImpl(
         page,
         components.routeModule as AppRouteRouteModule,
         input.renderOpts.incrementalCache,
+        input.renderOpts.cacheLifeProfiles,
         htmlFilepath,
         fileWriter,
         input.renderOpts.experimental,
@@ -271,8 +272,6 @@ async function exportPageImpl(
         ...input.renderOpts.experimental,
         isRoutePPREnabled,
       },
-      waitUntil: undefined,
-      onClose: undefined,
     }
 
     if (hasNextSupport) {

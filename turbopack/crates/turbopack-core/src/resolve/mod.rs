@@ -7,10 +7,12 @@ use std::{
 };
 
 use anyhow::{bail, Result};
-use indexmap::{indexmap, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{
+    fxindexmap, fxindexset, trace::TraceRawVcs, FxIndexMap, RcStr, TaskInput, TryJoinIterExt,
+    Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
 };
@@ -74,7 +76,7 @@ pub enum ModuleResolveResultItem {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
-    pub primary: IndexMap<RequestKey, ModuleResolveResultItem>,
+    pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
     pub affecting_sources: Vec<Vc<Box<dyn Source>>>,
 }
 
@@ -87,7 +89,7 @@ impl Default for ModuleResolveResult {
 impl ModuleResolveResult {
     pub fn unresolveable() -> Self {
         ModuleResolveResult {
-            primary: IndexMap::new(),
+            primary: FxIndexMap::default(),
             affecting_sources: Vec::new(),
         }
     }
@@ -96,7 +98,7 @@ impl ModuleResolveResult {
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
-            primary: IndexMap::new(),
+            primary: FxIndexMap::default(),
             affecting_sources,
         }
     }
@@ -107,7 +109,7 @@ impl ModuleResolveResult {
 
     pub fn ignored_with_key(request_key: RequestKey) -> ModuleResolveResult {
         ModuleResolveResult {
-            primary: indexmap! { request_key => ModuleResolveResultItem::Ignore },
+            primary: fxindexmap! { request_key => ModuleResolveResultItem::Ignore },
             affecting_sources: Vec::new(),
         }
     }
@@ -121,7 +123,7 @@ impl ModuleResolveResult {
         module: Vc<Box<dyn Module>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
-            primary: indexmap! { request_key => ModuleResolveResultItem::Module(module) },
+            primary: fxindexmap! { request_key => ModuleResolveResultItem::Module(module) },
             affecting_sources: Vec::new(),
         }
     }
@@ -131,7 +133,7 @@ impl ModuleResolveResult {
         output_asset: Vc<Box<dyn OutputAsset>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
-            primary: indexmap! { request_key => ModuleResolveResultItem::OutputAsset(output_asset) },
+            primary: fxindexmap! { request_key => ModuleResolveResultItem::OutputAsset(output_asset) },
             affecting_sources: Vec::new(),
         }
     }
@@ -347,7 +349,7 @@ impl ModuleResolveResult {
         let second = second.resolve().await?;
 
         // We have at least two items, so we need to deduplicate them
-        let mut set = IndexSet::from([first, second]);
+        let mut set = fxindexset![first, second];
         for module in self.primary_modules_iter() {
             set.insert(module.resolve().await?);
         }
@@ -445,7 +447,7 @@ impl RequestKey {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ResolveResult {
-    pub primary: IndexMap<RequestKey, ResolveResultItem>,
+    pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
     pub affecting_sources: Vec<Vc<Box<dyn Source>>>,
 }
 
@@ -460,6 +462,9 @@ impl ValueToString for ResolveResult {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         let mut result = String::new();
+        if self.is_unresolveable_ref() {
+            result.push_str("unresolveable");
+        }
         for (i, (request, item)) in self.primary.iter().enumerate() {
             if i > 0 {
                 result.push_str(", ");
@@ -509,7 +514,7 @@ impl ValueToString for ResolveResult {
 impl ResolveResult {
     pub fn unresolveable() -> Self {
         ResolveResult {
-            primary: IndexMap::new(),
+            primary: FxIndexMap::default(),
             affecting_sources: Vec::new(),
         }
     }
@@ -518,7 +523,7 @@ impl ResolveResult {
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ResolveResult {
         ResolveResult {
-            primary: IndexMap::new(),
+            primary: FxIndexMap::default(),
             affecting_sources,
         }
     }
@@ -529,7 +534,7 @@ impl ResolveResult {
 
     pub fn primary_with_key(request_key: RequestKey, result: ResolveResultItem) -> ResolveResult {
         ResolveResult {
-            primary: indexmap! { request_key => result },
+            primary: fxindexmap! { request_key => result },
             affecting_sources: Vec::new(),
         }
     }
@@ -539,8 +544,10 @@ impl ResolveResult {
         result: ResolveResultItem,
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ResolveResult {
+        let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
+        primary.insert(request_key, result);
         ResolveResult {
-            primary: indexmap! { request_key => result },
+            primary,
             affecting_sources,
         }
     }
@@ -550,8 +557,10 @@ impl ResolveResult {
     }
 
     pub fn source_with_key(request_key: RequestKey, source: Vc<Box<dyn Source>>) -> ResolveResult {
+        let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
+        primary.insert(request_key, ResolveResultItem::Source(source));
         ResolveResult {
-            primary: indexmap! { request_key => ResolveResultItem::Source(source) },
+            primary,
             affecting_sources: Vec::new(),
         }
     }
@@ -561,8 +570,10 @@ impl ResolveResult {
         source: Vc<Box<dyn Source>>,
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ResolveResult {
+        let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
+        primary.insert(request_key, ResolveResultItem::Source(source));
         ResolveResult {
-            primary: indexmap! { request_key => ResolveResultItem::Source(source) },
+            primary,
             affecting_sources,
         }
     }
@@ -1433,7 +1444,7 @@ pub async fn url_resolve(
     request: Vc<Request>,
     reference_type: Value<ReferenceType>,
     issue_source: Option<Vc<IssueSource>>,
-    issue_severity: Vc<IssueSeverity>,
+    is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     let resolve_options = origin.resolve_options(reference_type.clone());
     let rel_request = request.as_relative();
@@ -1464,7 +1475,7 @@ pub async fn url_resolve(
         origin.origin_path(),
         request,
         resolve_options,
-        issue_severity,
+        is_optional,
         issue_source,
     )
     .await
@@ -1523,7 +1534,7 @@ async fn handle_after_resolve_plugins(
     let mut changed = false;
     let result_value = result.await?;
 
-    let mut new_primary = IndexMap::new();
+    let mut new_primary = FxIndexMap::default();
     let mut new_affecting_sources = Vec::new();
 
     for (key, primary) in result_value.primary.iter() {
@@ -1745,7 +1756,7 @@ async fn resolve_internal_inline(
 
                 if !has_alias {
                     ResolvingIssue {
-                        severity: IssueSeverity::Error.cell(),
+                        severity: error_severity(options).await?,
                         request_type: "server relative import: not implemented yet".to_string(),
                         request,
                         file_path: lookup_path,
@@ -1775,7 +1786,7 @@ async fn resolve_internal_inline(
             } => {
                 if !has_alias {
                     ResolvingIssue {
-                        severity: IssueSeverity::Error.cell(),
+                        severity: error_severity(options).await?,
                         request_type: "windows import: not implemented yet".to_string(),
                         request,
                         file_path: lookup_path,
@@ -1829,7 +1840,7 @@ async fn resolve_internal_inline(
             Request::Unknown { path } => {
                 if !has_alias {
                     ResolvingIssue {
-                        severity: IssueSeverity::Error.cell(),
+                        severity: error_severity(options).await?,
                         request_type: format!("unknown import: `{}`", path),
                         request,
                         file_path: lookup_path,
@@ -2234,7 +2245,7 @@ async fn apply_in_package(
         }
 
         ResolvingIssue {
-            severity: IssueSeverity::Error.cell(),
+            severity: error_severity(options).await?,
             file_path: *package_json_path,
             request_type: format!("alias field ({field})"),
             request: Request::parse(Value::new(Pattern::Constant(request))),
@@ -2474,7 +2485,10 @@ async fn resolve_into_package(
 
     // apply main field(s) or fallback to index.js if there's no subpath
     if is_root_match {
-        results.push(resolve_into_folder(package_path, options));
+        results.push(resolve_into_folder(
+            package_path,
+            options.with_fully_specified(false),
+        ));
     }
 
     if could_match_others {
@@ -2676,7 +2690,7 @@ async fn resolve_package_internal_with_imports_field(
     // https://github.com/nodejs/node/blob/1b177932/lib/internal/modules/esm/resolve.js#L615-L619
     if specifier == "#" || specifier.starts_with("#/") || specifier.ends_with('/') {
         ResolvingIssue {
-            severity: IssueSeverity::Error.cell(),
+            severity: error_severity(resolve_options).await?,
             file_path,
             request_type: format!("package imports request: `{specifier}`"),
             request,
@@ -2714,7 +2728,7 @@ pub async fn handle_resolve_error(
     origin_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    severity: Vc<IssueSeverity>,
+    is_optional: bool,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
@@ -2724,27 +2738,29 @@ pub async fn handle_resolve_error(
         Ok(unresolveable) => {
             if unresolveable {
                 emit_unresolveable_issue(
-                    severity,
+                    is_optional,
                     origin_path,
                     reference_type,
                     request,
                     resolve_options,
                     source,
-                );
+                )
+                .await?;
             }
 
             result
         }
         Err(err) => {
             emit_resolve_error_issue(
-                severity,
+                is_optional,
                 origin_path,
                 reference_type,
                 request,
                 resolve_options,
                 err,
                 source,
-            );
+            )
+            .await?;
             ModuleResolveResult::unresolveable().cell()
         }
     })
@@ -2756,7 +2772,7 @@ pub async fn handle_resolve_source_error(
     origin_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    severity: Vc<IssueSeverity>,
+    is_optional: bool,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ResolveResult>> {
     async fn is_unresolveable(result: Vc<ResolveResult>) -> Result<bool> {
@@ -2766,41 +2782,48 @@ pub async fn handle_resolve_source_error(
         Ok(unresolveable) => {
             if unresolveable {
                 emit_unresolveable_issue(
-                    severity,
+                    is_optional,
                     origin_path,
                     reference_type,
                     request,
                     resolve_options,
                     source,
-                );
+                )
+                .await?;
             }
 
             result
         }
         Err(err) => {
             emit_resolve_error_issue(
-                severity,
+                is_optional,
                 origin_path,
                 reference_type,
                 request,
                 resolve_options,
                 err,
                 source,
-            );
+            )
+            .await?;
             ResolveResult::unresolveable().cell()
         }
     })
 }
 
-fn emit_resolve_error_issue(
-    severity: Vc<IssueSeverity>,
+async fn emit_resolve_error_issue(
+    is_optional: bool,
     origin_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     err: anyhow::Error,
     source: Option<Vc<IssueSource>>,
-) {
+) -> Result<()> {
+    let severity = if is_optional || resolve_options.await?.loose_errors {
+        IssueSeverity::Warning.cell()
+    } else {
+        IssueSeverity::Error.cell()
+    };
     ResolvingIssue {
         severity,
         file_path: origin_path,
@@ -2812,16 +2835,22 @@ fn emit_resolve_error_issue(
     }
     .cell()
     .emit();
+    Ok(())
 }
 
-fn emit_unresolveable_issue(
-    severity: Vc<IssueSeverity>,
+async fn emit_unresolveable_issue(
+    is_optional: bool,
     origin_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     source: Option<Vc<IssueSource>>,
-) {
+) -> Result<()> {
+    let severity = if is_optional || resolve_options.await?.loose_errors {
+        IssueSeverity::Warning.cell()
+    } else {
+        IssueSeverity::Error.cell()
+    };
     ResolvingIssue {
         severity,
         file_path: origin_path,
@@ -2833,6 +2862,15 @@ fn emit_unresolveable_issue(
     }
     .cell()
     .emit();
+    Ok(())
+}
+
+async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<Vc<IssueSeverity>> {
+    Ok(if resolve_options.await?.loose_errors {
+        IssueSeverity::Warning.cell()
+    } else {
+        IssueSeverity::Error.cell()
+    })
 }
 
 // TODO this should become a TaskInput instead of a Vc

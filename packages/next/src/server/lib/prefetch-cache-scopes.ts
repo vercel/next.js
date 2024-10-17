@@ -1,4 +1,4 @@
-import type { CacheScopeStore } from '../async-storage/cache-scope'
+import type { CacheScopeStore } from '../async-storage/cache-scope.external'
 
 export class PrefetchCacheScopes {
   private cacheScopes = new Map<

@@ -22,38 +22,6 @@
         : (obj[key] = value);
       return obj;
     }
-    function bindToConsole(methodName, args, badgeName) {
-      var offset = 0;
-      switch (methodName) {
-        case "dir":
-        case "dirxml":
-        case "groupEnd":
-        case "table":
-          return bind.apply(console[methodName], [console].concat(args));
-        case "assert":
-          offset = 1;
-      }
-      args = args.slice(0);
-      "string" === typeof args[offset]
-        ? args.splice(
-            offset,
-            1,
-            "%c%s%c " + args[offset],
-            "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-            " " + badgeName + " ",
-            ""
-          )
-        : args.splice(
-            offset,
-            0,
-            "%c%s%c ",
-            "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
-            " " + badgeName + " ",
-            ""
-          );
-      args.unshift(console);
-      return bind.apply(console[methodName], args);
-    }
     function resolveClientReference(bundlerConfig, metadata) {
       if (bundlerConfig) {
         var moduleExports = bundlerConfig[metadata[0]];
@@ -1389,7 +1357,7 @@
             return (
               Object.defineProperty(parentObject, key, {
                 get: function () {
-                  throw "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+                  return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
                 },
                 enumerable: !0,
                 configurable: !1
@@ -1703,37 +1671,21 @@
         response.reason.close("" === row ? '"$undefined"' : row);
     }
     function resolveErrorDev(response, errorInfo) {
-      response = errorInfo.stack;
       var env = errorInfo.env;
-      errorInfo = Error(
-        errorInfo.message ||
-          "An error occurred in the Server Components render but no message was provided"
+      errorInfo = buildFakeCallStack(
+        response,
+        errorInfo.stack,
+        env,
+        Error.bind(
+          null,
+          errorInfo.message ||
+            "An error occurred in the Server Components render but no message was provided"
+        )
       );
-      var v8StyleStack = errorInfo.name + ": " + errorInfo.message;
-      if (response)
-        for (var i = 0; i < response.length; i++) {
-          var frame = response[i],
-            name = frame[0],
-            filename = frame[1],
-            line = frame[2];
-          frame = frame[3];
-          v8StyleStack = name
-            ? v8StyleStack +
-              ("\n    at " +
-                name +
-                " (" +
-                filename +
-                ":" +
-                line +
-                ":" +
-                frame +
-                ")")
-            : v8StyleStack +
-              ("\n    at " + filename + ":" + line + ":" + frame);
-        }
-      errorInfo.stack = v8StyleStack;
-      errorInfo.environmentName = env;
-      return errorInfo;
+      response = getRootTask(response, env);
+      response = null != response ? response.run(errorInfo) : errorInfo();
+      response.environmentName = env;
+      return response;
     }
     function resolveHint(response, code, model) {
       response = JSON.parse(model, response._fromJSON);
@@ -1853,6 +1805,18 @@
       }
       return innerCall;
     }
+    function getRootTask(response, childEnvironmentName) {
+      var rootTask = response._debugRootTask;
+      return rootTask
+        ? response._rootEnvironmentName !== childEnvironmentName
+          ? ((response = console.createTask.bind(
+              console,
+              '"use ' + childEnvironmentName.toLowerCase() + '"'
+            )),
+            rootTask.run(response))
+          : rootTask
+        : null;
+    }
     function fakeJSXCallSite() {
       return Error("react-stack-top-frame");
     }
@@ -1881,10 +1845,19 @@
     function resolveConsoleEntry(response, value) {
       if (response._replayConsole) {
         var payload = JSON.parse(value, response._fromJSON);
-        response = payload[0];
-        value = payload[3];
+        value = payload[0];
+        var stackTrace = payload[1],
+          owner = payload[2],
+          env = payload[3];
         payload = payload.slice(4);
-        bindToConsole(response, payload, value)();
+        replayConsoleWithCallStackInDEV(
+          response,
+          value,
+          stackTrace,
+          owner,
+          env,
+          payload
+        );
       }
     }
     function mergeBuffer(buffer, lastChunk) {
@@ -2306,35 +2279,63 @@
           ReactSharedInternals.getCurrentStack = getCurrentStackInDEV;
           currentOwnerInDEV = null === owner ? response._debugRootOwner : owner;
           try {
+            a: {
+              var offset = 0;
+              switch (methodName) {
+                case "dir":
+                case "dirxml":
+                case "groupEnd":
+                case "table":
+                  var JSCompiler_inline_result = bind.apply(
+                    console[methodName],
+                    [console].concat(args)
+                  );
+                  break a;
+                case "assert":
+                  offset = 1;
+              }
+              var newArgs = args.slice(0);
+              "string" === typeof newArgs[offset]
+                ? newArgs.splice(
+                    offset,
+                    1,
+                    "%c%s%c " + newArgs[offset],
+                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                    " " + env + " ",
+                    ""
+                  )
+                : newArgs.splice(
+                    offset,
+                    0,
+                    "%c%s%c ",
+                    "background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px",
+                    " " + env + " ",
+                    ""
+                  );
+              newArgs.unshift(console);
+              JSCompiler_inline_result = bind.apply(
+                console[methodName],
+                newArgs
+              );
+            }
             var callStack = buildFakeCallStack(
               response,
               stackTrace,
               env,
-              bindToConsole(methodName, args, env)
+              JSCompiler_inline_result
             );
             null != owner && initializeFakeStack(response, owner);
-            var rootTask = response._debugRootTask;
-            if (rootTask)
-              if (response._rootEnvironmentName !== env) {
-                var createTaskFn = console.createTask.bind(
-                  console,
-                  '"use ' + env.toLowerCase() + '"'
-                );
-                var rootTask$jscomp$0 = rootTask.run(createTaskFn);
-              } else rootTask$jscomp$0 = rootTask;
-            else rootTask$jscomp$0 = null;
-            null != rootTask$jscomp$0
-              ? rootTask$jscomp$0.run(callStack)
-              : callStack();
+            var rootTask = getRootTask(response, env);
+            null != rootTask ? rootTask.run(callStack) : callStack();
           } finally {
             (currentOwnerInDEV = null),
               (ReactSharedInternals.getCurrentStack = prevStack);
           }
         }
-      };
-    replayConsoleWithCallStack["react-stack-bottom-frame"].bind(
-      replayConsoleWithCallStack
-    );
+      },
+      replayConsoleWithCallStackInDEV = replayConsoleWithCallStack[
+        "react-stack-bottom-frame"
+      ].bind(replayConsoleWithCallStack);
     (function (internals) {
       if ("undefined" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) return !1;
       var hook = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -2347,10 +2348,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-rc-70fb1363-20241010",
+      version: "19.0.0-rc-77b637d6-20241016",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-rc-70fb1363-20241010",
+      reconcilerVersion: "19.0.0-rc-77b637d6-20241016",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

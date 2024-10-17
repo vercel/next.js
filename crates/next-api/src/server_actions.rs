@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, io::Write, iter::once};
 
 use anyhow::{bail, Context, Result};
-use indexmap::{map::Entry, IndexMap};
+use indexmap::map::Entry;
 use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::NextRuntime,
@@ -17,7 +17,7 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, RcStr, TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
@@ -90,7 +90,7 @@ async fn build_server_actions_loader(
     // which lazily imports the respective module's chunk_item id and invokes
     // the exported action function.
     let mut contents = RopeBuilder::from("__turbopack_export_value__({\n");
-    let mut import_map = IndexMap::new();
+    let mut import_map = FxIndexMap::default();
     for (hash_id, (_layer, name, module)) in actions.iter() {
         let index = import_map.len();
         let module_name = import_map
@@ -197,7 +197,7 @@ async fn get_actions(
         // Actions can be imported by both Client and RSC layers, in which case we need
         // to use the RSC layer's module. We do that by merging the hashes (which match
         // in both layers) and preferring the RSC layer's action.
-        let mut all_actions: HashToLayerNameModule = IndexMap::new();
+        let mut all_actions: HashToLayerNameModule = FxIndexMap::default();
         for ((layer, module), actions_map) in actions.iter() {
             let module = if *layer == ActionLayer::Rsc {
                 *module
@@ -332,7 +332,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         actions.retain(|_, name| all_exports.iter().any(|export| export == name));
     }
 
-    let mut actions = IndexMap::from_iter(actions.into_iter());
+    let mut actions = FxIndexMap::from_iter(actions.into_iter());
     actions.sort_keys();
     Ok(Vc::cell(Some(Vc::cell(actions))))
 }
@@ -396,7 +396,7 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
 }
 
 /// Converts our cached [parse_actions] call into a data type suitable for
-/// collecting into a flat-mapped [IndexMap].
+/// collecting into a flat-mapped [FxIndexMap].
 async fn parse_actions_filter_map(
     (layer, module): (ActionLayer, Vc<Box<dyn Module>>),
 ) -> Result<Option<((ActionLayer, Vc<Box<dyn Module>>), Vc<ActionMap>)>> {
@@ -407,7 +407,7 @@ async fn parse_actions_filter_map(
     })
 }
 
-type HashToLayerNameModule = IndexMap<String, (ActionLayer, String, Vc<Box<dyn Module>>)>;
+type HashToLayerNameModule = FxIndexMap<String, (ActionLayer, String, Vc<Box<dyn Module>>)>;
 
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
@@ -418,13 +418,13 @@ struct AllActions(HashToLayerNameModule);
 impl AllActions {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexMap::new())
+        Vc::cell(FxIndexMap::default())
     }
 }
 
 /// Maps the hashed action id to the action's exported function name.
 #[turbo_tasks::value(transparent)]
-struct ActionMap(IndexMap<String, String>);
+struct ActionMap(FxIndexMap<String, String>);
 
 /// An Option wrapper around [ActionMap].
 #[turbo_tasks::value(transparent)]

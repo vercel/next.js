@@ -17,8 +17,8 @@ export async function generateStaticParams() {
 
 // Multiple versions of this page will be statically generated
 // using the `params` returned by `generateStaticParams`
-export default function Page({ params }) {
-  const { slug } = params
+export default async function Page({ params }) {
+  const { slug } = await params
   // ...
 }
 ```
@@ -65,8 +65,8 @@ export function generateStaticParams() {
 // - /product/1
 // - /product/2
 // - /product/3
-export default function Page({ params }: { params: { id: string } }) {
-  const { id } = params
+export default async function Page({ params }: { params: { id: string } }) {
+  const { id } = await params
   // ...
 }
 ```
@@ -81,8 +81,8 @@ export function generateStaticParams() {
 // - /product/1
 // - /product/2
 // - /product/3
-export default function Page({ params }) {
-  const { id } = params
+export default async function Page({ params }) {
+  const { id } = await params
   // ...
 }
 ```
@@ -103,12 +103,12 @@ export function generateStaticParams() {
 // - /products/a/1
 // - /products/b/2
 // - /products/c/3
-export default function Page({
+export default async function Page({
   params,
 }: {
   params: { category: string; product: string }
 }) {
-  const { category, product } = params
+  const { category, product } = await params
   // ...
 }
 ```
@@ -127,8 +127,8 @@ export function generateStaticParams() {
 // - /products/a/1
 // - /products/b/2
 // - /products/c/3
-export default function Page({ params }) {
-  const { category, product } = params
+export default async function Page({ params }) {
+  const { category, product } = await params
   // ...
 }
 ```
@@ -145,8 +145,8 @@ export function generateStaticParams() {
 // - /product/a/1
 // - /product/b/2
 // - /product/c/3
-export default function Page({ params }: { params: { slug: string[] } }) {
-  const { slug } = params
+export default async function Page({ params }: { params: { slug: string[] } }) {
+  const { slug } = await params
   // ...
 }
 ```
@@ -161,8 +161,8 @@ export function generateStaticParams() {
 // - /product/a/1
 // - /product/b/2
 // - /product/c/3
-export default function Page({ params }) {
-  const { slug } = params
+export default async function Page({ params }) {
+  const { slug } = await params
   // ...
 }
 ```

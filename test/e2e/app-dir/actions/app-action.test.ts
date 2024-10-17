@@ -78,14 +78,21 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#submit').click()
 
-    const logs = await browser.log()
-    expect(
-      logs.some((log) =>
-        log.message.includes(
-          'Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported.'
-        )
+    await retry(async () => {
+      const logs = await browser.log()
+
+      expect(logs).toMatchObject(
+        expect.arrayContaining([
+          expect.objectContaining({
+            message: expect.stringContaining(
+              isNextDev
+                ? 'Cannot access value on the server.'
+                : GENERIC_RSC_ERROR.replace(/^Error: /, '')
+            ),
+          }),
+        ])
       )
-    ).toBe(true)
+    })
   })
 
   it('should propagate errors from a `text/plain` response to an error boundary', async () => {
@@ -1248,7 +1255,7 @@ describe('app-dir action handling', () => {
         )
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
-      })
+      }, 5000)
     })
 
     it('should handle revalidatePath', async () => {

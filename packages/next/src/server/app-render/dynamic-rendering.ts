@@ -116,7 +116,7 @@ export function getFirstDynamicReason(
  */
 export function markCurrentScopeAsDynamic(
   store: WorkStore,
-  workUnitStore: undefined | WorkUnitStore,
+  workUnitStore: undefined | Exclude<WorkUnitStore, PrerenderStoreModern>,
   expression: string
 ): void {
   if (workUnitStore) {
@@ -143,17 +143,7 @@ export function markCurrentScopeAsDynamic(
   }
 
   if (workUnitStore) {
-    if (workUnitStore.type === 'prerender') {
-      // We're prerendering the RSC stream with dynamicIO enabled and we need to abort the
-      // current render because something dynamic is being used.
-      // This won't throw so we still need to fall through to determine if/how we handle
-      // this specific dynamic request.
-      abortAndThrowOnSynchronousDynamicDataAccess(
-        store.route,
-        expression,
-        workUnitStore
-      )
-    } else if (workUnitStore.type === 'prerender-ppr') {
+    if (workUnitStore.type === 'prerender-ppr') {
       postponeWithTracking(
         store.route,
         expression,
@@ -233,7 +223,7 @@ export function trackDynamicDataAccessed(
   if (workUnitStore) {
     if (workUnitStore.type === 'prerender') {
       // dynamicIO Prerender
-      abortAndThrowOnSynchronousDynamicDataAccess(
+      abortAndThrowOnSynchronousRequestDataAccess(
         store.route,
         expression,
         workUnitStore
@@ -329,7 +319,7 @@ export function trackDynamicDataInDynamicRender(
 // Despite it's name we don't actually abort unless we have a controller to call abort on
 // There are times when we let a prerender run long to discover caches where we want the semantics
 // of tracking dynamic access without terminating the prerender early
-export function abortOnSynchronousDynamicDataAccess(
+function abortOnSynchronousDynamicDataAccess(
   route: string,
   expression: string,
   prerenderStore: PrerenderStoreModern
@@ -362,6 +352,14 @@ export function abortOnSynchronousDynamicDataAccess(
   }
 }
 
+export function abortOnSynchronousPlatformIOAccess(
+  route: string,
+  expression: string,
+  prerenderStore: PrerenderStoreModern
+): void {
+  return abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
+}
+
 /**
  * use this function when prerendering with dynamicIO. If we are doing a
  * prospective prerender we don't actually abort because we want to discover
@@ -370,10 +368,9 @@ export function abortOnSynchronousDynamicDataAccess(
  * This function accepts a prerenderStore but the caller should ensure we're
  * actually running in dynamicIO mode.
  *
- *
  * @internal
  */
-export function abortAndThrowOnSynchronousDynamicDataAccess(
+export function abortAndThrowOnSynchronousRequestDataAccess(
   route: string,
   expression: string,
   prerenderStore: PrerenderStoreModern
@@ -479,10 +476,6 @@ export function isPrerenderInterruptedError(
     'message' in error &&
     error instanceof Error
   )
-}
-
-export function isRenderInterruptedReason(reason: string) {
-  return reason === NEXT_PRERENDER_INTERRUPTED
 }
 
 export function accessedDynamicData(
@@ -619,18 +612,17 @@ export function trackAllowedDynamicAccess(
   dynamicTracking: DynamicTrackingState
 ) {
   const disallowedDynamic = dynamicTracking.disallowedDynamic
-  if (hasSuspenseRegex.test(componentStack)) {
-    disallowedDynamic.hasSuspendedDynamic = true
-    return
-  } else if (hasOutletRegex.test(componentStack)) {
+  if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
-    //
     disallowedDynamic.hasDynamicMetadata = true
     return
   } else if (hasViewportRegex.test(componentStack)) {
     disallowedDynamic.hasDynamicViewport = true
+    return
+  } else if (hasSuspenseRegex.test(componentStack)) {
+    disallowedDynamic.hasSuspendedDynamic = true
     return
   } else if (isPrerenderInterruptedError(thrownValue)) {
     const syncDynamicExpression = disallowedDynamic.syncDynamicExpression
