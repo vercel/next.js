@@ -35,12 +35,17 @@ impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
         self.database.begin_read_transaction()
     }
 
+    type ValueBuffer<'l>
+        = T::ValueBuffer<'l>
+    where
+        Self: 'l;
+
     fn get<'l, 'db: 'l>(
         &'l self,
         transaction: &'l Self::ReadTransaction<'db>,
         key_space: super::key_value_database::KeySpace,
         key: &[u8],
-    ) -> anyhow::Result<Option<std::borrow::Cow<'l, [u8]>>> {
+    ) -> anyhow::Result<Option<Self::ValueBuffer<'l>>> {
         if self.fresh_db {
             // Performance optimization when the database was empty
             // It's assumed that no cache entries are removed from the memory cache, but we

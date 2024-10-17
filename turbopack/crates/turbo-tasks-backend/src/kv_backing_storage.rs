@@ -1,5 +1,5 @@
 use std::{
-    borrow::Cow,
+    borrow::{Borrow, Cow},
     collections::{hash_map::Entry, HashMap},
     sync::Arc,
 };
@@ -35,8 +35,8 @@ impl AsRef<[u8]> for IntKey {
     }
 }
 
-fn as_u32(bytes: Cow<[u8]>) -> Result<u32> {
-    let n = u32::from_be_bytes(bytes.as_ref().try_into()?);
+fn as_u32(bytes: impl Borrow<[u8]>) -> Result<u32> {
+    let n = u32::from_be_bytes(bytes.borrow().try_into()?);
     Ok(n)
 }
 
@@ -105,7 +105,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             else {
                 return Ok(Vec::new());
             };
-            let operations = pot::from_slice(&operations)?;
+            let operations = pot::from_slice(operations.borrow())?;
             Ok(operations)
         }
         get(&self.database).unwrap_or_default()
@@ -188,7 +188,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                 KeySpace::Infra,
                 IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref(),
             )? {
-                Some(bytes) => u32::from_be_bytes((*bytes).try_into()?),
+                Some(bytes) => u32::from_be_bytes(bytes.borrow().try_into()?),
                 None => 1,
             };
             {
@@ -313,7 +313,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             let Some(bytes) = database.get(tx, KeySpace::ForwardTaskCache, &task_type)? else {
                 return Ok(None);
             };
-            let bytes = (*bytes).try_into()?;
+            let bytes = bytes.borrow().try_into()?;
             let id = TaskId::from(u32::from_be_bytes(bytes));
             Ok(Some(id))
         }
@@ -342,7 +342,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             else {
                 return Ok(None);
             };
-            Ok(Some(pot::from_slice(&bytes)?))
+            Ok(Some(pot::from_slice(bytes.borrow())?))
         }
         let result = self
             .with_tx(tx, |tx| lookup(&self.database, tx, task_id))
@@ -375,7 +375,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             else {
                 return Ok(Vec::new());
             };
-            let result: Vec<CachedDataItem> = pot::from_slice(&bytes)?;
+            let result: Vec<CachedDataItem> = pot::from_slice(bytes.borrow())?;
             Ok(result)
         }
         self.with_tx(tx, |tx| lookup(&self.database, tx, task_id, category))
@@ -434,12 +434,13 @@ fn restore_task_data(
     for (task, updates) in task_updates.into_iter().flatten() {
         let mut map;
         if let Some(old_data) = database.get(&tx, key_space, IntKey::new(*task).as_ref())? {
-            let old_data: Vec<CachedDataItem> = match pot::from_slice(&old_data) {
+            let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data.borrow()) {
                 Ok(d) => d,
                 Err(_) => serde_path_to_error::deserialize(
-                    &mut pot::de::SymbolList::new().deserializer_for_slice(&old_data)?,
+                    &mut pot::de::SymbolList::new().deserializer_for_slice(old_data.borrow())?,
                 )
                 .with_context(|| {
+                    let old_data: &[u8] = old_data.borrow();
                     anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
                 })?,
             };

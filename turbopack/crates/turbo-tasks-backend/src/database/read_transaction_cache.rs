@@ -73,12 +73,14 @@ impl<T: KeyValueDatabase + 'static> KeyValueDatabase for ReadTransactionCache<T>
         })
     }
 
+    type ValueBuffer<'l> = T::ValueBuffer<'l>;
+
     fn get<'l, 'db: 'l>(
         &'l self,
         transaction: &'l Self::ReadTransaction<'db>,
         key_space: super::key_value_database::KeySpace,
         key: &[u8],
-    ) -> anyhow::Result<Option<std::borrow::Cow<'l, [u8]>>> {
+    ) -> anyhow::Result<Option<Self::ValueBuffer<'l>>> {
         self.database
             .get(transaction.tx.as_ref().unwrap(), key_space, key)
     }
@@ -145,11 +147,17 @@ impl<'a, T: KeyValueDatabase> WriteBatch<'a> for ReadTransactionCacheWriteBatch<
         self.write_batch.put(key_space, key, value)
     }
 
+    type ValueBuffer<'l>
+        = <T::WriteBatch<'a> as WriteBatch<'a>>::ValueBuffer<'l>
+    where
+        Self: 'l,
+        'a: 'l;
+
     fn get<'l>(
         &'l self,
         key_space: super::key_value_database::KeySpace,
         key: &[u8],
-    ) -> Result<Option<std::borrow::Cow<'l, [u8]>>>
+    ) -> Result<Option<Self::ValueBuffer<'l>>>
     where
         'a: 'l,
     {
