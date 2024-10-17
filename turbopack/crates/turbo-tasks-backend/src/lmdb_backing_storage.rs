@@ -64,17 +64,24 @@ struct ThreadLocalReadTransactionsContainer(UnsafeCell<SmallVec<[RoTransaction<'
 
 impl ThreadLocalReadTransactionsContainer {
     unsafe fn pop(&self) -> Option<RoTransaction<'static>> {
+        // Safety: Access only happens via `push` and `pop`, and
+        // `ThreadLocalReadTransactionsContainer` is not `Sync`, so we can know we can know this
+        // block is the only one currently reading or writing to the cell.
         let vec = unsafe { &mut *self.0.get() };
         vec.pop()
     }
 
     unsafe fn push(&self, tx: RoTransaction<'static>) {
+        // Safety: Access only happens via `push` and `pop`, and
+        // `ThreadLocalReadTransactionsContainer` is not `Sync`, so we can know we can know this
+        // block is the only one currently reading or writing to the cell.
         let vec = unsafe { &mut *self.0.get() };
         vec.push(tx)
     }
 }
 
-// Safety: It's safe to send RoTransaction between threads, but the types don't allow that.
+// Safety: It's safe to send `RoTransaction` between threads as we construct `Environment` with
+// `EnvironmentFlags::NO_TLS`, but the types don't allow that.
 unsafe impl Send for ThreadLocalReadTransactionsContainer {}
 
 pub struct LmdbBackingStorage {
