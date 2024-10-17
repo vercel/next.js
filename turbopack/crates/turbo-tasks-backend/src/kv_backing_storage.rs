@@ -274,7 +274,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             {
                 let _span =
                     tracing::trace_span!("update task data", tasks = task_items.len()).entered();
-                for (task_id, value) in task_items {
+                for (task_id, value) in task_items.into_iter().flatten() {
                     batch
                         .put(
                             key_space,
@@ -426,100 +426,114 @@ fn organize_task_data(updates: Vec<ChunkedVec<CachedDataUpdate>>) -> ShardedOrga
 }
 
 fn restore_task_data(
-    database: &impl KeyValueDatabase,
+    database: &(impl KeyValueDatabase + Sync),
     key_space: KeySpace,
     task_updates: ShardedOrganizedTaskData,
-) -> Result<Vec<(TaskId, Vec<CachedDataItem>)>> {
-    let mut result = Vec::with_capacity(task_updates.iter().map(|m| m.len()).sum());
-
-    let tx = database.begin_read_transaction()?;
-    let mut map = FxHashMap::with_capacity_and_hasher(128, Default::default());
-    for (task, updates) in task_updates.into_iter().flatten() {
-        if let Some(old_data) = database.get(&tx, key_space, IntKey::new(*task).as_ref())? {
-            let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data.borrow()) {
-                Ok(d) => d,
-                Err(_) => serde_path_to_error::deserialize(
-                    &mut pot::de::SymbolList::new().deserializer_for_slice(old_data.borrow())?,
-                )
-                .with_context(|| {
-                    let old_data: &[u8] = old_data.borrow();
-                    anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
-                })?,
-            };
-            map.extend(old_data.into_iter().map(|item| item.into_key_and_value()));
-        }
-        for (key, (_, value)) in updates {
-            if let Some(value) = value {
-                map.insert(key, value);
-            } else {
-                map.remove(&key);
+) -> Result<Vec<Vec<(TaskId, Vec<CachedDataItem>)>>> {
+    task_updates
+        .into_par_iter()
+        .map(|task_updates| {
+            let tx = database.begin_read_transaction()?;
+            let mut result = Vec::with_capacity(task_updates.len());
+            let mut map = FxHashMap::with_capacity_and_hasher(128, Default::default());
+            for (task, updates) in task_updates {
+                if let Some(old_data) = database.get(&tx, key_space, IntKey::new(*task).as_ref())? {
+                    let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data.borrow()) {
+                        Ok(d) => d,
+                        Err(_) => serde_path_to_error::deserialize(
+                            &mut pot::de::SymbolList::new()
+                                .deserializer_for_slice(old_data.borrow())?,
+                        )
+                        .with_context(|| {
+                            let old_data: &[u8] = old_data.borrow();
+                            anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
+                        })?,
+                    };
+                    map.extend(old_data.into_iter().map(|item| item.into_key_and_value()));
+                }
+                for (key, (_, value)) in updates {
+                    if let Some(value) = value {
+                        map.insert(key, value);
+                    } else {
+                        map.remove(&key);
+                    }
+                }
+                let vec = map
+                    .drain()
+                    .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
+                    .collect();
+                result.push((task, vec));
             }
-        }
-        let vec = map
-            .drain()
-            .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
-            .collect();
-        result.push((task, vec));
-    }
-
-    Ok(result)
+            Ok(result)
+        })
+        .collect::<Result<Vec<_>>>()
 }
 
 fn serialize_task_data(
-    tasks: Vec<(TaskId, Vec<CachedDataItem>)>,
-) -> Result<Vec<(TaskId, Vec<u8>)>> {
+    tasks: Vec<Vec<(TaskId, Vec<CachedDataItem>)>>,
+) -> Result<Vec<Vec<(TaskId, Vec<u8>)>>> {
     tasks
-        .into_iter()
-        .map(|(task_id, mut data)| {
-            let value = match pot::to_vec(&data) {
-                #[cfg(not(feature = "verify_serialization"))]
-                Ok(value) => value,
-                _ => {
-                    let mut error = Ok(());
-                    data.retain(|item| {
-                        let mut buf = Vec::<u8>::new();
-                        let mut symbol_map = pot::ser::SymbolMap::new();
-                        let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
-                        if let Err(err) = serde_path_to_error::serialize(item, &mut serializer) {
-                            if item.is_optional() {
-                                #[cfg(feature = "verify_serialization")]
-                                println!("Skipping non-serializable optional item: {item:?}");
-                            } else {
-                                error = Err(err).context({
-                                    anyhow!(
-                                        "Unable to serialize data item for {task_id}: {item:#?}"
-                                    )
-                                });
-                            }
-                            false
-                        } else {
-                            #[cfg(feature = "verify_serialization")]
-                            {
-                                let deserialize: Result<CachedDataItem, _> =
-                                    serde_path_to_error::deserialize(
-                                        &mut pot::de::SymbolList::new()
-                                            .deserializer_for_slice(&buf)
-                                            .unwrap(),
-                                    );
-                                if let Err(err) = deserialize {
-                                    println!(
-                                        "Data item would not be deserializable {task_id}: \
-                                         {err:?}\n{item:#?}"
-                                    );
-                                    return false;
+        .into_par_iter()
+        .map(|tasks| {
+            tasks
+                .into_iter()
+                .map(|(task_id, mut data)| {
+                    let value = match pot::to_vec(&data) {
+                        #[cfg(not(feature = "verify_serialization"))]
+                        Ok(value) => value,
+                        _ => {
+                            let mut error = Ok(());
+                            data.retain(|item| {
+                                let mut buf = Vec::<u8>::new();
+                                let mut symbol_map = pot::ser::SymbolMap::new();
+                                let mut serializer = symbol_map.serializer_for(&mut buf).unwrap();
+                                if let Err(err) =
+                                    serde_path_to_error::serialize(item, &mut serializer)
+                                {
+                                    if item.is_optional() {
+                                        #[cfg(feature = "verify_serialization")]
+                                        println!(
+                                            "Skipping non-serializable optional item: {item:?}"
+                                        );
+                                    } else {
+                                        error = Err(err).context({
+                                            anyhow!(
+                                                "Unable to serialize data item for {task_id}: \
+                                                 {item:#?}"
+                                            )
+                                        });
+                                    }
+                                    false
+                                } else {
+                                    #[cfg(feature = "verify_serialization")]
+                                    {
+                                        let deserialize: Result<CachedDataItem, _> =
+                                            serde_path_to_error::deserialize(
+                                                &mut pot::de::SymbolList::new()
+                                                    .deserializer_for_slice(&buf)
+                                                    .unwrap(),
+                                            );
+                                        if let Err(err) = deserialize {
+                                            println!(
+                                                "Data item would not be deserializable {task_id}: \
+                                                 {err:?}\n{item:#?}"
+                                            );
+                                            return false;
+                                        }
+                                    }
+                                    true
                                 }
-                            }
-                            true
-                        }
-                    });
-                    error?;
+                            });
+                            error?;
 
-                    pot::to_vec(&data).with_context(|| {
-                        anyhow!("Unable to serialize data items for {task_id}: {data:#?}")
-                    })?
-                }
-            };
-            Ok((task_id, value))
+                            pot::to_vec(&data).with_context(|| {
+                                anyhow!("Unable to serialize data items for {task_id}: {data:#?}")
+                            })?
+                        }
+                    };
+                    Ok((task_id, value))
+                })
+                .collect::<Result<Vec<_>>>()
         })
-        .collect()
+        .collect::<Result<Vec<_>>>()
 }
