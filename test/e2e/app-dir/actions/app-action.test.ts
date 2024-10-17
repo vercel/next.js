@@ -1255,8 +1255,8 @@ describe('app-dir action handling', () => {
         )
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
-      })
-    }, 5000)
+      }, 5000)
+    })
 
     it('should handle revalidatePath', async () => {
       const browser = await next.browser('/revalidate')
