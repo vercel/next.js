@@ -12,7 +12,7 @@ use serde::Serialize;
 use turbo_tasks::{
     trace::TraceRawVcs, ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc,
 };
-use turbo_tasks_backend::{lmdb_backing_storage, LmdbBackingStorage};
+use turbo_tasks_backend::{default_backing_storage, DefaultBackingStorage};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
@@ -26,7 +26,9 @@ use crate::util::log_internal_error_and_inform;
 #[derive(Clone)]
 pub enum NextTurboTasks {
     Memory(Arc<TurboTasks<turbo_tasks_memory::MemoryBackend>>),
-    PersistentCaching(Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend<LmdbBackingStorage>>>),
+    PersistentCaching(
+        Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend<DefaultBackingStorage>>>,
+    ),
 }
 
 impl NextTurboTasks {
@@ -126,7 +128,7 @@ pub fn create_turbo_tasks(
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
         NextTurboTasks::PersistentCaching(TurboTasks::new(
-            turbo_tasks_backend::TurboTasksBackend::new(lmdb_backing_storage(
+            turbo_tasks_backend::TurboTasksBackend::new(default_backing_storage(
                 &output_path.join("cache/turbopack"),
             )?),
         ))
