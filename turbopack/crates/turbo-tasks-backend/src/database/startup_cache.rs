@@ -2,24 +2,23 @@ use std::{
     borrow::{Borrow, Cow},
     fs::{self, File},
     hash::BuildHasherDefault,
-    io::{BufWriter, Read, Write},
+    io::{BufWriter, Read},
     mem::transmute,
     path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
 use anyhow::{Ok, Result};
-use byteorder::WriteBytesExt;
 use dashmap::DashMap;
 use rustc_hash::{FxHashMap, FxHasher};
 
 use crate::database::{
     by_key_space::ByKeySpace,
     key_value_database::{KeySpace, KeyValueDatabase, WriteBatch},
+    rw_pair::{read_key_value_pair, write_key_value_pair, PAIR_HEADER_SIZE},
 };
 
 const CACHE_SIZE_LIMIT: usize = 100 * 1024 * 1024;
-const PAIR_HEADER_SIZE: usize = 9;
 
 pub enum ValueBuffer<'l, T: KeyValueDatabase>
 where
@@ -213,18 +212,11 @@ impl<'a, T: KeyValueDatabase> WriteBatch<'a> for StartupCacheWriteBatch<'a, T> {
             // write cache to a temp file to avoid corrupted file
             let temp_path = self.this.path.with_extension("cache.tmp");
             let mut writer = BufWriter::new(File::create(&temp_path)?);
-            let mut size_buffer = [0u8; 4];
             let mut pos = 0;
             for (key_space, cache) in self.this.cache.iter() {
                 for entry in cache.iter() {
                     if let (key, Some(value)) = entry.pair() {
-                        pos += write_key_value_pair(
-                            &mut writer,
-                            key_space,
-                            key,
-                            value,
-                            &mut size_buffer,
-                        )?;
+                        pos += write_key_value_pair(&mut writer, key_space, key, value)?;
                     }
                 }
             }
@@ -234,13 +226,7 @@ impl<'a, T: KeyValueDatabase> WriteBatch<'a> for StartupCacheWriteBatch<'a, T> {
                     if !cache.contains_key(*key) {
                         let size = key.len() + value.len() + PAIR_HEADER_SIZE;
                         if pos + size < CACHE_SIZE_LIMIT {
-                            pos += write_key_value_pair(
-                                &mut writer,
-                                key_space,
-                                key,
-                                value,
-                                &mut size_buffer,
-                            )?;
+                            pos += write_key_value_pair(&mut writer, key_space, key, value)?;
                             if pos + 24 >= CACHE_SIZE_LIMIT {
                                 break;
                             }
@@ -254,53 +240,4 @@ impl<'a, T: KeyValueDatabase> WriteBatch<'a> for StartupCacheWriteBatch<'a, T> {
         }
         Ok(())
     }
-}
-
-fn write_key_value_pair(
-    writer: &mut BufWriter<File>,
-    key_space: KeySpace,
-    key: &[u8],
-    value: &[u8],
-    size_buffer: &mut [u8; 4],
-) -> Result<usize> {
-    writer.write_u8(match key_space {
-        KeySpace::Infra => 0,
-        KeySpace::TaskMeta => 1,
-        KeySpace::TaskData => 2,
-        KeySpace::ForwardTaskCache => 3,
-        KeySpace::ReverseTaskCache => 4,
-    })?;
-    let key_len = key.len();
-    size_buffer.copy_from_slice(&(key_len as u32).to_be_bytes());
-    writer.write_all(&*size_buffer)?;
-    let value_len = value.len();
-    size_buffer.copy_from_slice(&(value_len as u32).to_be_bytes());
-    writer.write_all(&*size_buffer)?;
-    writer.write_all(key)?;
-    writer.write_all(value)?;
-    Ok(9 + key_len + value_len)
-}
-
-fn read_key_value_pair<'l>(
-    buffer: &'l [u8],
-    pos: &mut usize,
-) -> Result<(KeySpace, &'l [u8], &'l [u8])> {
-    let key_space = match buffer[*pos] {
-        0 => KeySpace::Infra,
-        1 => KeySpace::TaskMeta,
-        2 => KeySpace::TaskData,
-        3 => KeySpace::ForwardTaskCache,
-        4 => KeySpace::ReverseTaskCache,
-        _ => return Err(anyhow::anyhow!("Invalid key space")),
-    };
-    *pos += 1;
-    let key_len = u32::from_be_bytes(buffer[*pos..*pos + 4].try_into()?);
-    *pos += 4;
-    let value_len = u32::from_be_bytes(buffer[*pos..*pos + 4].try_into()?);
-    *pos += 4;
-    let key = &buffer[*pos..*pos + key_len as usize];
-    *pos += key_len as usize;
-    let value = &buffer[*pos..*pos + value_len as usize];
-    *pos += value_len as usize;
-    Ok((key_space, key, value))
 }
