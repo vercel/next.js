@@ -2,6 +2,7 @@
   This is the default "use cache" handler it defaults
   to an in memory store
 */
+import { LRUCache } from '../lru-cache'
 import type { CacheEntry, CacheHandler } from './types'
 
 interface DefaultCacheEntry extends CacheEntry {
@@ -24,8 +25,7 @@ interface DefaultCacheEntry extends CacheEntry {
 
 export class DefaultCacheHandler implements CacheHandler {
   // LRU cache default to max 50 MB but in future track
-
-  memoryCache = new Map<string, DefaultCacheEntry>()
+  memoryCache = new LRUCache<DefaultCacheEntry>(50_000_000)
 
   async get(
     _cacheKey: Parameters<CacheHandler['get']>[0],

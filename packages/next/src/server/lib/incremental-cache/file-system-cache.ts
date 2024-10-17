@@ -32,16 +32,15 @@ type TagsManifest = {
   items: { [tag: string]: { revalidatedAt: number } }
 }
 let memoryCache: LRUCache<CacheHandlerValue> | undefined
-
-// TODO: this should be in memory only do not write to disk
-// and can re-use this in the new default cache handler
-let tagsManifest: TagsManifest | undefined
+const tagsManifest: TagsManifest = {
+  version: 1,
+  items: {},
+}
 
 export default class FileSystemCache implements CacheHandler {
   private fs: FileSystemCacheContext['fs']
   private flushToDisk?: FileSystemCacheContext['flushToDisk']
   private serverDistDir: FileSystemCacheContext['serverDistDir']
-  private tagsManifestPath?: string
   private revalidatedTags: string[]
   private debug: boolean
 
@@ -86,53 +85,9 @@ export default class FileSystemCache implements CacheHandler {
     } else if (this.debug) {
       console.log('not using memory store for fetch cache')
     }
-
-    if (this.serverDistDir && this.fs) {
-      this.tagsManifestPath = path.join(
-        this.serverDistDir,
-        '..',
-        'cache',
-        'fetch-cache',
-        'tags-manifest.json'
-      )
-
-      this.loadTagsManifestSync()
-    }
   }
 
   public resetRequestCache(): void {}
-
-  /**
-   * Load the tags manifest from the file system
-   */
-  private async loadTagsManifest() {
-    if (!this.tagsManifestPath || !this.fs || tagsManifest) return
-    try {
-      tagsManifest = JSON.parse(
-        await this.fs.readFile(this.tagsManifestPath, 'utf8')
-      )
-    } catch (err: any) {
-      tagsManifest = { version: 1, items: {} }
-    }
-    if (this.debug) console.log('loadTagsManifest', tagsManifest)
-  }
-
-  /**
-   * As above, but synchronous for use in the constructor. This is to
-   * preserve the existing behaviour when instantiating the cache handler. Although it's
-   * not ideal to block the main thread it's only called once during startup.
-   */
-  private loadTagsManifestSync() {
-    if (!this.tagsManifestPath || !this.fs || tagsManifest) return
-    try {
-      tagsManifest = JSON.parse(
-        this.fs.readFileSync(this.tagsManifestPath, 'utf8')
-      )
-    } catch (err: any) {
-      tagsManifest = { version: 1, items: {} }
-    }
-    if (this.debug) console.log('loadTagsManifest', tagsManifest)
-  }
 
   public async revalidateTag(
     ...args: Parameters<CacheHandler['revalidateTag']>
@@ -148,31 +103,10 @@ export default class FileSystemCache implements CacheHandler {
       return
     }
 
-    // we need to ensure the tagsManifest is refreshed
-    // since separate workers can be updating it at the same
-    // time and we can't flush out of sync data
-    await this.loadTagsManifest()
-    if (!tagsManifest || !this.tagsManifestPath) {
-      return
-    }
-
     for (const tag of tags) {
       const data = tagsManifest.items[tag] || {}
       data.revalidatedAt = Date.now()
       tagsManifest.items[tag] = data
-    }
-
-    try {
-      await this.fs.mkdir(path.dirname(this.tagsManifestPath))
-      await this.fs.writeFile(
-        this.tagsManifestPath,
-        JSON.stringify(tagsManifest || {})
-      )
-      if (this.debug) {
-        console.log('Updated tags manifest', tagsManifest)
-      }
-    } catch (err: any) {
-      console.warn('Failed to update tags manifest.', err)
     }
   }
 
@@ -373,8 +307,6 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       if (cacheTags?.length) {
-        await this.loadTagsManifest()
-
         const isStale = cacheTags.some((tag) => {
           return (
             tagsManifest?.items[tag]?.revalidatedAt &&
@@ -391,8 +323,6 @@ export default class FileSystemCache implements CacheHandler {
         }
       }
     } else if (data?.value?.kind === CachedRouteKind.FETCH) {
-      await this.loadTagsManifest()
-
       const combinedTags = [...(tags || []), ...(softTags || [])]
 
       const wasRevalidated = combinedTags.some((tag) => {
