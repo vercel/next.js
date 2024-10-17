@@ -7,7 +7,7 @@ import {
   type CachedFetchValue,
 } from '../../response-cache'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from '../lru-cache'
 import path from '../../../shared/lib/isomorphic/path'
 import {
   NEXT_CACHE_TAGS_HEADER,
@@ -31,7 +31,7 @@ type TagsManifest = {
   version: 1
   items: { [tag: string]: { revalidatedAt: number } }
 }
-let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
+let memoryCache: LRUCache<CacheHandlerValue> | undefined
 
 // TODO: this should be in memory only do not write to disk
 // and can re-use this in the new default cache handler
@@ -58,30 +58,29 @@ export default class FileSystemCache implements CacheHandler {
           console.log('using memory store for fetch cache')
         }
 
-        memoryCache = new LRUCache({
-          max: ctx.maxMemoryCacheSize,
-          length({ value }) {
-            if (!value) {
-              return 25
-            } else if (value.kind === CachedRouteKind.REDIRECT) {
-              return JSON.stringify(value.props).length
-            } else if (value.kind === CachedRouteKind.IMAGE) {
-              throw new Error('invariant image should not be incremental-cache')
-            } else if (value.kind === CachedRouteKind.FETCH) {
-              return JSON.stringify(value.data || '').length
-            } else if (value.kind === CachedRouteKind.APP_ROUTE) {
-              return value.body.length
-            }
-            // rough estimate of size of cache value
-            return (
-              value.html.length +
-              (JSON.stringify(
-                value.kind === CachedRouteKind.APP_PAGE
-                  ? value.rscData
-                  : value.pageData
-              )?.length || 0)
-            )
-          },
+        memoryCache = new LRUCache(ctx.maxMemoryCacheSize, function length({
+          value,
+        }) {
+          if (!value) {
+            return 25
+          } else if (value.kind === CachedRouteKind.REDIRECT) {
+            return JSON.stringify(value.props).length
+          } else if (value.kind === CachedRouteKind.IMAGE) {
+            throw new Error('invariant image should not be incremental-cache')
+          } else if (value.kind === CachedRouteKind.FETCH) {
+            return JSON.stringify(value.data || '').length
+          } else if (value.kind === CachedRouteKind.APP_ROUTE) {
+            return value.body.length
+          }
+          // rough estimate of size of cache value
+          return (
+            value.html.length +
+            (JSON.stringify(
+              value.kind === CachedRouteKind.APP_PAGE
+                ? value.rscData
+                : value.pageData
+            )?.length || 0)
+          )
         })
       }
     } else if (this.debug) {
