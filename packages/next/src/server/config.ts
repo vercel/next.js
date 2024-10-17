@@ -872,7 +872,7 @@ function assignDefaults(
       } else {
         const handlerPath = result.experimental.cacheHandlers[key]
 
-        if (!handlerPath || !existsSync(handlerPath)) {
+        if (handlerPath && !existsSync(handlerPath)) {
           invalidHandlerItems.push({
             key,
             reason: `cache handler path provided does not exist, received ${handlerPath}`,
