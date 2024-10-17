@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     fs::{create_dir_all, File},
     io::BufWriter,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result};
