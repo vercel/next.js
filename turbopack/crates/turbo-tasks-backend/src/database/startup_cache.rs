@@ -86,12 +86,14 @@ impl<T: KeyValueDatabase> Borrow<[u8]> for ValueBuffer<'_, T> {
     }
 }
 
+type Cache = ByKeySpace<DashMap<Vec<u8>, Option<Vec<u8>>, BuildHasherDefault<FxHasher>>>;
+
 pub struct StartupCacheLayer<T: KeyValueDatabase> {
     database: T,
     path: PathBuf,
     fresh_db: bool,
     cache_size: AtomicUsize,
-    cache: ByKeySpace<DashMap<Vec<u8>, Option<Vec<u8>>, BuildHasherDefault<FxHasher>>>,
+    cache: Cache,
     restored_map: ByKeySpace<FxHashMap<&'static [u8], &'static [u8]>>,
     restored: Vec<u8>,
 }
@@ -154,7 +156,7 @@ impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
         T::lower_read_transaction(tx)
     }
 
-    fn begin_read_transaction<'l>(&'l self) -> Result<Self::ReadTransaction<'l>> {
+    fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
         self.database.begin_read_transaction()
     }
 
@@ -282,8 +284,8 @@ impl<'a, T: KeyValueDatabase> WriteBatch<'a> for StartupCacheWriteBatch<'a, T> {
                             pos += write_key_value_pair(
                                 &mut writer,
                                 key_space,
-                                *key,
-                                *value,
+                                key,
+                                value,
                                 &mut size_buffer,
                             )?;
                             if pos + 24 >= CACHE_SIZE_LIMIT {
@@ -321,8 +323,8 @@ fn write_key_value_pair(
     let value_len = value.len();
     size_buffer.copy_from_slice(&(value_len as u32).to_be_bytes());
     writer.write_all(&*size_buffer)?;
-    writer.write_all(&key)?;
-    writer.write_all(&value)?;
+    writer.write_all(key)?;
+    writer.write_all(value)?;
     Ok(9 + key_len + value_len)
 }
 
