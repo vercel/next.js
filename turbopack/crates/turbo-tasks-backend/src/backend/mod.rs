@@ -613,15 +613,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
-        let mut counts: HashMap<TaskId, u32> = HashMap::new();
-        for log in persisted_storage_meta_log
-            .iter()
-            .chain(persisted_storage_data_log.iter())
-        {
-            for CachedDataUpdate { task, .. } in log.iter() {
-                *counts.entry(*task).or_default() += 1;
-            }
-        }
+        // TODO track which items are persisting
+        // TODO This is very inefficient, maybe the BackingStorage could compute that since it need
+        // to iterate items anyway.
+        // let mut counts: FxHashMap<TaskId, u32> =
+        // FxHashMap::with_capacity_and_hasher(); for log in persisted_storage_meta_log
+        //     .iter()
+        //     .chain(persisted_storage_data_log.iter())
+        // {
+        //     for CachedDataUpdate { task, .. } in log.iter() {
+        //         *counts.entry(*task).or_default() += 1;
+        //     }
+        // }
 
         let mut new_items = false;
 
@@ -646,12 +649,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        for (task_id, count) in counts {
-            self.storage
-                .access_mut(task_id)
-                .persistance_state_mut()
-                .finish_persisting_items(count);
-        }
+        // TODO add when we need to track persisted items
+        // for (task_id, count) in counts {
+        //     self.storage
+        //         .access_mut(task_id)
+        //         .persistance_state_mut()
+        //         .finish_persisting_items(count);
+        // }
 
         Some((snapshot_time, new_items))
     }
