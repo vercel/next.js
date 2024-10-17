@@ -422,7 +422,7 @@ pub async fn type_resolve(
             request,
             options,
         );
-        if !*result1.is_unresolveable().await? {
+        if !*result1.is_unresolvable().await? {
             result1
         } else {
             resolve(

@@ -485,7 +485,7 @@ pub struct ResolveOptions {
     pub default_files: Vec<RcStr>,
     /// An import map to use before resolving a request.
     pub import_map: Option<Vc<ImportMap>>,
-    /// An import map to use when a request is otherwise unresolveable.
+    /// An import map to use when a request is otherwise unresolvable.
     pub fallback_import_map: Option<Vc<ImportMap>>,
     pub resolved_map: Option<Vc<ResolvedMap>>,
     pub before_resolve_plugins: Vec<Vc<Box<dyn BeforeResolvePlugin>>>,

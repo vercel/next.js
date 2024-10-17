@@ -46,7 +46,7 @@ impl ModuleReference for SourceMapReference {
             ))))
             .cell();
         }
-        ModuleResolveResult::unresolveable().into()
+        ModuleResolveResult::unresolvable().into()
     }
 }
 

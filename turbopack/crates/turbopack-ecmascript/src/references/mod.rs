@@ -2586,7 +2586,7 @@ async fn require_resolve_visitor(
                     args,
                 ),
                 false,
-                "unresolveable request",
+                "unresolvable request",
             ),
             1 => values.pop().unwrap(),
             _ => JsValue::alternatives(values),

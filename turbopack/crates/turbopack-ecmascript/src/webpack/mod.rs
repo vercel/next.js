@@ -106,7 +106,7 @@ impl ModuleReference for WebpackChunkAssetReference {
                 )))
                 .into()
             }
-            WebpackRuntime::None => ModuleResolveResult::unresolveable().into(),
+            WebpackRuntime::None => ModuleResolveResult::unresolvable().into(),
         })
     }
 }
