@@ -95,7 +95,6 @@ graph TD
     Item9;
     Item9["export GET"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
 ```
 # Phase 2
@@ -113,7 +112,6 @@ graph TD
     Item9;
     Item9["export GET"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
     Item9 --> Item7;
 ```
@@ -132,7 +130,6 @@ graph TD
     Item9;
     Item9["export GET"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
     Item9 --> Item7;
     Item7 --> Item4;
@@ -154,7 +151,6 @@ graph TD
     Item9;
     Item9["export GET"];
     Item2 --> Item1;
-    Item3 --> Item1;
     Item3 --> Item2;
     Item9 --> Item7;
     Item7 --> Item4;
@@ -175,7 +171,6 @@ graph TD
     N7["Items: [ItemId(2, ImportBinding(0))]"];
     N8["Items: [ItemId(3, Normal)]"];
     N4 --> N2;
-    N6 --> N2;
     N6 --> N4;
     N1 --> N8;
     N8 --> N3;
@@ -250,9 +245,6 @@ export { ClientComponent as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 6
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
@@ -374,9 +366,6 @@ export { ClientComponent as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 6
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
