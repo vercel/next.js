@@ -1097,7 +1097,7 @@ impl AppEndpoint {
                     },
                     this.app_project
                         .project()
-                        .chunking_context(process_client_assets, runtime),
+                        .runtime_chunking_context(process_client_assets, runtime),
                 )
                 .await?;
                 server_assets.insert(server_action_manifest.manifest);
@@ -1344,7 +1344,7 @@ impl AppEndpoint {
         let chunking_context = this
             .app_project
             .project()
-            .chunking_context(process_client_assets, runtime);
+            .runtime_chunking_context(process_client_assets, runtime);
 
         Ok(match runtime {
             NextRuntime::Edge => {
