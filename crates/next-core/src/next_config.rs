@@ -862,6 +862,16 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn is_standalone(&self) -> Vc<bool> {
+        Vc::cell(self.output == Some(OutputType::Standalone))
+    }
+
+    #[turbo_tasks::function]
+    pub fn cache_handler(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.cache_handler.clone())
+    }
+
+    #[turbo_tasks::function]
     pub fn compiler(&self) -> Vc<CompilerConfig> {
         self.compiler.clone().unwrap_or_default().cell()
     }

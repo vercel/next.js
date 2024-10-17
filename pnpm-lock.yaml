@@ -606,6 +606,15 @@ importers:
         specifier: ^1.1.0
         version: 1.1.0
 
+  bench/basic-app:
+    dependencies:
+      keyv:
+        specifier: 3.1.0
+        version: 3.1.0
+      next:
+        specifier: workspace:*
+        version: link:../../packages/next
+
   bench/fuzzponent:
     dependencies:
       '@babel/generator':
@@ -12685,7 +12694,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:

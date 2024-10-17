@@ -1,0 +1,18 @@
+error - [resolve] [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_complex/input/index.js  /turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_complex/input/index.js:9:12  Module not found: Can't resolve ('does-not-exist/path' | 'does-not-exist-either/path' | <dynamic>)
+  
+       5 | if (y) {
+       6 |   specifier = y;
+       7 | }
+       8 | 
+         +             v----------------v
+       9 + console.log(require(specifier));
+         +             ^----------------^
+      10 | 
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "does-not-exist" with subpath '/path' or module "does-not-exist-either" with subpath '/path' or dynamic
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_complex/input/index.js
+  | Type of request: commonjs request
+  |

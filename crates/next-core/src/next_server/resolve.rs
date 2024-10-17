@@ -346,35 +346,26 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let path = result.ident().path().resolve().await?;
         let file_type = get_file_type(path, &*path.await?).await?;
 
-        match (file_type, is_esm) {
+        let name = request_str.into();
+
+        // get external type, or bail if it is invalid
+        let external_type = match (file_type, is_esm) {
             (FileType::UnsupportedExtension, _) => {
                 // unsupported file type, bundle it
-                unable_to_externalize(
-                    request_str.into(),
+                return unable_to_externalize(
+                    name,
                     "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js.",
-                )
+                );
             }
             (FileType::InvalidPackageJson, _) => {
                 // invalid package.json, bundle it
-                unable_to_externalize(
-                    request_str.into(),
-                    "The package.json can't be found or parsed.",
-                )
+                return unable_to_externalize(name, "The package.json can't be found or parsed.");
             }
-            (FileType::CommonJs, false) => {
-                // mark as external
-                Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::External(
-                        request_str.into(),
-                        ExternalType::CommonJs,
-                    ))
-                    .cell(),
-                ))
-            }
+            // commonjs without esm is always external
+            (FileType::CommonJs, false) => ExternalType::CommonJs,
             (FileType::CommonJs, true) => {
                 // It would be more efficient to use an CJS external instead of an ESM external,
-                // but we need to verify if that would be correct (as in resolves to the same
-                // file).
+                // but we need to verify if that would be correct (as in resolves to the same file).
                 let node_resolve_options = node_cjs_resolve_options(lookup_path.root());
                 let node_resolved = resolve(
                     self.project_path,
@@ -395,44 +386,33 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // packages, where `type: module` or `.mjs` is missing and would fail in
                 // Node.js. So when this wasn't an explicit opt-in we avoid making it external
                 // to be safe.
-                if !resolves_equal && !must_be_external {
+                match (must_be_external, resolves_equal) {
                     // bundle it to be safe. No error since `must_be_external` is not set.
-                    Ok(ResolveResultOption::none())
-                } else {
-                    // mark as external
-                    Ok(ResolveResultOption::some(
-                        ResolveResult::primary(ResolveResultItem::External(
-                            request_str.into(),
-                            if resolves_equal {
-                                ExternalType::CommonJs
-                            } else {
-                                ExternalType::EcmaScriptModule
-                            },
-                        ))
-                        .cell(),
-                    ))
+                    (false, false) => return Ok(ResolveResultOption::none()),
+                    (_, true) => ExternalType::CommonJs,
+                    (_, false) => ExternalType::EcmaScriptModule,
                 }
             }
-            (FileType::EcmaScriptModule, true) => {
-                // mark as external
-                Ok(ResolveResultOption::some(
-                    ResolveResult::primary(ResolveResultItem::External(
-                        request_str.into(),
-                        ExternalType::EcmaScriptModule,
-                    ))
-                    .cell(),
-                ))
-            }
+            // ecmascript with esm is always external
+            (FileType::EcmaScriptModule, true) => ExternalType::EcmaScriptModule,
             (FileType::EcmaScriptModule, false) => {
-                // even with require() this resolves to a ESM,
-                // which would break node.js, bundle it
-                unable_to_externalize(
-                    request_str.into(),
+                // even with require() this resolves to a ESM, which would break node.js, bundle it
+                return unable_to_externalize(
+                    name,
                     "The package seems invalid. require() resolves to a EcmaScript module, which \
                      would result in an error in Node.js.",
-                )
+                );
             }
-        }
+        };
+
+        Ok(ResolveResultOption::some(
+            ResolveResult::primary(ResolveResultItem::External {
+                name,
+                typ: external_type,
+                source: Some(result),
+            })
+            .cell(),
+        ))
     }
 }
 
