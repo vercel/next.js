@@ -113,7 +113,7 @@ async fn resolve_reference_from_dir(
             .await?
             .into_iter(),
         ),
-        (None, None) => return Ok(ModuleResolveResult::unresolveable().cell()),
+        (None, None) => return Ok(ModuleResolveResult::unresolvable().cell()),
     };
     let mut affecting_sources = Vec::new();
     let mut results = Vec::new();

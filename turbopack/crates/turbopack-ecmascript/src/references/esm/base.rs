@@ -43,7 +43,7 @@ pub enum ReferencedAsset {
     Some(Vc<Box<dyn EcmascriptChunkPlaceable>>),
     External(RcStr, ExternalType),
     None,
-    Unresolveable,
+    Unresolvable,
 }
 
 impl ReferencedAsset {
@@ -53,7 +53,7 @@ impl ReferencedAsset {
             ReferencedAsset::External(request, ty) => Some(magic_identifier::mangle(&format!(
                 "{ty} external {request}"
             ))),
-            ReferencedAsset::None | ReferencedAsset::Unresolveable => None,
+            ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
         })
     }
 
@@ -75,7 +75,7 @@ impl ReferencedAsset {
         // TODO handle multiple keyed results
         let result = resolve_result.await?;
         if result.primary.is_empty() {
-            return Ok(ReferencedAsset::Unresolveable.cell());
+            return Ok(ReferencedAsset::Unresolvable.cell());
         }
         for (_key, result) in result.primary.iter() {
             match result {
@@ -254,7 +254,7 @@ impl CodeGenerateable for EsmAssetReference {
         let result = if this.annotations.chunking_type() != Some("none") {
             let import_externals = this.import_externals;
             let referenced_asset = self.get_referenced_asset().await?;
-            if let ReferencedAsset::Unresolveable = &*referenced_asset {
+            if let ReferencedAsset::Unresolvable = &*referenced_asset {
                 // Insert code that throws immediately at time of import if a request is
                 // unresolvable
                 let request = request_to_string(this.request).await?.to_string();
@@ -273,7 +273,7 @@ impl CodeGenerateable for EsmAssetReference {
                         Span::new(BytePos(start as u32), BytePos(end as u32))
                     });
                 match &*referenced_asset {
-                    ReferencedAsset::Unresolveable => {
+                    ReferencedAsset::Unresolvable => {
                         unreachable!()
                     }
                     ReferencedAsset::Some(asset) => {

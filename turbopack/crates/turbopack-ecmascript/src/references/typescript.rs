@@ -88,7 +88,7 @@ impl ModuleReference for TsReferencePathAssetReference {
                     .module();
                 ModuleResolveResult::module(module).cell()
             } else {
-                ModuleResolveResult::unresolveable().cell()
+                ModuleResolveResult::unresolvable().cell()
             },
         )
     }
