@@ -252,9 +252,18 @@ impl CodeGenerateable for EsmAssetReference {
 
         // only chunked references can be imported
         let result = if this.annotations.chunking_type() != Some("none") {
-            let referenced_asset = self.get_referenced_asset().await?;
             let import_externals = this.import_externals;
-            if let Some(ident) = referenced_asset.get_ident().await? {
+            let referenced_asset = self.get_referenced_asset().await?;
+            if let ReferencedAsset::Unresolveable = &*referenced_asset {
+                // Insert code that throws immediately at time of import if a request is
+                // unresolvable
+                let request = request_to_string(this.request).await?.to_string();
+                let stmt = Stmt::Expr(ExprStmt {
+                    expr: Box::new(throw_module_not_found_expr(&request)),
+                    span: DUMMY_SP,
+                });
+                Some((format!("throw {request}").into(), stmt))
+            } else if let Some(ident) = referenced_asset.get_ident().await? {
                 let span = this
                     .issue_source
                     .await?
@@ -265,14 +274,7 @@ impl CodeGenerateable for EsmAssetReference {
                     });
                 match &*referenced_asset {
                     ReferencedAsset::Unresolveable => {
-                        // Insert code that throws immediately at time of import if a request is
-                        // unresolvable
-                        let request = request_to_string(this.request).await?.to_string();
-                        let stmt = Stmt::Expr(ExprStmt {
-                            expr: Box::new(throw_module_not_found_expr(&request)),
-                            span: DUMMY_SP,
-                        });
-                        Some((format!("throw {request}").into(), stmt))
+                        unreachable!()
                     }
                     ReferencedAsset::Some(asset) => {
                         let id = asset
