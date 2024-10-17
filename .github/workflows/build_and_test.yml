@@ -532,7 +532,7 @@ jobs:
         'test-turbopack-production',
         'test-turbopack-production-integration',
       ]
-    if: ${{ always() && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
+    if: ${{ always() && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.codemod-only == 'false' && !github.event.pull_request.head.repo.fork }}
 
     runs-on: ubuntu-latest
     name: report test results to datadog
