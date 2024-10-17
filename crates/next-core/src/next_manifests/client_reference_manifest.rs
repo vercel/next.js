@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -31,7 +31,7 @@ impl ClientReferenceManifest {
         client_references: Vc<ClientReferenceGraphResult>,
         client_references_chunks: Vc<ClientReferencesChunks>,
         rsc_app_entry_chunks: Vc<OutputAssets>,
-        rsc_app_entry_chunks_availability: Vc<AvailabilityInfo>,
+        rsc_app_entry_chunks_availability: Value<AvailabilityInfo>,
         client_chunking_context: Vc<Box<dyn ChunkingContext>>,
         ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
         next_config: Vc<NextConfig>,
@@ -54,7 +54,6 @@ impl ClientReferenceManifest {
         let client_relative_path = client_relative_path.await?;
         let node_root_ref = node_root.await?;
         let rsc_app_entry_chunks = rsc_app_entry_chunks.await?;
-        let rsc_app_entry_chunks_availability = rsc_app_entry_chunks_availability.await?;
 
         for app_client_reference in client_references.await?.client_references.iter() {
             let app_client_reference_ty = app_client_reference.ty();

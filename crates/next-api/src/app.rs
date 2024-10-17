@@ -695,7 +695,7 @@ fn server_utils_module() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsWithAvailability((Vc<OutputAssets>, Vc<AvailabilityInfo>));
+struct OutputAssetsWithAvailability((Vc<OutputAssets>, AvailabilityInfo));
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs)]
 enum AppPageEndpointType {
@@ -1127,7 +1127,7 @@ impl AppEndpoint {
                 client_references,
                 client_references_chunks,
                 *app_entry_chunks,
-                *app_entry_chunks_availability,
+                Value::new(*app_entry_chunks_availability),
                 client_chunking_context,
                 ssr_chunking_context,
                 this.app_project.project().next_config(),
@@ -1370,7 +1370,7 @@ impl AppEndpoint {
                             Vc::cell(evaluatable_assets.clone()),
                             Value::new(AvailabilityInfo::Root),
                         ),
-                        AvailabilityInfo::Untracked.cell(),
+                        AvailabilityInfo::Untracked,
                     ))
                 }
             }
@@ -1470,7 +1470,7 @@ impl AppEndpoint {
                 }
                 .instrument(tracing::trace_span!("server node entrypoint"))
                 .await?);
-                Vc::cell((Vc::cell(vec![rsc_chunk]), availability_info.cell()))
+                Vc::cell((Vc::cell(vec![rsc_chunk]), availability_info))
             }
         })
     }
