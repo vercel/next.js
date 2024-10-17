@@ -1,6 +1,6 @@
 use std::{
     borrow::{Borrow, Cow},
-    collections::{hash_map::Entry, HashMap},
+    collections::hash_map::Entry,
     sync::Arc,
 };
 
@@ -433,8 +433,8 @@ fn restore_task_data(
     let mut result = Vec::with_capacity(task_updates.iter().map(|m| m.len()).sum());
 
     let tx = database.begin_read_transaction()?;
+    let mut map = FxHashMap::with_capacity_and_hasher(128, Default::default());
     for (task, updates) in task_updates.into_iter().flatten() {
-        let mut map;
         if let Some(old_data) = database.get(&tx, key_space, IntKey::new(*task).as_ref())? {
             let old_data: Vec<CachedDataItem> = match pot::from_slice(old_data.borrow()) {
                 Ok(d) => d,
@@ -446,12 +446,7 @@ fn restore_task_data(
                     anyhow!("Unable to deserialize old value of {task}: {old_data:?}")
                 })?,
             };
-            map = old_data
-                .into_iter()
-                .map(|item| item.into_key_and_value())
-                .collect();
-        } else {
-            map = HashMap::new();
+            map.extend(old_data.into_iter().map(|item| item.into_key_and_value()));
         }
         for (key, (_, value)) in updates {
             if let Some(value) = value {
@@ -461,7 +456,7 @@ fn restore_task_data(
             }
         }
         let vec = map
-            .into_iter()
+            .drain()
             .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
             .collect();
         result.push((task, vec));
