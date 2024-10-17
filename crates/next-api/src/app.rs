@@ -75,7 +75,7 @@ use crate::{
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     paths::{
-        all_paths_in_root, all_server_paths, get_js_paths_from_root, get_paths_from_root,
+        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
@@ -1189,8 +1189,7 @@ impl AppEndpoint {
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
                 let all_assets =
-                    get_paths_from_root(&node_root_value, &all_output_assets, |_asset| true)
-                        .await?;
+                    get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
                 let entry_file = "app-edge-has-no-entrypoint".into();
 
