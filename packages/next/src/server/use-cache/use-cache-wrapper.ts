@@ -202,6 +202,7 @@ function generateCacheEntryWithCacheContext(
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
+    workStore,
     outerWorkUnitStore,
     cacheStore,
     clientReferenceManifest,
@@ -247,7 +248,8 @@ async function collectResult(
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   startTime: number,
-  errors: Array<unknown> // This is a live array that gets pushed into.
+  errors: Array<unknown>, // This is a live array that gets pushed into.,
+  timer: any
 ): Promise<CacheEntry> {
   // We create a buffered stream that collects all chunks until the end to
   // ensure that RSC has finished rendering and therefore we have collected
@@ -318,10 +320,15 @@ async function collectResult(
     cacheSignal.endRead()
   }
 
+  if (timer !== undefined) {
+    clearTimeout(timer)
+  }
+
   return entry
 }
 
 async function generateCacheEntryImpl(
+  workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
@@ -345,11 +352,28 @@ async function generateCacheEntryImpl(
 
   let errors: Array<unknown> = []
 
+  let timer = undefined
+  const controller = new AbortController()
+  if (workStore.isStaticGeneration) {
+    // If we're prerendering, we give you 50 seconds to fill a cache entry. Otherwise
+    // we assume you stalled on hanging input and deopt. This needs to be lower than
+    // just the general timeout of 60 seconds.
+    timer = setTimeout(() => {
+      controller.abort(
+        new Error(
+          'Filling a cache during prerender timed out like because request specific arguments such as ' +
+            'params, searchParams, cookies() or dynamic data was used inside the "use cache".'
+        )
+      )
+    }, 50000)
+  }
+
   const stream = renderToReadableStream(
     result,
     clientReferenceManifest.clientModules,
     {
       environmentName: 'Cache',
+      signal: controller.signal,
       temporaryReferences,
       onError(error: unknown) {
         // Report the error.
@@ -366,7 +390,8 @@ async function generateCacheEntryImpl(
     outerWorkUnitStore,
     innerCacheStore,
     startTime,
-    errors
+    errors,
+    timer
   )
 
   // Return the stream as we're creating it. This means that if it ends up
@@ -465,12 +490,45 @@ export function cache(kind: string, id: string, fn: any) {
       // the implementation.
       const buildId = workStore.buildId
 
+      let abortHangingInputSignal: null | AbortSignal = null
+      if (workUnitStore && workUnitStore.type === 'prerender') {
+        // In a prerender, we may end up with hanging Promises as inputs due them stalling
+        // on connection() or because they're loading dynamic data. In that case we need to
+        // abort the encoding of the arguments since they'll never complete.
+        const controller = new AbortController()
+        abortHangingInputSignal = controller.signal
+        if (workUnitStore.cacheSignal) {
+          // If we have a cacheSignal it means we're in a prospective render. If the input
+          // we're waiting on is coming from another cache, we do want to wait for it so that
+          // we can resolve this cache entry too.
+          workUnitStore.cacheSignal.inputReady().then(() => {
+            controller.abort()
+          })
+        } else {
+          // Otherwise we're in the final render and we should already have all our caches
+          // filled. We might still be waiting on some microtasks so we wait one tick before
+          // giving up. When we give up, we still want to render the content of this cache
+          // as deeply as we can so that we can suspend as deeply as possible in the tree
+          // or not at all if we don't end up waiting for the input.
+          process.nextTick(() => controller.abort())
+        }
+      }
+
       const temporaryReferences = createClientTemporaryReferenceSet()
       const encodedArguments: FormData | string = await encodeReply(
         [buildId, id, args],
-        {
-          temporaryReferences,
-        }
+        // Right now this is enough to cause the input to generate hanging Promises
+        // but that's really due to what is probably a React bug in decodeReply.
+        // If that's fixed we may need a different strategy. We can also just skip
+        // the serialization/cache in this scenario and pass-through raw objects.
+        abortHangingInputSignal
+          ? {
+              temporaryReferences,
+              signal: abortHangingInputSignal,
+            }
+          : {
+              temporaryReferences,
+            }
       )
 
       const serializedCacheKey =
