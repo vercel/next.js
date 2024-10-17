@@ -345,6 +345,14 @@ export function Errors({
                 </p>
               </>
             ) : null}
+            {hydrationWarning ? (
+              <p
+                id="nextjs__container_errors__link"
+                className="nextjs__container_errors__link"
+              >
+                <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
+              </p>
+            ) : null}
 
             {hydrationWarning &&
             (activeError.componentStackFrames?.length ||
@@ -411,6 +419,12 @@ export const styles = css`
     font-weight: bold;
     color: var(--color-text-color-red-1);
     background-color: var(--color-text-background-red-1);
+  }
+  p.nextjs__container_errors__link {
+    margin: var(--size-gap-double) auto;
+    color: var(--color-text-color-red-1);
+    font-weight: 600;
+    font-size: 15px;
   }
   p.nextjs__container_errors__notes {
     margin: var(--size-gap-double) auto;
