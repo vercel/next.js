@@ -31,12 +31,12 @@ pub trait KeyValueDatabase {
 
     fn begin_read_transaction<'l>(&'l self) -> Result<Self::ReadTransaction<'l>>;
 
-    fn get<'txn, 'db: 'txn>(
-        &self,
-        transaction: &'txn Self::ReadTransaction<'db>,
+    fn get<'l, 'db: 'l>(
+        &'l self,
+        transaction: &'l Self::ReadTransaction<'db>,
         key_space: KeySpace,
         key: &[u8],
-    ) -> Result<Option<Cow<'txn, [u8]>>>;
+    ) -> Result<Option<Cow<'l, [u8]>>>;
 
     type WriteBatch<'l>: WriteBatch<'l>
     where

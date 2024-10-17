@@ -28,12 +28,12 @@ impl KeyValueDatabase for NoopKvDb {
         Ok(())
     }
 
-    fn get<'txn, 'db: 'txn>(
-        &self,
-        _transaction: &'txn Self::ReadTransaction<'db>,
+    fn get<'l, 'db: 'l>(
+        &'l self,
+        _transaction: &'l Self::ReadTransaction<'db>,
         _key_space: KeySpace,
         _key: &[u8],
-    ) -> Result<Option<Cow<'txn, [u8]>>> {
+    ) -> Result<Option<Cow<'l, [u8]>>> {
         Ok(None)
     }
 
