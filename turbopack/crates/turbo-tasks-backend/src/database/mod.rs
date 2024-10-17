@@ -1,3 +1,4 @@
+mod by_key_space;
 pub mod db_versioning;
 pub mod fresh_db_optimization;
 pub mod key_value_database;
