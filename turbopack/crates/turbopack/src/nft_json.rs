@@ -136,11 +136,13 @@ impl Asset for NftJsonAsset {
 
         if let Some(chunk) = this.chunk {
             let chunk = chunk.resolve().await?;
-            for referenced_chunk in all_assets_from_entries(Vc::cell(vec![chunk]))
-                .await?
+            let entries = this
+                .additional_assets
                 .iter()
-                .chain(this.additional_assets.iter())
-            {
+                .copied()
+                .chain(std::iter::once(chunk))
+                .collect();
+            for referenced_chunk in all_assets_from_entries(Vc::cell(entries)).await? {
                 if referenced_chunk.ident().path().await?.extension_ref() == Some("map") {
                     continue;
                 }
