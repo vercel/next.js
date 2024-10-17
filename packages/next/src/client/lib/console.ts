@@ -62,6 +62,7 @@ export function formatConsoleArgs(args: unknown[]): string {
     idx = 0
   }
   let result = ''
+  let startQuote = false
   for (let i = 0; i < message.length; ++i) {
     const char = message[i]
     if (char !== '%' || i === message.length - 1 || idx >= args.length) {
@@ -74,6 +75,8 @@ export function formatConsoleArgs(args: unknown[]): string {
       case 'c': {
         // TODO: We should colorize with HTML instead of turning into a string.
         // Ignore for now.
+        result = startQuote ? `${result}]` : `[${result}`
+        startQuote = !startQuote
         idx++
         break
       }
