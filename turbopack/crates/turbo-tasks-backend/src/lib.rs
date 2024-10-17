@@ -45,6 +45,8 @@ pub fn dump_backing_storage(path: &Path) -> Result<DumpBackingStorage> {
     Ok(KeyValueDatabaseBackingStorage::new(database))
 }
 
+pub type DefaultBackingStorage = DumpBackingStorage;
+
 pub fn default_backing_storage(path: &Path) -> Result<DefaultBackingStorage> {
-    lmdb_backing_storage(path)
+    dump_backing_storage(path)
 }
