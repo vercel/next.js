@@ -533,6 +533,12 @@ function writeOverridesField(
   overrides: Record<string, string>
 ) {
   const entries = Object.entries(overrides)
+  // Avoids writing an empty overrides field into package.json
+  // which would be an unnecessary diff.
+  if (entries.length === 0) {
+    return
+  }
+
   if (packageManager === 'npm') {
     if (!packageJson.overrides) {
       packageJson.overrides = {}
