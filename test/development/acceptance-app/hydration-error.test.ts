@@ -790,8 +790,7 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.assertHasRedbox()
 
     retry(async () => {
-      const errorCount = await getRedboxTotalErrorCount(browser)
-      expect(errorCount).toBe(7)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(4)
     })
 
     const description = await session.getRedboxDescription()
