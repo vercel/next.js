@@ -82,12 +82,14 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
         Ok(self.env.begin_ro_txn()?)
     }
 
+    type ValueBuffer<'l> = &'l [u8];
+
     fn get<'l, 'db: 'l>(
         &'l self,
         transaction: &'l Self::ReadTransaction<'db>,
         key_space: super::key_value_database::KeySpace,
         key: &[u8],
-    ) -> Result<Option<Cow<'l, [u8]>>> {
+    ) -> Result<Option<Self::ValueBuffer<'l>>> {
         let db = match key_space {
             KeySpace::Infra => self.infra_db,
             KeySpace::TaskMeta => self.meta_db,
@@ -106,7 +108,7 @@ impl KeyValueDatabase for LmbdKeyValueDatabase {
                 }
             }
         };
-        Ok(Some(Cow::Borrowed(value)))
+        Ok(Some(value))
     }
 
     type WriteBatch<'l>
@@ -149,12 +151,18 @@ impl<'a> WriteBatch<'a> for LmbdWriteBatch<'a> {
         Ok(())
     }
 
-    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Cow<'l, [u8]>>>
+    type ValueBuffer<'l>
+        = &'l [u8]
+    where
+        Self: 'l,
+        'a: 'l;
+
+    fn get<'l>(&'l self, key_space: KeySpace, key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>>
     where
         'a: 'l,
     {
         match extended_key::get(&self.tx, self.this.db(key_space), key) {
-            Ok(value) => Ok(Some(Cow::Borrowed(value))),
+            Ok(value) => Ok(Some(value)),
             Err(err) => {
                 if err == lmdb::Error::NotFound {
                     Ok(None)

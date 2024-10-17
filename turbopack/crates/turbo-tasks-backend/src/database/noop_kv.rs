@@ -29,12 +29,17 @@ impl KeyValueDatabase for NoopKvDb {
         Ok(())
     }
 
+    type ValueBuffer<'l>
+        = &'l [u8]
+    where
+        Self: 'l;
+
     fn get<'l, 'db: 'l>(
         &'l self,
         _transaction: &'l Self::ReadTransaction<'db>,
         _key_space: KeySpace,
         _key: &[u8],
-    ) -> Result<Option<Cow<'l, [u8]>>> {
+    ) -> Result<Option<Self::ValueBuffer<'l>>> {
         Ok(None)
     }
 
@@ -55,7 +60,13 @@ impl<'a> WriteBatch<'a> for NoopWriteBatch {
         Ok(())
     }
 
-    fn get<'l>(&'l self, _key_space: KeySpace, _key: &[u8]) -> Result<Option<Cow<'l, [u8]>>>
+    type ValueBuffer<'l>
+        = &'l [u8]
+    where
+        Self: 'l,
+        'a: 'l;
+
+    fn get<'l>(&'l self, _key_space: KeySpace, _key: &[u8]) -> Result<Option<Self::ValueBuffer<'l>>>
     where
         'a: 'l,
     {
