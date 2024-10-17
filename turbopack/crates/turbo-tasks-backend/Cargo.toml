@@ -35,6 +35,7 @@ rayon = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_path_to_error = { workspace = true }
+sled = "0.34.7"
 smallvec = { workspace = true }
 tokio = { workspace = true }
 tokio-scoped = "0.2.0"
