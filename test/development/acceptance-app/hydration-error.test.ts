@@ -3,7 +3,7 @@ import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
-import { getRedboxTotalErrorCount } from 'next-test-utils'
+import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
@@ -355,8 +355,7 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.waitForAndOpenRuntimeError()
 
     await session.assertHasRedbox()
-    // FIXME: Should be 2
-    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+    expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     // FIXME: Should also have "text nodes cannot be a child of tr"
     expect(await session.getRedboxDescription()).toEqual(outdent`
@@ -385,7 +384,7 @@ describe('Error overlay for hydration errors in App router', () => {
   })
 
   it('should show correct hydration error when server renders an extra whitespace in an invalid place', async () => {
-    const { cleanup, session } = await sandbox(
+    const { cleanup, session, browser } = await sandbox(
       next,
       new Map([
         [
@@ -405,22 +404,40 @@ describe('Error overlay for hydration errors in App router', () => {
       ])
     )
 
-    // FIXME: Should have getRedboxDescription() "text nodes cannot be a child of tr"
-    await expect(session.hasErrorToast()).resolves.toBe(false)
+    await session.waitForAndOpenRuntimeError()
 
-    // await session.waitForAndOpenRuntimeError()
+    await session.assertHasRedbox()
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+    })
 
-    // expect(await session.hasRedbox()).toBe(false)
-    // expect(await getRedboxTotalErrorCount(browser)).toBe(0)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+      "Error: In HTML, whitespace text nodes cannot be a child of <table>. Make sure you don't have any extra whitespace between tags on each line of your source code.
+      This will cause a hydration error.
 
-    // expect(await session.getRedboxDescription()).toEqual(outdent`
-    //   Something
-    // `)
+        ...
+          <RenderFromTemplateContext>
+            <ScrollAndFocusHandler segmentPath={[...]}>
+              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                  <LoadingBoundary hasLoading={false} loading={undefined} loadingStyles={undefined} loadingScripts={undefined}>
+                    <NotFoundBoundary notFound={[...]} notFoundStyles={[...]}>
+                      <NotFoundErrorBoundary pathname="/" notFound={[...]} notFoundStyles={[...]} asNotFound={undefined} ...>
+                        <RedirectBoundary>
+                          <RedirectErrorBoundary router={{...}}>
+                            <InnerLayoutRouter parallelRouterKey="children" url="/" tree={[...]} childNodes={Map} ...>
+                              <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                                <Page params={Promise} searchParams={Promise}>
+      >                           <table>
+      >                             {" "}
+                                    ...
+                              ...
+      "
+    `)
 
+    // FIXME: fix the `pseudoHtml` should be extracted from the description
     // const pseudoHtml = await session.getRedboxComponentStack()
-    // expect(pseudoHtml).toEqual(outdent`
-    //   Something
-    // `)
+    // expect(pseudoHtml).toMatchInlineSnapshot(``)
 
     await cleanup()
   })
@@ -542,7 +559,7 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.waitForAndOpenRuntimeError()
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+    expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
@@ -602,7 +619,7 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.waitForAndOpenRuntimeError()
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+    expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
@@ -642,7 +659,7 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.waitForAndOpenRuntimeError()
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+    expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     const description = await session.getRedboxDescription()
     expect(description).toEqual(outdent`
@@ -697,7 +714,7 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.waitForAndOpenRuntimeError()
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+    expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     const description = await session.getRedboxDescription()
     expect(description).toContain(
@@ -771,7 +788,11 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.waitForAndOpenRuntimeError()
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
+    retry(async () => {
+      const errorCount = await getRedboxTotalErrorCount(browser)
+      expect(errorCount).toBe(7)
+    })
 
     const description = await session.getRedboxDescription()
     expect(description).toEqual(outdent`
