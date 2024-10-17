@@ -7,7 +7,8 @@ import {
 
 const regexNextStatic = /\/_next(\/static\/.+)/
 
-export function parseStack(stack: string): StackFrame[] {
+export function parseStack(stack: string | undefined): StackFrame[] {
+  if (!stack) return []
   const messageAndStack = stack.replace(/^Error: /, '')
   if (isReactHydrationErrorStack(messageAndStack)) {
     const { stack: parsedStack } = getHydrationErrorStackInfo(messageAndStack)

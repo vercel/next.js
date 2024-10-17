@@ -41,7 +41,7 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 1,
-          "description": "Error: trigger an console <error>",
+          "description": "trigger an console <error>",
           "source": "app/browser/page.js (7:17) @ onClick
 
            5 |     <button
@@ -58,7 +58,7 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 1,
-          "description": "Error: trigger an console <error>",
+          "description": "trigger an console <error>",
           "source": "app/browser/page.js (7:17) @ error
 
            5 |     <button
@@ -86,7 +86,7 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 2,
-          "description": "Error: ssr console error:client",
+          "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ Page
 
           2 |
@@ -103,7 +103,7 @@ describe('app-dir - capture-console-error', () => {
         {
           "callStacks": "",
           "count": 2,
-          "description": "Error: ssr console error:client",
+          "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ error
 
           2 |
@@ -113,6 +113,49 @@ describe('app-dir - capture-console-error', () => {
           5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
           6 |   )
           7 |   if (typeof window === 'undefined') {",
+        }
+      `)
+    }
+  })
+
+  it('should be able to capture rsc logged error', async () => {
+    const browser = await next.browser('/rsc')
+
+    await waitForAndOpenRuntimeError(browser)
+    await assertHasRedbox(browser)
+
+    const result = await getRedboxResult(browser)
+
+    if (process.env.TURBOPACK) {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "",
+          "count": 1,
+          "description": " Server   Error: boom",
+          "source": "app/rsc/page.js (2:11) @ Page
+
+          1 | export default function Page() {
+        > 2 |   console.error(new Error('boom'))  
+            |           ^
+          3 |   return <p>rsc</p>
+          4 | }
+          5 |",
+        }
+      `)
+    } else {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "",
+          "count": 1,
+          "description": " Server   Error: boom",
+          "source": "app/rsc/page.js (2:11) @ error
+
+          1 | export default function Page() {
+        > 2 |   console.error(new Error('boom'))  
+            |           ^
+          3 |   return <p>rsc</p>
+          4 | }
+          5 |",
         }
       `)
     }

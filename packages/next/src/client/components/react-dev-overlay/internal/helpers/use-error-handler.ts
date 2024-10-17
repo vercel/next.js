@@ -5,6 +5,7 @@ import { isNextRouterError } from '../../../is-next-router-error'
 import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
 import { formatConsoleArgs } from '../../../../lib/console'
 import isError from '../../../../../lib/is-error'
+import { ConsoleError } from './console-error'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -21,7 +22,7 @@ export function handleClientError(
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
-    error = new Error(formattedErrorMessage)
+    error = new ConsoleError(formattedErrorMessage)
   } else {
     error = originError
   }
