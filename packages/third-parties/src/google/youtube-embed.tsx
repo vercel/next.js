@@ -18,8 +18,8 @@ export default function YouTubeEmbed(props: YouTubeEmbedTypes) {
 
   return (
     <ThirdPartyScriptEmbed
-      height={props.height || null}
-      width={props.width || null}
+      height={props.height ?? null}
+      width={props.width ?? null}
       html={html}
       dataNtpc="YouTubeEmbed"
     >
