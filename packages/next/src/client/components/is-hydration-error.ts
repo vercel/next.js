@@ -20,8 +20,8 @@ export function isHydrationError(error: unknown): boolean {
   return isError(error) && hydrationErrorRegex.test(error.message)
 }
 
-export function isReactHydrationErrorStack(stack: string): boolean {
-  return reactHydrationStartMessages.some((prefix) => stack.startsWith(prefix))
+export function isReactHydrationErrorMessage(msg: string): boolean {
+  return reactHydrationStartMessages.some((prefix) => msg.startsWith(prefix))
 }
 
 export function getHydrationErrorStackInfo(rawMessage: string): {
@@ -31,10 +31,12 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
   diff?: string
 } {
   rawMessage = rawMessage.replace(/^Error: /, '')
-  if (!isReactHydrationErrorStack(rawMessage)) {
+  if (!isReactHydrationErrorMessage(rawMessage)) {
     return { message: null }
   }
-  rawMessage = rawMessage.slice(reactUnifiedMismatchWarning.length + 1).trim()
+  const firstLineBreak = rawMessage.indexOf('\n')
+  rawMessage = rawMessage.slice(firstLineBreak + 1).trim()
+
   const [message, trailing] = rawMessage.split(`${reactHydrationErrorDocLink}`)
   const trimmedMessage = message.trim()
   // React built-in hydration diff starts with a newline, checking if length is > 1

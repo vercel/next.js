@@ -8,7 +8,6 @@ import {
 } from './hydration-error-info'
 
 export function attachHydrationErrorState(error: Error) {
-  console.log('isHydrationError(error)', isHydrationError(error))
   if (
     isHydrationError(error) &&
     !error.message.includes(
@@ -18,7 +17,6 @@ export function attachHydrationErrorState(error: Error) {
     const reactHydrationDiffSegments = getReactHydrationDiffSegments(
       error.message
     )
-    console.log('reactHydrationDiffSegments', reactHydrationDiffSegments)
     let parsedHydrationErrorState: typeof hydrationErrorState = {}
     if (reactHydrationDiffSegments) {
       parsedHydrationErrorState = {
