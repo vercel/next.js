@@ -1245,15 +1245,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
         let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
 
-        match n {
-            PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
-                key: PropName::Ident(ident_name),
-                value: box Expr::Arrow(_) | box Expr::Fn(_),
-                ..
-            })) => {
-                self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
-            }
-            _ => {}
+        if let PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+            key: PropName::Ident(ident_name),
+            value: box Expr::Arrow(_) | box Expr::Fn(_),
+            ..
+        })) = n
+        {
+            self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
         }
 
         if !self.in_module_level && self.should_track_names {
@@ -1840,16 +1838,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_jsx_attr(&mut self, attr: &mut JSXAttr) {
         let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
 
-        match (&attr.value, &attr.name) {
-            (Some(JSXAttrValue::JSXExprContainer(container)), JSXAttrName::Ident(ident_name)) => {
-                match &container.expr {
-                    JSXExpr::Expr(box Expr::Arrow(_)) | JSXExpr::Expr(box Expr::Fn(_)) => {
-                        self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
-                    }
-                    _ => {}
+        if let (Some(JSXAttrValue::JSXExprContainer(container)), JSXAttrName::Ident(ident_name)) =
+            (&attr.value, &attr.name)
+        {
+            match &container.expr {
+                JSXExpr::Expr(box Expr::Arrow(_)) | JSXExpr::Expr(box Expr::Fn(_)) => {
+                    self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
                 }
+                _ => {}
             }
-            _ => {}
         }
 
         attr.visit_mut_children_with(self);
@@ -1860,11 +1857,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_var_declarator(&mut self, var_declarator: &mut VarDeclarator) {
         let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
 
-        match (&var_declarator.name, &var_declarator.init) {
-            (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) => {
-                self.arrow_or_fn_expr_ident = Some(ident.id.clone());
-            }
-            _ => {}
+        if let (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) =
+            (&var_declarator.name, &var_declarator.init)
+        {
+            self.arrow_or_fn_expr_ident = Some(ident.id.clone());
         }
 
         var_declarator.visit_mut_children_with(self);
@@ -1875,17 +1871,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_assign_expr(&mut self, assign_expr: &mut AssignExpr) {
         let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
 
-        match (&assign_expr.left, &assign_expr.right) {
-            (
-                AssignTarget::Simple(SimpleAssignTarget::Ident(ident)),
-                box Expr::Arrow(_) | box Expr::Fn(_),
-            ) => {
-                // Ignore assignment expressions that we created.
-                if !ident.id.to_id().0.starts_with("$$RSC_SERVER_") {
-                    self.arrow_or_fn_expr_ident = Some(ident.id.clone());
-                }
+        if let (
+            AssignTarget::Simple(SimpleAssignTarget::Ident(ident)),
+            box Expr::Arrow(_) | box Expr::Fn(_),
+        ) = (&assign_expr.left, &assign_expr.right)
+        {
+            // Ignore assignment expressions that we created.
+            if !ident.id.to_id().0.starts_with("$$RSC_SERVER_") {
+                self.arrow_or_fn_expr_ident = Some(ident.id.clone());
             }
-            _ => {}
         }
 
         assign_expr.visit_mut_children_with(self);
