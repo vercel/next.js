@@ -26,9 +26,12 @@ type DefaultCacheEntry = CacheEntry & {
 
 // LRU cache default to max 50 MB but in future track
 const memoryCache = new LRUCache<DefaultCacheEntry>(50_000_000)
+const pendingSets = new Map<string, Promise<void>>()
 
 export const DefaultCacheHandler: CacheHandler = {
   get: async function get(cacheKey, softTags) {
+    await pendingSets.get(cacheKey)
+
     if (isTagStale(...softTags)) {
       return
     }
@@ -59,6 +62,12 @@ export const DefaultCacheHandler: CacheHandler = {
   },
 
   set: async function set(cacheKey, entry) {
+    let resolvePending: () => void = () => {}
+    const pendingPromise = new Promise<void>((resolve) => {
+      resolvePending = resolve
+    })
+    pendingSets.set(cacheKey, pendingPromise)
+
     const timestamp = performance.timeOrigin + performance.now()
     const {
       value: originalValue,
@@ -92,6 +101,9 @@ export const DefaultCacheHandler: CacheHandler = {
     } catch (err) {
       console.error(`Error while saving cache key: ${cacheKey}`, err)
       // TODO: store partial buffer with error after we retry 3 times
+    } finally {
+      resolvePending()
+      pendingSets.delete(cacheKey)
     }
   },
 
