@@ -127,6 +127,7 @@ export async function createHotReloaderTurbopack(
 
   const hotReloaderSpan = trace('hot-reloader', undefined, {
     version: process.env.__NEXT_VERSION as string,
+    isTurbopack: 'true',
   })
   // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
   // of the current `next dev` invocation.
