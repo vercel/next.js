@@ -208,9 +208,13 @@ function makeAbortingExoticParams(
       Object.defineProperty(promise, prop, {
         get() {
           const expression = describeStringPropertyAccess('params', prop)
+          const error = new Error(
+            `Route "${route}" used ${expression}. \`params\` is now a Promise and should be \`awaited\` before accessing param values. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-params`
+          )
           abortAndThrowOnSynchronousRequestDataAccess(
             route,
             expression,
+            error,
             prerenderStore
           )
         },
