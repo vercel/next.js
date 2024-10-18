@@ -1,10 +1,10 @@
-/* __next_internal_action_entry_do_not_use__ {"6a88810ecce4a4e8b59d53b8327d7e98bbf251d7":"$$RSC_SERVER_ACTION_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"7f6a88810ecce4a4e8b59d53b8327d7e98bbf251d7":"$$RSC_SERVER_ACTION_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import deleteFromDb from 'db';
 const v1 = 'v1';
 export function Item({ id1, id2, id3, id4 }) {
     const v2 = id2;
-    var deleteItem = registerServerReference($$RSC_SERVER_ACTION_0, "6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
+    var deleteItem = registerServerReference($$RSC_SERVER_ACTION_0, "006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
         id1,
         v2,
         id3,
@@ -13,7 +13,7 @@ export function Item({ id1, id2, id3, id4 }) {
     return <Button action={deleteItem}>Delete</Button>;
 }
 export async function $$RSC_SERVER_ACTION_0($$ACTION_CLOSURE_BOUND) {
-    var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3] = await decryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
+    var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3] = await decryptActionBoundArgs("006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);
     await deleteFromDb($$ACTION_ARG_1);

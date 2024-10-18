@@ -124,6 +124,89 @@ struct ServerActions<C: Comments> {
 }
 
 impl<C: Comments> ServerActions<C> {
+    fn generate_server_reference_id(
+        &self,
+        export_name: &str,
+        is_cache: bool,
+        params: Option<&Vec<Pat>>,
+    ) -> String {
+        // Attach a checksum to the action using sha1:
+        // $$id = special_byte + sha1('hash_salt' + 'file_name' + ':' + 'export_name');
+        // Currently encoded as hex.
+
+        let mut hasher = Sha1::new();
+        hasher.update(self.config.hash_salt.as_bytes());
+        hasher.update(self.file_name.as_bytes());
+        hasher.update(b":");
+        hasher.update(export_name.as_bytes());
+        let mut result = hasher.finalize().to_vec();
+
+        // Prepend an extra byte to the ID, with the following format:
+        // 0     000000    0
+        // ^type ^arg mask ^rest args
+        //
+        // The type bit represents if the action is a cache function or not.
+        // For cache functions, the type bit is set to 1. Otherwise, it's 0.
+        //
+        // The arg mask bit is used to determine which arguments are used by
+        // the function itself, up to 6 arguments. The bit is set to 1 if the
+        // argument is used, or being spread or destructured (so it can be
+        // indirectly or partially used). The bit is set to 0 otherwise.
+        //
+        // The rest args bit is used to determine if there's a ...rest argument
+        // in the function signature. If there is, the bit is set to 1.
+        //
+        //  For example:
+        //
+        //   async function foo(a, foo, b, bar, ...baz) {
+        //     'use cache';
+        //     return a + b;
+        //   }
+        //
+        // will have it encoded as [1][101011][1]. The first bit is set to 1
+        // because it's a cache function. The second part has 1010 because the
+        // only arguments used are `a` and `b`. The subsequent 11 bits are set
+        // to 1 because there's a ...rest argument starting from the 5th. The
+        // last bit is set to 1 as well for the same reason.
+        let type_bit = if is_cache { 1u8 } else { 0u8 };
+        let mut arg_mask = 0u8;
+        let mut rest_args = 0u8;
+
+        if let Some(params) = params {
+            // TODO: For the current implementation, we don't track if an
+            // argument ident is actually referenced in the function body.
+            // Instead, we go with the easy route and assume defined ones are
+            // used. This can be improved in the future.
+            for (i, param) in params.iter().enumerate() {
+                if let Pat::Rest(_) = param {
+                    // If there's a ...rest argument, we set the rest args bit
+                    // to 1 and set the arg mask to 0b111111.
+                    arg_mask = 0b111111;
+                    rest_args = 0b1;
+                    break;
+                }
+                if i < 6 {
+                    arg_mask |= 0b1 << (5 - i);
+                } else {
+                    // More than 6 arguments, we set the rest args bit to 1.
+                    // This is rare for a Server Action, usually.
+                    rest_args = 0b1;
+                    break;
+                }
+            }
+        } else {
+            // If we can't determine the arguments (e.g. not staticaly analyzable),
+            // we assume all arguments are used.
+            arg_mask = 0b111111;
+            rest_args = 0b1;
+        }
+
+        result.push(type_bit << 7 | arg_mask << 1 | rest_args);
+        result.rotate_right(1);
+
+        hex_encode(result)
+    }
+
     // Check if the function or arrow function is an action function
     fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, Option<String>) {
         let mut is_action_fn = false;
@@ -195,11 +278,7 @@ impl<C: Comments> ServerActions<C> {
         self.export_actions.push(action_name.to_string());
 
         let action_ident = Ident::new(action_name.clone().into(), arrow.span, self.private_ctxt);
-        let action_id = generate_action_id(
-            &self.config.hash_salt,
-            &self.file_name,
-            action_name.to_string().as_str(),
-        );
+        let action_id = self.generate_server_reference_id(&action_name, false, Some(&arrow.params));
 
         let register_action_expr = bind_args_to_ref_expr(
             annotate_ident_as_server_reference(action_ident.clone(), action_id.clone()),
@@ -208,7 +287,7 @@ impl<C: Comments> ServerActions<C> {
                 .cloned()
                 .map(|id| Some(id.as_arg()))
                 .collect(),
-            action_id,
+            action_id.clone(),
         );
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
@@ -262,12 +341,7 @@ impl<C: Comments> ServerActions<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                             args: vec![
-                                generate_action_id(
-                                    &self.config.hash_salt,
-                                    &self.file_name,
-                                    &action_name,
-                                )
-                                .as_arg(),
+                                action_id.as_arg(),
                                 quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                             ],
                             ..Default::default()
@@ -350,7 +424,11 @@ impl<C: Comments> ServerActions<C> {
         self.export_actions.push(action_name.to_string());
 
         let action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
-        let action_id = generate_action_id(&self.config.hash_salt, &self.file_name, &action_name);
+        let action_id = self.generate_server_reference_id(
+            &action_name,
+            false,
+            Some(&function.params.iter().map(|p| p.pat.clone()).collect()),
+        );
 
         let register_action_expr = bind_args_to_ref_expr(
             annotate_ident_as_server_reference(action_ident.clone(), action_id.clone()),
@@ -359,7 +437,7 @@ impl<C: Comments> ServerActions<C> {
                 .cloned()
                 .map(|id| Some(id.as_arg()))
                 .collect(),
-            action_id,
+            action_id.clone(),
         );
 
         function.body.visit_mut_with(&mut ClosureReplacer {
@@ -411,12 +489,7 @@ impl<C: Comments> ServerActions<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                             args: vec![
-                                generate_action_id(
-                                    &self.config.hash_salt,
-                                    &self.file_name,
-                                    &action_name,
-                                )
-                                .as_arg(),
+                                action_id.as_arg(),
                                 quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                             ],
                             ..Default::default()
@@ -478,7 +551,7 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let reference_id =
-            generate_action_id(&self.config.hash_salt, &self.file_name, &export_name);
+            self.generate_server_reference_id(&export_name, true, Some(&arrow.params));
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
@@ -531,12 +604,7 @@ impl<C: Comments> ServerActions<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                             args: vec![
-                                generate_action_id(
-                                    &self.config.hash_salt,
-                                    &self.file_name,
-                                    &export_name,
-                                )
-                                .as_arg(),
+                                reference_id.clone().as_arg(),
                                 quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                             ],
                             ..Default::default()
@@ -677,7 +745,11 @@ impl<C: Comments> ServerActions<C> {
             self.export_actions.push(cache_name.to_string());
         }
 
-        let reference_id = generate_action_id(&self.config.hash_salt, &self.file_name, &cache_name);
+        let reference_id = self.generate_server_reference_id(
+            &cache_name,
+            true,
+            Some(&function.params.iter().map(|p| p.pat.clone()).collect()),
+        );
 
         let register_action_expr =
             annotate_ident_as_server_reference(cache_ident.clone(), reference_id.clone());
@@ -732,12 +804,7 @@ impl<C: Comments> ServerActions<C> {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
                             args: vec![
-                                generate_action_id(
-                                    &self.config.hash_salt,
-                                    &self.file_name,
-                                    &cache_name,
-                                )
-                                .as_arg(),
+                                reference_id.clone().as_arg(),
                                 quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                             ],
                             ..Default::default()
@@ -1531,8 +1598,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         if self.in_action_file || self.in_cache_file.is_some() {
             for (ident, export_name) in self.exported_idents.iter() {
                 if !self.config.is_react_server_layer {
-                    let action_id =
-                        generate_action_id(&self.config.hash_salt, &self.file_name, export_name);
+                    let ref_id = self.generate_server_reference_id(
+                        export_name,
+                        self.in_cache_file.is_some(),
+                        None,
+                    );
 
                     let call_expr_span = Span::dummy_with_cmt();
                     self.comments.add_pure_comment(call_expr_span.lo);
@@ -1546,7 +1616,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         create_ref_ident.clone(),
                                     ))),
                                     args: vec![
-                                        action_id.as_arg(),
+                                        ref_id.as_arg(),
                                         call_server_ident.clone().as_arg(),
                                         Expr::undefined(DUMMY_SP).as_arg(),
                                         find_source_map_url_ident.clone().as_arg(),
@@ -1576,7 +1646,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 create_ref_ident.clone(),
                                             ))),
                                             args: vec![
-                                                action_id.as_arg(),
+                                                ref_id.as_arg(),
                                                 call_server_ident.clone().as_arg(),
                                                 Expr::undefined(DUMMY_SP).as_arg(),
                                                 find_source_map_url_ident.clone().as_arg(),
@@ -1592,15 +1662,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         new.push(export_expr);
                     }
                 } else if self.in_cache_file.is_none() {
-                    let action_id =
-                        generate_action_id(&self.config.hash_salt, &self.file_name, export_name);
+                    let cache_id = self.generate_server_reference_id(export_name, true, None);
 
                     self.annotations.push(Stmt::Expr(ExprStmt {
                         span: DUMMY_SP,
-                        expr: Box::new(annotate_ident_as_server_reference(
-                            ident.clone(),
-                            action_id,
-                        )),
+                        expr: Box::new(annotate_ident_as_server_reference(ident.clone(), cache_id)),
                     }));
                 }
             }
@@ -1674,12 +1740,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             let actions = actions
                 .into_iter()
-                .map(|name| {
-                    (
-                        generate_action_id(&self.config.hash_salt, &self.file_name, &name),
-                        name,
-                    )
-                })
+                .map(|name| (self.generate_server_reference_id(&name, false, None), name))
                 .collect::<ActionsMap>();
             // Prepend a special comment to the top of the file.
             self.comments.add_leading(
@@ -1908,19 +1969,6 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
             })),
         })
     }
-}
-
-fn generate_action_id(hash_salt: &str, file_name: &str, export_name: &str) -> String {
-    // Attach a checksum to the action using sha1:
-    // $$id = sha1('hash_salt' + 'file_name' + ':' + 'export_name');
-    let mut hasher = Sha1::new();
-    hasher.update(hash_salt.as_bytes());
-    hasher.update(file_name.as_bytes());
-    hasher.update(b":");
-    hasher.update(export_name.as_bytes());
-    let result = hasher.finalize();
-
-    hex_encode(result)
 }
 
 fn annotate_ident_as_server_reference(ident: Ident, action_id: String) -> Expr {
