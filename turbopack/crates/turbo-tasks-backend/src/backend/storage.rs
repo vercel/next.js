@@ -114,7 +114,7 @@ impl PersistanceState {
     }
 
     pub fn is_restored(&self, category: TaskDataCategory) -> bool {
-        self.value & category.flag() == 0
+        (self.value & category.flag()) == 0
     }
 }
 
