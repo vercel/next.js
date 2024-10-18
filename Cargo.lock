@@ -1595,7 +1595,7 @@ dependencies = [
  "crossterm_winapi",
  "libc",
  "mio",
- "parking_lot",
+ "parking_lot 0.12.1",
  "signal-hook",
  "signal-hook-mio",
  "winapi",
@@ -1611,7 +1611,7 @@ dependencies = [
  "crossterm_winapi",
  "libc",
  "mio",
- "parking_lot",
+ "parking_lot 0.12.1",
  "signal-hook",
  "signal-hook-mio",
  "winapi",
@@ -1806,7 +1806,7 @@ dependencies = [
  "hashbrown 0.14.5",
  "lock_api",
  "once_cell",
- "parking_lot_core",
+ "parking_lot_core 0.9.8",
 ]
 
 [[package]]
@@ -1820,7 +1820,7 @@ dependencies = [
  "hashbrown 0.14.5",
  "lock_api",
  "once_cell",
- "parking_lot_core",
+ "parking_lot_core 0.9.8",
 ]
 
 [[package]]
@@ -1940,7 +1940,7 @@ dependencies = [
  "backtrace",
  "lazy_static",
  "mintex",
- "parking_lot",
+ "parking_lot 0.12.1",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -2201,7 +2201,7 @@ checksum = "d4029edd3e734da6fe05b6cd7bd2960760a616bd2ddd0d59a0124746d6272af0"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.3.5",
  "windows-sys 0.48.0",
 ]
 
@@ -2260,6 +2260,16 @@ dependencies = [
  "proc-macro2",
  "swc_macros_common",
  "syn 2.0.58",
+]
+
+[[package]]
+name = "fs2"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
+dependencies = [
+ "libc",
+ "winapi",
 ]
 
 [[package]]
@@ -4556,12 +4566,37 @@ checksum = "bb813b8af86854136c6922af0598d719255ecb2179515e6e7730d468f05c9cae"
 
 [[package]]
 name = "parking_lot"
+version = "0.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d17b78036a60663b797adeaee46f5c9dfebb86948d1255007a1d6be0271ff99"
+dependencies = [
+ "instant",
+ "lock_api",
+ "parking_lot_core 0.8.6",
+]
+
+[[package]]
+name = "parking_lot"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3742b2c103b9f06bc9fff0a37ff4912935851bee6d36f3c02bcc755bcfec228f"
 dependencies = [
  "lock_api",
- "parking_lot_core",
+ "parking_lot_core 0.9.8",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.8.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60a2cfe6f0ad2bfc16aefa463b497d5c7a5ecd44a23efa72aa342d90177356dc"
+dependencies = [
+ "cfg-if",
+ "instant",
+ "libc",
+ "redox_syscall 0.2.16",
+ "smallvec",
+ "winapi",
 ]
 
 [[package]]
@@ -4572,7 +4607,7 @@ checksum = "93f00c865fe7cabf650081affecd3871070f26767e7b2070a3ffae14c654b447"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.3.5",
  "smallvec",
  "windows-targets 0.48.1",
 ]
@@ -5247,6 +5282,15 @@ dependencies = [
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_visit",
+]
+
+[[package]]
+name = "redox_syscall"
+version = "0.2.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb5a58c1855b4b6819d59012155603f0b22ad30cad752600aadfcb695265519a"
+dependencies = [
+ "bitflags 1.3.2",
 ]
 
 [[package]]
@@ -6077,6 +6121,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "sled"
+version = "0.34.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f96b4737c2ce5987354855aed3797279def4ebf734436c6aa4552cf8e169935"
+dependencies = [
+ "crc32fast",
+ "crossbeam-epoch",
+ "crossbeam-utils",
+ "fs2",
+ "fxhash",
+ "libc",
+ "log",
+ "parking_lot 0.11.2",
+]
+
+[[package]]
 name = "slice-group-by"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6344,7 +6404,7 @@ dependencies = [
  "napi",
  "napi-derive",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "pathdiff",
  "regex",
  "rustc-hash",
@@ -6433,7 +6493,7 @@ dependencies = [
  "indexmap 2.2.6",
  "is-macro",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "petgraph",
  "radix_fmt",
  "rayon",
@@ -6484,7 +6544,7 @@ dependencies = [
  "new_debug_unreachable",
  "num-bigint",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "rkyv",
  "rustc-hash",
  "serde",
@@ -7013,7 +7073,7 @@ checksum = "4afb24beda205684867ba555f59e4a470afbe67d9deaacc29b1a5e3a4a1fd58d"
 dependencies = [
  "auto_impl",
  "dashmap 5.5.3",
- "parking_lot",
+ "parking_lot 0.12.1",
  "rayon",
  "regex",
  "serde",
@@ -7036,7 +7096,7 @@ dependencies = [
  "lru",
  "normpath",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "path-clean 0.1.0",
  "pathdiff",
  "serde",
@@ -7058,7 +7118,7 @@ dependencies = [
  "num-bigint",
  "num_cpus",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "phf 0.11.2",
  "radix_fmt",
  "rayon",
@@ -7505,7 +7565,7 @@ dependencies = [
  "anyhow",
  "miette",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "swc_common",
 ]
 
@@ -7605,7 +7665,7 @@ dependencies = [
  "enumset",
  "futures",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "serde",
  "serde_json",
  "swc_common",
@@ -7801,7 +7861,7 @@ checksum = "cb94d2f3cc536af71caac6b6fcebf65860b347e7ce0cc9ebe8f70d3e521054ef"
 dependencies = [
  "cfg-if",
  "fastrand 2.0.0",
- "redox_syscall",
+ "redox_syscall 0.3.5",
  "rustix 0.38.31",
  "windows-sys 0.48.0",
 ]
@@ -7987,7 +8047,7 @@ dependencies = [
  "libc",
  "mio",
  "num_cpus",
- "parking_lot",
+ "parking_lot 0.12.1",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2 0.5.6",
@@ -8448,7 +8508,7 @@ dependencies = [
  "indexmap 1.9.3",
  "mopa",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "pin-project-lite",
  "rayon",
  "regex",
@@ -8483,13 +8543,14 @@ dependencies = [
  "indexmap 1.9.3",
  "lmdb-rkv",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "pot",
  "rand",
  "rayon",
  "rustc-hash",
  "serde",
  "serde_path_to_error",
+ "sled",
  "smallvec",
  "thread_local",
  "tokio",
@@ -8579,7 +8640,7 @@ dependencies = [
  "jsonc-parser",
  "mime",
  "notify",
- "parking_lot",
+ "parking_lot 0.12.1",
  "rayon",
  "rstest",
  "serde",
@@ -8663,7 +8724,7 @@ dependencies = [
  "loom",
  "num_cpus",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "rand",
  "ref-cast",
  "regex",
@@ -8740,7 +8801,7 @@ dependencies = [
  "nix 0.26.4",
  "once_cell",
  "owo-colors 3.5.0",
- "parking_lot",
+ "parking_lot 0.12.1",
  "portpicker",
  "rand",
  "regex",
@@ -8912,7 +8973,7 @@ dependencies = [
  "indexmap 1.9.3",
  "mime",
  "mime_guess",
- "parking_lot",
+ "parking_lot 0.12.1",
  "pin-project-lite",
  "serde",
  "serde_json",
@@ -8948,7 +9009,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "once_cell",
- "parking_lot",
+ "parking_lot 0.12.1",
  "petgraph",
  "regex",
  "rustc-hash",
@@ -9099,7 +9160,7 @@ dependencies = [
  "mime",
  "once_cell",
  "owo-colors 3.5.0",
- "parking_lot",
+ "parking_lot 0.12.1",
  "regex",
  "serde",
  "serde_json",
