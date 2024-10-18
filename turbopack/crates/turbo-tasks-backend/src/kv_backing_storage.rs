@@ -517,8 +517,7 @@ fn serialize(task: TaskId, mut data: Vec<CachedDataItem>) -> Result<Vec<u8>> {
                             );
                         if let Err(err) = deserialize {
                             println!(
-                                "Data item would not be deserializable {task_id}: \
-                                 {err:?}\n{item:#?}"
+                                "Data item would not be deserializable {task}: {err:?}\n{item:#?}"
                             );
                             return false;
                         }
