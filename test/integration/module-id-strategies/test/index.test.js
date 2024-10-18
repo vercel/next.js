@@ -64,6 +64,12 @@ describe('minified module ids', () => {
     it('should have no long module id for the next client runtime module', async () => {
       expect(staticBundles).not.toContain('next/dist/client/next-turbopack')
     })
+
+    it('should have no long module id for action loader modules', async () => {
+      expect(ssrBundles).not.toContain(
+        'next-internal/server/app/info/page/actions.js'
+      )
+    })
   })
   ;(!process.env.TURBOPACK || process.env.TURBOPACK_BUILD
     ? describe.skip
@@ -76,6 +82,7 @@ describe('minified module ids', () => {
       app = await launchApp(appDir, appPort)
 
       await renderViaHTTP(appPort, '/')
+      await renderViaHTTP(appPort, '/info')
 
       const ssrPath = join(appDir, '.next/server/chunks/ssr/')
       const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
@@ -116,6 +123,12 @@ describe('minified module ids', () => {
 
     it('should have long module id for the next client runtime module', async () => {
       expect(staticBundles).toContain('next/dist/client/next-dev-turbopack')
+    })
+
+    it('should have long module id for action loader modules', async () => {
+      expect(ssrBundles).toContain(
+        'next-internal/server/app/info/page/actions.js'
+      )
     })
   })
 })
