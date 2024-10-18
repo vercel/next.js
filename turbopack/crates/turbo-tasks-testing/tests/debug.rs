@@ -47,7 +47,7 @@ async fn enum_none_debug() {
 #[tokio::test]
 async fn enum_transparent_debug() {
     run(&REGISTRATION, || async {
-        let a: Vc<Enum> = Enum::Transparent(Transparent(42).cell()).cell();
+        let a: Vc<Enum> = Enum::Transparent(Transparent(42).resolved_cell()).cell();
         assert_eq!(
             format!("{:?}", a.dbg().await?),
             r#"Enum :: Transparent(
@@ -63,7 +63,7 @@ async fn enum_transparent_debug() {
 #[tokio::test]
 async fn enum_inner_vc_debug() {
     run(&REGISTRATION, || async {
-        let a: Vc<Enum> = Enum::Enum(Enum::None.cell()).cell();
+        let a: Vc<Enum> = Enum::Enum(Enum::None.resolved_cell()).cell();
         assert_eq!(
             format!("{:?}", a.dbg().await?),
             r#"Enum :: Enum(
@@ -163,8 +163,8 @@ struct Transparent(u32);
 #[turbo_tasks::value(shared)]
 enum Enum {
     None,
-    Transparent(Vc<Transparent>),
-    Enum(Vc<Enum>),
+    Transparent(ResolvedVc<Transparent>),
+    Enum(ResolvedVc<Enum>),
 }
 
 #[turbo_tasks::value(shared)]
