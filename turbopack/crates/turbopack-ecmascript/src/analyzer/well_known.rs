@@ -218,7 +218,7 @@ pub fn path_join(args: Vec<JsValue>) -> JsValue {
     JsValue::concat(results)
 }
 
-pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
+pub fn path_resolve(cwd: JsValue, args: Vec<JsValue>) -> JsValue {
     // If no path segments are passed, `path.resolve()` will return the absolute
     // path of the current working directory.
     if args.is_empty() {
@@ -228,67 +228,95 @@ pub fn path_resolve(cwd: JsValue, mut args: Vec<JsValue>) -> JsValue {
         return args.into_iter().next().unwrap();
     }
 
-    // path.resolve stops at the string starting with `/`
-    for (idx, arg) in args.iter().enumerate().rev() {
-        if idx != 0 {
-            if let Some(str) = arg.as_str() {
-                if str.starts_with('/') {
-                    return path_resolve(cwd, args.drain(idx..).collect());
+    let args_concat = JsValue::concat(args);
+    let binding = args_concat.expand_alternatives();
+    let args_alt = match binding.as_ref() {
+        JsValue::Concat(_, args) => vec![args],
+        JsValue::Alternatives { values, .. } => values
+            .iter()
+            .map(|v| {
+                if let JsValue::Concat(_, args) = v {
+                    args
+                } else {
+                    unreachable!()
                 }
-            }
-        }
-    }
+            })
+            .collect(),
+        _ => unreachable!(),
+    };
 
-    let mut results_final = Vec::new();
-    let mut results: Vec<JsValue> = Vec::new();
-    for item in args {
-        if let Some(str) = item.as_str() {
-            for str in str.split('/') {
-                match str {
-                    "" | "." => {
-                        if results_final.is_empty() && results.is_empty() {
-                            results_final.push(str.into());
+    let mut args_alt: Vec<_> = args_alt
+        .into_iter()
+        .map(|args| {
+            let mut is_already_absolute = false;
+            let mut results_final = Vec::new();
+            let mut results: Vec<JsValue> = Vec::new();
+            for item in args {
+                if let Some(str) = item.as_str() {
+                    // path.resolve ignores everything before the first absolute string
+                    // (starting with `/` or `\\`)
+                    let str = if let Some(str) =
+                        str.strip_prefix("/").or_else(|| str.strip_prefix("\\\\"))
+                    {
+                        is_already_absolute = true;
+                        results_final.clear();
+                        results_final.push("".into());
+                        results.clear();
+                        str
+                    } else {
+                        str
+                    };
+
+                    for str in str.split('/') {
+                        match str {
+                            "" | "." => {
+                                if results_final.is_empty() && results.is_empty() {
+                                    results_final.push(str.into());
+                                }
+                            }
+                            ".." => {
+                                if results.pop().is_none() {
+                                    results_final.push("..".into());
+                                }
+                            }
+                            _ => results.push(str.into()),
                         }
                     }
-                    ".." => {
-                        if results.pop().is_none() {
-                            results_final.push("..".into());
-                        }
-                    }
-                    _ => results.push(str.into()),
+                } else {
+                    results_final.append(&mut results);
+                    results_final.push(item.clone());
                 }
             }
-        } else {
             results_final.append(&mut results);
-            results_final.push(item);
-        }
+            let mut iter = results_final.into_iter();
+            let first = iter.next().unwrap();
+
+            if !is_already_absolute {
+                results.push(cwd.clone());
+            }
+
+            let mut last_was_str = first.as_str().is_some();
+            results.push(first);
+            for part in iter {
+                let is_str = part.as_str().is_some();
+                if last_was_str && is_str {
+                    results.push("/".into());
+                } else {
+                    results.push(JsValue::alternatives(vec!["/".into(), "".into()]));
+                }
+                results.push(part);
+                last_was_str = is_str;
+            }
+
+            JsValue::concat(results)
+        })
+        .collect();
+
+    if args_alt.len() == 1 {
+        args_alt.pop().unwrap()
+    } else {
+        JsValue::alternatives(args_alt)
     }
-    results_final.append(&mut results);
-    let mut iter = results_final.into_iter();
-    let first = iter.next().unwrap();
-
-    let is_already_absolute =
-        first.is_empty_string() == Some(true) || first.starts_with("/") == Some(true);
-
-    let mut last_was_str = first.as_str().is_some();
-
-    if !is_already_absolute {
-        results.push(cwd);
-    }
-
-    results.push(first);
-    for part in iter {
-        let is_str = part.as_str().is_some();
-        if last_was_str && is_str {
-            results.push("/".into());
-        } else {
-            results.push(JsValue::alternatives(vec!["/".into(), "".into()]));
-        }
-        results.push(part);
-        last_was_str = is_str;
-    }
-
-    JsValue::concat(results)
 }
 
 pub fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
@@ -612,7 +640,7 @@ pub fn path_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
         (.., Some("join")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin),
         (.., Some("dirname")) => JsValue::WellKnownFunction(WellKnownFunctionKind::PathDirname),
         (.., Some("resolve")) => {
-            // cwd is added while resolving in refernces.rs
+            // cwd is added while resolving in references.rs
             JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(Box::new(JsValue::from(
                 "",
             ))))
