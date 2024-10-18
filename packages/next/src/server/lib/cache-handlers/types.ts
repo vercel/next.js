@@ -14,22 +14,19 @@ export interface CacheEntry {
   tags: string[]
   // This is for the client not used to calculate
   // cache entry expiration
-  staleTime: number
+  stale: number
   // When the cache entry was created
   timestamp: number
   // How long the entry can last (should be longer than revalidate)
-  expires: number
+  expire: number
   // How long until the entry should revalidate
   revalidate: number
 }
 
 export interface CacheHandler {
-  get(
-    cacheKey: string | ArrayBuffer,
-    softTags: string[]
-  ): Promise<undefined | CacheEntry>
+  get(cacheKey: string, softTags: string[]): Promise<undefined | CacheEntry>
 
-  set(cacheKey: string | ArrayBuffer, entry: Promise<CacheEntry>): Promise<void>
+  set(cacheKey: string, entry: Promise<CacheEntry>): Promise<void>
 
   // This is called when expireTags('') is called
   // and should update tags manifest accordingly

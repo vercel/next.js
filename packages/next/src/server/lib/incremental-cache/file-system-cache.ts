@@ -18,6 +18,7 @@ import {
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
 } from '../../../lib/constants'
+import { tagsManifest } from './tags-manifest'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -27,15 +28,7 @@ type FileSystemCacheContext = Omit<
   serverDistDir: string
 }
 
-type TagsManifest = {
-  version: 1
-  items: { [tag: string]: { revalidatedAt: number } }
-}
 let memoryCache: LRUCache<CacheHandlerValue> | undefined
-const tagsManifest: TagsManifest = {
-  version: 1,
-  items: {},
-}
 
 export default class FileSystemCache implements CacheHandler {
   private fs: FileSystemCacheContext['fs']
