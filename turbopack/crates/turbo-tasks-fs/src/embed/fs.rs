@@ -13,11 +13,21 @@ pub struct EmbeddedFileSystem {
     name: RcStr,
     #[turbo_tasks(trace_ignore)]
     dir: &'static Dir<'static>,
+    uri_scheme: RcStr,
 }
 
 impl EmbeddedFileSystem {
-    pub(super) fn new(name: RcStr, dir: &'static Dir<'static>) -> Vc<EmbeddedFileSystem> {
-        EmbeddedFileSystem { name, dir }.cell()
+    pub(super) fn new(
+        uri_scheme: RcStr,
+        name: RcStr,
+        dir: &'static Dir<'static>,
+    ) -> Vc<EmbeddedFileSystem> {
+        EmbeddedFileSystem {
+            name,
+            dir,
+            uri_scheme,
+        }
+        .cell()
     }
 }
 
@@ -99,6 +109,15 @@ impl FileSystem for EmbeddedFileSystem {
         }
 
         Ok(FileMeta::default().cell())
+    }
+
+    #[turbo_tasks::function(fs)]
+    async fn file_uri(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+        let path_str = &*fs_path.await?.path;
+        Ok(Vc::cell(RcStr::from(format!(
+            "{}://[{}]/{}",
+            self.uri_scheme, self.name, path_str
+        ))))
     }
 }
 

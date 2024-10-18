@@ -28,6 +28,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{
     glob::Glob, DirectoryEntry, DiskFileSystem, FileSystem, FileSystemPath, ReadGlobResult,
+    UriScheme,
 };
 use turbopack::{
     emit_asset, emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset,
@@ -188,7 +189,12 @@ impl Args {
 }
 
 async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
-    let fs = DiskFileSystem::new(name.into(), root.into(), vec![]);
+    let fs = DiskFileSystem::new(
+        UriScheme::Custom("turbopack".into()).cell(),
+        name.into(),
+        root.into(),
+        vec![],
+    );
     if watch {
         fs.await?.start_watching(None).await?;
     } else {

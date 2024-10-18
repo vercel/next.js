@@ -148,8 +148,8 @@ pub fn replace_url_references(
 ) {
     let mut replacer = AssetReferenceReplacer { urls };
     match ss {
-        StyleSheetLike::LightningCss(ss) => {
-            ss.visit(&mut replacer).unwrap();
+        StyleSheetLike::LightningCss { stylesheet, .. } => {
+            stylesheet.visit(&mut replacer).unwrap();
         }
         StyleSheetLike::Swc { stylesheet, .. } => {
             stylesheet.visit_mut_with(&mut replacer);

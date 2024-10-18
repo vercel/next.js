@@ -30,7 +30,7 @@ use rstest_reuse::{
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
 use turbo_tasks::{backend::Backend, RcStr, ReadRef, TurboTasks, Value, ValueToString, Vc};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, UriScheme};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion,
@@ -406,6 +406,7 @@ fn node_file_trace<B: Backend + 'static>(
                 #[cfg(feature = "bench_against_node_nft")]
                 let before_start = Instant::now();
                 let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
+                    UriScheme::Custom("turbopack".into()).cell(),
                     "workspace".into(),
                     package_root.clone(),
                     vec![],
@@ -416,7 +417,12 @@ fn node_file_trace<B: Backend + 'static>(
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 let original_output = exec_node(package_root, input);
 
-                let output_fs = DiskFileSystem::new("output".into(), directory.clone(), vec![]);
+                let output_fs = DiskFileSystem::new(
+                    UriScheme::Custom("turbopack".into()).cell(),
+                    "output".into(),
+                    directory.clone(),
+                    vec![],
+                );
                 let output_dir = output_fs.root();
 
                 let source = FileSource::new(input);

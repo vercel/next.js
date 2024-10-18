@@ -5,7 +5,7 @@ use turbopack_ecmascript::StaticEcmascriptCode;
 
 #[turbo_tasks::function]
 pub fn embed_fs() -> Vc<Box<dyn FileSystem>> {
-    embed_directory!("turbopack", "$CARGO_MANIFEST_DIR/js/src")
+    embed_directory!("turbopack", "turbopack", "$CARGO_MANIFEST_DIR/js/src")
 }
 
 #[turbo_tasks::function]

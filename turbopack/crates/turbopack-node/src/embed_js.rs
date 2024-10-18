@@ -3,7 +3,7 @@ use turbo_tasks_fs::{embed_directory, FileContent, FileSystem, FileSystemPath};
 
 #[turbo_tasks::function]
 pub fn embed_fs() -> Vc<Box<dyn FileSystem>> {
-    embed_directory!("turbopack-node", "$CARGO_MANIFEST_DIR/js/src")
+    embed_directory!("turbopack", "turbopack-node", "$CARGO_MANIFEST_DIR/js/src")
 }
 
 #[turbo_tasks::function]

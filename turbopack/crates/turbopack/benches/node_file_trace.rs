@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_tasks::{RcStr, ReadConsistency, TurboTasks, Value, Vc};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem, UriScheme};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion,
@@ -74,7 +74,12 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
         let input: RcStr = bench_input.input.clone().into();
         async move {
             let task = tt.spawn_once_task(async move {
-                let input_fs = DiskFileSystem::new("tests".into(), tests_root.clone(), vec![]);
+                let input_fs = DiskFileSystem::new(
+                    UriScheme::Custom("test".into()).cell(),
+                    "tests".into(),
+                    tests_root.clone(),
+                    vec![],
+                );
                 let input = input_fs.root().join(input.clone());
 
                 let input_dir = input.parent().parent();

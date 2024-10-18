@@ -30,7 +30,6 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
-    SOURCE_MAP_PREFIX,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -139,12 +138,7 @@ struct InlineSourcesContentConfig {}
 
 impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
-        match f {
-            FileName::Custom(s) => {
-                format!("{SOURCE_MAP_PREFIX}{s}")
-            }
-            _ => f.to_string(),
-        }
+        f.to_string()
     }
 
     fn inline_sources_content(&self, _f: &FileName) -> bool {
@@ -180,7 +174,9 @@ async fn parse_internal(
     let content = source.content();
     let fs_path_vc = source.ident().path();
     let fs_path = &*fs_path_vc.await?;
-    let ident = &*source.ident().to_string().await?;
+
+    let file_uri = fs_path_vc.uri().await?;
+
     let file_path_hash = hash_xxh3_hash64(&*source.ident().to_string().await?) as u128;
     let ty = ty.into_value();
     let content = match content.await {
@@ -210,7 +206,7 @@ async fn parse_internal(
                         string.into_owned(),
                         fs_path_vc,
                         fs_path,
-                        ident,
+                        &file_uri,
                         file_path_hash,
                         source,
                         ty,
@@ -250,7 +246,7 @@ async fn parse_file_content(
     string: String,
     fs_path_vc: Vc<FileSystemPath>,
     fs_path: &FileSystemPath,
-    ident: &str,
+    file_uri: &str,
     file_path_hash: u128,
     source: Vc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
@@ -278,7 +274,7 @@ async fn parse_file_content(
 
     let mut result = WrapFuture::new(
         async {
-            let file_name = FileName::Custom(ident.to_string());
+            let file_name = FileName::Custom(file_uri.to_string());
             let fm = source_map.new_source_file(file_name.clone().into(), string);
 
             let comments = SwcComments::default();
