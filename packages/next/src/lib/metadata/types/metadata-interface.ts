@@ -9,9 +9,11 @@ import type {
   Facebook,
   FormatDetection,
   ItunesApp,
+  Pinterest,
   ResolvedAppleWebApp,
   ResolvedAppLinks,
   ResolvedFacebook,
+  ResolvedPinterest,
   ViewportLayout,
 } from './extra-types'
 import type {
@@ -342,6 +344,18 @@ interface Metadata extends DeprecatedMetadataFields {
   facebook?: null | Facebook
 
   /**
+   * The Pinterest metadata for the document.
+   * You can choose whether or not to opt out of rich pin data.
+   *
+   * @example
+   * ```tsx
+   *
+   * <meta name="pinterest-rich-pin" content="false" />
+   * ```
+   */
+  pinterest?: null | Pinterest
+
+  /**
    * The common verification tokens for the document.
    * @example
    * ```tsx
@@ -530,6 +544,8 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   twitter: null | ResolvedTwitterMetadata
 
   facebook: null | ResolvedFacebook
+
+  pinterest: null | ResolvedPinterest
 
   // common verification tokens
   verification: null | ResolvedVerification
