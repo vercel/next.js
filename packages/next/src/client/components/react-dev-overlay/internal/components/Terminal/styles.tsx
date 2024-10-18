@@ -42,6 +42,7 @@ const styles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
+    line-break: anywhere;
   }
   [data-with-open-in-editor-link-import-trace] {
     margin-left: var(--size-gap-double);
