@@ -142,7 +142,7 @@ export async function runTransform(
     // To save memory, we "slide the window" to keep only the last three line breaks.
     // We save three line breaks because the EOL is always "\n".
     execaChildProcess.stdout.on('data', (chunk) => {
-      lastThreeLineBreaks = chunk.toString('utf-8') // reset to latest chunk
+      lastThreeLineBreaks += chunk.toString('utf-8')
 
       let cutoff = lastThreeLineBreaks.length
 
