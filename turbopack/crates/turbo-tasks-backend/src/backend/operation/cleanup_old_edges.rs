@@ -89,13 +89,13 @@ impl Operation for CleanupOldEdgesOperation {
                                     (count != 0).then_some(count)
                                 });
                                 if is_aggregating_node(get_aggregation_number(&task)) {
-                                    queue.push(AggregationUpdateJob::InnerLostFollowers {
-                                        upper_ids: vec![task_id],
+                                    queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
+                                        upper_id: task_id,
                                         lost_follower_ids: children,
                                     });
                                 } else {
                                     let upper_ids = get_uppers(&task);
-                                    queue.push(AggregationUpdateJob::InnerLostFollowers {
+                                    queue.push(AggregationUpdateJob::InnerOfUppersLostFollowers {
                                         upper_ids,
                                         lost_follower_ids: children,
                                     });
