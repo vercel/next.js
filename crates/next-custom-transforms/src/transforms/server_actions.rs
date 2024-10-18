@@ -2022,10 +2022,16 @@ fn attach_name_to_default_expr(ident: &Ident, extra_items: &mut Vec<ModuleItem>)
                     spread: None,
                     expr: Box::new(Expr::Object(ObjectLit {
                         span: DUMMY_SP,
-                        props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                            key: PropName::Str("value".into()),
-                            value: Box::new(Expr::Lit(Lit::Str("default".into()))),
-                        })))],
+                        props: vec![
+                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                key: PropName::Str("value".into()),
+                                value: Box::new(Expr::Lit(Lit::Str("default".into()))),
+                            }))),
+                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                key: PropName::Str("writable".into()),
+                                value: Box::new(Expr::Lit(Lit::Bool(false.into()))),
+                            }))),
+                        ],
                     })),
                 },
             ],
