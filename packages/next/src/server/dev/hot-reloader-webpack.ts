@@ -408,7 +408,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   public clearHmrServerError(): void {
     if (this.hmrServerError) {
       this.setHmrServerError(null)
-      this.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE })
+      this.send({
+        action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: 'clear hmr server error',
+      })
     }
   }
 
@@ -1359,7 +1362,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         this.serverPrevDocumentHash = documentChunk.hash || null
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
-        this.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE })
+        this.send({
+          action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+          data: '_document has changed',
+        })
       }
     )
 

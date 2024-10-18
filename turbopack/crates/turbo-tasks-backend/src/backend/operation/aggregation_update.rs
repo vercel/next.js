@@ -8,11 +8,14 @@ use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use turbo_tasks::{FxIndexMap, FxIndexSet, SessionId, TaskId};
+use turbo_tasks::{FxIndexMap, FxIndexSet, SessionId, TaskId, TraitTypeId};
 
 use crate::{
     backend::{
-        operation::{invalidate::make_task_dirty, ExecuteContext, Operation, TaskGuard},
+        operation::{
+            invalidate::{make_task_dirty, TaskDirtyCause},
+            ExecuteContext, Operation, TaskGuard,
+        },
         storage::{get, get_many, iter_many, remove, update, update_count},
         TaskDataCategory,
     },
@@ -101,8 +104,9 @@ pub enum AggregationUpdateJob {
         upper_ids: Vec<TaskId>,
         update: AggregatedDataUpdate,
     },
-    Invalidate {
+    InvalidateDueToCollectiblesChange {
         task_ids: SmallVec<[TaskId; 4]>,
+        collectible_type: TraitTypeId,
     },
     BalanceEdge {
         upper_id: TaskId,
@@ -284,8 +288,9 @@ impl AggregatedDataUpdate {
                     }
                 );
                 if !dependent.is_empty() {
-                    queue.push(AggregationUpdateJob::Invalidate {
+                    queue.push(AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                         task_ids: dependent,
+                        collectible_type: ty,
                     })
                 }
             }
@@ -556,9 +561,17 @@ impl AggregationUpdateQueue {
                 AggregationUpdateJob::AggregatedDataUpdate { upper_ids, update } => {
                     self.aggregated_data_update(upper_ids, ctx, update);
                 }
-                AggregationUpdateJob::Invalidate { task_ids } => {
+                AggregationUpdateJob::InvalidateDueToCollectiblesChange {
+                    task_ids,
+                    collectible_type,
+                } => {
                     for task_id in task_ids {
-                        make_task_dirty(task_id, self, ctx);
+                        make_task_dirty(
+                            task_id,
+                            TaskDirtyCause::CollectiblesChange { collectible_type },
+                            self,
+                            ctx,
+                        );
                     }
                 }
             }

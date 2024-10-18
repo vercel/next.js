@@ -76,6 +76,7 @@ interface RemovedPageAction {
 
 export interface ReloadPageAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE
+  data: string
 }
 
 interface ServerComponentChangesAction {

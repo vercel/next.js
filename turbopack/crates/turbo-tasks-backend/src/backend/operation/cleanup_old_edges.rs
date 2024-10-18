@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::TaskId;
+use turbo_tasks::{TaskId, ValueTypeId};
 
 use crate::{
     backend::{
@@ -10,7 +10,7 @@ use crate::{
                 get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
                 AggregationUpdateQueue,
             },
-            invalidate::make_task_dirty,
+            invalidate::{make_task_dirty, TaskDirtyCause},
             AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
         },
         storage::{update, update_count},
@@ -41,7 +41,7 @@ pub enum OutdatedEdge {
     CellDependency(CellRef),
     OutputDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
-    RemovedCellDependent(TaskId),
+    RemovedCellDependent(TaskId, ValueTypeId),
 }
 
 impl CleanupOldEdgesOperation {
@@ -177,8 +177,13 @@ impl Operation for CleanupOldEdgesOperation {
                                     });
                                 }
                             }
-                            OutdatedEdge::RemovedCellDependent(task_id) => {
-                                make_task_dirty(task_id, queue, ctx);
+                            OutdatedEdge::RemovedCellDependent(task_id, value_type) => {
+                                make_task_dirty(
+                                    task_id,
+                                    TaskDirtyCause::CellRemoved { value_type },
+                                    queue,
+                                    ctx,
+                                );
                             }
                         }
                     }
