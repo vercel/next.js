@@ -1577,14 +1577,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     let action_id =
                         generate_action_id(&self.config.hash_salt, &self.file_name, export_name);
 
-                    let call_expr_span = Span::dummy_with_cmt();
-                    self.comments.add_pure_comment(call_expr_span.lo);
                     if export_name == "default" {
+                        self.comments.add_pure_comment(ident.span.lo);
+
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
                             ExportDefaultExpr {
-                                span: ident.span,
+                                span: DUMMY_SP,
                                 expr: Box::new(Expr::Call(CallExpr {
-                                    span: call_expr_span,
+                                    span: ident.span,
                                     callee: Callee::Expr(Box::new(Expr::Ident(
                                         create_ref_ident.clone(),
                                     ))),
@@ -1601,6 +1601,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ));
                         new.push(export_expr);
                     } else {
+                        let call_expr_span = Span::dummy_with_cmt();
+                        self.comments.add_pure_comment(call_expr_span.lo);
+
                         let export_expr =
                             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                                 span: DUMMY_SP,
