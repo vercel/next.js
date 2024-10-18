@@ -1,9 +1,9 @@
-import type { NextConfig } from 'next'
+import { defineConfig } from 'next/config'
 
-const nextConfig: NextConfig = {
+const nextConfig = defineConfig({
   env: {
     foo: 'foo',
   },
-}
+})
 
 export { nextConfig as default }
