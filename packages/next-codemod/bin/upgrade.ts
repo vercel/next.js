@@ -307,6 +307,20 @@ export async function runUpgrade(
   runInstallation(packageManager)
 
   for (const codemod of codemods) {
+    if (codemod === 'next-request-geo-ip') {
+      const { isAppDeployedToVercel } = await prompts(
+        {
+          type: 'confirm',
+          name: 'isAppDeployedToVercel',
+          message: `Is your app deployed to Vercel? (Required to run the selected codemod "next-request-geo-ip")`,
+          initial: true,
+        },
+        { onCancel }
+      )
+      if (!isAppDeployedToVercel) {
+        continue
+      }
+    }
     await runTransform(codemod, process.cwd(), { force: true, verbose })
   }
 
