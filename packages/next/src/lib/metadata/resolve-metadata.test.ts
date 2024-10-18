@@ -588,6 +588,31 @@ describe('accumulateMetadata', () => {
   })
 
   describe('alternate', () => {
+    it('should support URL alternate', async () => {
+      const metadataItems: MetadataItems = [
+        [
+          {
+            alternates: {
+              languages: {
+                'en-US': [{ url: new URL('/en-US', 'https://example.com') }],
+                'de-DE': [{ url: new URL('/de-DE', 'https://example.com') }],
+              },
+            },
+          },
+          null,
+        ],
+      ]
+      const metadata = await accumulateMetadata(metadataItems)
+      expect(metadata).toMatchObject({
+        alternates: {
+          languages: {
+            'en-US': [{ url: 'https://example.com/en-US' }],
+            'de-DE': [{ url: 'https://example.com/de-DE' }],
+          },
+        },
+      })
+    })
+
     it('should support string alternate', async () => {
       const metadataItems: MetadataItems = [
         [
