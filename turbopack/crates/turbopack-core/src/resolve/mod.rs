@@ -596,7 +596,7 @@ impl ResolveResult {
         }
     }
 
-    pub fn merge_alternatives(&mut self, other: &ResolveResult) {
+    pub fn merge_alternatives(mut self, other: &ResolveResult) -> ResolveResult {
         for (k, v) in other.primary.iter() {
             if !self.primary.contains_key(k) {
                 self.primary.insert(k.clone(), v.clone());
@@ -614,6 +614,8 @@ impl ResolveResult {
                 .filter(|source| !set.contains(source))
                 .copied(),
         );
+
+        self
     }
 
     pub fn is_unresolveable_ref(&self) -> bool {
@@ -790,55 +792,19 @@ impl ResolveResult {
         Ok(ResolveResult::unresolveable_with_affecting_sources(affecting_sources).into())
     }
 
+    /// See [alternatives_inner]
     #[turbo_tasks::function]
     pub async fn alternatives(results: Vec<Vc<ResolveResult>>) -> Result<Vc<Self>> {
-        if results.len() == 1 {
-            return Ok(results.into_iter().next().unwrap());
-        }
-        let mut iter = results.into_iter().try_join().await?.into_iter();
-        if let Some(current) = iter.next() {
-            let mut current = current.clone_value();
-            for result in iter {
-                // For clippy -- This explicit deref is necessary
-                let other = &*result;
-                current.merge_alternatives(other);
-            }
-            Ok(Self::cell(current))
-        } else {
-            Ok(Self::cell(ResolveResult::unresolveable()))
-        }
+        alternatives_inner(results, None).await
     }
 
+    /// See [alternatives_inner]
     #[turbo_tasks::function]
     pub async fn alternatives_with_affecting_sources(
         results: Vec<Vc<ResolveResult>>,
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
-        if affecting_sources.is_empty() {
-            return Ok(Self::alternatives(results));
-        }
-        if results.len() == 1 {
-            return Ok(results
-                .into_iter()
-                .next()
-                .unwrap()
-                .with_affecting_sources(affecting_sources));
-        }
-        let mut iter = results.into_iter().try_join().await?.into_iter();
-        if let Some(current) = iter.next() {
-            let mut current = current.clone_value();
-            for result in iter {
-                // For clippy -- This explicit deref is necessary
-                let other = &*result;
-                current.merge_alternatives(other);
-            }
-            current.affecting_sources.extend(affecting_sources);
-            Ok(Self::cell(current))
-        } else {
-            Ok(Self::cell(
-                ResolveResult::unresolveable_with_affecting_sources(affecting_sources),
-            ))
-        }
+        alternatives_inner(results, Some(affecting_sources)).await
     }
 
     #[turbo_tasks::function]
@@ -968,6 +934,39 @@ impl ResolveResult {
         }
         .into()
     }
+}
+
+/// Create a new [ResolveResult] from a list of [ResolveResult]s.
+///
+/// If the list contains only one [ResolveResult], it will be returned
+/// directly. Otherwise, a new [ResolveResult] will be created with the
+/// alternatives of the list.
+///
+/// If the list is empty, an unresolveable [ResolveResult] will be returned.
+async fn alternatives_inner(
+    results: Vec<Vc<ResolveResult>>,
+    affecting_sources: Option<Vec<Vc<Box<dyn Source>>>>,
+) -> Result<Vc<ResolveResult>> {
+    let start = match (results.as_slice(), affecting_sources) {
+        // optimisation to avoid resolving single result
+        ([result], Some(af)) => return Ok(result.with_affecting_sources(af)),
+        ([result], None) => return Ok(*result),
+        (_, Some(af)) => ResolveResult::unresolveable_with_affecting_sources(af),
+        (_, None) => ResolveResult::unresolveable(),
+    };
+
+    let value = results
+        .into_iter()
+        .try_join()
+        .await?
+        .into_iter()
+        .fold(start, |current, result| {
+            // For clippy -- This explicit deref is necessary
+            let result = &*result;
+            current.merge_alternatives(result)
+        });
+
+    Ok(ResolveResult::cell(value))
 }
 
 #[turbo_tasks::value(transparent)]
@@ -1295,11 +1294,7 @@ async fn find_package(
 }
 
 fn merge_results(results: Vec<Vc<ResolveResult>>) -> Vc<ResolveResult> {
-    match results.len() {
-        0 => ResolveResult::unresolveable().into(),
-        1 => results.into_iter().next().unwrap(),
-        _ => ResolveResult::alternatives(results),
-    }
+    ResolveResult::alternatives(results)
 }
 
 fn merge_results_with_affecting_sources(
