@@ -171,12 +171,13 @@ export async function runTransform(
     throw error
   }
 
-  // With ANSI color codes, it will be '\x1B[39m\x1B[32m0 ok'.
-  // Without, it will be '0 ok'.
+  // With ANSI color codes, it will be "\x1B[39m\x1B[32m0 ok".
+  // Without, it will be "0 ok".
   const targetOkLine = lastThreeLineBreaks.split('\n').at(-3)
-  const hasNoChanges = targetOkLine.includes('0 ok')
+  const hasChanges =
+    targetOkLine.includes('ok') && !targetOkLine.includes('0 ok')
 
-  if (!dry && transformer === 'built-in-next-font' && !hasNoChanges) {
+  if (!dry && transformer === 'built-in-next-font' && hasChanges) {
     const { uninstallNextFont } = await prompts(
       {
         type: 'confirm',
@@ -193,20 +194,9 @@ export async function runTransform(
     }
   }
 
-  if (!dry && transformer === 'next-request-geo-ip' && !hasNoChanges) {
-    const { installVercelFunctions } = await prompts(
-      {
-        type: 'confirm',
-        name: 'installVercelFunctions',
-        message: 'Do you want to install `@vercel/functions`?',
-        initial: true,
-      },
-      { onCancel }
-    )
-
-    if (installVercelFunctions) {
-      console.log('Installing `@vercel/functions`...')
-      installPackages(['@vercel/functions'])
-    }
+  // When has changes, it requires `@vercel/functions`, so skip prompt.
+  if (!dry && transformer === 'next-request-geo-ip' && hasChanges) {
+    console.log('Installing `@vercel/functions`...')
+    installPackages(['@vercel/functions'])
   }
 }
