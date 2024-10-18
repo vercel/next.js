@@ -4,6 +4,9 @@ export default $$RSC_SERVER_ACTION_0 = async (a, b)=>{
     console.log(a, b);
 };
 var $$RSC_SERVER_ACTION_0;
+Object.defineProperty($$RSC_SERVER_ACTION_0, "name", {
+    "value": "default"
+});
 import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     $$RSC_SERVER_ACTION_0

@@ -1439,7 +1439,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     self.exported_idents
                                         .push((new_ident.clone(), "default".into()));
 
-                                    *default_expr.expr = attach_name_to_expr(
+                                    *default_expr.expr = attach_name_to_default_expr(
                                         new_ident,
                                         Expr::Arrow(arrow.clone()),
                                         &mut self.extra_items,
@@ -1464,7 +1464,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 self.exported_idents
                                     .push((new_ident.clone(), "default".into()));
 
-                                *default_expr.expr = attach_name_to_expr(
+                                *default_expr.expr = attach_name_to_default_expr(
                                     new_ident,
                                     Expr::Call(call.clone()),
                                     &mut self.extra_items,
@@ -1976,7 +1976,11 @@ fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str) -> Box<Expr> {
     }))
 }
 
-fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleItem>) -> Expr {
+fn attach_name_to_default_expr(
+    ident: Ident,
+    expr: Expr,
+    extra_items: &mut Vec<ModuleItem>,
+) -> Expr {
     // Create the variable `var $$ACTION_0;`
     extra_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
         span: DUMMY_SP,
@@ -1989,6 +1993,44 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
         }],
         ..Default::default()
     })))));
+
+    // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
+    extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: Box::new(Expr::Call(CallExpr {
+            span: DUMMY_SP,
+            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                span: DUMMY_SP,
+                obj: Box::new(Expr::Ident(Ident::new(
+                    format!("Object").into(),
+                    DUMMY_SP,
+                    ident.ctxt,
+                ))),
+                prop: MemberProp::Ident(IdentName::new(format!("defineProperty").into(), DUMMY_SP)),
+            }))),
+            args: vec![
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(Expr::Ident(ident.clone())),
+                },
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(Expr::Lit(Lit::Str("name".into()))),
+                },
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(Expr::Object(ObjectLit {
+                        span: DUMMY_SP,
+                        props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                            key: PropName::Str("value".into()),
+                            value: Box::new(Expr::Lit(Lit::Str("default".into()))),
+                        })))],
+                    })),
+                },
+            ],
+            ..Default::default()
+        })),
+    })));
 
     if let Expr::Paren(_paren) = &expr {
         expr
