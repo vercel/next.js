@@ -1,0 +1,12 @@
+@use '@carbon/react/scss/colors';
+
+// overriding header tooltip bg color
+// because the navigation is dark themed while the content is white
+// which means the dark theme tooltip bg blends into the white content bg
+.cds--header__global .cds--popover-content {
+  background-color: colors.$gray-20;
+}
+
+.cds--header__global .cds--popover-caret {
+  background-color: colors.$gray-20;
+}
