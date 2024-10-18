@@ -269,7 +269,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                      install it into the project directory by running "
                         .into(),
                 ),
-                StyledString::Code(format!("pnpm install {package}").into()),
+                StyledString::Code(format!("npm install {package}").into()),
                 StyledString::Text(" from the project directory.".into()),
             ]);
         };
