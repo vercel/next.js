@@ -229,5 +229,38 @@ describe('next/font/local loader', () => {
         "
       `)
     })
+    test('fallbackPaths', async () => {
+      const { css } = await nextFontLocalFontLoader({
+        functionName: '',
+        data: [
+          {
+            weight: '400',
+            src: './fonts/font1.woff2',
+            fallbackPaths: ['./fonts/font1.woff', './fonts/font1.otf'],
+            adjustFontFallback: false,
+          },
+        ],
+        emitFontFile: (_, ext) => `/_next/static/media/my-font.${ext}`,
+        resolve: jest.fn(),
+        isDev: false,
+        isServer: true,
+        variableName: 'myFont',
+        loaderContext: {
+          fs: {
+            readFile: (path: string, cb: any) => cb(null, path),
+          },
+        } as any,
+      })
+
+      expect(css).toMatchInlineSnapshot(`
+        "@font-face {
+        font-family: myFont;
+        src: url(/_next/static/media/my-font.woff2) format('woff2'),url(/_next/static/media/my-font.woff) format('woff'),url(/_next/static/media/my-font.otf) format('opentype');
+        font-display: swap;
+        font-weight: 400;
+        }
+        "
+      `)
+    })
   })
 })
