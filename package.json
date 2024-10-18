@@ -200,7 +200,6 @@
     "playwright": "1.48.0",
     "playwright-chromium": "1.48.0",
     "postcss": "8.4.31",
-    "postcss-nested": "4.2.1",
     "postcss-pseudoelements": "5.0.0",
     "postcss-short-size": "4.0.0",
     "postcss-trolling": "0.1.7",
