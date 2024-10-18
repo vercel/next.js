@@ -126,6 +126,8 @@ pub fn make_task_dirty_internal(
         }
         _ => unreachable!(),
     };
+    let _span =
+        tracing::trace_span!("make task dirty", name = ctx.get_task_description(task_id)).entered();
     let aggregated_update = dirty_container.update_with_dirty_state(&DirtyState {
         clean_in_session: None,
     });

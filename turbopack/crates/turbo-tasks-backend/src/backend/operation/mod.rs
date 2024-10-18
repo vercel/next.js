@@ -84,6 +84,7 @@ pub trait ExecuteContext<'e>: Sized {
         run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, Self::Backend>),
     );
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static;
+    fn get_task_description(&self, task_id: TaskId) -> String;
 }
 
 pub struct ParentRef<'a> {
@@ -332,6 +333,10 @@ where
 
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static {
         self.backend.get_task_desc_fn(task_id)
+    }
+
+    fn get_task_description(&self, task_id: TaskId) -> String {
+        self.backend.get_task_description(task_id)
     }
 }
 
