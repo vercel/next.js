@@ -183,6 +183,44 @@ describe('Error overlay for hydration errors in App router', () => {
     await cleanup()
   })
 
+  it('should show correct hydration error when extra attributes set on server', async () => {
+    const { browser, cleanup, session } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/layout.js',
+          outdent`
+          'use client'
+          const isServer = typeof window === 'undefined'
+          export default function Root({ children }) {
+            return (
+              <html 
+                {...(isServer ? ({ className: 'server-html'}) : undefined)}
+              >
+                <body>{children}</body>
+              </html>
+            )
+          }
+          `,
+        ],
+        ['app/page.js', `export default function Page() { return 'page' }`],
+      ])
+    )
+    await session.waitForAndOpenRuntimeError()
+
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+    expect(pseudoHtml).toMatchInlineSnapshot(`"-className="server-html""`)
+
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+    )
+
+    await cleanup()
+  })
+
   it('should show correct hydration error when client renders an extra text node', async () => {
     const { browser, cleanup, session } = await sandbox(
       next,
