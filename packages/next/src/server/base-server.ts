@@ -928,7 +928,7 @@ export default abstract class Server<
             const route = rootSpanAttributes.get('next.route')
             if (route) {
               const name = isRSCRequest
-                ? `RSC ${method} ${route}`
+                ? `${method} ${route} (partial render tree)`
                 : `${method} ${route}`
 
               span.setAttributes({
@@ -940,7 +940,7 @@ export default abstract class Server<
             } else {
               span.updateName(
                 isRSCRequest
-                  ? `RSC ${method} ${req.url}`
+                  ? `${method} ${req.url} (partial render tree)`
                   : `${method} ${req.url}`
               )
             }
