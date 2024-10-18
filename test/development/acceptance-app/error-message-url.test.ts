@@ -52,7 +52,7 @@ describe('Error overlay - error message urls', () => {
 
     await session.waitForAndOpenRuntimeError()
 
-    const link = await browser.elementByCss('#nextjs__container_errors_desc a')
+    const link = await browser.elementByCss('#nextjs__container_errors__link a')
     const text = await link.text()
     const href = await link.getAttribute('href')
     expect(text).toEqual(

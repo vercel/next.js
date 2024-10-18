@@ -178,7 +178,8 @@ export async function runUpgrade(
   // The following React codemods are for React 19
   if (
     !shouldStayOnReact18 &&
-    compareVersions(targetReactVersion, '19.0.0-beta.0') >= 0
+    compareVersions(targetReactVersion, '18.9999.9999') > 0 &&
+    compareVersions(installedReactVersion, '18.9999.9999') <= 0
   ) {
     shouldRunReactCodemods = await suggestReactCodemods()
     shouldRunReactTypesCodemods = await suggestReactTypesCodemods()

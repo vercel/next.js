@@ -8,10 +8,7 @@ const reactUnifiedMismatchWarning = `Hydration failed because the server rendere
 const reactHydrationErrorDocLink = 'https://react.dev/link/hydration-mismatch'
 
 export const getDefaultHydrationErrorMessage = () => {
-  return (
-    reactUnifiedMismatchWarning +
-    '\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
-  )
+  return reactUnifiedMismatchWarning
 }
 
 export function isHydrationError(error: unknown): boolean {
