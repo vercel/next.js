@@ -67,9 +67,10 @@ impl<T: KeyValueDatabase + 'static> KeyValueDatabase for ReadTransactionCache<T>
             self.database.begin_read_transaction()?
         };
 
+        let thread_locals = guard.clone();
         Ok(CachedReadTransaction::<T> {
             tx: Some(tx),
-            this: self,
+            thread_locals,
         })
     }
 
@@ -97,13 +98,13 @@ impl<T: KeyValueDatabase + 'static> KeyValueDatabase for ReadTransactionCache<T>
 
 pub struct CachedReadTransaction<'l, T: KeyValueDatabase + 'static> {
     tx: Option<T::ReadTransaction<'l>>,
-    this: &'l ReadTransactionCache<T>,
+    thread_locals: Arc<ThreadLocal<ThreadLocalReadTransactionsContainer<T>>>,
 }
 
 impl<T: KeyValueDatabase> Drop for CachedReadTransaction<'_, T> {
     fn drop(&mut self) {
-        let guard = self.this.read_transactions_cache.load();
-        let container = guard
+        let container = self
+            .thread_locals
             .get_or(|| ThreadLocalReadTransactionsContainer(UnsafeCell::new(Default::default())));
         // Safety: We cast it to 'static lifetime, but it will be casted back to 'env when
         // taken. It's safe since this will not outlive the environment. We need to
