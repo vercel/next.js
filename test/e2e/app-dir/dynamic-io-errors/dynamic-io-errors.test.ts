@@ -79,7 +79,7 @@ function runTests(options: { withMinification: boolean }) {
 
         expectError('Error occurred prerendering page "/"')
         expectError(
-          'Error: Route / has a dynamic `generateMetadata` but nothing else is dynamic.'
+          'Error: Route "/" has a `generateMetadata` that depends on Request data (`cookies()`, etc...) or external data (`fetch(...)`, etc...) but the rest of the route was static or only used cached data (`"use cache"`). If you expected this route to be prerenderable update your `generateMetadata` to not use Request data and only use cached external data. Otherwise, add `await connection()` somewhere within this route to indicate explicitly it should not be prerendered.'
         )
       })
     })
@@ -120,7 +120,7 @@ function runTests(options: { withMinification: boolean }) {
 
         expectError('Error occurred prerendering page "/"')
         expectError(
-          'Error: Route / has a dynamic `generateMetadata` but nothing else is dynamic.'
+          'Error: Route "/" has a `generateMetadata` that depends on Request data (`cookies()`, etc...) or external data (`fetch(...)`, etc...) but the rest of the route was static or only used cached data (`"use cache"`). If you expected this route to be prerenderable update your `generateMetadata` to not use Request data and only use cached external data. Otherwise, add `await connection()` somewhere within this route to indicate explicitly it should not be prerendered.'
         )
       })
     })
@@ -203,7 +203,7 @@ function runTests(options: { withMinification: boolean }) {
 
         expectError('Error occurred prerendering page "/"')
         expectError(
-          'Error: Route / has a dynamic `generateViewport` but nothing else is dynamic.'
+          'Error: Route "/" has a `generateViewport` that depends on Request data (`cookies()`, etc...) or external data (`fetch(...)`, etc...) but the rest of the route was static or only used cached data (`"use cache"`). If you expected this route to be prerenderable update your `generateViewport` to not use Request data and only use cached external data. Otherwise, add `await connection()` somewhere within this route to indicate explicitly it should not be prerendered.'
         )
       })
     })
@@ -322,7 +322,7 @@ function runTests(options: { withMinification: boolean }) {
         const expectError = createExpectError(next.cliOutput)
 
         expectError(
-          'Error: Route / performed an IO operation that was not cached and no Suspense boundary was found to define a fallback UI.',
+          'In Route "/" this component accessed data without a fallback UI available somewhere above it using Suspense.',
           // Turbopack doesn't support disabling minification yet
           withMinification || isTurbopack ? undefined : 'IndirectionTwo'
         )
@@ -331,15 +331,13 @@ function runTests(options: { withMinification: boolean }) {
           // one task actually reports and error at the moment. We should fix upstream but for now we exclude the second error when PPR is off
           // because we are using canary React and renderToReadableStream rather than experimental React and prerender
           expectError(
-            'Error: Route / performed an IO operation that was not cached and no Suspense boundary was found to define a fallback UI.',
+            'In Route "/" this component accessed data without a fallback UI available somewhere above it using Suspense.',
             // Turbopack doesn't support disabling minification yet
             withMinification || isTurbopack ? undefined : 'IndirectionThree'
           )
         }
         expectError('Error occurred prerendering page "/"')
-        expectError(
-          'Error: Route / has one or more dynamic components without a defined fallback UI.'
-        )
+        expectError('Error: Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })

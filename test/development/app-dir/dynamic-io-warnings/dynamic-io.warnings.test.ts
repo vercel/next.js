@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('dynamic-requests warnings', () => {
+// I am temporarily deactivating these tests. We turned off the dev time warning but will reintroduce it when we add in dev-time prerendering.
+// The tests will likely have to change but I'd like to keep the fixture and assertions as a starting point.
+describe.skip('dynamic-requests warnings', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
