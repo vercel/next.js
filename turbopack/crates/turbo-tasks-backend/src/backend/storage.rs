@@ -192,11 +192,19 @@ where
         }
     }
 
-    fn get_map_mut(&mut self, key: &T::Key) -> &mut AutoMap<T::Key, T::Value> {
+    fn get_or_create_map_mut(&mut self, key: &T::Key) -> &mut AutoMap<T::Key, T::Value> {
         self.check_threshold();
         match self {
             InnerStorage::Plain { map, .. } => map,
             InnerStorage::Indexed { map, .. } => map.entry(key.index()).or_default(),
+        }
+    }
+
+    fn get_map_mut(&mut self, key: &T::Key) -> Option<&mut AutoMap<T::Key, T::Value>> {
+        self.check_threshold();
+        match self {
+            InnerStorage::Plain { map, .. } => Some(map),
+            InnerStorage::Indexed { map, .. } => map.get_mut(&key.index()),
         }
     }
 
@@ -216,7 +224,7 @@ where
 
     pub fn add(&mut self, item: T) -> bool {
         let (key, value) = item.into_key_and_value();
-        match self.get_map_mut(&key).entry(key) {
+        match self.get_or_create_map_mut(&key).entry(key) {
             Entry::Occupied(_) => false,
             Entry::Vacant(e) => {
                 e.insert(value);
@@ -227,11 +235,11 @@ where
 
     pub fn insert(&mut self, item: T) -> Option<T::Value> {
         let (key, value) = item.into_key_and_value();
-        self.get_map_mut(&key).insert(key, value)
+        self.get_or_create_map_mut(&key).insert(key, value)
     }
 
     pub fn remove(&mut self, key: &T::Key) -> Option<T::Value> {
-        self.get_map_mut(key).remove(key)
+        self.get_map_mut(key).and_then(|m| m.remove(key))
     }
 
     pub fn get(&self, key: &T::Key) -> Option<&T::Value> {
@@ -239,7 +247,7 @@ where
     }
 
     pub fn get_mut(&mut self, key: &T::Key) -> Option<&mut T::Value> {
-        self.get_map_mut(key).get_mut(key)
+        self.get_map_mut(key).and_then(|m| m.get_mut(key))
     }
 
     pub fn has_key(&self, key: &T::Key) -> bool {
@@ -283,7 +291,7 @@ where
         key: &T::Key,
         update: impl FnOnce(Option<T::Value>) -> Option<T::Value>,
     ) {
-        let map = self.get_map_mut(key);
+        let map = self.get_or_create_map_mut(key);
         if let Some(value) = map.get_mut(key) {
             let v = take(value);
             if let Some(v) = update(Some(v)) {

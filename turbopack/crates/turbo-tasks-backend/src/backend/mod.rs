@@ -206,27 +206,35 @@ impl TurboTasksBackendInner {
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
-        if self.suspending_requested() {
+        #[cold]
+        fn operation_suspend_point_cold(
+            this: &TurboTasksBackendInner,
+            suspend: impl FnOnce() -> AnyOperation,
+        ) {
             let operation = Arc::new(suspend());
-            let mut snapshot_request = self.snapshot_request.lock();
+            let mut snapshot_request = this.snapshot_request.lock();
             if snapshot_request.snapshot_requested {
                 snapshot_request
                     .suspended_operations
                     .insert(operation.clone().into());
-                let value = self.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
+                let value = this.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
                 assert!((value & SNAPSHOT_REQUESTED_BIT) != 0);
                 if value == SNAPSHOT_REQUESTED_BIT {
-                    self.operations_suspended.notify_all();
+                    this.operations_suspended.notify_all();
                 }
-                self.snapshot_completed
+                this.snapshot_completed
                     .wait_while(&mut snapshot_request, |snapshot_request| {
                         snapshot_request.snapshot_requested
                     });
-                self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
+                this.in_progress_operations.fetch_add(1, Ordering::AcqRel);
                 snapshot_request
                     .suspended_operations
                     .remove(&operation.into());
             }
+        }
+
+        if self.suspending_requested() {
+            operation_suspend_point_cold(self, suspend);
         }
     }
 
