@@ -24,13 +24,21 @@ type ChunkState = {
 
 export class CssChunkingPlugin {
   private strict: boolean
-  constructor(strict: boolean) {
+  private minChunkSize: number
+  private maxChunkSize: number
+
+  constructor(strict: boolean, minChunkSize?: number, maxChunkSize?: number) {
     this.strict = strict
+    this.minChunkSize = minChunkSize ?? MIN_CSS_CHUNK_SIZE
+    this.maxChunkSize = maxChunkSize ?? MAX_CSS_CHUNK_SIZE
   }
 
   public apply(compiler: Compiler) {
     const strict = this.strict
+    const minChunkSize = this.minChunkSize
+    const maxChunkSize = this.maxChunkSize
     const summary = !!process.env.CSS_CHUNKING_SUMMARY
+
     compiler.hooks.thisCompilation.tap(PLUGIN_NAME, (compilation) => {
       let once = false
       compilation.hooks.optimizeChunks.tap(
@@ -195,7 +203,7 @@ export class CssChunkingPlugin {
                 size,
                 nextChunkStates,
               ] of orderedPotentialNextModules) {
-                if (currentSize + size > MAX_CSS_CHUNK_SIZE) {
+                if (currentSize + size > maxChunkSize) {
                   // Chunk would be too large
                   continue
                 }
@@ -217,7 +225,7 @@ export class CssChunkingPlugin {
                     if (prevState === undefined) {
                       // New chunk group, can add it, but should we?
                       // We only add that if below min size
-                      if (currentSize < MIN_CSS_CHUNK_SIZE) {
+                      if (currentSize < minChunkSize) {
                         continue
                       } else {
                         continue loop
