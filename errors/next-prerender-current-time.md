@@ -4,7 +4,7 @@ title: Cannot infer intended usage of current time with `Date.now()`, `Date()`, 
 
 #### Why This Error Occurred
 
-Reading the current time can be ambiguous. Sometimes you intend to capture the time when something was cached. Sometimes you intend to capture the time of a user Request. You might also simply be trying to measure runtime performance to track elapsed time.
+Reading the current time can be ambiguous. Sometimes you intend to capture the time when something was cached, other times you intend to capture the time of a user Request. You might also be trying to measure runtime performance to track elapsed time.
 
 In this instance Next.js cannot determine your intent from usage so it needs you to clarify your intent. The way you do that depends on your use case. See the possible solutions below for how move forward.
 
