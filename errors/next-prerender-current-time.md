@@ -43,7 +43,7 @@ Note: If you need report an absolute time to an observability tool you can also 
 
 ##### Cacheable use cases
 
-If you want to read the time when some cache entry is created such as when a Next.js page is rendered at build-time or when revalidating a static page then move the current time read inside a cached function using `"use cache"`.
+If you want to read the time when some cache entry is created (such as when a Next.js page is rendered at build-time or when revalidating a static page), move the current time read inside a cached function using `"use cache"`.
 
 Before:
 
