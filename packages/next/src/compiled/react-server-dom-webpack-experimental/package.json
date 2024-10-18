@@ -64,8 +64,8 @@
     "webpack-sources": "^3.2.0"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-bf7e210c-20241017",
-    "react-dom": "0.0.0-experimental-bf7e210c-20241017",
+    "react": "0.0.0-experimental-b8ae38f8-20241018",
+    "react-dom": "0.0.0-experimental-b8ae38f8-20241018",
     "webpack": "^5.59.0"
   }
 }
