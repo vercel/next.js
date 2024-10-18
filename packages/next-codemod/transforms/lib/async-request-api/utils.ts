@@ -501,6 +501,8 @@ export function findFunctionBody(path: ASTPath<FunctionScope>): null | any[] {
   return null
 }
 
+const isPascalCase = (s: string) => /^[A-Z][a-z0-9]*$/.test(s)
+
 export const isReactHookName = (name: string) =>
   // function name is `use`
   name === 'use' ||
@@ -522,19 +524,25 @@ export function containsReactHooksCallExpressions(
     j(path)
       .find(j.CallExpression)
       .filter((callPath) => {
-        // Is it matching use(<callPath>)
-        // Is it matching useX*(<callPath>)
+        // It's matching:
+        // - use(<callPath>) => true
+        // - useX*(<callPath>) => true
         const isUseHookOrReactHookCall =
           j.Identifier.check(callPath.value.callee) &&
           isReactHookName(callPath.value.callee.name)
 
-        // is it matching member access React.use(<callPath>)
-        // is it matching member access <Any>.useX*(<callPath>)
+        // It's matching member access:
+        // - React.use(<callPath>) => true
+        // - Foo.useFoo(<callPath>) => true
+        // - foo.useFoo(<callPath>) => false
+        // - foo.use(<callPath>) => false
         const isReactUseCall =
           j.MemberExpression.check(callPath.value.callee) &&
           j.Identifier.check(callPath.value.callee.object) &&
           j.Identifier.check(callPath.value.callee.property) &&
+          isPascalCase(callPath.value.callee.object.name) &&
           isReactHookName(callPath.value.callee.property.name)
+
         return isUseHookOrReactHookCall || isReactUseCall
       })
       .size() > 0
