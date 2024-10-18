@@ -136,6 +136,10 @@ async function loadChunkAsync(
   try {
     const contents = await fs.readFile(resolved, "utf-8");
 
+    const localRequire = (id: string) => {
+      let resolvedId = require.resolve(id, {paths: [path.dirname(resolved)]});
+      return require(resolvedId);
+    }
     const module = {
       exports: {},
     };
@@ -144,7 +148,7 @@ async function loadChunkAsync(
         contents +
         "\n})",
       resolved
-    )(module, module.exports, require, path.dirname(resolved), resolved);
+    )(module, module.exports, localRequire, path.dirname(resolved), resolved);
 
     const chunkModules: ModuleFactories = module.exports;
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
