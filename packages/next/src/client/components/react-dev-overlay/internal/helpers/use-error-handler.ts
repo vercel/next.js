@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
-import { isHydrationError } from '../../../is-hydration-error'
 import { attachHydrationErrorState } from './attach-hydration-error-state'
 import { isNextRouterError } from '../../../is-next-router-error'
 import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
 import { formatConsoleArgs } from '../../../../lib/console'
 import isError from '../../../../../lib/is-error'
 import { ConsoleError } from './console-error'
+import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -30,14 +30,7 @@ export function handleClientError(
   storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
   attachHydrationErrorState(error)
 
-  // TODO: change all to push error into errorQueue,
-  // currently there's a async api error is always erroring while hydration error showing up.
-  // Move hydration error to the front of the queue to unblock.
-  if (isHydrationError(error)) {
-    errorQueue.unshift(error)
-  } else {
-    errorQueue.push(error)
-  }
+  enqueueConsecutiveDedupedError(errorQueue, error)
   for (const handler of errorHandlers) {
     handler(error)
   }

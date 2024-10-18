@@ -28,7 +28,7 @@ describe('app-dir - capture-console-error', () => {
   })
 
   it('should capture browser console error and format the error message', async () => {
-    const browser = await next.browser('/browser')
+    const browser = await next.browser('/browser/event')
     await browser.elementByCss('button').click()
 
     await waitForAndOpenRuntimeError(browser)
@@ -42,7 +42,7 @@ describe('app-dir - capture-console-error', () => {
           "callStacks": "",
           "count": 1,
           "description": "trigger an console <error>",
-          "source": "app/browser/page.js (7:17) @ onClick
+          "source": "app/browser/event/page.js (7:17) @ onClick
 
            5 |     <button
            6 |       onClick={() => {
@@ -59,7 +59,7 @@ describe('app-dir - capture-console-error', () => {
           "callStacks": "",
           "count": 1,
           "description": "trigger an console <error>",
-          "source": "app/browser/page.js (7:17) @ error
+          "source": "app/browser/event/page.js (7:17) @ error
 
            5 |     <button
            6 |       onClick={() => {
@@ -68,6 +68,51 @@ describe('app-dir - capture-console-error', () => {
            8 |       }}
            9 |     >
           10 |       click to error",
+        }
+      `)
+    }
+  })
+
+  it('should capture browser console error in render and dedupe if necessary', async () => {
+    const browser = await next.browser('/browser/render')
+
+    await waitForAndOpenRuntimeError(browser)
+    await assertHasRedbox(browser)
+
+    const result = await getRedboxResult(browser)
+
+    if (process.env.TURBOPACK) {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "",
+          "count": 1,
+          "description": "trigger an console.error in render",
+          "source": "app/browser/render/page.js (4:11) @ Page
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error('trigger an console.error in render')
+            |           ^
+          5 |   return <p>render</p>
+          6 | }
+          7 |",
+        }
+      `)
+    } else {
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "callStacks": "",
+          "count": 1,
+          "description": "trigger an console.error in render",
+          "source": "app/browser/render/page.js (4:11) @ error
+
+          2 |
+          3 | export default function Page() {
+        > 4 |   console.error('trigger an console.error in render')
+            |           ^
+          5 |   return <p>render</p>
+          6 | }
+          7 |",
         }
       `)
     }
@@ -85,7 +130,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": 1,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ Page
 
@@ -102,7 +147,7 @@ describe('app-dir - capture-console-error', () => {
       expect(result).toMatchInlineSnapshot(`
         {
           "callStacks": "",
-          "count": 2,
+          "count": 1,
           "description": "ssr console error:client",
           "source": "app/ssr/page.js (4:11) @ error
 
