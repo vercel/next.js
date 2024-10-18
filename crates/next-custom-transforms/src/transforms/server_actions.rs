@@ -1439,7 +1439,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     self.exported_idents
                                         .push((new_ident.clone(), "default".into()));
 
-                                    println!("before attach_name_to_expr {}", new_ident.sym);
                                     *default_expr.expr = attach_name_to_expr(
                                         new_ident,
                                         Expr::Arrow(arrow.clone()),
