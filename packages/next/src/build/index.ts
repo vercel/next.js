@@ -1678,11 +1678,20 @@ export default async function build(
       let shutdownPromise = Promise.resolve()
       if (!isGenerateMode) {
         if (turboNextBuild) {
+          const start = Date.now()
           const {
             duration: compilerDuration,
             shutdownPromise: p,
             ...rest
           } = await turbopackBuild()
+          const duration = Date.now() - start
+          const msg =
+            duration > 2000
+              ? `Turbopack build: ${Math.round(duration / 10) / 100}s`
+              : `Turbopack build: ${Math.round(duration)}ms`
+          console.log(`\x1b[1;91;103m  ${' '.repeat(msg.length)}  \x1b[0m`)
+          console.log(`\x1b[1;91;103m  ${msg}  \x1b[0m`)
+          console.log(`\x1b[1;91;103m  ${' '.repeat(msg.length)}  \x1b[0m`)
           shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
 
@@ -1717,6 +1726,7 @@ export default async function build(
               buildStage: 'compile-server',
             })
 
+            console.time('webpack build')
             const serverBuildPromise = webpackBuild(useBuildWorker, [
               'server',
             ]).then((res) => {
@@ -1784,6 +1794,7 @@ export default async function build(
               durationInSeconds += res.duration
               traceMemoryUsage('Finished client compilation', nextBuildSpan)
             })
+            console.timeEnd('webpack build')
 
             Log.event('Compiled successfully')
 

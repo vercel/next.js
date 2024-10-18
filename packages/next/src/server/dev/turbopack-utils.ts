@@ -1164,6 +1164,9 @@ export function isPersistentCachingEnabled(
   config: NextConfigComplete
 ): boolean {
   const unstableValue = config.experimental.turbo?.unstablePersistentCaching
+  if (unstableValue === undefined) {
+    return true
+  }
   if (typeof unstableValue === 'number' && unstableValue > 1) {
     throw new Error(
       'Persistent caching in this version of Turbopack is not as stable as expected. Upgrade to a newer version of Turbopack to use this feature with the expected stability.'
