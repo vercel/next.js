@@ -349,11 +349,13 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
     }
 }
 
+type SerializedTasks = Vec<Vec<(TaskId, Vec<u8>)>>;
+
 fn process_task_data(
     database: &(impl KeyValueDatabase + Sync),
     key_space: KeySpace,
     updates: Vec<ChunkedVec<CachedDataUpdate>>,
-) -> Result<Vec<Vec<(TaskId, Vec<u8>)>>> {
+) -> Result<SerializedTasks> {
     let span = Span::current();
     let turbo_tasks = turbo_tasks::turbo_tasks();
     let handle = tokio::runtime::Handle::current();
@@ -363,13 +365,16 @@ fn process_task_data(
             let _span = span.clone().entered();
             let _guard = handle.clone().enter();
             turbo_tasks_scope(turbo_tasks.clone(), || {
-                let mut task_updates: FxHashMap<
+                type TaskUpdates = FxHashMap<
                     TaskId,
                     FxHashMap<
                         CachedDataItemKey,
                         (Option<CachedDataItemValue>, Option<CachedDataItemValue>),
                     >,
-                > = FxHashMap::with_capacity_and_hasher(updates.len(), Default::default());
+                >;
+
+                let mut task_updates: TaskUpdates =
+                    FxHashMap::with_capacity_and_hasher(updates.len(), Default::default());
 
                 {
                     let span = tracing::trace_span!(
