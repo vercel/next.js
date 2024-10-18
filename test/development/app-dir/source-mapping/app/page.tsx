@@ -1,7 +1,7 @@
 import { Form } from './form'
-import defaulAction1, { foo, bar, baz, qux } from './actions1'
-import defaulAction2 from './actions2'
-import defaulAction3 from './actions3'
+import defaultAction1, { foo, bar, baz, qux } from './actions1'
+import defaultAction2 from './actions2'
+import defaultAction3 from './actions3'
 import Link from 'next/link'
 import { ServerComponent } from './server-component'
 
@@ -21,9 +21,9 @@ export default function Page() {
   return (
     <main>
       <ServerComponent />
-      <Form id="form-1" action={defaulAction1} />
-      <Form id="form-2" action={defaulAction2} />
-      <Form id="form-3" action={defaulAction3} />
+      <Form id="form-1" action={defaultAction1} />
+      <Form id="form-2" action={defaultAction2} />
+      <Form id="form-3" action={defaultAction3} />
       <Form id="form-4" action={foo} />
       <Form id="form-5" action={bar} />
       <Form id="form-6" action={baz} />
