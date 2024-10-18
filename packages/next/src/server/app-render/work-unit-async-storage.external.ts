@@ -4,7 +4,10 @@ import type { ResponseCookies } from '../web/spec-extension/cookies'
 import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
-import type { DynamicTrackingState } from './dynamic-rendering'
+import type {
+  DynamicTrackingState,
+  DynamicValidationState,
+} from './dynamic-rendering'
 
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorage } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -88,6 +91,11 @@ export type PrerenderStoreModern = {
    * During some prerenders we want to track dynamic access.
    */
   readonly dynamicTracking: null | DynamicTrackingState
+
+  /**
+   * During some prerenders we want to validate dynamic holes. This is used for dynamicIO only during SSR
+   */
+  readonly dynamicValidation: null | DynamicValidationState
 
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.

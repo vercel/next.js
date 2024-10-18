@@ -120,6 +120,7 @@ import {
   trackAllowedDynamicAccess,
   throwIfDisallowedDynamic,
   type DynamicTrackingState,
+  createDynamicValidationState,
 } from './dynamic-rendering'
 import {
   getClientComponentLoaderMetrics,
@@ -2039,6 +2040,8 @@ async function prerenderToStream(
             // because we will always do a final render after caches have filled and we
             // will track it again there
             dynamicTracking: null,
+            // RSC renders don't need to track dynamic validation
+            dynamicValidation: null,
             revalidate: INFINITE_CACHE,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
@@ -2126,6 +2129,8 @@ async function prerenderToStream(
           // include the flight controller in the store.
           controller: finalRenderFlightController,
           dynamicTracking,
+          // RSC renders don't need to track dynamic validation
+          dynamicValidation: null,
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
@@ -2179,6 +2184,7 @@ async function prerenderToStream(
           clientReferenceManifest
         )
 
+        const dynamicValidation = createDynamicValidationState()
         const SSRController = new AbortController()
         const ssrPrerenderStore: PrerenderStore = {
           type: 'prerender',
@@ -2193,6 +2199,7 @@ async function prerenderToStream(
           // We do track dynamic access because searchParams and certain hooks can still be
           // dynamic during SSR
           dynamicTracking,
+          dynamicValidation,
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
@@ -2212,7 +2219,7 @@ async function prerenderToStream(
               trackAllowedDynamicAccess(
                 workStore.route,
                 componentStack,
-                dynamicTracking
+                dynamicValidation
               )
             }
             return
@@ -2256,7 +2263,7 @@ async function prerenderToStream(
           }
         )
 
-        throwIfDisallowedDynamic(workStore, dynamicTracking)
+        throwIfDisallowedDynamic(workStore, dynamicValidation)
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
           polyfills,
@@ -2403,6 +2410,7 @@ async function prerenderToStream(
             // consider the route dynamic.
             controller: prospectiveRenderFlightController,
             dynamicTracking,
+            dynamicValidation: null,
             revalidate: INFINITE_CACHE,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
@@ -2487,12 +2495,14 @@ async function prerenderToStream(
           cacheSignal: null,
           controller: finalRenderFlightController,
           dynamicTracking,
+          dynamicValidation: null,
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
           tags: [...ctx.requestStore.implicitTags],
         })
 
+        const dynamicValidation = createDynamicValidationState()
         const SSRController = new AbortController()
         const ssrPrerenderStore: PrerenderStore = {
           type: 'prerender',
@@ -2507,6 +2517,7 @@ async function prerenderToStream(
           // We do track dynamic access because searchParams and certain hooks can still be
           // dynamic during SSR
           dynamicTracking,
+          dynamicValidation,
           revalidate: INFINITE_CACHE,
           expire: INFINITE_CACHE,
           stale: INFINITE_CACHE,
@@ -2546,7 +2557,7 @@ async function prerenderToStream(
               trackAllowedDynamicAccess(
                 workStore.route,
                 componentStack,
-                dynamicTracking
+                dynamicValidation
               )
             }
             return
@@ -2619,7 +2630,7 @@ async function prerenderToStream(
           }
         }
 
-        throwIfDisallowedDynamic(workStore, dynamicTracking)
+        throwIfDisallowedDynamic(workStore, dynamicValidation)
 
         if (SSRIsDynamic) {
           // Something dynamic happened in the SSR phase of the render. This could be IO or it could be
