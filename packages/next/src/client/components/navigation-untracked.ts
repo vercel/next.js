@@ -1,5 +1,8 @@
 import { useContext } from 'react'
-import { PathnameContext } from '../../shared/lib/hooks-client-context.shared-runtime'
+import {
+  PathnameContext,
+  SearchParamsContext,
+} from '../../shared/lib/hooks-client-context.shared-runtime'
 
 /**
  * This checks to see if the current render has any unknown route parameters.
@@ -49,4 +52,17 @@ export function useUntrackedPathname(): string | null {
   // the environment will be consistent for the render.
   // eslint-disable-next-line react-hooks/rules-of-hooks
   return useContext(PathnameContext)
+}
+
+/**
+ * This returns the search params from the context. This is used instead of
+ * `useSearchParams` in the error boundary to avoid wrapping the error boundary
+ * in a `Suspense` boundary, which would cause rendering issues for all the pages.
+ *
+ * @returns The search params from the context or `null` if not found.
+ *
+ * @internal
+ */
+export function useUntrackedSearchParams(): URLSearchParams | null {
+  return useContext(SearchParamsContext)
 }
