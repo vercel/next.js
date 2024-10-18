@@ -96,8 +96,16 @@ export type AppRouteModule = typeof import('../../../build/templates/app-route')
  */
 export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: WorkStoreContext['renderOpts'] &
-    Pick<RenderOptsPartial, 'onInstrumentationRequestError'>
+    Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
+    CollectedCacheInfo
   prerenderManifest: DeepReadonly<PrerenderManifest>
+}
+
+type CollectedCacheInfo = {
+  collectedTags?: string
+  collectedRevalidate?: number
+  collectedExpire?: number
+  collectedStale?: number
 }
 
 /**
@@ -580,12 +588,10 @@ export class AppRouteRouteModule extends RouteModule<
     ])
 
     if (prerenderStore) {
-      ;(context.renderOpts as any).collectedTags =
-        prerenderStore.tags?.join(',')
-      ;(context.renderOpts as any).collectedRevalidate =
-        prerenderStore.revalidate
-      ;(context.renderOpts as any).collectedExpire = prerenderStore.expire
-      ;(context.renderOpts as any).collectedStale = prerenderStore.stale
+      context.renderOpts.collectedTags = prerenderStore.tags?.join(',')
+      context.renderOpts.collectedRevalidate = prerenderStore.revalidate
+      context.renderOpts.collectedExpire = prerenderStore.expire
+      context.renderOpts.collectedStale = prerenderStore.stale
     }
 
     // It's possible cookies were set in the handler, so we need
