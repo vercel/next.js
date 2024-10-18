@@ -380,7 +380,7 @@ export default function Page({
 import { use } from 'react'
 
 type Params = Promise<{ slug: string }>
-type SearchParams = { [key: string]: string | string[] | undefined }
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
 
 export default function Page(props: {
   params: Params
