@@ -614,18 +614,18 @@ impl AggregationUpdateQueue {
                 }
             }
             if is_aggregating_node(get_aggregation_number(&task)) {
-                // TODO if it has an `AggregateRoot` we can skip visiting the nested nodes since
+                // if it has an `AggregateRoot` we can skip visiting the nested nodes since
                 // this would already be scheduled by the `AggregateRoot`
                 if !task.has_key(&CachedDataItemKey::AggregateRoot {}) {
                     task.insert(CachedDataItem::AggregateRoot {
                         value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
                     });
-                }
-                let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => *task);
-                if !dirty_containers.is_empty() {
-                    self.push(AggregationUpdateJob::FindAndScheduleDirty {
-                        task_ids: dirty_containers,
-                    });
+                    let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => *task);
+                    if !dirty_containers.is_empty() {
+                        self.push(AggregationUpdateJob::FindAndScheduleDirty {
+                            task_ids: dirty_containers,
+                        });
+                    }
                 }
             }
         }
