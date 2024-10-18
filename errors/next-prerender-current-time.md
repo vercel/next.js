@@ -75,15 +75,15 @@ After:
 async function InformationTable() {
   "use cache"
   const data = await fetch(...)
-  return <>
-    <section>
-      <h1>Latest Info...</h1>
-      <table>
-        {renderData(data)}
-      </table>
-    </section>
-    Last Refresh: {new Date().toString()}
-  </>
+  return (
+    <>
+      <section>
+        <h1>Latest Info...</h1>
+        <table>{renderData(data)}</table>
+      </section>
+      Last Refresh: {new Date().toString()}
+    </>
+  )
 }
 
 export default async function Page() {
