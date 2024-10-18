@@ -658,6 +658,7 @@ pub use self::{
         get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
     },
     cleanup_old_edges::OutdatedEdge,
+    invalidate::TaskDirtyCause,
     update_cell::UpdateCellOperation,
     update_collectible::UpdateCollectibleOperation,
 };
