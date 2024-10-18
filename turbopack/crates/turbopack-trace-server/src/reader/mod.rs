@@ -65,6 +65,15 @@ impl TraceFile {
             Self::Unloaded => unreachable!(),
         }
     }
+
+    fn size(&mut self) -> io::Result<u64> {
+        match self {
+            Self::Raw(file) => file.metadata().map(|m| m.len()),
+            Self::Zstd(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
+            Self::Gz(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
+            Self::Unloaded => unreachable!(),
+        }
+    }
 }
 
 pub struct TraceReader {
@@ -189,6 +198,9 @@ impl TraceReader {
                                 let new_mbs = current_read / (97 * 1024 * 1024);
                                 if old_mbs != new_mbs {
                                     let pos = file.stream_position().unwrap_or(current_read);
+                                    if pos > *total {
+                                        *total = file.size().unwrap_or(pos);
+                                    }
                                     *total = (*total).max(pos);
                                     let percentage = pos * 100 / *total;
                                     let read = pos / (1024 * 1024);
