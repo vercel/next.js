@@ -34,6 +34,7 @@ const textMismatchWarning =
 export const getHydrationWarningType = (
   message: NullableText
 ): 'tag' | 'text' | 'text-in-tag' => {
+  console.log('message', message)
   if (typeof message !== 'string') {
     // TODO: Doesn't make sense to treat no message as a hydration error message.
     // We should bail out somewhere earlier.
@@ -58,6 +59,7 @@ const isTextInTagsMismatchWarning = (msg: string) =>
   textAndTagsMismatchWarnings.has(msg)
 
 const isKnownHydrationWarning = (message: NullableText) => {
+  console.log('message', message)
   if (typeof message !== 'string') {
     return false
   }
@@ -91,6 +93,7 @@ export const getReactHydrationDiffSegments = (msg: NullableText) => {
 
 export function storeHydrationErrorStateFromConsoleArgs(...args: any[]) {
   const [msg, serverContent, clientContent, componentStack] = args
+  console.log('msg', msg, args)
   if (isKnownHydrationWarning(msg)) {
     hydrationErrorState.warning = [
       // remove the last %s from the message
