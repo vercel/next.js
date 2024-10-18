@@ -51,12 +51,12 @@ Before:
 async function InformationTable() {
   "use cache"
   const data = await fetch(...)
-  return <section>
-    <h1>Latest Info...</h1>
-    <table>
-      {renderData(data)}
-    </table>
-  </section>
+  return (
+    <section>
+      <h1>Latest Info...</h1>
+      <table>{renderData(data)}</table>
+    </section>
+  )
 }
 
 export default async function Page() {
