@@ -1,10 +1,11 @@
 import { isNextRouterError } from '../is-next-router-error'
-import { handleClientError } from '../react-dev-overlay/internal/helpers/use-error-handler'
 
 const originConsoleError = window.console.error
 
 // Patch console.error to collect information about hydration errors
-export function patchConsoleError() {
+export function patchConsoleError(
+  onClientErrorCallback: (error: unknown, consoleArgs: unknown[]) => void
+) {
   // Ensure it's only patched once
   if (typeof window === 'undefined') {
     return
@@ -16,10 +17,18 @@ export function patchConsoleError() {
 
     if (!isNextRouterError(error)) {
       if (process.env.NODE_ENV !== 'production') {
-        handleClientError(error, args)
+        onClientErrorCallback(error, args)
       }
 
       originConsoleError.apply(window.console, args)
     }
   }
+}
+
+export function unpatchConsoleError() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.console.error = originConsoleError
 }

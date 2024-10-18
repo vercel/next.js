@@ -1,4 +1,5 @@
-import type { BusEvent } from '../shared'
+import { isHydrationError } from '../../is-hydration-error'
+import { ACTION_UNHANDLED_ERROR, type BusEvent } from '../shared'
 
 export type BusEventHandler = (ev: BusEvent) => void
 
@@ -23,7 +24,11 @@ function drain() {
 }
 
 export function emit(ev: BusEvent): void {
-  queue.push(Object.freeze({ ...ev }))
+  if (ev.type === ACTION_UNHANDLED_ERROR && isHydrationError(ev.reason)) {
+    queue.unshift(Object.freeze({ ...ev }))
+  } else {
+    queue.push(Object.freeze({ ...ev }))
+  }
   drain()
 }
 

@@ -16,7 +16,7 @@ const rejectionHandlers: Array<ErrorHandler> = []
 
 export function handleClientError(
   originError: unknown,
-  consoleErrorArgs: any[]
+  consoleErrorArgs: unknown[]
 ) {
   let error: Error
   if (!originError || !isError(originError)) {
