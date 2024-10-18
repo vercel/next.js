@@ -132,7 +132,7 @@ impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
         }
         let value = {
             if let Some(value) = self.restored_map.get(key_space).get(key) {
-                Some(ValueBuffer::Cached(*value))
+                Some(ValueBuffer::Cached(value))
             } else {
                 self.database
                     .get(transaction, key_space, key)?
