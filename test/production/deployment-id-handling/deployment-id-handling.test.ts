@@ -84,6 +84,30 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
       }
     )
 
+    it('should contain deployment id in prefetch request', async () => {
+      const dataHeaders = []
+      const browser = await next.browser('/', {
+        beforePageLoad(page) {
+          page.on('request', async (req) => {
+            const headers = await req.allHeaders()
+            if (headers['x-next-data']) {
+              dataHeaders.push(headers)
+            }
+          })
+        },
+      })
+
+      await browser.elementById('edge-link').click()
+
+      expect(dataHeaders.length).toBeGreaterThan(0)
+
+      expect(
+        dataHeaders.every(
+          (headers) => headers['x-deployment-id'] === deploymentId
+        )
+      ).toBe(true)
+    })
+
     it('should contain deployment id in RSC payload request headers', async () => {
       const rscHeaders = []
       const browser = await next.browser('/from-app', {
