@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
@@ -6,17 +5,11 @@ const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 describe('use-cache', () => {
-  const { next, isNextDev, isNextDeploy, isNextStart, isTurbopack } =
-    nextTestSetup({
-      files: __dirname,
-    })
+  const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
+    files: __dirname,
+  })
 
-  const itSkipTurbopack = isTurbopack ? it.skip : it
-
-  // TODO: Fix the following error with Turbopack:
-  // Error: Module [project]/app/client.tsx [app-client] (ecmascript) was
-  // instantiated because it was required from module...
-  itSkipTurbopack('should cache results', async () => {
+  it('should cache results', async () => {
     const browser = await next.browser('/?n=1')
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1a = await browser.waitForElementByCss('#y').text()
