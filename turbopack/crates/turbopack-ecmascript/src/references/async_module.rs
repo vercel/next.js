@@ -135,7 +135,7 @@ impl AsyncModule {
                         }
                     }
                     ReferencedAsset::External(..) => None,
-                    ReferencedAsset::None | ReferencedAsset::Unresolveable => None,
+                    ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
                 })
             })
             .try_flat_join()
