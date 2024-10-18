@@ -109,7 +109,10 @@ export function printNonFatalIssue(issue: Issue) {
 function isNodeModulesIssue(issue: Issue): boolean {
   return (
     issue.severity === 'warning' &&
-    issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null
+    (issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null ||
+      // Ignore Next.js when running next directly in the monorepo
+      // TODO prevent matches when this is published to npm
+      issue.filePath.startsWith('[project]/packages/next/'))
   )
 }
 
