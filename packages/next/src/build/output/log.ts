@@ -12,7 +12,7 @@ export const prefixes = {
 
 const LOGGING_METHOD = {
   log: 'log',
-  warn: 'warn',
+  warn: 'log', // In Node.js, `console.warn` maps to error. Prefer log instead
   error: 'error',
 } as const
 
