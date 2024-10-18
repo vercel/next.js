@@ -50,7 +50,6 @@ use turbopack_core::{
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
     source_pos::SourcePos,
-    SOURCE_MAP_PREFIX,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -66,6 +65,7 @@ use crate::{
 
 // Capture up until the first "."
 static BASENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^.]*").unwrap());
+static URI_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(.*)\:\/\/.*").unwrap());
 
 #[derive(Debug)]
 pub enum StyleSheetLike<'i, 'o> {
@@ -493,7 +493,7 @@ pub async fn parse_css(
     async move {
         let content = source.content();
         let fs_path = source.ident().path();
-        let ident_str = &*source.ident().to_string().await?;
+        let file_uri = &*source.ident().path().uri().await?;
         Ok(match &*content.await? {
             AssetContent::Redirect { .. } => ParseCssResult::Unparseable.cell(),
             AssetContent::File(file_content) => match &*file_content.await? {
@@ -505,7 +505,7 @@ pub async fn parse_css(
                             *file_content,
                             string.into_owned(),
                             fs_path,
-                            ident_str,
+                            file_uri,
                             source,
                             origin,
                             import_context,
@@ -526,7 +526,7 @@ async fn process_content(
     content_vc: Vc<FileContent>,
     code: String,
     fs_path_vc: Vc<FileSystemPath>,
-    filename: &str,
+    file_uri: &str,
     source: Vc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
     import_context: Vc<ImportContext>,
@@ -564,7 +564,7 @@ async fn process_content(
 
             _ => None,
         },
-        filename: filename.to_string(),
+        filename: file_uri.to_string(),
         error_recovery: true,
         ..Default::default()
     };
@@ -656,7 +656,7 @@ async fn process_content(
             )),
         );
 
-        let fm = cm.new_source_file(FileName::Custom(filename.to_string()).into(), code.clone());
+        let fm = cm.new_source_file(FileName::Custom(file_uri.to_string()).into(), code.clone());
         let mut errors = vec![];
 
         let ss = swc_core::css::parser::parse_file(
@@ -706,7 +706,7 @@ async fn process_content(
                     .context("Must include basename preceding .")?
                     .as_str();
                 // Truncate this as u32 so it's formatted as 8-character hex in the suffix below
-                let path_hash = turbo_tasks_hash::hash_xxh3_hash64(filename) as u32;
+                let path_hash = turbo_tasks_hash::hash_xxh3_hash64(file_uri) as u32;
 
                 Some(SwcCssModuleMode {
                     basename: basename.to_string(),
@@ -989,7 +989,14 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
                 let mut builder = SourceMapBuilder::new(None);
 
                 for src in source_map.get_sources() {
-                    builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
+                    if URI_RE.is_match(src) {
+                        builder.add_source(src);
+                    } else {
+                        // This is a filepath that has been trimmed by Parcel
+                        // to be made relative. Restore the file:/// prefix.
+                        // TODO: Allow Parcel's sourcemap to opt-out of this behavior.
+                        builder.add_source(&format!("file:///{src}"));
+                    }
                 }
 
                 for (idx, content) in source_map.get_sources_content().iter().enumerate() {

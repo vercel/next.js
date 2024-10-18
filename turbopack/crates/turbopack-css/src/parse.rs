@@ -9,7 +9,10 @@ pub struct InlineSourcesContentConfig {}
 impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
-            FileName::Custom(s) => format!("{SOURCE_MAP_PREFIX}{s}"),
+            FileName::Custom(s) => {
+                dbg!(s);
+                format!("{SOURCE_MAP_PREFIX}{s}")
+            }
             _ => f.to_string(),
         }
     }

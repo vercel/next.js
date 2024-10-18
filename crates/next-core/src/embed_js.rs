@@ -7,7 +7,7 @@ pub const VIRTUAL_PACKAGE_NAME: &str = "@vercel/turbopack-next";
 #[turbo_tasks::function]
 pub(crate) fn next_js_fs() -> Vc<Box<dyn FileSystem>> {
     // [TODO]: macro need to be refactored to be used via turbopack-binding
-    turbo_tasks_fs::embed_directory!("next", "$CARGO_MANIFEST_DIR/js/src")
+    turbo_tasks_fs::embed_directory!("turbopack", "next", "$CARGO_MANIFEST_DIR/js/src")
 }
 
 #[turbo_tasks::function]

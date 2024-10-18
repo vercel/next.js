@@ -4,10 +4,11 @@ use anyhow::{Context, Result};
 use dunce::canonicalize;
 use turbo_tasks::{RcStr, Vc};
 
-use crate::{DiskFileSystem, File, FileContent, FileSystem};
+use crate::{DiskFileSystem, File, FileContent, FileSystem, UriScheme};
 
 #[turbo_tasks::function]
 pub async fn content_from_relative_path(
+    uri_scheme: Vc<UriScheme>,
     package_path: RcStr,
     path: RcStr,
 ) -> Result<Vc<FileContent>> {
@@ -19,6 +20,7 @@ pub async fn content_from_relative_path(
     let path = resolved_path.file_name().unwrap().to_str().unwrap();
 
     let disk_fs = DiskFileSystem::new(
+        uri_scheme,
         root_path.to_string_lossy().into(),
         root_path.to_string_lossy().into(),
         vec![],

@@ -22,7 +22,7 @@ function ClassNameButton({ children }) {
       `,
         children: children
     }, void 0, false, {
-        fileName: "[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js",
+        fileName: "turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js",
         lineNumber: 12,
         columnNumber: 5
     }, this);
