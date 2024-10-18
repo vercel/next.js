@@ -472,7 +472,7 @@ struct UnableToExternalize {
 impl Issue for UnableToExternalize {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.cell()
+        IssueSeverity::Warning.cell()
     }
 
     #[turbo_tasks::function]
