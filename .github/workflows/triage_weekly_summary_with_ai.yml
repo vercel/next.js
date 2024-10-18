@@ -1,0 +1,21 @@
+name: Triage Weekly Summary with AI
+
+on:
+  schedule:
+    - cron: '0 10 * * 1' # Every Monday at 10AM UTC (6 AM EST)
+  workflow_dispatch:
+
+jobs:
+  triage:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: corepack enable
+      - name: 'Send notification to Slack (AI-powered)'
+        run: node ./.github/actions/next-repo-actions/dist/triage-weekly-summary-with-ai/index.js
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
