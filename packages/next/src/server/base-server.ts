@@ -2549,7 +2549,7 @@ export default abstract class Server<
               context.renderOpts as any
             ).fetchMetrics
 
-            const cacheTags = (context.renderOpts as any).collectedTags
+            const cacheTags = context.renderOpts.collectedTags
 
             // If the request is for a static response, we can cache it so long
             // as it's not edge.
@@ -2568,12 +2568,10 @@ export default abstract class Server<
               }
 
               const revalidate =
-                typeof (context.renderOpts as any).collectedRevalidate ===
-                  'undefined' ||
-                (context.renderOpts as any).collectedRevalidate >=
-                  INFINITE_CACHE
+                typeof context.renderOpts.collectedRevalidate === 'undefined' ||
+                context.renderOpts.collectedRevalidate >= INFINITE_CACHE
                   ? false
-                  : (context.renderOpts as any).collectedRevalidate
+                  : context.renderOpts.collectedRevalidate
 
               // Create the cache entry for the response.
               const cacheEntry: ResponseCacheEntry = {
