@@ -917,10 +917,21 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         if (is_action_fn || cache_type.is_some()) && !f.function.is_async {
             HANDLER.with(|handler| {
+                let subject = if is_action_fn {
+                    "Server Actions"
+                } else {
+                    "\"use cache\" functions"
+                };
+
                 handler
-                    .struct_span_err(f.function.span, "Server Actions must be async functions")
+                    .struct_span_err(
+                        f.function.span,
+                        &format!("{subject} must be async functions."),
+                    )
                     .emit();
             });
+
+            return;
         }
 
         if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
@@ -1041,9 +1052,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if !f.function.is_async {
                 HANDLER.with(|handler| {
                     handler
-                        .struct_span_err(f.ident.span, "Cache functions must be async functions")
+                        .struct_span_err(
+                            f.ident.span,
+                            "\"use cache\" functions must be async functions.",
+                        )
                         .emit();
                 });
+
+                return;
             }
 
             // Collect all the identifiers defined inside the closure and used
@@ -1177,16 +1193,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if !a.is_async
-            // Errors for in_action_file/in_cache_file are handled in `visit_mut_module_items`.
-            && (is_action_fn && !self.in_action_file
-                || cache_type.is_some() && self.in_cache_file.is_none())
-        {
+        if !a.is_async && (is_action_fn || cache_type.is_some()) {
             HANDLER.with(|handler| {
+                let subject = if is_action_fn {
+                    "Server Actions"
+                } else {
+                    "\"use cache\" functions"
+                };
+
                 handler
-                    .struct_span_err(a.span, "Server Actions must be async functions")
+                    .struct_span_err(a.span, &format!("{subject} must be async functions."))
                     .emit();
             });
+
+            return;
         }
 
         if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
@@ -1424,28 +1444,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         match &mut *default_expr.expr {
                             Expr::Fn(_f) => {}
                             Expr::Arrow(arrow) => {
-                                if !arrow.is_async {
-                                    disallowed_export_span = default_expr.span;
-                                } else {
-                                    // export default async () => {}
-                                    // Use the span of the arrow function
-                                    let span = arrow.span;
+                                // export default async () => {}
+                                // Use the span of the arrow function
+                                let span = arrow.span;
 
-                                    let new_ident = Ident::new(
-                                        gen_action_ident(&mut self.reference_index),
-                                        span,
-                                        self.private_ctxt,
-                                    );
+                                let new_ident = Ident::new(
+                                    gen_action_ident(&mut self.reference_index),
+                                    span,
+                                    self.private_ctxt,
+                                );
 
-                                    self.exported_idents
-                                        .push((new_ident.clone(), "default".into()));
+                                self.exported_idents
+                                    .push((new_ident.clone(), "default".into()));
 
-                                    create_var_declarator(&new_ident, &mut self.extra_items);
-                                    attach_name_to_default_expr(&new_ident, &mut self.extra_items);
+                                create_var_declarator(&new_ident, &mut self.extra_items);
+                                attach_name_to_default_expr(&new_ident, &mut self.extra_items);
 
-                                    *default_expr.expr =
-                                        assign_arrow_expr(&new_ident, Expr::Arrow(arrow.clone()));
-                                }
+                                *default_expr.expr =
+                                    assign_arrow_expr(&new_ident, Expr::Arrow(arrow.clone()));
                             }
                             Expr::Ident(ident) => {
                                 // export default foo
@@ -1484,14 +1500,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                 if disallowed_export_span != DUMMY_SP {
                     HANDLER.with(|handler| {
+                        let directive = if self.in_action_file {
+                            "\"use server\""
+                        } else {
+                            "\"use cache\""
+                        };
+
                         handler
                             .struct_span_err(
                                 disallowed_export_span,
-                                "Only async functions are allowed to be exported in a \"use \
-                                 server\" file.",
+                                &format!(
+                                    "Only async functions are allowed to be exported in a \
+                                     {directive} file."
+                                ),
                             )
                             .emit();
                     });
+
+                    return;
                 }
             }
 
