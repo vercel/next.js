@@ -14,6 +14,13 @@ const styles = css`
       rgba(0, 0, 0, 0.25);
     max-height: calc(100% - 56px);
     overflow-y: hidden;
+    color-scheme: light;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    [data-nextjs-dialog] {
+      color-scheme: dark;
+    }
   }
 
   @media (max-height: 812px) {
