@@ -21,16 +21,17 @@ export default function Page() {
   return (
     <main>
       <ServerComponent />
-      <Form action={defaulAction1} />
-      <Form action={defaulAction2} />
-      <Form action={defaulAction3} />
-      <Form action={foo} />
-      <Form action={bar} />
-      <Form action={baz} />
-      <Form action={qux} />
-      <Form action={action1} />
-      <Form action={action2} />
+      <Form id="form-1" action={defaulAction1} />
+      <Form id="form-2" action={defaulAction2} />
+      <Form id="form-3" action={defaulAction3} />
+      <Form id="form-4" action={foo} />
+      <Form id="form-5" action={bar} />
+      <Form id="form-6" action={baz} />
+      <Form id="form-7" action={qux} />
+      <Form id="form-8" action={action1} />
+      <Form id="form-9" action={action2} />
       <Form
+        id="form-10"
         action={async () => {
           'use server'
 
@@ -38,6 +39,7 @@ export default function Page() {
         }}
       />
       <Form
+        id="form-11"
         action={async function () {
           'use server'
 
@@ -45,6 +47,7 @@ export default function Page() {
         }}
       />
       <Form
+        id="form-12"
         action={async function myAction() {
           'use server'
 

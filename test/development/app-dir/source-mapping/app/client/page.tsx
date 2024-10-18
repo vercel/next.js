@@ -10,13 +10,13 @@ export default function Page() {
   return (
     <main>
       <h1>client component page</h1>
-      <Form action={defaulAction1} />
-      <Form action={defaulAction2} />
-      <Form action={defaulAction3} />
-      <Form action={foo} />
-      <Form action={bar} />
-      <Form action={baz} />
-      <Form action={qux} />
+      <Form id="form-1" action={defaulAction1} />
+      <Form id="form-2" action={defaulAction2} />
+      <Form id="form-3" action={defaulAction3} />
+      <Form id="form-4" action={foo} />
+      <Form id="form-5" action={bar} />
+      <Form id="form-6" action={baz} />
+      <Form id="form-7" action={qux} />
       <Link href="/">server component page</Link>
     </main>
   )
