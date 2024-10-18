@@ -3,7 +3,6 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type { ExportAppOptions } from '../export/types'
 import type { Revalidate } from '../server/lib/revalidate'
 
 import '../lib/setup-exception-listeners'
@@ -128,7 +127,6 @@ import {
   isAppBuiltinNotFoundPage,
   collectRoutesUsingEdgeRuntime,
   collectMeta,
-  // getSupportedBrowsers,
 } from './utils'
 import type { PageInfo, PageInfos, PrerenderedRoute } from './utils'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
@@ -212,6 +210,7 @@ import { stitchBuilds } from './flying-shuttle/stitch-builds'
 import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
+import { getParamKeys } from '../server/request/fallback-params'
 
 type Fallback = null | boolean | string
 
@@ -1222,6 +1221,7 @@ export default async function build(
         config.basePath ? `${config.basePath}${p}` : p
       )
 
+      const isAppDynamicIOEnabled = Boolean(config.experimental.dynamicIO)
       const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
@@ -1862,6 +1862,10 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
+      const prospectiveRenders = new Map<
+        string,
+        { page: string; originalAppPath: string }
+      >()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -1946,7 +1950,7 @@ export default async function build(
               distDir,
               configFileName,
               runtimeEnvConfig,
-              dynamicIO: Boolean(config.experimental.dynamicIO),
+              dynamicIO: isAppDynamicIOEnabled,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
@@ -2168,7 +2172,7 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
-                            dynamicIO: Boolean(config.experimental.dynamicIO),
+                            dynamicIO: isAppDynamicIOEnabled,
                             cacheHandler: config.cacheHandler,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
@@ -2192,6 +2196,8 @@ export default async function build(
                             `Using edge runtime on a page currently disables static generation for that page`
                           )
                         } else {
+                          const isDynamic = isDynamicRoute(page)
+
                           // If this route can be partially pre-rendered, then
                           // mark it as such and mark that it can be
                           // generated server-side.
@@ -2201,6 +2207,18 @@ export default async function build(
                             isStatic = true
 
                             staticPaths.set(originalAppPath, [])
+                          }
+                          // As PPR isn't enabled for this route, if dynamic IO
+                          // is enabled, and this is a dynamic route, we should
+                          // complete a prospective render for the route so that
+                          // we can use the fallback behavior. This lets us
+                          // check that dynamic pages won't error when they
+                          // enable PPR.
+                          else if (config.experimental.dynamicIO && isDynamic) {
+                            prospectiveRenders.set(originalAppPath, {
+                              page,
+                              originalAppPath,
+                            })
                           }
 
                           if (
@@ -2219,7 +2237,6 @@ export default async function build(
 
                           const appConfig = workerResult.appConfig || {}
                           if (appConfig.revalidate !== 0) {
-                            const isDynamic = isDynamicRoute(page)
                             const hasGenerateStaticParams =
                               workerResult.prerenderedRoutes &&
                               workerResult.prerenderedRoutes.length > 0
@@ -2243,7 +2260,7 @@ export default async function build(
                                 {
                                   path: page,
                                   encoded: page,
-                                  fallbackRouteParams: [],
+                                  fallbackRouteParams: undefined,
                                 },
                               ])
                               isStatic = true
@@ -2891,6 +2908,29 @@ export default async function build(
                 })
               })
 
+              // If the app does have dynamic IO enabled but does not have PPR
+              // enabled, then we need to perform a prospective render for all
+              // the dynamic pages to ensure that they won't error during
+              // rendering (due to a missing prelude).
+              for (const {
+                page,
+                originalAppPath,
+              } of prospectiveRenders.values()) {
+                const appConfig = appDefaultConfigs.get(originalAppPath)
+
+                defaultMap[page] = {
+                  page: originalAppPath,
+                  query: { __nextSsgPath: page },
+                  _fallbackRouteParams: getParamKeys(page),
+                  _isDynamicError: appConfig?.dynamic === 'error',
+                  // Prospective renders are only enabled for app pages.
+                  _isAppDir: true,
+                  // Prospective renders are only enabled when PPR is disabled.
+                  _isRoutePPREnabled: false,
+                  _isProspectiveRender: true,
+                }
+              }
+
               if (i18n) {
                 for (const page of [
                   ...staticPages,
@@ -2927,21 +2967,20 @@ export default async function build(
             },
           }
 
-          const exportOptions: ExportAppOptions = {
-            nextConfig: exportConfig,
-            enabledDirectories,
-            silent: true,
-            buildExport: true,
-            debugOutput,
-            pages: combinedPages,
-            outdir: path.join(distDir, 'export'),
-            statusMessage: 'Generating static pages',
-            numWorkers: getNumberOfWorkers(exportConfig),
-          }
-
+          const outdir = path.join(distDir, 'export')
           const exportResult = await exportApp(
             dir,
-            exportOptions,
+            {
+              nextConfig: exportConfig,
+              enabledDirectories,
+              silent: true,
+              buildExport: true,
+              debugOutput,
+              pages: combinedPages,
+              outdir,
+              statusMessage: 'Generating static pages',
+              numWorkers: getNumberOfWorkers(exportConfig),
+            },
             nextBuildSpan
           )
 
@@ -3256,7 +3295,7 @@ export default async function build(
               .traceChild('move-exported-page')
               .traceAsyncFn(async () => {
                 file = `${file}.${ext}`
-                const orig = path.join(exportOptions.outdir, file)
+                const orig = path.join(outdir, file)
                 const pagePath = getPagePath(
                   originPage,
                   distDir,
@@ -3342,7 +3381,7 @@ export default async function build(
                       .replace(/\\/g, '/')
 
                     const updatedOrig = path.join(
-                      exportOptions.outdir,
+                      outdir,
                       locale + localeExt,
                       page === '/' ? '' : file
                     )
@@ -3568,7 +3607,7 @@ export default async function build(
           }
 
           // remove temporary export folder
-          await fs.rm(exportOptions.outdir, { recursive: true, force: true })
+          await fs.rm(outdir, { recursive: true, force: true })
           await writeManifest(pagesManifestPath, pagesManifest)
         })
       }
