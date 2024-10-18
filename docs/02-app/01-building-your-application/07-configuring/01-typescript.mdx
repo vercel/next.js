@@ -105,6 +105,22 @@ export default nextConfig
 
 > **Note**: Module resolution in `next.config.ts` is currently limited to `CommonJS`. This may cause incompatibilities with ESM only packages being loaded in `next.config.ts`.
 
+### Using `defineConfig`
+
+Next.js also provides the `defineConfig` function to streamline the configuration process. This function is offering better type inference and autocompletion in your editor, even if you are not using TypeScript.
+
+```ts filename="next.config.ts"
+import { defineConfig } from 'next/config'
+
+const nextConfig = defineConfig({
+  /* config options here */
+})
+
+export default nextConfig
+```
+
+> **Good to know**: `defineConfig` is experimental, let us know if you encounter any issues.
+
 <AppOnly>
 
 ## Statically Typed Links
