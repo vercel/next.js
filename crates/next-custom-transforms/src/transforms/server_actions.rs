@@ -1412,7 +1412,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                 f.ident = Some(new_ident.clone());
 
-                                self.exported_idents.push((new_ident, "default".into()));
+                                self.exported_idents
+                                    .push((new_ident.clone(), "default".into()));
+
+                                attach_name_to_default_expr(&new_ident, &mut self.extra_items);
                             }
                         }
                         _ => {
@@ -1439,11 +1442,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     self.exported_idents
                                         .push((new_ident.clone(), "default".into()));
 
-                                    *default_expr.expr = attach_name_to_default_expr(
-                                        new_ident,
-                                        Expr::Arrow(arrow.clone()),
-                                        &mut self.extra_items,
-                                    );
+                                    create_var_declarator(&new_ident, &mut self.extra_items);
+                                    attach_name_to_default_expr(&new_ident, &mut self.extra_items);
+
+                                    *default_expr.expr =
+                                        assign_arrow_expr(&new_ident, Expr::Arrow(arrow.clone()));
                                 }
                             }
                             Expr::Ident(ident) => {
@@ -1464,11 +1467,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 self.exported_idents
                                     .push((new_ident.clone(), "default".into()));
 
-                                *default_expr.expr = attach_name_to_default_expr(
-                                    new_ident,
-                                    Expr::Call(call.clone()),
-                                    &mut self.extra_items,
-                                );
+                                create_var_declarator(&new_ident, &mut self.extra_items);
+                                attach_name_to_default_expr(&new_ident, &mut self.extra_items);
+
+                                *default_expr.expr =
+                                    assign_arrow_expr(&new_ident, Expr::Call(call.clone()));
                             }
                             _ => {
                                 disallowed_export_span = default_expr.span;
@@ -1976,11 +1979,7 @@ fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str) -> Box<Expr> {
     }))
 }
 
-fn attach_name_to_default_expr(
-    ident: Ident,
-    expr: Expr,
-    extra_items: &mut Vec<ModuleItem>,
-) -> Expr {
+fn create_var_declarator(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
     // Create the variable `var $$ACTION_0;`
     extra_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
         span: DUMMY_SP,
@@ -1993,7 +1992,9 @@ fn attach_name_to_default_expr(
         }],
         ..Default::default()
     })))));
+}
 
+fn attach_name_to_default_expr(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
     // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
     extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
@@ -2031,7 +2032,9 @@ fn attach_name_to_default_expr(
             ..Default::default()
         })),
     })));
+}
 
+fn assign_arrow_expr(ident: &Ident, expr: Expr) -> Expr {
     if let Expr::Paren(_paren) = &expr {
         expr
     } else {
@@ -2040,7 +2043,7 @@ fn attach_name_to_default_expr(
             span: DUMMY_SP,
             expr: Box::new(Expr::Assign(AssignExpr {
                 span: DUMMY_SP,
-                left: ident.into(),
+                left: ident.clone().into(),
                 op: op!("="),
                 right: Box::new(expr),
             })),
