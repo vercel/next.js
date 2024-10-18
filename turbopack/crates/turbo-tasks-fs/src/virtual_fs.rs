@@ -5,7 +5,7 @@ use super::{DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath,
 
 #[turbo_tasks::value]
 pub struct VirtualFileSystem {
-    name: RcStr,
+    pub name: RcStr,
 }
 
 impl VirtualFileSystem {
