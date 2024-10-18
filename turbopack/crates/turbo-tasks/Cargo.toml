@@ -12,6 +12,7 @@ bench = false
 default = []
 tokio_tracing = ["tokio/tracing"]
 hanging_detection = []
+local_resolution = []
 
 [lints]
 workspace = true
