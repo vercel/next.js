@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -12,8 +12,8 @@ use turbopack_resolve::ecmascript::cjs_resolve;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {
-    Request(Vc<Request>, Vc<FileSystemPath>),
-    Evaluatable(Vc<Box<dyn EvaluatableAsset>>),
+    Request(ResolvedVc<Request>, ResolvedVc<FileSystemPath>),
+    Evaluatable(ResolvedVc<Box<dyn EvaluatableAsset>>),
     Source(Vc<Box<dyn Source>>),
 }
 
@@ -25,7 +25,7 @@ impl RuntimeEntry {
         asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<EvaluatableAssets>> {
         let (request, path) = match *self.await? {
-            RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssets::one(e)),
+            RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssets::one(*e)),
             RuntimeEntry::Source(source) => {
                 return Ok(EvaluatableAssets::one(source.to_evaluatable(asset_context)));
             }
@@ -33,8 +33,8 @@ impl RuntimeEntry {
         };
 
         let modules = cjs_resolve(
-            Vc::upcast(PlainResolveOrigin::new(asset_context, path)),
-            request,
+            Vc::upcast(PlainResolveOrigin::new(asset_context, *path)),
+            *request,
             None,
             false,
         )

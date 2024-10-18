@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, glob::Glob, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -23,10 +23,10 @@ use turbopack_core::{
 pub enum ExternalPredicate {
     /// Mark all modules as external if they're not listed in the list.
     /// Applies only to imports outside of node_modules.
-    AllExcept(Vc<Vec<RcStr>>),
+    AllExcept(ResolvedVc<Vec<RcStr>>),
     /// Only mark modules listed as external, whether inside node_modules or
     /// not.
-    Only(Vc<Vec<RcStr>>),
+    Only(ResolvedVc<Vec<RcStr>>),
 }
 
 /// Mark modules as external, so they're resolved at runtime instead of bundled.
@@ -105,7 +105,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     return Ok(ResolveResultOption::none());
                 }
 
-                let exception_glob = packages_glob(*exceptions).await?;
+                let exception_glob = packages_glob(**exceptions).await?;
 
                 if let Some(PackagesGlobs {
                     path_glob,
@@ -121,7 +121,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 false
             }
             ExternalPredicate::Only(externals) => {
-                let external_glob = packages_glob(*externals).await?;
+                let external_glob = packages_glob(**externals).await?;
 
                 if let Some(PackagesGlobs {
                     path_glob,

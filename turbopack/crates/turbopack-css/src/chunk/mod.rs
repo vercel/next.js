@@ -4,7 +4,9 @@ pub mod source_map;
 use std::fmt::Write;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{FxIndexSet, RcStr, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc,
+};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -350,8 +352,8 @@ pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
 #[turbo_tasks::value(shared)]
 pub enum CssImport {
     External(Vc<RcStr>),
-    Internal(Vc<ImportAssetReference>, Vc<Box<dyn CssChunkItem>>),
-    Composes(Vc<Box<dyn CssChunkItem>>),
+    Internal(ResolvedVc<ImportAssetReference>, Vc<Box<dyn CssChunkItem>>),
+    Composes(ResolvedVc<Box<dyn CssChunkItem>>),
 }
 
 #[derive(Debug)]

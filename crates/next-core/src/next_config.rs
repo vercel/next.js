@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
@@ -481,7 +481,7 @@ pub enum ReactCompilerOptionsOrBoolean {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionalReactCompilerOptions(Option<Vc<ReactCompilerOptions>>);
+pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>);
 
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -1080,11 +1080,11 @@ impl NextConfig {
                         compilation_mode: None,
                         panic_threshold: None,
                     }
-                    .cell(),
+                    .resolved_cell(),
                 ))
             }
             Some(ReactCompilerOptionsOrBoolean::Option(options)) => OptionalReactCompilerOptions(
-                Some(ReactCompilerOptions { ..options.clone() }.cell()),
+                Some(ReactCompilerOptions { ..options.clone() }.resolved_cell()),
             ),
             _ => OptionalReactCompilerOptions(None),
         };

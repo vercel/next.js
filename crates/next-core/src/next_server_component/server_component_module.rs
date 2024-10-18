@@ -122,7 +122,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
                 exports,
                 star_exports: vec![module_reference],
             }
-            .cell(),
+            .resolved_cell(),
         )
         .cell()
     }

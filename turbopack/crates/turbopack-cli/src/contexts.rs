@@ -1,7 +1,7 @@
 use std::fmt;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
@@ -98,8 +98,8 @@ pub async fn get_client_resolve_options_context(
 #[turbo_tasks::function]
 async fn get_client_module_options_context(
     project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
-    env: Vc<Environment>,
+    execution_context: ResolvedVc<ExecutionContext>,
+    env: ResolvedVc<Environment>,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let module_options_context = ModuleOptionsContext {

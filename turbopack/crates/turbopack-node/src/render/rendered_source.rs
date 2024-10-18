@@ -236,10 +236,12 @@ impl GetContentSourceContent for NodeRenderContentSource {
                     headers: headers.await?.clone_value(),
                     body: body.clone(),
                 }
-                .cell(),
+                .resolved_cell(),
             )
             .cell(),
-            StaticResult::Rewrite(rewrite) => ContentSourceContent::Rewrite(rewrite).cell(),
+            StaticResult::Rewrite(rewrite) => {
+                ContentSourceContent::Rewrite(rewrite.to_resolved().await?).cell()
+            }
         })
     }
 }

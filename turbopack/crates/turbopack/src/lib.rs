@@ -106,7 +106,7 @@ async fn apply_module_type(
     module_type: Vc<ModuleType>,
     reference_type: Value<ReferenceType>,
     part: Option<Vc<ModulePart>>,
-    inner_assets: Option<Vc<InnerAssets>>,
+    inner_assets: Option<ResolvedVc<InnerAssets>>,
     runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
     let module_type = &*module_type.await?;

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, RcStr, ResolvedVc, ValueDefault, Vc};
 use turbopack_core::{
     chunk::MinifyType, condition::ContextCondition, environment::Environment,
     resolve::options::ImportMapping,
@@ -119,8 +119,8 @@ pub struct ModuleOptionsContext {
     pub enable_mdx: bool,
     pub enable_mdx_rs: Option<Vc<MdxTransformOptions>>,
 
-    pub preset_env_versions: Option<Vc<Environment>>,
-    pub execution_context: Option<Vc<ExecutionContext>>,
+    pub preset_env_versions: Option<ResolvedVc<Environment>>,
+    pub execution_context: Option<ResolvedVc<ExecutionContext>>,
     pub side_effect_free_packages: Vec<RcStr>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
@@ -142,7 +142,7 @@ pub struct EcmascriptOptionsContext {
     /// normal resolution.
     pub enable_types: bool,
     pub enable_typescript_transform: Option<Vc<TypescriptTransformOptions>>,
-    pub enable_decorators: Option<Vc<DecoratorsOptions>>,
+    pub enable_decorators: Option<ResolvedVc<DecoratorsOptions>>,
     pub esm_url_rewrite_behavior: Option<UrlRewriteBehavior>,
     /// References to externals from ESM imports should use `import()` and make
     /// async modules.

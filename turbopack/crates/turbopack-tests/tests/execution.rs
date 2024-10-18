@@ -286,7 +286,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 import_externals: true,
                 ..Default::default()
             },
-            preset_env_versions: Some(env),
+            preset_env_versions: Some(env.to_resolved().await?),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),

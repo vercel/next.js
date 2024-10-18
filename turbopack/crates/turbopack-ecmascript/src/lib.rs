@@ -196,11 +196,11 @@ pub struct EcmascriptModuleAssetBuilder {
     transforms: Vc<EcmascriptInputTransforms>,
     options: Vc<EcmascriptOptions>,
     compile_time_info: Vc<CompileTimeInfo>,
-    inner_assets: Option<Vc<InnerAssets>>,
+    inner_assets: Option<ResolvedVc<InnerAssets>>,
 }
 
 impl EcmascriptModuleAssetBuilder {
-    pub fn with_inner_assets(mut self, inner_assets: Vc<InnerAssets>) -> Self {
+    pub fn with_inner_assets(mut self, inner_assets: ResolvedVc<InnerAssets>) -> Self {
         self.inner_assets = Some(inner_assets);
         self
     }
@@ -219,7 +219,7 @@ impl EcmascriptModuleAssetBuilder {
                 self.transforms,
                 self.options,
                 self.compile_time_info,
-                inner_assets,
+                *inner_assets,
             )
         } else {
             EcmascriptModuleAsset::new(
@@ -296,7 +296,7 @@ impl EcmascriptModuleAsset {
 #[derive(Copy, Clone)]
 pub(crate) struct ModuleTypeResult {
     pub module_type: SpecifiedModuleType,
-    pub referenced_package_json: Option<Vc<FileSystemPath>>,
+    pub referenced_package_json: Option<ResolvedVc<FileSystemPath>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -312,7 +312,7 @@ impl ModuleTypeResult {
     #[turbo_tasks::function]
     fn new_with_package_json(
         module_type: SpecifiedModuleType,
-        package_json: Vc<FileSystemPath>,
+        package_json: ResolvedVc<FileSystemPath>,
     ) -> Vc<Self> {
         Self::cell(ModuleTypeResult {
             module_type,
@@ -526,7 +526,7 @@ impl Module for EcmascriptModuleAsset {
                 ident.add_asset(Vc::cell(name.to_string().into()), asset.ident());
             }
             ident.add_modifier(modifier());
-            ident.layer = Some(self.asset_context.layer());
+            ident.layer = Some(self.asset_context.layer().to_resolved().await?);
             Ok(AssetIdent::new(Value::new(ident)))
         } else {
             Ok(self

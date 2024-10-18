@@ -1,4 +1,4 @@
-use turbo_tasks::{FxIndexMap, RcStr, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
@@ -203,7 +203,7 @@ impl CompileTimeDefines {
 pub enum FreeVarReference {
     EcmaScriptModule {
         request: RcStr,
-        lookup_path: Option<Vc<FileSystemPath>>,
+        lookup_path: Option<ResolvedVc<FileSystemPath>>,
         export: Option<RcStr>,
     },
     Value(CompileTimeDefineValue),

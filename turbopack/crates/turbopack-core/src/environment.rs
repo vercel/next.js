@@ -5,7 +5,7 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use swc_core::ecma::preset_env::{Version, Versions};
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 
 use crate::target::CompileTarget;
@@ -247,8 +247,8 @@ impl NodeJsEnvironment {
     #[turbo_tasks::function]
     pub async fn runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
         let str = match *self.node_version.await? {
-            NodeJsVersion::Current(process_env) => get_current_nodejs_version(process_env),
-            NodeJsVersion::Static(version) => version,
+            NodeJsVersion::Current(process_env) => get_current_nodejs_version(*process_env),
+            NodeJsVersion::Static(version) => *version,
         }
         .await?;
 
@@ -261,7 +261,7 @@ impl NodeJsEnvironment {
     }
 
     #[turbo_tasks::function]
-    pub fn current(process_env: Vc<Box<dyn ProcessEnv>>) -> Vc<Self> {
+    pub fn current(process_env: ResolvedVc<Box<dyn ProcessEnv>>) -> Vc<Self> {
         Self::cell(NodeJsEnvironment {
             compile_target: CompileTarget::current(),
             node_version: NodeJsVersion::cell(NodeJsVersion::Current(process_env)),
@@ -272,13 +272,13 @@ impl NodeJsEnvironment {
 
 #[turbo_tasks::value(shared)]
 pub enum NodeJsVersion {
-    Current(Vc<Box<dyn ProcessEnv>>),
-    Static(Vc<RcStr>),
+    Current(ResolvedVc<Box<dyn ProcessEnv>>),
+    Static(ResolvedVc<RcStr>),
 }
 
 impl Default for NodeJsVersion {
     fn default() -> Self {
-        NodeJsVersion::Static(Vc::cell(DEFAULT_NODEJS_VERSION.into()))
+        NodeJsVersion::Static(ResolvedVc::cell(DEFAULT_NODEJS_VERSION.into()))
     }
 }
 

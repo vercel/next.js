@@ -238,7 +238,10 @@ impl CssChunkItem for CssModuleChunkItem {
                         if let Some(css_item) =
                             Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(item).await?
                         {
-                            imports.push(CssImport::Internal(import_ref, css_item));
+                            imports.push(CssImport::Internal(
+                                import_ref.to_resolved().await?,
+                                css_item,
+                            ));
                         }
                     }
                 }
@@ -260,7 +263,7 @@ impl CssChunkItem for CssModuleChunkItem {
                         if let Some(css_item) =
                             Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(item).await?
                         {
-                            imports.push(CssImport::Composes(css_item));
+                            imports.push(CssImport::Composes(css_item.to_resolved().await?));
                         }
                     }
                 }

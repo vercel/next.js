@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::output::OutputAsset;
 
 #[turbo_tasks::value(shared)]
 pub enum AggregatedGraph {
-    Leaf(Vc<Box<dyn OutputAsset>>),
+    Leaf(ResolvedVc<Box<dyn OutputAsset>>),
     Node {
         depth: usize,
         content: HashSet<Vc<AggregatedGraph>>,
@@ -17,7 +17,7 @@ pub enum AggregatedGraph {
 #[turbo_tasks::value_impl]
 impl AggregatedGraph {
     #[turbo_tasks::function]
-    fn leaf(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Self> {
+    fn leaf(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<Self> {
         Self::cell(AggregatedGraph::Leaf(asset))
     }
 }
@@ -36,7 +36,7 @@ impl AggregatedGraph {
     #[turbo_tasks::function]
     pub async fn content(self: Vc<Self>) -> Result<Vc<AggregatedGraphNodeContent>> {
         Ok(match *self.await? {
-            AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(asset).into(),
+            AggregatedGraph::Leaf(asset) => AggregatedGraphNodeContent::Asset(*asset).into(),
             AggregatedGraph::Node { ref content, .. } => {
                 AggregatedGraphNodeContent::Children(content.clone()).into()
             }
@@ -50,7 +50,7 @@ impl AggregatedGraph {
                 let mut refs = HashSet::new();
                 for reference in asset.references().await?.iter() {
                     let reference = reference.resolve().await?;
-                    if asset != reference {
+                    if asset != reference.to_resolved().await? {
                         refs.insert(AggregatedGraph::leaf(reference));
                     }
                 }

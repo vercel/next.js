@@ -18,7 +18,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -30,7 +30,7 @@ use turbopack_core::{
 pub enum EcmascriptInputTransform {
     CommonJs,
     Plugin(Vc<TransformPlugin>),
-    PresetEnv(Vc<Environment>),
+    PresetEnv(ResolvedVc<Environment>),
     React {
         #[serde(default)]
         development: bool,

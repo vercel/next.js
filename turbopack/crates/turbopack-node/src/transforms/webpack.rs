@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, RcStr, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    trace::TraceRawVcs, Completion, RcStr, ResolvedVc, TaskInput, TryJoinIterExt, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
@@ -229,7 +230,7 @@ impl WebpackLoadersProcessedAsset {
             context_ident_for_issue: this.source.ident(),
             asset_context: evaluate_context,
             chunking_context,
-            resolve_options_context: Some(transform.resolve_options_context),
+            resolve_options_context: Some(transform.resolve_options_context.to_resolved().await?),
             args: vec![
                 Vc::cell(content.into()),
                 // We need to pass the query string to the loader
@@ -380,7 +381,7 @@ pub struct WebpackLoaderContext {
     pub context_ident_for_issue: Vc<AssetIdent>,
     pub asset_context: Vc<Box<dyn AssetContext>>,
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub resolve_options_context: Option<Vc<ResolveOptionsContext>>,
+    pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub args: Vec<Vc<JsonValue>>,
     pub additional_invalidation: Vc<Completion>,
 }
@@ -498,7 +499,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 };
                 let lookup_path = self.cwd.join(lookup_path);
                 let request = Request::parse(Value::new(Pattern::Constant(request)));
-                let options = resolve_options(lookup_path, resolve_options_context);
+                let options = resolve_options(lookup_path, *resolve_options_context);
 
                 let options = apply_webpack_resolve_options(options, webpack_options);
 

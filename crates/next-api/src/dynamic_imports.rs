@@ -11,7 +11,7 @@ use tracing::{Instrument, Level};
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
-    FxIndexMap, RcStr, ReadRef, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, RcStr, ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{
@@ -162,7 +162,7 @@ pub(crate) async fn collect_next_dynamic_imports(
                     .iter()
                     .map(|module| async move {
                         Ok(NextDynamicVisitEntry::Module(
-                            module.resolve().await?,
+                            module.to_resolved().await?,
                             module.ident().to_string().await?,
                         ))
                     })
@@ -209,8 +209,8 @@ pub(crate) async fn collect_next_dynamic_imports(
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, TraceRawVcs, Serialize, Deserialize)]
 enum NextDynamicVisitEntry {
-    Module(Vc<Box<dyn Module>>, ReadRef<RcStr>),
-    DynamicImportsMap(Vc<DynamicImportsMap>),
+    Module(ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>),
+    DynamicImportsMap(ResolvedVc<DynamicImportsMap>),
 }
 
 #[turbo_tasks::value(transparent)]
@@ -227,7 +227,7 @@ async fn get_next_dynamic_edges(
         .iter()
         .map(|&referenced_module| async move {
             Ok(NextDynamicVisitEntry::Module(
-                referenced_module,
+                referenced_module.to_resolved().await?,
                 referenced_module.ident().to_string().await?,
             ))
         })
@@ -236,7 +236,7 @@ async fn get_next_dynamic_edges(
     if let Some(dynamic_imports_map) = *dynamic_imports_map.await? {
         edges.reserve_exact(1);
         edges.push(NextDynamicVisitEntry::DynamicImportsMap(
-            dynamic_imports_map,
+            dynamic_imports_map.to_resolved().await?,
         ));
     }
     Ok(Vc::cell(edges))
@@ -264,7 +264,7 @@ impl turbo_tasks::graph::Visit<NextDynamicVisitEntry> for NextDynamicVisit {
         };
         let client_asset_context = self.client_asset_context;
         async move {
-            Ok(get_next_dynamic_edges(client_asset_context, module)
+            Ok(get_next_dynamic_edges(client_asset_context, *module)
                 .await?
                 .into_iter()
                 .cloned())

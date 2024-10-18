@@ -429,7 +429,7 @@ impl CapturedIssues {
 #[derive(Clone, Debug)]
 pub struct IssueSource {
     source: Vc<Box<dyn Source>>,
-    range: Option<Vc<SourceRange>>,
+    range: Option<ResolvedVc<SourceRange>>,
 }
 
 /// The end position is the first character after the range
@@ -460,7 +460,7 @@ impl IssueSource {
     ) -> Vc<Self> {
         Self::cell(IssueSource {
             source,
-            range: Some(SourceRange::LineColumn(start, end).cell()),
+            range: Some(SourceRange::LineColumn(start, end).resolved_cell()),
         })
     }
 
@@ -492,7 +492,7 @@ impl IssueSource {
             if let Some((source, start, end)) = mapped {
                 return Ok(Self::cell(IssueSource {
                     source,
-                    range: Some(SourceRange::LineColumn(start, end).cell()),
+                    range: Some(SourceRange::LineColumn(start, end).resolved_cell()),
                 }));
             }
         }
@@ -514,9 +514,11 @@ impl IssueSource {
             source,
             range: match (start == 0, end == 0) {
                 (true, true) => None,
-                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).cell()),
-                (false, true) => Some(SourceRange::ByteOffset(start - 1, start - 1).cell()),
-                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).cell()),
+                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).resolved_cell()),
+                (false, true) => {
+                    Some(SourceRange::ByteOffset(start - 1, start - 1).resolved_cell())
+                }
+                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).resolved_cell()),
             },
         })
     }
@@ -541,7 +543,7 @@ impl IssueSource {
             range: if let FileLinesContent::Lines(lines) = &*source.content().lines().await? {
                 let start = find_line_and_column(lines.as_ref(), start);
                 let end = find_line_and_column(lines.as_ref(), end);
-                Some(SourceRange::LineColumn(start, end).cell())
+                Some(SourceRange::LineColumn(start, end).resolved_cell())
             } else {
                 None
             },

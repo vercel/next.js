@@ -213,14 +213,20 @@ async fn base_resolve_options(
         extensions,
         modules: if let Some(environment) = emulating {
             if *environment.resolve_node_modules().await? {
-                vec![ResolveModules::Nested(root, vec!["node_modules".into()])]
+                vec![ResolveModules::Nested(
+                    root.to_resolved().await?,
+                    vec!["node_modules".into()],
+                )]
             } else {
                 Vec::new()
             }
         } else {
             let mut mods = Vec::new();
             if let Some(dir) = opt.enable_node_modules {
-                mods.push(ResolveModules::Nested(dir, vec!["node_modules".into()]));
+                mods.push(ResolveModules::Nested(
+                    dir.to_resolved().await?,
+                    vec!["node_modules".into()],
+                ));
             }
             mods
         },
