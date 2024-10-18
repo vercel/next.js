@@ -97,7 +97,7 @@ export default async function Page() {
 
 ##### Reactive use case
 
-If you want the current time to be reactive so it can change and update consider moving this usage to a Client Component. Note that Server Side Rendering timestamps in a Client Component is also considered ambiguous so to implement this properly Next.js needs you to only read the time in the browser, for instance by using `useLayoutEffect()` or `useEffect()`.
+If you want the current time to change and be reactive, consider moving this usage to a Client Component. Note that Server Side Rendering timestamps in a Client Component is also considered ambiguous so to implement this properly Next.js needs you to only read the time in the browser, for instance by using `useLayoutEffect()` or `useEffect()`.
 
 Before:
 
