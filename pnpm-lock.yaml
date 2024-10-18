@@ -1079,9 +1079,6 @@ importers:
       '@types/lodash.curry':
         specifier: 4.1.6
         version: 4.1.6
-      '@types/lru-cache':
-        specifier: 5.1.0
-        version: 5.1.0
       '@types/path-to-regexp':
         specifier: 1.7.0
         version: 1.7.0
@@ -1298,9 +1295,6 @@ importers:
       lodash.curry:
         specifier: 4.1.1
         version: 4.1.1
-      lru-cache:
-        specifier: 5.1.1
-        version: 5.1.1
       mini-css-extract-plugin:
         specifier: 2.4.4
         version: 2.4.4(webpack@5.90.0(@swc/core@1.7.0-nightly-20240714.1(@swc/helpers@0.5.13)))
@@ -5265,9 +5259,6 @@ packages:
 
   '@types/lru-cache@4.1.1':
     resolution: {integrity: sha512-8mNEUG6diOrI6pMqOHrHPDBB1JsrpedeMK9AWGzVCQ7StRRribiT9BRvUmF8aUws9iBbVlgVekOT5Sgzc1MTKw==}
-
-  '@types/lru-cache@5.1.0':
-    resolution: {integrity: sha512-RaE0B+14ToE4l6UqdarKPnXwVDuigfFv+5j9Dze/Nqr23yyuqdNvzcZi3xB+3Agvi5R4EOgAksfv3lXX4vBt9w==}
 
   '@types/mdast@3.0.10':
     resolution: {integrity: sha512-W864tg/Osz1+9f4lrGTZpCSO5/z4608eUp19tbozkq2HJK6i3z1kT0H9tlADXuYIb1YYOBByU4Jsqkk75q48qA==}
@@ -19996,8 +19987,6 @@ snapshots:
   '@types/long@4.0.1': {}
 
   '@types/lru-cache@4.1.1': {}
-
-  '@types/lru-cache@5.1.0': {}
 
   '@types/mdast@3.0.10':
     dependencies:

@@ -851,6 +851,42 @@ function assignDefaults(
     }
   }
 
+  if (result.experimental?.cacheHandlers) {
+    const allowedHandlerNameRegex = /[a-z-]/
+
+    if (typeof result.experimental.cacheHandlers !== 'object') {
+      throw new Error(
+        `Invalid "experimental.cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(result.experimental.cacheHandlers)}`
+      )
+    }
+
+    const handlerKeys = Object.keys(result.experimental.cacheHandlers)
+    const invalidHandlerItems: Array<{ key: string; reason: string }> = []
+
+    for (const key of handlerKeys) {
+      if (!allowedHandlerNameRegex.test(key)) {
+        invalidHandlerItems.push({
+          key,
+          reason: 'key must only use characters a-z and -',
+        })
+      } else {
+        const handlerPath = result.experimental.cacheHandlers[key]
+
+        if (handlerPath && !existsSync(handlerPath)) {
+          invalidHandlerItems.push({
+            key,
+            reason: `cache handler path provided does not exist, received ${handlerPath}`,
+          })
+        }
+      }
+      if (invalidHandlerItems.length) {
+        throw new Error(
+          `Invalid handler fields configured for "experimental.cacheHandler":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
+        )
+      }
+    }
+  }
+
   const userProvidedModularizeImports = result.modularizeImports
   // Unfortunately these packages end up re-exporting 10600 modules, for example: https://unpkg.com/browse/@mui/icons-material@5.11.16/esm/index.js.
   // Leveraging modularizeImports tremendously reduces compile times for these.
