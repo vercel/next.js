@@ -447,7 +447,6 @@ async function suggestCodemods(
     return []
   }
 
-  // findLastIndex(compareVersions(versionCodemods.version, targetNextVersion) <= 0)
   let targetVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
     (codemod) => compareVersions(codemod.version, targetNextVersion) > 0
   )
