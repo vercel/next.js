@@ -430,13 +430,6 @@ export async function runLintCheck(
           // Check if necessary deps installed, and install any that are missing
           deps = await hasNecessaryDependencies(baseDir, requiredPackages)
           if (deps.missing.length > 0) {
-            deps.missing.forEach((dep) => {
-              if (dep.pkg === 'eslint') {
-                // eslint v9 has breaking changes, so lock to 8 until dependency plugins fully support v9.
-                dep.pkg = 'eslint@^8'
-              }
-            })
-
             await installDependencies(baseDir, deps.missing, true)
           }
 
