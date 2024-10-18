@@ -61,7 +61,7 @@ export default async function Page({ params }: { params: { id: string } }) {
 }
 ```
 
-```jsx filename="app/blog/[id]/page.jsx" switcher
+```jsx filename="app/blog/[id]/page.js" switcher
 // Next.js will invalidate the cache when a
 // request comes in, at most once every 60 seconds.
 export const revalidate = 60
@@ -257,7 +257,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/blog/page.jsx" switcher
+```jsx filename="app/blog/page.js" switcher
 export const revalidate = 3600 // invalidate every hour
 
 export default async function Page() {
@@ -322,7 +322,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/blog/page.jsx" switcher
+```jsx filename="app/blog/page.js" switcher
 export default async function Page() {
   const data = await fetch('https://api.vercel.app/blog', {
     next: { tags: ['posts'] },
@@ -352,7 +352,7 @@ export default async function Page() {
 }
 ```
 
-```jsx filename="app/blog/page.tsx" switcher
+```jsx filename="app/blog/page.js" switcher
 import { unstable_cache } from 'next/cache'
 import { db, posts } from '@/lib/db'
 
