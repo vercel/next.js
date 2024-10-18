@@ -97,15 +97,20 @@ impl PersistanceState {
     }
 
     pub fn add_persisting_item(&mut self) {
-        self.value += 1;
+        // TODO add when we need to track unpersisted items
+        // self.value += 1;
     }
 
-    pub fn add_persisting_items(&mut self, count: u32) {
-        self.value += count;
+    pub fn add_persisting_items(&mut self, _count: u32) {
+        // TODO add when we need to track unpersisted items
+        // self.value += count;
     }
 
-    pub fn finish_persisting_items(&mut self, count: u32) {
-        self.value -= count;
+    // TODO remove when we need to track unpersisted items
+    #[allow(dead_code)]
+    pub fn finish_persisting_items(&mut self, _count: u32) {
+        // TODO add when we need to track unpersisted items
+        // self.value -= count;
     }
 
     pub fn is_restored(&self, category: TaskDataCategory) -> bool {
