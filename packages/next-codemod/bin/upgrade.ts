@@ -109,8 +109,7 @@ export async function runUpgrade(
     console.log(
       `${pc.green('✓')} Current Next.js version is already on the target version "v${targetNextVersion}".`
     )
-    endMessage()
-    return
+    // Do not abort, continue with the upgrade steps.
   }
   if (compareVersions(installedNextVersion, targetNextVersion) > 0) {
     console.log(
