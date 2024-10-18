@@ -7,3 +7,7 @@ export async function foo() {
 export async function bar() {
   return 'result'
 }
+
+export default async () => {
+  return 'result'
+}

@@ -73,6 +73,8 @@ pub fn server_actions<C: Comments>(
         export_actions: Default::default(),
 
         private_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
+
+        arrow_or_fn_expr_ident: None,
     })
 }
 
@@ -121,6 +123,8 @@ struct ServerActions<C: Comments> {
     export_actions: Vec<String>,
 
     private_ctxt: SyntaxContext,
+
+    arrow_or_fn_expr_ident: Option<Ident>,
 }
 
 impl<C: Comments> ServerActions<C> {
@@ -307,31 +311,42 @@ impl<C: Comments> ServerActions<C> {
         }
 
         // Create the action export decl from the arrow function
-        self.extra_items
+        // export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {}
+        self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
-                decl: FnDecl {
-                    ident: action_ident.clone(),
-                    function: Box::new(Function {
-                        params: new_params,
-                        body: match new_body {
-                            BlockStmtOrExpr::BlockStmt(body) => Some(body),
-                            BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                decl: VarDecl {
+                    kind: VarDeclKind::Const,
+                    span: DUMMY_SP,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Ident(action_ident.clone().into()),
+                        definite: false,
+                        init: Some(Box::new(Expr::Fn(FnExpr {
+                            ident: self.arrow_or_fn_expr_ident.clone(),
+                            function: Box::new(Function {
+                                params: new_params,
+                                body: match new_body {
+                                    BlockStmtOrExpr::BlockStmt(body) => Some(body),
+                                    BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                                        span: DUMMY_SP,
+                                        stmts: vec![Stmt::Return(ReturnStmt {
+                                            span: DUMMY_SP,
+                                            arg: Some(expr),
+                                        })],
+                                        ..Default::default()
+                                    }),
+                                },
+                                decorators: vec![],
                                 span: DUMMY_SP,
-                                stmts: vec![Stmt::Return(ReturnStmt {
-                                    span: DUMMY_SP,
-                                    arg: Some(expr),
-                                })],
+                                is_generator: false,
+                                is_async: true,
                                 ..Default::default()
                             }),
-                        },
-                        decorators: vec![],
-                        span: DUMMY_SP,
-                        is_generator: false,
-                        is_async: true,
-                        ..Default::default()
-                    }),
+                        }))),
+                    }],
                     declare: Default::default(),
+                    ctxt: self.private_ctxt,
                 }
                 .into(),
             })));
@@ -343,6 +358,7 @@ impl<C: Comments> ServerActions<C> {
         &mut self,
         ids_from_closure: Vec<Name>,
         function: &mut Box<Function>,
+        fn_name: Option<Ident>,
     ) -> Box<Expr> {
         let action_name: JsWord = gen_action_ident(&mut self.reference_index);
 
@@ -442,17 +458,29 @@ impl<C: Comments> ServerActions<C> {
             new_params.push(p.clone());
         }
 
-        self.extra_items
+        // Create the action export decl from the function
+        // export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {}
+        self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
-                decl: FnDecl {
-                    ident: action_ident.clone(),
-                    function: Box::new(Function {
-                        params: new_params,
-                        body: new_body,
-                        ..*function.take()
-                    }),
+                decl: VarDecl {
+                    kind: VarDeclKind::Const,
+                    span: DUMMY_SP,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP, // TODO: need to map it to the original span?
+                        name: Pat::Ident(action_ident.clone().into()),
+                        definite: false,
+                        init: Some(Box::new(Expr::Fn(FnExpr {
+                            ident: fn_name,
+                            function: Box::new(Function {
+                                params: new_params,
+                                body: new_body,
+                                ..*function.take()
+                            }),
+                        }))),
+                    }],
                     declare: Default::default(),
+                    ctxt: self.private_ctxt,
                 }
                 .into(),
             })));
@@ -936,16 +964,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if is_action_fn && !(self.in_action_file && self.in_export_decl) {
-            // It's an action function. If it doesn't have a name, give it one.
-            match f.ident.as_mut() {
-                None => {
-                    let action_name = gen_action_ident(&mut self.reference_index);
-                    let ident = Ident::new(action_name, DUMMY_SP, self.private_ctxt);
-                    f.ident.insert(ident)
-                }
-                Some(i) => i,
-            };
-
             // Collect all the identifiers defined inside the closure and used
             // in the action function. With deduplication.
             retain_names_from_declared_idents(
@@ -956,6 +974,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
                 child_names,
                 &mut f.function,
+                f.ident.clone().or(self.arrow_or_fn_expr_ident.clone()),
             );
 
             if self.in_default_export_decl {
@@ -1073,6 +1092,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
                     child_names,
                     &mut f.function,
+                    Some(f.ident.clone()),
                 );
 
                 // Replace the original function declaration with a action proxy declaration
@@ -1223,6 +1243,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
+        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+
+        match n {
+            PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+                key: PropName::Ident(ident_name),
+                value: box Expr::Arrow(_) | box Expr::Fn(_),
+                ..
+            })) => {
+                self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+            }
+            _ => {}
+        }
+
         if !self.in_module_level && self.should_track_names {
             if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
                 self.names.push(Name::from(&*i));
@@ -1234,6 +1267,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         n.visit_mut_children_with(self);
+        self.arrow_or_fn_expr_ident = old_arrow_expr_ident
     }
 
     fn visit_mut_callee(&mut self, n: &mut Callee) {
@@ -1405,6 +1439,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     self.exported_idents
                                         .push((new_ident.clone(), "default".into()));
 
+                                    println!("before attach_name_to_expr {}", new_ident.sym);
                                     *default_expr.expr = attach_name_to_expr(
                                         new_ident,
                                         Expr::Arrow(arrow.clone()),
@@ -1795,6 +1830,62 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         *stmts = new;
 
         self.annotations = old_annotations;
+    }
+
+    fn visit_mut_jsx_attr(&mut self, attr: &mut JSXAttr) {
+        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+
+        match (&attr.value, &attr.name) {
+            (Some(JSXAttrValue::JSXExprContainer(container)), JSXAttrName::Ident(ident_name)) => {
+                match &container.expr {
+                    JSXExpr::Expr(box Expr::Arrow(_)) | JSXExpr::Expr(box Expr::Fn(_)) => {
+                        self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+                    }
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+
+        attr.visit_mut_children_with(self);
+
+        self.arrow_or_fn_expr_ident = old_arrow_expr_ident
+    }
+
+    fn visit_mut_var_declarator(&mut self, var_declarator: &mut VarDeclarator) {
+        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+
+        match (&var_declarator.name, &var_declarator.init) {
+            (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) => {
+                self.arrow_or_fn_expr_ident = Some(ident.id.clone());
+            }
+            _ => {}
+        }
+
+        var_declarator.visit_mut_children_with(self);
+
+        self.arrow_or_fn_expr_ident = old_arrow_expr_ident;
+    }
+
+    fn visit_mut_assign_expr(&mut self, assign_expr: &mut AssignExpr) {
+        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+
+        match (&assign_expr.left, &assign_expr.right) {
+            (
+                AssignTarget::Simple(SimpleAssignTarget::Ident(ident)),
+                box Expr::Arrow(_) | box Expr::Fn(_),
+            ) => {
+                // Ignore assignment expressions that we created.
+                if !ident.id.to_id().0.starts_with("$$RSC_SERVER_") {
+                    self.arrow_or_fn_expr_ident = Some(ident.id.clone());
+                }
+            }
+            _ => {}
+        }
+
+        assign_expr.visit_mut_children_with(self);
+
+        self.arrow_or_fn_expr_ident = old_arrow_expr_ident;
     }
 
     noop_visit_mut_type!();

@@ -1,27 +1,22 @@
 import { Form } from './form'
-import { foo } from './actions'
-import Link from 'next/link'
-import { ServerComponent } from './server-component'
 
 export default function Page() {
-  const bar = async () => {
+  const foo = async () => {
     'use server'
 
     return 'declarator arrow function expression'
   }
 
-  async function baz() {
+  async function bar() {
     'use server'
 
     return 'function declaration'
   }
 
   return (
-    <main>
-      <ServerComponent />
+    <>
       <Form action={foo} />
       <Form action={bar} />
-      <Form action={baz} />
       <Form
         action={async () => {
           'use server'
@@ -37,13 +32,12 @@ export default function Page() {
         }}
       />
       <Form
-        action={async function myAction() {
+        action={async function baz() {
           'use server'
 
           return 'named function expression'
         }}
       />
-      <Link href="/client">client component page</Link>
-    </main>
+    </>
   )
 }
