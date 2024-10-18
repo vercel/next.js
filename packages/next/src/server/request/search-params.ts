@@ -222,9 +222,11 @@ function makeAbortingExoticSearchParams(
               'searchParams',
               prop
             )
+            const error = createSyncSearchParamsError(route, expression)
             abortAndThrowOnSynchronousRequestDataAccess(
               route,
               expression,
+              error,
               prerenderStore
             )
           }
@@ -242,9 +244,11 @@ function makeAbortingExoticSearchParams(
           'searchParams',
           prop
         )
+        const error = createSyncSearchParamsError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       }
@@ -253,9 +257,11 @@ function makeAbortingExoticSearchParams(
     ownKeys() {
       const expression =
         '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
+      const error = createSyncSearchParamsError(route, expression)
       abortAndThrowOnSynchronousRequestDataAccess(
         route,
         expression,
+        error,
         prerenderStore
       )
     },
@@ -724,4 +730,10 @@ function describeListOfPropertyNames(properties: Array<string>) {
       return description
     }
   }
+}
+
+function createSyncSearchParamsError(route: string, expression: string) {
+  return new Error(
+    `Route "${route}" used ${expression}. \`searchParams\` is now a Promise and should be \`awaited\` before accessing search param values. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-params`
+  )
 }

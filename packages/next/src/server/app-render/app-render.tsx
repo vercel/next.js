@@ -2208,10 +2208,9 @@ async function prerenderToStream(
 
             const componentStack: string | undefined = (errorInfo as any)
               .componentStack
-            if (typeof componentStack === 'string' && err instanceof Error) {
+            if (typeof componentStack === 'string') {
               trackAllowedDynamicAccess(
                 workStore.route,
-                err,
                 componentStack,
                 dynamicTracking
               )
@@ -2543,10 +2542,9 @@ async function prerenderToStream(
 
             const componentStack: string | undefined = (errorInfo as any)
               .componentStack
-            if (typeof componentStack === 'string' && err instanceof Error) {
+            if (typeof componentStack === 'string') {
               trackAllowedDynamicAccess(
                 workStore.route,
-                err,
                 componentStack,
                 dynamicTracking
               )
