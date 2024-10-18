@@ -2000,11 +2000,11 @@ fn attach_name_to_default_expr(ident: &Ident, extra_items: &mut Vec<ModuleItem>)
             callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
                 span: DUMMY_SP,
                 obj: Box::new(Expr::Ident(Ident::new(
-                    format!("Object").into(),
+                    "Object".into(),
                     DUMMY_SP,
                     ident.ctxt,
                 ))),
-                prop: MemberProp::Ident(IdentName::new(format!("defineProperty").into(), DUMMY_SP)),
+                prop: MemberProp::Ident(IdentName::new("defineProperty".into(), DUMMY_SP)),
             }))),
             args: vec![
                 ExprOrSpread {
