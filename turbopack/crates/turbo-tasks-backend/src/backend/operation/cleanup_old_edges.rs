@@ -13,7 +13,7 @@ use crate::{
             invalidate::make_task_dirty,
             AggregatedDataUpdate, ExecuteContext, Operation,
         },
-        storage::update_count,
+        storage::{update, update_count},
         TaskDataCategory,
     },
     data::{CachedDataItemKey, CellRef, CollectibleRef, CollectiblesRef},
@@ -82,6 +82,12 @@ impl Operation for CleanupOldEdgesOperation {
                                 for &child_id in children.iter() {
                                     task.remove(&CachedDataItemKey::Child { task: child_id });
                                 }
+                                let remove_children_count = u32::try_from(children.len()).unwrap();
+                                update!(task, ChildrenCount, |count: Option<u32>| {
+                                    // If this underflows, we messed up counting somewhere
+                                    let count = count.unwrap_or_default() - remove_children_count;
+                                    (count != 0).then_some(count)
+                                });
                                 if is_aggregating_node(get_aggregation_number(&task)) {
                                     queue.push(AggregationUpdateJob::InnerLostFollowers {
                                         upper_ids: vec![task_id],

@@ -566,7 +566,7 @@ export default function HotReload({
       dispatch({
         type: ACTION_UNHANDLED_ERROR,
         reason: error,
-        frames: parseStack(error.stack!),
+        frames: parseStack(error.stack),
         componentStackFrames:
           typeof componentStackTrace === 'string'
             ? parseComponentStack(componentStackTrace)

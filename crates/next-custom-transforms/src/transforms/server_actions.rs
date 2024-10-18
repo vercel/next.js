@@ -472,10 +472,7 @@ impl<C: Comments> ServerActions<C> {
 
         self.has_cache = true;
         self.has_action = true;
-
-        if self.config.is_react_server_layer {
-            self.export_actions.push(export_name.to_string());
-        }
+        self.export_actions.push(export_name.to_string());
 
         let reference_id =
             generate_action_id(&self.config.hash_salt, &self.file_name, &export_name);
@@ -672,10 +669,7 @@ impl<C: Comments> ServerActions<C> {
 
         self.has_cache = true;
         self.has_action = true;
-
-        if self.config.is_react_server_layer {
-            self.export_actions.push(cache_name.to_string());
-        }
+        self.export_actions.push(cache_name.to_string());
 
         let reference_id = generate_action_id(&self.config.hash_salt, &self.file_name, &cache_name);
 
@@ -901,6 +895,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
+        if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+            return;
+        }
+
         if let Some(cache_type_str) = cache_type {
             // It's a cache function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
@@ -1005,6 +1003,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             self.should_track_names = old_should_track_names;
             self.in_export_decl = old_in_export_decl;
             self.in_default_export_decl = old_in_default_export_decl;
+        }
+
+        if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+            return;
         }
 
         let mut child_names = if self.should_track_names {
@@ -1155,16 +1157,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if !is_action_fn && cache_type.is_none() {
-            return;
-        }
-
-        if !a.is_async && !self.in_action_file && self.in_cache_file.is_none() {
+        if !a.is_async
+            // Errors for in_action_file/in_cache_file are handled in `visit_mut_module_items`.
+            && (is_action_fn && !self.in_action_file
+                || cache_type.is_some() && self.in_cache_file.is_none())
+        {
             HANDLER.with(|handler| {
                 handler
                     .struct_span_err(a.span, "Server Actions must be async functions")
                     .emit();
             });
+        }
+
+        if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+            return;
         }
 
         // Collect all the identifiers defined inside the closure and used
@@ -1662,7 +1668,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        if self.has_action {
+        if self.has_action || self.has_cache {
             let mut actions = self.export_actions.clone();
 
             // All exported values are considered as actions if the file is an action file.

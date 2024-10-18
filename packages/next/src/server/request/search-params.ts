@@ -639,11 +639,19 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
     },
     has(target, prop) {
       if (typeof prop === 'string') {
-        const expression = describeHasCheckingStringProperty(
-          'searchParams',
-          prop
-        )
-        warnForSyncAccess(store.route, expression)
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
+          const expression = describeHasCheckingStringProperty(
+            'searchParams',
+            prop
+          )
+          warnForSyncAccess(store.route, expression)
+        }
       }
       return Reflect.has(target, prop)
     },
