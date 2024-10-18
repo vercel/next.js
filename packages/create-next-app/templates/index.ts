@@ -13,7 +13,7 @@ import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-77b637d6-20241016";
+const nextjsReactPeerVersion = "19.0.0-rc-bf7e210c-20241017";
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".

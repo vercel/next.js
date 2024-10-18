@@ -8,7 +8,7 @@ use crate::{
     backend::{
         operation::{
             invalidate::{make_task_dirty, make_task_dirty_internal},
-            AggregationUpdateQueue, ExecuteContext, Operation,
+            AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
         },
         storage::{get, get_many},
         TaskDataCategory,
@@ -41,7 +41,7 @@ impl UpdateOutputOperation {
     pub fn run(
         task_id: TaskId,
         output: Result<Result<RawVc>, Option<Cow<'static, str>>>,
-        mut ctx: ExecuteContext<'_>,
+        mut ctx: impl ExecuteContext,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
         if let Some(InProgressState::InProgress { stale: true, .. }) = get!(task, InProgress) {
@@ -108,7 +108,7 @@ impl UpdateOutputOperation {
 
         let mut queue = AggregationUpdateQueue::new();
 
-        make_task_dirty_internal(&mut task, task_id, false, &mut queue, &mut ctx);
+        make_task_dirty_internal(&mut task, task_id, false, &mut queue, &ctx);
 
         drop(task);
         drop(old_content);
@@ -124,7 +124,7 @@ impl UpdateOutputOperation {
 }
 
 impl Operation for UpdateOutputOperation {
-    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
