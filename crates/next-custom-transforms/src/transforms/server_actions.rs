@@ -1200,7 +1200,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             &self.declared_idents[..declared_idents_until],
         );
 
-        let maybe_new_expr = if is_action_fn {
+        let maybe_new_expr = if is_action_fn && !self.in_action_file {
             Some(self.maybe_hoist_and_create_proxy_for_server_action_arrow_expr(child_names, a))
         } else {
             cache_type.map(|cache_type_str| {
