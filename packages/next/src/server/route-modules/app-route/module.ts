@@ -354,6 +354,7 @@ export class AppRouteRouteModule extends RouteModule<
               // because we need to let all caches fill.
               controller: null,
               dynamicTracking,
+              dynamicValidation: null,
               revalidate: defaultRevalidate,
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
@@ -434,6 +435,7 @@ export class AppRouteRouteModule extends RouteModule<
             cacheSignal: null,
             controller: finalController,
             dynamicTracking,
+            dynamicValidation: null,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
