@@ -16,16 +16,28 @@ import {
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { attachHydrationErrorState } from '../internal/helpers/attach-hydration-error-state'
+import {
+  patchConsoleError,
+  unpatchConsoleError,
+} from '../../globals/intercept-console-error'
+import { ConsoleError } from '../internal/helpers/console-error'
+import { formatConsoleArgs } from '../../../lib/console'
+import isError from '../../../../lib/is-error'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
 
-function handleError(error: unknown) {
-  if (!error || !(error instanceof Error) || typeof error.stack !== 'string') {
-    // A non-error was thrown, we don't have anything to show. :-(
-    return
+function handleClientError(originError: unknown, consoleErrorArgs: unknown[]) {
+  let error: Error
+  if (!originError || !isError(originError)) {
+    // If it's not an error, format the args into an error
+    const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
+    error = new ConsoleError(formattedErrorMessage)
+  } else {
+    error = originError
   }
 
+  storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
   attachHydrationErrorState(error)
 
   const componentStackTrace =
@@ -50,18 +62,9 @@ function handleError(error: unknown) {
   }
 }
 
-let origConsoleError = console.error
-function nextJsHandleConsoleError(...args: any[]) {
-  // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-  const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
-  storeHydrationErrorStateFromConsoleArgs(...args)
-  handleError(error)
-  origConsoleError.apply(window.console, args)
-}
-
 function onUnhandledError(event: ErrorEvent) {
   const error = event?.error
-  handleError(error)
+  handleClientError(error, [])
 }
 
 function onUnhandledRejection(ev: PromiseRejectionEvent) {
@@ -97,7 +100,7 @@ export function register() {
 
   window.addEventListener('error', onUnhandledError)
   window.addEventListener('unhandledrejection', onUnhandledRejection)
-  window.console.error = nextJsHandleConsoleError
+  patchConsoleError(handleClientError)
 }
 
 export function unregister() {
@@ -115,7 +118,7 @@ export function unregister() {
 
   window.removeEventListener('error', onUnhandledError)
   window.removeEventListener('unhandledrejection', onUnhandledRejection)
-  window.console.error = origConsoleError
+  unpatchConsoleError()
 }
 
 export function onBuildOk() {
