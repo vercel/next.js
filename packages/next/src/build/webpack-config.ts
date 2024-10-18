@@ -1945,7 +1945,11 @@ export default async function getBaseWebpackConfig(
         }),
       !dev &&
         isClient &&
-        new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
+        new CssChunkingPlugin(
+          config.experimental.cssChunking?.style === 'strict',
+          config.experimental.cssChunking?.minChunkSize,
+          config.experimental.cssChunking?.maxChunkSize
+        ),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
