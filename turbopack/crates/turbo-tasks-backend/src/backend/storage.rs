@@ -111,10 +111,6 @@ impl PersistanceState {
     pub fn is_restored(&self, category: TaskDataCategory) -> bool {
         self.value & category.flag() == 0
     }
-
-    pub fn is_fully_persisted(&self) -> bool {
-        self.value & !TaskDataCategory::All.flag() == 0
-    }
 }
 
 const INDEX_THRESHOLD: usize = 1024;
@@ -305,23 +301,6 @@ where
     }
 }
 
-impl<T: KeyValuePair + Default> InnerStorage<T>
-where
-    T::Key: Indexed,
-    T::Value: PartialEq,
-{
-    pub fn has(&self, item: &mut T) -> bool {
-        let (key, value) = take(item).into_key_and_value();
-        let result = if let Some(stored_value) = self.get(&key) {
-            *stored_value == value
-        } else {
-            false
-        };
-        *item = T::from_key_and_value(key, value);
-        result
-    }
-}
-
 pub struct Storage<K, T: KeyValuePair>
 where
     T::Key: Indexed,
@@ -403,7 +382,9 @@ where
 }
 
 macro_rules! get {
-    ($task:ident, $key:ident $input:tt) => {
+    ($task:ident, $key:ident $input:tt) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
         if let Some($crate::data::CachedDataItemValue::$key {
             value,
         }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
@@ -411,14 +392,16 @@ macro_rules! get {
         } else {
             None
         }
-    };
+    }};
     ($task:ident, $key:ident) => {
         $crate::backend::storage::get!($task, $key {})
     };
 }
 
 macro_rules! get_mut {
-    ($task:ident, $key:ident $input:tt) => {
+    ($task:ident, $key:ident $input:tt) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
         if let Some($crate::data::CachedDataItemValue::$key {
             value,
         }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input).as_mut() {
@@ -427,7 +410,7 @@ macro_rules! get_mut {
         } else {
             None
         }
-    };
+    }};
     ($task:ident, $key:ident) => {
         $crate::backend::storage::get_mut!($task, $key {})
     };
@@ -439,7 +422,9 @@ macro_rules! get_mut {
 /// Each element in the iterator is determined by `$iter_item`, which may use fields extracted by
 /// `$key_pattern` or `$value_pattern`.
 macro_rules! iter_many {
-    ($task:ident, $key:ident $key_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {
+    ($task:ident, $key:ident $key_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
         $task
             .iter($crate::data::indicies::$key)
             .filter_map(|(key, _)| match key {
@@ -448,8 +433,10 @@ macro_rules! iter_many {
                 ),
                 _ => None,
             })
-    };
-    ($task:ident, $key:ident $input:tt $value_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {
+    }};
+    ($task:ident, $key:ident $input:tt $value_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
         $task
             .iter($crate::data::indicies::$key)
             .filter_map(|(key, value)| match (key, value) {
@@ -459,7 +446,7 @@ macro_rules! iter_many {
                 ) $(if $cond)? => Some($iter_item),
                 _ => None,
             })
-    };
+    }};
 }
 
 /// A thin wrapper around [`iter_many`] that calls [`Iterator::collect`].
@@ -473,7 +460,9 @@ macro_rules! get_many {
 }
 
 macro_rules! update {
-    ($task:ident, $key:ident $input:tt, $update:expr) => {
+    ($task:ident, $key:ident $input:tt, $update:expr) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
         #[allow(unused_mut)]
         match $update {
             mut update => $task.update(&$crate::data::CachedDataItemKey::$key $input, |old| {
@@ -487,7 +476,7 @@ macro_rules! update {
                 .map(|new| $crate::data::CachedDataItemValue::$key { value: new })
             })
         }
-    };
+    }};
     ($task:ident, $key:ident, $update:expr) => {
         $crate::backend::storage::update!($task, $key {}, $update)
     };
@@ -518,7 +507,9 @@ macro_rules! update_count {
 }
 
 macro_rules! remove {
-    ($task:ident, $key:ident $input:tt) => {
+    ($task:ident, $key:ident $input:tt) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
         if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(
             &$crate::data::CachedDataItemKey::$key $input
         ) {
@@ -526,7 +517,7 @@ macro_rules! remove {
         } else {
             None
         }
-    };
+    }};
     ($task:ident, $key:ident) => {
         $crate::backend::storage::remove!($task, $key {})
     };

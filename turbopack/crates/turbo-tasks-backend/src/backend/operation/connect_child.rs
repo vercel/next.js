@@ -10,7 +10,7 @@ use crate::{
                 get_uppers, is_aggregating_node, AggregationUpdateJob, AggregationUpdateQueue,
                 LEAF_NUMBER,
             },
-            is_root_node, ExecuteContext, Operation,
+            is_root_node, ExecuteContext, Operation, TaskGuard,
         },
         storage::{get, update},
         TaskDataCategory,
@@ -31,7 +31,7 @@ pub enum ConnectChildOperation {
 }
 
 impl ConnectChildOperation {
-    pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: ExecuteContext<'_>) {
+    pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: impl ExecuteContext) {
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
         // Quick skip if the child was already connected before
         if parent_task
@@ -121,7 +121,7 @@ impl ConnectChildOperation {
             {
                 let mut task = ctx.task(child_task_id, TaskDataCategory::Data);
                 if !task.has_key(&CachedDataItemKey::Output {}) {
-                    let description = ctx.backend.get_task_desc_fn(child_task_id);
+                    let description = ctx.get_task_desc_fn(child_task_id);
                     let should_schedule = task.add(CachedDataItem::new_scheduled(description));
                     drop(task);
                     if should_schedule {
@@ -139,7 +139,7 @@ impl ConnectChildOperation {
 }
 
 impl Operation for ConnectChildOperation {
-    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
