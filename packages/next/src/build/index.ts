@@ -3694,10 +3694,11 @@ export default async function build(
         await nextBuildSpan
           .traceChild('verify-partytown-setup')
           .traceAsyncFn(async () => {
-            await verifyPartytownSetup(
+            await verifyPartytownSetup({
               dir,
-              path.join(distDir, CLIENT_STATIC_FILES_PATH)
-            )
+              targetDir: path.join(distDir, CLIENT_STATIC_FILES_PATH),
+              appDir,
+            })
           })
       }
 
