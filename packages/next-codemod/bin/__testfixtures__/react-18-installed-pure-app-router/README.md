@@ -1,1 +1,1 @@
-Prompts for React 19 upgrade
+Upgrades to React 19 automatically
