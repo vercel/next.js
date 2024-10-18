@@ -131,24 +131,49 @@ export async function runTransform(
     env: { FORCE_COLOR: 'true' },
   })
 
+  // "\n" + "a\n" + "b\n"
+  let lastThreeLineBreaks = ''
+
   if (execaChildProcess.stdout) {
     execaChildProcess.stdout.pipe(process.stdout)
-  }
+    execaChildProcess.stderr.pipe(process.stderr)
 
-  let result
-  try {
-    result = await execaChildProcess
-  } catch (error) {
-    throw new Error(
-      `jscodeshift exited with code ${execaChildProcess.exitCode}`,
-      {
-        cause: error,
+    // The last two lines contain the successful transformation count as "N ok".
+    // To save memory, we "slide the window" to keep only the last three line breaks.
+    // We save three line breaks because the EOL is always "\n".
+    execaChildProcess.stdout.on('data', (chunk) => {
+      lastThreeLineBreaks = chunk.toString('utf-8') // reset to latest chunk
+
+      let cutoff = lastThreeLineBreaks.length
+
+      // Note: the stdout ends with "\n".
+      // "foo\n" + "bar\n" + "baz\n" -> "\nbar\nbaz\n"
+      // "\n" + "foo\n" + "bar\n" -> "\nfoo\nbar\n"
+
+      for (let i = 0; i < 3; i++) {
+        cutoff = lastThreeLineBreaks.lastIndexOf('\n', cutoff) - 1
       }
-    )
+
+      if (cutoff > 0 && cutoff < lastThreeLineBreaks.length) {
+        lastThreeLineBreaks = lastThreeLineBreaks.slice(cutoff + 1)
+      }
+    })
   }
 
-  // eol N-2 has 'M ok'; M as number of successful transformations
-  const hasNoChanges = result.stdout?.split('\n').at(-2)?.includes('0 ok')
+  try {
+    const result = await execaChildProcess
+
+    if (result.failed) {
+      throw new Error(`jscodeshift exited with code ${result.exitCode}`)
+    }
+  } catch (error) {
+    throw error
+  }
+
+  // With ANSI color codes, it will be '\x1B[39m\x1B[32m0 ok'.
+  // Without, it will be '0 ok'.
+  const targetOkLine = lastThreeLineBreaks.split('\n').at(-3)
+  const hasNoChanges = targetOkLine.includes('0 ok')
 
   if (!dry && transformer === 'built-in-next-font' && !hasNoChanges) {
     const { uninstallNextFont } = await prompts(
