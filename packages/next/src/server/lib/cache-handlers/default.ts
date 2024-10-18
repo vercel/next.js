@@ -34,20 +34,28 @@ export const DefaultCacheHandler: CacheHandler = {
     }
     const entry = memoryCache.get(cacheKey)
 
+    if (!entry) {
+      return
+    }
     if (
-      entry &&
       performance.timeOrigin + performance.now() >
-        entry.timestamp + entry.revalidate * 1000
+      entry.timestamp + entry.revalidate * 1000
     ) {
       // In memory caches should expire after revalidate time because it is unlikely that
       // a new entry will be able to be used before it is dropped from the cache.
       return
     }
 
-    if (isTagStale(...(entry?.tags || []))) {
+    if (isTagStale(...(entry.tags || []))) {
       return
     }
-    return entry
+    const [returnStream, newSaved] = entry.value.tee()
+    entry.value = newSaved
+
+    return {
+      ...entry,
+      value: returnStream,
+    }
   },
 
   set: async function set(cacheKey, entry) {
