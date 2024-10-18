@@ -94,14 +94,18 @@ class NotFoundErrorBoundary extends React.Component<
 
   render() {
     if (this.state.notFoundTriggered) {
+      // the order of rendering of these elements matters because InnerScrollAndFocusHandler
+      // finds the first element being rendered in handlePotentialScroll function
+      // if <meta> is rendered first, then scrolling on client side navigation will not happen
+      // props.notFound should always be rendered first
       return (
         <>
+          {this.props.notFound}
           <meta name="robots" content="noindex" />
           {process.env.NODE_ENV === 'development' && (
             <meta name="next-error" content="not-found" />
           )}
           {this.props.notFoundStyles}
-          {this.props.notFound}
         </>
       )
     }
