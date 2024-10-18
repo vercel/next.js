@@ -314,7 +314,10 @@ declare module 'react-server-dom-webpack/client.edge' {
 
   export function encodeReply(
     value: unknown,
-    options?: { temporaryReferences?: TemporaryReferenceSet }
+    options?: {
+      temporaryReferences?: TemporaryReferenceSet
+      signal?: AbortSignal
+    }
   ): Promise<string | FormData>
 }
 

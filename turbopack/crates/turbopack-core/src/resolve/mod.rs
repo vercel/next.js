@@ -70,7 +70,6 @@ pub enum ModuleResolveResultItem {
     Error(Vc<RcStr>),
     Empty,
     Custom(u8),
-    Unresolveable,
 }
 
 #[turbo_tasks::value(shared)]
@@ -82,19 +81,19 @@ pub struct ModuleResolveResult {
 
 impl Default for ModuleResolveResult {
     fn default() -> Self {
-        ModuleResolveResult::unresolveable()
+        ModuleResolveResult::unresolvable()
     }
 }
 
 impl ModuleResolveResult {
-    pub fn unresolveable() -> Self {
+    pub fn unresolvable() -> Self {
         ModuleResolveResult {
             primary: FxIndexMap::default(),
             affecting_sources: Vec::new(),
         }
     }
 
-    pub fn unresolveable_with_affecting_sources(
+    pub fn unresolvable_with_affecting_sources(
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
@@ -220,7 +219,7 @@ impl ModuleResolveResult {
         );
     }
 
-    pub fn is_unresolveable_ref(&self) -> bool {
+    pub fn is_unresolvable_ref(&self) -> bool {
         self.primary.is_empty()
     }
 }
@@ -250,7 +249,7 @@ impl ModuleResolveResult {
     }
 
     /// Returns the first [ModuleResolveResult] that is not
-    /// [ModuleResolveResult::Unresolveable] in the given list, while keeping
+    /// [ModuleResolveResult::Unresolvable] in the given list, while keeping
     /// track of all the affecting_sources in all the [ModuleResolveResult]s.
     #[turbo_tasks::function]
     pub async fn select_first(results: Vec<Vc<ModuleResolveResult>>) -> Result<Vc<Self>> {
@@ -260,13 +259,13 @@ impl ModuleResolveResult {
         }
         for result in results {
             let result_ref = result.await?;
-            if !result_ref.is_unresolveable_ref() {
+            if !result_ref.is_unresolvable_ref() {
                 return Ok(result_ref
                     .clone_with_affecting_sources(affecting_sources)
                     .cell());
             }
         }
-        Ok(ModuleResolveResult::unresolveable_with_affecting_sources(affecting_sources).into())
+        Ok(ModuleResolveResult::unresolvable_with_affecting_sources(affecting_sources).into())
     }
 
     #[turbo_tasks::function]
@@ -284,7 +283,7 @@ impl ModuleResolveResult {
             }
             Ok(Self::cell(current))
         } else {
-            Ok(Self::cell(ModuleResolveResult::unresolveable()))
+            Ok(Self::cell(ModuleResolveResult::unresolvable()))
         }
     }
 
@@ -315,14 +314,14 @@ impl ModuleResolveResult {
             Ok(Self::cell(current))
         } else {
             Ok(Self::cell(
-                ModuleResolveResult::unresolveable_with_affecting_sources(affecting_sources),
+                ModuleResolveResult::unresolvable_with_affecting_sources(affecting_sources),
             ))
         }
     }
 
     #[turbo_tasks::function]
-    pub fn is_unresolveable(&self) -> Vc<bool> {
-        Vc::cell(self.is_unresolveable_ref())
+    pub fn is_unresolvable(&self) -> Vc<bool> {
+        Vc::cell(self.is_unresolvable_ref())
     }
 
     #[turbo_tasks::function]
@@ -398,7 +397,6 @@ pub enum ResolveResultItem {
     Error(Vc<RcStr>),
     Empty,
     Custom(u8),
-    Unresolveable,
 }
 
 /// Represents the key for a request that leads to a certain results during
@@ -453,7 +451,7 @@ pub struct ResolveResult {
 
 impl Default for ResolveResult {
     fn default() -> Self {
-        ResolveResult::unresolveable()
+        ResolveResult::unresolvable()
     }
 }
 
@@ -462,8 +460,8 @@ impl ValueToString for ResolveResult {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         let mut result = String::new();
-        if self.is_unresolveable_ref() {
-            result.push_str("unresolveable");
+        if self.is_unresolvable_ref() {
+            result.push_str("unresolvable");
         }
         for (i, (request, item)) in self.primary.iter().enumerate() {
             if i > 0 {
@@ -491,9 +489,6 @@ impl ValueToString for ResolveResult {
                 ResolveResultItem::Custom(_) => {
                     result.push_str("custom");
                 }
-                ResolveResultItem::Unresolveable => {
-                    result.push_str("unresolveable");
-                }
             }
             result.push('\n');
         }
@@ -512,14 +507,14 @@ impl ValueToString for ResolveResult {
 }
 
 impl ResolveResult {
-    pub fn unresolveable() -> Self {
+    pub fn unresolvable() -> Self {
         ResolveResult {
             primary: FxIndexMap::default(),
             affecting_sources: Vec::new(),
         }
     }
 
-    pub fn unresolveable_with_affecting_sources(
+    pub fn unresolvable_with_affecting_sources(
         affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ResolveResult {
         ResolveResult {
@@ -616,7 +611,7 @@ impl ResolveResult {
         );
     }
 
-    pub fn is_unresolveable_ref(&self) -> bool {
+    pub fn is_unresolvable_ref(&self) -> bool {
         self.primary.is_empty()
     }
 
@@ -683,9 +678,6 @@ impl ResolveResult {
                                 ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
                                 ResolveResultItem::Custom(u8) => {
                                     ModuleResolveResultItem::Custom(u8)
-                                }
-                                ResolveResultItem::Unresolveable => {
-                                    ModuleResolveResultItem::Unresolveable
                                 }
                             },
                         ))
@@ -771,7 +763,7 @@ impl ResolveResult {
     }
 
     /// Returns the first [ResolveResult] that is not
-    /// [ResolveResult::Unresolveable] in the given list, while keeping track
+    /// [ResolveResult::Unresolvable] in the given list, while keeping track
     /// of all the affecting_sources in all the [ResolveResult]s.
     #[turbo_tasks::function]
     pub async fn select_first(results: Vec<Vc<ResolveResult>>) -> Result<Vc<Self>> {
@@ -781,13 +773,13 @@ impl ResolveResult {
         }
         for result in results {
             let result_ref = result.await?;
-            if !result_ref.is_unresolveable_ref() {
+            if !result_ref.is_unresolvable_ref() {
                 return Ok(result_ref
                     .clone_with_affecting_sources(affecting_sources)
                     .cell());
             }
         }
-        Ok(ResolveResult::unresolveable_with_affecting_sources(affecting_sources).into())
+        Ok(ResolveResult::unresolvable_with_affecting_sources(affecting_sources).into())
     }
 
     #[turbo_tasks::function]
@@ -805,7 +797,7 @@ impl ResolveResult {
             }
             Ok(Self::cell(current))
         } else {
-            Ok(Self::cell(ResolveResult::unresolveable()))
+            Ok(Self::cell(ResolveResult::unresolvable()))
         }
     }
 
@@ -836,14 +828,14 @@ impl ResolveResult {
             Ok(Self::cell(current))
         } else {
             Ok(Self::cell(
-                ResolveResult::unresolveable_with_affecting_sources(affecting_sources),
+                ResolveResult::unresolvable_with_affecting_sources(affecting_sources),
             ))
         }
     }
 
     #[turbo_tasks::function]
-    pub fn is_unresolveable(&self) -> Vc<bool> {
-        Vc::cell(self.is_unresolveable_ref())
+    pub fn is_unresolvable(&self) -> Vc<bool> {
+        Vc::cell(self.is_unresolvable_ref())
     }
 
     #[turbo_tasks::function]
@@ -1296,7 +1288,7 @@ async fn find_package(
 
 fn merge_results(results: Vec<Vc<ResolveResult>>) -> Vc<ResolveResult> {
     match results.len() {
-        0 => ResolveResult::unresolveable().into(),
+        0 => ResolveResult::unresolvable().into(),
         1 => results.into_iter().next().unwrap(),
         _ => ResolveResult::alternatives(results),
     }
@@ -1310,7 +1302,7 @@ fn merge_results_with_affecting_sources(
         return merge_results(results);
     }
     match results.len() {
-        0 => ResolveResult::unresolveable_with_affecting_sources(affecting_sources).into(),
+        0 => ResolveResult::unresolvable_with_affecting_sources(affecting_sources).into(),
         1 => results
             .into_iter()
             .next()
@@ -1454,7 +1446,7 @@ pub async fn url_resolve(
         rel_request,
         resolve_options,
     );
-    let result = if *rel_result.is_unresolveable().await? && rel_request.resolve().await? != request
+    let result = if *rel_result.is_unresolvable().await? && rel_request.resolve().await? != request
     {
         resolve(
             origin.origin_path().parent(),
@@ -1630,7 +1622,7 @@ async fn resolve_internal_inline(
                     // Typescript resolution algorithm does in case an alias match
                     // doesn't resolve to anything: fall back to resolving the request normally.
                     if let Some(result) = resolved_result {
-                        if !*result.is_unresolveable().await? {
+                        if !*result.is_unresolvable().await? {
                             return Ok(result);
                         }
                     }
@@ -1639,7 +1631,7 @@ async fn resolve_internal_inline(
         }
 
         let result = match &*request_value {
-            Request::Dynamic => ResolveResult::unresolveable().into(),
+            Request::Dynamic => ResolveResult::unresolvable().into(),
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
@@ -1798,9 +1790,9 @@ async fn resolve_internal_inline(
                     .emit();
                 }
 
-                ResolveResult::unresolveable().into()
+                ResolveResult::unresolvable().into()
             }
-            Request::Empty => ResolveResult::unresolveable().into(),
+            Request::Empty => ResolveResult::unresolvable().into(),
             Request::PackageInternal { path } => {
                 let options_value = options.await?;
                 let (conditions, unspecified_conditions) = options_value
@@ -1851,13 +1843,13 @@ async fn resolve_internal_inline(
                     .cell()
                     .emit();
                 }
-                ResolveResult::unresolveable().into()
+                ResolveResult::unresolvable().into()
             }
         };
 
         // Apply fallback import mappings if provided
         if let Some(import_map) = &options_value.fallback_import_map {
-            if *result.is_unresolveable().await? {
+            if *result.is_unresolvable().await? {
                 let result = import_map.await?.lookup(lookup_path, request).await?;
                 let resolved_result = resolve_import_map_result(
                     &result,
@@ -1869,7 +1861,7 @@ async fn resolve_internal_inline(
                 )
                 .await?;
                 if let Some(result) = resolved_result {
-                    if !*result.is_unresolveable().await? {
+                    if !*result.is_unresolvable().await? {
                         return Ok(result);
                     }
                 }
@@ -1915,7 +1907,7 @@ async fn resolve_into_folder(
                             .await?;
                         // we are not that strict when a main field fails to resolve
                         // we continue to try other alternatives
-                        if !result.is_unresolveable_ref() {
+                        if !result.is_unresolvable_ref() {
                             let mut result = result.with_request_ref(".".into());
                             result.add_affecting_source_ref(Vc::upcast(FileSource::new(
                                 package_json_path,
@@ -1930,12 +1922,12 @@ async fn resolve_into_folder(
     }
 
     if options_value.fully_specified {
-        return Ok(ResolveResult::unresolveable().into());
+        return Ok(ResolveResult::unresolvable().into());
     }
 
     // fall back to dir/index.[js,ts,...]
     let pattern = match &options_value.default_files[..] {
-        [] => return Ok(ResolveResult::unresolveable().into()),
+        [] => return Ok(ResolveResult::unresolvable().into()),
         [file] => Pattern::Constant(format!("./{file}").into()),
         files => Pattern::Alternatives(
             files
@@ -2257,7 +2249,7 @@ async fn apply_in_package(
         .emit();
 
         return Ok(Some(
-            ResolveResult::unresolveable_with_affecting_sources(refs).cell(),
+            ResolveResult::unresolvable_with_affecting_sources(refs).cell(),
         ));
     }
     Ok(None)
@@ -2338,7 +2330,7 @@ async fn resolve_module_request(
                 fragment,
                 options,
             );
-            if !(*result.is_unresolveable().await?) {
+            if !(*result.is_unresolvable().await?) {
                 return Ok(result);
             }
         }
@@ -2352,7 +2344,7 @@ async fn resolve_module_request(
     .await?;
 
     if result.packages.is_empty() {
-        return Ok(ResolveResult::unresolveable_with_affecting_sources(
+        return Ok(ResolveResult::unresolvable_with_affecting_sources(
             result.affecting_sources.clone(),
         )
         .into());
@@ -2700,13 +2692,13 @@ async fn resolve_package_internal_with_imports_field(
         }
         .cell()
         .emit();
-        return Ok(ResolveResult::unresolveable().into());
+        return Ok(ResolveResult::unresolvable().into());
     }
 
     let imports_result = imports_field(file_path).await?;
     let (imports, package_json_path) = match &*imports_result {
         ImportsFieldResult::Some(i, p) => (i, p),
-        ImportsFieldResult::None => return Ok(ResolveResult::unresolveable().into()),
+        ImportsFieldResult::None => return Ok(ResolveResult::unresolvable().into()),
     };
 
     handle_exports_imports_field(
@@ -2731,13 +2723,13 @@ pub async fn handle_resolve_error(
     is_optional: bool,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    async fn is_unresolveable(result: Vc<ModuleResolveResult>) -> Result<bool> {
-        Ok(*result.resolve().await?.is_unresolveable().await?)
+    async fn is_unresolvable(result: Vc<ModuleResolveResult>) -> Result<bool> {
+        Ok(*result.resolve().await?.is_unresolvable().await?)
     }
-    Ok(match is_unresolveable(result).await {
-        Ok(unresolveable) => {
-            if unresolveable {
-                emit_unresolveable_issue(
+    Ok(match is_unresolvable(result).await {
+        Ok(unresolvable) => {
+            if unresolvable {
+                emit_unresolvable_issue(
                     is_optional,
                     origin_path,
                     reference_type,
@@ -2761,7 +2753,7 @@ pub async fn handle_resolve_error(
                 source,
             )
             .await?;
-            ModuleResolveResult::unresolveable().cell()
+            ModuleResolveResult::unresolvable().cell()
         }
     })
 }
@@ -2775,13 +2767,13 @@ pub async fn handle_resolve_source_error(
     is_optional: bool,
     source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ResolveResult>> {
-    async fn is_unresolveable(result: Vc<ResolveResult>) -> Result<bool> {
-        Ok(*result.resolve().await?.is_unresolveable().await?)
+    async fn is_unresolvable(result: Vc<ResolveResult>) -> Result<bool> {
+        Ok(*result.resolve().await?.is_unresolvable().await?)
     }
-    Ok(match is_unresolveable(result).await {
-        Ok(unresolveable) => {
-            if unresolveable {
-                emit_unresolveable_issue(
+    Ok(match is_unresolvable(result).await {
+        Ok(unresolvable) => {
+            if unresolvable {
+                emit_unresolvable_issue(
                     is_optional,
                     origin_path,
                     reference_type,
@@ -2805,7 +2797,7 @@ pub async fn handle_resolve_source_error(
                 source,
             )
             .await?;
-            ResolveResult::unresolveable().cell()
+            ResolveResult::unresolvable().cell()
         }
     })
 }
@@ -2838,7 +2830,7 @@ async fn emit_resolve_error_issue(
     Ok(())
 }
 
-async fn emit_unresolveable_issue(
+async fn emit_unresolvable_issue(
     is_optional: bool,
     origin_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,

@@ -1,23 +1,28 @@
 ---
-title: Cannot access `Date.now()`, `Date()`, or `new Date()` while prerendering
+title: Cannot infer intended usage of current time with `Date.now()`, `Date()`, or `new Date()`
 ---
 
 #### Why This Error Occurred
 
-A function is calling a `Date` API that provides the current time. The current time is not prerenderable and must be excluded. The correct solution depends on your use case. You can find more information below about possible ways to resolves this issue.
+Reading the current time can be ambiguous. Sometimes you intend to capture the time when something was cached, other times you intend to capture the time of a user Request. You might also be trying to measure runtime performance to track elapsed time.
+
+In this instance Next.js cannot determine your intent from usage so it needs you to clarify your intent. The way you do that depends on your use case. See the possible solutions below for how to move forward.
 
 #### Possible Ways to Fix It
 
-If you are using the current time for performance tracking consider using `performance.now()` and related APIs instead.
+##### Performance use case
+
+If you are using the current time for performance tracking with elapsed time use `performance.now()`.
 
 Before:
 
 ```jsx filename="app/page.js"
 export default async function Page() {
   const start = Date.now();
-  const data = await somethingSlow();
+  const data = computeDataSlowly(...);
   const end = Date.now();
   console.log(`somethingSlow took ${end - start} milliseconds to complete`)
+
   return ...
 }
 ```
@@ -27,18 +32,80 @@ After:
 ```jsx filename="app/page.js"
 export default async function Page() {
   const start = performance.now();
-  const data = await somethingSlow();
+  const data = computeDataSlowly(...);
   const end = performance.now();
   console.log(`somethingSlow took ${end - start} milliseconds to complete`)
   return ...
 }
 ```
 
-If you want the current time to be reactive so it can change and update consider moving this usage to a Client Component. Note that Server Side Rendering timestamps is also problematic because hydration will fail so you must only set the time after hydration has completed using `useEffect()`.
+Note: If you need report an absolute time to an observability tool you can also use `performance.timeOrigin + performance.now()`.
+
+##### Cacheable use cases
+
+If you want to read the time when some cache entry is created (such as when a Next.js page is rendered at build-time or when revalidating a static page), move the current time read inside a cached function using `"use cache"`.
 
 Before:
 
 ```jsx filename="app/page.js"
+async function InformationTable() {
+  "use cache"
+  const data = await fetch(...)
+  return (
+    <section>
+      <h1>Latest Info...</h1>
+      <table>{renderData(data)}</table>
+    </section>
+  )
+}
+
+export default async function Page() {
+  return (
+    <main>
+      <InformationTable />
+      Last Refresh: {new Date().toString()}
+    </main>
+  )
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+async function InformationTable() {
+  "use cache"
+  const data = await fetch(...)
+  return (
+    <>
+      <section>
+        <h1>Latest Info...</h1>
+        <table>{renderData(data)}</table>
+      </section>
+      Last Refresh: {new Date().toString()}
+    </>
+  )
+}
+
+export default async function Page() {
+  return (
+    <main>
+      <InformationTable />
+    </main>
+  )
+}
+```
+
+##### Reactive use case
+
+If you want the current time to change and be reactive, consider moving this usage to a Client Component. Note that Server Side Rendering timestamps in a Client Component is also considered ambiguous so to implement this properly Next.js needs you to only read the time in the browser, for instance by using `useLayoutEffect()` or `useEffect()`.
+
+Before:
+
+```jsx filename="app/page.js"
+function Timestamp() {
+  return 'current time: ' + new Date().toString()
+}
+
 export default async function Page() {
   return (
     <main>
@@ -47,10 +114,6 @@ export default async function Page() {
     </main>
   )
 }
-
-function Timestamp() {
-  return 'current time: ' + new Date().toString()
-}
 ```
 
 After:
@@ -58,11 +121,11 @@ After:
 ```jsx filename="app/client-components.js"
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useLayoutEffect } from 'react'
 
 export function Timestamp() {
   const [time, setTime] = useState(null)
-  useEffect(() => {
+  useLayoutEffect(() => {
     // You can determine when and how often to update
     // the time here. In this example we update it only once
     setTime(new Date().toString())
@@ -87,7 +150,9 @@ export default async function Page() {
 }
 ```
 
-If you want to server render the current time add `await connection()` before
+##### Request-time use case
+
+If you want the current time to represent the time of a user Request, add `await connection()` before you read the current time. This instructs Next.js that everything after the `await connection()` requires there to be a user Request before it can run. If you add `await connection()` you will also need to ensure there is a Suspense boundary somewhere above the waiting component that describes a fallback UI React can use. The Suspense can be anywhere in the parent component stack but it is shown here above the waiting component for demonstration purposes.
 
 ```jsx filename="app/page.js"
 export default async function Page() {
@@ -128,6 +193,10 @@ async function DynamicBanner() {
 
 ### Useful Links
 
+- [`Date.now` API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)
+- [`Date constructor` API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/Date)
 - [`connection` function](https://nextjs.org/docs/app/api-reference/functions/connection)
 - [`performance` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Performance)
 - [`Suspense` React API](https://react.dev/reference/react/Suspense)
+- [`useLayoutEffect` React Hook](https://react.dev/reference/react/useLayoutEffect)
+- [`useEffect` React Hook](https://react.dev/reference/react/useEffect)

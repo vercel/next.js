@@ -76,10 +76,9 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-    `)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+    )
 
     expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
       "- A server/client branch \`if (typeof window !== 'undefined')\`.
@@ -90,6 +89,10 @@ describe('Error overlay for hydration errors in App router', () => {
 
       It can also happen if the client has a browser extension installed which messes with the HTML before React loaded."
     `)
+
+    expect(await session.getRedboxErrorLink()).toMatchInlineSnapshot(
+      `"See more info here: https://nextjs.org/docs/messages/react-hydration-error"`
+    )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -173,10 +176,47 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     }
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-    `)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+    )
+
+    await cleanup()
+  })
+
+  it('should show correct hydration error when extra attributes set on server', async () => {
+    const { browser, cleanup, session } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/layout.js',
+          outdent`
+          'use client'
+          const isServer = typeof window === 'undefined'
+          export default function Root({ children }) {
+            return (
+              <html 
+                {...(isServer ? ({ className: 'server-html'}) : undefined)}
+              >
+                <body>{children}</body>
+              </html>
+            )
+          }
+          `,
+        ],
+        ['app/page.js', `export default function Page() { return 'page' }`],
+      ])
+    )
+    await session.waitForAndOpenRuntimeError()
+
+    await session.assertHasRedbox()
+    expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+
+    const pseudoHtml = await session.getRedboxComponentStack()
+    expect(pseudoHtml).toMatchInlineSnapshot(`"-className="server-html""`)
+
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+    )
 
     await cleanup()
   })
@@ -227,10 +267,9 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     }
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-    `)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+    )
 
     await cleanup()
   })
@@ -276,10 +315,9 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     }
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-    `)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+    )
 
     await cleanup()
   })
@@ -306,10 +344,9 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-    `)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+    )
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
@@ -358,10 +395,9 @@ describe('Error overlay for hydration errors in App router', () => {
     expect(await getRedboxTotalErrorCount(browser)).toBe(2)
 
     // FIXME: Should also have "text nodes cannot be a child of tr"
-    expect(await session.getRedboxDescription()).toEqual(outdent`
-      Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error
-    `)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+    )
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
@@ -490,10 +526,9 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
     }
 
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-      "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used
-      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-    `)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used"`
+    )
 
     await cleanup()
   })
@@ -834,7 +869,6 @@ describe('Error overlay for hydration errors in App router', () => {
               return (
                 <p>
                   <span>
-                    
                     hello {isServer ? 'server' : 'client'}
                   </span>
                 </p>
