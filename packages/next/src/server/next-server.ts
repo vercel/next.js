@@ -363,6 +363,20 @@ export default class NextNodeServer extends BaseServer<
       )
     }
 
+    const { cacheHandlers } = this.nextConfig.experimental
+
+    if (!(globalThis as any).nextCacheHandlers && cacheHandlers) {
+      ;(globalThis as any).nextCacheHandlers = {}
+
+      for (const key of Object.keys(cacheHandlers)) {
+        ;(globalThis as any).nextCacheHandlers[key] = interopDefault(
+          await dynamicImportEsmDefault(
+            formatDynamicImportPath(this.distDir, cacheHandlers[key] || '')
+          )
+        )
+      }
+    }
+
     // incremental-cache is request specific
     // although can have shared caches in module scope
     // per-cache handler

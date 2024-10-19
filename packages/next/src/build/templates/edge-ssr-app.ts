@@ -17,6 +17,12 @@ import { createServerModuleMap } from '../../server/app-render/action-utils'
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
 
+const cacheHandlers = {}
+
+if (!(globalThis as any).nextCacheHandlers) {
+  ;(globalThis as any).nextCacheHandlers = cacheHandlers
+}
+
 const Document: DocumentType = null!
 const appMod = null
 const errorMod = null

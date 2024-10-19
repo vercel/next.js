@@ -40,6 +40,12 @@ declare const user500RouteModuleOptions: any
 // INJECT:errorRouteModuleOptions
 // INJECT:user500RouteModuleOptions
 
+const cacheHandlers = {}
+
+if (!(globalThis as any).nextCacheHandlers) {
+  ;(globalThis as any).nextCacheHandlers = cacheHandlers
+}
+
 const pageMod = {
   ...userlandPage,
   routeModule: new RouteModule({

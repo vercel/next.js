@@ -40,9 +40,28 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 // If the expire time is less than .
 const DYNAMIC_EXPIRE = 300
 
+const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
+const _globalThis: typeof globalThis & {
+  [cacheHandlersSymbol]?: {
+    RemoteCache?: CacheHandler
+  }
+} = globalThis
+
 const cacheHandlerMap: Map<string, CacheHandler> = new Map([
   ['default', DefaultCacheHandler],
+  [
+    'remote',
+    // in dev remote maps to default handler
+    // and is meant to be overridden in prod
+    _globalThis[cacheHandlersSymbol]?.RemoteCache || DefaultCacheHandler,
+  ],
 ])
+
+for (const [key, value] of Object.entries(
+  (globalThis as any).nextCacheHandlers
+) || {}) {
+  cacheHandlerMap.set(key, value as CacheHandler)
+}
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -414,6 +433,7 @@ export function cache(kind: string, id: string, fn: any) {
     )
   }
   const cacheHandler = cacheHandlerMap.get(kind)
+
   if (cacheHandler === undefined) {
     throw new Error('Unknown cache handler: ' + kind)
   }
