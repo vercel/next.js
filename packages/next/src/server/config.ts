@@ -227,19 +227,8 @@ function assignDefaults(
       `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
     )
   }
-  if (defaultConfig.experimental?.pprFallbacks) {
-    Log.warn(
-      `\`experimental.pprFallbacks\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
-    )
-  }
 
   const result = { ...defaultConfig, ...config }
-
-  if (result.experimental?.pprFallbacks && !result.experimental?.ppr) {
-    throw new Error(
-      `The experimental.pprFallbacks option requires experimental.ppr to be set to \`true\` or \`"incremental"\`.`
-    )
-  }
 
   if (
     result.experimental?.allowDevelopmentBuild &&
@@ -859,6 +848,42 @@ function assignDefaults(
       const dynamicStaleTime = result.experimental.staleTimes?.dynamic
       secondsCacheLifeProfile.stale =
         dynamicStaleTime ?? defaultConfig.experimental?.staleTimes?.dynamic
+    }
+  }
+
+  if (result.experimental?.cacheHandlers) {
+    const allowedHandlerNameRegex = /[a-z-]/
+
+    if (typeof result.experimental.cacheHandlers !== 'object') {
+      throw new Error(
+        `Invalid "experimental.cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(result.experimental.cacheHandlers)}`
+      )
+    }
+
+    const handlerKeys = Object.keys(result.experimental.cacheHandlers)
+    const invalidHandlerItems: Array<{ key: string; reason: string }> = []
+
+    for (const key of handlerKeys) {
+      if (!allowedHandlerNameRegex.test(key)) {
+        invalidHandlerItems.push({
+          key,
+          reason: 'key must only use characters a-z and -',
+        })
+      } else {
+        const handlerPath = result.experimental.cacheHandlers[key]
+
+        if (handlerPath && !existsSync(handlerPath)) {
+          invalidHandlerItems.push({
+            key,
+            reason: `cache handler path provided does not exist, received ${handlerPath}`,
+          })
+        }
+      }
+      if (invalidHandlerItems.length) {
+        throw new Error(
+          `Invalid handler fields configured for "experimental.cacheHandler":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
+        )
+      }
     }
   }
 

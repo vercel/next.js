@@ -48,7 +48,6 @@ export async function loadStaticPaths({
   cacheHandler,
   cacheLifeProfiles,
   nextConfigOutput,
-  isAppPPRFallbacksEnabled,
   buildId,
 }: {
   dir: string
@@ -69,7 +68,6 @@ export async function loadStaticPaths({
     [profile: string]: import('../../server/use-cache/cache-life').CacheLife
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
-  isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
 }): Promise<PartialStaticPathsResult> {
   // update work memory runtime-config
@@ -108,7 +106,6 @@ export async function loadStaticPaths({
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
-      isAppPPRFallbacksEnabled,
       buildId,
     })
   } else if (!components.getStaticPaths) {

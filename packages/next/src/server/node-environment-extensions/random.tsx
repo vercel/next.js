@@ -12,7 +12,7 @@ const expression = '`Math.random()`'
 try {
   const _random = Math.random
   Math.random = function random() {
-    io(expression)
+    io(expression, 'random')
     return _random.apply(null, arguments as any)
 
     // We bind here to alter the `toString` printing to match `Math.random`'s native `toString`.

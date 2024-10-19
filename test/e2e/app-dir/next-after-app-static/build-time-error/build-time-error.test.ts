@@ -17,11 +17,44 @@ _describe('unstable_after() in static pages - thrown errors', () => {
     const buildResult = await next.build()
     expect(buildResult?.exitCode).toBe(1)
 
-    expect(next.cliOutput).toContain(
-      'Error thrown from unstable_after: /page-throws-in-after'
-    )
-    expect(next.cliOutput).toContain(
-      'Error thrown from unstable_after: /route-throws-in-after'
-    )
+    {
+      const path = '/page-throws-in-after/callback'
+      expect(next.cliOutput).toContain(
+        `Error occurred prerendering page "${path}"`
+      )
+      expect(next.cliOutput).toContain(
+        `My cool error thrown inside unstable_after on route "${path}"`
+      )
+    }
+
+    {
+      const path = '/page-throws-in-after/promise'
+      expect(next.cliOutput).toContain(
+        `Error occurred prerendering page "${path}"`
+      )
+      expect(next.cliOutput).toContain(
+        `My cool error thrown inside unstable_after on route "${path}"`
+      )
+    }
+
+    {
+      const path = '/route-throws-in-after/callback'
+      expect(next.cliOutput).toContain(
+        `Error occurred prerendering page "${path}"`
+      )
+      expect(next.cliOutput).toContain(
+        `My cool error thrown inside unstable_after on route "${path}"`
+      )
+    }
+
+    {
+      const path = '/route-throws-in-after/promise'
+      expect(next.cliOutput).toContain(
+        `Error occurred prerendering page "${path}"`
+      )
+      expect(next.cliOutput).toContain(
+        `My cool error thrown inside unstable_after on route "${path}"`
+      )
+    }
   })
 })

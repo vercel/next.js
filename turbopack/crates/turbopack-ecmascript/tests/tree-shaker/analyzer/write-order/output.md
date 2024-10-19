@@ -124,17 +124,13 @@ graph TD
     Item11["export shared"];
     Item3 --> Item1;
     Item4 --> Item3;
-    Item5 --> Item3;
     Item5 --> Item4;
+    Item5 -.-> Item3;
     Item6 --> Item3;
     Item6 --> Item1;
-    Item6 --> Item4;
     Item6 --> Item5;
     Item7 --> Item6;
     Item7 --> Item1;
-    Item7 --> Item3;
-    Item7 --> Item4;
-    Item7 --> Item5;
     Item9 --> Item7;
     Item9 --> Item1;
     Item10 --> Item2;
@@ -160,17 +156,13 @@ graph TD
     Item11["export shared"];
     Item3 --> Item1;
     Item4 --> Item3;
-    Item5 --> Item3;
     Item5 --> Item4;
+    Item5 -.-> Item3;
     Item6 --> Item3;
     Item6 --> Item1;
-    Item6 --> Item4;
     Item6 --> Item5;
     Item7 --> Item6;
     Item7 --> Item1;
-    Item7 --> Item3;
-    Item7 --> Item4;
-    Item7 --> Item5;
     Item9 --> Item7;
     Item9 --> Item1;
     Item10 --> Item2;
@@ -199,17 +191,13 @@ graph TD
     Item11["export shared"];
     Item3 --> Item1;
     Item4 --> Item3;
-    Item5 --> Item3;
     Item5 --> Item4;
+    Item5 -.-> Item3;
     Item6 --> Item3;
     Item6 --> Item1;
-    Item6 --> Item4;
     Item6 --> Item5;
     Item7 --> Item6;
     Item7 --> Item1;
-    Item7 --> Item3;
-    Item7 --> Item4;
-    Item7 --> Item5;
     Item9 --> Item7;
     Item9 --> Item1;
     Item10 --> Item2;
@@ -235,17 +223,13 @@ graph TD
     N10["Items: [ItemId(6, Normal)]"];
     N6 --> N4;
     N7 --> N6;
-    N8 --> N6;
     N8 --> N7;
+    N8 -.-> N6;
     N9 --> N6;
     N9 --> N4;
-    N9 --> N7;
     N9 --> N8;
     N10 --> N9;
     N10 --> N4;
-    N10 --> N6;
-    N10 --> N7;
-    N10 --> N8;
     N2 --> N10;
     N2 --> N4;
     N1 --> N5;
@@ -359,10 +343,10 @@ export { x1 as d } from "__TURBOPACK_VAR__" assert {
 ## Part 8
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
+    __turbopack_part__: 7
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
+    __turbopack_part__: 6
 };
 const x2 = externalFunction();
 export { x2 as e } from "__TURBOPACK_VAR__" assert {
@@ -377,9 +361,6 @@ import { b as order } from "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
@@ -399,15 +380,6 @@ import { b as order } from "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
 };
 order.push("c");
 
@@ -534,9 +506,6 @@ export { x1 as d } from "__TURBOPACK_VAR__" assert {
 ## Part 8
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
 const x2 = externalFunction();
@@ -552,9 +521,6 @@ import { b as order } from "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
@@ -574,15 +540,6 @@ import { b as order } from "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
 };
 order.push("c");
 

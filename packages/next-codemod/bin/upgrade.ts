@@ -1,6 +1,6 @@
+import * as os from 'os'
 import prompts from 'prompts'
 import fs from 'fs'
-import semver from 'semver'
 import compareVersions from 'semver/functions/compare'
 import { execSync } from 'child_process'
 import path from 'path'
@@ -133,7 +133,7 @@ export async function runUpgrade(
     // we should only let the user stay on React 18 if they are using pure Pages Router.
     // x-ref(PR): https://github.com/vercel/next.js/pull/65058
     // x-ref(release): https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
-    compareVersions(installedNextVersion, '14.3.0-canary.45') >= 0 &&
+    compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0 &&
     installedReactVersion.startsWith('18')
   ) {
     const shouldStayOnReact18Res = await prompts(
@@ -177,7 +177,8 @@ export async function runUpgrade(
   // The following React codemods are for React 19
   if (
     !shouldStayOnReact18 &&
-    compareVersions(targetReactVersion, '19.0.0-beta.0') >= 0
+    compareVersions(targetReactVersion, '19.0.0-0') >= 0 &&
+    compareVersions(installedReactVersion, '19.0.0-0') < 0
   ) {
     shouldRunReactCodemods = await suggestReactCodemods()
     shouldRunReactTypesCodemods = await suggestReactTypesCodemods()
@@ -296,7 +297,12 @@ export async function runUpgrade(
     addPackageDependency(appPackageJson, dep, version, true)
   }
 
-  fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
+  fs.writeFileSync(
+    appPackageJsonPath,
+    JSON.stringify(appPackageJson, null, 2) +
+      // Common IDE formatters would add a newline as well.
+      os.EOL
+  )
 
   runInstallation(packageManager)
 
@@ -424,28 +430,17 @@ async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string
 ): Promise<string[]> {
-  // Here we suggest pre-released codemods by their "stable" version.
-  // It is because if we suggest by the version range (installed ~ target),
-  // pre-released codemods for the target version are not suggested when upgrading.
-
-  // Let's say we have a codemod for v15.0.0-canary.x, and we're upgrading from
-  // v15.x -> v15.x. Our initial version is higher than the codemod's version,
-  // so the codemod will not be suggested.
-
-  // This is not ideal as the codemods for pre-releases are also targeting the major version.
-  // Also, when the user attempts to run the upgrade command twice, and have installed the
-  // target version, the behavior must be idempotent and suggest the codemods including the
-  // pre-releases of the target version.
-  const initial = semver.parse(initialNextVersion)
+  // example:
+  // codemod version: 15.0.0-canary.45
+  // 14.3             -> 15.0.0-canary.45: apply
+  // 14.3             -> 15.0.0-canary.44: don't apply
+  // 15.0.0-canary.44 -> 15.0.0-canary.45: apply
+  // 15.0.0-canary.45 -> 15.0.0-canary.46: don't apply
+  // 15.0.0-canary.45 -> 15.0.0          : don't apply
+  // 15.0.0-canary.44 -> 15.0.0          : apply
   const initialVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
-    (versionCodemods) => {
-      const codemod = semver.parse(versionCodemods.version)
-      return (
-        compareVersions(
-          `${codemod.major}.${codemod.minor}.${codemod.patch}`,
-          `${initial.major}.${initial.minor}.${initial.patch}`
-        ) >= 0
-      )
+    (codemod) => {
+      return compareVersions(codemod.version, initialNextVersion) > 0
     }
   )
   if (initialVersionIndex === -1) {
@@ -453,8 +448,7 @@ async function suggestCodemods(
   }
 
   let targetVersionIndex = TRANSFORMER_INQUIRER_CHOICES.findIndex(
-    (versionCodemods) =>
-      compareVersions(versionCodemods.version, targetNextVersion) > 0
+    (codemod) => compareVersions(codemod.version, targetNextVersion) > 0
   )
   if (targetVersionIndex === -1) {
     targetVersionIndex = TRANSFORMER_INQUIRER_CHOICES.length
@@ -526,17 +520,24 @@ function writeOverridesField(
   packageManager: PackageManager,
   overrides: Record<string, string>
 ) {
-  if (packageManager === 'bun' || packageManager === 'npm') {
+  const entries = Object.entries(overrides)
+  // Avoids writing an empty overrides field into package.json
+  // which would be an unnecessary diff.
+  if (entries.length === 0) {
+    return
+  }
+
+  if (packageManager === 'npm') {
     if (!packageJson.overrides) {
       packageJson.overrides = {}
     }
-    for (const [key, value] of Object.entries(overrides)) {
+    for (const [key, value] of entries) {
       packageJson.overrides[key] = value
     }
   } else if (packageManager === 'pnpm') {
     // pnpm supports pnpm.overrides and pnpm.resolutions
     if (packageJson.resolutions) {
-      for (const [key, value] of Object.entries(overrides)) {
+      for (const [key, value] of entries) {
         packageJson.resolutions[key] = value
       }
     } else {
@@ -546,7 +547,7 @@ function writeOverridesField(
       if (!packageJson.pnpm.overrides) {
         packageJson.pnpm.overrides = {}
       }
-      for (const [key, value] of Object.entries(overrides)) {
+      for (const [key, value] of entries) {
         packageJson.pnpm.overrides[key] = value
       }
     }
@@ -554,8 +555,24 @@ function writeOverridesField(
     if (!packageJson.resolutions) {
       packageJson.resolutions = {}
     }
-    for (const [key, value] of Object.entries(overrides)) {
+    for (const [key, value] of entries) {
       packageJson.resolutions[key] = value
+    }
+  } else if (packageManager === 'bun') {
+    // bun supports both overrides and resolutions
+    // x-ref: https://bun.sh/docs/install/overrides
+    if (packageJson.resolutions) {
+      for (const [key, value] of entries) {
+        packageJson.resolutions[key] = value
+      }
+    } else {
+      // add overrides field if it's missing and add overrides
+      if (!packageJson.overrides) {
+        packageJson.overrides = {}
+      }
+      for (const [key, value] of entries) {
+        packageJson.overrides[key] = value
+      }
     }
   }
 }

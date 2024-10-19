@@ -1,21 +1,15 @@
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
 describe('use-cache', () => {
-  const { next, isNextDev, isNextDeploy, isNextStart, isTurbopack } =
-    nextTestSetup({
-      files: __dirname,
-    })
+  const { next, isNextDev, isNextDeploy, isNextStart } = nextTestSetup({
+    files: __dirname,
+  })
 
-  const itSkipTurbopack = isTurbopack ? it.skip : it
-
-  // TODO: Fix the following error with Turbopack:
-  // Error: Module [project]/app/client.tsx [app-client] (ecmascript) was
-  // instantiated because it was required from module...
-  itSkipTurbopack('should cache results', async () => {
+  it('should cache results', async () => {
     const browser = await next.browser('/?n=1')
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1a = await browser.waitForElementByCss('#y').text()
@@ -106,6 +100,28 @@ describe('use-cache', () => {
     const { rand1, rand2 } = await response.json()
 
     expect(rand1).toEqual(rand2)
+  })
+
+  it('should cache results for cached funtions imported from client components', async () => {
+    const browser = await next.browser('/imported-from-client')
+    expect(await browser.elementByCss('p').text()).toBe('0 0')
+    await browser.elementById('submit-button').click()
+
+    let twoRandomValues: string
+
+    await retry(async () => {
+      twoRandomValues = await browser.elementByCss('p').text()
+      expect(twoRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
+    })
+
+    await browser.elementById('reset-button').click()
+    expect(await browser.elementByCss('p').text()).toBe('0 0')
+
+    await browser.elementById('submit-button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(twoRandomValues)
+    })
   })
 
   if (isNextStart) {
