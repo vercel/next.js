@@ -29,10 +29,10 @@ const memoryCache = new LRUCache<DefaultCacheEntry>(50_000_000)
 const pendingSets = new Map<string, Promise<void>>()
 
 export const DefaultCacheHandler: CacheHandler = {
-  get: async function get(cacheKey, softTags) {
+  async get(cacheKey, softTags) {
     await pendingSets.get(cacheKey)
 
-    if (isTagStale(...softTags)) {
+    if (isTagStale(softTags)) {
       return
     }
     const entry = memoryCache.get(cacheKey)
@@ -49,7 +49,7 @@ export const DefaultCacheHandler: CacheHandler = {
       return
     }
 
-    if (isTagStale(...(entry.tags || []))) {
+    if (isTagStale(entry.tags || [])) {
       return
     }
     const [returnStream, newSaved] = entry.value.tee()
@@ -61,7 +61,7 @@ export const DefaultCacheHandler: CacheHandler = {
     }
   },
 
-  set: async function set(cacheKey, entry) {
+  async set(cacheKey, entry) {
     let resolvePending: () => void = () => {}
     const pendingPromise = new Promise<void>((resolve) => {
       resolvePending = resolve
@@ -107,7 +107,7 @@ export const DefaultCacheHandler: CacheHandler = {
     }
   },
 
-  expireTags: async function expireTags(...tags) {
+  async expireTags(tags) {
     for (const tag of tags) {
       if (!tagsManifest.items[tag]) {
         tagsManifest.items[tag] = {}
@@ -117,9 +117,7 @@ export const DefaultCacheHandler: CacheHandler = {
     }
   },
 
-  receiveExpiredTags: async function receiveExpiredTags(
-    ...tags
-  ): Promise<void> {
+  async receiveExpiredTags(tags): Promise<void> {
     return this.expireTags(...tags)
   },
 }

@@ -8,7 +8,7 @@ export const tagsManifest: TagsManifest = {
   items: {},
 }
 
-export const isTagStale = (...tags: string[]) => {
+export const isTagStale = (tags: string[]) => {
   for (const tag of tags) {
     const tagEntry = tagsManifest.items[tag]
     if (
