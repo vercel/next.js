@@ -652,6 +652,10 @@ impl<C: Comments> ServerActions<C> {
                 .into(),
             })));
 
+        if let Some(Ident { sym, .. }) = &self.arrow_or_fn_expr_ident {
+            assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
+        }
+
         let bound_args: Vec<_> = ids_from_closure
             .iter()
             .cloned()
@@ -805,7 +809,7 @@ impl<C: Comments> ServerActions<C> {
                         name: Pat::Ident(cache_ident.clone().into()),
                         init: Some(wrap_cache_expr(
                             Box::new(Expr::Fn(FnExpr {
-                                ident: fn_name,
+                                ident: fn_name.clone(),
                                 function: Box::new(Function {
                                     params: new_params,
                                     body: new_body,
@@ -821,6 +825,12 @@ impl<C: Comments> ServerActions<C> {
                 }
                 .into(),
             })));
+
+        if let Some(Ident { sym, .. }) = fn_name {
+            assign_name_to_ident(&cache_ident, sym.as_str(), &mut self.hoisted_extra_items);
+        } else if self.in_default_export_decl {
+            assign_name_to_ident(&cache_ident, "default", &mut self.hoisted_extra_items);
+        }
 
         let bound_args: Vec<_> = ids_from_closure
             .iter()
@@ -947,16 +957,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if let Some(cache_type_str) = cache_type {
-            // It's a cache function. If it doesn't have a name, give it one.
-            match f.ident.as_mut() {
-                None => {
-                    let action_name = gen_cache_ident(&mut self.reference_index);
-                    let ident = Ident::new(action_name, DUMMY_SP, Default::default());
-                    f.ident.insert(ident)
-                }
-                Some(i) => i,
-            };
-
             // Collect all the identifiers defined inside the closure and used
             // in the cache function. With deduplication.
             retain_names_from_declared_idents(
@@ -966,7 +966,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             let new_expr = self.maybe_hoist_and_create_proxy_for_cache_function(
                 child_names.clone(),
-                f.ident.clone(),
+                f.ident.clone().or(self.arrow_or_fn_expr_ident.clone()),
                 cache_type_str.as_str(),
                 &mut f.function,
             );
@@ -1489,7 +1489,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 self.exported_idents
                                     .push((new_ident.clone(), "default".into()));
 
-                                attach_name_to_default_expr(&new_ident, &mut self.extra_items);
+                                assign_name_to_ident(&new_ident, "default", &mut self.extra_items);
                             }
                         }
                         _ => {
@@ -1514,7 +1514,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     .push((new_ident.clone(), "default".into()));
 
                                 create_var_declarator(&new_ident, &mut self.extra_items);
-                                attach_name_to_default_expr(&new_ident, &mut self.extra_items);
+                                assign_name_to_ident(&new_ident, "default", &mut self.extra_items);
 
                                 *default_expr.expr =
                                     assign_arrow_expr(&new_ident, Expr::Arrow(arrow.clone()));
@@ -1538,7 +1538,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     .push((new_ident.clone(), "default".into()));
 
                                 create_var_declarator(&new_ident, &mut self.extra_items);
-                                attach_name_to_default_expr(&new_ident, &mut self.extra_items);
+                                assign_name_to_ident(&new_ident, "default", &mut self.extra_items);
 
                                 *default_expr.expr =
                                     assign_arrow_expr(&new_ident, Expr::Call(call.clone()));
@@ -2079,7 +2079,7 @@ fn create_var_declarator(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
     })))));
 }
 
-fn attach_name_to_default_expr(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
+fn assign_name_to_ident(ident: &Ident, name: &str, extra_items: &mut Vec<ModuleItem>) {
     // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
     extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
         span: DUMMY_SP,
@@ -2110,7 +2110,7 @@ fn attach_name_to_default_expr(ident: &Ident, extra_items: &mut Vec<ModuleItem>)
                         props: vec![
                             PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                                 key: PropName::Str("value".into()),
-                                value: Box::new("default".into()),
+                                value: Box::new(name.into()),
                             }))),
                             PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                                 key: PropName::Str("writable".into()),
