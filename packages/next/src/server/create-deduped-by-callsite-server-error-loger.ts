@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-const errorRef: { current: null | string } = { current: null }
+const errorRef: { current: null | Error } = { current: null }
 
 // React.cache is currently only available in canary/experimental React channels.
 const cache =
@@ -33,7 +33,7 @@ const flushCurrentErrorIfNew = cache(
  * @returns
  */
 export function createDedupedByCallsiteServerErrorLoggerDev<Args extends any[]>(
-  getMessage: (...args: Args) => string
+  getMessage: (...args: Args) => Error
 ) {
   return function logDedupedError(...args: Args) {
     const message = getMessage(...args)
