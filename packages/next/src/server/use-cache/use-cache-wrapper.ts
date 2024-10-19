@@ -62,7 +62,7 @@ const cacheHandlerMap: Map<string, CacheHandler> = new Map([
 ])
 
 for (const [key, value] of Object.entries(
-  (globalThis as any).nextCacheHandlers
+  (globalThis as any).__nextCacheHandlers
 ) || {}) {
   cacheHandlerMap.set(key, value as CacheHandler)
 }

@@ -19,8 +19,8 @@ declare const incrementalCacheHandler: any
 
 const cacheHandlers = {}
 
-if (!(globalThis as any).nextCacheHandlers) {
-  ;(globalThis as any).nextCacheHandlers = cacheHandlers
+if (!(globalThis as any).__nextCacheHandlers) {
+  ;(globalThis as any).__nextCacheHandlers = cacheHandlers
 }
 
 const Document: DocumentType = null!

@@ -365,12 +365,12 @@ export default class NextNodeServer extends BaseServer<
 
     const { cacheHandlers } = this.nextConfig.experimental
 
-    if (!(globalThis as any).nextCacheHandlers && cacheHandlers) {
-      ;(globalThis as any).nextCacheHandlers = {}
+    if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
+      ;(globalThis as any).__nextCacheHandlers = {}
 
       for (const key of Object.keys(cacheHandlers)) {
         if (cacheHandlers[key]) {
-          ;(globalThis as any).nextCacheHandlers[key] = interopDefault(
+          ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
             await dynamicImportEsmDefault(
               formatDynamicImportPath(this.distDir, cacheHandlers[key])
             )
