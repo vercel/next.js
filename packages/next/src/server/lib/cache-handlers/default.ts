@@ -34,9 +34,6 @@ const DefaultCacheHandler: CacheHandler = {
   async get(cacheKey, softTags) {
     await pendingSets.get(cacheKey)
 
-    if (isTagStale(softTags)) {
-      return
-    }
     const privateEntry = memoryCache.get(cacheKey)
 
     if (!privateEntry) {
@@ -50,11 +47,14 @@ const DefaultCacheHandler: CacheHandler = {
     ) {
       // In memory caches should expire after revalidate time because it is unlikely that
       // a new entry will be able to be used before it is dropped from the cache.
-      return
+      return undefined
     }
 
-    if (isTagStale(entry.tags || [])) {
-      return
+    if (
+      isTagStale(entry.tags, entry.timestamp) ||
+      isTagStale(softTags, entry.timestamp)
+    ) {
+      return undefined
     }
     const [returnStream, newSaved] = entry.value.tee()
     entry.value = newSaved
