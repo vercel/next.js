@@ -28,7 +28,7 @@ describe(`Dynamic IO Prospective Fallback`, () => {
       }
 
       expect(next.cliOutput).toContain(
-        'Error: Route /blog/[slug] has one or more dynamic components without a defined fallback UI.'
+        'In Route "/blog/[slug]" this component accessed data without a fallback UI available somewhere above it using Suspense.'
       )
     })
 
@@ -46,7 +46,7 @@ describe(`Dynamic IO Prospective Fallback`, () => {
       await next.start()
 
       expect(next.cliOutput).not.toContain(
-        'Error: Route /blog/[slug] has one or more dynamic components without a defined fallback UI.'
+        'In Route "/blog/[slug]" this component accessed data without a fallback UI available somewhere above it using Suspense.'
       )
     })
   }
