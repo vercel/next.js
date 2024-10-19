@@ -1,7 +1,7 @@
-export async function BuildID() {
-  console.log('=== RENDER BUILD ID')
+'use client'
+
+export function BuildID() {
   const buildID = require('./lazy-id').buildID
-  await 1
   return (
     <dl>
       <dt>Build ID</dt>
