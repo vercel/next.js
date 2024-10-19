@@ -46,6 +46,7 @@ const _globalThis: typeof globalThis & {
     RemoteCache?: CacheHandler
     DefaultCache?: CacheHandler
   }
+  __nextCacheHandlers?: Record<string, CacheHandler>
 } = globalThis
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map([
@@ -60,12 +61,6 @@ const cacheHandlerMap: Map<string, CacheHandler> = new Map([
     _globalThis[cacheHandlersSymbol]?.RemoteCache || DefaultCacheHandler,
   ],
 ])
-
-for (const [key, value] of Object.entries(
-  (globalThis as any).__nextCacheHandlers || {}
-)) {
-  cacheHandlerMap.set(key, value as CacheHandler)
-}
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -435,6 +430,11 @@ export function cache(kind: string, id: string, fn: any) {
     throw new Error(
       '"use cache" is only available with the experimental.dynamicIO config.'
     )
+  }
+  for (const [key, value] of Object.entries(
+    _globalThis.__nextCacheHandlers || {}
+  )) {
+    cacheHandlerMap.set(key, value as CacheHandler)
   }
   const cacheHandler = cacheHandlerMap.get(kind)
 

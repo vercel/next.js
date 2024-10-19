@@ -1,11 +1,8 @@
-import { Foo } from '../client'
-
 async function getCachedRandom(x: number, children: React.ReactNode) {
   'use cache: custom'
   return {
     x,
     y: Math.random(),
-    z: <Foo />,
     r: children,
   }
 }
@@ -24,7 +21,6 @@ export default async function Page({
     <>
       <p id="x">{values.x}</p>
       <p id="y">{values.y}</p>
-      <p id="z">{values.z}</p>
       {values.r}
     </>
   )
