@@ -12,6 +12,15 @@ function x() {
     const f2 = 1;
     const g201 = 1;
 }
+export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {
+    var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5] = await decryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
+    const f17 = 1;
+    if (true) {
+        const f18 = 1;
+        const f19 = 1;
+    }
+    console.log(f, f1, $$ACTION_ARG_0, f3, f4, f5, f6, f7, f8, $$ACTION_ARG_0(f9), f12, $$ACTION_ARG_1, f16.x, f17, f18, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5, g19, g20, globalThis);
+};
 export function y(p, [p1, { p2 }], ...p3) {
     const f2 = 1;
     const f11 = 1;
@@ -28,13 +37,4 @@ export function y(p, [p1, { p2 }], ...p3) {
         p3
     ]));
     return <Button action={action}>Delete</Button>;
-}
-export async function $$RSC_SERVER_ACTION_0($$ACTION_CLOSURE_BOUND) {
-    var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5] = await decryptActionBoundArgs("6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
-    const f17 = 1;
-    if (true) {
-        const f18 = 1;
-        const f19 = 1;
-    }
-    console.log(f, f1, $$ACTION_ARG_0, f3, f4, f5, f6, f7, f8, $$ACTION_ARG_0(f9), f12, $$ACTION_ARG_1, f16.x, f17, f18, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5, g19, g20, globalThis);
 }
