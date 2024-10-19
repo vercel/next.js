@@ -8,13 +8,13 @@ export const tagsManifest: TagsManifest = {
   items: {},
 }
 
-export const isTagStale = (tags: string[]) => {
+export const isTagStale = (tags: string[], timestamp: number) => {
   for (const tag of tags) {
     const tagEntry = tagsManifest.items[tag]
     if (
       typeof tagEntry?.revalidatedAt === 'number' &&
       // TODO: use performance.now and update file-system-cache?
-      tagEntry.revalidatedAt >= Date.now()
+      tagEntry.revalidatedAt >= timestamp
     ) {
       return true
     }
