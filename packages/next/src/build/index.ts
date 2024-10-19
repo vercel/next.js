@@ -2175,6 +2175,7 @@ export default async function build(
                             pageType,
                             dynamicIO: isAppDynamicIOEnabled,
                             cacheHandler: config.cacheHandler,
+                            cacheHandlers: config.experimental.cacheHandlers,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
                               : config.experimental.isrFlushToDisk,

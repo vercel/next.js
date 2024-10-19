@@ -40,8 +40,26 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 // If the expire time is less than .
 const DYNAMIC_EXPIRE = 300
 
+const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
+const _globalThis: typeof globalThis & {
+  [cacheHandlersSymbol]?: {
+    RemoteCache?: CacheHandler
+    DefaultCache?: CacheHandler
+  }
+  __nextCacheHandlers?: Record<string, CacheHandler>
+} = globalThis
+
 const cacheHandlerMap: Map<string, CacheHandler> = new Map([
-  ['default', DefaultCacheHandler],
+  [
+    'default',
+    _globalThis[cacheHandlersSymbol]?.DefaultCache || DefaultCacheHandler,
+  ],
+  [
+    'remote',
+    // in dev remote maps to default handler
+    // and is meant to be overridden in prod
+    _globalThis[cacheHandlersSymbol]?.RemoteCache || DefaultCacheHandler,
+  ],
 ])
 
 function generateCacheEntry(
@@ -413,7 +431,13 @@ export function cache(kind: string, id: string, fn: any) {
       '"use cache" is only available with the experimental.dynamicIO config.'
     )
   }
+  for (const [key, value] of Object.entries(
+    _globalThis.__nextCacheHandlers || {}
+  )) {
+    cacheHandlerMap.set(key, value as CacheHandler)
+  }
   const cacheHandler = cacheHandlerMap.get(kind)
+
   if (cacheHandler === undefined) {
     throw new Error('Unknown cache handler: ' + kind)
   }
