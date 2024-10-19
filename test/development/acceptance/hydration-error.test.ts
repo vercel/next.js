@@ -1151,7 +1151,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
     await session.assertHasRedbox()
     await retry(async () => {
       await expect(await getRedboxTotalErrorCount(browser)).toBe(
-        isReact18 ? 3 : 1
+        // This case only hit 2 errors in React 18
+        isReact18 ? 2 : 1
       )
     })
 

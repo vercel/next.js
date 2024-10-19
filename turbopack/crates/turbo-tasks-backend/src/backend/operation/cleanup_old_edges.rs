@@ -11,7 +11,7 @@ use crate::{
                 AggregationUpdateQueue,
             },
             invalidate::make_task_dirty,
-            AggregatedDataUpdate, ExecuteContext, Operation,
+            AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
         },
         storage::{update, update_count},
         TaskDataCategory,
@@ -45,7 +45,7 @@ pub enum OutdatedEdge {
 }
 
 impl CleanupOldEdgesOperation {
-    pub fn run(task_id: TaskId, outdated: Vec<OutdatedEdge>, ctx: &mut ExecuteContext<'_>) {
+    pub fn run(task_id: TaskId, outdated: Vec<OutdatedEdge>, ctx: &mut impl ExecuteContext) {
         let queue = AggregationUpdateQueue::new();
         CleanupOldEdgesOperation::RemoveEdges {
             task_id,
@@ -57,7 +57,7 @@ impl CleanupOldEdgesOperation {
 }
 
 impl Operation for CleanupOldEdgesOperation {
-    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -89,13 +89,13 @@ impl Operation for CleanupOldEdgesOperation {
                                     (count != 0).then_some(count)
                                 });
                                 if is_aggregating_node(get_aggregation_number(&task)) {
-                                    queue.push(AggregationUpdateJob::InnerLostFollowers {
-                                        upper_ids: vec![task_id],
+                                    queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
+                                        upper_id: task_id,
                                         lost_follower_ids: children,
                                     });
                                 } else {
                                     let upper_ids = get_uppers(&task);
-                                    queue.push(AggregationUpdateJob::InnerLostFollowers {
+                                    queue.push(AggregationUpdateJob::InnerOfUppersLostFollowers {
                                         upper_ids,
                                         lost_follower_ids: children,
                                     });

@@ -21,7 +21,7 @@ impl UpdateCollectibleOperation {
         task_id: TaskId,
         collectible: CollectibleRef,
         count: i32,
-        mut ctx: ExecuteContext<'_>,
+        mut ctx: impl ExecuteContext,
     ) {
         let mut queue = AggregationUpdateQueue::new();
         let mut task = ctx.task(task_id, TaskDataCategory::All);

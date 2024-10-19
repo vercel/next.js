@@ -32,68 +32,35 @@ import {
   getServerModuleMap,
 } from '../app-render/encryption-utils'
 import type { CacheScopeStore } from '../async-storage/cache-scope.external'
+import DefaultCacheHandler from '../lib/cache-handlers/default'
+import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 // If the expire time is less than .
 const DYNAMIC_EXPIRE = 300
 
-type CacheEntry = {
-  value: ReadableStream
-  timestamp: number
-  // In-memory caches are fragile and should not use stale-while-revalidate
-  // semantics on the caches because it's not worth warming up an entry that's
-  // likely going to get evicted before we get to use it anyway. However,
-  // we also don't want to reuse a stale entry for too long so stale entries
-  // should be considered expired/missing in such CacheHandlers.
-  revalidate: number
-  expire: number
-  stale: number
-  tags: string[]
-}
+const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
+const _globalThis: typeof globalThis & {
+  [cacheHandlersSymbol]?: {
+    RemoteCache?: CacheHandler
+    DefaultCache?: CacheHandler
+  }
+  __nextCacheHandlers?: Record<string, CacheHandler>
+} = globalThis
 
-interface CacheHandler {
-  get(cacheKey: string, implicitTags: string[]): Promise<undefined | CacheEntry>
-  set(cacheKey: string, value: Promise<CacheEntry>): Promise<void>
-}
-
-const cacheHandlerMap: Map<string, CacheHandler> = new Map()
-
-// TODO: Move default implementation to be injectable.
-const defaultCacheStorage: Map<string, Promise<CacheEntry>> = new Map()
-cacheHandlerMap.set('default', {
-  async get(cacheKey: string): Promise<undefined | CacheEntry> {
-    // TODO: Implement proper caching.
-    const promiseOfEntry = defaultCacheStorage.get(cacheKey)
-    if (promiseOfEntry !== undefined) {
-      const entry = await promiseOfEntry
-      if (
-        performance.timeOrigin + performance.now() >
-        entry.timestamp + entry.revalidate * 1000
-      ) {
-        // In memory caches should expire after revalidate time because it is unlikely that
-        // a new entry will be able to be used before it is dropped from the cache.
-        return undefined
-      }
-      const [returnStream, newSaved] = entry.value.tee()
-      entry.value = newSaved
-      return {
-        value: returnStream,
-        timestamp: entry.timestamp,
-        revalidate: entry.revalidate,
-        expire: entry.expire,
-        stale: entry.stale,
-        tags: entry.tags,
-      }
-    }
-    return undefined
-  },
-  async set(cacheKey: string, promise: Promise<CacheEntry>) {
-    // TODO: Implement proper caching.
-    defaultCacheStorage.set(cacheKey, promise)
-    await promise
-  },
-})
+const cacheHandlerMap: Map<string, CacheHandler> = new Map([
+  [
+    'default',
+    _globalThis[cacheHandlersSymbol]?.DefaultCache || DefaultCacheHandler,
+  ],
+  [
+    'remote',
+    // in dev remote maps to default handler
+    // and is meant to be overridden in prod
+    _globalThis[cacheHandlersSymbol]?.RemoteCache || DefaultCacheHandler,
+  ],
+])
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -464,7 +431,13 @@ export function cache(kind: string, id: string, fn: any) {
       '"use cache" is only available with the experimental.dynamicIO config.'
     )
   }
+  for (const [key, value] of Object.entries(
+    _globalThis.__nextCacheHandlers || {}
+  )) {
+    cacheHandlerMap.set(key, value as CacheHandler)
+  }
   const cacheHandler = cacheHandlerMap.get(kind)
+
   if (cacheHandler === undefined) {
     throw new Error('Unknown cache handler: ' + kind)
   }
