@@ -6,7 +6,9 @@ import { LRUCache } from '../lru-cache'
 import type { CacheEntry, CacheHandler } from './types'
 import { isTagStale, tagsManifest } from '../incremental-cache/tags-manifest'
 
-type DefaultCacheEntry = CacheEntry & {
+type PrivateCacheEntry = {
+  entry: CacheEntry
+
   // For the default cache we store errored cache
   // entries and allow them to be used up to 3 times
   // after that we want to dispose it and try for fresh
@@ -16,16 +18,16 @@ type DefaultCacheEntry = CacheEntry & {
   // and then if it still fails to set after the third we
   // return the errored content and use expiration of
   // Math.min(30, entry.expiration)
-  isErrored?: boolean
-  errorRetryCount?: number
+  isErrored: boolean
+  errorRetryCount: number
 
   // compute size on set since we need to read size
   // of the ReadableStream for LRU evicting
-  size?: number
+  size: number
 }
 
 // LRU cache default to max 50 MB but in future track
-const memoryCache = new LRUCache<DefaultCacheEntry>(50_000_000)
+const memoryCache = new LRUCache<PrivateCacheEntry>(50_000_000)
 const pendingSets = new Map<string, Promise<void>>()
 
 const DefaultCacheHandler: CacheHandler = {
@@ -35,11 +37,13 @@ const DefaultCacheHandler: CacheHandler = {
     if (isTagStale(softTags)) {
       return
     }
-    const entry = memoryCache.get(cacheKey)
+    const privateEntry = memoryCache.get(cacheKey)
 
-    if (!entry) {
-      return
+    if (!privateEntry) {
+      return undefined
     }
+
+    const entry = privateEntry.entry
     if (
       performance.timeOrigin + performance.now() >
       entry.timestamp + entry.revalidate * 1000
@@ -61,41 +65,30 @@ const DefaultCacheHandler: CacheHandler = {
     }
   },
 
-  async set(cacheKey, entry) {
+  async set(cacheKey, pendingEntry) {
     let resolvePending: () => void = () => {}
     const pendingPromise = new Promise<void>((resolve) => {
       resolvePending = resolve
     })
     pendingSets.set(cacheKey, pendingPromise)
 
-    const timestamp = performance.timeOrigin + performance.now()
-    const {
-      value: originalValue,
-      revalidate,
-      tags,
-      expire,
-      stale,
-    } = await entry
+    const entry = await pendingEntry
 
     let size = 0
-    let buffer = []
 
     try {
-      const [value, clonedValue] = originalValue.tee()
+      const [value, clonedValue] = entry.value.tee()
+      entry.value = value
       const reader = clonedValue.getReader()
 
       for (let chunk; !(chunk = await reader.read()).done; ) {
         size += Buffer.from(chunk.value).byteLength
-        buffer.push(chunk.value)
       }
 
       memoryCache.set(cacheKey, {
-        value,
-        revalidate,
-        tags,
-        expire,
-        stale,
-        timestamp,
+        entry,
+        isErrored: false,
+        errorRetryCount: 0,
         size,
       })
     } catch (err) {
@@ -118,7 +111,7 @@ const DefaultCacheHandler: CacheHandler = {
   },
 
   async receiveExpiredTags(tags): Promise<void> {
-    return this.expireTags(...tags)
+    return this.expireTags(tags)
   },
 }
 
