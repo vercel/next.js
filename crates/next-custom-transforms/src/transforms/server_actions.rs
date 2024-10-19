@@ -47,7 +47,7 @@ pub fn server_actions<C: Comments>(
         start_pos: BytePos(0),
         in_action_file: false,
         in_cache_file: None,
-        in_export_decl: false,
+        in_exported_expr: false,
         in_default_export_decl: false,
         in_callee: false,
         has_action: false,
@@ -97,7 +97,7 @@ struct ServerActions<C: Comments> {
     start_pos: BytePos,
     in_action_file: bool,
     in_cache_file: Option<String>,
-    in_export_decl: bool,
+    in_exported_expr: bool,
     in_default_export_decl: bool,
     in_callee: bool,
     has_action: bool,
@@ -176,7 +176,7 @@ impl<C: Comments> ServerActions<C> {
             }
         }
 
-        if self.in_export_decl {
+        if self.in_exported_expr {
             if self.in_action_file {
                 // All export functions in a server file are actions
                 is_action_fn = true;
@@ -856,30 +856,30 @@ impl<C: Comments> ServerActions<C> {
 
 impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_export_decl(&mut self, decl: &mut ExportDecl) {
-        let old = self.in_export_decl;
-        self.in_export_decl = true;
+        let old = self.in_exported_expr;
+        self.in_exported_expr = true;
         decl.decl.visit_mut_with(self);
-        self.in_export_decl = old;
+        self.in_exported_expr = old;
     }
 
     fn visit_mut_export_default_decl(&mut self, decl: &mut ExportDefaultDecl) {
-        let old = self.in_export_decl;
+        let old = self.in_exported_expr;
         let old_default = self.in_default_export_decl;
-        self.in_export_decl = true;
+        self.in_exported_expr = true;
         self.in_default_export_decl = true;
         self.rewrite_default_fn_expr_to_proxy_expr = None;
         decl.decl.visit_mut_with(self);
-        self.in_export_decl = old;
+        self.in_exported_expr = old;
         self.in_default_export_decl = old_default;
     }
 
     fn visit_mut_export_default_expr(&mut self, expr: &mut ExportDefaultExpr) {
-        let old = self.in_export_decl;
+        let old = self.in_exported_expr;
         let old_default = self.in_default_export_decl;
-        self.in_export_decl = true;
+        self.in_exported_expr = true;
         self.in_default_export_decl = true;
         expr.expr.visit_mut_with(self);
-        self.in_export_decl = old;
+        self.in_exported_expr = old;
         self.in_default_export_decl = old_default;
     }
 
@@ -893,17 +893,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         {
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
-            let old_in_export_decl = self.in_export_decl;
+            let old_in_exported_expr = self.in_exported_expr;
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
                 is_action_fn || cache_type.is_some() || self.should_track_names;
-            self.in_export_decl = false;
+            self.in_exported_expr = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
-            self.in_export_decl = old_in_export_decl;
+            self.in_exported_expr = old_in_exported_expr;
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
@@ -975,7 +975,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        if is_action_fn && !(self.in_action_file && self.in_export_decl) {
+        if is_action_fn && !(self.in_action_file && self.in_exported_expr) {
             // Collect all the identifiers defined inside the closure and used
             // in the action function. With deduplication.
             retain_names_from_declared_idents(
@@ -1013,10 +1013,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
-        let old_in_export_decl = self.in_export_decl;
+        let old_in_exported_expr = self.in_exported_expr;
 
         if self.in_module_level && self.exported_local_ids.contains(&f.ident.to_id()) {
-            self.in_export_decl = true
+            self.in_exported_expr = true
         }
 
         let (is_action_fn, cache_type) = self.get_body_info(f.function.body.as_mut());
@@ -1028,22 +1028,22 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Visit children
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
-            let old_in_export_decl = self.in_export_decl;
+            let old_in_exported_expr = self.in_exported_expr;
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
                 is_action_fn || cache_type.is_some() || self.should_track_names;
-            self.in_export_decl = false;
+            self.in_exported_expr = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
-            self.in_export_decl = old_in_export_decl;
+            self.in_exported_expr = old_in_exported_expr;
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
         if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
-            self.in_export_decl = old_in_export_decl;
+            self.in_exported_expr = old_in_exported_expr;
 
             return;
         }
@@ -1068,7 +1068,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         .emit();
                 });
 
-                self.in_export_decl = old_in_export_decl;
+                self.in_exported_expr = old_in_exported_expr;
 
                 return;
             }
@@ -1108,7 +1108,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 });
             }
 
-            if !(self.in_action_file && self.in_export_decl) {
+            if !(self.in_action_file && self.in_exported_expr) {
                 // Collect all the identifiers defined inside the closure and used
                 // in the action function. With deduplication.
                 retain_names_from_declared_idents(
@@ -1138,26 +1138,26 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        self.in_export_decl = old_in_export_decl;
+        self.in_exported_expr = old_in_exported_expr;
     }
 
     fn visit_mut_method_prop(&mut self, m: &mut MethodProp) {
-        let old_in_export_decl = self.in_export_decl;
+        let old_in_exported_expr = self.in_exported_expr;
         let old_in_default_export_decl = self.in_default_export_decl;
-        self.in_export_decl = false;
+        self.in_exported_expr = false;
         self.in_default_export_decl = false;
         m.visit_mut_children_with(self);
-        self.in_export_decl = old_in_export_decl;
+        self.in_exported_expr = old_in_exported_expr;
         self.in_default_export_decl = old_in_default_export_decl;
     }
 
     fn visit_mut_class_method(&mut self, m: &mut ClassMethod) {
-        let old_in_export_decl = self.in_export_decl;
+        let old_in_exported_expr = self.in_exported_expr;
         let old_in_default_export_decl = self.in_default_export_decl;
-        self.in_export_decl = false;
+        self.in_exported_expr = false;
         self.in_default_export_decl = false;
         m.visit_mut_children_with(self);
-        self.in_export_decl = old_in_export_decl;
+        self.in_exported_expr = old_in_exported_expr;
         self.in_default_export_decl = old_in_default_export_decl;
     }
 
@@ -1178,12 +1178,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Visit children
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
-            let old_in_export_decl = self.in_export_decl;
+            let old_in_exported_expr = self.in_exported_expr;
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
                 is_action_fn || cache_type.is_some() || self.should_track_names;
-            self.in_export_decl = false;
+            self.in_exported_expr = false;
             self.in_default_export_decl = false;
             {
                 for n in &mut a.params {
@@ -1193,7 +1193,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             a.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
-            self.in_export_decl = old_in_export_decl;
+            self.in_exported_expr = old_in_exported_expr;
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
@@ -1350,23 +1350,33 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // exported, e.g. for this case:
         // ```
         // "use cache"
-        // function Foo() {}
-        // export { Foo }
+        // function foo() {}
+        // function Bar() {}
+        // export { foo }
+        // export default Bar
         // ```
         if self.in_cache_file.is_some() {
             for stmt in stmts.iter() {
-                if let ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) = stmt {
-                    if named.src.is_none() {
-                        for spec in &named.specifiers {
-                            if let ExportSpecifier::Named(ExportNamedSpecifier {
-                                orig: ModuleExportName::Ident(ident),
-                                ..
-                            }) = spec
-                            {
-                                self.exported_local_ids.insert(ident.to_id());
+                match stmt {
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export_default_expr)) => {
+                        if let Expr::Ident(ident) = &*export_default_expr.expr {
+                            self.exported_local_ids.insert(ident.to_id());
+                        }
+                    }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export)) => {
+                        if named_export.src.is_none() {
+                            for spec in &named_export.specifiers {
+                                if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                    orig: ModuleExportName::Ident(ident),
+                                    ..
+                                }) = spec
+                                {
+                                    self.exported_local_ids.insert(ident.to_id());
+                                }
                             }
                         }
                     }
+                    _ => {}
                 }
             }
         }
@@ -1920,14 +1930,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_var_declarator(&mut self, var_declarator: &mut VarDeclarator) {
-        let old_in_export_decl = self.in_export_decl;
+        let old_in_exported_expr = self.in_exported_expr;
         let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
 
         if let (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) =
             (&var_declarator.name, &var_declarator.init)
         {
             if self.in_module_level && self.exported_local_ids.contains(&ident.to_id()) {
-                self.in_export_decl = true
+                self.in_exported_expr = true
             }
 
             self.arrow_or_fn_expr_ident = Some(ident.id.clone());
@@ -1935,7 +1945,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         var_declarator.visit_mut_children_with(self);
 
-        self.in_export_decl = old_in_export_decl;
+        self.in_exported_expr = old_in_exported_expr;
         self.arrow_or_fn_expr_ident = old_arrow_expr_ident;
     }
 
