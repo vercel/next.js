@@ -20,7 +20,7 @@ describe('dynamic-io-segment-configs', () => {
     }
 
     expect(next.cliOutput).toContain(
-      'The following pages used segment configs which are not supported with `experimental.dynamicIO`'
+      'The following pages used segment configs which are not supported with "experimental.dynamicIO"'
     )
     expect(next.cliOutput).toContain('/runtime: runtime')
     expect(next.cliOutput).toContain('/multiple: dynamic, fetchCache, runtime')
@@ -28,6 +28,7 @@ describe('dynamic-io-segment-configs', () => {
     expect(next.cliOutput).toContain('/dynamic-params/[slug]: dynamicParams')
     expect(next.cliOutput).toContain('/fetch-cache: fetchCache')
     expect(next.cliOutput).toContain('/dynamic: dynamic')
+    expect(next.cliOutput).toContain('/revalidate: revalidate')
   })
 
   it('should propagate configurations from layouts to pages', async () => {
@@ -50,7 +51,7 @@ describe('dynamic-io-segment-configs', () => {
 
         await retry(async () => {
           expect(next.cliOutput).toContain(
-            'The following pages used segment configs which are not supported with `experimental.dynamicIO`'
+            'The following pages used segment configs which are not supported with "experimental.dynamicIO"'
           )
           expect(next.cliOutput).toContain('/runtime: dynamic, runtime')
           expect(next.cliOutput).toContain(
@@ -62,6 +63,7 @@ describe('dynamic-io-segment-configs', () => {
           )
           expect(next.cliOutput).toContain('/fetch-cache: dynamic, fetchCache')
           expect(next.cliOutput).toContain('/dynamic: dynamic')
+          expect(next.cliOutput).toContain('/revalidate: dynamic, revalidate')
         })
       }
     )

@@ -2447,7 +2447,7 @@ export default async function build(
 
           if (pagesWithSegmentConfigs.length > 0) {
             Log.error(
-              `The following pages used segment configs which are not supported with \`experimental.dynamicIO\` and must be removed to build your application:\n${pagesWithSegmentConfigs.join('\n')}\n`
+              `The following pages used segment configs which are not supported with "experimental.dynamicIO" and must be removed to build your application:\n${pagesWithSegmentConfigs.join('\n')}\n`
             )
             process.exit(1)
           }

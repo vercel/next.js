@@ -544,6 +544,7 @@ export async function getAppPageStaticInfo({
       'dynamic',
       'runtime',
       'fetchCache',
+      'revalidate',
     ] as const
     unsupportedSegmentConfigs = unsupportedSegments
       .filter((prop) => typeof config[prop] !== 'undefined')
