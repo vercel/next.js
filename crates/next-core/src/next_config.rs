@@ -1182,7 +1182,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn tree_shaking_mode_for_foreign_code(
         &self,
-        is_development: bool,
+        _is_development: bool,
     ) -> Vc<OptionTreeShaking> {
         let tree_shaking = self
             .experimental
@@ -1194,18 +1194,18 @@ impl NextConfig {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
             Some(true) => Some(TreeShakingMode::ModuleFragments),
             None => {
-                if is_development {
-                    Some(TreeShakingMode::ReexportsOnly)
-                } else {
-                    Some(TreeShakingMode::ModuleFragments)
-                }
+                // if is_development {
+                Some(TreeShakingMode::ReexportsOnly)
+                // } else {
+                //     Some(TreeShakingMode::ModuleFragments)
+                // }
             }
         })
         .cell()
     }
 
     #[turbo_tasks::function]
-    pub fn tree_shaking_mode_for_user_code(&self, is_development: bool) -> Vc<OptionTreeShaking> {
+    pub fn tree_shaking_mode_for_user_code(&self, _is_development: bool) -> Vc<OptionTreeShaking> {
         let tree_shaking = self
             .experimental
             .turbo
@@ -1216,11 +1216,11 @@ impl NextConfig {
             Some(false) => Some(TreeShakingMode::ReexportsOnly),
             Some(true) => Some(TreeShakingMode::ModuleFragments),
             None => {
-                if is_development {
-                    Some(TreeShakingMode::ReexportsOnly)
-                } else {
-                    Some(TreeShakingMode::ModuleFragments)
-                }
+                // if is_development {
+                Some(TreeShakingMode::ReexportsOnly)
+                // } else {
+                //     Some(TreeShakingMode::ModuleFragments)
+                // }
             }
         })
         .cell()
