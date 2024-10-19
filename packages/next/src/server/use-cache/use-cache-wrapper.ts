@@ -32,7 +32,7 @@ import {
   getServerModuleMap,
 } from '../app-render/encryption-utils'
 import type { CacheScopeStore } from '../async-storage/cache-scope.external'
-import { DefaultCacheHandler } from '../lib/cache-handlers/default'
+import DefaultCacheHandler from '../lib/cache-handlers/default'
 import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
