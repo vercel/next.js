@@ -199,10 +199,10 @@ const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
       expression: string
     ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      return (
+      return new Error(
         `${prefix}\`draftMode()\` property was accessed directly with \`${expression}\`. ` +
-        `\`draftMode()\` should be awaited before using its value. ` +
-        `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
+          `\`draftMode()\` should be awaited before using its value. ` +
+          `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
       )
     })
 

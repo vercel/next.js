@@ -420,10 +420,10 @@ const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
       expression: string
     ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      return (
+      return new Error(
         `${prefix}param property was accessed directly with ${expression}. ` +
-        `\`params\` should be awaited before accessing its properties. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+          `\`params\` should be awaited before accessing its properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
       )
     })
 
@@ -437,16 +437,16 @@ const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
       if (missingProperties.length) {
         const describedMissingProperties =
           describeListOfPropertyNames(missingProperties)
-        return (
+        return new Error(
           `${prefix}params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
-          `\`params\` should be awaited before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+            `\`params\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       } else {
-        return (
+        return new Error(
           `${prefix}params are being enumerated. ` +
-          `\`params\` should be awaited before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+            `\`params\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       }
     })
