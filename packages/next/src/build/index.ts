@@ -2918,18 +2918,17 @@ export default async function build(
                 page,
                 originalAppPath,
               } of prospectiveRenders.values()) {
-                const appConfig = appDefaultConfigs.get(originalAppPath)
-
                 defaultMap[page] = {
                   page: originalAppPath,
                   query: { __nextSsgPath: page },
                   _fallbackRouteParams: getParamKeys(page),
-                  _isDynamicError: appConfig?.dynamic === 'error',
                   // Prospective renders are only enabled for app pages.
                   _isAppDir: true,
                   // Prospective renders are only enabled when PPR is disabled.
                   _isRoutePPREnabled: false,
                   _isProspectiveRender: true,
+                  // Dynamic IO does not currently support `dynamic === 'error'`.
+                  _isDynamicError: false,
                 }
               }
 
