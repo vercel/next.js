@@ -66,7 +66,10 @@
         "@typescript-eslint/array-type": "off",
         "@typescript-eslint/ban-ts-comment": "off",
         "@typescript-eslint/ban-tslint-comment": "off",
-        "@typescript-eslint/ban-types": "off",
+        "@typescript-eslint/no-empty-object-type": "off",
+        "@typescript-eslint/no-restricted-types": "off",
+        "@typescript-eslint/no-unsafe-function-type": "off",
+        "@typescript-eslint/no-wrapper-object-types": "off",
         "@typescript-eslint/class-literal-property-style": "off",
         "@typescript-eslint/consistent-generic-constructors": "off",
         "@typescript-eslint/consistent-indexed-object-style": "off",
@@ -77,6 +80,7 @@
         "@typescript-eslint/no-empty-interface": "off",
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/no-inferrable-types": "off",
+        "@typescript-eslint/no-require-imports": "off",
         "@typescript-eslint/no-var-requires": "off",
         "@typescript-eslint/prefer-for-of": "off",
         "@typescript-eslint/prefer-function-type": "off",
@@ -104,6 +108,7 @@
             "args": "none",
             "ignoreRestSiblings": true,
             "argsIgnorePattern": "^_",
+            "caughtErrors": "none",
             "caughtErrorsIgnorePattern": "^_",
             "destructuredArrayIgnorePattern": "^_",
             "varsIgnorePattern": "^_"
@@ -178,6 +183,7 @@
           {
             "args": "all",
             "argsIgnorePattern": "^_",
+            "caughtErrors": "none",
             "ignoreRestSiblings": true
           }
         ]
@@ -308,6 +314,7 @@
       "error",
       {
         "args": "none",
+        "caughtErrors": "none",
         "ignoreRestSiblings": true
       }
     ],

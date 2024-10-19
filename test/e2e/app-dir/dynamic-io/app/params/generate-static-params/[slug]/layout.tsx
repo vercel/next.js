@@ -31,7 +31,7 @@ export default async function Layout({ children, params }) {
 async function Inner({ children, params }) {
   return (
     <>
-      <h1>{await params.slug}</h1>
+      <h1>{(await params).slug}</h1>
       <section>{children}</section>
     </>
   )

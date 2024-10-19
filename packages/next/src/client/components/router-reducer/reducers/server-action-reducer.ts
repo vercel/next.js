@@ -350,6 +350,9 @@ export function serverActionReducer(
               couldBeIntercepted: false,
               prerendered: false,
               postponed: false,
+              // TODO: We should be able to set this if the server action
+              // returned a fully static response.
+              staleTime: -1,
             },
             tree: state.tree,
             prefetchCache: state.prefetchCache,

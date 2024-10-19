@@ -1,232 +1,87 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('dynamic-requests warnings', () => {
+// I am temporarily deactivating these tests. We turned off the dev time warning but will reintroduce it when we add in dev-time prerendering.
+// The tests will likely have to change but I'd like to keep the fixture and assertions as a starting point.
+describe.skip('dynamic-requests warnings', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  it('warnings on sync cookie access', async () => {
-    const nextDevBootstrapOutputIndex = next.cliOutput.length
+  let cliIndex = 0
 
-    const browser = await next.browser('/pages/cookies')
+  it('warns on reading the current time in the prerender portion of a dev render', async () => {
+    await next.fetch('/platform/render/time')
+    expect(next.cliOutput).not.toContain(
+      'Route "/platform/prerender/time" used `Date()`'
+    )
+    expect(next.cliOutput).not.toContain(
+      'Route "/platform/prerender/time" used `new Date()`'
+    )
+    expect(next.cliOutput).not.toContain(
+      'Route "/platform/prerender/time" used `Date.now()`'
+    )
+    expect(next.cliOutput).not.toContain(
+      'Route "/platform/prerender/time" used `performance.now()`'
+    )
 
-    const browserLogsserLogs = await browser.log()
-    const browserConsoleErrors = browserLogsserLogs
-      .filter((log) => log.source === 'error')
-      .map((log) => log.message)
-    const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
-    const terminalCookieErrors = terminalOutput.split('\n').filter((line) => {
-      return line.includes('In route /pages/cookies')
-    })
-    expect({ browserConsoleErrors, terminalCookieErrors }).toEqual({
-      browserConsoleErrors: [
-        expect.stringContaining(
-          "In route /pages/cookies a cookie property was accessed directly with `cookies().get('page')`."
-        ),
-        expect.stringContaining(
-          "In route /pages/cookies a cookie property was accessed directly with `cookies().get('component')`."
-        ),
-        expect.stringContaining(
-          "In route /pages/cookies a cookie property was accessed directly with `cookies().has('component')`."
-        ),
-        expect.stringContaining(
-          'In route /pages/cookies cookies were iterated over'
-        ),
-      ],
-      terminalCookieErrors: [
-        expect.stringContaining(
-          "In route /pages/cookies a cookie property was accessed directly with `cookies().get('page')`."
-        ),
-        expect.stringContaining(
-          "In route /pages/cookies a cookie property was accessed directly with `cookies().get('component')`."
-        ),
-        expect.stringContaining(
-          "In route /pages/cookies a cookie property was accessed directly with `cookies().has('component')`."
-        ),
-        expect.stringContaining(
-          'In route /pages/cookies cookies were iterated over'
-        ),
-      ],
-    })
+    await next.fetch('/platform/prerender/time')
+    expect(next.cliOutput).toContain(
+      'Route "/platform/prerender/time" used `Date()` instead of using `performance` or without explicitly calling `await connection()` beforehand.'
+    )
+    expect(next.cliOutput).toContain(
+      'Route "/platform/prerender/time" used `new Date()` instead of using `performance` or without explicitly calling `await connection()` beforehand.'
+    )
+    expect(next.cliOutput).toContain(
+      'Route "/platform/prerender/time" used `Date.now()` instead of using `performance` or without explicitly calling `await connection()` beforehand.'
+    )
+    expect(next.cliOutput).not.toContain(
+      'Route "/platform/prerender/time" used `performance.now()`'
+    )
+    cliIndex = next.cliOutput.length
   })
 
-  it('warnings on sync draftMode access', async () => {
-    const nextDevBootstrapOutputIndex = next.cliOutput.length
+  it('warns on reading the random numbers in the prerender portion of a dev render', async () => {
+    await next.fetch('/platform/render/random')
+    expect(next.cliOutput.slice(cliIndex)).not.toContain(
+      'Route /platform/prerender/random used `Math.random()`'
+    )
 
-    const browser = await next.browser('/pages/draftMode')
-
-    const browserLogsserLogs = await browser.log()
-    const browserConsoleErrors = browserLogsserLogs
-      .filter((log) => log.source === 'error')
-      .map((log) => log.message)
-    const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
-    const terminalCookieErrors = terminalOutput.split('\n').filter((line) => {
-      return line.includes('In route /pages/draftMode')
-    })
-    expect({ browserConsoleErrors, terminalCookieErrors }).toEqual({
-      browserConsoleErrors: [
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().enable()`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
-        ),
-      ],
-      terminalCookieErrors: [
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().enable()`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
-        ),
-      ],
-    })
+    await next.fetch('/platform/prerender/random')
+    expect(next.cliOutput.slice(cliIndex)).toContain(
+      'Route /platform/prerender/random used `Math.random()` outside of `"use cache"` and without explicitly calling `await connection()` beforehand.'
+    )
+    cliIndex = next.cliOutput.length
   })
 
-  it('warnings on sync headers access', async () => {
-    const nextDevBootstrapOutputIndex = next.cliOutput.length
+  it('warns on reading the random values from web crypto APIs in the prerender portion of a dev render', async () => {
+    await next.fetch('/platform/render/web-crypto')
+    expect(next.cliOutput.slice(cliIndex)).not.toContain(
+      'Route /platform/prerender/web-crypto used `crypto.getRandomValues()`'
+    )
+    expect(next.cliOutput.slice(cliIndex)).not.toContain(
+      'Route /platform/prerender/web-crypto used `crypto.randomUUID()`'
+    )
 
-    const browser = await next.browser('/pages/headers')
-
-    const browserLogsserLogs = await browser.log()
-    const browserConsoleErrors = browserLogsserLogs
-      .filter((log) => log.source === 'error')
-      .map((log) => log.message)
-    const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
-    const terminalCookieErrors = terminalOutput.split('\n').filter((line) => {
-      return line.includes('In route /pages/headers')
-    })
-    expect({ browserConsoleErrors, terminalCookieErrors }).toEqual({
-      browserConsoleErrors: [
-        expect.stringContaining(
-          "In route /pages/headers a header property was accessed directly with `headers().get('page')`."
-        ),
-        expect.stringContaining(
-          "In route /pages/headers a header property was accessed directly with `headers().get('component')`."
-        ),
-        expect.stringContaining(
-          "In route /pages/headers a header property was accessed directly with `headers().has('component')`."
-        ),
-        expect.stringContaining(
-          'In route /pages/headers headers were iterated over'
-        ),
-      ],
-      terminalCookieErrors: [
-        expect.stringContaining(
-          "In route /pages/headers a header property was accessed directly with `headers().get('page')`."
-        ),
-        expect.stringContaining(
-          "In route /pages/headers a header property was accessed directly with `headers().get('component')`."
-        ),
-        expect.stringContaining(
-          "In route /pages/headers a header property was accessed directly with `headers().has('component')`."
-        ),
-        expect.stringContaining(
-          'In route /pages/headers headers were iterated over'
-        ),
-      ],
-    })
+    await next.fetch('/platform/prerender/web-crypto')
+    expect(next.cliOutput.slice(cliIndex)).toContain(
+      'Route /platform/prerender/web-crypto used `crypto.getRandomValues()` outside of `"use cache"` and without explicitly calling `await connection()` beforehand.'
+    )
+    expect(next.cliOutput.slice(cliIndex)).toContain(
+      'Route /platform/prerender/web-crypto used `crypto.randomUUID()` outside of `"use cache"` and without explicitly calling `await connection()` beforehand.'
+    )
+    cliIndex = next.cliOutput.length
   })
 
-  it('warnings on sync params access', async () => {
-    const nextDevBootstrapOutputIndex = next.cliOutput.length
+  it('warns on reading the random values from node crypto APIs in the prerender portion of a dev render', async () => {
+    await next.fetch('/platform/render/node-crypto')
+    expect(next.cliOutput.slice(cliIndex)).not.toContain(
+      "Route /platform/prerender/node-crypto used `require('node:crypto').randomInt(min, max)`"
+    )
 
-    const browser = await next.browser('/pages/params/[slug]')
-
-    const browserLogsserLogs = await browser.log()
-    const browserConsoleErrors = browserLogsserLogs
-      .filter((log) => log.source === 'error')
-      .map((log) => log.message)
-    const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
-    const terminalCookieErrors = terminalOutput.split('\n').filter((line) => {
-      return line.includes('In route /pages/params/[slug]')
-    })
-    expect({ browserConsoleErrors, terminalCookieErrors }).toEqual({
-      browserConsoleErrors: [
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] params are being enumerated'
-        ),
-      ],
-      terminalCookieErrors: [
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] a param property was accessed directly with `params.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/params/[slug] params are being enumerated'
-        ),
-      ],
-    })
-  })
-
-  it('warnings on sync searchParams access', async () => {
-    const nextDevBootstrapOutputIndex = next.cliOutput.length
-
-    const browser = await next.browser('/pages/searchParams')
-
-    const browserLogsserLogs = await browser.log()
-    const browserConsoleErrors = browserLogsserLogs
-      .filter((log) => log.source === 'error')
-      .map((log) => log.message)
-    const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
-    const terminalCookieErrors = terminalOutput.split('\n').filter((line) => {
-      return line.includes('In route /pages/searchParams')
-    })
-    expect({ browserConsoleErrors, terminalCookieErrors }).toEqual({
-      browserConsoleErrors: [
-        expect.stringContaining(
-          'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams searchParams are being enumerated'
-        ),
-      ],
-      terminalCookieErrors: [
-        expect.stringContaining(
-          'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
-        ),
-        expect.stringContaining(
-          'In route /pages/searchParams searchParams are being enumerated'
-        ),
-      ],
-    })
+    await next.fetch('/platform/prerender/node-crypto')
+    expect(next.cliOutput.slice(cliIndex)).toContain(
+      'Route /platform/prerender/node-crypto used `require(\'node:crypto\').randomInt(min, max)` outside of `"use cache"` and without explicitly calling `await connection()` beforehand.'
+    )
+    cliIndex = next.cliOutput.length
   })
 })

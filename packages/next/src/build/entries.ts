@@ -376,7 +376,7 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
-      nextConfigOutput: opts.config.output,
+      nextConfig: Buffer.from(JSON.stringify(opts.config)).toString('base64'),
       preferredRegion: opts.preferredRegion,
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
@@ -441,6 +441,7 @@ export function getEdgeServerEntry(opts: {
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
     serverActions: opts.config.experimental.serverActions,
+    cacheHandlers: JSON.stringify(opts.config.experimental.cacheHandlers || {}),
   }
 
   return {

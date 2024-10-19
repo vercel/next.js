@@ -5,6 +5,7 @@ import path from 'path'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import type { TraceEvent } from '../types'
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const localEndpoint = {
   serviceName: 'nextjs',
   ipv4: '127.0.0.1',

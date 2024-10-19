@@ -35,12 +35,7 @@ impl EcmascriptParsable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
         let parsed = self.full_module.failsafe_parse();
-        let split_data = split(
-            self.full_module.ident(),
-            self.full_module.source(),
-            parsed,
-            self.full_module.options().await?.special_exports,
-        );
+        let split_data = split(self.full_module.ident(), self.full_module.source(), parsed);
         Ok(part_of_module(split_data, self.part))
     }
     #[turbo_tasks::function]
@@ -109,7 +104,7 @@ impl EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     pub async fn is_async_module(self: Vc<Self>) -> Result<Vc<bool>> {
         let this = self.await?;
-        let result = this.full_module.analyze();
+        let result = analyze(this.full_module, this.part);
 
         if let Some(async_module) = *result.await?.async_module.await? {
             Ok(async_module.is_self_async(self.references()))
@@ -122,14 +117,8 @@ impl EcmascriptModulePartAsset {
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let inner = self.full_module.ident();
-        let result = split_module(self.full_module);
-
-        match &*result.await? {
-            SplitResult::Ok { .. } => Ok(inner.with_part(self.part)),
-            SplitResult::Failed { .. } => Ok(inner),
-        }
+    fn ident(&self) -> Vc<AssetIdent> {
+        self.full_module.ident().with_part(self.part)
     }
 
     #[turbo_tasks::function]
