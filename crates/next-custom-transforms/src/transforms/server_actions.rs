@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     convert::{TryFrom, TryInto},
     mem::take,
 };
@@ -75,6 +75,7 @@ pub fn server_actions<C: Comments>(
         private_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
 
         arrow_or_fn_expr_ident: None,
+        exported_local_ids: HashSet::new(),
     })
 }
 
@@ -125,10 +126,11 @@ struct ServerActions<C: Comments> {
     private_ctxt: SyntaxContext,
 
     arrow_or_fn_expr_ident: Option<Ident>,
+    exported_local_ids: HashSet<Id>,
 }
 
 impl<C: Comments> ServerActions<C> {
-    // Check if the function or arrow function is an action function
+    // Check if the function or arrow function is an action or cache function
     fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, Option<String>) {
         let mut is_action_fn = false;
         let mut cache_type = None;
@@ -174,13 +176,12 @@ impl<C: Comments> ServerActions<C> {
             }
         }
 
-        if self.in_export_decl && self.in_action_file {
-            // All export functions in a server file are actions
-            is_action_fn = true;
-        }
-
-        if self.in_module_level {
-            if let Some(cache_file_type) = &self.in_cache_file {
+        if self.in_export_decl {
+            if self.in_action_file {
+                // All export functions in a server file are actions
+                is_action_fn = true;
+            } else if let Some(cache_file_type) = &self.in_cache_file {
+                // All export functions in a cache file are cache functions
                 cache_type = Some(cache_file_type.clone());
             }
         }
@@ -1012,6 +1013,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
+        let old_in_export_decl = self.in_export_decl;
+
+        if self.in_module_level && self.exported_local_ids.contains(&f.ident.to_id()) {
+            self.in_export_decl = true
+        }
+
         let (is_action_fn, cache_type) = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
@@ -1036,6 +1043,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+            self.in_export_decl = old_in_export_decl;
+
             return;
         }
 
@@ -1058,6 +1067,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         )
                         .emit();
                 });
+
+                self.in_export_decl = old_in_export_decl;
 
                 return;
             }
@@ -1126,6 +1137,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 });
             }
         }
+
+        self.in_export_decl = old_in_export_decl;
     }
 
     fn visit_mut_method_prop(&mut self, m: &mut MethodProp) {
@@ -1331,6 +1344,32 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             &mut self.has_cache,
             self.config.enabled,
         );
+
+        // If we're in a "use cache" file, collect all original IDs from export
+        // specifiers in a pre-pass so that we know which functions are
+        // exported, e.g. for this case:
+        // ```
+        // "use cache"
+        // function Foo() {}
+        // export { Foo }
+        // ```
+        if self.in_cache_file.is_some() {
+            for stmt in stmts.iter() {
+                if let ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) = stmt {
+                    if named.src.is_none() {
+                        for spec in &named.specifiers {
+                            if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                orig: ModuleExportName::Ident(ident),
+                                ..
+                            }) = spec
+                            {
+                                self.exported_local_ids.insert(ident.to_id());
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         let old_annotations = self.annotations.take();
         let mut new = Vec::with_capacity(stmts.len());
@@ -1594,7 +1633,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             new.rotate_right(1);
         }
 
-        // If it's a "use server" file, all exports need to be annotated as actions.
+        // If it's a "use server" or a "use cache" file, all exports need to be annotated.
         if self.in_action_file || self.in_cache_file.is_some() {
             for (ident, export_name) in self.exported_idents.iter() {
                 if !self.config.is_react_server_layer {
@@ -1881,16 +1920,22 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_var_declarator(&mut self, var_declarator: &mut VarDeclarator) {
+        let old_in_export_decl = self.in_export_decl;
         let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
 
         if let (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) =
             (&var_declarator.name, &var_declarator.init)
         {
+            if self.in_module_level && self.exported_local_ids.contains(&ident.to_id()) {
+                self.in_export_decl = true
+            }
+
             self.arrow_or_fn_expr_ident = Some(ident.id.clone());
         }
 
         var_declarator.visit_mut_children_with(self);
 
+        self.in_export_decl = old_in_export_decl;
         self.arrow_or_fn_expr_ident = old_arrow_expr_ident;
     }
 
