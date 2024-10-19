@@ -19,8 +19,11 @@ use turbopack_core::{
         FreeVarReferences,
     },
     condition::ContextCondition,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
+    environment::{
+        Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
+    },
     free_var_references,
+    target::CompileTarget,
 };
 use turbopack_ecmascript::references::esm::UrlRewriteBehavior;
 use turbopack_ecmascript_plugins::transform::directives::{
@@ -345,16 +348,26 @@ async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 }
 
 #[turbo_tasks::function]
-pub fn get_server_compile_time_info(
+pub async fn get_server_compile_time_info(
     process_env: Vc<Box<dyn ProcessEnv>>,
     define_env: Vc<EnvMap>,
-) -> Vc<CompileTimeInfo> {
-    CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::current(process_env)),
+    cwd: RcStr,
+) -> Result<Vc<CompileTimeInfo>> {
+    Ok(CompileTimeInfo::builder(Environment::new(Value::new(
+        ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment {
+                compile_target: CompileTarget::current(),
+                node_version: NodeJsVersion::cell(NodeJsVersion::Current(
+                    process_env.to_resolved().await?,
+                )),
+                cwd: Vc::cell(Some(cwd)),
+            }
+            .cell(),
+        ),
     )))
     .defines(next_server_defines(define_env))
     .free_var_references(next_server_free_vars(define_env))
-    .cell()
+    .cell())
 }
 
 /// Determins if the module is an internal asset (i.e overlay, fallback) coming
