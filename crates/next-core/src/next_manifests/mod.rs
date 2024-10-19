@@ -4,9 +4,8 @@ pub(crate) mod client_reference_manifest;
 
 use std::collections::HashMap;
 
-use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, TaskInput};
 
 use crate::next_config::{CrossOriginConfig, Rewrites, RouteHas};
 
@@ -97,7 +96,7 @@ pub struct EdgeFunctionDefinition {
     pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regions: Option<Regions>,
-    pub env: IndexMap<RcStr, RcStr>,
+    pub env: FxIndexMap<RcStr, RcStr>,
 }
 
 #[derive(Serialize, Default, Debug)]
@@ -235,12 +234,18 @@ pub struct ClientReferenceManifest {
     /// Same as `ssr_module_mapping`, but for Edge SSR.
     #[serde(rename = "edgeSSRModuleMapping")]
     pub edge_ssr_module_mapping: HashMap<ModuleId, ManifestNode>,
+    /// Mapping of client module ID to corresponding RSC module ID and required
+    /// RSC chunks.
+    pub rsc_module_mapping: HashMap<ModuleId, ManifestNode>,
+    /// Same as `rsc_module_mapping`, but for Edge RSC.
+    #[serde(rename = "edgeRscModuleMapping")]
+    pub edge_rsc_module_mapping: HashMap<ModuleId, ManifestNode>,
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
-    pub entry_css_files: HashMap<RcStr, IndexSet<RcStr>>,
+    pub entry_css_files: HashMap<RcStr, FxIndexSet<RcStr>>,
     /// Mapping of server component path to required JS client chunks.
     #[serde(rename = "entryJSFiles")]
-    pub entry_js_files: HashMap<RcStr, IndexSet<RcStr>>,
+    pub entry_js_files: HashMap<RcStr, FxIndexSet<RcStr>>,
 }
 
 #[derive(Serialize, Default, Debug)]

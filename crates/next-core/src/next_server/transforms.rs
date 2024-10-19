@@ -90,6 +90,7 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Client,
                 mdx_rs,
             ));
+
             is_app_dir = true;
 
             false
@@ -105,7 +106,13 @@ pub async fn get_next_server_transforms_rules(
             true
         }
         ServerContextType::AppRoute { .. } => {
+            rules.push(get_server_actions_transform_rule(
+                ActionsTransform::Server,
+                mdx_rs,
+            ));
+
             is_app_dir = true;
+
             false
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,

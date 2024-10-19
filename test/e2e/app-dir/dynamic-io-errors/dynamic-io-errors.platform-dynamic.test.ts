@@ -123,23 +123,16 @@ function runTests(options: { withMinification: boolean }) {
         }
         const expectError = createExpectError(next.cliOutput)
 
-        if (WITH_PPR) {
-          expectError(
-            'Error: Route / used a synchronous Dynamic API: `Math.random()`. This particular component may have been dynamic anyway or it may have just not finished before the synchronous Dynamic API was invoked.',
-            // Turbopack doesn't support disabling minification yet
-            withMinification || isTurbopack ? undefined : 'IndirectionTwo'
-          )
-        } else {
-          expectError(
-            'Error: Route / used a synchronous Dynamic API: `Math.random()`, which caused this component to not finish rendering before the prerender completed and no fallback UI was defined.',
-            // Turbopack doesn't support disabling minification yet
-            withMinification || isTurbopack ? undefined : 'IndirectionTwo'
-          )
-        }
-        expectError('Error occurred prerendering page "/"')
         expectError(
-          'Error: Route / used `Math.random()` while prerendering which caused some part of the page to be dynamic without a Suspense boundary above it defining a fallback UI.'
+          'Error: Route "/" used `Math.random()` outside of `"use cache"` and without explicitly calling `await connection()` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random'
         )
+        expectError(
+          'Error: In Route "/" this parent component stack may help you locate where `Math.random()` was used.',
+          // Turbopack doesn't support disabling minification yet
+          withMinification || isTurbopack ? undefined : 'IndirectionTwo'
+        )
+        expectError('Error occurred prerendering page "/"')
+        expectError('Error: Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })

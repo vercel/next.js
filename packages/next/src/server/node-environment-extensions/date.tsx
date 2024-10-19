@@ -14,7 +14,7 @@ import { io } from './utils'
 function createNow(originalNow: typeof Date.now) {
   return {
     now: function now() {
-      io('`Date.now()`')
+      io('`Date.now()`', 'time')
       return originalNow()
     },
   }['now'.slice() as 'now'].bind(null)
@@ -31,11 +31,11 @@ function createDate(originalConstructor: typeof Date): typeof Date {
     // Ideally this should not minify the name.
     function Date() {
       if (new.target === undefined) {
-        io('`Date()`')
+        io('`Date()`', 'time')
         return apply(originalConstructor, undefined, arguments)
       }
       if (arguments.length === 0) {
-        io('`new Date()`')
+        io('`new Date()`', 'time')
       }
       return construct(originalConstructor, arguments, new.target)
     },

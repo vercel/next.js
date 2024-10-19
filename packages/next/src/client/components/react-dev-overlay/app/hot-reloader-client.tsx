@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
-import { usePathname, useRouter } from '../../navigation'
+import { useRouter } from '../../navigation'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
@@ -36,6 +36,7 @@ import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extra
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
 import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
 import type { DebugInfo } from '../types'
+import { useUntrackedPathname } from '../../navigation-untracked'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -565,7 +566,7 @@ export default function HotReload({
       dispatch({
         type: ACTION_UNHANDLED_ERROR,
         reason: error,
-        frames: parseStack(error.stack!),
+        frames: parseStack(error.stack),
         componentStackFrames:
           typeof componentStackTrace === 'string'
             ? parseComponentStack(componentStackTrace)
@@ -598,7 +599,10 @@ export default function HotReload({
   )
 
   const router = useRouter()
-  const pathname = usePathname()
+
+  // We don't want access of the pathname for the dev tools to trigger a dynamic
+  // access (as the dev overlay will never be present in production).
+  const pathname = useUntrackedPathname()
   const appIsrManifestRef = useRef<Record<string, false | number>>({})
   const pathnameRef = useRef(pathname)
 
@@ -612,7 +616,7 @@ export default function HotReload({
       const appIsrManifest = appIsrManifestRef.current
 
       if (appIsrManifest) {
-        if (pathname in appIsrManifest) {
+        if (pathname && pathname in appIsrManifest) {
           const indicatorHiddenAt = Number(
             localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
           )

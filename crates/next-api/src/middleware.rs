@@ -183,29 +183,26 @@ impl MiddlewareEndpoint {
                     let has_locale = matcher.locale;
 
                     if has_i18n_locales && has_locale {
-                        source = format!(
-                            "/:nextInternalLocale((?!_next/)[^/.]{{1,}}){}",
-                            if is_root {
-                                "".to_string()
-                            } else {
-                                source.to_string()
-                            }
-                        );
+                        if is_root {
+                            source.clear();
+                        }
+                        source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
                     }
 
-                    let last_part = if is_root {
-                        format!(
-                            "({}/?index|/?index\\\\.json)?",
-                            if has_i18n { "|\\\\.json|" } else { "" }
-                        )
+                    if is_root {
+                        source.push('(');
+                        if has_i18n {
+                            source.push_str("|\\\\.json|");
+                        }
+                        source.push_str("/?index|/?index\\\\.json)?")
                     } else {
-                        "(.json)?".into()
+                        source.push_str("(.json)?")
                     };
 
-                    source = format!("/:nextData(_next/data/[^/]{{1,}})?{}{}", source, last_part);
+                    source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
 
                     if let Some(base_path) = base_path {
-                        source = format!("{}{}", base_path, source);
+                        source.insert_str(0, base_path);
                     }
 
                     // TODO: The implementation of getMiddlewareMatchers outputs a regex here using

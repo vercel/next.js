@@ -18,15 +18,14 @@ use std::{
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
-use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use tracing::{info_span, Span};
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    RcStr, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Upcast,
-    ValueToString, Vc,
+    FxIndexMap, FxIndexSet, RcStr, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -187,12 +186,12 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     }
 }
 
-type AsyncInfo = IndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>;
+type AsyncInfo = FxIndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>;
 
 pub struct ChunkContentResult {
-    pub chunk_items: IndexSet<Vc<Box<dyn ChunkItem>>>,
-    pub async_modules: IndexSet<Vc<Box<dyn ChunkableModule>>>,
-    pub external_module_references: IndexSet<Vc<Box<dyn ModuleReference>>>,
+    pub chunk_items: FxIndexSet<Vc<Box<dyn ChunkItem>>>,
+    pub async_modules: FxIndexSet<Vc<Box<dyn ChunkableModule>>>,
+    pub external_module_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
     /// A map from local module to all children from which the async module
     /// status is inherited
     pub forward_edges_inherit_async: AsyncInfo,
@@ -610,12 +609,12 @@ async fn chunk_content_internal_parallel(
 
     let graph_nodes: Vec<_> = traversal_result?.into_reverse_topological().collect();
 
-    let mut chunk_items = IndexSet::new();
-    let mut async_modules = IndexSet::new();
-    let mut external_module_references = IndexSet::new();
-    let mut forward_edges_inherit_async = IndexMap::new();
-    let mut local_back_edges_inherit_async = IndexMap::new();
-    let mut available_async_modules_back_edges_inherit_async = IndexMap::new();
+    let mut chunk_items = FxIndexSet::default();
+    let mut async_modules = FxIndexSet::default();
+    let mut external_module_references = FxIndexSet::default();
+    let mut forward_edges_inherit_async = FxIndexMap::default();
+    let mut local_back_edges_inherit_async = FxIndexMap::default();
+    let mut available_async_modules_back_edges_inherit_async = FxIndexMap::default();
 
     for graph_node in graph_nodes {
         match graph_node {
