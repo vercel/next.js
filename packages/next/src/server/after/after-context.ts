@@ -37,11 +37,10 @@ export class AfterContext {
 
   public after(task: AfterTask): void {
     if (isThenable(task)) {
-      task.catch(() => {}) // avoid unhandled rejection crashes
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
       }
-      this.waitUntil(task)
+      this.waitUntil(task.catch((error) => this.reportTaskError(error)))
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
       this.addCallback(task)
@@ -85,14 +84,8 @@ export class AfterContext {
     const wrappedCallback = bindSnapshot(async () => {
       try {
         await callback()
-      } catch (err) {
-        // TODO(after): this is fine for now, but will need better intergration with our error reporting.
-        // TODO(after): should we log this if we have a onTaskError callback?
-        console.error(
-          'An error occurred in a function passed to `unstable_after()`:',
-          err
-        )
-        this.onTaskError?.(err)
+      } catch (error) {
+        this.reportTaskError(error)
       }
     })
 
@@ -120,6 +113,30 @@ export class AfterContext {
       this.callbackQueue.start()
       return this.callbackQueue.onIdle()
     })
+  }
+
+  private reportTaskError(error: unknown) {
+    // TODO(after): this is fine for now, but will need better intergration with our error reporting.
+    // TODO(after): should we log this if we have a onTaskError callback?
+    console.error(
+      'An error occurred in a function passed to `unstable_after()`:',
+      error
+    )
+    if (this.onTaskError) {
+      // this is very defensive, but we really don't want anything to blow up in an error handler
+      try {
+        this.onTaskError?.(error)
+      } catch (handlerError) {
+        console.error(
+          new InvariantError(
+            '`onTaskError` threw while handling an error thrown from an `unstable_after` task',
+            {
+              cause: handlerError,
+            }
+          )
+        )
+      }
+    }
   }
 }
 

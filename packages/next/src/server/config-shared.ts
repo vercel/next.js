@@ -237,6 +237,12 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  cacheHandlers?: {
+    default?: string
+    remote?: string
+    static?: string
+    [handlerName: string]: string | undefined
+  }
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
   flyingShuttle?: { mode?: 'full' | 'store-only' }
@@ -449,12 +455,6 @@ export interface ExperimentalConfig {
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   ppr?: ExperimentalPPRConfig
-
-  /**
-   * Enables experimental Partial Fallback Prerendering features. Using this
-   * requires use of the `experimental.ppr` feature.
-   */
-  pprFallbacks?: boolean
 
   /**
    * Enables experimental taint APIs in React.
@@ -1031,9 +1031,44 @@ export const defaultConfig: NextConfig = {
     cacheLife: {
       default: {
         stale: undefined, // defaults to staleTimes.static
-        revalidate: 900,
+        revalidate: 60 * 15, // 15 minutes
         expire: INFINITE_CACHE,
       },
+      seconds: {
+        stale: undefined, // defaults to staleTimes.dynamic
+        revalidate: 1, // 1 second
+        expire: 1, // 1 minute
+      },
+      minutes: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60, // 1 minute
+        expire: 60 * 60, // 1 hour
+      },
+      hours: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60, // 1 hour
+        expire: 60 * 60 * 24, // 1 day
+      },
+      days: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24, // 1 day
+        expire: 60 * 60 * 24 * 7, // 1 week
+      },
+      weeks: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24 * 7, // 1 week
+        expire: 60 * 60 * 24 * 30, // 1 month
+      },
+      max: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24 * 30, // 1 month
+        expire: INFINITE_CACHE, // Unbounded.
+      },
+    },
+    cacheHandlers: {
+      default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
+      remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
+      static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
     },
     multiZoneDraftMode: false,
     appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
@@ -1088,15 +1123,6 @@ export const defaultConfig: NextConfig = {
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
     ppr:
-      // TODO: remove once we've made PPR default
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
-      // has been set to `true`, enable the experimental PPR feature so long as it
-      // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
-    pprFallbacks:
       // TODO: remove once we've made PPR default
       // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
       // has been set to `true`, enable the experimental PPR feature so long as it

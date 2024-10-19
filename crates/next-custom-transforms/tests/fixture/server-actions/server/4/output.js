@@ -4,10 +4,10 @@ export async function a() {}
 export async function b() {}
 export async function c() {}
 function d() {}
+export const $$RSC_SERVER_ACTION_0 = async function e() {};
 function Foo() {
     var e = registerServerReference($$RSC_SERVER_ACTION_0, "6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
 }
-export async function $$RSC_SERVER_ACTION_0() {}
 import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     a,

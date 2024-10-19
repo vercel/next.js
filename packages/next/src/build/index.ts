@@ -1952,7 +1952,7 @@ export default async function build(
               defaultLocale: config.i18n?.defaultLocale,
               nextConfigOutput: config.output,
               pprConfig: config.experimental.ppr,
-              isAppPPRFallbacksEnabled: config.experimental.pprFallbacks,
+              cacheLifeProfiles: config.experimental.cacheLife,
               buildId,
             })
         )
@@ -2177,8 +2177,7 @@ export default async function build(
                             maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             pprConfig: config.experimental.ppr,
-                            isAppPPRFallbacksEnabled:
-                              config.experimental.pprFallbacks,
+                            cacheLifeProfiles: config.experimental.cacheLife,
                             buildId,
                           })
                         }
@@ -3153,7 +3152,7 @@ export default async function build(
               // When PPR fallbacks aren't used, we need to include it here. If
               // they are enabled, then it'll already be included in the
               // prerendered routes.
-              if (!isRoutePPREnabled || !config.experimental.pprFallbacks) {
+              if (!isRoutePPREnabled) {
                 dynamicRoutes.push(page)
               }
 

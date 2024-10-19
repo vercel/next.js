@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "15.0.0-canary.193",
+  "version": "15.0.0-canary.198",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -30,7 +30,8 @@
     "build": "pnpm tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm tsc -d -w -p tsconfig.json",
-    "test": "jest"
+    "test": "jest",
+    "test:upgrade-fixture": "./scripts/test-upgrade-fixture.sh"
   },
   "bin": "./bin/next-codemod.js",
   "devDependencies": {

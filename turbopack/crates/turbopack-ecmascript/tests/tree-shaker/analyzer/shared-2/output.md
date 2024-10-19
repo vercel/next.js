@@ -132,8 +132,6 @@ graph TD
     Item4 --> Item1;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item5 --> Item2;
-    Item5 --> Item3;
     Item6 --> Item4;
     Item7 --> Item6;
     Item7 --> Item4;
@@ -167,8 +165,6 @@ graph TD
     Item4 --> Item1;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item5 --> Item2;
-    Item5 --> Item3;
     Item6 --> Item4;
     Item7 --> Item6;
     Item7 --> Item4;
@@ -202,8 +198,6 @@ graph TD
     Item4 --> Item1;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item5 --> Item2;
-    Item5 --> Item3;
     Item6 --> Item4;
     Item7 --> Item6;
     Item7 --> Item4;
@@ -234,8 +228,6 @@ graph TD
     N7 --> N4;
     N8 --> N7;
     N8 --> N4;
-    N8 --> N5;
-    N8 --> N6;
     N9 --> N7;
     N10 --> N9;
     N10 --> N7;
@@ -354,12 +346,6 @@ import { c as order } from "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
 };
 order.push("c");
 
@@ -525,12 +511,6 @@ import { c as order } from "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
 };
 order.push("c");
 

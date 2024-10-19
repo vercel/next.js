@@ -1,5 +1,5 @@
 'use cache'
 
-export async function foo() {
-  return 'data'
-}
+export async function foo() {}
+const bar = async () => {}
+export { bar }

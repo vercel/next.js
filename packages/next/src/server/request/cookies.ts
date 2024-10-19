@@ -12,7 +12,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
-  abortAndThrowOnSynchronousDynamicDataAccess,
+  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -167,9 +167,11 @@ function makeDynamicallyTrackedExoticCookies(
     [Symbol.iterator]: {
       value: function () {
         const expression = 'cookies()[Symbol.iterator]()'
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncCookiesError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -177,9 +179,11 @@ function makeDynamicallyTrackedExoticCookies(
     size: {
       get() {
         const expression = `cookies().size`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncCookiesError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -192,9 +196,11 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().get(${describeNameArg(arguments[0])})`
         }
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncCookiesError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -207,9 +213,11 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().getAll(${describeNameArg(arguments[0])})`
         }
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncCookiesError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -222,9 +230,11 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().has(${describeNameArg(arguments[0])})`
         }
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncCookiesError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -242,9 +252,11 @@ function makeDynamicallyTrackedExoticCookies(
             expression = `cookies().set(...)`
           }
         }
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncCookiesError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -259,9 +271,11 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().delete(${describeNameArg(arguments[0])}, ...)`
         }
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncCookiesError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -269,9 +283,11 @@ function makeDynamicallyTrackedExoticCookies(
     clear: {
       value: function clear() {
         const expression = 'cookies().clear()'
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncCookiesError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -279,9 +295,11 @@ function makeDynamicallyTrackedExoticCookies(
     toString: {
       value: function toString() {
         const expression = 'cookies().toString()'
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncCookiesError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -562,4 +580,10 @@ function polyfilledResponseCookiesClear(
 
 type CookieExtensions = {
   [K in keyof ReadonlyRequestCookies | 'clear']: unknown
+}
+
+function createSyncCookiesError(route: string, expression: string) {
+  return new Error(
+    `Route "${route}" used ${expression}. \`cookies()\` now returns a Promise and should be \`awaited\` before using it's value. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-headers`
+  )
 }
