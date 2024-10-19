@@ -19,4 +19,9 @@ const baz = async function () {
   return qux() + 'baz'
 }
 
+const quux = async () => {
+  return 'quux'
+}
+
 export { foo, baz }
+export default quux
