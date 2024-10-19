@@ -214,7 +214,7 @@ impl<C: Comments> ServerActions<C> {
         );
 
         let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone()),
+            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone(), arrow.span),
             ids_from_closure
                 .iter()
                 .cloned()
@@ -377,7 +377,11 @@ impl<C: Comments> ServerActions<C> {
         let action_id = generate_action_id(&self.config.hash_salt, &self.file_name, &action_name);
 
         let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone()),
+            annotate_ident_as_server_reference(
+                action_ident.clone(),
+                action_id.clone(),
+                function.span,
+            ),
             ids_from_closure
                 .iter()
                 .cloned()
@@ -662,8 +666,11 @@ impl<C: Comments> ServerActions<C> {
             .map(|id| Some(id.as_arg()))
             .collect();
 
-        let register_action_expr =
-            annotate_ident_as_server_reference(cache_ident.clone(), reference_id.clone());
+        let register_action_expr = annotate_ident_as_server_reference(
+            cache_ident.clone(),
+            reference_id.clone(),
+            arrow.span,
+        );
 
         // If there're any bound args from the closure, we need to hoist the
         // register action expression to the top-level, and return the bind
@@ -713,8 +720,11 @@ impl<C: Comments> ServerActions<C> {
 
         let reference_id = generate_action_id(&self.config.hash_salt, &self.file_name, &cache_name);
 
-        let register_action_expr =
-            annotate_ident_as_server_reference(cache_ident.clone(), reference_id.clone());
+        let register_action_expr = annotate_ident_as_server_reference(
+            cache_ident.clone(),
+            reference_id.clone(),
+            function.span,
+        );
 
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
@@ -1726,6 +1736,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         expr: Box::new(annotate_ident_as_server_reference(
                             ident.clone(),
                             action_id,
+                            ident.span,
                         )),
                     }));
                 }
@@ -2155,10 +2166,14 @@ fn generate_action_id(hash_salt: &str, file_name: &str, export_name: &str) -> St
     hex_encode(result)
 }
 
-fn annotate_ident_as_server_reference(ident: Ident, action_id: String) -> Expr {
+fn annotate_ident_as_server_reference(
+    ident: Ident,
+    action_id: String,
+    original_span: Span,
+) -> Expr {
     // registerServerReference(reference, id, null)
     Expr::Call(CallExpr {
-        span: ident.span,
+        span: original_span,
         callee: quote_ident!("registerServerReference").as_callee(),
         args: vec![
             ExprOrSpread {
