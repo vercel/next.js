@@ -1,8 +1,7 @@
 use std::iter::once;
 
 use anyhow::{bail, Result};
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
@@ -47,7 +46,6 @@ use crate::{
     next_import_map::get_next_server_import_map,
     next_server::resolve::ExternalPredicate,
     next_shared::{
-        next_js_special_exports,
         resolve::{
             get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
@@ -313,8 +311,8 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
-    let mut defines = IndexMap::new();
+fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {
+    let mut defines = FxIndexMap::default();
 
     for (k, v) in define_env {
         defines
@@ -500,7 +498,6 @@ pub async fn get_server_module_options_context(
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
-        special_exports: Some(next_js_special_exports()),
         ..Default::default()
     };
 

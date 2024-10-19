@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
-use indexmap::IndexSet;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::introspect::{
@@ -186,7 +185,7 @@ impl Introspectable for NodeApiContentSource {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let mut set = IndexSet::new();
+        let mut set = FxIndexSet::default();
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((

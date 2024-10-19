@@ -597,7 +597,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: next-swc-binaries
+          pattern: next-swc-binaries-*
           merge-multiple: true
           path: packages/next-swc/native
 

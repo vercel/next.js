@@ -4,8 +4,7 @@ pub mod source_map;
 use std::fmt::Write;
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -63,7 +62,7 @@ impl CssChunk {
 
         let mut code = CodeBuilder::default();
         let mut body = CodeBuilder::default();
-        let mut external_imports = IndexSet::new();
+        let mut external_imports = FxIndexSet::default();
         for css_item in &this.content.await?.chunk_items {
             let id = &*css_item.id().await?;
 
