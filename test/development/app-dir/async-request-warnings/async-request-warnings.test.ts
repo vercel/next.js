@@ -10,8 +10,8 @@ describe('dynamic-requests warnings', () => {
 
     const browser = await next.browser('/request/cookies')
 
-    const browserLogsserLogs = await browser.log()
-    const browserConsoleErrors = browserLogsserLogs
+    const browserLogs = await browser.log()
+    const browserConsoleErrors = browserLogs
       .filter((log) => log.source === 'error')
       .map((log) => log.message)
     const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
