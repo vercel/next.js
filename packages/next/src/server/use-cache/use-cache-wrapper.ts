@@ -44,11 +44,15 @@ const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
 const _globalThis: typeof globalThis & {
   [cacheHandlersSymbol]?: {
     RemoteCache?: CacheHandler
+    DefaultCache?: CacheHandler
   }
 } = globalThis
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map([
-  ['default', DefaultCacheHandler],
+  [
+    'default',
+    _globalThis[cacheHandlersSymbol]?.DefaultCache || DefaultCacheHandler,
+  ],
   [
     'remote',
     // in dev remote maps to default handler
