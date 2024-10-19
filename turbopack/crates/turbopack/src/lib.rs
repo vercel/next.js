@@ -776,13 +776,9 @@ impl AssetContext for ModuleAssetContext {
                                             .await?
                                             .enable_externals_tracing =>
                                     {
-                                        match &*process_default(
-                                            externals_tracing_module_context(),
-                                            source,
-                                            reference_type,
-                                            vec![],
-                                        )
-                                        .await?
+                                        match &*externals_tracing_module_context()
+                                            .process(source, reference_type)
+                                            .await?
                                         {
                                             ProcessResult::Module(module) => Some(*module),
                                             ProcessResult::Ignore => None,
