@@ -28,7 +28,7 @@ type DefaultCacheEntry = CacheEntry & {
 const memoryCache = new LRUCache<DefaultCacheEntry>(50_000_000)
 const pendingSets = new Map<string, Promise<void>>()
 
-export const DefaultCacheHandler: CacheHandler = {
+const DefaultCacheHandler: CacheHandler = {
   async get(cacheKey, softTags) {
     await pendingSets.get(cacheKey)
 
@@ -121,3 +121,5 @@ export const DefaultCacheHandler: CacheHandler = {
     return this.expireTags(...tags)
   },
 }
+
+export default DefaultCacheHandler
