@@ -82,13 +82,23 @@ export function isWellKnownError(issue: Issue): boolean {
 const onceErrorSet = new Set()
 /**
  * Check if given issue is a warning to be display only once.
- * This miimics behavior of get-page-static-info's warnOnce.
+ * This mimics behavior of get-page-static-info's warnOnce.
  * @param issue
  * @returns
  */
 function shouldEmitOnceWarning(issue: Issue): boolean {
-  const { severity, title } = issue
+  const { severity, title, stage } = issue
   if (severity === 'warning' && title.value === 'Invalid page configuration') {
+    if (onceErrorSet.has(issue)) {
+      return false
+    }
+    onceErrorSet.add(issue)
+  }
+  if (
+    severity === 'warning' &&
+    stage === 'config' &&
+    renderStyledStringToErrorAnsi(issue.title).includes("can't be external")
+  ) {
     if (onceErrorSet.has(issue)) {
       return false
     }
@@ -107,6 +117,16 @@ export function printNonFatalIssue(issue: Issue) {
 }
 
 function isNodeModulesIssue(issue: Issue): boolean {
+  if (issue.severity === 'warning' && issue.stage === 'config') {
+    // Override for the externalize issue
+    // `Package foo (serverExternalPackages or default list) can't be external`
+    if (
+      renderStyledStringToErrorAnsi(issue.title).includes("can't be external")
+    ) {
+      return false
+    }
+  }
+
   return (
     issue.severity === 'warning' &&
     issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null

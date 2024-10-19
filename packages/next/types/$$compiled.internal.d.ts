@@ -534,10 +534,6 @@ declare module 'next/dist/compiled/lodash.curry' {
   import m from 'lodash.curry'
   export = m
 }
-declare module 'next/dist/compiled/lru-cache' {
-  import m from 'lru-cache'
-  export = m
-}
 declare module 'next/dist/compiled/picomatch' {
   import m from 'picomatch'
   export = m

@@ -1,7 +1,7 @@
 {
   "name": "@next/font",
   "private": true,
-  "version": "15.0.0-canary.197",
+  "version": "15.0.0-canary.198",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/font"

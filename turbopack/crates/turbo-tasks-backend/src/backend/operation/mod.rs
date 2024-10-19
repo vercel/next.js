@@ -183,16 +183,18 @@ where
                     .set_restored(TaskDataCategory::All);
             } else {
                 for category in category {
-                    // Avoid holding the lock too long since this can also affect other tasks
-                    drop(task);
-
-                    let items = self.restore_task_data(task_id, category);
-                    task = self.backend.storage.access_mut(task_id);
                     if !task.persistance_state().is_restored(category) {
-                        for item in items {
-                            task.add(item);
+                        // Avoid holding the lock too long since this can also affect other tasks
+                        drop(task);
+
+                        let items = self.restore_task_data(task_id, category);
+                        task = self.backend.storage.access_mut(task_id);
+                        if !task.persistance_state().is_restored(category) {
+                            for item in items {
+                                task.add(item);
+                            }
+                            task.persistance_state_mut().set_restored(category);
                         }
-                        task.persistance_state_mut().set_restored(category);
                     }
                 }
             }

@@ -154,19 +154,16 @@ describe('dynamic-io', () => {
     }
   })
 
-  itSkipTurbopack(
-    'should prerender pages that only use cached ("use cache") IO',
-    async () => {
-      const $ = await next.render$('/cases/use_cache_cached', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at buildtime')
-        expect($('#page').text()).toBe('at buildtime')
-      }
+  it('should prerender pages that only use cached ("use cache") IO', async () => {
+    const $ = await next.render$('/cases/use_cache_cached', {})
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
     }
-  )
+  })
 
   itSkipTurbopack(
     'should prerender pages that cached the whole page',
