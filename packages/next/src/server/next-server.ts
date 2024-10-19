@@ -369,11 +369,13 @@ export default class NextNodeServer extends BaseServer<
       ;(globalThis as any).nextCacheHandlers = {}
 
       for (const key of Object.keys(cacheHandlers)) {
-        ;(globalThis as any).nextCacheHandlers[key] = interopDefault(
-          await dynamicImportEsmDefault(
-            formatDynamicImportPath(this.distDir, cacheHandlers[key] || '')
+        if (cacheHandlers[key]) {
+          ;(globalThis as any).nextCacheHandlers[key] = interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, cacheHandlers[key])
+            )
           )
-        )
+        }
       }
     }
 

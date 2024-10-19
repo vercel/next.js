@@ -38,11 +38,13 @@ export async function createIncrementalCache({
     ;(globalThis as any).nextCacheHandlers = {}
 
     for (const key of Object.keys(cacheHandlers)) {
-      ;(globalThis as any).nextCacheHandlers[key] = interopDefault(
-        await import(
-          formatDynamicImportPath(dir, cacheHandlers[key] || '')
-        ).then((mod) => mod.default || mod)
-      )
+      if (cacheHandlers[key]) {
+        ;(globalThis as any).nextCacheHandlers[key] = interopDefault(
+          await import(formatDynamicImportPath(dir, cacheHandlers[key])).then(
+            (mod) => mod.default || mod
+          )
+        )
+      }
     }
   }
 
