@@ -2,7 +2,7 @@ import type { WorkStore } from '../app-render/work-async-storage.external'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  abortAndThrowOnSynchronousDynamicDataAccess,
+  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   postponeWithTracking,
   trackDynamicDataInDynamicRender,
@@ -222,9 +222,11 @@ function makeAbortingExoticSearchParams(
               'searchParams',
               prop
             )
-            abortAndThrowOnSynchronousDynamicDataAccess(
+            const error = createSyncSearchParamsError(route, expression)
+            abortAndThrowOnSynchronousRequestDataAccess(
               route,
               expression,
+              error,
               prerenderStore
             )
           }
@@ -242,9 +244,11 @@ function makeAbortingExoticSearchParams(
           'searchParams',
           prop
         )
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncSearchParamsError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       }
@@ -253,9 +257,11 @@ function makeAbortingExoticSearchParams(
     ownKeys() {
       const expression =
         '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
-      abortAndThrowOnSynchronousDynamicDataAccess(
+      const error = createSyncSearchParamsError(route, expression)
+      abortAndThrowOnSynchronousRequestDataAccess(
         route,
         expression,
+        error,
         prerenderStore
       )
     },
@@ -639,11 +645,19 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
     },
     has(target, prop) {
       if (typeof prop === 'string') {
-        const expression = describeHasCheckingStringProperty(
-          'searchParams',
-          prop
-        )
-        warnForSyncAccess(store.route, expression)
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
+          const expression = describeHasCheckingStringProperty(
+            'searchParams',
+            prop
+          )
+          warnForSyncAccess(store.route, expression)
+        }
       }
       return Reflect.has(target, prop)
     },
@@ -716,4 +730,10 @@ function describeListOfPropertyNames(properties: Array<string>) {
       return description
     }
   }
+}
+
+function createSyncSearchParamsError(route: string, expression: string) {
+  return new Error(
+    `Route "${route}" used ${expression}. \`searchParams\` is now a Promise and should be \`awaited\` before accessing search param values. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-params`
+  )
 }

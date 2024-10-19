@@ -6,8 +6,6 @@ import {
 } from 'next-test-utils'
 import { outdent } from 'outdent'
 
-const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 describe('app dir - dynamic error trace', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
@@ -48,16 +46,14 @@ describe('app dir - dynamic error trace', () => {
     )
     expect(stackFrames).toEqual(
       // TODO: Show useful stack
-      isReactExperimental
-        ? [
-            // Internal frames of React.
-            // Feel free to adjust until we show useful stacks.
-            '',
-            '',
-            '',
-            '',
-          ]
-        : []
+      [
+        // Internal frames of React.
+        // Feel free to adjust until we show useful stacks.
+        '',
+        '',
+        '',
+        '',
+      ]
     )
 
     const codeframe = await getRedboxSource(browser)

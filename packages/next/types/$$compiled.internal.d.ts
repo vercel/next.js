@@ -314,7 +314,10 @@ declare module 'react-server-dom-webpack/client.edge' {
 
   export function encodeReply(
     value: unknown,
-    options?: { temporaryReferences?: TemporaryReferenceSet }
+    options?: {
+      temporaryReferences?: TemporaryReferenceSet
+      signal?: AbortSignal
+    }
   ): Promise<string | FormData>
 }
 
@@ -529,10 +532,6 @@ declare module 'next/dist/compiled/jsonwebtoken' {
 }
 declare module 'next/dist/compiled/lodash.curry' {
   import m from 'lodash.curry'
-  export = m
-}
-declare module 'next/dist/compiled/lru-cache' {
-  import m from 'lru-cache'
   export = m
 }
 declare module 'next/dist/compiled/picomatch' {

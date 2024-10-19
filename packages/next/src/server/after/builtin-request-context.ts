@@ -1,5 +1,4 @@
 import { createAsyncLocalStorage } from '../app-render/async-local-storage'
-import type { CacheHandler } from '../lib/incremental-cache'
 
 export function getBuiltinRequestContext():
   | BuiltinRequestContextValue
@@ -36,7 +35,6 @@ export type RunnableBuiltinRequestContext = BuiltinRequestContext & {
 
 export type BuiltinRequestContextValue = {
   waitUntil?: WaitUntil
-  NextCacheHandler?: typeof CacheHandler
 }
 export type WaitUntil = (promise: Promise<any>) => void
 
