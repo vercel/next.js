@@ -154,10 +154,21 @@ describe('dynamic-io', () => {
     }
   })
 
+  it('should prerender pages that only use cached ("use cache") IO', async () => {
+    const $ = await next.render$('/cases/use_cache_cached', {})
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
+    }
+  })
+
   itSkipTurbopack(
-    'should prerender pages that only use cached ("use cache") IO',
+    'should prerender pages that cached the whole page',
     async () => {
-      const $ = await next.render$('/cases/use_cache_cached', {})
+      const $ = await next.render$('/cases/full_cached', {})
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#page').text()).toBe('at runtime')
@@ -288,33 +299,18 @@ describe('dynamic-io', () => {
     })
   }
 
-  if (WITH_PPR) {
-    it('should partially prerender pages that use `unstable_noStore()`', async () => {
-      let $ = await next.render$('/cases/dynamic_api_no_store', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#inner').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at buildtime')
-        expect($('#page').text()).toBe('at buildtime')
-        expect($('#inner').text()).toBe('at buildtime')
-      }
-    })
-  } else {
-    it('should not prerender pages that use `unstable_noStore()`', async () => {
-      let $ = await next.render$('/cases/dynamic_api_no_store', {})
-      if (isNextDev) {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#inner').text()).toBe('at runtime')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page').text()).toBe('at runtime')
-        expect($('#inner').text()).toBe('at runtime')
-      }
-    })
-  }
+  it('should fully prerender pages that use `unstable_noStore()`', async () => {
+    let $ = await next.render$('/cases/dynamic_api_no_store', {})
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+      expect($('#inner').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
+      expect($('#inner').text()).toBe('at buildtime')
+    }
+  })
 
   if (WITH_PPR) {
     it('should partially prerender pages that use `searchParams` in Server Components', async () => {
@@ -450,15 +446,9 @@ describe('dynamic-io', () => {
       expect($('#page-slot').text()).toBe('at runtime')
       expect($('#page-children').text()).toBe('at runtime')
     } else {
-      if (WITH_PPR) {
-        expect($('#layout').text()).toBe('at buildtime')
-        expect($('#page-slot').text()).toBe('at runtime')
-        expect($('#page-children').text()).toBe('at buildtime')
-      } else {
-        expect($('#layout').text()).toBe('at runtime')
-        expect($('#page-slot').text()).toBe('at runtime')
-        expect($('#page-children').text()).toBe('at runtime')
-      }
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page-slot').text()).toBe('at buildtime')
+      expect($('#page-children').text()).toBe('at buildtime')
     }
 
     $ = await next.render$('/cases/parallel/cookies', {})

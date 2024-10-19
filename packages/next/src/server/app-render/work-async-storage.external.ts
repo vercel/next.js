@@ -6,6 +6,7 @@ import type { FallbackRouteParams } from '../request/fallback-params'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
+import type { CacheLife } from '../use-cache/cache-life'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorage } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -31,6 +32,8 @@ export interface WorkStore {
   readonly fallbackRouteParams: FallbackRouteParams | null
 
   readonly incrementalCache?: IncrementalCache
+  readonly cacheLifeProfiles?: { [profile: string]: CacheLife }
+
   readonly isOnDemandRevalidate?: boolean
   readonly isPrerendering?: boolean
   readonly isRevalidate?: boolean

@@ -3,7 +3,6 @@ use std::{
     fmt::Display,
 };
 
-use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::Lazy;
 use swc_core::{
     common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
@@ -13,7 +12,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, Vc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
@@ -123,16 +122,16 @@ pub(crate) enum Reexport {
 #[derive(Default, Debug)]
 pub(crate) struct ImportMap {
     /// Map from identifier to (index in references, exported symbol)
-    imports: IndexMap<Id, (usize, JsWord)>,
+    imports: FxIndexMap<Id, (usize, JsWord)>,
 
     /// Map from identifier to index in references
-    namespace_imports: IndexMap<Id, usize>,
+    namespace_imports: FxIndexMap<Id, usize>,
 
     /// List of (index in references, imported symbol, exported symbol)
     reexports: Vec<(usize, Reexport)>,
 
     /// Ordered list of imported symbols
-    references: IndexSet<ImportMapReference>,
+    references: FxIndexSet<ImportMapReference>,
 
     /// True, when the module has imports
     has_imports: bool,

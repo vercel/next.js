@@ -10,7 +10,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
-  abortAndThrowOnSynchronousDynamicDataAccess,
+  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
@@ -71,6 +71,10 @@ export function headers(): Promise<ReadonlyHeaders> {
       } else if (workUnitStore.type === 'unstable-cache') {
         throw new Error(
           `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      } else if (workUnitStore.phase === 'after') {
+        throw new Error(
+          `Route ${workStore.route} used "headers" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "headers" outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
         )
       }
     }
@@ -145,9 +149,11 @@ function makeDynamicallyTrackedExoticHeaders(
     append: {
       value: function append() {
         const expression = `headers().append(${describeNameArg(arguments[0])}, ...)`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -155,9 +161,11 @@ function makeDynamicallyTrackedExoticHeaders(
     delete: {
       value: function _delete() {
         const expression = `headers().delete(${describeNameArg(arguments[0])})`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -165,9 +173,11 @@ function makeDynamicallyTrackedExoticHeaders(
     get: {
       value: function get() {
         const expression = `headers().get(${describeNameArg(arguments[0])})`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -175,9 +185,11 @@ function makeDynamicallyTrackedExoticHeaders(
     has: {
       value: function has() {
         const expression = `headers().has(${describeNameArg(arguments[0])})`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -185,9 +197,11 @@ function makeDynamicallyTrackedExoticHeaders(
     set: {
       value: function set() {
         const expression = `headers().set(${describeNameArg(arguments[0])}, ...)`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -195,9 +209,11 @@ function makeDynamicallyTrackedExoticHeaders(
     getSetCookie: {
       value: function getSetCookie() {
         const expression = `headers().getSetCookie()`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -205,9 +221,11 @@ function makeDynamicallyTrackedExoticHeaders(
     forEach: {
       value: function forEach() {
         const expression = `headers().forEach(...)`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -215,9 +233,11 @@ function makeDynamicallyTrackedExoticHeaders(
     keys: {
       value: function keys() {
         const expression = `headers().keys()`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -225,9 +245,11 @@ function makeDynamicallyTrackedExoticHeaders(
     values: {
       value: function values() {
         const expression = `headers().values()`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -235,9 +257,11 @@ function makeDynamicallyTrackedExoticHeaders(
     entries: {
       value: function entries() {
         const expression = `headers().entries()`
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -245,9 +269,11 @@ function makeDynamicallyTrackedExoticHeaders(
     [Symbol.iterator]: {
       value: function () {
         const expression = 'headers()[Symbol.iterator]()'
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncHeadersError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -458,4 +484,10 @@ const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
 
 type HeadersExtensions = {
   [K in keyof ReadonlyHeaders]: unknown
+}
+
+function createSyncHeadersError(route: string, expression: string) {
+  return new Error(
+    `Route "${route}" used ${expression}. \`headers()\` now returns a Promise and should be \`awaited\` before using it's value. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-headers`
+  )
 }

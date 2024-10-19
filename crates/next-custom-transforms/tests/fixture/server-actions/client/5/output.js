@@ -1,2 +1,2 @@
-/* __next_internal_action_entry_do_not_use__ {"0090eaf4e1f08a2d94f6be401e54a2ded399b87c":"action0","1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91":"$$RSC_SERVER_ACTION_2","6a88810ecce4a4e8b59d53b8327d7e98bbf251d7":"$$RSC_SERVER_ACTION_0","90b5db271335765a4b0eab01f044b381b5ebd5cd":"$$RSC_SERVER_ACTION_1"} */ import { createServerReference, callServer, findSourceMapURL } from "private-next-rsc-action-client-wrapper";
+/* __next_internal_action_entry_do_not_use__ {"0090eaf4e1f08a2d94f6be401e54a2ded399b87c":"action0"} */ import { createServerReference, callServer, findSourceMapURL } from "private-next-rsc-action-client-wrapper";
 export var action0 = /*#__PURE__*/ createServerReference("0090eaf4e1f08a2d94f6be401e54a2ded399b87c", callServer, void 0, findSourceMapURL, "action0");

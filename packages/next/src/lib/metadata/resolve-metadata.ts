@@ -603,6 +603,7 @@ function inheritFromMetadata(
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,
