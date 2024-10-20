@@ -870,7 +870,7 @@ export async function handleAction({
         }
       }
 
-      const actionHandler = (
+      const actionHandler = await (
         await ComponentMod.__next_app__.require(actionModId)
       )[
         // `actionId` must exist if we got here, as otherwise we would have thrown an error above
