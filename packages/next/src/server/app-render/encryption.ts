@@ -110,7 +110,7 @@ export async function decryptActionBoundArgs(
       },
     }),
     {
-      ssrManifest: {
+      serverConsumerManifest: {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
         // to be added to the current execution. Instead, we'll wait for any ClientReference
         // to be emitted which themselves will handle the preloading.
@@ -118,6 +118,7 @@ export async function decryptActionBoundArgs(
         moduleMap: isEdgeRuntime
           ? clientReferenceManifestSingleton.edgeRscModuleMapping
           : clientReferenceManifestSingleton.rscModuleMapping,
+        serverModuleMap: null, // getServerModuleMap()
       },
     }
   )
