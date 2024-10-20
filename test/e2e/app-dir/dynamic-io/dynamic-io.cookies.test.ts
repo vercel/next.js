@@ -83,7 +83,7 @@ describe('dynamic-io', () => {
     let $ = await next.render$('/cookies/exercise/async', {})
     let cookieWarnings = next.cliOutput
       .split('\n')
-      .filter((l) => l.includes('In route /cookies/exercise'))
+      .filter((l) => l.includes('Route "/cookies/exercise'))
 
     expect(cookieWarnings).toHaveLength(0)
 
@@ -143,7 +143,7 @@ describe('dynamic-io', () => {
     let $ = await next.render$('/cookies/exercise/sync', {})
     let cookieWarnings = next.cliOutput
       .split('\n')
-      .filter((l) => l.includes('In route /cookies/exercise'))
+      .filter((l) => l.includes('Route "/cookies/exercise'))
 
     if (!isNextDev) {
       expect(cookieWarnings).toHaveLength(0)
@@ -157,7 +157,9 @@ describe('dynamic-io', () => {
     )
     expect($('#for-of-x-sentinel-rand').text()).toContain('x-sentinel-rand')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain('cookies were iterated over')
+      expect(cookieWarnings[i++]).toContain(
+        '`...cookies()` or similar iteration.'
+      )
     }
 
     // ...spread iteration
@@ -167,13 +169,15 @@ describe('dynamic-io', () => {
     )
     expect($('#spread-x-sentinel-rand').text()).toContain('x-sentinel-rand')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain('cookies were iterated over')
+      expect(cookieWarnings[i++]).toContain(
+        '`...cookies()` or similar iteration.'
+      )
     }
 
     // cookies().size
     expect(parseInt($('#size-cookies').text())).toBeGreaterThanOrEqual(3)
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain('cookies().size')
+      expect(cookieWarnings[i++]).toContain('`cookies().size`')
     }
 
     // cookies().get('...') && cookies().getAll('...')
@@ -181,10 +185,12 @@ describe('dynamic-io', () => {
     expect($('#get-x-sentinel-path').text()).toContain('/cookies/exercise/sync')
     expect($('#get-x-sentinel-rand').text()).toContain('x-sentinel-rand')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain("cookies().get('x-sentinel')")
-      expect(cookieWarnings[i++]).toContain("cookies().get('x-sentinel-path')")
+      expect(cookieWarnings[i++]).toContain("`cookies().get('x-sentinel')`")
       expect(cookieWarnings[i++]).toContain(
-        "cookies().getAll('x-sentinel-rand')"
+        "`cookies().get('x-sentinel-path')`"
+      )
+      expect(cookieWarnings[i++]).toContain(
+        "`cookies().getAll('x-sentinel-rand')`"
       )
     }
 
@@ -192,9 +198,9 @@ describe('dynamic-io', () => {
     expect($('#has-x-sentinel').text()).toContain('true')
     expect($('#has-x-sentinel-foobar').text()).toContain('false')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain("cookies().has('x-sentinel')")
+      expect(cookieWarnings[i++]).toContain("`cookies().has('x-sentinel')`")
       expect(cookieWarnings[i++]).toContain(
-        "cookies().has('x-sentinel-foobar')"
+        "`cookies().has('x-sentinel-foobar')`"
       )
     }
 
@@ -204,8 +210,10 @@ describe('dynamic-io', () => {
     )
     expect($('#set-value-x-sentinel').text()).toContain('hello')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain("cookies().set('x-sentinel', ...)")
-      expect(cookieWarnings[i++]).toContain("cookies().get('x-sentinel')")
+      expect(cookieWarnings[i++]).toContain(
+        "`cookies().set('x-sentinel', ...)`"
+      )
+      expect(cookieWarnings[i++]).toContain("`cookies().get('x-sentinel')`")
     }
 
     // cookies().delete('...', '...')
@@ -214,8 +222,8 @@ describe('dynamic-io', () => {
     )
     expect($('#delete-value-x-sentinel').text()).toContain('hello')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain("cookies().delete('x-sentinel')")
-      expect(cookieWarnings[i++]).toContain("cookies().get('x-sentinel')")
+      expect(cookieWarnings[i++]).toContain("`cookies().delete('x-sentinel')`")
+      expect(cookieWarnings[i++]).toContain("`cookies().get('x-sentinel')`")
     }
 
     // cookies().clear()
@@ -224,8 +232,8 @@ describe('dynamic-io', () => {
     )
     expect($('#clear-value-x-sentinel').text()).toContain('hello')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain('cookies().clear()')
-      expect(cookieWarnings[i++]).toContain("cookies().get('x-sentinel')")
+      expect(cookieWarnings[i++]).toContain('`cookies().clear()`')
+      expect(cookieWarnings[i++]).toContain("`cookies().get('x-sentinel')`")
     }
 
     // cookies().toString()
@@ -233,16 +241,13 @@ describe('dynamic-io', () => {
     expect($('#toString').text()).toContain('x-sentinel-path')
     expect($('#toString').text()).toContain('x-sentinel-rand=')
     if (isNextDev) {
-      expect(cookieWarnings[i++]).toContain('cookies().toString()')
+      expect(cookieWarnings[i++]).toContain(
+        '`cookies().toString()` or implicit casting'
+      )
     }
 
     if (isNextDev) {
-      // TODO currently we double render in RSC during dev to account for
-      // flushing out module scope dynamic errors. This is leading the server logs to be doubled
-      // The client logs aren't doubled because we only send the second render to the client.
-      // We should fix this by not logging in the prospective render. But We will land that fix
-      // later and separately
-      expect(i * 2).toBe(cookieWarnings.length)
+      expect(i).toBe(cookieWarnings.length)
     }
   })
 })
