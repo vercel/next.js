@@ -30,16 +30,11 @@ ${individualActions
   .join('\n')}
 }
 
-async function endpoint(id, ...args) {
-  const action = await actions[id]()
-  return action.apply(null, args)
-}
-
 // Using CJS to avoid this to be tree-shaken away due to unused exports.
 module.exports = {
 ${individualActions
   .map(([id]) => {
-    return `  '${id}': endpoint.bind(null, '${id}'),`
+    return `  '${id}': actions['${id}'](),`
   })
   .join('\n')}
 }
