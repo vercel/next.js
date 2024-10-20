@@ -127,7 +127,7 @@ function createExoticDraftModeWithDevWarnings(
   Object.defineProperty(promise, 'isEnabled', {
     get() {
       const expression = '`draftMode().isEnabled`'
-      warnForSyncAccess(route, expression)
+      syncIODev(route, expression)
       return instance.isEnabled
     },
     set(newValue) {
@@ -193,43 +193,31 @@ class DraftMode {
 
 function syncIODev(route: string | undefined, expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (workUnitStore && workUnitStore.type === 'request') {
+  if (
+    workUnitStore &&
+    workUnitStore.type === 'request' &&
+    workUnitStore.prerenderPhase === true
+  ) {
+    // When we're rendering dynamically in dev we need to advance out of the
+    // Prerender environment when we read Request data synchronously
     const requestStore = workUnitStore
-    const dynamicTracking = requestStore.dynamicTracking
-    if (dynamicTracking) {
-      // We are in a dynamic IO dev render context
-      if (
-        !dynamicTracking.syncDynamicErrorWithStack &&
-        requestStore.prerenderPhase === true
-      ) {
-        const errorWithStack = createDraftModeAccessError(route, expression)
-        trackSynchronousRequestDataAccessInDev(
-          expression,
-          errorWithStack,
-          requestStore,
-          dynamicTracking
-        )
-      } else if (requestStore.prospectiveRender !== true) {
-        warnForSyncAccess(route, expression)
-      }
-    } else {
-      // We are in a legacy dev render context
-      warnForSyncAccess(route, expression)
-    }
+    trackSynchronousRequestDataAccessInDev(requestStore)
   }
+  // In all cases we warn normally
+  warnForSyncAccess(route, expression)
 }
 
 const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(createDraftModeAccessError, 1)
+  : createDedupedByCallsiteServerErrorLoggerDev(createDraftModeAccessError)
 
 function createDraftModeAccessError(
   route: string | undefined,
   expression: string
 ) {
-  const prefix = route ? ` Route "${route}" ` : 'This route '
+  const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +
       `\`draftMode()\` should be awaited before using its value. ` +

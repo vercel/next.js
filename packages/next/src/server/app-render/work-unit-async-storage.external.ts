@@ -51,9 +51,7 @@ export type RequestStore = {
 
   // DEV-only
   usedDynamic?: boolean
-  dynamicTracking?: DynamicTrackingState
   prerenderPhase?: boolean
-  prospectiveRender?: boolean
 } & PhasePartial
 
 /**
@@ -96,6 +94,12 @@ export type PrerenderStoreModern = {
   expire: number // server expiration time
   stale: number // client expiration time
   tags: null | string[]
+
+  // DEV ONLY
+  // When used this flag informs certain APIs to skip logging because we're
+  // not part of the primary render path and are just prerendering to produce
+  // validation results
+  validating?: boolean
 } & PhasePartial
 
 export type PrerenderStorePPR = {

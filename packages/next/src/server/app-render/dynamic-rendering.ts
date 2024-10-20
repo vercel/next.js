@@ -72,6 +72,8 @@ export type DynamicTrackingState = {
 
   syncDynamicExpression: undefined | string
   syncDynamicErrorWithStack: null | Error
+  // Dev only
+  syncDynamicLogged?: boolean
 }
 
 // Stores dynamic reasons used during an SSR render.
@@ -297,18 +299,10 @@ export function abortOnSynchronousPlatformIOAccess(
 }
 
 export function trackSynchronousPlatformIOAccessInDev(
-  expression: string,
-  errorWithStack: Error,
-  requestStore: RequestStore,
-  dynamicTracking: DynamicTrackingState
+  requestStore: RequestStore
 ): void {
-  if (dynamicTracking.syncDynamicErrorWithStack === null) {
-    dynamicTracking.syncDynamicExpression = expression
-    dynamicTracking.syncDynamicErrorWithStack = errorWithStack
-  }
   // We don't actually have a controller to abort but we do the semantic equivalent by
   // advancing the request store out of prerender mode
-  console.log('SETTING prerenderPhase to false')
   requestStore.prerenderPhase = false
 }
 
@@ -333,6 +327,11 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
     if (dynamicTracking.syncDynamicErrorWithStack === null) {
       dynamicTracking.syncDynamicExpression = expression
       dynamicTracking.syncDynamicErrorWithStack = errorWithStack
+      if (prerenderStore.validating === true) {
+        // We always log Request Access in dev at the point of calling the function
+        // So we mark the dynamic validation as not requiring it to be printed
+        dynamicTracking.syncDynamicLogged = true
+      }
     }
   }
   abortOnSynchronousDynamicDataAccess(route, expression, prerenderStore)
@@ -630,21 +629,30 @@ export function throwIfDisallowedDynamic(
   serverDynamic: DynamicTrackingState,
   clientDynamic: DynamicTrackingState
 ): void {
-  let syncError: null | Error, syncExpression: undefined | string
+  let syncError: null | Error
+  let syncExpression: undefined | string
+  let syncLogged: boolean
   if (serverDynamic.syncDynamicErrorWithStack) {
     syncError = serverDynamic.syncDynamicErrorWithStack
     syncExpression = serverDynamic.syncDynamicExpression!
+    syncLogged = serverDynamic.syncDynamicLogged === true
   } else if (clientDynamic.syncDynamicErrorWithStack) {
     syncError = clientDynamic.syncDynamicErrorWithStack
     syncExpression = clientDynamic.syncDynamicExpression!
+    syncLogged = clientDynamic.syncDynamicLogged === true
   } else {
     syncError = null
     syncExpression = undefined
+    syncLogged = false
   }
 
-  if (syncError) {
-    console.error(syncError)
-
+  if (dynamicValidation.hasSyncDynamicErrors && syncError) {
+    if (!syncLogged) {
+      // In dev we already log errors about sync dynamic access. But during builds we need to ensure
+      // the offending sync error is logged before we exit the build
+      console.error(syncError)
+    }
+    // The actual error should have been logged when the sync access ocurred
     throw new StaticGenBailoutError(
       `Route "${route}" could not be prerendered.`
     )

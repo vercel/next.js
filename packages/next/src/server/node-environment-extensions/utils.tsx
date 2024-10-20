@@ -41,36 +41,10 @@ export function io(expression: string, type: ApiType) {
       }
     } else if (
       workUnitStore.type === 'request' &&
-      workUnitStore.prerenderPhase === true &&
-      workUnitStore.dynamicTracking
+      workUnitStore.prerenderPhase === true
     ) {
-      const workStore = workAsyncStorage.getStore()
-      if (workStore) {
-        let message: string
-        switch (type) {
-          case 'time':
-            message = `Route "${workStore.route}" used ${expression} instead of using \`performance\` or without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
-            break
-          case 'random':
-            message = `Route "${workStore.route}" used ${expression} outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
-            break
-          case 'crypto':
-            message = `Route "${workStore.route}" used ${expression} outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
-            break
-          default:
-            throw new InvariantError(
-              'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-            )
-        }
-        const errorWithStack = new Error(message)
-
-        trackSynchronousPlatformIOAccessInDev(
-          expression,
-          errorWithStack,
-          workUnitStore,
-          workUnitStore.dynamicTracking
-        )
-      }
+      const requestStore = workUnitStore
+      trackSynchronousPlatformIOAccessInDev(requestStore)
     }
   }
 }

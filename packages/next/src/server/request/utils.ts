@@ -58,6 +58,9 @@ export const wellKnownProperties = new Set([
   // fallthrough
   'status',
 
+  // React introspection
+  'displayName',
+
   // Common tested properties
   // fallthrough
   'toJSON',

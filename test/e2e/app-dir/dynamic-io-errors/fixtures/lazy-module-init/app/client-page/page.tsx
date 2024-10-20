@@ -1,6 +1,8 @@
+'use client'
+
 import { BuildID } from './build-id'
 
-export default async function Page() {
+export default function Page() {
   return (
     <>
       <p>

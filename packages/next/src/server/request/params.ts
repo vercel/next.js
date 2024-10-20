@@ -11,6 +11,7 @@ import {
 
 import {
   workUnitAsyncStorage,
+  type PrerenderStore,
   type PrerenderStorePPR,
   type PrerenderStoreLegacy,
   type PrerenderStoreModern,
@@ -51,17 +52,21 @@ export type Params = Record<string, string | Array<string> | undefined>
 export type UnsafeUnwrappedParams<P> =
   P extends Promise<infer U> ? Omit<U, 'then' | 'status' | 'value'> : never
 
-export function createPrerenderParamsFromClient(
+export function createParamsFromClient(
   underlyingParams: Params,
   workStore: WorkStore
 ) {
-  return createPrerenderParams(underlyingParams, workStore)
-}
-
-export function createRenderParamsFromClient(
-  underlyingParams: Params,
-  workStore: WorkStore
-) {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      default:
+      // fallthrough
+    }
+  }
   return createRenderParams(underlyingParams, workStore)
 }
 
@@ -74,22 +79,36 @@ export function createServerParamsForRoute(
   underlyingParams: Params,
   workStore: WorkStore
 ) {
-  if (workStore.isStaticGeneration) {
-    return createPrerenderParams(underlyingParams, workStore)
-  } else {
-    return createRenderParams(underlyingParams, workStore)
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      default:
+      // fallthrough
+    }
   }
+  return createRenderParams(underlyingParams, workStore)
 }
 
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
   workStore: WorkStore
 ): Promise<Params> {
-  if (workStore.isStaticGeneration) {
-    return createPrerenderParams(underlyingParams, workStore)
-  } else {
-    return createRenderParams(underlyingParams, workStore)
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      default:
+      // fallthrough
+    }
   }
+  return createRenderParams(underlyingParams, workStore)
 }
 
 export function createPrerenderParamsForClientSegment(
@@ -118,7 +137,8 @@ export function createPrerenderParamsForClientSegment(
 
 function createPrerenderParams(
   underlyingParams: Params,
-  workStore: WorkStore
+  workStore: WorkStore,
+  prerenderStore: PrerenderStore
 ): Promise<Params> {
   const fallbackParams = workStore.fallbackRouteParams
   if (fallbackParams) {
@@ -132,31 +152,23 @@ function createPrerenderParams(
 
     if (hasSomeFallbackParams) {
       // params need to be treated as dynamic because we have at least one fallback param
-      const workUnitStore = workUnitAsyncStorage.getStore()
-      if (workUnitStore) {
-        if (workUnitStore.type === 'prerender') {
-          // We are in a dynamicIO (PPR or otherwise) prerender
-          return makeAbortingExoticParams(
-            underlyingParams,
-            workStore.route,
-            workUnitStore
-          )
-        } else if (
-          workUnitStore.type === 'prerender-legacy' ||
-          workUnitStore.type === 'prerender-ppr'
+      if (prerenderStore.type === 'prerender') {
+        // We are in a dynamicIO (PPR or otherwise) prerender
+        return makeAbortingExoticParams(
+          underlyingParams,
+          workStore.route,
+          prerenderStore
         )
-          // We aren't in a dynamicIO prerender but we do have fallback params at this
-          // level so we need to make an erroring exotic params object which will postpone
-          // if you access the fallback params
-          return makeErroringExoticParams(
-            underlyingParams,
-            fallbackParams,
-            workStore,
-            workUnitStore
-          )
       }
-      throw new InvariantError(
-        'createPrerenderParams called without a prerenderStore in scope. This is a bug in Next.js'
+      // remaining cases are prender-ppr and prerender-legacy
+      // We aren't in a dynamicIO prerender but we do have fallback params at this
+      // level so we need to make an erroring exotic params object which will postpone
+      // if you access the fallback params
+      return makeErroringExoticParams(
+        underlyingParams,
+        fallbackParams,
+        workStore,
+        prerenderStore
       )
     }
   }
@@ -206,9 +218,7 @@ function makeAbortingExoticParams(
       Object.defineProperty(promise, prop, {
         get() {
           const expression = describeStringPropertyAccess('params', prop)
-          const error = new Error(
-            `Route "${route}" used ${expression}. \`params\` is now a Promise and should be \`awaited\` before accessing param values. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-params`
-          )
+          const error = createParamsAccessError(route, expression)
           abortAndThrowOnSynchronousRequestDataAccess(
             route,
             expression,
@@ -364,17 +374,9 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   // We don't use makeResolvedReactPromise here because params
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
-  const promise = new Promise<Params>((resolve) => {
-    scheduleImmediate(() =>
-      // @TODO the fact that we need to wait two ticks tells us that there
-      // is something not quite right about how we cut off the RSC stream
-      // for validating dynamic rendering in dynamicIO. This is fine for now
-      // for dev b/c it helps surface what will be build issues but we may
-      // need to just do a clean prerender to avoid subtle timing issues that
-      // require workarounds like this double schedule
-      scheduleImmediate(() => resolve(underlyingParams))
-    )
-  })
+  const promise = new Promise<Params>((resolve) =>
+    scheduleImmediate(() => resolve(underlyingParams))
+  )
 
   const proxiedProperties = new Set<string>()
   const unproxiedProperties: Array<string> = []
@@ -410,7 +412,7 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
       return ReflectAdapter.set(target, prop, value, receiver)
     },
     ownKeys(target) {
-      const expression = '`Object.keys(params)` or similar expression'
+      const expression = '`...params` or similar expression'
       syncIODev(store.route, expression, unproxiedProperties)
       return Reflect.ownKeys(target)
     },
@@ -426,44 +428,21 @@ function syncIODev(
   missingProperties?: Array<string>
 ) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (workUnitStore && workUnitStore.type === 'request') {
+  if (
+    workUnitStore &&
+    workUnitStore.type === 'request' &&
+    workUnitStore.prerenderPhase === true
+  ) {
+    // When we're rendering dynamically in dev we need to advance out of the
+    // Prerender environment when we read Request data synchronously
     const requestStore = workUnitStore
-    const dynamicTracking = requestStore.dynamicTracking
-    if (dynamicTracking) {
-      // We are in a dynamic IO dev render context
-      if (
-        !dynamicTracking.syncDynamicErrorWithStack &&
-        requestStore.prerenderPhase === true
-      ) {
-        const errorWithStack =
-          missingProperties && missingProperties.length > 0
-            ? createIncompleteEnumerationError(
-                route,
-                expression,
-                missingProperties
-              )
-            : createParamsAccessError(route, expression)
-        trackSynchronousRequestDataAccessInDev(
-          expression,
-          errorWithStack,
-          requestStore,
-          dynamicTracking
-        )
-      } else if (requestStore.prospectiveRender !== true) {
-        if (missingProperties && missingProperties.length > 0) {
-          warnForIncompleteEnumeration(route, expression, missingProperties)
-        } else {
-          warnForSyncAccess(route, expression)
-        }
-      }
-    } else {
-      // We are in a legacy dev render context
-      if (missingProperties && missingProperties.length > 0) {
-        warnForIncompleteEnumeration(route, expression, missingProperties)
-      } else {
-        warnForSyncAccess(route, expression)
-      }
-    }
+    trackSynchronousRequestDataAccessInDev(requestStore)
+  }
+  // In all cases we warn normally
+  if (missingProperties && missingProperties.length > 0) {
+    warnForIncompleteEnumeration(route, expression, missingProperties)
+  } else {
+    warnForSyncAccess(route, expression)
   }
 }
 
@@ -471,21 +450,20 @@ const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(createParamsAccessError, 1)
+  : createDedupedByCallsiteServerErrorLoggerDev(createParamsAccessError)
 
 const warnForIncompleteEnumeration = process.env
   .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
   : createDedupedByCallsiteServerErrorLoggerDev(
-      createIncompleteEnumerationError,
-      1
+      createIncompleteEnumerationError
     )
 
 function createParamsAccessError(
   route: string | undefined,
   expression: string
 ) {
-  const prefix = route ? ` Route "${route}" ` : 'This route '
+  const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +
       `\`params\` should be awaited before using its properties. ` +
@@ -498,7 +476,7 @@ function createIncompleteEnumerationError(
   expression: string,
   missingProperties: Array<string>
 ) {
-  const prefix = route ? ` Route "${route}" ` : 'This route '
+  const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +
       `\`params\` should be awaited before using its properties. ` +
