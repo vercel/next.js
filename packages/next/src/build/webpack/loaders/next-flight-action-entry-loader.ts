@@ -20,24 +20,17 @@ function nextFlightActionEntryLoader(this: any) {
     .flat()
 
   return `
-const actions = {
+${individualActions
+  .map(([_, path]) => {
+    return `import(/* webpackMode: "eager" */ ${JSON.stringify(path)});`
+  })
+  .join('\n')}
+
 ${individualActions
   .map(([id, path, name]) => {
-    return `'${id}': () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-      path
-    )}).then(mod => mod[${JSON.stringify(name)}]),`
+    return `export { ${name} as "${id}" } from ${JSON.stringify(path)}`
   })
   .join('\n')}
-}
-
-// Using CJS to avoid this to be tree-shaken away due to unused exports.
-module.exports = {
-${individualActions
-  .map(([id]) => {
-    return `  '${id}': actions['${id}'](),`
-  })
-  .join('\n')}
-}
 `
 }
 
