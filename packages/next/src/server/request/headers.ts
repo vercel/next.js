@@ -149,9 +149,11 @@ function makeDynamicallyTrackedExoticHeaders(
     append: {
       value: function append() {
         const expression = `headers().append(${describeNameArg(arguments[0])}, ...)`
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -159,9 +161,11 @@ function makeDynamicallyTrackedExoticHeaders(
     delete: {
       value: function _delete() {
         const expression = `headers().delete(${describeNameArg(arguments[0])})`
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -169,9 +173,11 @@ function makeDynamicallyTrackedExoticHeaders(
     get: {
       value: function get() {
         const expression = `headers().get(${describeNameArg(arguments[0])})`
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -179,9 +185,11 @@ function makeDynamicallyTrackedExoticHeaders(
     has: {
       value: function has() {
         const expression = `headers().has(${describeNameArg(arguments[0])})`
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -189,9 +197,11 @@ function makeDynamicallyTrackedExoticHeaders(
     set: {
       value: function set() {
         const expression = `headers().set(${describeNameArg(arguments[0])}, ...)`
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -199,9 +209,11 @@ function makeDynamicallyTrackedExoticHeaders(
     getSetCookie: {
       value: function getSetCookie() {
         const expression = `headers().getSetCookie()`
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -209,9 +221,11 @@ function makeDynamicallyTrackedExoticHeaders(
     forEach: {
       value: function forEach() {
         const expression = `headers().forEach(...)`
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -219,9 +233,11 @@ function makeDynamicallyTrackedExoticHeaders(
     keys: {
       value: function keys() {
         const expression = `headers().keys()`
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -229,9 +245,11 @@ function makeDynamicallyTrackedExoticHeaders(
     values: {
       value: function values() {
         const expression = `headers().values()`
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -239,9 +257,11 @@ function makeDynamicallyTrackedExoticHeaders(
     entries: {
       value: function entries() {
         const expression = `headers().entries()`
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -249,9 +269,11 @@ function makeDynamicallyTrackedExoticHeaders(
     [Symbol.iterator]: {
       value: function () {
         const expression = 'headers()[Symbol.iterator]()'
+        const error = createSyncHeadersError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -438,10 +460,10 @@ const warnForSyncIteration = process.env
   : createDedupedByCallsiteServerErrorLoggerDev(
       function getSyncIterationMessage(route?: string) {
         const prefix = route ? ` In route ${route} ` : ''
-        return (
+        return new Error(
           `${prefix}headers were iterated over. ` +
-          `\`headers()\` should be awaited before using its value. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+            `\`headers()\` should be awaited before using its value. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       }
     )
@@ -453,13 +475,19 @@ const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
       expression: string
     ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      return (
+      return new Error(
         `${prefix}header property was accessed directly with \`${expression}\`. ` +
-        `\`headers()\` should be awaited before using its value. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+          `\`headers()\` should be awaited before using its value. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
       )
     })
 
 type HeadersExtensions = {
   [K in keyof ReadonlyHeaders]: unknown
+}
+
+function createSyncHeadersError(route: string, expression: string) {
+  return new Error(
+    `Route "${route}" used ${expression}. \`headers()\` now returns a Promise and should be \`awaited\` before using it's value. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-headers`
+  )
 }

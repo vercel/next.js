@@ -167,9 +167,11 @@ function makeDynamicallyTrackedExoticCookies(
     [Symbol.iterator]: {
       value: function () {
         const expression = 'cookies()[Symbol.iterator]()'
+        const error = createSyncCookiesError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -177,9 +179,11 @@ function makeDynamicallyTrackedExoticCookies(
     size: {
       get() {
         const expression = `cookies().size`
+        const error = createSyncCookiesError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -192,9 +196,11 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().get(${describeNameArg(arguments[0])})`
         }
+        const error = createSyncCookiesError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -207,9 +213,11 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().getAll(${describeNameArg(arguments[0])})`
         }
+        const error = createSyncCookiesError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -222,9 +230,11 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().has(${describeNameArg(arguments[0])})`
         }
+        const error = createSyncCookiesError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -242,9 +252,11 @@ function makeDynamicallyTrackedExoticCookies(
             expression = `cookies().set(...)`
           }
         }
+        const error = createSyncCookiesError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -259,9 +271,11 @@ function makeDynamicallyTrackedExoticCookies(
         } else {
           expression = `cookies().delete(${describeNameArg(arguments[0])}, ...)`
         }
+        const error = createSyncCookiesError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -269,9 +283,11 @@ function makeDynamicallyTrackedExoticCookies(
     clear: {
       value: function clear() {
         const expression = 'cookies().clear()'
+        const error = createSyncCookiesError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -279,9 +295,11 @@ function makeDynamicallyTrackedExoticCookies(
     toString: {
       value: function toString() {
         const expression = 'cookies().toString()'
+        const error = createSyncCookiesError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       },
@@ -520,10 +538,10 @@ const warnForSyncIteration = process.env
   : createDedupedByCallsiteServerErrorLoggerDev(
       function getSyncIterationMessage(route?: string) {
         const prefix = route ? ` In route ${route} ` : ''
-        return (
+        return new Error(
           `${prefix}cookies were iterated over. ` +
-          `\`cookies()\` should be awaited before using its value. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+            `\`cookies()\` should be awaited before using its value. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       }
     )
@@ -535,10 +553,10 @@ const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
       expression: string
     ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      return (
+      return new Error(
         `${prefix}cookie property was accessed directly with \`${expression}\`. ` +
-        `\`cookies()\` should be awaited before using its value. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+          `\`cookies()\` should be awaited before using its value. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
       )
     })
 
@@ -562,4 +580,10 @@ function polyfilledResponseCookiesClear(
 
 type CookieExtensions = {
   [K in keyof ReadonlyRequestCookies | 'clear']: unknown
+}
+
+function createSyncCookiesError(route: string, expression: string) {
+  return new Error(
+    `Route "${route}" used ${expression}. \`cookies()\` now returns a Promise and should be \`awaited\` before using it's value. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-headers`
+  )
 }

@@ -222,9 +222,11 @@ function makeAbortingExoticSearchParams(
               'searchParams',
               prop
             )
+            const error = createSyncSearchParamsError(route, expression)
             abortAndThrowOnSynchronousRequestDataAccess(
               route,
               expression,
+              error,
               prerenderStore
             )
           }
@@ -242,9 +244,11 @@ function makeAbortingExoticSearchParams(
           'searchParams',
           prop
         )
+        const error = createSyncSearchParamsError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       }
@@ -253,9 +257,11 @@ function makeAbortingExoticSearchParams(
     ownKeys() {
       const expression =
         '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
+      const error = createSyncSearchParamsError(route, expression)
       abortAndThrowOnSynchronousRequestDataAccess(
         route,
         expression,
+        error,
         prerenderStore
       )
     },
@@ -674,10 +680,10 @@ const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
       expression: string
     ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      return (
+      return new Error(
         `${prefix}searchParam property was accessed directly with ${expression}. ` +
-        `\`searchParams\` should be awaited before accessing properties. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+          `\`searchParams\` should be awaited before accessing properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
       )
     })
 
@@ -691,16 +697,16 @@ const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
       if (missingProperties.length) {
         const describedMissingProperties =
           describeListOfPropertyNames(missingProperties)
-        return (
+        return new Error(
           `${prefix}searchParams are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
-          `\`searchParams\` should be awaited before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+            `\`searchParams\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       } else {
-        return (
+        return new Error(
           `${prefix}searchParams are being enumerated. ` +
-          `\`searchParams\` should be awaited before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+            `\`searchParams\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       }
     })
@@ -724,4 +730,10 @@ function describeListOfPropertyNames(properties: Array<string>) {
       return description
     }
   }
+}
+
+function createSyncSearchParamsError(route: string, expression: string) {
+  return new Error(
+    `Route "${route}" used ${expression}. \`searchParams\` is now a Promise and should be \`awaited\` before accessing search param values. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-params`
+  )
 }

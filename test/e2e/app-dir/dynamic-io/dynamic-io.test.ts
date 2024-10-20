@@ -1,9 +1,10 @@
+/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 
 const WITH_PPR = !!process.env.__NEXT_EXPERIMENTAL_PPR
 
 describe('dynamic-io', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -11,6 +12,8 @@ describe('dynamic-io', () => {
   if (skipped) {
     return
   }
+
+  const itSkipTurbopack = isTurbopack ? it.skip : it
 
   it('should not have route specific errors', async () => {
     expect(next.cliOutput).not.toMatch('Error: Route /')
