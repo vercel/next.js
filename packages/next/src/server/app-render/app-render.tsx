@@ -3403,9 +3403,10 @@ export async function warmFlightResponse(
 
   try {
     createFromReadableStream(flightStream, {
-      ssrManifest: {
+      serverConsumerManifest: {
         moduleLoading: clientReferenceManifest.moduleLoading,
         moduleMap: clientReferenceManifest.ssrModuleMapping,
+        serverModuleMap: null,
       },
     })
   } catch {
