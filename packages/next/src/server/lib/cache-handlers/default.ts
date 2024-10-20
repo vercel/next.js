@@ -4,7 +4,10 @@
 */
 import { LRUCache } from '../lru-cache'
 import type { CacheEntry, CacheHandler } from './types'
-import { isTagStale, tagsManifest } from '../incremental-cache/tags-manifest'
+import {
+  isTagStale,
+  tagsManifest,
+} from '../incremental-cache/tags-manifest.external'
 
 type PrivateCacheEntry = {
   entry: CacheEntry
