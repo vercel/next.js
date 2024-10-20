@@ -153,6 +153,33 @@ describe('use-cache', () => {
     })
   })
 
+  it('should update after revalidateTag correctly', async () => {
+    const browser = await next.browser('/cache-tag')
+
+    const initialX = await browser.elementByCss('#x').text()
+    const initialY = await browser.elementByCss('#y').text()
+    let updatedX
+    let updatedY
+
+    await browser.elementByCss('#revalidate-a').click()
+    await retry(async () => {
+      updatedX = await browser.elementByCss('#x').text()
+      expect(updatedX).not.toBe(initialX)
+    })
+
+    await browser.elementByCss('#revalidate-b').click()
+    await retry(async () => {
+      updatedY = await browser.elementByCss('#y').text()
+      expect(updatedY).not.toBe(initialY)
+    })
+
+    await browser.elementByCss('#revalidate-c').click()
+    await retry(async () => {
+      expect(await browser.elementByCss('#x').text()).not.toBe(updatedX)
+      expect(await browser.elementByCss('#y').text()).not.toBe(updatedY)
+    })
+  })
+
   if (isNextStart) {
     it('should match the expected revalidate config on the prerender manifest', async () => {
       const prerenderManifest = JSON.parse(
