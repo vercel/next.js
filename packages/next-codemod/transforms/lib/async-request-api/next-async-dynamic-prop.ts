@@ -888,7 +888,6 @@ function findAllTypes(
     typeAliases: [],
     imports: [],
     references: [],
-    typeDeclarations: [],
   }
 
   // Step 1: Find all interface declarations with the specified name
