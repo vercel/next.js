@@ -125,6 +125,12 @@ export async function runUpgrade(
   console.log(`  - React: v${installedReactVersion}`)
   console.log(`  - Next.js: v${installedNextVersion}`)
   let shouldStayOnReact18 = false
+
+  const usesAppDir = isUsingAppDir(process.cwd())
+  const usesPagesDir = isUsingPagesDir(process.cwd())
+
+  const isPureAppRouter = usesAppDir && !usesPagesDir
+  const isMixedApp = usesPagesDir && usesAppDir
   if (
     // From release v14.3.0-canary.45, Next.js expects the React version to be 19.0.0-beta.0
     // If the user is on a version higher than this but is still on React 18, we ask them
@@ -134,13 +140,21 @@ export async function runUpgrade(
     // x-ref(PR): https://github.com/vercel/next.js/pull/65058
     // x-ref(release): https://github.com/vercel/next.js/releases/tag/v14.3.0-canary.45
     compareVersions(targetNextVersion, '14.3.0-canary.45') >= 0 &&
-    installedReactVersion.startsWith('18')
+    installedReactVersion.startsWith('18') &&
+    // Pure App Router always uses React 19
+    // The mixed case is tricky to handle from a types perspective.
+    // We'll recommend to upgrade in the prompt but users can decide to try 18.
+    !isPureAppRouter
   ) {
     const shouldStayOnReact18Res = await prompts(
       {
         type: 'confirm',
         name: 'shouldStayOnReact18',
-        message: `Are you using ${pc.underline('only the Pages Router')} (no App Router) and prefer to stay on React 18?`,
+        message:
+          `Do you prefer to stay on React 18?` +
+          (isMixedApp
+            ? " Since you're using both pages/ and app/, we recommend upgrading React to use a consistent version throughout your app."
+            : ''),
         initial: false,
         active: 'Yes',
         inactive: 'No',
@@ -369,6 +383,19 @@ function getInstalledReactVersion(): string {
       }
     )
   }
+}
+
+function isUsingPagesDir(projectPath: string): boolean {
+  return (
+    fs.existsSync(path.resolve(projectPath, 'pages')) ||
+    fs.existsSync(path.resolve(projectPath, 'src/pages'))
+  )
+}
+function isUsingAppDir(projectPath: string): boolean {
+  return (
+    fs.existsSync(path.resolve(projectPath, 'app')) ||
+    fs.existsSync(path.resolve(projectPath, 'src/app'))
+  )
 }
 
 /*
