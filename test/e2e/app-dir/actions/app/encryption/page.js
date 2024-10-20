@@ -1,12 +1,19 @@
+async function otherAction() {
+  'use server'
+  return 'hi'
+}
 // Test top-level encryption (happens during the module load phase)
-function wrapAction(value) {
+function wrapAction(value, action) {
   return async function () {
     'use server'
-    console.log(value)
+    const v = await action()
+    if (v === 'hi') {
+      console.log(value)
+    }
   }
 }
 
-const action = wrapAction('some-module-level-encryption-value')
+const action = wrapAction('some-module-level-encryption-value', otherAction)
 
 // Test runtime encryption (happens during the rendering phase)
 export default function Page() {
@@ -21,7 +28,9 @@ export default function Page() {
         return 'success'
       }}
     >
-      <button type="submit">Submit</button>
+      <button type="submit" id="submit">
+        Submit
+      </button>
     </form>
   )
 }
