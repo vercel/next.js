@@ -1344,8 +1344,10 @@
         response._serverReferenceConfig,
         metaData.id
       );
-      response = preloadModule(serverReference);
-      if (!response) return requireModule(serverReference);
+      if ((response = preloadModule(serverReference)))
+        metaData.bound && (response = Promise.all([response, metaData.bound]));
+      else if (metaData.bound) response = Promise.resolve(metaData.bound);
+      else return requireModule(serverReference);
       if (initializingHandler) {
         var handler = initializingHandler;
         handler.deps++;
@@ -1360,6 +1362,11 @@
       response.then(
         function () {
           var resolvedValue = requireModule(serverReference);
+          if (metaData.bound) {
+            var boundArgs = metaData.bound.value.slice(0);
+            boundArgs.unshift(null);
+            resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
+          }
           parentObject[key] = resolvedValue;
           "" === key &&
             null === handler.value &&
@@ -1369,25 +1376,23 @@
             "object" === typeof handler.value &&
             null !== handler.value &&
             handler.value.$$typeof === REACT_ELEMENT_TYPE
-          ) {
-            var element = handler.value;
-            switch (key) {
+          )
+            switch (((boundArgs = handler.value), key)) {
               case "3":
-                element.props = resolvedValue;
+                boundArgs.props = resolvedValue;
                 break;
               case "4":
-                element._owner = resolvedValue;
+                boundArgs._owner = resolvedValue;
             }
-          }
           handler.deps--;
           0 === handler.deps &&
             ((resolvedValue = handler.chunk),
             null !== resolvedValue &&
               "blocked" === resolvedValue.status &&
-              ((element = resolvedValue.value),
+              ((boundArgs = resolvedValue.value),
               (resolvedValue.status = "fulfilled"),
               (resolvedValue.value = handler.value),
-              null !== element && wakeChunk(element, handler.value)));
+              null !== boundArgs && wakeChunk(boundArgs, handler.value)));
         },
         function (error) {
           if (!handler.errored) {
