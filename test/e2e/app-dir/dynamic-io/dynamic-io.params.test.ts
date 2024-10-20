@@ -2472,7 +2472,8 @@ describe('dynamic-io', () => {
 
   if (!isNextDev) {
     describe('generateStaticParams', () => {
-      it('should have dynamicIO semantics inside generateStaticParams', async () => {
+      // This test is skipped as the previous workaround of using `fetch-cache` will no longer be supported with DIO.
+      it.skip('should have dynamicIO semantics inside generateStaticParams', async () => {
         // This test is named what we want but our current implementation is not actually correct yet.
         // We are asserting current behavior and will update the test when we land the correct behavior
 

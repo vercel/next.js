@@ -414,6 +414,10 @@ export function transformDynamicProps(
           modified ||= awaited
         }
 
+        if (modified) {
+          modifyTypes(currentParam.typeAnnotation, propsIdentifier, root, j)
+        }
+
         // cases of passing down `props` into any function
         // Page(props) { callback(props) }
 

@@ -460,10 +460,10 @@ const warnForSyncIteration = process.env
   : createDedupedByCallsiteServerErrorLoggerDev(
       function getSyncIterationMessage(route?: string) {
         const prefix = route ? ` In route ${route} ` : ''
-        return (
+        return new Error(
           `${prefix}headers were iterated over. ` +
-          `\`headers()\` should be awaited before using its value. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+            `\`headers()\` should be awaited before using its value. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
         )
       }
     )
@@ -475,10 +475,10 @@ const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
       expression: string
     ) {
       const prefix = route ? ` In route ${route} a ` : 'A '
-      return (
+      return new Error(
         `${prefix}header property was accessed directly with \`${expression}\`. ` +
-        `\`headers()\` should be awaited before using its value. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+          `\`headers()\` should be awaited before using its value. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
       )
     })
 
