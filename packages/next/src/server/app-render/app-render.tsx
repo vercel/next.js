@@ -2028,8 +2028,8 @@ async function spawnDynamicValidationInDev(
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
   const nonce = '1'
 
-  const renderToReadableStream = require('react-dom/server.edge')
-    .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
+  const prerender = require('react-dom/static.edge')
+    .prerender as (typeof import('react-dom/static.edge'))['prerender']
 
   let clientDynamicTracking = createDynamicTrackingState(false)
   let dynamicValidation = createDynamicValidationState()
@@ -2081,29 +2081,30 @@ async function spawnDynamicValidationInDev(
   let hadException = false
   try {
     await prerenderAndAbortInSequentialTasks(
-      () => {
-        const pendingHTMLStream = workUnitAsyncStorage.run(
-          firstAttemptClientPrerenderStore,
-          renderToReadableStream,
-          <App
-            reactServerStream={firstAttemptReactServerStream}
-            preinitScripts={() => {}}
-            clientReferenceManifest={clientReferenceManifest}
-            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            nonce={nonce}
-          />,
-          {
-            signal: firstAttemptClientController.signal,
-            onError: SSROnError,
-          }
-        )
-        pendingHTMLStream.catch(() => {})
-        return pendingHTMLStream
+      async () => {
+        workUnitAsyncStorage
+          .run(
+            firstAttemptClientPrerenderStore,
+            prerender,
+            <App
+              reactServerStream={firstAttemptReactServerStream}
+              preinitScripts={() => {}}
+              clientReferenceManifest={clientReferenceManifest}
+              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              nonce={nonce}
+            />,
+            {
+              signal: firstAttemptClientController.signal,
+              onError: SSROnError,
+            }
+          )
+          .catch(() => {})
+        return null
       },
       () => {
         firstAttemptClientController.abort()
       }
-    )
+    ).catch(() => {})
   } catch (err: unknown) {
     if (firstAttemptClientController.signal.aborted) {
       // We aborted the render normally and can ignore this error
@@ -2153,7 +2154,7 @@ async function spawnDynamicValidationInDev(
           workUnitAsyncStorage
             .run(
               secondAttemptClientPrerenderStore,
-              renderToReadableStream,
+              prerender,
               <App
                 reactServerStream={secondAttemptReactServerStream}
                 preinitScripts={() => {}}
@@ -2167,6 +2168,7 @@ async function spawnDynamicValidationInDev(
               }
             )
             .catch(() => {})
+          return null
         },
         () => {
           secondAttemptClientController.abort()
@@ -3009,7 +3011,7 @@ async function prerenderToStream(
         let htmlStream
         try {
           htmlStream = await prerenderAndAbortInSequentialTasks(
-            () => {
+            async () => {
               const teedStream = (
                 workUnitAsyncStorage.run(
                   // The store to scope
@@ -3029,11 +3031,11 @@ async function prerenderToStream(
               reactServerStream = teedStream[0]
               const rscForSSRStream = teedStream[1]
 
-              const renderToReadableStream = require('react-dom/server.edge')
-                .renderToReadableStream as (typeof import('react-dom/server.edge'))['renderToReadableStream']
-              const pendingHTMLStream = workUnitAsyncStorage.run(
+              const prerender = require('react-dom/static.edge')
+                .prerender as (typeof import('react-dom/static.edge'))['prerender']
+              const { prelude } = await workUnitAsyncStorage.run(
                 ssrPrerenderStore,
-                renderToReadableStream,
+                prerender,
                 <App
                   reactServerStream={rscForSSRStream}
                   preinitScripts={preinitScripts}
@@ -3051,8 +3053,7 @@ async function prerenderToStream(
                     : [bootstrapScript],
                 }
               )
-              pendingHTMLStream.catch(() => {})
-              return pendingHTMLStream
+              return prelude
             },
             () => {
               SSRController.abort(abortReason)
