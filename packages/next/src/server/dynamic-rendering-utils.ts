@@ -10,17 +10,44 @@ export function makeHangingPromise<T>(
   expression: string
 ): Promise<T> {
   const hangingPromise = new Promise<T>((_, reject) => {
-    signal.addEventListener('abort', () => {
+    function abort() {
       reject(
         new Error(
           `During prerendering, ${expression} rejects when the prerender is complete. Typically these errors are handled by React but if you move ${expression} to a different context by using \`setTimeout\`, \`unstable_after\`, or similar functions you may observe this error and you should handle it in that context.`
         )
       )
-    })
+    }
+
+    if (signal.aborted) {
+      abort()
+      return
+    }
+
+    let listeners = listenersForSignal.get(signal)
+    if (listeners) {
+      listeners.push(abort)
+    } else {
+      listeners = [abort]
+      listenersForSignal.set(signal, listeners)
+      signal.addEventListener('abort', onAbort.bind(null, listeners), {
+        once: true,
+      })
+    }
   })
   // We are fine if no one actually awaits this promise. We shouldn't consider this an unhandled rejection so
   // we attach a noop catch handler here to suppress this warning. If you actually await somewhere or construct
   // your own promise out of it you'll need to ensure you handle the error when it rejects.
-  hangingPromise.catch(() => {})
+  hangingPromise.catch(ignoreReject)
   return hangingPromise
 }
+
+function ignoreReject() {}
+
+function onAbort(listeners: Array<AbortListener>) {
+  for (let i = 0; i < listeners.length; i++) {
+    listeners[i]()
+  }
+}
+
+type AbortListener = () => void
+const listenersForSignal = new WeakMap<AbortSignal, Array<AbortListener>>()
