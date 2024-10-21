@@ -7,7 +7,6 @@ use petgraph::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    atoms::Atom,
     common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
@@ -111,7 +110,7 @@ pub(crate) struct ItemData {
     /// [ItemId].
     ///
     /// Used to optimize `ImportBinding`.
-    pub binding_source: Option<(Atom, ImportSpecifier)>,
+    pub binding_source: Option<(Str, ImportSpecifier)>,
 }
 
 impl fmt::Debug for ItemData {
@@ -512,7 +511,7 @@ impl DepGraph {
                         // Preserve the order of the side effects by importing the
                         // side-effect-import fragment first.
 
-                        if let Some(import_dep) = importer.get(module_specifier) {
+                        if let Some(import_dep) = importer.get(&module_specifier.value) {
                             if *import_dep != ix as u32 {
                                 part_deps
                                     .entry(ix as u32)
@@ -543,11 +542,7 @@ impl DepGraph {
                             .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                                 span: DUMMY_SP,
                                 specifiers,
-                                src: Box::new(Str {
-                                    span: DUMMY_SP,
-                                    value: module_specifier.clone(),
-                                    raw: None,
-                                }),
+                                src: Box::new(module_specifier.clone()),
                                 type_only: false,
                                 with: None,
                                 phase: Default::default(),
@@ -1105,7 +1100,7 @@ impl DepGraph {
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
-                                binding_source: Some((item.src.value.clone(), s.clone())),
+                                binding_source: Some((*item.src.clone(), s.clone())),
                                 ..Default::default()
                             },
                         );
