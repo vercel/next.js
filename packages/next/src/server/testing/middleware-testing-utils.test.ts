@@ -1,12 +1,12 @@
 import {
-  doesMiddlewareMatch,
+  unstable_doesMiddlewareMatch,
   type MiddlewareSourceConfig,
 } from './middleware-testing-utils'
 
-describe('doesMiddlewareMatch', () => {
+describe('unstable_doesMiddlewareMatch', () => {
   it('matches everything when no matcher is provided', () => {
     expect(
-      doesMiddlewareMatch({
+      unstable_doesMiddlewareMatch({
         config: {
           matcher: undefined,
         },
@@ -20,19 +20,19 @@ describe('doesMiddlewareMatch', () => {
       matcher: '/test',
     }
     expect(
-      doesMiddlewareMatch({
+      unstable_doesMiddlewareMatch({
         config,
         url: '/test',
       })
     ).toEqual(true)
     expect(
-      doesMiddlewareMatch({
+      unstable_doesMiddlewareMatch({
         config,
         url: '/test?q=1',
       })
     ).toEqual(true)
     expect(
-      doesMiddlewareMatch({
+      unstable_doesMiddlewareMatch({
         config,
         url: '/other-path',
       })
@@ -44,25 +44,25 @@ describe('doesMiddlewareMatch', () => {
       matcher: ['/test', '/test/(.*)', '/test2/:path+'],
     }
     expect(
-      doesMiddlewareMatch({
+      unstable_doesMiddlewareMatch({
         config,
         url: '/test',
       })
     ).toEqual(true)
     expect(
-      doesMiddlewareMatch({
+      unstable_doesMiddlewareMatch({
         config,
         url: '/test/slug',
       })
     ).toEqual(true)
     expect(
-      doesMiddlewareMatch({
+      unstable_doesMiddlewareMatch({
         config,
         url: '/test2/slug',
       })
     ).toEqual(true)
     expect(
-      doesMiddlewareMatch({
+      unstable_doesMiddlewareMatch({
         config,
         url: '/test?q=1',
       })
@@ -87,13 +87,13 @@ describe('doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
           })
         ).toEqual(false)
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
             headers: {
@@ -121,13 +121,13 @@ describe('doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
           })
         ).toEqual(false)
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
             headers: {
@@ -136,7 +136,7 @@ describe('doesMiddlewareMatch', () => {
           })
         ).toEqual(false)
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
             cookies: {
@@ -164,13 +164,13 @@ describe('doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
           })
         ).toEqual(false)
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test?q=1',
           })
@@ -196,13 +196,13 @@ describe('doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
           })
         ).toEqual(true)
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
             headers: {
@@ -229,13 +229,13 @@ describe('doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
           })
         ).toEqual(true)
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
             headers: {
@@ -244,7 +244,7 @@ describe('doesMiddlewareMatch', () => {
           })
         ).toEqual(true)
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
             cookies: {
@@ -271,13 +271,13 @@ describe('doesMiddlewareMatch', () => {
           ],
         }
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test',
           })
         ).toEqual(true)
         expect(
-          doesMiddlewareMatch({
+          unstable_doesMiddlewareMatch({
             config,
             url: '/test?q=1',
           })
@@ -295,14 +295,14 @@ describe('doesMiddlewareMatch', () => {
         matcher: ['/test'],
       }
       expect(
-        doesMiddlewareMatch({
+        unstable_doesMiddlewareMatch({
           config,
           url: '/test',
           nextConfig,
         })
       ).toEqual(false)
       expect(
-        doesMiddlewareMatch({
+        unstable_doesMiddlewareMatch({
           config,
           url: '/base/test',
           nextConfig,

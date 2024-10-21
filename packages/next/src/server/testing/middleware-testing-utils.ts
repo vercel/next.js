@@ -15,7 +15,7 @@ export interface MiddlewareSourceConfig {
  * unit tests to assert that middleware is matching (and therefore executing)
  * only when it should be.
  */
-export function doesMiddlewareMatch({
+export function unstable_doesMiddlewareMatch({
   config,
   url,
   headers,
