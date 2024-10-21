@@ -1,0 +1,18 @@
+/* Correct syntax: input::placeholder */
+input:placeholder {
+  color: red;
+}
+
+.rowContainer {
+  &.header {
+    /* Correct syntax: &.darktheme */
+    &:darktheme {
+      border-bottom-color: var(--accents-2);
+    }
+  }
+
+  /* Correct syntax: &.global(.dark-theme) */
+  &:global(.dark-theme) & {
+    background: linear-gradient(transparent 0%, rgba(0, 0, 0, 0.5) 100%);
+  }
+}
