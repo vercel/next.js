@@ -1,12 +1,12 @@
-import type { NextConfig } from 'next'
+import { defineConfig } from 'next/config'
 
 // type error
 let foo: number = 'foo'
 
-const nextConfig: NextConfig = {
+const nextConfig = defineConfig({
   env: {
     foo,
   },
-}
+})
 
 export default nextConfig
