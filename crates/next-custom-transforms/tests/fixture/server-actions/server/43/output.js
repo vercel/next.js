@@ -17,4 +17,8 @@ export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "951c375b4a6a6e89d67b743e
         r: children
     };
 });
+Object.defineProperty($$RSC_SERVER_CACHE_1, "name", {
+    "value": "getCachedRandom",
+    "writable": false
+});
 var getCachedRandom = registerServerReference($$RSC_SERVER_CACHE_1, "951c375b4a6a6e89d67b743ec5808127cfde405d", null);

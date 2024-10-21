@@ -132,6 +132,7 @@ import {
 import {
   CACHE_ONE_YEAR,
   INFINITE_CACHE,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
 } from '../lib/constants'
@@ -1391,6 +1392,29 @@ export default abstract class Server<
             | 'http'
             | 'https',
         })
+
+        const _globalThis: typeof globalThis & {
+          __nextCacheHandlers?: Record<
+            string,
+            import('./lib/cache-handlers/types').CacheHandler
+          >
+        } = globalThis
+
+        if (_globalThis.__nextCacheHandlers) {
+          const expiredTags: string[] =
+            (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
+              ','
+            ) || []
+
+          for (const handler of Object.values(
+            _globalThis.__nextCacheHandlers
+          )) {
+            if (typeof handler.receiveExpiredTags === 'function') {
+              await handler.receiveExpiredTags(...expiredTags)
+            }
+          }
+        }
+
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache

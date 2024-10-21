@@ -795,7 +795,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.0.0-canary.202
+        specifier: 15.0.1-canary.0
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.10.3
@@ -859,7 +859,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.0.0-canary.202
+        specifier: 15.0.1-canary.0
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -869,7 +869,7 @@ importers:
         version: 0.5.13
       babel-plugin-react-compiler:
         specifier: '*'
-        version: 19.0.0-beta-9ee70a1-20241017
+        version: 19.0.0-beta-8a03594-20241020
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -987,19 +987,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 15.0.0-canary.202
+        specifier: 15.0.1-canary.0
         version: link:../font
       '@next/polyfill-module':
-        specifier: 15.0.0-canary.202
+        specifier: 15.0.1-canary.0
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.0.0-canary.202
+        specifier: 15.0.1-canary.0
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.0.0-canary.202
+        specifier: 15.0.1-canary.0
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.0.0-canary.202
+        specifier: 15.0.1-canary.0
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1538,6 +1538,9 @@ importers:
       semver:
         specifier: 7.6.3
         version: 7.6.3
+      strip-ansi:
+        specifier: 6.0.0
+        version: 6.0.0
     devDependencies:
       '@types/find-up':
         specifier: 4.0.0
@@ -1630,7 +1633,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.0.0-canary.202
+        specifier: 15.0.1-canary.0
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -6170,8 +6173,8 @@ packages:
   babel-plugin-react-compiler@0.0.0-experimental-c23de8d-20240515:
     resolution: {integrity: sha512-0XN2gmpT55QtAz5n7d5g91y1AuO9tRhWBaLgCRyc4ExHrlr7+LfxW+YTb3mOwxngkkiggwM8HyYsaEK9MqhnlQ==}
 
-  babel-plugin-react-compiler@19.0.0-beta-9ee70a1-20241017:
-    resolution: {integrity: sha512-AkSce5YYHcreFtuvzI9xnP2kwoYkub8Go3yrz7cPbbCE6oIhFxESbPWJVgye7yZckXuzEZYO4JSE8tq/U0oVfA==}
+  babel-plugin-react-compiler@19.0.0-beta-8a03594-20241020:
+    resolution: {integrity: sha512-Wk0748DZzQEmjkEN4SbBujM5al4q5TfRBapA32ax0AID/Yek3emS+eyCvPvb4zPddYJTAF4LaJNLt8uHYfdKAQ==}
 
   babel-plugin-transform-async-to-promises@0.8.15:
     resolution: {integrity: sha512-fDXP68ZqcinZO2WCiimCL9zhGjGXOnn3D33zvbh+yheZ/qOrNVVDDIBtAaM3Faz8TRvQzHiRKsu3hfrBAhEncQ==}
@@ -12676,7 +12679,6 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
-
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -18029,7 +18031,7 @@ snapshots:
       micromatch: 4.0.5
       pretty-format: 29.7.0
       slash: 3.0.0
-      strip-ansi: 6.0.1
+      strip-ansi: 6.0.0
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -21085,7 +21087,7 @@ snapshots:
       zod: 3.23.8
       zod-validation-error: 2.1.0(zod@3.23.8)
 
-  babel-plugin-react-compiler@19.0.0-beta-9ee70a1-20241017:
+  babel-plugin-react-compiler@19.0.0-beta-8a03594-20241020:
     dependencies:
       '@babel/generator': 7.2.0
       '@babel/types': 7.22.5
@@ -21659,7 +21661,7 @@ snapshots:
   cliui@7.0.4:
     dependencies:
       string-width: 4.2.3
-      strip-ansi: 6.0.1
+      strip-ansi: 6.0.0
       wrap-ansi: 7.0.0
 
   cliui@8.0.1:
@@ -27993,7 +27995,7 @@ snapshots:
       is-interactive: 1.0.0
       log-symbols: 3.0.0
       mute-stream: 0.0.8
-      strip-ansi: 6.0.1
+      strip-ansi: 6.0.0
       wcwidth: 1.0.1
 
   ora@5.4.1:
@@ -32128,7 +32130,7 @@ snapshots:
     dependencies:
       ansi-styles: 4.3.0
       string-width: 4.2.3
-      strip-ansi: 6.0.1
+      strip-ansi: 6.0.0
 
   wrap-ansi@8.1.0:
     dependencies:

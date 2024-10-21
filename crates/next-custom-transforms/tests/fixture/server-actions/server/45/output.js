@@ -10,4 +10,8 @@ function Foo() {
 export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "3128060c414d59f8552e4788b846c0d2b7f74743", async function bar() {
     return <Foo/>;
 });
+Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+    "value": "bar",
+    "writable": false
+});
 export var bar = registerServerReference($$RSC_SERVER_CACHE_0, "3128060c414d59f8552e4788b846c0d2b7f74743", null);

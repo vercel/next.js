@@ -133,23 +133,45 @@ describe('use-cache', () => {
 
   it('should cache results for cached funtions imported from client components', async () => {
     const browser = await next.browser('/imported-from-client')
-    expect(await browser.elementByCss('p').text()).toBe('0 0')
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
     await browser.elementById('submit-button').click()
 
-    let twoRandomValues: string
+    let threeRandomValues: string
 
     await retry(async () => {
-      twoRandomValues = await browser.elementByCss('p').text()
-      expect(twoRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
+      threeRandomValues = await browser.elementByCss('p').text()
+      expect(threeRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
     })
 
     await browser.elementById('reset-button').click()
-    expect(await browser.elementByCss('p').text()).toBe('0 0')
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
 
     await browser.elementById('submit-button').click()
 
     await retry(async () => {
-      expect(await browser.elementByCss('p').text()).toBe(twoRandomValues)
+      expect(await browser.elementByCss('p').text()).toBe(threeRandomValues)
+    })
+  })
+
+  it('should cache results for cached funtions passed client components', async () => {
+    const browser = await next.browser('/passed-to-client')
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    await browser.elementById('submit-button').click()
+
+    let threeRandomValues: string
+
+    await retry(async () => {
+      threeRandomValues = await browser.elementByCss('p').text()
+      expect(threeRandomValues).toMatch(/\d\.\d+ \d\.\d+/)
+    })
+
+    await browser.elementById('reset-button').click()
+    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+
+    await browser.elementById('submit-button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(threeRandomValues)
     })
   })
 
