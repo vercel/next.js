@@ -1,9 +1,6 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import {
-  abortOnSynchronousPlatformIOAccess,
-  trackSynchronousPlatformIOAccessInDev,
-} from '../app-render/dynamic-rendering'
+import { abortOnSynchronousPlatformIOAccess } from '../app-render/dynamic-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 type ApiType = 'time' | 'random' | 'crypto'
@@ -39,12 +36,6 @@ export function io(expression: string, type: ApiType) {
           workUnitStore
         )
       }
-    } else if (
-      workUnitStore.type === 'request' &&
-      workUnitStore.prerenderPhase === true
-    ) {
-      const requestStore = workUnitStore
-      trackSynchronousPlatformIOAccessInDev(requestStore)
     }
   }
 }

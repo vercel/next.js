@@ -7,12 +7,10 @@ import {
   postponeWithTracking,
   trackDynamicDataInDynamicRender,
   annotateDynamicAccess,
-  trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 
 import {
   workUnitAsyncStorage,
-  type PrerenderStore,
   type PrerenderStoreLegacy,
   type PrerenderStorePPR,
   type PrerenderStoreModern,
@@ -26,7 +24,6 @@ import {
   throwWithStaticGenerationBailoutErrorWithDynamicError,
   wellKnownProperties,
 } from './utils'
-import { scheduleImmediate } from '../../lib/scheduler'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -58,21 +55,14 @@ export type SearchParams = { [key: string]: string | string[] | undefined }
 export type UnsafeUnwrappedSearchParams<P> =
   P extends Promise<infer U> ? Omit<U, 'then' | 'status' | 'value'> : never
 
-export function createSearchParamsFromClient(
+export function createPrerenderSearchParamsFromClient(workStore: WorkStore) {
+  return createPrerenderSearchParams(workStore)
+}
+
+export function createRenderSearchParamsFromClient(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore
 ) {
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (workUnitStore) {
-    switch (workUnitStore.type) {
-      case 'prerender':
-      case 'prerender-ppr':
-      case 'prerender-legacy':
-        return createPrerenderSearchParams(workStore, workUnitStore)
-      default:
-      // fallthrough
-    }
-  }
   return createRenderSearchParams(underlyingSearchParams, workStore)
 }
 
@@ -84,18 +74,11 @@ export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore
 ): Promise<SearchParams> {
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (workUnitStore) {
-    switch (workUnitStore.type) {
-      case 'prerender':
-      case 'prerender-ppr':
-      case 'prerender-legacy':
-        return createPrerenderSearchParams(workStore, workUnitStore)
-      default:
-      // fallthrough
-    }
+  if (workStore.isStaticGeneration) {
+    return createPrerenderSearchParams(workStore)
+  } else {
+    return createRenderSearchParams(underlyingSearchParams, workStore)
   }
-  return createRenderSearchParams(underlyingSearchParams, workStore)
 }
 
 export function createPrerenderSearchParamsForClientPage(
@@ -121,8 +104,7 @@ export function createPrerenderSearchParamsForClientPage(
 }
 
 function createPrerenderSearchParams(
-  workStore: WorkStore,
-  prerenderStore: PrerenderStore
+  workStore: WorkStore
 ): Promise<SearchParams> {
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
@@ -130,15 +112,23 @@ function createPrerenderSearchParams(
     return Promise.resolve({})
   }
 
-  if (prerenderStore.type === 'prerender') {
-    // We are in a dynamicIO (PPR or otherwise) prerender
-    return makeAbortingExoticSearchParams(workStore.route, prerenderStore)
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    if (workUnitStore.type === 'prerender') {
+      // We are in a dynamicIO (PPR or otherwise) prerender
+      return makeAbortingExoticSearchParams(workStore.route, workUnitStore)
+    } else if (
+      workUnitStore.type === 'prerender-legacy' ||
+      workUnitStore.type === 'prerender-ppr'
+    ) {
+      // We are in a legacy static generation and need to interrupt the prerender
+      // when search params are accessed.
+      return makeErroringExoticSearchParams(workStore, workUnitStore)
+    }
   }
-
-  // The remaining cases are prerender-ppr and prerender-legacy
-  // We are in a legacy static generation and need to interrupt the prerender
-  // when search params are accessed.
-  return makeErroringExoticSearchParams(workStore, prerenderStore)
+  throw new InvariantError(
+    'createPrerenderSearchParams called without a prerenderStore in scope. This is a bug in Next.js'
+  )
 }
 
 function createRenderSearchParams(
@@ -232,7 +222,7 @@ function makeAbortingExoticSearchParams(
               'searchParams',
               prop
             )
-            const error = createSearchAccessError(route, expression)
+            const error = createSyncSearchParamsError(route, expression)
             abortAndThrowOnSynchronousRequestDataAccess(
               route,
               expression,
@@ -254,7 +244,7 @@ function makeAbortingExoticSearchParams(
           'searchParams',
           prop
         )
-        const error = createSearchAccessError(route, expression)
+        const error = createSyncSearchParamsError(route, expression)
         abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
@@ -267,7 +257,7 @@ function makeAbortingExoticSearchParams(
     ownKeys() {
       const expression =
         '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
-      const error = createSearchAccessError(route, expression)
+      const error = createSyncSearchParamsError(route, expression)
       abortAndThrowOnSynchronousRequestDataAccess(
         route,
         expression,
@@ -602,9 +592,7 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
   // We don't use makeResolvedReactPromise here because searchParams
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
-  const promise = new Promise<SearchParams>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingSearchParams))
-  )
+  const promise = Promise.resolve(proxiedUnderlying)
   promise.then(() => {
     promiseInitialized = true
   })
@@ -635,13 +623,6 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
-      if (prop === 'then' && store.dynamicShouldError) {
-        const expression = '`searchParams.then`'
-        throwWithStaticGenerationBailoutErrorWithDynamicError(
-          store.route,
-          expression
-        )
-      }
       if (typeof prop === 'string') {
         if (
           !wellKnownProperties.has(prop) &&
@@ -651,7 +632,7 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
             Reflect.has(target, prop) === false)
         ) {
           const expression = describeStringPropertyAccess('searchParams', prop)
-          syncIODev(store.route, expression)
+          warnForSyncAccess(store.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -675,14 +656,13 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
             'searchParams',
             prop
           )
-          syncIODev(store.route, expression)
+          warnForSyncAccess(store.route, expression)
         }
       }
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
-      const expression = '`Object.keys(searchParams)` or similar'
-      syncIODev(store.route, expression, unproxiedProperties)
+      warnForEnumeration(store.route, unproxiedProperties)
       return Reflect.ownKeys(target)
     },
   })
@@ -691,71 +671,45 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
   return proxiedPromise
 }
 
-function syncIODev(
-  route: string | undefined,
-  expression: string,
-  missingProperties?: Array<string>
-) {
-  // In all cases we warn normally
-  if (missingProperties && missingProperties.length > 0) {
-    warnForIncompleteEnumeration(route, expression, missingProperties)
-  } else {
-    warnForSyncAccess(route, expression)
-  }
-
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
-    // When we're rendering dynamically in dev we need to advance out of the
-    // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
-  }
-}
-
 const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(createSearchAccessError)
+  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
+      route: undefined | string,
+      expression: string
+    ) {
+      const prefix = route ? ` In route ${route} a ` : 'A '
+      return new Error(
+        `${prefix}searchParam property was accessed directly with ${expression}. ` +
+          `\`searchParams\` should be awaited before accessing properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+      )
+    })
 
-const warnForIncompleteEnumeration = process.env
-  .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(
-      createIncompleteEnumerationError
-    )
-
-function createSearchAccessError(
-  route: string | undefined,
-  expression: string
-) {
-  const prefix = route ? `Route "${route}" ` : 'This route '
-  return new Error(
-    `${prefix}used ${expression}. ` +
-      `\`searchParams\` should be awaited before using its properties. ` +
-      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-  )
-}
-
-function createIncompleteEnumerationError(
-  route: string | undefined,
-  expression: string,
-  missingProperties: Array<string>
-) {
-  const prefix = route ? `Route "${route}" ` : 'This route '
-  return new Error(
-    `${prefix}used ${expression}. ` +
-      `\`searchParams\` should be awaited before using its properties. ` +
-      `The following properties were not available through enumeration ` +
-      `because they conflict with builtin or well-known property names: ` +
-      `${describeListOfPropertyNames(missingProperties)}. ` +
-      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-  )
-}
+  : createDedupedByCallsiteServerErrorLoggerDev(function getEnumerationMessage(
+      route: undefined | string,
+      missingProperties: Array<string>
+    ) {
+      const prefix = route ? ` In route ${route} ` : ''
+      if (missingProperties.length) {
+        const describedMissingProperties =
+          describeListOfPropertyNames(missingProperties)
+        return new Error(
+          `${prefix}searchParams are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
+            `\`searchParams\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      } else {
+        return new Error(
+          `${prefix}searchParams are being enumerated. ` +
+            `\`searchParams\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      }
+    })
 
 function describeListOfPropertyNames(properties: Array<string>) {
   switch (properties.length) {
@@ -776,4 +730,10 @@ function describeListOfPropertyNames(properties: Array<string>) {
       return description
     }
   }
+}
+
+function createSyncSearchParamsError(route: string, expression: string) {
+  return new Error(
+    `Route "${route}" used ${expression}. \`searchParams\` is now a Promise and should be \`awaited\` before accessing search param values. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-params`
+  )
 }

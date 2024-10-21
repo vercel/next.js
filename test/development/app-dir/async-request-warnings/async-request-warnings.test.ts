@@ -16,20 +16,36 @@ describe('dynamic-requests warnings', () => {
       .map((log) => log.message)
     const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
     const terminalCookieErrors = terminalOutput.split('\n').filter((line) => {
-      return line.includes('Route "/request/cookies')
+      return line.includes('In route /request/cookies')
     })
     expect({ browserConsoleErrors, terminalCookieErrors }).toEqual({
       browserConsoleErrors: [
-        expect.stringContaining("`cookies().get('page')`."),
-        expect.stringContaining("`cookies().get('component')`."),
-        expect.stringContaining("`cookies().has('component')`."),
-        expect.stringContaining('`...cookies()` or similar iteration'),
+        expect.stringContaining(
+          "In route /request/cookies a cookie property was accessed directly with `cookies().get('page')`."
+        ),
+        expect.stringContaining(
+          "In route /request/cookies a cookie property was accessed directly with `cookies().get('component')`."
+        ),
+        expect.stringContaining(
+          "In route /request/cookies a cookie property was accessed directly with `cookies().has('component')`."
+        ),
+        expect.stringContaining(
+          'In route /request/cookies cookies were iterated over'
+        ),
       ],
       terminalCookieErrors: [
-        expect.stringContaining("`cookies().get('page')`."),
-        expect.stringContaining("`cookies().get('component')`."),
-        expect.stringContaining("`cookies().has('component')`."),
-        expect.stringContaining('`...cookies()` or similar iteration'),
+        expect.stringContaining(
+          "In route /request/cookies a cookie property was accessed directly with `cookies().get('page')`."
+        ),
+        expect.stringContaining(
+          "In route /request/cookies a cookie property was accessed directly with `cookies().get('component')`."
+        ),
+        expect.stringContaining(
+          "In route /request/cookies a cookie property was accessed directly with `cookies().has('component')`."
+        ),
+        expect.stringContaining(
+          'In route /request/cookies cookies were iterated over'
+        ),
       ],
     })
   })
@@ -45,20 +61,36 @@ describe('dynamic-requests warnings', () => {
       .map((log) => log.message)
     const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
     const terminalCookieErrors = terminalOutput.split('\n').filter((line) => {
-      return line.includes('Route "/request/draftMode')
+      return line.includes('In route /request/draftMode')
     })
     expect({ browserConsoleErrors, terminalCookieErrors }).toEqual({
       browserConsoleErrors: [
-        expect.stringContaining('`draftMode().isEnabled`.'),
-        expect.stringContaining('`draftMode().isEnabled`.'),
-        expect.stringContaining('`draftMode().enable()`.'),
-        expect.stringContaining('`draftMode().isEnabled`.'),
+        expect.stringContaining(
+          'In route /request/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
+        ),
+        expect.stringContaining(
+          'In route /request/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
+        ),
+        expect.stringContaining(
+          'In route /request/draftMode a `draftMode()` property was accessed directly with `draftMode().enable()`.'
+        ),
+        expect.stringContaining(
+          'In route /request/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
+        ),
       ],
       terminalCookieErrors: [
-        expect.stringContaining('`draftMode().isEnabled`.'),
-        expect.stringContaining('`draftMode().isEnabled`.'),
-        expect.stringContaining('`draftMode().enable()`.'),
-        expect.stringContaining('`draftMode().isEnabled`.'),
+        expect.stringContaining(
+          'In route /request/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
+        ),
+        expect.stringContaining(
+          'In route /request/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
+        ),
+        expect.stringContaining(
+          'In route /request/draftMode a `draftMode()` property was accessed directly with `draftMode().enable()`.'
+        ),
+        expect.stringContaining(
+          'In route /request/draftMode a `draftMode()` property was accessed directly with `draftMode().isEnabled`.'
+        ),
       ],
     })
   })
@@ -74,20 +106,36 @@ describe('dynamic-requests warnings', () => {
       .map((log) => log.message)
     const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
     const terminalCookieErrors = terminalOutput.split('\n').filter((line) => {
-      return line.includes('Route "/request/headers')
+      return line.includes('In route /request/headers')
     })
     expect({ browserConsoleErrors, terminalCookieErrors }).toEqual({
       browserConsoleErrors: [
-        expect.stringContaining("`headers().get('page')`."),
-        expect.stringContaining("`headers().get('component')`."),
-        expect.stringContaining("`headers().has('component')`."),
-        expect.stringContaining('`...headers()` or similar iteration'),
+        expect.stringContaining(
+          "In route /request/headers a header property was accessed directly with `headers().get('page')`."
+        ),
+        expect.stringContaining(
+          "In route /request/headers a header property was accessed directly with `headers().get('component')`."
+        ),
+        expect.stringContaining(
+          "In route /request/headers a header property was accessed directly with `headers().has('component')`."
+        ),
+        expect.stringContaining(
+          'In route /request/headers headers were iterated over'
+        ),
       ],
       terminalCookieErrors: [
-        expect.stringContaining("`headers().get('page')`."),
-        expect.stringContaining("`headers().get('component')`."),
-        expect.stringContaining("`headers().has('component')`."),
-        expect.stringContaining('`...headers()` or similar iteration'),
+        expect.stringContaining(
+          "In route /request/headers a header property was accessed directly with `headers().get('page')`."
+        ),
+        expect.stringContaining(
+          "In route /request/headers a header property was accessed directly with `headers().get('component')`."
+        ),
+        expect.stringContaining(
+          "In route /request/headers a header property was accessed directly with `headers().has('component')`."
+        ),
+        expect.stringContaining(
+          'In route /request/headers headers were iterated over'
+        ),
       ],
     })
   })
@@ -103,20 +151,36 @@ describe('dynamic-requests warnings', () => {
       .map((log) => log.message)
     const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
     const terminalCookieErrors = terminalOutput.split('\n').filter((line) => {
-      return line.includes('Route "/request/params/[slug]')
+      return line.includes('In route /request/params/[slug]')
     })
     expect({ browserConsoleErrors, terminalCookieErrors }).toEqual({
       browserConsoleErrors: [
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`...params` or similar expression'),
+        expect.stringContaining(
+          'In route /request/params/[slug] a param property was accessed directly with `params.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/params/[slug] a param property was accessed directly with `params.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/params/[slug] a param property was accessed directly with `params.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/params/[slug] params are being enumerated'
+        ),
       ],
       terminalCookieErrors: [
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`params.slug`.'),
-        expect.stringContaining('`...params` or similar expression'),
+        expect.stringContaining(
+          'In route /request/params/[slug] a param property was accessed directly with `params.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/params/[slug] a param property was accessed directly with `params.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/params/[slug] a param property was accessed directly with `params.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/params/[slug] params are being enumerated'
+        ),
       ],
     })
   })
@@ -132,20 +196,36 @@ describe('dynamic-requests warnings', () => {
       .map((log) => log.message)
     const terminalOutput = next.cliOutput.slice(nextDevBootstrapOutputIndex)
     const terminalCookieErrors = terminalOutput.split('\n').filter((line) => {
-      return line.includes('Route "/request/searchParams')
+      return line.includes('In route /request/searchParams')
     })
     expect({ browserConsoleErrors, terminalCookieErrors }).toEqual({
       browserConsoleErrors: [
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`Object.keys(searchParams)` or similar'),
+        expect.stringContaining(
+          'In route /request/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/searchParams searchParams are being enumerated'
+        ),
       ],
       terminalCookieErrors: [
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`searchParams.slug`.'),
-        expect.stringContaining('`Object.keys(searchParams)` or similar'),
+        expect.stringContaining(
+          'In route /request/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/searchParams a searchParam property was accessed directly with `searchParams.slug`.'
+        ),
+        expect.stringContaining(
+          'In route /request/searchParams searchParams are being enumerated'
+        ),
       ],
     })
   })
