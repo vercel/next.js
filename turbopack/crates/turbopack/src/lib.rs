@@ -44,6 +44,7 @@ use turbopack_core::{
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
+    reference::{ModuleReference, TracedModuleReference},
     reference_type::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportWithType, InnerAssets,
         ReferenceType,
@@ -987,6 +988,16 @@ pub async fn replace_externals(
     mut result: ModuleResolveResult,
     import_externals: bool,
 ) -> Result<ModuleResolveResult> {
+    let affecting_sources_refs: Vec<_> = result
+        .affecting_sources
+        .iter()
+        .map(|s| {
+            Vc::upcast::<Box<dyn ModuleReference>>(TracedModuleReference::new(Vc::upcast(
+                RawModule::new(*s),
+            )))
+        })
+        .collect();
+
     for item in result.primary.values_mut() {
         let ModuleResolveResultItem::External {
             name: request,
@@ -1012,9 +1023,15 @@ pub async fn replace_externals(
             }
         };
 
-        let module = CachedExternalModule::new(request.clone(), external_type, *module)
-            .resolve()
-            .await?;
+        let mut affecting_sources_refs = affecting_sources_refs.clone();
+        if let Some(module) = module {
+            affecting_sources_refs.push(Vc::upcast(TracedModuleReference::new(*module)));
+        }
+
+        let module =
+            CachedExternalModule::new(request.clone(), external_type, affecting_sources_refs)
+                .resolve()
+                .await?;
 
         *item = ModuleResolveResultItem::Module(Vc::upcast(module));
     }
