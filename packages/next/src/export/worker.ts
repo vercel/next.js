@@ -539,7 +539,7 @@ async function exportPage(
     }
   } catch (err) {
     console.error(
-      `\nError occurred prerendering page "${input.path}". Read more: https://nextjs.org/docs/messages/prerender-error\n`
+      `Error occurred prerendering page "${input.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
     )
 
     // bailoutToCSRError errors should not leak to the user as they are not actionable; they're

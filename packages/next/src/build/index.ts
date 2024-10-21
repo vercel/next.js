@@ -649,12 +649,20 @@ const staticWorkerExposedMethods = [
 type StaticWorker = typeof import('./worker') & Worker
 export function createStaticWorker(
   config: NextConfigComplete,
-  onActivity?: () => void
+  progress?: {
+    run: () => void
+    clear: () => void
+  }
 ): StaticWorker {
   return new Worker(staticWorkerPath, {
     logger: Log,
     numWorkers: getNumberOfWorkers(config),
-    onActivity,
+    onActivity: () => {
+      progress?.run()
+    },
+    onActivityAbort: () => {
+      progress?.clear()
+    },
     forkOptions: {
       env: process.env,
     },
@@ -1516,7 +1524,7 @@ export default async function build(
                   remainingRampup--
                   sema.release()
                 }
-                progress()
+                progress.run()
               }
             })()
           )
