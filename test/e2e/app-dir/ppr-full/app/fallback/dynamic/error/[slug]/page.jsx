@@ -1,9 +1,9 @@
 import { setTimeout } from 'timers/promises'
 
-export default async function Page({ params }) {
+export default async function Page(props) {
   await setTimeout(1000)
 
-  const { slug } = params
+  const { slug } = await props.params
 
   return (
     <div>
