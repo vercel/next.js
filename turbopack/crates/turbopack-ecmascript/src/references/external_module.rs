@@ -2,15 +2,18 @@ use std::{fmt::Display, io::Write};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder, FileContent, FileSystem, VirtualFileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{
+        AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference,
+        ChunkingContext, ChunkingType, ChunkingTypeOption,
+    },
     ident::AssetIdent,
     module::Module,
-    rebase::RebasedAsset,
-    reference::{ModuleReferences, SingleOutputAssetReference},
+    reference::{ModuleReference, ModuleReferences},
+    resolve::ModuleResolveResult,
 };
 
 use crate::{
@@ -186,12 +189,6 @@ pub struct CachedExternalModuleChunkItem {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 }
 
-// Without this wrapper, VirtualFileSystem::new_with_name always returns a new filesystem
-#[turbo_tasks::function]
-fn external_fs() -> Vc<VirtualFileSystem> {
-    VirtualFileSystem::new_with_name("externals".into())
-}
-
 #[turbo_tasks::value_impl]
 impl ChunkItem for CachedExternalModuleChunkItem {
     #[turbo_tasks::function]
@@ -203,14 +200,7 @@ impl ChunkItem for CachedExternalModuleChunkItem {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         if let Some(module) = self.module.await?.module {
             let mut module_references = self.module.references().await?.clone_value();
-            module_references.push(Vc::upcast(SingleOutputAssetReference::new(
-                Vc::upcast(RebasedAsset::new(
-                    module,
-                    module.ident().path().root(),
-                    external_fs().root(),
-                )),
-                Vc::cell("module".into()),
-            )));
+            module_references.push(Vc::upcast(TracedExternalReference::new(module)));
             Ok(Vc::cell(module_references))
         } else {
             Ok(self.module.references())
@@ -300,5 +290,42 @@ impl Module for IncludeIdentModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         self.ident
+    }
+}
+
+#[turbo_tasks::value]
+pub struct TracedExternalReference {
+    module: Vc<Box<dyn Module>>,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for TracedExternalReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.module).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for TracedExternalReference {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("traced".into())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for TracedExternalReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Traced))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl TracedExternalReference {
+    #[turbo_tasks::function]
+    pub fn new(module: Vc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(TracedExternalReference { module })
     }
 }
