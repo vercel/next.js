@@ -90,7 +90,7 @@ impl NftJsonAsset {
         }
 
         if let Some(path_fs) = Vc::try_resolve_downcast_type::<VirtualFileSystem>(path_fs).await? {
-            if path_fs.await?.name == "externals" {
+            if path_fs.await?.name == "externals" || path_fs.await?.name == "traced" {
                 return Ok(Vc::cell(Some(
                     self.ident_in_project_fs()
                         .await?

@@ -3,13 +3,16 @@ use std::collections::HashSet;
 use anyhow::Result;
 use auto_hash_map::AutoSet;
 use turbo_tasks::{FxIndexMap, FxIndexSet, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
+use turbo_tasks_fs::{FileSystem, VirtualFileSystem};
 
 use super::{
     availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItemInfo,
     chunk_content, chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkContentResult, ChunkItem,
     ChunkingContext,
 };
-use crate::{module::Module, output::OutputAssets, reference::ModuleReference};
+use crate::{
+    module::Module, output::OutputAssets, rebase::RebasedAsset, reference::ModuleReference,
+};
 
 pub struct MakeChunkGroupResult {
     pub chunks: Vec<Vc<Box<dyn Chunk>>>,
@@ -25,6 +28,7 @@ pub async fn make_chunk_group(
     let ChunkContentResult {
         chunk_items,
         async_modules,
+        traced_modules,
         external_module_references,
         forward_edges_inherit_async,
         local_back_edges_inherit_async,
@@ -138,12 +142,25 @@ pub async fn make_chunk_group(
         .flat_map(|references| references.iter().copied())
         .collect();
 
+    let mut referenced_output_assets = references_to_output_assets(external_module_references)
+        .await?
+        .await?
+        .clone_value();
+
+    referenced_output_assets.extend(traced_modules.into_iter().map(|module| {
+        Vc::upcast(RebasedAsset::new(
+            module,
+            module.ident().path().root(),
+            traced_fs().root(),
+        ))
+    }));
+
     // Pass chunk items to chunking algorithm
     let mut chunks = make_chunks(
         chunking_context,
         Vc::cell(chunk_items.into_iter().collect()),
         "".into(),
-        references_to_output_assets(external_module_references).await?,
+        Vc::cell(referenced_output_assets),
     )
     .await?
     .clone_value();
@@ -168,6 +185,12 @@ pub async fn make_chunk_group(
         chunks,
         availability_info,
     })
+}
+
+// Without this wrapper, VirtualFileSystem::new_with_name always returns a new filesystem
+#[turbo_tasks::function]
+fn traced_fs() -> Vc<VirtualFileSystem> {
+    VirtualFileSystem::new_with_name("traced".into())
 }
 
 async fn references_to_output_assets(

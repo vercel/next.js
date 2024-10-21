@@ -16,7 +16,7 @@ use std::{
     hash::Hash,
 };
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use tracing::{info_span, Span};
@@ -153,7 +153,17 @@ pub trait OutputChunk: Asset {
 /// Specifies how a chunk interacts with other chunks when building a chunk
 /// group
 #[derive(
-    Copy, Default, Clone, Hash, TraceRawVcs, Serialize, Deserialize, Eq, PartialEq, ValueDebugFormat,
+    Copy,
+    Debug,
+    Default,
+    Clone,
+    Hash,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    Eq,
+    PartialEq,
+    ValueDebugFormat,
 )]
 pub enum ChunkingType {
     /// Module is placed in the same chunk group and is loaded in parallel. It
@@ -166,8 +176,11 @@ pub enum ChunkingType {
     /// An async loader is placed into the referencing chunk and loads the
     /// separate chunk group in which the module is placed.
     Async,
-    /// Module not placed in chunk group, but its references are still followed.
+    /// Module not placed in chunk group, but its references are still followed and placed into the
+    /// chunk group.
     Passthrough,
+    // Module not placed in chunk group, but its references are still followed.
+    Traced,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -191,6 +204,7 @@ type AsyncInfo = FxIndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>
 pub struct ChunkContentResult {
     pub chunk_items: FxIndexSet<Vc<Box<dyn ChunkItem>>>,
     pub async_modules: FxIndexSet<Vc<Box<dyn ChunkableModule>>>,
+    pub traced_modules: FxIndexSet<Vc<Box<dyn Module>>>,
     pub external_module_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
     /// A map from local module to all children from which the async module
     /// status is inherited
@@ -238,6 +252,10 @@ enum ChunkContentGraphNode {
     // Async module that is referenced from the chunk group
     AsyncModule {
         module: Vc<Box<dyn ChunkableModule>>,
+    },
+    // TODO docs
+    TracedModule {
+        module: Vc<Box<dyn Module>>,
     },
     // ModuleReferences that are not placed in the current chunk group
     ExternalModuleReference(Vc<Box<dyn ModuleReference>>),
@@ -365,6 +383,21 @@ async fn graph_node_to_referenced_nodes(
                 .await?
                 .into_iter()
                 .map(|&module| async move {
+                    if chunking_type == ChunkingType::Traced {
+                        // TODO only if tracing
+                        if true {
+                            return Ok((
+                                Some(ChunkGraphEdge {
+                                    key: None,
+                                    node: ChunkContentGraphNode::TracedModule { module },
+                                }),
+                                None,
+                            ));
+                        } else {
+                            return Ok((None, None));
+                        }
+                    }
+
                     let Some(chunkable_module) =
                         Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(module).await?
                     else {
@@ -455,6 +488,9 @@ async fn graph_node_to_referenced_nodes(
                                     None,
                                 ))
                             }
+                        }
+                        ChunkingType::Traced => {
+                            bail!("unreachable ChunkingType::Traced");
                         }
                     }
                 })
@@ -615,10 +651,15 @@ async fn chunk_content_internal_parallel(
     let mut forward_edges_inherit_async = FxIndexMap::default();
     let mut local_back_edges_inherit_async = FxIndexMap::default();
     let mut available_async_modules_back_edges_inherit_async = FxIndexMap::default();
+    let mut traced_modules = FxIndexSet::default();
 
     for graph_node in graph_nodes {
         match graph_node {
             ChunkContentGraphNode::PassthroughChunkItem { .. } => {}
+            ChunkContentGraphNode::TracedModule { module } => {
+                let module = module.resolve().await?;
+                traced_modules.insert(module);
+            }
             ChunkContentGraphNode::ChunkItem { item, .. } => {
                 chunk_items.insert(item);
             }
@@ -656,6 +697,7 @@ async fn chunk_content_internal_parallel(
     Ok(ChunkContentResult {
         chunk_items,
         async_modules,
+        traced_modules,
         external_module_references,
         forward_edges_inherit_async,
         local_back_edges_inherit_async,
