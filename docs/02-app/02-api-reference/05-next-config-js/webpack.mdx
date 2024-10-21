@@ -52,12 +52,12 @@ module.exports = {
 
 The second argument to the `webpack` function is an object with the following properties:
 
-- `buildId`: `String` - The build id, used as a unique identifier between builds
-- `dev`: `Boolean` - Indicates if the compilation will be done in development
-- `isServer`: `Boolean` - It's `true` for server-side compilation, and `false` for client-side compilation
+- `buildId`: `String` - The build id, used as a unique identifier between builds.
+- `dev`: `Boolean` - Indicates if the compilation will be done in development.
+- `isServer`: `Boolean` - It's `true` for server-side compilation, and `false` for client-side compilation.
 - `nextRuntime`: `String | undefined` - The target runtime for server-side compilation; either `"edge"` or `"nodejs"`, it's `undefined` for client-side compilation.
 - `defaultLoaders`: `Object` - Default loaders used internally by Next.js:
-  - `babel`: `Object` - Default `babel-loader` configuration
+  - `babel`: `Object` - Default `babel-loader` configuration.
 
 Example usage of `defaultLoaders.babel`:
 
@@ -85,4 +85,4 @@ module.exports = {
 
 #### `nextRuntime`
 
-Notice that `isServer` is `true` when `nextRuntime` is `"edge"` or `"nodejs"`, nextRuntime "`edge`" is currently for middleware and Server Components in edge runtime only.
+Notice that `isServer` is `true` when `nextRuntime` is `"edge"` or `"nodejs"`, `nextRuntime` `"edge"` is currently for middleware and Server Components in edge runtime only.
