@@ -207,13 +207,11 @@ graph TD
     Item7 --> Item3;
     Item8 --> Item6;
     Item8 --> Item3;
-    Item8 -.-> Item4;
     Item8 -.-> Item7;
     Item9 --> Item7;
     Item9 --> Item1;
     Item9 -.-> Item2;
     Item9 -.-> Item8;
-    Item9 -.-> Item4;
     Item9 -.-> Item11;
     Item10 --> Item7;
     Item10 -.-> Item9;
@@ -257,13 +255,11 @@ graph TD
     Item7 --> Item3;
     Item8 --> Item6;
     Item8 --> Item3;
-    Item8 -.-> Item4;
     Item8 -.-> Item7;
     Item9 --> Item7;
     Item9 --> Item1;
     Item9 -.-> Item2;
     Item9 -.-> Item8;
-    Item9 -.-> Item4;
     Item9 -.-> Item11;
     Item10 --> Item7;
     Item10 -.-> Item9;
@@ -278,8 +274,6 @@ graph TD
     Item12 --> Item11;
     Item12 --> Item8;
     Item12 --> Item3;
-    Item13 -.-> Item4;
-    Item13 -.-> Item7;
     Item13 -.-> Item15;
     Item13 --> Item3;
 ```
@@ -317,13 +311,11 @@ graph TD
     Item7 --> Item3;
     Item8 --> Item6;
     Item8 --> Item3;
-    Item8 -.-> Item4;
     Item8 -.-> Item7;
     Item9 --> Item7;
     Item9 --> Item1;
     Item9 -.-> Item2;
     Item9 -.-> Item8;
-    Item9 -.-> Item4;
     Item9 -.-> Item11;
     Item10 --> Item7;
     Item10 -.-> Item9;
@@ -338,8 +330,6 @@ graph TD
     Item12 --> Item11;
     Item12 --> Item8;
     Item12 --> Item3;
-    Item13 -.-> Item4;
-    Item13 -.-> Item7;
     Item13 -.-> Item15;
     Item13 --> Item3;
     Item14 --> Item9;
@@ -373,13 +363,11 @@ graph TD
     N11 --> N7;
     N12 --> N10;
     N12 --> N7;
-    N12 -.-> N8;
     N12 -.-> N11;
     N13 --> N11;
     N13 --> N5;
     N13 -.-> N6;
     N13 -.-> N12;
-    N13 -.-> N8;
     N13 -.-> N15;
     N14 --> N11;
     N14 -.-> N13;
@@ -394,8 +382,6 @@ graph TD
     N16 --> N15;
     N16 --> N12;
     N16 --> N7;
-    N17 -.-> N8;
-    N17 -.-> N11;
     N17 -.-> N4;
     N17 --> N7;
     N0 --> N13;
@@ -546,9 +532,6 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 10
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 11
 };
 foobar += "foo";
@@ -567,9 +550,6 @@ import "__TURBOPACK_PART__" assert {
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 12
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 15
@@ -630,12 +610,6 @@ export { external1 as a } from "__TURBOPACK_VAR__" assert {
 ```js
 import { d as foobar } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
