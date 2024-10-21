@@ -20,6 +20,15 @@ pub struct PreprocessedChildrenIdents {
     modules_idents: FxIndexMap<RcStr, u64>,
 }
 
+impl PreprocessedChildrenIdents {
+    pub fn from_single_ident(ident: RcStr) -> Vc<Self> {
+        Self {
+            modules_idents: HashMap::from([(ident.clone(), hash_xxh3_hash64(ident.to_string()))]),
+        }
+        .cell()
+    }
+}
+
 #[derive(Clone, Hash)]
 #[turbo_tasks::value(shared)]
 pub enum ReferencedModule {
