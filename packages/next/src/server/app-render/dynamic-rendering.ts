@@ -653,9 +653,7 @@ export function throwIfDisallowedDynamic(
       console.error(syncError)
     }
     // The actual error should have been logged when the sync access ocurred
-    throw new StaticGenBailoutError(
-      `Route "${route}" could not be prerendered.`
-    )
+    throw new StaticGenBailoutError()
   }
 
   const dynamicErrors = dynamicValidation.dynamicErrors
@@ -664,9 +662,7 @@ export function throwIfDisallowedDynamic(
       console.error(dynamicErrors[i])
     }
 
-    throw new StaticGenBailoutError(
-      `Route "${route}" could not be prerendered.`
-    )
+    throw new StaticGenBailoutError()
   }
 
   if (!dynamicValidation.hasSuspendedDynamic) {
