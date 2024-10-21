@@ -22,7 +22,7 @@ export class NextRequest extends Request {
     const url =
       typeof input !== 'string' && 'url' in input ? input.url : String(input)
     validateURL(url)
-    if (input instanceof Request) super(input, init)
+    if (input instanceof Request || (typeof input !== 'string' && 'url' in input)) super(input, init)
     else super(url, init)
     const nextUrl = new NextURL(url, {
       headers: toNodeOutgoingHttpHeaders(this.headers),
