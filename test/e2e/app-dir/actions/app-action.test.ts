@@ -828,20 +828,23 @@ describe('app-dir action handling', () => {
     ).toBe(true)
   })
 
-  it('should keep action instances identical', async () => {
-    const logs: string[] = []
-    next.on('stdout', (log) => {
-      logs.push(log)
+  // we don't have access to runtime logs on deploy
+  if (!isNextDeploy) {
+    it('should keep action instances identical', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/identity')
+
+      await browser.elementByCss('button').click()
+
+      await retry(() => {
+        expect(logs.join('')).toContain('result: true')
+      })
     })
-
-    const browser = await next.browser('/identity')
-
-    await browser.elementByCss('button').click()
-
-    await retry(() => {
-      expect(logs.join('')).toContain('result: true')
-    })
-  })
+  }
 
   it.each(['node', 'edge'])(
     'should forward action request to a worker that contains the action handler (%s)',
