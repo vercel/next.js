@@ -2,6 +2,7 @@ import React from 'react'
 import fs from 'fs'
 import path from 'path'
 import { foo } from './x-bundled'
+import { Client } from './client'
 
 export default async function Page() {
   const data = await fs.promises.readFile(
@@ -10,9 +11,12 @@ export default async function Page() {
   )
 
   return (
-    <h1>
-      My Page: {data} {foo}
-    </h1>
+    <>
+      <h1>
+        My Page: {data} {foo}
+      </h1>
+      <Client />
+    </>
   )
 }
 
