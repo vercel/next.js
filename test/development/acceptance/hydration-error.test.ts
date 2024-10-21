@@ -74,7 +74,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 4 : 1)
+    })
 
     if (isReact18) {
       expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
@@ -201,7 +203,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
     await session.assertHasRedbox()
     await retry(async () => {
       await expect(await getRedboxTotalErrorCount(browser)).toBe(
-        isReact18 ? 3 : 1
+        isReact18 ? 5 : 1
       )
     })
 
@@ -288,7 +290,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
     await session.assertHasRedbox()
     await retry(async () => {
       await expect(await getRedboxTotalErrorCount(browser)).toBe(
-        isReact18 ? 3 : 1
+        isReact18 ? 5 : 1
       )
     })
 
@@ -373,7 +375,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 4 : 1)
+    })
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
@@ -441,7 +445,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
 
     await session.assertHasRedbox()
-    expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 4 : 1)
+    })
 
     if (isReact18) {
       expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
@@ -527,10 +533,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     await retry(async () => {
       await expect(await getRedboxTotalErrorCount(browser)).toBe(
-        isReact18
-          ? 3
-          : // FIXME: Should be 2
-            1
+        isReact18 ? 6 : 2
       )
     })
 
@@ -771,7 +774,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     await session.assertHasRedbox()
     await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 6 : 2)
     })
 
     const description = await session.getRedboxDescription()
@@ -859,7 +862,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     await session.assertHasRedbox()
     await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 6 : 2)
     })
 
     const description = await session.getRedboxDescription()
@@ -916,7 +919,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     await session.assertHasRedbox()
     await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 6 : 2)
     })
 
     const description = await session.getRedboxDescription()
@@ -998,7 +1001,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     await session.assertHasRedbox()
     await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 6 : 2)
     })
 
     const description = await session.getRedboxDescription()
@@ -1151,8 +1154,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
     await session.assertHasRedbox()
     await retry(async () => {
       await expect(await getRedboxTotalErrorCount(browser)).toBe(
-        // This case only hit 2 errors in React 18
-        isReact18 ? 2 : 1
+        isReact18 ? 4 : 1
       )
     })
 
