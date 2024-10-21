@@ -51,6 +51,13 @@ export function getActionsFromBuildInfo(mod: {
   return mod.buildInfo?.rsc?.actions
 }
 
+export function getActionIdMappingsFromBuildInfo(mod: {
+  resource: string
+  buildInfo?: any
+}): undefined | Record<string, string> {
+  return mod.buildInfo?.rsc?.actionIds
+}
+
 export function generateActionId(
   hashSalt: string,
   filePath: string,

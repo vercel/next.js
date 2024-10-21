@@ -29,6 +29,7 @@ import {
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
+  getActionIdMappingsFromBuildInfo,
 } from '../loaders/utils'
 import {
   traverseModules,
@@ -78,17 +79,11 @@ const pluginState = getProxiedPluginState({
 
   actionModServerId: {} as Record<
     string,
-    {
-      server?: string | number
-      client?: string | number
-    }
+    Record<'server' | 'client', Record<string, string | number>>
   >,
   actionModEdgeServerId: {} as Record<
     string,
-    {
-      server?: string | number
-      client?: string | number
-    }
+    Record<'server' | 'client', Record<string, string | number>>
   >,
 
   // Mapping of resource path to module id for server/edge server.
@@ -956,9 +951,30 @@ export class FlightClientEntryPlugin {
           : pluginState.actionModServerId
 
         if (!mapping[chunkGroup.name]) {
-          mapping[chunkGroup.name] = {}
+          mapping[chunkGroup.name] = {
+            server: {},
+            client: {},
+          }
         }
-        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
+
+        // Get all imported actions from the action entry.
+        const outgoingConnections =
+          compilation.moduleGraph.getOutgoingConnections(mod)
+
+        for (const connection of outgoingConnections) {
+          const dep = connection.resolvedModule
+          const depModId = compilation.chunkGraph.getModuleId(dep)
+          if (modId !== depModId) {
+            const actionMapping =
+              getActionIdMappingsFromBuildInfo(dep as any) || {}
+            const actionIds = Object.keys(actionMapping)
+            for (const actionId of actionIds) {
+              mapping[chunkGroup.name][fromClient ? 'client' : 'server'][
+                actionId
+              ] = depModId
+            }
+          }
+        }
       }
     })
 
@@ -970,7 +986,7 @@ export class FlightClientEntryPlugin {
             action.layer[name] === WEBPACK_LAYERS.actionBrowser
               ? 'client'
               : 'server'
-          ]
+          ][id]
         action.workers[name] = modId!
       }
       serverActions[id] = action
@@ -984,7 +1000,7 @@ export class FlightClientEntryPlugin {
             action.layer[name] === WEBPACK_LAYERS.actionBrowser
               ? 'client'
               : 'server'
-          ]
+          ][id]
         action.workers[name] = modId!
       }
       edgeServerActions[id] = action
