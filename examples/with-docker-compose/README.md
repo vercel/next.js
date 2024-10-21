@@ -46,10 +46,10 @@ First, run the development server:
 docker network create my_network
 
 # Build dev
-docker compose -f docker-compose.dev.yml build
+docker compose -f compose.dev.yaml build
 
 # Up dev
-docker compose -f docker-compose.dev.yml up
+docker compose -f compose.dev.yaml up
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
@@ -68,10 +68,10 @@ First, run the production server (Final image approximately 110 MB).
 docker network create my_network
 
 # Build prod
-docker compose -f docker-compose.prod.yml build
+docker compose -f compose.prod.yaml build
 
 # Up prod in detached mode
-docker compose -f docker-compose.prod.yml up -d
+docker compose -f compose.prod.yaml up -d
 ```
 
 Alternatively, run the production server without multistage builds (Final image approximately 1 GB).
@@ -82,10 +82,10 @@ Alternatively, run the production server without multistage builds (Final image 
 docker network create my_network
 
 # Build prod without multistage
-docker compose -f docker-compose.prod-without-multistage.yml build
+docker compose -f compose.prod-without-multistage.yaml build
 
 # Up prod without multistage in detached mode
-docker compose -f docker-compose.prod-without-multistage.yml up -d
+docker compose -f compose.prod-without-multistage.yaml up -d
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
