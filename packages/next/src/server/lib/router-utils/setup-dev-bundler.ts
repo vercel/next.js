@@ -74,6 +74,7 @@ import {
   batchedTraceSource,
   createOriginalStackFrame as createOriginalTurboStackFrame,
 } from '../../../client/components/react-dev-overlay/server/middleware-turbopack'
+import type { OriginalStackFrameResponse } from '../../../client/components/react-dev-overlay/server/shared'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
@@ -1003,7 +1004,8 @@ async function startWatcher(opts: SetupOpts) {
             !file?.includes('<anonymous>')
         )
 
-        let originalFrame, isEdgeCompiler
+        let originalFrame: OriginalStackFrameResponse | null = null
+        let isEdgeCompiler = false
         const frameFile = frame?.file
         if (frame?.lineNumber && frameFile) {
           if (hotReloader.turbopackProject) {
