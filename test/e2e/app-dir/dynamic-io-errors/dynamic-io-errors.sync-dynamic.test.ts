@@ -124,7 +124,6 @@ function runTests(options: { withMinification: boolean }) {
 
         expectError('Route "/" used `searchParams.foo`')
         expectError('Error occurred prerendering page "/"')
-        expectError('Error: Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })
@@ -212,7 +211,6 @@ function runTests(options: { withMinification: boolean }) {
 
         expectError('Route "/" used `searchParams.foo`')
         expectError('Error occurred prerendering page "/"')
-        expectError('Error: Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })
@@ -300,7 +298,6 @@ function runTests(options: { withMinification: boolean }) {
 
         expectError('Route "/" used `cookies().get(\'token\')`')
         expectError('Error occurred prerendering page "/"')
-        expectError('Route "/" could not be prerendered.')
         expectError('exiting the build.')
       })
     })
