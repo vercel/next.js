@@ -432,8 +432,8 @@ export async function runLintCheck(
           if (deps.missing.length > 0) {
             deps.missing.forEach((dep) => {
               if (dep.pkg === 'eslint') {
-                // eslint v9 has breaking changes, so lock to 8 until dependency plugins fully support v9.
-                dep.pkg = 'eslint@^8'
+                // pin to v9 to avoid breaking changes
+                dep.pkg = 'eslint@^9'
               }
             })
 
