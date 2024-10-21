@@ -629,30 +629,36 @@ export { handleMiddlewareField as j } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 16
 ```js
-import { g as ResponseCookies } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 11
 };
-import { b as stringifyCookie } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+import { ResponseCookies } from "./cookies";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
+import { stringifyCookie } from "../../web/spec-extension/cookies";
 import { j as handleMiddlewareField } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -15
 };
-import { f as ReflectAdapter } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 9
 };
+import { ReflectAdapter } from "./adapters/reflect";
 import { h as INTERNALS } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -13
 };
-import { c as NextURL } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
 };
-import { d as toNodeOutgoingHttpHeaders } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+import { NextURL } from "../next-url";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { e as validateURL } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+import { toNodeOutgoingHttpHeaders } from "../utils";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import { validateURL } from "../utils";
 import { i as REDIRECTS } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -14
 };
@@ -948,30 +954,36 @@ export { handleMiddlewareField as j } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 16
 ```js
-import { g as ResponseCookies } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 11
 };
-import { b as stringifyCookie } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+import { ResponseCookies } from "./cookies";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
 };
+import { stringifyCookie } from "../../web/spec-extension/cookies";
 import { j as handleMiddlewareField } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -15
 };
-import { f as ReflectAdapter } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 9
 };
+import { ReflectAdapter } from "./adapters/reflect";
 import { h as INTERNALS } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -13
 };
-import { c as NextURL } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
 };
-import { d as toNodeOutgoingHttpHeaders } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+import { NextURL } from "../next-url";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
-import { e as validateURL } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+import { toNodeOutgoingHttpHeaders } from "../utils";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import { validateURL } from "../utils";
 import { i as REDIRECTS } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -14
 };
