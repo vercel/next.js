@@ -1,5 +1,3 @@
-'use client'
-
 export function BuildID() {
   const buildID = require('./lazy-id').buildID
   return (
