@@ -884,14 +884,19 @@ impl PageEndpoint {
                     .await?
                     .is_production()
                 {
-                    Vc::cell(Some(Vc::upcast(NftJsonAsset::new(
-                        ssr_module,
-                        Some(ssr_entry_chunk),
-                        true,
-                        this.pages_project.project().output_fs(),
-                        this.pages_project.project().project_fs(),
-                        vec![],
-                    ))))
+                    Vc::cell(Some(
+                        Vc::upcast::<Box<dyn OutputAsset>>(NftJsonAsset::new(
+                            ssr_module,
+                            Some(ssr_entry_chunk),
+                            true,
+                            this.pages_project.project().output_fs(),
+                            this.pages_project.project().project_fs(),
+                            this.pages_project.project().client_fs(),
+                            vec![],
+                        ))
+                        .to_resolved()
+                        .await?,
+                    ))
                 } else {
                     Vc::cell(None)
                 };
