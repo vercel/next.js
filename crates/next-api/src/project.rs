@@ -548,8 +548,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
-        let virtual_fs = VirtualFileSystem::new();
+    pub fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
+        let virtual_fs = VirtualFileSystem::new_with_name("client-fs".into());
         Vc::upcast(virtual_fs)
     }
 
