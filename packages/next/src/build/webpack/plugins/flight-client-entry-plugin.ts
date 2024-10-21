@@ -55,7 +55,7 @@ const PLUGIN_NAME = 'FlightClientEntryPlugin'
 type Actions = {
   [actionId: string]: {
     workers: {
-      [name: string]: string | number
+      [name: string]: { moduleId: string | number; async: boolean }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry.
     layer: {
@@ -79,15 +79,15 @@ const pluginState = getProxiedPluginState({
   actionModServerId: {} as Record<
     string,
     {
-      server?: string | number
-      client?: string | number
+      server?: { moduleId: string | number; async: boolean }
+      client?: { moduleId: string | number; async: boolean }
     }
   >,
   actionModEdgeServerId: {} as Record<
     string,
     {
-      server?: string | number
-      client?: string | number
+      server?: { moduleId: string | number; async: boolean }
+      client?: { moduleId: string | number; async: boolean }
     }
   >,
 
@@ -879,7 +879,11 @@ export class FlightClientEntryPlugin {
             layer: {},
           }
         }
-        currentCompilerServerActions[id].workers[bundlePath] = ''
+        currentCompilerServerActions[id].workers[bundlePath] = {
+          moduleId: '', // TODO: What's the meaning of this?
+          async: false,
+        }
+
         currentCompilerServerActions[id].layer[bundlePath] = fromClient
           ? WEBPACK_LAYERS.actionBrowser
           : WEBPACK_LAYERS.reactServerComponents
@@ -965,7 +969,10 @@ export class FlightClientEntryPlugin {
         if (!mapping[chunkGroup.name]) {
           mapping[chunkGroup.name] = {}
         }
-        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
+        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = {
+          moduleId: modId,
+          async: compilation.moduleGraph.isAsync(mod),
+        }
       }
     })
 

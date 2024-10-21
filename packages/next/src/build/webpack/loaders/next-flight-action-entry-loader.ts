@@ -23,10 +23,7 @@ function nextFlightActionEntryLoader(this: any) {
 ${individualActions
   .map(([id, path, name]) => {
     // Re-export the same functions from the original module path as action IDs.
-    return `
-    const { ${name}: _${id} } = await import(${JSON.stringify(path)});
-    export { _${id} as "${id}" };
-`
+    return `export { ${name} as "${id}" } from ${JSON.stringify(path)}`
   })
   .join('\n')}
 `

@@ -18,17 +18,12 @@ export function createServerModuleMap({
     {},
     {
       get: (_, id: string) => {
-        return {
-          id: serverActionsManifest[
+        const { moduleId, async } =
+          serverActionsManifest[
             process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ][id].workers[normalizeWorkerPageName(pageName)],
-          name: id,
-          chunks: [],
-          // Because of how next-flight-action-entry-loader creates the action
-          // entry modules, we know that these become async. So we set the flag
-          // accordingly.
-          async: true,
-        }
+          ][id].workers[normalizeWorkerPageName(pageName)]
+
+        return { id: moduleId, name: id, chunks: [], async }
       },
     }
   )
