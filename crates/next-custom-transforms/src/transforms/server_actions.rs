@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     convert::{TryFrom, TryInto},
     mem::take,
 };
@@ -47,7 +47,7 @@ pub fn server_actions<C: Comments>(
         start_pos: BytePos(0),
         in_action_file: false,
         in_cache_file: None,
-        in_export_decl: false,
+        in_exported_expr: false,
         in_default_export_decl: false,
         in_callee: false,
         has_action: false,
@@ -73,6 +73,9 @@ pub fn server_actions<C: Comments>(
         export_actions: Default::default(),
 
         private_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
+
+        arrow_or_fn_expr_ident: None,
+        exported_local_ids: HashSet::new(),
     })
 }
 
@@ -94,7 +97,7 @@ struct ServerActions<C: Comments> {
     start_pos: BytePos,
     in_action_file: bool,
     in_cache_file: Option<String>,
-    in_export_decl: bool,
+    in_exported_expr: bool,
     in_default_export_decl: bool,
     in_callee: bool,
     has_action: bool,
@@ -121,10 +124,13 @@ struct ServerActions<C: Comments> {
     export_actions: Vec<String>,
 
     private_ctxt: SyntaxContext,
+
+    arrow_or_fn_expr_ident: Option<Ident>,
+    exported_local_ids: HashSet<Id>,
 }
 
 impl<C: Comments> ServerActions<C> {
-    // Check if the function or arrow function is an action function
+    // Check if the function or arrow function is an action or cache function
     fn get_body_info(&mut self, maybe_body: Option<&mut BlockStmt>) -> (bool, Option<String>) {
         let mut is_action_fn = false;
         let mut cache_type = None;
@@ -143,40 +149,46 @@ impl<C: Comments> ServerActions<C> {
                 self.config.enabled,
             );
 
-            if is_action_fn && !self.config.is_react_server_layer && !self.in_action_file {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            span.unwrap_or(body.span),
-                            "It is not allowed to define inline \"use server\" annotated Server Actions in Client Components.\nTo use Server Actions in a Client Component, you can either export them from a separate file with \"use server\" at the top, or pass them down through props from a Server Component.\n\nRead more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components\n",
-                        )
-                        .emit()
-                });
-            }
+            if !self.config.is_react_server_layer {
+                if is_action_fn && !self.in_action_file {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                span.unwrap_or(body.span),
+                                "It is not allowed to define inline \"use server\" annotated \
+                                 Server Actions in Client Components.\nTo use Server Actions in a \
+                                 Client Component, you can either export them from a separate \
+                                 file with \"use server\" at the top, or pass them down through \
+                                 props from a Server Component.\n\n\
+                                 Read more: https://nextjs.org/docs/app/api-reference/functions/server-actions#with-client-components\n",
+                            )
+                            .emit()
+                    });
+                }
 
-            if cache_type.is_some()
-                && !self.config.is_react_server_layer
-                && self.in_cache_file.is_none()
-            {
-                HANDLER.with(|handler| {
-                    handler
-                        .struct_span_err(
-                            span.unwrap_or(body.span),
-                            "It is not allowed to define inline \"use cache\" annotated Cache \
-                             Functions in Client Components.",
-                        )
-                        .emit()
-                });
+                if cache_type.is_some() && self.in_cache_file.is_none() && !self.in_action_file {
+                    HANDLER.with(|handler| {
+                        handler
+                            .struct_span_err(
+                                span.unwrap_or(body.span),
+                                "It is not allowed to define inline \"use cache\" annotated \
+                                 functions in Client Components.\nTo use \"use cache\" functions \
+                                 in a Client Component, you can either export them from a \
+                                 separate file with \"use cache\" or \"use server\" at the top, \
+                                 or pass them down through props from a Server Component.\n",
+                            )
+                            .emit()
+                    });
+                }
             }
         }
 
-        if self.in_export_decl && self.in_action_file {
-            // All export functions in a server file are actions
-            is_action_fn = true;
-        }
-
-        if self.in_module_level {
-            if let Some(cache_file_type) = &self.in_cache_file {
+        if self.in_exported_expr {
+            if self.in_action_file {
+                // All export functions in a server file are actions
+                is_action_fn = true;
+            } else if let Some(cache_file_type) = &self.in_cache_file {
+                // All export functions in a cache file are cache functions
                 cache_type = Some(cache_file_type.clone());
             }
         }
@@ -307,31 +319,42 @@ impl<C: Comments> ServerActions<C> {
         }
 
         // Create the action export decl from the arrow function
-        self.extra_items
+        // export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {}
+        self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
-                decl: FnDecl {
-                    ident: action_ident.clone(),
-                    function: Box::new(Function {
-                        params: new_params,
-                        body: match new_body {
-                            BlockStmtOrExpr::BlockStmt(body) => Some(body),
-                            BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                decl: VarDecl {
+                    kind: VarDeclKind::Const,
+                    span: DUMMY_SP,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Ident(action_ident.clone().into()),
+                        definite: false,
+                        init: Some(Box::new(Expr::Fn(FnExpr {
+                            ident: self.arrow_or_fn_expr_ident.clone(),
+                            function: Box::new(Function {
+                                params: new_params,
+                                body: match new_body {
+                                    BlockStmtOrExpr::BlockStmt(body) => Some(body),
+                                    BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                                        span: DUMMY_SP,
+                                        stmts: vec![Stmt::Return(ReturnStmt {
+                                            span: DUMMY_SP,
+                                            arg: Some(expr),
+                                        })],
+                                        ..Default::default()
+                                    }),
+                                },
+                                decorators: vec![],
                                 span: DUMMY_SP,
-                                stmts: vec![Stmt::Return(ReturnStmt {
-                                    span: DUMMY_SP,
-                                    arg: Some(expr),
-                                })],
+                                is_generator: false,
+                                is_async: true,
                                 ..Default::default()
                             }),
-                        },
-                        decorators: vec![],
-                        span: DUMMY_SP,
-                        is_generator: false,
-                        is_async: true,
-                        ..Default::default()
-                    }),
+                        }))),
+                    }],
                     declare: Default::default(),
+                    ctxt: self.private_ctxt,
                 }
                 .into(),
             })));
@@ -343,6 +366,7 @@ impl<C: Comments> ServerActions<C> {
         &mut self,
         ids_from_closure: Vec<Name>,
         function: &mut Box<Function>,
+        fn_name: Option<Ident>,
     ) -> Box<Expr> {
         let action_name: JsWord = gen_action_ident(&mut self.reference_index);
 
@@ -442,17 +466,29 @@ impl<C: Comments> ServerActions<C> {
             new_params.push(p.clone());
         }
 
-        self.extra_items
+        // Create the action export decl from the function
+        // export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {}
+        self.hoisted_extra_items
             .push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                 span: DUMMY_SP,
-                decl: FnDecl {
-                    ident: action_ident.clone(),
-                    function: Box::new(Function {
-                        params: new_params,
-                        body: new_body,
-                        ..*function.take()
-                    }),
+                decl: VarDecl {
+                    kind: VarDeclKind::Const,
+                    span: DUMMY_SP,
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP, // TODO: need to map it to the original span?
+                        name: Pat::Ident(action_ident.clone().into()),
+                        definite: false,
+                        init: Some(Box::new(Expr::Fn(FnExpr {
+                            ident: fn_name,
+                            function: Box::new(Function {
+                                params: new_params,
+                                body: new_body,
+                                ..*function.take()
+                            }),
+                        }))),
+                    }],
                     declare: Default::default(),
+                    ctxt: self.private_ctxt,
                 }
                 .into(),
             })));
@@ -827,30 +863,30 @@ impl<C: Comments> ServerActions<C> {
 
 impl<C: Comments> VisitMut for ServerActions<C> {
     fn visit_mut_export_decl(&mut self, decl: &mut ExportDecl) {
-        let old = self.in_export_decl;
-        self.in_export_decl = true;
+        let old = self.in_exported_expr;
+        self.in_exported_expr = true;
         decl.decl.visit_mut_with(self);
-        self.in_export_decl = old;
+        self.in_exported_expr = old;
     }
 
     fn visit_mut_export_default_decl(&mut self, decl: &mut ExportDefaultDecl) {
-        let old = self.in_export_decl;
+        let old = self.in_exported_expr;
         let old_default = self.in_default_export_decl;
-        self.in_export_decl = true;
+        self.in_exported_expr = true;
         self.in_default_export_decl = true;
         self.rewrite_default_fn_expr_to_proxy_expr = None;
         decl.decl.visit_mut_with(self);
-        self.in_export_decl = old;
+        self.in_exported_expr = old;
         self.in_default_export_decl = old_default;
     }
 
     fn visit_mut_export_default_expr(&mut self, expr: &mut ExportDefaultExpr) {
-        let old = self.in_export_decl;
+        let old = self.in_exported_expr;
         let old_default = self.in_default_export_decl;
-        self.in_export_decl = true;
+        self.in_exported_expr = true;
         self.in_default_export_decl = true;
         expr.expr.visit_mut_with(self);
-        self.in_export_decl = old;
+        self.in_exported_expr = old;
         self.in_default_export_decl = old_default;
     }
 
@@ -864,17 +900,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         {
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
-            let old_in_export_decl = self.in_export_decl;
+            let old_in_exported_expr = self.in_exported_expr;
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
                 is_action_fn || cache_type.is_some() || self.should_track_names;
-            self.in_export_decl = false;
+            self.in_exported_expr = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
-            self.in_export_decl = old_in_export_decl;
+            self.in_exported_expr = old_in_exported_expr;
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
@@ -889,10 +925,21 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         if (is_action_fn || cache_type.is_some()) && !f.function.is_async {
             HANDLER.with(|handler| {
+                let subject = if is_action_fn {
+                    "Server Actions"
+                } else {
+                    "\"use cache\" functions"
+                };
+
                 handler
-                    .struct_span_err(f.function.span, "Server Actions must be async functions")
+                    .struct_span_err(
+                        f.function.span,
+                        &format!("{subject} must be async functions."),
+                    )
                     .emit();
             });
+
+            return;
         }
 
         if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
@@ -935,17 +982,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        if is_action_fn && !(self.in_action_file && self.in_export_decl) {
-            // It's an action function. If it doesn't have a name, give it one.
-            match f.ident.as_mut() {
-                None => {
-                    let action_name = gen_action_ident(&mut self.reference_index);
-                    let ident = Ident::new(action_name, DUMMY_SP, self.private_ctxt);
-                    f.ident.insert(ident)
-                }
-                Some(i) => i,
-            };
-
+        if is_action_fn && !(self.in_action_file && self.in_exported_expr) {
             // Collect all the identifiers defined inside the closure and used
             // in the action function. With deduplication.
             retain_names_from_declared_idents(
@@ -956,6 +993,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
                 child_names,
                 &mut f.function,
+                f.ident.clone().or(self.arrow_or_fn_expr_ident.clone()),
             );
 
             if self.in_default_export_decl {
@@ -982,6 +1020,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
+        let old_in_exported_expr = self.in_exported_expr;
+
+        if self.in_module_level && self.exported_local_ids.contains(&f.ident.to_id()) {
+            self.in_exported_expr = true
+        }
+
         let (is_action_fn, cache_type) = self.get_body_info(f.function.body.as_mut());
 
         let declared_idents_until = self.declared_idents.len();
@@ -991,21 +1035,23 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Visit children
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
-            let old_in_export_decl = self.in_export_decl;
+            let old_in_exported_expr = self.in_exported_expr;
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
                 is_action_fn || cache_type.is_some() || self.should_track_names;
-            self.in_export_decl = false;
+            self.in_exported_expr = false;
             self.in_default_export_decl = false;
             f.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
-            self.in_export_decl = old_in_export_decl;
+            self.in_exported_expr = old_in_exported_expr;
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
         if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
+            self.in_exported_expr = old_in_exported_expr;
+
             return;
         }
 
@@ -1022,9 +1068,16 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             if !f.function.is_async {
                 HANDLER.with(|handler| {
                     handler
-                        .struct_span_err(f.ident.span, "Cache functions must be async functions")
+                        .struct_span_err(
+                            f.ident.span,
+                            "\"use cache\" functions must be async functions.",
+                        )
                         .emit();
                 });
+
+                self.in_exported_expr = old_in_exported_expr;
+
+                return;
             }
 
             // Collect all the identifiers defined inside the closure and used
@@ -1062,7 +1115,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 });
             }
 
-            if !(self.in_action_file && self.in_export_decl) {
+            if !(self.in_action_file && self.in_exported_expr) {
                 // Collect all the identifiers defined inside the closure and used
                 // in the action function. With deduplication.
                 retain_names_from_declared_idents(
@@ -1073,6 +1126,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let new_expr = self.maybe_hoist_and_create_proxy_for_server_action_function(
                     child_names,
                     &mut f.function,
+                    Some(f.ident.clone()),
                 );
 
                 // Replace the original function declaration with a action proxy declaration
@@ -1090,25 +1144,27 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 });
             }
         }
+
+        self.in_exported_expr = old_in_exported_expr;
     }
 
     fn visit_mut_method_prop(&mut self, m: &mut MethodProp) {
-        let old_in_export_decl = self.in_export_decl;
+        let old_in_exported_expr = self.in_exported_expr;
         let old_in_default_export_decl = self.in_default_export_decl;
-        self.in_export_decl = false;
+        self.in_exported_expr = false;
         self.in_default_export_decl = false;
         m.visit_mut_children_with(self);
-        self.in_export_decl = old_in_export_decl;
+        self.in_exported_expr = old_in_exported_expr;
         self.in_default_export_decl = old_in_default_export_decl;
     }
 
     fn visit_mut_class_method(&mut self, m: &mut ClassMethod) {
-        let old_in_export_decl = self.in_export_decl;
+        let old_in_exported_expr = self.in_exported_expr;
         let old_in_default_export_decl = self.in_default_export_decl;
-        self.in_export_decl = false;
+        self.in_exported_expr = false;
         self.in_default_export_decl = false;
         m.visit_mut_children_with(self);
-        self.in_export_decl = old_in_export_decl;
+        self.in_exported_expr = old_in_exported_expr;
         self.in_default_export_decl = old_in_default_export_decl;
     }
 
@@ -1129,12 +1185,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             // Visit children
             let old_in_module = self.in_module_level;
             let old_should_track_names = self.should_track_names;
-            let old_in_export_decl = self.in_export_decl;
+            let old_in_exported_expr = self.in_exported_expr;
             let old_in_default_export_decl = self.in_default_export_decl;
             self.in_module_level = false;
             self.should_track_names =
                 is_action_fn || cache_type.is_some() || self.should_track_names;
-            self.in_export_decl = false;
+            self.in_exported_expr = false;
             self.in_default_export_decl = false;
             {
                 for n in &mut a.params {
@@ -1144,7 +1200,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             a.visit_mut_children_with(self);
             self.in_module_level = old_in_module;
             self.should_track_names = old_should_track_names;
-            self.in_export_decl = old_in_export_decl;
+            self.in_exported_expr = old_in_exported_expr;
             self.in_default_export_decl = old_in_default_export_decl;
         }
 
@@ -1157,16 +1213,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             take(&mut self.names)
         };
 
-        if !a.is_async
-            // Errors for in_action_file/in_cache_file are handled in `visit_mut_module_items`.
-            && (is_action_fn && !self.in_action_file
-                || cache_type.is_some() && self.in_cache_file.is_none())
-        {
+        if !a.is_async && (is_action_fn || cache_type.is_some()) {
             HANDLER.with(|handler| {
+                let subject = if is_action_fn {
+                    "Server Actions"
+                } else {
+                    "\"use cache\" functions"
+                };
+
                 handler
-                    .struct_span_err(a.span, "Server Actions must be async functions")
+                    .struct_span_err(a.span, &format!("{subject} must be async functions."))
                     .emit();
             });
+
+            return;
         }
 
         if !is_action_fn && cache_type.is_none() || !self.config.is_react_server_layer {
@@ -1180,7 +1240,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             &self.declared_idents[..declared_idents_until],
         );
 
-        let maybe_new_expr = if is_action_fn {
+        let maybe_new_expr = if is_action_fn && !self.in_action_file {
             Some(self.maybe_hoist_and_create_proxy_for_server_action_arrow_expr(child_names, a))
         } else {
             cache_type.map(|cache_type_str| {
@@ -1223,6 +1283,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
+        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+
+        if let PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+            key: PropName::Ident(ident_name),
+            value: box Expr::Arrow(_) | box Expr::Fn(_),
+            ..
+        })) = n
+        {
+            self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+        }
+
         if !self.in_module_level && self.should_track_names {
             if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
                 self.names.push(Name::from(&*i));
@@ -1234,6 +1305,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         n.visit_mut_children_with(self);
+        self.arrow_or_fn_expr_ident = old_arrow_expr_ident
     }
 
     fn visit_mut_callee(&mut self, n: &mut Callee) {
@@ -1279,6 +1351,42 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             &mut self.has_cache,
             self.config.enabled,
         );
+
+        // If we're in a "use cache" file, collect all original IDs from export
+        // specifiers in a pre-pass so that we know which functions are
+        // exported, e.g. for this case:
+        // ```
+        // "use cache"
+        // function foo() {}
+        // function Bar() {}
+        // export { foo }
+        // export default Bar
+        // ```
+        if self.in_cache_file.is_some() {
+            for stmt in stmts.iter() {
+                match stmt {
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(export_default_expr)) => {
+                        if let Expr::Ident(ident) = &*export_default_expr.expr {
+                            self.exported_local_ids.insert(ident.to_id());
+                        }
+                    }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export)) => {
+                        if named_export.src.is_none() {
+                            for spec in &named_export.specifiers {
+                                if let ExportSpecifier::Named(ExportNamedSpecifier {
+                                    orig: ModuleExportName::Ident(ident),
+                                    ..
+                                }) = spec
+                                {
+                                    self.exported_local_ids.insert(ident.to_id());
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
 
         let old_annotations = self.annotations.take();
         let mut new = Vec::with_capacity(stmts.len());
@@ -1378,7 +1486,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                                 f.ident = Some(new_ident.clone());
 
-                                self.exported_idents.push((new_ident, "default".into()));
+                                self.exported_idents
+                                    .push((new_ident.clone(), "default".into()));
+
+                                attach_name_to_default_expr(&new_ident, &mut self.extra_items);
                             }
                         }
                         _ => {
@@ -1389,28 +1500,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         match &mut *default_expr.expr {
                             Expr::Fn(_f) => {}
                             Expr::Arrow(arrow) => {
-                                if !arrow.is_async {
-                                    disallowed_export_span = default_expr.span;
-                                } else {
-                                    // export default async () => {}
-                                    // Use the span of the arrow function
-                                    let span = arrow.span;
+                                // export default async () => {}
+                                // Use the span of the arrow function
+                                let span = arrow.span;
 
-                                    let new_ident = Ident::new(
-                                        gen_action_ident(&mut self.reference_index),
-                                        span,
-                                        self.private_ctxt,
-                                    );
+                                let new_ident = Ident::new(
+                                    gen_action_ident(&mut self.reference_index),
+                                    span,
+                                    self.private_ctxt,
+                                );
 
-                                    self.exported_idents
-                                        .push((new_ident.clone(), "default".into()));
+                                self.exported_idents
+                                    .push((new_ident.clone(), "default".into()));
 
-                                    *default_expr.expr = attach_name_to_expr(
-                                        new_ident,
-                                        Expr::Arrow(arrow.clone()),
-                                        &mut self.extra_items,
-                                    );
-                                }
+                                create_var_declarator(&new_ident, &mut self.extra_items);
+                                attach_name_to_default_expr(&new_ident, &mut self.extra_items);
+
+                                *default_expr.expr =
+                                    assign_arrow_expr(&new_ident, Expr::Arrow(arrow.clone()));
                             }
                             Expr::Ident(ident) => {
                                 // export default foo
@@ -1430,11 +1537,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 self.exported_idents
                                     .push((new_ident.clone(), "default".into()));
 
-                                *default_expr.expr = attach_name_to_expr(
-                                    new_ident,
-                                    Expr::Call(call.clone()),
-                                    &mut self.extra_items,
-                                );
+                                create_var_declarator(&new_ident, &mut self.extra_items);
+                                attach_name_to_default_expr(&new_ident, &mut self.extra_items);
+
+                                *default_expr.expr =
+                                    assign_arrow_expr(&new_ident, Expr::Call(call.clone()));
                             }
                             _ => {
                                 disallowed_export_span = default_expr.span;
@@ -1449,14 +1556,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                 if disallowed_export_span != DUMMY_SP {
                     HANDLER.with(|handler| {
+                        let directive = if self.in_action_file {
+                            "\"use server\""
+                        } else {
+                            "\"use cache\""
+                        };
+
                         handler
                             .struct_span_err(
                                 disallowed_export_span,
-                                "Only async functions are allowed to be exported in a \"use \
-                                 server\" file.",
+                                &format!(
+                                    "Only async functions are allowed to be exported in a \
+                                     {directive} file."
+                                ),
                             )
                             .emit();
                     });
+
+                    return;
                 }
             }
 
@@ -1533,21 +1650,21 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             new.rotate_right(1);
         }
 
-        // If it's a "use server" file, all exports need to be annotated as actions.
+        // If it's a "use server" or a "use cache" file, all exports need to be annotated.
         if self.in_action_file || self.in_cache_file.is_some() {
             for (ident, export_name) in self.exported_idents.iter() {
                 if !self.config.is_react_server_layer {
                     let action_id =
                         generate_action_id(&self.config.hash_salt, &self.file_name, export_name);
 
-                    let call_expr_span = Span::dummy_with_cmt();
-                    self.comments.add_pure_comment(call_expr_span.lo);
                     if export_name == "default" {
+                        self.comments.add_pure_comment(ident.span.lo);
+
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
                             ExportDefaultExpr {
-                                span: ident.span,
+                                span: DUMMY_SP,
                                 expr: Box::new(Expr::Call(CallExpr {
-                                    span: call_expr_span,
+                                    span: ident.span,
                                     callee: Callee::Expr(Box::new(Expr::Ident(
                                         create_ref_ident.clone(),
                                     ))),
@@ -1564,6 +1681,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ));
                         new.push(export_expr);
                     } else {
+                        let call_expr_span = Span::dummy_with_cmt();
+                        self.comments.add_pure_comment(call_expr_span.lo);
+
                         let export_expr =
                             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                                 span: DUMMY_SP,
@@ -1797,6 +1917,64 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         self.annotations = old_annotations;
     }
 
+    fn visit_mut_jsx_attr(&mut self, attr: &mut JSXAttr) {
+        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+
+        if let (Some(JSXAttrValue::JSXExprContainer(container)), JSXAttrName::Ident(ident_name)) =
+            (&attr.value, &attr.name)
+        {
+            match &container.expr {
+                JSXExpr::Expr(box Expr::Arrow(_)) | JSXExpr::Expr(box Expr::Fn(_)) => {
+                    self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
+                }
+                _ => {}
+            }
+        }
+
+        attr.visit_mut_children_with(self);
+
+        self.arrow_or_fn_expr_ident = old_arrow_expr_ident
+    }
+
+    fn visit_mut_var_declarator(&mut self, var_declarator: &mut VarDeclarator) {
+        let old_in_exported_expr = self.in_exported_expr;
+        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+
+        if let (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) =
+            (&var_declarator.name, &var_declarator.init)
+        {
+            if self.in_module_level && self.exported_local_ids.contains(&ident.to_id()) {
+                self.in_exported_expr = true
+            }
+
+            self.arrow_or_fn_expr_ident = Some(ident.id.clone());
+        }
+
+        var_declarator.visit_mut_children_with(self);
+
+        self.in_exported_expr = old_in_exported_expr;
+        self.arrow_or_fn_expr_ident = old_arrow_expr_ident;
+    }
+
+    fn visit_mut_assign_expr(&mut self, assign_expr: &mut AssignExpr) {
+        let old_arrow_expr_ident = self.arrow_or_fn_expr_ident.take();
+
+        if let (
+            AssignTarget::Simple(SimpleAssignTarget::Ident(ident)),
+            box Expr::Arrow(_) | box Expr::Fn(_),
+        ) = (&assign_expr.left, &assign_expr.right)
+        {
+            // Ignore assignment expressions that we created.
+            if !ident.id.to_id().0.starts_with("$$RSC_SERVER_") {
+                self.arrow_or_fn_expr_ident = Some(ident.id.clone());
+            }
+        }
+
+        assign_expr.visit_mut_children_with(self);
+
+        self.arrow_or_fn_expr_ident = old_arrow_expr_ident;
+    }
+
     noop_visit_mut_type!();
 }
 
@@ -1886,7 +2064,7 @@ fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str) -> Box<Expr> {
     }))
 }
 
-fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleItem>) -> Expr {
+fn create_var_declarator(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
     // Create the variable `var $$ACTION_0;`
     extra_items.push(ModuleItem::Stmt(Stmt::Decl(Decl::Var(Box::new(VarDecl {
         span: DUMMY_SP,
@@ -1899,7 +2077,55 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
         }],
         ..Default::default()
     })))));
+}
 
+fn attach_name_to_default_expr(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
+    // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
+    extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+        span: DUMMY_SP,
+        expr: Box::new(Expr::Call(CallExpr {
+            span: DUMMY_SP,
+            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                span: DUMMY_SP,
+                obj: Box::new(Expr::Ident(Ident::new(
+                    "Object".into(),
+                    DUMMY_SP,
+                    ident.ctxt,
+                ))),
+                prop: MemberProp::Ident(IdentName::new("defineProperty".into(), DUMMY_SP)),
+            }))),
+            args: vec![
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(Expr::Ident(ident.clone())),
+                },
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new("name".into()),
+                },
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(Expr::Object(ObjectLit {
+                        span: DUMMY_SP,
+                        props: vec![
+                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                key: PropName::Str("value".into()),
+                                value: Box::new("default".into()),
+                            }))),
+                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                key: PropName::Str("writable".into()),
+                                value: Box::new(false.into()),
+                            }))),
+                        ],
+                    })),
+                },
+            ],
+            ..Default::default()
+        })),
+    })));
+}
+
+fn assign_arrow_expr(ident: &Ident, expr: Expr) -> Expr {
     if let Expr::Paren(_paren) = &expr {
         expr
     } else {
@@ -1908,7 +2134,7 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
             span: DUMMY_SP,
             expr: Box::new(Expr::Assign(AssignExpr {
                 span: DUMMY_SP,
-                left: ident.into(),
+                left: ident.clone().into(),
                 op: op!("="),
                 right: Box::new(expr),
             })),

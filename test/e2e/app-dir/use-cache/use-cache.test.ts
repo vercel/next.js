@@ -10,15 +10,15 @@ describe('use-cache', () => {
   })
 
   it('should cache results', async () => {
-    const browser = await next.browser('/?n=1')
+    const browser = await next.browser(`/?n=1`)
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1a = await browser.waitForElementByCss('#y').text()
 
-    await browser.loadPage(new URL('/?n=2', next.url).toString())
+    await browser.loadPage(new URL(`/?n=2`, next.url).toString())
     expect(await browser.waitForElementByCss('#x').text()).toBe('2')
     const random2 = await browser.waitForElementByCss('#y').text()
 
-    await browser.loadPage(new URL('/?n=1&unrelated', next.url).toString())
+    await browser.loadPage(new URL(`/?n=1&unrelated`, next.url).toString())
     expect(await browser.waitForElementByCss('#x').text()).toBe('1')
     const random1b = await browser.waitForElementByCss('#y').text()
 
@@ -34,6 +34,35 @@ describe('use-cache', () => {
     // Client component child should have rendered but not invalidated the cache.
     expect(await browser.waitForElementByCss('#r').text()).toContain('rnd')
   })
+
+  if (!process.env.TURBOPACK_BUILD) {
+    it('should cache results custom handler', async () => {
+      const browser = await next.browser(`/custom-handler?n=1`)
+      expect(await browser.waitForElementByCss('#x').text()).toBe('1')
+      const random1a = await browser.waitForElementByCss('#y').text()
+
+      await browser.loadPage(
+        new URL(`/custom-handler?n=2`, next.url).toString()
+      )
+      expect(await browser.waitForElementByCss('#x').text()).toBe('2')
+      const random2 = await browser.waitForElementByCss('#y').text()
+
+      await browser.loadPage(
+        new URL(`/custom-handler?n=1&unrelated`, next.url).toString()
+      )
+      expect(await browser.waitForElementByCss('#x').text()).toBe('1')
+      const random1b = await browser.waitForElementByCss('#y').text()
+
+      // The two navigations to n=1 should use a cached value.
+      expect(random1a).toBe(random1b)
+
+      // The navigation to n=2 should be some other random value.
+      expect(random1a).not.toBe(random2)
+
+      // Client component child should have rendered but not invalidated the cache.
+      expect(await browser.waitForElementByCss('#r').text()).toContain('rnd')
+    })
+  }
 
   it('should cache complex args', async () => {
     // Use two bytes that can't be encoded as UTF-8 to ensure serialization works.
@@ -123,6 +152,36 @@ describe('use-cache', () => {
       expect(await browser.elementByCss('p').text()).toBe(twoRandomValues)
     })
   })
+
+  // TODO: pending tags handling on deploy
+  if (!isNextDeploy) {
+    it('should update after revalidateTag correctly', async () => {
+      const browser = await next.browser('/cache-tag')
+
+      const initialX = await browser.elementByCss('#x').text()
+      const initialY = await browser.elementByCss('#y').text()
+      let updatedX
+      let updatedY
+
+      await browser.elementByCss('#revalidate-a').click()
+      await retry(async () => {
+        updatedX = await browser.elementByCss('#x').text()
+        expect(updatedX).not.toBe(initialX)
+      })
+
+      await browser.elementByCss('#revalidate-b').click()
+      await retry(async () => {
+        updatedY = await browser.elementByCss('#y').text()
+        expect(updatedY).not.toBe(initialY)
+      })
+
+      await browser.elementByCss('#revalidate-c').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#x').text()).not.toBe(updatedX)
+        expect(await browser.elementByCss('#y').text()).not.toBe(updatedY)
+      })
+    })
+  }
 
   if (isNextStart) {
     it('should match the expected revalidate config on the prerender manifest', async () => {

@@ -2,15 +2,9 @@
 import 'server-only'
 
 /* eslint-disable import/no-extraneous-dependencies */
-import {
-  renderToReadableStream,
-  decodeReply,
-} from 'react-server-dom-webpack/server.edge'
+import { renderToReadableStream } from 'react-server-dom-webpack/server.edge'
 /* eslint-disable import/no-extraneous-dependencies */
-import {
-  createFromReadableStream,
-  encodeReply,
-} from 'react-server-dom-webpack/client.edge'
+import { createFromReadableStream } from 'react-server-dom-webpack/client.edge'
 
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import {
@@ -110,7 +104,7 @@ export async function decryptActionBoundArgs(
       },
     }),
     {
-      ssrManifest: {
+      serverConsumerManifest: {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
         // to be added to the current execution. Instead, we'll wait for any ClientReference
         // to be emitted which themselves will handle the preloading.
@@ -118,16 +112,10 @@ export async function decryptActionBoundArgs(
         moduleMap: isEdgeRuntime
           ? clientReferenceManifestSingleton.edgeRscModuleMapping
           : clientReferenceManifestSingleton.rscModuleMapping,
+        serverModuleMap: getServerModuleMap(),
       },
     }
   )
 
-  // This extra step ensures that the server references are recovered.
-  const serverModuleMap = getServerModuleMap()
-  const transformed = await decodeReply(
-    await encodeReply(deserialized),
-    serverModuleMap
-  )
-
-  return transformed
+  return deserialized
 }
