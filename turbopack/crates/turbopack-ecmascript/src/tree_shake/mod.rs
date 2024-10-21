@@ -249,6 +249,13 @@ impl Analyzer<'_> {
                     state
                         .last_reads
                         .retain(|last_read| !self.g.has_dep(item_id, last_read, true));
+
+                    state.last_op = Some(VarOp::Read);
+                }
+
+                for id in item.write_vars.iter() {
+                    let state = self.vars.entry(id.clone()).or_default();
+                    state.last_op = Some(VarOp::Write);
                 }
 
                 if item.side_effects {
