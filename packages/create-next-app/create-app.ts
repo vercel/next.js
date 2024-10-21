@@ -37,6 +37,7 @@ export async function createApp({
   skipInstall,
   empty,
   turbo,
+  api,
   disableGit,
 }: {
   appPath: string
@@ -52,6 +53,7 @@ export async function createApp({
   skipInstall: boolean
   empty: boolean
   turbo: boolean
+  api?: boolean
   disableGit?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
@@ -224,7 +226,7 @@ export async function createApp({
     await installTemplate({
       appName,
       root,
-      template,
+      template: api ? 'app-api' : template,
       mode,
       packageManager,
       isOnline,
