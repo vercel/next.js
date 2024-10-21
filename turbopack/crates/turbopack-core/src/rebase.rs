@@ -1,7 +1,8 @@
 use std::hash::Hash;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use tracing::Instrument;
+use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -51,18 +52,20 @@ impl OutputAsset for RebasedAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let mut references = Vec::new();
-        for &module in referenced_modules_and_affecting_sources(self.module)
-            .await?
-            .iter()
-        {
-            references.push(Vc::upcast(RebasedAsset::new(
-                module,
-                self.input_dir,
-                self.output_dir,
-            )));
+        let span = tracing::info_span!(
+            "RebasedAsset references",
+            module = self.module.ident().to_string().await?.to_string()
+        );
+        async move {
+            let references = referenced_modules_and_affecting_sources(self.module)
+                .await?
+                .iter()
+                .map(|m| Vc::upcast(RebasedAsset::new(*m, self.input_dir, self.output_dir)))
+                .collect();
+            Ok(Vc::cell(references))
         }
-        Ok(Vc::cell(references))
+        .instrument(span)
+        .await
     }
 }
 
