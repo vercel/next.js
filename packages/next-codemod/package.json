@@ -17,7 +17,8 @@
     "jscodeshift": "17.0.0",
     "picocolors": "1.0.0",
     "prompts": "2.4.2",
-    "semver": "7.6.3"
+    "semver": "7.6.3",
+    "strip-ansi": "6.0.0"
   },
   "files": [
     "transforms/*.js",
