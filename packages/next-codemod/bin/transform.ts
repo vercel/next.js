@@ -211,7 +211,8 @@ export async function runTransform(
       {
         type: 'confirm',
         name: 'uninstallNextFont',
-        message: 'Do you want to uninstall `@next/font`?',
+        message:
+          '`built-in-next-font` should have removed all usages of `@next/font`. Do you want to uninstall `@next/font`?',
         initial: true,
       },
       { onCancel }
@@ -225,7 +226,9 @@ export async function runTransform(
 
   // When has changes, it requires `@vercel/functions`, so skip prompt.
   if (!dry && transformer === 'next-request-geo-ip' && hasChanges) {
-    console.log('Installing `@vercel/functions`...')
+    console.log(
+      'Installing `@vercel/functions` because the `next-request-geo-ip` made changes.'
+    )
     installPackages(['@vercel/functions'])
   }
 }
