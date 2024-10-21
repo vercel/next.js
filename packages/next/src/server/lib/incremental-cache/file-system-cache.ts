@@ -18,7 +18,7 @@ import {
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
 } from '../../../lib/constants'
-import { tagsManifest } from './tags-manifest'
+import { tagsManifest } from './tags-manifest.external'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,

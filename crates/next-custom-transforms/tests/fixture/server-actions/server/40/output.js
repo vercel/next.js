@@ -11,6 +11,10 @@ export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "3128060c414d59f8552e4788
         }
     ];
 });
+Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+    "value": "cache",
+    "writable": false
+});
 export const $$RSC_SERVER_ACTION_2 = async function action($$ACTION_CLOSURE_BOUND, c) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("1c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$ACTION_CLOSURE_BOUND);
     const d = $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;

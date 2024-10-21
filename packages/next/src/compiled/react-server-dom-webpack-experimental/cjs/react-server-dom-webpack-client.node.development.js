@@ -43,6 +43,24 @@
       }
       return metadata;
     }
+    function resolveServerReference(bundlerConfig, id) {
+      var name = "",
+        resolvedModuleData = bundlerConfig[id];
+      if (resolvedModuleData) name = resolvedModuleData.name;
+      else {
+        var idx = id.lastIndexOf("#");
+        -1 !== idx &&
+          ((name = id.slice(idx + 1)),
+          (resolvedModuleData = bundlerConfig[id.slice(0, idx)]));
+        if (!resolvedModuleData)
+          throw Error(
+            'Could not find the module "' +
+              id +
+              '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
+          );
+      }
+      return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+    }
     function requireAsyncModule(id) {
       var promise = globalThis.__next_require__(id);
       if ("function" !== typeof promise.then || "fulfilled" === promise.status)
@@ -86,6 +104,20 @@
         : 0 < promises.length
           ? Promise.all(promises)
           : null;
+    }
+    function requireModule(metadata) {
+      var moduleExports = globalThis.__next_require__(metadata[0]);
+      if (4 === metadata.length && "function" === typeof moduleExports.then)
+        if ("fulfilled" === moduleExports.status)
+          moduleExports = moduleExports.value;
+        else throw moduleExports.reason;
+      return "*" === metadata[2]
+        ? moduleExports
+        : "" === metadata[2]
+          ? moduleExports.__esModule
+            ? moduleExports.default
+            : moduleExports
+          : moduleExports[metadata[2]];
     }
     function prepareDestinationWithChunks(
       moduleLoading,
@@ -1225,20 +1257,7 @@
     }
     function initializeModuleChunk(chunk) {
       try {
-        var metadata = chunk.value,
-          moduleExports = globalThis.__next_require__(metadata[0]);
-        if (4 === metadata.length && "function" === typeof moduleExports.then)
-          if ("fulfilled" === moduleExports.status)
-            moduleExports = moduleExports.value;
-          else throw moduleExports.reason;
-        var value =
-          "*" === metadata[2]
-            ? moduleExports
-            : "" === metadata[2]
-              ? moduleExports.__esModule
-                ? moduleExports.default
-                : moduleExports
-              : moduleExports[metadata[2]];
+        var value = requireModule(chunk.value);
         chunk.status = "fulfilled";
         chunk.value = value;
       } catch (error) {
@@ -1306,7 +1325,7 @@
             }
           value = value[path[i]];
         }
-        i = map(response, value);
+        i = map(response, value, parentObject, key);
         parentObject[key] = i;
         "" === key && null === handler.value && (handler.value = i);
         if (
@@ -1373,13 +1392,97 @@
       referencedChunk.then(fulfill, reject);
       return null;
     }
-    function createServerReferenceProxy(response, metaData) {
-      return createBoundServerReference(
-        metaData,
-        response._callServer,
-        response._encodeFormAction,
-        response._debugFindSourceMapURL
+    function loadServerReference(response, metaData, parentObject, key) {
+      if (!response._serverReferenceConfig)
+        return createBoundServerReference(
+          metaData,
+          response._callServer,
+          response._encodeFormAction,
+          response._debugFindSourceMapURL
+        );
+      var serverReference = resolveServerReference(
+        response._serverReferenceConfig,
+        metaData.id
       );
+      if ((response = preloadModule(serverReference)))
+        metaData.bound && (response = Promise.all([response, metaData.bound]));
+      else if (metaData.bound) response = Promise.resolve(metaData.bound);
+      else return requireModule(serverReference);
+      if (initializingHandler) {
+        var handler = initializingHandler;
+        handler.deps++;
+      } else
+        handler = initializingHandler = {
+          parent: null,
+          chunk: null,
+          value: null,
+          deps: 1,
+          errored: !1
+        };
+      response.then(
+        function () {
+          var resolvedValue = requireModule(serverReference);
+          if (metaData.bound) {
+            var boundArgs = metaData.bound.value.slice(0);
+            boundArgs.unshift(null);
+            resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
+          }
+          parentObject[key] = resolvedValue;
+          "" === key &&
+            null === handler.value &&
+            (handler.value = resolvedValue);
+          if (
+            parentObject[0] === REACT_ELEMENT_TYPE &&
+            "object" === typeof handler.value &&
+            null !== handler.value &&
+            handler.value.$$typeof === REACT_ELEMENT_TYPE
+          )
+            switch (((boundArgs = handler.value), key)) {
+              case "3":
+                boundArgs.props = resolvedValue;
+                break;
+              case "4":
+                boundArgs._owner = resolvedValue;
+            }
+          handler.deps--;
+          0 === handler.deps &&
+            ((resolvedValue = handler.chunk),
+            null !== resolvedValue &&
+              "blocked" === resolvedValue.status &&
+              ((boundArgs = resolvedValue.value),
+              (resolvedValue.status = "fulfilled"),
+              (resolvedValue.value = handler.value),
+              null !== boundArgs && wakeChunk(boundArgs, handler.value)));
+        },
+        function (error) {
+          if (!handler.errored) {
+            var blockedValue = handler.value;
+            handler.errored = !0;
+            handler.value = error;
+            var chunk = handler.chunk;
+            if (null !== chunk && "blocked" === chunk.status) {
+              if (
+                "object" === typeof blockedValue &&
+                null !== blockedValue &&
+                blockedValue.$$typeof === REACT_ELEMENT_TYPE
+              ) {
+                var erroredComponent = {
+                  name: getComponentNameFromType(blockedValue.type) || "",
+                  owner: blockedValue._owner
+                };
+                erroredComponent.debugStack = blockedValue._debugStack;
+                supportsCreateTask &&
+                  (erroredComponent.debugTask = blockedValue._debugTask);
+                (chunk._debugInfo || (chunk._debugInfo = [])).push(
+                  erroredComponent
+                );
+              }
+              triggerErrorOnChunk(chunk, error);
+            }
+          }
+        }
+      );
+      return null;
     }
     function getOutlinedModel(response, reference, parentObject, key, map) {
       reference = reference.split(":");
@@ -1409,7 +1512,7 @@
                 );
             value = value[reference[i]];
           }
-          response = map(response, value);
+          response = map(response, value, parentObject, key);
           id._debugInfo &&
             ("object" !== typeof response ||
               null === response ||
@@ -1509,7 +1612,7 @@
                 value,
                 parentObject,
                 key,
-                createServerReferenceProxy
+                loadServerReference
               )
             );
           case "T":
@@ -1613,6 +1716,7 @@
     }
     function ResponseInstance(
       bundlerConfig,
+      serverReferenceConfig,
       moduleLoading,
       callServer,
       encodeFormAction,
@@ -1624,6 +1728,7 @@
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
+      this._serverReferenceConfig = serverReferenceConfig;
       this._moduleLoading = moduleLoading;
       this._callServer = void 0 !== callServer ? callServer : missingCall;
       this._encodeFormAction = encodeFormAction;
@@ -2645,10 +2750,15 @@
       replayConsoleWithCallStackInDEV = replayConsoleWithCallStack[
         "react-stack-bottom-frame"
       ].bind(replayConsoleWithCallStack);
-    exports.createFromNodeStream = function (stream, ssrManifest, options) {
+    exports.createFromNodeStream = function (
+      stream,
+      serverConsumerManifest,
+      options
+    ) {
       var response = new ResponseInstance(
-        ssrManifest.moduleMap,
-        ssrManifest.moduleLoading,
+        serverConsumerManifest.moduleMap,
+        serverConsumerManifest.serverModuleMap,
+        serverConsumerManifest.moduleLoading,
         noServerCall,
         options ? options.encodeFormAction : void 0,
         options && "string" === typeof options.nonce ? options.nonce : void 0,
