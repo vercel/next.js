@@ -8,7 +8,7 @@ error - [bindings] [project]/turbopack/crates/turbopack-tests/tests/execution/tu
        4 | import * as X from "./module";
        5 | 
   
-  The export Abc was not found in module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/module.js [test] (ecmascript) <exports>.
+  The export Abc was not found in module [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export/input/invalid-export/module.js [test] (ecmascript, exports).
   
   Did you mean to import Abd?
   
