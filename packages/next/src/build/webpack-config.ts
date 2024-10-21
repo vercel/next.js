@@ -1318,7 +1318,7 @@ export default async function getBaseWebpackConfig(
                 resourceQuery: new RegExp(
                   WEBPACK_RESOURCE_QUERIES.metadataRoute
                 ),
-                layer: WEBPACK_LAYERS.appMetadataRoute,
+                layer: WEBPACK_LAYERS.reactServerComponents,
               },
               {
                 // Ensure that the app page module is in the client layers, this
