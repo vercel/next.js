@@ -356,13 +356,6 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
         return Ok(*id);
     }
 
-    // This is required to handle `export * from 'foo'`
-    if let ModulePart::Export(..) = &*part {
-        if let Some(&v) = entrypoints.get(&Key::Exports) {
-            return Ok(v);
-        }
-    }
-
     let mut dump = String::new();
 
     for (idx, m) in modules.iter().enumerate() {
