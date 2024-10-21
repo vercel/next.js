@@ -22,6 +22,7 @@ use turbopack_core::{
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
     module::Module,
     reference::ModuleReference,
+    resolve::ModulePart,
 };
 
 use super::base::ReferencedAsset;
@@ -29,6 +30,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
+    tree_shake::asset::EcmascriptModulePartAsset,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -139,6 +141,23 @@ pub async fn follow_reexports(
     let mut module = module;
     let mut export_name = export_name;
     loop {
+        // Do not go into `internal` fragments. Those modules are private to a single module.
+        if let Some(fragment) =
+            Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
+        {
+            let part = fragment.await?.part.await?;
+
+            if let ModulePart::Export(export) = *part {
+                if *export.await? == export_name {
+                    return Ok(FollowExportsResult::cell(FollowExportsResult {
+                        module,
+                        export_name: Some(export_name),
+                        ty: FoundExportType::Found,
+                    }));
+                }
+            }
+        }
+
         let exports = module.get_exports().await?;
         let EcmascriptExports::EsmExports(exports) = &*exports else {
             return Ok(FollowExportsResult::cell(FollowExportsResult {
