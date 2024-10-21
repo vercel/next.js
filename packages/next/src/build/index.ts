@@ -653,7 +653,6 @@ export function createStaticWorker(
     run: () => void
     clear: () => void
   }
-  // onActivity?: () => void
 ): StaticWorker {
   return new Worker(staticWorkerPath, {
     logger: Log,

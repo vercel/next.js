@@ -34,9 +34,10 @@ export default function createSpinner(
 
     const logHandle = (method: any, args: any[]) => {
       // Enter a new line before logging new message, to avoid
-      // the new message shows up right after the spinner in the saem line.
+      // the new message shows up right after the spinner in the same line.
       const isInProgress = spinner?.isSpinning
       if (spinner && isInProgress) {
+        // Reset the current running spinner to empty line by `\r`
         spinner.prefixText = '\r'
         spinner.text = '\r'
         spinner.clear()
@@ -44,7 +45,7 @@ export default function createSpinner(
       }
       method(...args)
       if (spinner && isInProgress) {
-        spinner!.start()
+        spinner.start()
       }
     }
 
