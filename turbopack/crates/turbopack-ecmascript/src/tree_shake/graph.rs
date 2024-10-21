@@ -111,7 +111,7 @@ pub(crate) struct ItemData {
     /// [ItemId].
     ///
     /// Used to optimize `ImportBinding`.
-    pub binding_source: Option<Atom>,
+    pub binding_source: Option<(Atom, ImportSpecifier)>,
 }
 
 impl fmt::Debug for ItemData {
@@ -1045,7 +1045,7 @@ impl DepGraph {
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
-                                binding_source: Some(item.src.value.clone()),
+                                binding_source: Some((item.src.value.clone(), s.clone())),
                                 ..Default::default()
                             },
                         );
