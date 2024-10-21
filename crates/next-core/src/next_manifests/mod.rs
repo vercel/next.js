@@ -4,8 +4,17 @@ pub(crate) mod client_reference_manifest;
 
 use std::collections::HashMap;
 
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, TaskInput};
+use turbo_tasks::{
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, TaskInput, TryJoinIterExt, Vc,
+};
+use turbo_tasks_fs::{File, FileSystemPath};
+use turbopack_core::{
+    asset::AssetContent,
+    output::{OutputAsset, OutputAssets},
+    virtual_output::VirtualOutputAsset,
+};
 
 use crate::next_config::{CrossOriginConfig, Rewrites, RouteHas};
 
@@ -15,16 +24,105 @@ pub struct PagesManifest {
     pub pages: HashMap<RcStr, RcStr>,
 }
 
-#[derive(Serialize, Default, Debug)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Default)]
 pub struct BuildManifest {
-    pub dev_files: Vec<RcStr>,
-    pub amp_dev_files: Vec<RcStr>,
-    pub polyfill_files: Vec<RcStr>,
-    pub low_priority_files: Vec<RcStr>,
-    pub root_main_files: Vec<RcStr>,
-    pub pages: HashMap<RcStr, Vec<RcStr>>,
-    pub amp_first_pages: Vec<RcStr>,
+    pub polyfill_files: Vec<Vc<Box<dyn OutputAsset>>>,
+    pub root_main_files: Vec<Vc<Box<dyn OutputAsset>>>,
+    pub pages: FxIndexMap<RcStr, Vc<OutputAssets>>,
+}
+
+impl BuildManifest {
+    pub async fn build_output(
+        self,
+        output_path: Vc<FileSystemPath>,
+        client_relative_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let client_relative_path_ref = &*client_relative_path.await?;
+
+        #[derive(Serialize, Default, Debug)]
+        #[serde(rename_all = "camelCase")]
+        pub struct SerializedBuildManifest {
+            pub dev_files: Vec<RcStr>,
+            pub amp_dev_files: Vec<RcStr>,
+            pub polyfill_files: Vec<RcStr>,
+            pub low_priority_files: Vec<RcStr>,
+            pub root_main_files: Vec<RcStr>,
+            pub pages: FxIndexMap<RcStr, Vec<RcStr>>,
+            pub amp_first_pages: Vec<RcStr>,
+        }
+
+        let pages: Vec<(RcStr, Vec<RcStr>)> = self
+            .pages
+            .iter()
+            .map(|(k, chunks)| async move {
+                Ok((
+                    k.clone(),
+                    chunks
+                        .await?
+                        .iter()
+                        .copied()
+                        .map(|chunk| async move {
+                            let chunk_path = chunk.ident().path().await?;
+                            Ok(client_relative_path_ref
+                                .get_path_to(&chunk_path)
+                                .context("client chunk entry path must be inside the client root")?
+                                .into())
+                        })
+                        .try_join()
+                        .await?,
+                ))
+            })
+            .try_join()
+            .await?;
+
+        let polyfill_files: Vec<RcStr> = self
+            .polyfill_files
+            .iter()
+            .copied()
+            .map(|chunk| async move {
+                let chunk_path = chunk.ident().path().await?;
+                Ok(client_relative_path_ref
+                    .get_path_to(&chunk_path)
+                    .context("failed to resolve client-relative path to polyfill")?
+                    .into())
+            })
+            .try_join()
+            .await?;
+
+        let root_main_files: Vec<RcStr> = self
+            .root_main_files
+            .iter()
+            .copied()
+            .map(|chunk| async move {
+                let chunk_path = chunk.ident().path().await?;
+                Ok(client_relative_path_ref
+                    .get_path_to(&chunk_path)
+                    .context("failed to resolve client-relative path to root_main_file")?
+                    .into())
+            })
+            .try_join()
+            .await?;
+
+        let manifest = SerializedBuildManifest {
+            pages: FxIndexMap::from_iter(pages.into_iter()),
+            polyfill_files,
+            root_main_files,
+            ..Default::default()
+        };
+
+        let mut references = vec![];
+        for chunks in self.pages.values() {
+            references.extend(chunks.await?);
+        }
+        references.extend(self.root_main_files);
+        references.extend(self.polyfill_files);
+
+        Ok(Vc::upcast(VirtualOutputAsset::new_with_references(
+            output_path,
+            AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
+            Vc::cell(references),
+        )))
+    }
 }
 
 #[derive(Serialize, Debug)]
@@ -302,10 +400,63 @@ pub struct FontManifestEntry {
     pub content: RcStr,
 }
 
-#[derive(Serialize, Default, Debug)]
-#[serde(rename_all = "camelCase")]
+#[derive(Default, Debug)]
 pub struct AppBuildManifest {
-    pub pages: HashMap<RcStr, Vec<RcStr>>,
+    pub pages: FxIndexMap<RcStr, Vec<Vc<Box<dyn OutputAsset>>>>,
+}
+
+impl AppBuildManifest {
+    pub async fn build_output(
+        self,
+        output_path: Vc<FileSystemPath>,
+        client_relative_path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let client_relative_path_ref = &*client_relative_path.await?;
+
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        pub struct SerializedAppBuildManifest {
+            pub pages: FxIndexMap<RcStr, Vec<RcStr>>,
+        }
+
+        let pages: Vec<(RcStr, Vec<RcStr>)> = self
+            .pages
+            .iter()
+            .map(|(k, chunks)| async move {
+                Ok((
+                    k.clone(),
+                    chunks
+                        .iter()
+                        .copied()
+                        .map(|chunk| async move {
+                            let chunk_path = chunk.ident().path().await?;
+                            Ok(client_relative_path_ref
+                                .get_path_to(&chunk_path)
+                                .context("client chunk entry path must be inside the client root")?
+                                .into())
+                        })
+                        .try_join()
+                        .await?,
+                ))
+            })
+            .try_join()
+            .await?;
+
+        let manifest = SerializedAppBuildManifest {
+            pages: FxIndexMap::from_iter(pages.into_iter()),
+        };
+
+        let mut references = vec![];
+        for chunks in self.pages.values() {
+            references.extend(chunks);
+        }
+
+        Ok(Vc::upcast(VirtualOutputAsset::new_with_references(
+            output_path,
+            AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
+            Vc::cell(references),
+        )))
+    }
 }
 
 // TODO(alexkirsz) Unify with the one for dev.

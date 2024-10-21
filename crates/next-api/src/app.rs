@@ -38,8 +38,8 @@ use next_core::{
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, RcStr, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, RcStr,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -686,7 +686,7 @@ pub fn app_entry_point_to_route(
 }
 
 #[turbo_tasks::function]
-fn client_shared_chunks() -> Vc<RcStr> {
+fn client_shared_chunks_mod() -> Vc<RcStr> {
     Vc::cell("client_shared_chunks".into())
 }
 
@@ -830,7 +830,6 @@ impl AppEndpoint {
         let node_root = this.app_project.project().node_root();
 
         let client_relative_path = this.app_project.project().client_relative_path();
-        let client_relative_path_ref = client_relative_path.await?;
 
         let server_path = node_root.join("server".into());
 
@@ -867,21 +866,19 @@ impl AppEndpoint {
         ) = if process_client_components {
             let client_shared_chunk_group = get_app_client_shared_chunk_group(
                 AssetIdent::from_path(this.app_project.project().project_path())
-                    .with_modifier(client_shared_chunks()),
+                    .with_modifier(client_shared_chunks_mod()),
                 this.app_project.client_runtime_entries(),
                 client_chunking_context,
             )
             .await?;
 
-            let mut client_shared_chunks_paths = vec![];
+            let mut client_shared_chunks = vec![];
             for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
                 client_assets.insert(chunk);
 
                 let chunk_path = chunk.ident().path().await?;
                 if chunk_path.extension_ref() == Some("js") {
-                    if let Some(chunk_path) = client_relative_path_ref.get_path_to(&chunk_path) {
-                        client_shared_chunks_paths.push(chunk_path.into());
-                    }
+                    client_shared_chunks.push(chunk);
                 }
             }
             let client_shared_availability_info = client_shared_chunk_group.availability_info;
@@ -973,36 +970,20 @@ impl AppEndpoint {
             client_assets.extend(entry_client_chunks.iter().copied());
             server_assets.extend(entry_ssr_chunks.iter().copied());
 
-            let entry_client_chunks_paths = entry_client_chunks
-                .iter()
-                .map(|chunk| chunk.ident().path())
-                .try_join()
-                .await?;
-            let mut entry_client_chunks_paths = entry_client_chunks_paths
-                .iter()
-                .map(|path| {
-                    Ok(client_relative_path_ref
-                        .get_path_to(path)
-                        .context("asset path should be inside client root")?
-                        .into())
-                })
-                .collect::<anyhow::Result<Vec<_>>>()?;
-            entry_client_chunks_paths.extend(client_shared_chunks_paths.iter().cloned());
-
             let app_build_manifest = AppBuildManifest {
-                pages: [(app_entry.original_name.clone(), entry_client_chunks_paths)]
-                    .into_iter()
-                    .collect(),
+                pages: fxindexmap!(
+                    app_entry.original_name.clone() => entry_client_chunks.iter().chain(client_shared_chunks.iter()).copied().collect()
+                ),
             };
             let manifest_path_prefix = &app_entry.original_name;
-            let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
-                node_root.join(
-                    format!("server/app{manifest_path_prefix}/app-build-manifest.json",).into(),
-                ),
-                AssetContent::file(
-                    File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
-                ),
-            ));
+            let app_build_manifest_output = app_build_manifest
+                .build_output(
+                    node_root.join(
+                        format!("server/app{manifest_path_prefix}/app-build-manifest.json",).into(),
+                    ),
+                    client_relative_path,
+                )
+                .await?;
             server_assets.insert(app_build_manifest_output);
 
             // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
@@ -1013,14 +994,11 @@ impl AppEndpoint {
             );
             let polyfill_output_path =
                 client_chunking_context.chunk_path(polyfill_source.ident(), ".js".into());
-            let polyfill_output_asset =
-                RawOutput::new(polyfill_output_path, Vc::upcast(polyfill_source));
-            let polyfill_client_path = client_relative_path_ref
-                .get_path_to(&*polyfill_output_path.await?)
-                .context("failed to resolve client-relative path to polyfill")?
-                .into();
-            let polyfill_client_paths = vec![polyfill_client_path];
-            client_assets.insert(Vc::upcast(polyfill_output_asset));
+            let polyfill_output_asset = Vc::upcast(RawOutput::new(
+                polyfill_output_path,
+                Vc::upcast(polyfill_source),
+            ));
+            client_assets.insert(polyfill_output_asset);
 
             if *this
                 .app_project
@@ -1042,17 +1020,20 @@ impl AppEndpoint {
             }
 
             let build_manifest = BuildManifest {
-                root_main_files: client_shared_chunks_paths,
-                polyfill_files: polyfill_client_paths,
+                root_main_files: client_shared_chunks,
+                polyfill_files: vec![polyfill_output_asset],
                 ..Default::default()
             };
-            let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
-                node_root
-                    .join(format!("server/app{manifest_path_prefix}/build-manifest.json",).into()),
-                AssetContent::file(
-                    File::from(serde_json::to_string_pretty(&build_manifest)?).into(),
-                ),
-            ));
+            let build_manifest_output = Vc::upcast(
+                build_manifest
+                    .build_output(
+                        node_root.join(
+                            format!("server/app{manifest_path_prefix}/build-manifest.json",).into(),
+                        ),
+                        client_relative_path,
+                    )
+                    .await?,
+            );
             server_assets.insert(build_manifest_output);
 
             if runtime == NextRuntime::Edge {
