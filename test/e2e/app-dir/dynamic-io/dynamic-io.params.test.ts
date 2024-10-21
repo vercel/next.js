@@ -30,7 +30,7 @@ describe('dynamic-io', () => {
   describe('Async Params', () => {
     if (WITH_PPR) {
       it('should partially prerender pages that await params in a server components', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
 
         let $ = await next.render$(
           '/params/semantics/one/build/async/layout-access/server'
@@ -43,7 +43,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -64,7 +64,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -75,7 +75,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -89,7 +89,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -97,7 +97,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -111,7 +111,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -122,12 +122,12 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should partially prerender pages that use params in a client components', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
 
         let $ = await next.render$(
           '/params/semantics/one/build/async/layout-access/client'
@@ -139,7 +139,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -147,7 +147,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -161,7 +161,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -172,7 +172,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -185,7 +185,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -193,7 +193,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -206,7 +206,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -217,12 +217,12 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
     } else {
       it('should prerender pages that await params in a server component when prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/async/layout-access/server'
         )
@@ -233,7 +233,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -241,7 +241,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -254,7 +254,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -262,12 +262,12 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should prerender pages that `use` params in a client component when prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/async/layout-access/client'
         )
@@ -278,7 +278,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -286,7 +286,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -299,7 +299,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // TODO at the moment pages receive searchParams which are not know at build time
           // and always dynamic. We have to pessimistically assume they are accessed and thus
@@ -310,12 +310,12 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should render pages that await params in a server component when not prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/run/async/layout-access/server'
         )
@@ -326,7 +326,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at runtime')
           expect($('#lowcard').text()).toBe('at runtime')
@@ -334,7 +334,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -347,7 +347,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at runtime')
           expect($('#lowcard').text()).toBe('at runtime')
@@ -355,12 +355,12 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should render pages that `use` params in a client component when not prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/run/async/layout-access/client'
         )
@@ -371,7 +371,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at runtime')
           expect($('#lowcard').text()).toBe('at runtime')
@@ -379,7 +379,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -392,7 +392,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at runtime')
           expect($('#lowcard').text()).toBe('at runtime')
@@ -400,13 +400,13 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
     }
 
     it('should fully prerender pages that check individual param keys after awaiting params in a server component', async () => {
-      expect(getLines('In route /params')).toEqual([])
+      expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/semantics/one/build/async/layout-has/server'
       )
@@ -418,7 +418,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         expect($('#layout').text()).toBe('at buildtime')
         expect($('#lowcard').text()).toBe('at buildtime')
@@ -427,7 +427,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
 
       $ = await next.render$(
@@ -441,7 +441,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         expect($('#layout').text()).toBe('at buildtime')
         expect($('#lowcard').text()).toBe('at buildtime')
@@ -450,7 +450,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
 
       $ = await next.render$(
@@ -464,7 +464,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           // With PPR fallbacks the first visit is still partially prerendered
@@ -478,7 +478,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // without PPR the first visit is dynamic
           expect($('#layout').text()).toBe('at runtime')
@@ -488,7 +488,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       }
 
@@ -501,7 +501,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           // With PPR fallbacks the first visit is still partially prerendered
@@ -515,7 +515,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // without PPR the first visit is dynamic
           expect($('#layout').text()).toBe('at runtime')
@@ -525,13 +525,13 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       }
     })
 
     it('should fully prerender pages that check individual param keys after `use`ing params in a client component', async () => {
-      expect(getLines('In route /params')).toEqual([])
+      expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/semantics/one/build/async/layout-has/client'
       )
@@ -543,7 +543,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         expect($('#layout').text()).toBe('at buildtime')
         expect($('#lowcard').text()).toBe('at buildtime')
@@ -552,7 +552,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
 
       $ = await next.render$(
@@ -566,7 +566,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           expect($('#layout').text()).toBe('at buildtime')
@@ -576,7 +576,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // When dynamicIO is on and PPR is off the search params passed to a client page
           // are enough to mark the whole route as dynamic. This is because we can't know if
@@ -591,7 +591,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       }
 
@@ -606,7 +606,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           // With PPR fallbacks the first visit is still partially prerendered
@@ -620,7 +620,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // without PPR the first visit is dynamic
           expect($('#layout').text()).toBe('at runtime')
@@ -630,7 +630,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       }
 
@@ -643,7 +643,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           // With PPR fallbacks the first visit is still partially prerendered
@@ -657,7 +657,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // When dynamicIO is on and PPR is off the search params passed to a client page
           // are enough to mark the whole route as dynamic. This is because we can't know if
@@ -672,14 +672,14 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       }
     })
 
     if (WITH_PPR) {
       it('should partially prerender pages that spread awaited params in a server component', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/async/layout-spread/server'
         )
@@ -691,7 +691,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -700,7 +700,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -714,7 +714,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -723,7 +723,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -737,7 +737,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -749,7 +749,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -763,7 +763,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -775,12 +775,12 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should partially prerender pages that spread `use`ed params in a client component', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/async/layout-spread/client'
         )
@@ -792,7 +792,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -801,7 +801,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -815,7 +815,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -824,7 +824,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -838,7 +838,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -850,7 +850,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -864,7 +864,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -876,12 +876,12 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
     } else {
       it('should prerender pages that spread awaited params in a server component when prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/async/layout-spread/server'
         )
@@ -893,7 +893,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -902,7 +902,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -916,7 +916,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -925,12 +925,12 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should prerender pages that spread `use`ed params in a client component when prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/async/layout-spread/client'
         )
@@ -942,7 +942,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
           expect($('#lowcard').text()).toBe('at buildtime')
@@ -951,7 +951,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -965,7 +965,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // TODO at the moment pages receive searchParams which are not know at build time
           // and always dynamic. We have to pessimistically assume they are accessed and thus
@@ -977,7 +977,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
@@ -1076,7 +1076,7 @@ describe('dynamic-io', () => {
   describe('Synchronous Params access', () => {
     if (WITH_PPR) {
       it('should partially prerender pages that access params synchronously in a server components', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
 
         let $ = await next.render$(
           '/params/semantics/one/build/sync/layout-access/server'
@@ -1088,9 +1088,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1112,9 +1112,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1126,7 +1126,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1139,9 +1139,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1150,7 +1150,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1164,9 +1164,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1178,12 +1178,12 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should partially prerender pages that access params synchronously in a client components', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
 
         let $ = await next.render$(
           '/params/semantics/one/build/sync/layout-access/client'
@@ -1195,9 +1195,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1206,7 +1206,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1220,9 +1220,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1234,7 +1234,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1248,9 +1248,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1259,7 +1259,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1273,9 +1273,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1287,12 +1287,12 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
     } else {
       it('should prerender pages that access params synchronously in a server component when prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/sync/layout-access/server'
         )
@@ -1303,9 +1303,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1314,7 +1314,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1327,9 +1327,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1338,12 +1338,12 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should prerender pages that access params synchronously in a client component when prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/sync/layout-access/client'
         )
@@ -1354,9 +1354,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1365,7 +1365,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at buildtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1378,9 +1378,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           // TODO at the moment pages receive searchParams which are not know at build time
@@ -1392,12 +1392,12 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('build')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should render pages that access params synchronously in a server component when not prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/run/sync/layout-access/server'
         )
@@ -1408,9 +1408,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at runtime')
@@ -1419,7 +1419,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1432,9 +1432,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at runtime')
@@ -1443,12 +1443,12 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should render pages that access params synchronously in a client component when not prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/run/sync/layout-access/client'
         )
@@ -1459,9 +1459,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at runtime')
@@ -1470,7 +1470,7 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1483,9 +1483,9 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at runtime')
@@ -1494,13 +1494,13 @@ describe('dynamic-io', () => {
           expect($('#page').text()).toBe('at runtime')
           expect($('#param-lowcard').text()).toBe('one')
           expect($('#param-highcard').text()).toBe('run')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
     }
 
     it('should fully prerender pages that check individual param keys directly on the params prop in a server component', async () => {
-      expect(getLines('In route /params')).toEqual([])
+      expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/semantics/one/build/sync/layout-has/server'
       )
@@ -1512,7 +1512,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         expect($('#layout').text()).toBe('at buildtime')
         expect($('#lowcard').text()).toBe('at buildtime')
@@ -1521,7 +1521,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
 
       $ = await next.render$('/params/semantics/one/build/sync/page-has/server')
@@ -1533,7 +1533,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         expect($('#layout').text()).toBe('at buildtime')
         expect($('#lowcard').text()).toBe('at buildtime')
@@ -1542,7 +1542,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
 
       $ = await next.render$('/params/semantics/one/run/sync/layout-has/server')
@@ -1554,7 +1554,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           // With PPR fallbacks the first visit is fully prerendered
@@ -1566,7 +1566,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // without PPR the first visit is dynamic
           expect($('#layout').text()).toBe('at runtime')
@@ -1576,7 +1576,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       }
 
@@ -1589,7 +1589,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           // With PPR fallbacks the first visit is fully prerendered
@@ -1601,7 +1601,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // without PPR the first visit is dynamic
           expect($('#layout').text()).toBe('at runtime')
@@ -1611,13 +1611,13 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       }
     })
 
     it('should fully prerender pages that check individual param keys directly on the params prop in a client component', async () => {
-      expect(getLines('In route /params')).toEqual([])
+      expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/semantics/one/build/sync/layout-has/client'
       )
@@ -1629,7 +1629,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         expect($('#layout').text()).toBe('at buildtime')
         expect($('#lowcard').text()).toBe('at buildtime')
@@ -1638,7 +1638,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
 
       $ = await next.render$('/params/semantics/one/build/sync/page-has/client')
@@ -1650,7 +1650,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1660,7 +1660,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // When dynamicIO is on and PPR is off the search params passed to a client page
           // are enough to mark the whole route as dynamic. This is because we can't know if
@@ -1675,7 +1675,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       }
 
@@ -1688,7 +1688,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           // With PPR fallbacks the first visit is fully prerendered
@@ -1700,7 +1700,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // without PPR the first visit is dynamic
           expect($('#layout').text()).toBe('at runtime')
@@ -1710,7 +1710,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       }
 
@@ -1723,7 +1723,7 @@ describe('dynamic-io', () => {
         expect($('#param-has-lowcard').text()).toBe('true')
         expect($('#param-has-highcard').text()).toBe('true')
         expect($('#param-has-foo').text()).toBe('false')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           // With PPR fallbacks the first visit is still fully prerendered
@@ -1737,7 +1737,7 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         } else {
           // When dynamicIO is on and PPR is off the search params passed to a client page
           // are enough to mark the whole route as dynamic. This is because we can't know if
@@ -1752,14 +1752,14 @@ describe('dynamic-io', () => {
           expect($('#param-has-lowcard').text()).toBe('true')
           expect($('#param-has-highcard').text()).toBe('true')
           expect($('#param-has-foo').text()).toBe('false')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       }
     })
 
     if (WITH_PPR) {
       it('should partially prerender pages that spread params without awaiting first in a server component', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/sync/layout-spread/server'
         )
@@ -1771,8 +1771,8 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1782,7 +1782,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1796,8 +1796,8 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1807,7 +1807,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1821,8 +1821,8 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1835,7 +1835,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1849,8 +1849,8 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1863,12 +1863,12 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should partially prerender pages that spread params without `use`ing them first in a client component', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/sync/layout-spread/client'
         )
@@ -1880,10 +1880,10 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1893,7 +1893,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1907,10 +1907,10 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1920,7 +1920,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1934,10 +1934,10 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1950,7 +1950,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -1964,10 +1964,10 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -1980,12 +1980,12 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
     } else {
       it('should prerender pages that spread params without awaiting first in a server component when prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/sync/layout-spread/server'
         )
@@ -1997,8 +1997,8 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -2008,7 +2008,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -2022,8 +2022,8 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -2033,12 +2033,12 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should prerender pages that spread params without `use`ing first in a client component when prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/build/sync/layout-spread/client'
         )
@@ -2050,10 +2050,10 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at buildtime')
@@ -2063,7 +2063,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -2077,10 +2077,10 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           // TODO at the moment pages receive searchParams which are not know at build time
@@ -2093,12 +2093,12 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('build')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should prerender pages that spread params without awaiting first in a server component when not prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/run/sync/layout-spread/server'
         )
@@ -2110,8 +2110,8 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
           ])
         } else {
           expect($('#layout').text()).toBe('at runtime')
@@ -2122,7 +2122,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -2136,8 +2136,8 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
           ])
         } else {
           expect($('#layout').text()).toBe('at runtime')
@@ -2148,12 +2148,12 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
 
       it('should prerender pages that spread params without `use`ing first in a client component when not prebuilt', async () => {
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
         let $ = await next.render$(
           '/params/semantics/one/run/sync/layout-spread/client'
         )
@@ -2165,10 +2165,10 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at runtime')
@@ -2179,7 +2179,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
 
         $ = await next.render$(
@@ -2193,10 +2193,10 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([
-            expect.stringContaining('params are being enumerated.'),
-            expect.stringContaining('accessed directly with `params.lowcard`'),
-            expect.stringContaining('accessed directly with `params.highcard`'),
+          expect(getLines('Route "/params')).toEqual([
+            expect.stringContaining('`...params` or similar expression'),
+            expect.stringContaining('`params.lowcard`'),
+            expect.stringContaining('`params.highcard`'),
           ])
         } else {
           expect($('#layout').text()).toBe('at runtime')
@@ -2206,7 +2206,7 @@ describe('dynamic-io', () => {
           expect($('#param-copied-lowcard').text()).toBe('one')
           expect($('#param-copied-highcard').text()).toBe('run')
           expect($('#param-key-count').text()).toBe('2')
-          expect(getLines('In route /params')).toEqual([])
+          expect(getLines('Route "/params')).toEqual([])
         }
       })
     }
@@ -2214,7 +2214,7 @@ describe('dynamic-io', () => {
 
   describe('Param Shadowing', () => {
     it('should correctly allow param names like then, value, and status when awaiting params in a server component', async () => {
-      expect(getLines('In route /params')).toEqual([])
+      expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/shadowing/foo/bar/baz/qux/async/layout/server'
       )
@@ -2225,7 +2225,7 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toBe('bar')
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('qux')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           expect($('#layout').text()).toBe('at buildtime')
@@ -2237,7 +2237,7 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toBe('bar')
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('qux')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
 
       $ = await next.render$(
@@ -2250,7 +2250,7 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toBe('bar')
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('qux')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           expect($('#layout').text()).toBe('at buildtime')
@@ -2262,12 +2262,12 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toBe('bar')
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('qux')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
     })
 
     it('should correctly allow param names like then, value, and status when `use`ing params in a client component', async () => {
-      expect(getLines('In route /params')).toEqual([])
+      expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/shadowing/foo/bar/baz/qux/async/layout/client'
       )
@@ -2278,7 +2278,7 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toBe('bar')
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('qux')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           expect($('#layout').text()).toBe('at buildtime')
@@ -2290,7 +2290,7 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toBe('bar')
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('qux')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
 
       $ = await next.render$(
@@ -2303,7 +2303,7 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toBe('bar')
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('qux')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       } else {
         if (WITH_PPR) {
           expect($('#layout').text()).toBe('at buildtime')
@@ -2315,12 +2315,12 @@ describe('dynamic-io', () => {
         expect($('#param-then').text()).toBe('bar')
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('qux')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
     })
 
     it('should not allow param names like then and status when accessing params directly in a server component', async () => {
-      expect(getLines('In route /params')).toEqual([])
+      expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/shadowing/foo/bar/baz/qux/sync/layout/server'
       )
@@ -2333,12 +2333,10 @@ describe('dynamic-io', () => {
         )
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
-        expect(getLines('In route /params')).toEqual([
-          expect.stringContaining(
-            'missing these properties: `then` and `status`.'
-          ),
-          expect.stringContaining('accessed directly with `params.dyn`'),
-          expect.stringContaining('accessed directly with `params.value`'),
+        expect(getLines('Route "/params')).toEqual([
+          expect.stringContaining('`then` and `status`'),
+          expect.stringContaining('`params.dyn`'),
+          expect.stringContaining('`params.value`'),
         ])
       } else {
         if (WITH_PPR) {
@@ -2353,7 +2351,7 @@ describe('dynamic-io', () => {
         )
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
 
       $ = await next.render$(
@@ -2368,12 +2366,10 @@ describe('dynamic-io', () => {
         )
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
-        expect(getLines('In route /params')).toEqual([
-          expect.stringContaining(
-            'missing these properties: `then` and `status`.'
-          ),
-          expect.stringContaining('accessed directly with `params.dyn`'),
-          expect.stringContaining('accessed directly with `params.value`'),
+        expect(getLines('Route "/params')).toEqual([
+          expect.stringContaining('`then` and `status`'),
+          expect.stringContaining('`params.dyn`'),
+          expect.stringContaining('`params.value`'),
         ])
       } else {
         if (WITH_PPR) {
@@ -2388,12 +2384,12 @@ describe('dynamic-io', () => {
         )
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
     })
 
     it('should not allow param names like then and status when accessing params directly in a client component', async () => {
-      expect(getLines('In route /params')).toEqual([])
+      expect(getLines('Route "/params')).toEqual([])
       let $ = await next.render$(
         '/params/shadowing/foo/bar/baz/qux/sync/layout/client'
       )
@@ -2406,14 +2402,12 @@ describe('dynamic-io', () => {
         )
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
-        expect(getLines('In route /params')).toEqual([
-          expect.stringContaining(
-            'missing these properties: `then` and `status`.'
-          ),
-          expect.stringContaining('accessed directly with `params.dyn`'),
-          expect.stringContaining('accessed directly with `params.value`'),
-          expect.stringContaining('accessed directly with `params.dyn`'),
-          expect.stringContaining('accessed directly with `params.value`'),
+        expect(getLines('Route "/params')).toEqual([
+          expect.stringContaining('`then` and `status`'),
+          expect.stringContaining('`params.dyn`'),
+          expect.stringContaining('`params.value`'),
+          expect.stringContaining('`params.dyn`'),
+          expect.stringContaining('`params.value`'),
         ])
       } else {
         if (WITH_PPR) {
@@ -2428,7 +2422,7 @@ describe('dynamic-io', () => {
         )
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
 
       $ = await next.render$(
@@ -2443,14 +2437,12 @@ describe('dynamic-io', () => {
         )
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
-        expect(getLines('In route /params')).toEqual([
-          expect.stringContaining(
-            'missing these properties: `then` and `status`.'
-          ),
-          expect.stringContaining('accessed directly with `params.dyn`'),
-          expect.stringContaining('accessed directly with `params.value`'),
-          expect.stringContaining('accessed directly with `params.dyn`'),
-          expect.stringContaining('accessed directly with `params.value`'),
+        expect(getLines('Route "/params')).toEqual([
+          expect.stringContaining('`then` and `status`'),
+          expect.stringContaining('`params.dyn`'),
+          expect.stringContaining('`params.value`'),
+          expect.stringContaining('`params.dyn`'),
+          expect.stringContaining('`params.value`'),
         ])
       } else {
         if (WITH_PPR) {
@@ -2465,7 +2457,7 @@ describe('dynamic-io', () => {
         )
         expect($('#param-value').text()).toBe('baz')
         expect($('#param-status').text()).toBe('undefined')
-        expect(getLines('In route /params')).toEqual([])
+        expect(getLines('Route "/params')).toEqual([])
       }
     })
   })
