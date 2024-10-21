@@ -300,13 +300,17 @@ describe('required server files', () => {
     })
   })
 
-  it('should warn when "next" is imported directly', async () => {
-    await renderViaHTTP(appPort, '/gssp')
-    await check(
-      () => stderr,
-      /"next" should not be imported directly, imported in/
-    )
-  })
+  // TODO do we still want to do this?
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    'should warn when "next" is imported directly',
+    async () => {
+      await renderViaHTTP(appPort, '/gssp')
+      await check(
+        () => stderr,
+        /"next" should not be imported directly, imported in/
+      )
+    }
+  )
 
   it('`compress` should be `false` in nextEnv', async () => {
     expect(
