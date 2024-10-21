@@ -126,13 +126,13 @@ export async function exportAppRoute(
     await afterRunner.executeAfter()
 
     const revalidate =
-      typeof (context.renderOpts as any).collectedRevalidate === 'undefined' ||
-      (context.renderOpts as any).collectedRevalidate >= INFINITE_CACHE
+      typeof context.renderOpts.collectedRevalidate === 'undefined' ||
+      context.renderOpts.collectedRevalidate >= INFINITE_CACHE
         ? false
-        : (context.renderOpts as any).collectedRevalidate
+        : context.renderOpts.collectedRevalidate
 
     const headers = toNodeOutgoingHttpHeaders(response.headers)
-    const cacheTags = (context.renderOpts as any).collectedTags
+    const cacheTags = context.renderOpts.collectedTags
 
     if (cacheTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
