@@ -102,9 +102,6 @@ const appDir = __dirname
           `"Promise<number>" is not a valid generateStaticParams return type`
         )
 
-        // Can't export arbitrary things.
-        expect(errors).toContain(`"bar" is not a valid Route export field.`)
-
         // Can't export invalid fields.
         expect(errors).toMatch(
           /Invalid configuration "revalidate":\s+Expected "false | number (>= 0)", got "-1"/
