@@ -905,7 +905,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
                 entries[entryKey].status = BUILDING
-
                 if (isInstrumentation) {
                   const normalizedBundlePath = bundlePath.replace('src/', '')
                   entrypoints[normalizedBundlePath] = finalizeEntrypoint({
