@@ -7,6 +7,7 @@ use petgraph::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
@@ -105,6 +106,12 @@ pub(crate) struct ItemData {
     pub content: ModuleItem,
 
     pub export: Option<JsWord>,
+
+    /// This value denotes the module specifier of the [ImportDecl] that declares this
+    /// [ItemId].
+    ///
+    /// Used to optimize `ImportBinding`.
+    pub binding_source: Option<Atom>,
 }
 
 impl fmt::Debug for ItemData {
@@ -136,6 +143,7 @@ impl Default for ItemData {
             content: ModuleItem::dummy(),
             pure: Default::default(),
             export: Default::default(),
+            binding_source: Default::default(),
         }
     }
 }
@@ -1037,6 +1045,7 @@ impl DepGraph {
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
+                                binding_source: Some(item.src.value.clone()),
                                 ..Default::default()
                             },
                         );
