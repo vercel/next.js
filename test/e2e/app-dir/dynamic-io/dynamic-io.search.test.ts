@@ -115,15 +115,13 @@ describe('dynamic-io', () => {
   if (WITH_PPR) {
     it('should partially prerender pages that access a searchParam property synchronously in a server component', async () => {
       let $ = await next.render$('/search/sync/server/access?sentinel=hello')
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#value').text()).toBe('hello')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
-          expect.stringContaining(
-            'searchParam property was accessed directly with `searchParams.sentinel`'
-          ),
+          expect.stringContaining('`searchParams.sentinel`'),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
@@ -139,15 +137,13 @@ describe('dynamic-io', () => {
 
     it('should partially prerender pages that access a searchParam property synchronously in a client component', async () => {
       let $ = await next.render$('/search/sync/client/access?sentinel=hello')
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#value').text()).toBe('hello')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
-          expect.stringContaining(
-            'searchParam property was accessed directly with `searchParams.sentinel`'
-          ),
+          expect.stringContaining('`searchParams.sentinel`'),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
@@ -161,7 +157,7 @@ describe('dynamic-io', () => {
 
     it('should partially prerender pages that checks for the existence of a searchParam property synchronously in a server component', async () => {
       let $ = await next.render$('/search/sync/server/has?sentinel=hello')
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#has-sentinel').text()).toBe('true')
@@ -190,7 +186,7 @@ describe('dynamic-io', () => {
 
     it('should partially prerender pages that checks for the existence of a searchParam property synchronously in a client component', async () => {
       let $ = await next.render$('/search/sync/client/has?sentinel=hello')
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#has-sentinel').text()).toBe('true')
@@ -219,7 +215,7 @@ describe('dynamic-io', () => {
       let $ = await next.render$(
         '/search/sync/server/spread?sentinel=hello&foo=foo&then=bar&value=baz'
       )
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('[data-value]').length).toBe(3)
@@ -229,7 +225,7 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            'searchParams are being enumerated incompletely'
+            'conflict with builtin or well-known property names: `then`'
           ),
         ])
       } else {
@@ -251,7 +247,7 @@ describe('dynamic-io', () => {
       let $ = await next.render$(
         '/search/sync/client/spread?sentinel=hello&foo=foo&then=bar&value=baz'
       )
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('[data-value]').length).toBe(3)
@@ -261,15 +257,11 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            'searchParams are being enumerated incompletely'
+            'conflict with builtin or well-known property names: `then`'
           ),
-          expect.stringContaining(
-            'accessed directly with `searchParams.sentinel`'
-          ),
-          expect.stringContaining('accessed directly with `searchParams.foo`'),
-          expect.stringContaining(
-            'accessed directly with `searchParams.value`'
-          ),
+          expect.stringContaining('`searchParams.sentinel`'),
+          expect.stringContaining('`searchParams.foo`'),
+          expect.stringContaining('`searchParams.value`'),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
@@ -286,15 +278,13 @@ describe('dynamic-io', () => {
   } else {
     it('should not prerender a page that accesses a searchParam property synchronously in a server component', async () => {
       let $ = await next.render$('/search/sync/server/access?sentinel=hello')
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#value').text()).toBe('hello')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
-          expect.stringContaining(
-            'searchParam property was accessed directly with `searchParams.sentinel`'
-          ),
+          expect.stringContaining('`searchParams.sentinel`'),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
@@ -306,15 +296,13 @@ describe('dynamic-io', () => {
 
     it('should not prerender a page that accesses a searchParam property synchronously in a client component', async () => {
       let $ = await next.render$('/search/sync/client/access?sentinel=hello')
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#value').text()).toBe('hello')
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
-          expect.stringContaining(
-            'searchParam property was accessed directly with `searchParams.sentinel`'
-          ),
+          expect.stringContaining('`searchParams.sentinel`'),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)
@@ -326,7 +314,7 @@ describe('dynamic-io', () => {
 
     it('should not prerender a page that checks for the existence of a searchParam property synchronously in a server component', async () => {
       let $ = await next.render$('/search/sync/server/has?sentinel=hello')
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#has-sentinel').text()).toBe('true')
@@ -334,10 +322,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar'
           ),
           expect.stringContaining(
-            'Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar'
           ),
         ])
       } else {
@@ -351,7 +339,7 @@ describe('dynamic-io', () => {
 
     it('should not prerender a page that checks for the existence of a searchParam property synchronously in a client component', async () => {
       let $ = await next.render$('/search/sync/client/has?sentinel=hello')
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('#has-sentinel').text()).toBe('true')
@@ -359,10 +347,10 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "sentinel")`, `"sentinel" in searchParams`, or similar'
           ),
           expect.stringContaining(
-            'Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar.'
+            '`Reflect.has(searchParams, "foo")`, `"foo" in searchParams`, or similar'
           ),
         ])
       } else {
@@ -378,7 +366,7 @@ describe('dynamic-io', () => {
       let $ = await next.render$(
         '/search/sync/server/spread?sentinel=hello&foo=foo&then=bar&value=baz'
       )
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('[data-value]').length).toBe(3)
@@ -388,7 +376,7 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            'searchParams are being enumerated incompletely'
+            'conflict with builtin or well-known property names: `then`'
           ),
         ])
       } else {
@@ -406,7 +394,7 @@ describe('dynamic-io', () => {
       let $ = await next.render$(
         '/search/sync/client/spread?sentinel=hello&foo=foo&then=bar&value=baz'
       )
-      let searchWarnings = getLines('In route /search')
+      let searchWarnings = getLines('Route "/search')
       if (isNextDev) {
         expect($('#layout').text()).toBe('at runtime')
         expect($('[data-value]').length).toBe(3)
@@ -416,15 +404,11 @@ describe('dynamic-io', () => {
         expect($('#page').text()).toBe('at runtime')
         expect(searchWarnings).toEqual([
           expect.stringContaining(
-            'searchParams are being enumerated incompletely'
+            'conflict with builtin or well-known property names: `then`'
           ),
-          expect.stringContaining(
-            'accessed directly with `searchParams.sentinel`'
-          ),
-          expect.stringContaining('accessed directly with `searchParams.foo`'),
-          expect.stringContaining(
-            'accessed directly with `searchParams.value`'
-          ),
+          expect.stringContaining('`searchParams.sentinel`'),
+          expect.stringContaining('`searchParams.foo`'),
+          expect.stringContaining('`searchParams.value`'),
         ])
       } else {
         expect(searchWarnings).toHaveLength(0)

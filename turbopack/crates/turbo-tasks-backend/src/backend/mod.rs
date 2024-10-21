@@ -41,7 +41,7 @@ use crate::{
         operation::{
             get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
             AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation,
-            ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskGuard,
+            ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskDirtyCause, TaskGuard,
         },
         storage::{get, get_many, get_mut, iter_many, remove, Storage},
     },
@@ -779,7 +779,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
-        operation::InvalidateOperation::run(smallvec![task_id], self.execute_context(turbo_tasks));
+        operation::InvalidateOperation::run(
+            smallvec![task_id],
+            TaskDirtyCause::Unknown,
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn invalidate_tasks(
@@ -789,6 +793,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
+            TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),
         );
     }
@@ -800,6 +805,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
+            TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),
         );
     }
@@ -817,9 +823,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task.invalidate_serialization();
     }
 
-    fn get_task_description(&self, task: TaskId) -> std::string::String {
-        let task_type = self.lookup_task_type(task).expect("Task not found");
-        task_type.to_string()
+    fn get_task_description(&self, task_id: TaskId) -> std::string::String {
+        self.lookup_task_type(task_id).map_or_else(
+            || format!("{task_id:?} transient"),
+            |task_type| task_type.to_string(),
+        )
     }
 
     fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId> {
@@ -1163,7 +1171,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     .get(&cell.type_id)
                                     .map_or(false, |range| range.contains(&cell.index)) =>
                             {
-                                Some(OutdatedEdge::RemovedCellDependent(task))
+                                Some(OutdatedEdge::RemovedCellDependent(task, cell.type_id))
                             }
                             _ => None,
                         },
@@ -1194,7 +1202,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .get(&cell.type_id)
                             .map_or(false, |range| range.contains(&cell.index)) =>
                     {
-                        Some(OutdatedEdge::RemovedCellDependent(task))
+                        Some(OutdatedEdge::RemovedCellDependent(task, cell.type_id))
                     }
                     _ => None,
                 })

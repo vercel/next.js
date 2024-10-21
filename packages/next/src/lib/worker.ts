@@ -38,6 +38,11 @@ export class Worker {
 
     this._worker = undefined
 
+    // ensure we end workers if they weren't before exit
+    process.on('exit', () => {
+      this.close()
+    })
+
     const createWorker = () => {
       // Get the node options without inspect and also remove the
       // --max-old-space-size flag as it can cause memory issues.

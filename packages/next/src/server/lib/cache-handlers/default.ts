@@ -4,7 +4,10 @@
 */
 import { LRUCache } from '../lru-cache'
 import type { CacheEntry, CacheHandler } from './types'
-import { isTagStale, tagsManifest } from '../incremental-cache/tags-manifest'
+import {
+  isTagStale,
+  tagsManifest,
+} from '../incremental-cache/tags-manifest.external'
 
 type PrivateCacheEntry = {
   entry: CacheEntry
@@ -100,7 +103,7 @@ const DefaultCacheHandler: CacheHandler = {
     }
   },
 
-  async expireTags(tags) {
+  async expireTags(...tags) {
     for (const tag of tags) {
       if (!tagsManifest.items[tag]) {
         tagsManifest.items[tag] = {}
@@ -110,8 +113,8 @@ const DefaultCacheHandler: CacheHandler = {
     }
   },
 
-  async receiveExpiredTags(tags): Promise<void> {
-    return this.expireTags(tags)
+  async receiveExpiredTags(...tags): Promise<void> {
+    return this.expireTags(...tags)
   },
 }
 
