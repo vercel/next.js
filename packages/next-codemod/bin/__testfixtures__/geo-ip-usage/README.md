@@ -1,1 +1,1 @@
-Should ask to install `@vercel/functions`
+Installs `@vercel/functions`

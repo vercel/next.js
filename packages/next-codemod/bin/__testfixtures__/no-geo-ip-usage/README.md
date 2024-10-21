@@ -1,1 +1,1 @@
-Should not ask to install `@vercel/functions`
+Should not install `@vercel/functions`
