@@ -8,7 +8,6 @@ use turbopack_core::{
     module::Module,
     output::OutputAsset,
     reference::all_assets_from_entries,
-    source_map::SourceMapAsset,
 };
 
 #[turbo_tasks::value(shared)]
@@ -18,6 +17,8 @@ pub struct NftJsonAsset {
     only_externals: bool,
     output_fs: Vc<DiskFileSystem>,
     project_fs: Vc<DiskFileSystem>,
+    client_fs: Vc<Box<dyn FileSystem>>,
+    additional_assets: Vec<Vc<Box<dyn OutputAsset>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -29,6 +30,8 @@ impl NftJsonAsset {
         only_externals: bool,
         output_fs: Vc<DiskFileSystem>,
         project_fs: Vc<DiskFileSystem>,
+        client_fs: Vc<Box<dyn FileSystem>>,
+        additional_assets: Vec<Vc<Box<dyn OutputAsset>>>,
     ) -> Vc<Self> {
         NftJsonAsset {
             entry,
@@ -36,10 +39,15 @@ impl NftJsonAsset {
             only_externals,
             output_fs,
             project_fs,
+            client_fs,
+            additional_assets,
         }
         .cell()
     }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct OutputSpecifier(Option<RcStr>);
 
 #[turbo_tasks::value_impl]
 impl NftJsonAsset {
@@ -62,39 +70,62 @@ impl NftJsonAsset {
     }
 
     #[turbo_tasks::function]
-    async fn get_output_specifier(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+    async fn ident_in_client_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .await?
+            .client_fs
+            .root()
+            .join(self.ident().path().parent().await?.path.clone()))
+    }
+
+    #[turbo_tasks::function]
+    async fn get_output_specifier(
+        self: Vc<Self>,
+        path: Vc<FileSystemPath>,
+    ) -> Result<Vc<OutputSpecifier>> {
         let this = self.await?;
         let path_fs = path.fs().resolve().await?;
         let path_ref = path.await?;
         let nft_folder = self.ident().path().parent().await?;
+
         if path_fs == Vc::upcast(this.output_fs.resolve().await?) {
             // e.g. a referenced chunk
-            return Ok(Vc::cell(
+            return Ok(Vc::cell(Some(
                 nft_folder.get_relative_path_to(&path_ref).unwrap(),
-            ));
+            )));
         } else if path_fs == Vc::upcast(this.project_fs.resolve().await?) {
-            return Ok(Vc::cell(
+            return Ok(Vc::cell(Some(
                 self.ident_in_project_fs()
                     .await?
                     .get_relative_path_to(&path_ref)
                     .unwrap(),
-            ));
+            )));
+        } else if path_fs == Vc::upcast(this.client_fs.resolve().await?) {
+            return Ok(Vc::cell(Some(
+                self.ident_in_client_fs()
+                    .await?
+                    .get_relative_path_to(&path_ref)
+                    .unwrap()
+                    .replace("/_next/", "/.next/")
+                    .into(),
+            )));
         }
 
         if let Some(path_fs) = Vc::try_resolve_downcast_type::<VirtualFileSystem>(path_fs).await? {
-            if path_fs.await?.name == "externals" {
-                return Ok(Vc::cell(
+            if path_fs.await?.name == "externals" || path_fs.await?.name == "traced" {
+                return Ok(Vc::cell(Some(
                     self.ident_in_project_fs()
                         .await?
                         .get_relative_path_to(
                             &*this.project_fs.root().join(path_ref.path.clone()).await?,
                         )
                         .unwrap(),
-                ));
+                )));
             }
         }
 
-        bail!("Unknown filesystem for {}", path.to_string().await?);
+        println!("Unknown filesystem for {}", path.to_string().await?);
+        Ok(Vc::cell(None))
     }
 }
 
@@ -127,11 +158,14 @@ impl Asset for NftJsonAsset {
 
         if let Some(chunk) = this.chunk {
             let chunk = chunk.resolve().await?;
-            for referenced_chunk in all_assets_from_entries(Vc::cell(vec![chunk])).await? {
-                // TODO or should it skip sourcemaps by checking path.endsWith(".map")?
-                if (Vc::try_resolve_downcast_type::<SourceMapAsset>(*referenced_chunk).await?)
-                    .is_some()
-                {
+            let entries = this
+                .additional_assets
+                .iter()
+                .copied()
+                .chain(std::iter::once(chunk))
+                .collect();
+            for referenced_chunk in all_assets_from_entries(Vc::cell(entries)).await? {
+                if referenced_chunk.ident().path().await?.extension_ref() == Some("map") {
                     continue;
                 }
 
@@ -142,7 +176,9 @@ impl Asset for NftJsonAsset {
                 let specifier = self
                     .get_output_specifier(referenced_chunk.ident().path())
                     .await?;
-                result.push(specifier);
+                if let Some(specifier) = &*specifier {
+                    result.push(specifier.clone());
+                }
             }
         }
 

@@ -1,9 +1,11 @@
 use std::hash::Hash;
 
 use anyhow::Result;
-use turbo_tasks::Vc;
+use tracing::Instrument;
+use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{
+
+use crate::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
     module::Module,
@@ -16,7 +18,7 @@ use turbopack_core::{
 #[turbo_tasks::value]
 #[derive(Hash)]
 pub struct RebasedAsset {
-    source: Vc<Box<dyn Module>>,
+    module: Vc<Box<dyn Module>>,
     input_dir: Vc<FileSystemPath>,
     output_dir: Vc<FileSystemPath>,
 }
@@ -25,12 +27,12 @@ pub struct RebasedAsset {
 impl RebasedAsset {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<Box<dyn Module>>,
+        module: Vc<Box<dyn Module>>,
         input_dir: Vc<FileSystemPath>,
         output_dir: Vc<FileSystemPath>,
     ) -> Vc<Self> {
         Self::cell(RebasedAsset {
-            source,
+            module,
             input_dir,
             output_dir,
         })
@@ -42,7 +44,7 @@ impl OutputAsset for RebasedAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
         AssetIdent::from_path(FileSystemPath::rebase(
-            self.source.ident().path(),
+            self.module.ident().path(),
             self.input_dir,
             self.output_dir,
         ))
@@ -50,18 +52,20 @@ impl OutputAsset for RebasedAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let mut references = Vec::new();
-        for &module in referenced_modules_and_affecting_sources(self.source)
-            .await?
-            .iter()
-        {
-            references.push(Vc::upcast(RebasedAsset::new(
-                module,
-                self.input_dir,
-                self.output_dir,
-            )));
+        let span = tracing::info_span!(
+            "RebasedAsset references",
+            module = self.module.ident().to_string().await?.to_string()
+        );
+        async move {
+            let references = referenced_modules_and_affecting_sources(self.module)
+                .await?
+                .iter()
+                .map(|m| Vc::upcast(RebasedAsset::new(*m, self.input_dir, self.output_dir)))
+                .collect();
+            Ok(Vc::cell(references))
         }
-        Ok(Vc::cell(references))
+        .instrument(span)
+        .await
     }
 }
 
@@ -69,6 +73,6 @@ impl OutputAsset for RebasedAsset {
 impl Asset for RebasedAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+        self.module.content()
     }
 }

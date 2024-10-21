@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -38,6 +38,7 @@ impl ClientReferenceManifest {
         runtime: NextRuntime,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let mut entry_manifest: ClientReferenceManifest = Default::default();
+        let mut references = FxIndexSet::default();
         entry_manifest.module_loading.prefix = next_config
             .computed_asset_prefix()
             .await?
@@ -81,6 +82,7 @@ impl ClientReferenceManifest {
                             .get(&app_client_reference_ty)
                     {
                         let client_chunks = client_chunks.await?;
+                        references.extend(client_chunks.iter());
                         let client_chunks_paths = client_chunks
                             .iter()
                             .map(|chunk| chunk.ident().path())
@@ -127,6 +129,7 @@ impl ClientReferenceManifest {
                             .get(&app_client_reference_ty)
                     {
                         let ssr_chunks = ssr_chunks.await?;
+                        references.extend(ssr_chunks.iter());
 
                         let ssr_chunks_paths = ssr_chunks
                             .iter()
@@ -281,7 +284,7 @@ impl ClientReferenceManifest {
         // note this only applies to the manifests, assets are placed to the original
         // path still (same as webpack does)
         let normalized_manifest_entry = entry_name.replace("%5F", "_");
-        Ok(Vc::upcast(VirtualOutputAsset::new(
+        Ok(Vc::upcast(VirtualOutputAsset::new_with_references(
             node_root.join(
                 format!("server/app{normalized_manifest_entry}_client-reference-manifest.js",)
                     .into(),
@@ -297,6 +300,7 @@ impl ClientReferenceManifest {
                 })
                 .into(),
             ),
+            Vc::cell(references.into_iter().collect()),
         )))
     }
 }

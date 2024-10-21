@@ -223,6 +223,8 @@ impl InstrumentationEndpoint {
                     true,
                     this.project.output_fs(),
                     this.project.project_fs(),
+                    this.project.client_fs(),
+                    vec![],
                 )));
             }
             Ok(Vc::cell(output_assets))

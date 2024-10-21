@@ -9,7 +9,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{trace::TraceRawVcs, RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
     util::normalize_path, DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
     LinkContent, LinkType,
@@ -1287,7 +1287,7 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize, ValueDebugFormat)]
 pub enum PatternMatch {
     File(RcStr, Vc<FileSystemPath>),
     Directory(RcStr, Vc<FileSystemPath>),

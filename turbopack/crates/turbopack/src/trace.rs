@@ -19,14 +19,14 @@ use turbopack_core::{
     issue::IssueDescriptionExt,
     module::{Module, Modules},
     output::OutputAsset,
+    rebase::RebasedAsset,
     reference::all_modules_and_affecting_sources,
     resolve::options::{ImportMapping, ResolvedMap},
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{
-    emit_asset, emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset,
-    ModuleAssetContext,
+    emit_asset, emit_with_completion, module_options::ModuleOptionsContext, ModuleAssetContext,
 };
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -121,7 +121,15 @@ pub async fn run_node_file_trace(
             .await?
             .iter()
             {
-                let nft_asset = crate::nft_json::NftJsonAsset::new(*module, None, true, fs, fs);
+                let nft_asset = crate::nft_json::NftJsonAsset::new(
+                    *module,
+                    None,
+                    true,
+                    fs,
+                    fs,
+                    Vc::upcast(fs),
+                    vec![],
+                );
                 let path = nft_asset.ident().path().await?.path.clone();
                 output_nft_assets.push(path);
                 emits.push(emit_asset(Vc::upcast(nft_asset)));

@@ -548,8 +548,8 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
-        let virtual_fs = VirtualFileSystem::new();
+    pub fn client_fs(self: Vc<Self>) -> Vc<Box<dyn FileSystem>> {
+        let virtual_fs = VirtualFileSystem::new_with_name("client-fs".into());
         Vc::upcast(virtual_fs)
     }
 
@@ -666,6 +666,8 @@ impl Project {
         Ok(get_server_compile_time_info(
             self.env(),
             this.define_env.nodejs(),
+            // `/ROOT` corresponds to `[project]/`, so we need exactly the `path` part.
+            format!("/ROOT/{}", self.project_path().await?.path).into(),
         ))
     }
 
