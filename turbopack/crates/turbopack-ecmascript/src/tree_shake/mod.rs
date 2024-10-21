@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Write};
+use std::fmt::Write;
 
 use anyhow::{bail, Result};
 use rustc_hash::FxHashMap;
@@ -55,18 +55,10 @@ struct VarState {
     last_op: Option<VarOp>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum VarOp {
     Read,
     Write,
-}
-
-fn get_var<'a>(map: &'a FxHashMap<Id, VarState>, id: &Id) -> Cow<'a, VarState> {
-    let v = map.get(id);
-    match v {
-        Some(v) => Cow::Borrowed(v),
-        None => Cow::Owned(Default::default()),
-    }
 }
 
 impl Analyzer<'_> {
@@ -155,11 +147,12 @@ impl Analyzer<'_> {
 
                 // For each var in READ_VARS:
                 for id in item.read_vars.iter() {
-                    // Create a strong dependency to all module items listed in LAST_WRITES for that
-                    // var.
+                    // read (last: read) -> ref last_writes, push last_reads
+                    // read (last: (read +) write) -> ref last_writes, clear last_reads, push
+                    // last_reads
 
                     // (the writes need to be executed before this read)
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
 
                     if let Some(declarator) = &state.declarator {
@@ -168,6 +161,10 @@ impl Analyzer<'_> {
                             self.g
                                 .add_strong_deps(item_id, [declarator].iter().copied());
                         }
+                    }
+
+                    if state.last_op == Some(VarOp::Write) && !item.write_vars.contains(id) {
+                        state.last_reads.clear();
                     }
                 }
 
@@ -179,13 +176,35 @@ impl Analyzer<'_> {
                     // (the reads need to be executed before this write, when
                     // it’s needed)
 
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
 
                     if let Some(declarator) = &state.declarator {
                         if declarator != item_id {
                             // A write also depends on the declaration.
                             self.g.add_strong_deps(item_id, [declarator]);
+                        }
+                    }
+
+                    if !item.read_vars.contains(id) {
+                        // write (last: read) -> weak_ref last_reads, clear last_writes, push
+                        // last_writes
+
+                        if state.last_op == Some(VarOp::Read) {
+                            state.last_writes.clear();
+                        } else if state.last_op == Some(VarOp::Write) {
+                            // write (last: (read +) write) -> weak_ref last_reads, push last_writes
+                        }
+                    } else {
+                        // read+write (last: read) -> weak_ref last_reads, ref last_writes, clear
+                        // last_reads, clear last_writes, push last_reads, push last_writes
+
+                        // read+write (last: (read +) write) -> ref last_writes, clear
+                        // last_reads, clear last_writes, push
+                        // last_reads, push last_writes
+                        if state.last_op.is_some() {
+                            state.last_reads.clear();
+                            state.last_writes.clear();
                         }
                     }
                 }
@@ -199,7 +218,7 @@ impl Analyzer<'_> {
                     // Create weak dependencies to all LAST_WRITES and
                     // LAST_READS.
                     for id in eventual_ids.iter() {
-                        let state = get_var(&self.vars, id);
+                        let state = self.vars.entry(id.clone()).or_default();
 
                         self.g.add_weak_deps(item_id, state.last_writes.iter());
                         self.g.add_weak_deps(item_id, state.last_reads.iter());
@@ -275,7 +294,7 @@ impl Analyzer<'_> {
                     // Create a strong dependency to all module items listed in
                     // LAST_WRITES for that var.
 
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
                     self.g.add_strong_deps(item_id, state.last_writes.iter());
 
                     if let Some(declarator) = &state.declarator {
@@ -291,7 +310,7 @@ impl Analyzer<'_> {
                     // Create a weak dependency to all module items listed in
                     // LAST_READS for that var.
 
-                    let state = get_var(&self.vars, id);
+                    let state = self.vars.entry(id.clone()).or_default();
 
                     self.g.add_weak_deps(item_id, state.last_reads.iter());
 
@@ -323,7 +342,7 @@ impl Analyzer<'_> {
                     ItemIdGroupKind::Export(local, _) => {
                         // Create a strong dependency to LAST_WRITES for this var
 
-                        let state = get_var(&self.vars, local);
+                        let state = self.vars.entry(local.clone()).or_default();
 
                         self.g.add_strong_deps(item_id, state.last_writes.iter());
                     }
