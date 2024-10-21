@@ -173,8 +173,8 @@ pub enum ChunkingType {
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingTypeOption(Option<ChunkingType>);
 
-/// A [ModuleReference] implementing this trait and returning true for
-/// [ChunkableModuleReference::is_chunkable] are considered as potentially
+/// A [ModuleReference] implementing this trait and returning Some(_) for
+/// [ChunkableModuleReference::chunking_type] are considered as potentially
 /// chunkable references. When all [Module]s of such a reference implement
 /// [ChunkableModule] they are placed in [Chunk]s during chunking.
 /// They are even potentially placed in the same [Chunk] when a chunk type
