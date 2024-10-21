@@ -31,7 +31,7 @@ use turbo_tasks::{
     TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, UriScheme, VirtualFileSystem};
 use turbopack::{
     evaluate_context::node_build_environment, transition::TransitionOptions, ModuleAssetContext,
 };
@@ -525,6 +525,15 @@ impl Issue for ConflictIssue {
 #[turbo_tasks::value_impl]
 impl Project {
     #[turbo_tasks::function]
+    pub async fn uri_scheme(&self) -> Result<Vc<UriScheme>> {
+        Ok(match &*self.mode.await? {
+            NextMode::Build => UriScheme::Custom("turbopack".into()),
+            NextMode::Development => UriScheme::File,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
     pub async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
         let app_dir = find_app_dir(self.project_path()).await?;
 
@@ -539,12 +548,14 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn project_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(
+    async fn project_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
+        let this = &*self.await?;
+        Ok(DiskFileSystem::new(
+            self.uri_scheme(),
             PROJECT_FILESYSTEM_NAME.into(),
-            self.root_path.clone(),
+            this.root_path.clone(),
             vec![],
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -554,8 +565,14 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new("output".into(), self.project_path.clone(), vec![])
+    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<DiskFileSystem>> {
+        let this = &*self.await?;
+        Ok(DiskFileSystem::new(
+            self.uri_scheme(),
+            "output".into(),
+            this.project_path.clone(),
+            vec![],
+        ))
     }
 
     #[turbo_tasks::function]

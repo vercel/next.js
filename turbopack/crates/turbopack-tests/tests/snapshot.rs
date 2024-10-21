@@ -19,7 +19,7 @@ use turbo_tasks::{
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
-    FileSystemPath,
+    FileSystemPath, UriScheme,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -194,8 +194,18 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Err(_) => SnapshotOptions::default(),
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
-    let root_fs = DiskFileSystem::new("workspace".into(), REPO_ROOT.clone(), vec![]);
-    let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
+    let root_fs = DiskFileSystem::new(
+        UriScheme::Custom("turbopack".into()).cell(),
+        "workspace".into(),
+        REPO_ROOT.clone(),
+        vec![],
+    );
+    let project_fs = DiskFileSystem::new(
+        UriScheme::Custom("turbopack".into()).cell(),
+        "project".into(),
+        REPO_ROOT.clone(),
+        vec![],
+    );
     let project_root = project_fs.root();
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;

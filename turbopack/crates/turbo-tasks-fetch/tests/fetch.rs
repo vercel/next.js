@@ -3,7 +3,7 @@
 
 use turbo_tasks::Vc;
 use turbo_tasks_fetch::{fetch, FetchErrorKind};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, UriScheme};
 use turbo_tasks_testing::{register, run, Registration};
 use turbopack_core::issue::{Issue, IssueSeverity, StyledString};
 
@@ -120,7 +120,7 @@ async fn errors_on_failed_connection() {
         assert_eq!(*err.kind.await?, FetchErrorKind::Connect);
         assert_eq!(*err.url.await?, url);
 
-        let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_issue_context());
+        let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_test_issue_context());
         assert_eq!(*issue.severity().await?, IssueSeverity::Error);
         assert_eq!(*issue.description().await?.unwrap().await?, StyledString::Text("There was an issue establishing a connection while requesting https://doesnotexist/foo.woff.".into()));
         anyhow::Ok(())
@@ -145,7 +145,7 @@ async fn errors_on_404() {
         assert!(matches!(*err.kind.await?, FetchErrorKind::Status(404)));
         assert_eq!(*err.url.await?, resource_url);
 
-        let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_issue_context());
+        let issue = err_vc.to_issue(IssueSeverity::Error.into(), get_test_issue_context());
         assert_eq!(*issue.severity().await?, IssueSeverity::Error);
         assert_eq!(
             *issue.description().await?.unwrap().await?,
@@ -163,6 +163,12 @@ async fn errors_on_404() {
     .unwrap()
 }
 
-fn get_issue_context() -> Vc<FileSystemPath> {
-    DiskFileSystem::new("root".into(), "/".into(), vec![]).root()
+fn get_test_issue_context() -> Vc<FileSystemPath> {
+    DiskFileSystem::new(
+        UriScheme::Custom("test".into()).cell(),
+        "root".into(),
+        "/".into(),
+        vec![],
+    )
+    .root()
 }

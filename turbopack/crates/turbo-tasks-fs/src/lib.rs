@@ -193,11 +193,15 @@ pub trait FileSystem: ValueToString {
         target: Vc<LinkContent>,
     ) -> Vc<Completion>;
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
+    fn file_uri(self: Vc<Self>, _fs_path: Vc<FileSystemPath>) -> Vc<RcStr> {
+        unimplemented!();
+    }
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
     pub name: RcStr,
+    pub uri_scheme: Vc<UriScheme>,
     pub root: RcStr,
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
@@ -415,6 +419,12 @@ pub fn path_to_key(path: impl AsRef<Path>) -> String {
     path.as_ref().to_string_lossy().to_string()
 }
 
+#[turbo_tasks::value(shared)]
+pub enum UriScheme {
+    File,
+    Custom(RcStr),
+}
+
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
     /// Create a new instance of `DiskFileSystem`.
@@ -426,12 +436,18 @@ impl DiskFileSystem {
     ///   be a full path, since it is possible that root & project dir is different and requires to
     ///   ignore specific subpaths from each.
     #[turbo_tasks::function]
-    pub async fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
+    pub async fn new(
+        uri_scheme: Vc<UriScheme>,
+        name: RcStr,
+        root: RcStr,
+        ignored_subpaths: Vec<RcStr>,
+    ) -> Result<Vc<Self>> {
         mark_stateful();
 
         let instance = DiskFileSystem {
             name,
             root,
+            uri_scheme,
             mutex_map: Default::default(),
             invalidation_lock: Default::default(),
             invalidator_map: Arc::new(InvalidatorMap::new()),
@@ -886,6 +902,22 @@ impl FileSystem for DiskFileSystem {
 
         Ok(FileMeta::cell(meta.into()))
     }
+
+    #[turbo_tasks::function(fs)]
+    async fn file_uri(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(RcStr::from(match &*self.uri_scheme.await? {
+            UriScheme::File => {
+                format!(
+                    "file://{}",
+                    sys_to_unix(&self.to_sys_path(fs_path).await?.to_string_lossy())
+                )
+            }
+            UriScheme::Custom(uri_scheme) => {
+                let path_str = &*fs_path.await?.path;
+                format!("{}://[{}]/{}", uri_scheme, self.name, path_str)
+            }
+        })))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -1300,6 +1332,12 @@ impl FileSystemPath {
             Cow::Borrowed(_) => self,
             Cow::Owned(path) => path.cell(),
         })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn uri(self: Vc<Self>) -> Result<Vc<RcStr>> {
+        let this = self.await?;
+        Ok(this.fs.file_uri(self))
     }
 }
 

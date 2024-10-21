@@ -18,7 +18,7 @@ use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileContent,
-    FileSystem, FileSystemEntryType, FileSystemPath,
+    FileSystem, FileSystemEntryType, FileSystemPath, UriScheme,
 };
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
@@ -204,8 +204,18 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         resource_path.to_str().unwrap()
     );
 
-    let root_fs = DiskFileSystem::new("workspace".into(), REPO_ROOT.clone(), vec![]);
-    let project_fs = DiskFileSystem::new("project".into(), REPO_ROOT.clone(), vec![]);
+    let root_fs = DiskFileSystem::new(
+        UriScheme::Custom("turbopack".into()).cell(),
+        "workspace".into(),
+        REPO_ROOT.clone(),
+        vec![],
+    );
+    let project_fs = DiskFileSystem::new(
+        UriScheme::Custom("turbopack".into()).cell(),
+        "project".into(),
+        REPO_ROOT.clone(),
+        vec![],
+    );
     let project_root = project_fs.root();
 
     let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(

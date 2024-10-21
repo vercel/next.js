@@ -11,7 +11,7 @@ use tokio::{spawn, time::sleep};
 use turbo_tasks::{
     util::FormatDuration, RcStr, ReadConsistency, TurboTasks, UpdateInfo, Value, Vc,
 };
-use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, UriScheme};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{emit_with_completion, rebase::RebasedAsset, register};
 use turbopack_core::{
@@ -33,7 +33,12 @@ async fn main() -> Result<()> {
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
             let root: RcStr = current_dir().unwrap().to_str().unwrap().into();
-            let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), root, vec![]);
+            let disk_fs = DiskFileSystem::new(
+                UriScheme::Custom("turbopack".into()).cell(),
+                PROJECT_FILESYSTEM_NAME.into(),
+                root,
+                vec![],
+            );
             disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast

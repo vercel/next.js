@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 use turbo_tasks::{util::FormatDuration, RcStr, ReadConsistency, TurboTasks, UpdateInfo, Vc};
 use turbo_tasks_fs::{
     glob::Glob, register, DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
-    ReadGlobResult,
+    ReadGlobResult, UriScheme,
 };
 use turbo_tasks_memory::MemoryBackend;
 
@@ -28,7 +28,12 @@ async fn main() -> Result<()> {
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
             let root = current_dir().unwrap().to_str().unwrap().into();
-            let disk_fs = DiskFileSystem::new("project".into(), root, vec![]);
+            let disk_fs = DiskFileSystem::new(
+                UriScheme::Custom("turbopack".into()).cell(),
+                "project".into(),
+                root,
+                vec![],
+            );
             disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast

@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use indexmap::IndexMap;
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, Pattern, Segment},
     dependencies::{Dependency, ImportDependency, Location, SourceRange},
@@ -50,7 +51,6 @@ use turbopack_core::{
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap},
     source_pos::SourcePos,
-    SOURCE_MAP_PREFIX,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -69,7 +69,10 @@ static BASENAME_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^.]*").unwrap());
 
 #[derive(Debug)]
 pub enum StyleSheetLike<'i, 'o> {
-    LightningCss(StyleSheet<'i, 'o>),
+    LightningCss {
+        stylesheet: StyleSheet<'i, 'o>,
+        source_map_source_replacements: IndexMap<String, String>,
+    },
     Swc {
         stylesheet: swc_core::css::ast::Stylesheet,
         css_modules: Option<SwcCssModuleMode>,
@@ -96,9 +99,13 @@ impl StyleSheetLike<'_, '_> {
         options: ParserOptions<'static, 'static>,
     ) -> StyleSheetLike<'static, 'static> {
         match self {
-            StyleSheetLike::LightningCss(ss) => {
-                StyleSheetLike::LightningCss(stylesheet_into_static(ss, options))
-            }
+            StyleSheetLike::LightningCss {
+                stylesheet,
+                source_map_source_replacements,
+            } => StyleSheetLike::LightningCss {
+                stylesheet: stylesheet_into_static(stylesheet, options),
+                source_map_source_replacements: source_map_source_replacements.clone(),
+            },
             StyleSheetLike::Swc {
                 stylesheet,
                 css_modules,
@@ -119,7 +126,10 @@ impl StyleSheetLike<'_, '_> {
         handle_nesting: bool,
     ) -> Result<CssOutput> {
         match self {
-            StyleSheetLike::LightningCss(ss) => {
+            StyleSheetLike::LightningCss {
+                stylesheet,
+                source_map_source_replacements,
+            } => {
                 let mut srcmap = if enable_srcmap {
                     Some(parcel_sourcemap::SourceMap::new(""))
                 } else {
@@ -135,7 +145,7 @@ impl StyleSheetLike<'_, '_> {
                     Default::default()
                 };
 
-                let result = ss.to_css(PrinterOptions {
+                let result = stylesheet.to_css(PrinterOptions {
                     minify: matches!(minify_type, MinifyType::Minify),
                     source_map: srcmap.as_mut(),
                     targets,
@@ -144,15 +154,20 @@ impl StyleSheetLike<'_, '_> {
                 })?;
 
                 if let Some(srcmap) = &mut srcmap {
-                    debug_assert_eq!(ss.sources.len(), 1);
+                    debug_assert_eq!(stylesheet.sources.len(), 1);
 
-                    srcmap.add_sources(ss.sources.clone());
+                    srcmap.add_sources(stylesheet.sources.clone());
                     srcmap.set_source_content(0, code)?;
                 }
 
                 Ok((
                     result,
-                    srcmap.map(ParseCssResultSourceMap::new_lightningcss),
+                    srcmap.map(|m| {
+                        ParseCssResultSourceMap::new_lightningcss(
+                            m,
+                            source_map_source_replacements.clone(),
+                        )
+                    }),
                 ))
             }
             StyleSheetLike::Swc {
@@ -309,6 +324,11 @@ pub enum ParseCssResult {
 
         #[turbo_tasks(trace_ignore)]
         options: ParserOptions<'static, 'static>,
+
+        // A mapping of replacements for source path names to be used when generating sourcemaps.
+        // Lightningcss doesn't properly respect URLs, so project-relative source paths need to be
+        // replaced.
+        source_map_replacements: IndexMap<String, String>,
     },
     Unparseable,
     NotFound,
@@ -493,7 +513,8 @@ pub async fn parse_css(
     async move {
         let content = source.content();
         let fs_path = source.ident().path();
-        let ident_str = &*source.ident().to_string().await?;
+        let file_path_str = &*fs_path.await?.path;
+        let file_uri = &*source.ident().path().uri().await?;
         Ok(match &*content.await? {
             AssetContent::Redirect { .. } => ParseCssResult::Unparseable.cell(),
             AssetContent::File(file_content) => match &*file_content.await? {
@@ -505,7 +526,8 @@ pub async fn parse_css(
                             *file_content,
                             string.into_owned(),
                             fs_path,
-                            ident_str,
+                            file_path_str,
+                            file_uri,
                             source,
                             origin,
                             import_context,
@@ -526,7 +548,8 @@ async fn process_content(
     content_vc: Vc<FileContent>,
     code: String,
     fs_path_vc: Vc<FileSystemPath>,
-    filename: &str,
+    file_path: &str,
+    file_uri: &str,
     source: Vc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
     import_context: Vc<ImportContext>,
@@ -564,85 +587,94 @@ async fn process_content(
 
             _ => None,
         },
-        filename: filename.to_string(),
+        filename: file_path.to_string(),
         error_recovery: true,
         ..Default::default()
     };
 
     let cm: Arc<swc_core::common::SourceMap> = Default::default();
 
+    let source_map_replacements = {
+        let mut map = IndexMap::new();
+        map.insert(file_path.to_string(), file_uri.to_string());
+        map
+    };
+
     let stylesheet = if !use_swc_css {
-        StyleSheetLike::LightningCss({
-            let warnings: Arc<RwLock<_>> = Default::default();
+        StyleSheetLike::LightningCss {
+            source_map_source_replacements: source_map_replacements.clone(),
+            stylesheet: ({
+                let warnings: Arc<RwLock<_>> = Default::default();
 
-            match StyleSheet::parse(
-                &code,
-                ParserOptions {
-                    warnings: Some(warnings.clone()),
-                    ..config.clone()
-                },
-            ) {
-                Ok(mut ss) => {
-                    if matches!(ty, CssModuleAssetType::Module) {
-                        let mut validator = CssValidator { errors: Vec::new() };
-                        ss.visit(&mut validator).unwrap();
+                match StyleSheet::parse(
+                    &code,
+                    ParserOptions {
+                        warnings: Some(warnings.clone()),
+                        ..config.clone()
+                    },
+                ) {
+                    Ok(mut ss) => {
+                        if matches!(ty, CssModuleAssetType::Module) {
+                            let mut validator = CssValidator { errors: Vec::new() };
+                            ss.visit(&mut validator).unwrap();
 
-                        for err in validator.errors {
-                            err.report(source, fs_path_vc);
+                            for err in validator.errors {
+                                err.report(source, fs_path_vc);
+                            }
                         }
-                    }
 
-                    for err in warnings.read().unwrap().iter() {
-                        match err.kind {
-                            lightningcss::error::ParserError::UnexpectedToken(_)
-                            | lightningcss::error::ParserError::UnexpectedImportRule
-                            | lightningcss::error::ParserError::SelectorError(..)
-                            | lightningcss::error::ParserError::EndOfInput => {
-                                let source = err.loc.as_ref().map(|loc| {
-                                    let pos = SourcePos {
-                                        line: loc.line as _,
-                                        column: loc.column as _,
-                                    };
-                                    IssueSource::from_line_col(source, pos, pos)
-                                });
+                        for err in warnings.read().unwrap().iter() {
+                            match err.kind {
+                                lightningcss::error::ParserError::UnexpectedToken(_)
+                                | lightningcss::error::ParserError::UnexpectedImportRule
+                                | lightningcss::error::ParserError::SelectorError(..)
+                                | lightningcss::error::ParserError::EndOfInput => {
+                                    let source = err.loc.as_ref().map(|loc| {
+                                        let pos = SourcePos {
+                                            line: loc.line as _,
+                                            column: loc.column as _,
+                                        };
+                                        IssueSource::from_line_col(source, pos, pos)
+                                    });
 
-                                ParsingIssue {
-                                    file: fs_path_vc,
-                                    msg: Vc::cell(err.to_string().into()),
-                                    source,
+                                    ParsingIssue {
+                                        file: fs_path_vc,
+                                        msg: Vc::cell(err.to_string().into()),
+                                        source,
+                                    }
+                                    .cell()
+                                    .emit();
+                                    return Ok(ParseCssResult::Unparseable.cell());
                                 }
-                                .cell()
-                                .emit();
-                                return Ok(ParseCssResult::Unparseable.cell());
-                            }
 
-                            _ => {
-                                // Ignore
+                                _ => {
+                                    // Ignore
+                                }
                             }
                         }
-                    }
 
-                    stylesheet_into_static(&ss, without_warnings(config.clone()))
-                }
-                Err(e) => {
-                    let source = e.loc.as_ref().map(|loc| {
-                        let pos = SourcePos {
-                            line: loc.line as _,
-                            column: loc.column as _,
-                        };
-                        IssueSource::from_line_col(source, pos, pos)
-                    });
-                    ParsingIssue {
-                        file: fs_path_vc,
-                        msg: Vc::cell(e.to_string().into()),
-                        source,
+                        stylesheet_into_static(&ss, without_warnings(config.clone()))
                     }
-                    .cell()
-                    .emit();
-                    return Ok(ParseCssResult::Unparseable.cell());
+                    Err(e) => {
+                        let source = e.loc.as_ref().map(|loc| {
+                            let pos = SourcePos {
+                                line: loc.line as _,
+                                column: loc.column as _,
+                            };
+                            IssueSource::from_line_col(source, pos, pos)
+                        });
+                        ParsingIssue {
+                            file: fs_path_vc,
+                            msg: Vc::cell(e.to_string().into()),
+                            source,
+                        }
+                        .cell()
+                        .emit();
+                        return Ok(ParseCssResult::Unparseable.cell());
+                    }
                 }
-            }
-        })
+            }),
+        }
     } else {
         let fs_path = &*fs_path_vc.await?;
 
@@ -656,7 +688,7 @@ async fn process_content(
             )),
         );
 
-        let fm = cm.new_source_file(FileName::Custom(filename.to_string()).into(), code.clone());
+        let fm = cm.new_source_file(FileName::Custom(file_uri.to_string()).into(), code.clone());
         let mut errors = vec![];
 
         let ss = swc_core::css::parser::parse_file(
@@ -706,7 +738,7 @@ async fn process_content(
                     .context("Must include basename preceding .")?
                     .as_str();
                 // Truncate this as u32 so it's formatted as 8-character hex in the suffix below
-                let path_hash = turbo_tasks_hash::hash_xxh3_hash64(filename) as u32;
+                let path_hash = turbo_tasks_hash::hash_xxh3_hash64(file_uri) as u32;
 
                 Some(SwcCssModuleMode {
                     basename: basename.to_string(),
@@ -731,6 +763,7 @@ async fn process_content(
         references: Vc::cell(references),
         url_references: Vc::cell(url_references),
         options: config,
+        source_map_replacements,
     }
     .cell())
 }
@@ -945,6 +978,7 @@ pub enum ParseCssResultSourceMap {
     Parcel {
         #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: parcel_sourcemap::SourceMap,
+        source_replacements: IndexMap<String, String>,
     },
 
     Swc {
@@ -965,8 +999,14 @@ impl PartialEq for ParseCssResultSourceMap {
 }
 
 impl ParseCssResultSourceMap {
-    pub fn new_lightningcss(source_map: parcel_sourcemap::SourceMap) -> Self {
-        ParseCssResultSourceMap::Parcel { source_map }
+    pub fn new_lightningcss(
+        source_map: parcel_sourcemap::SourceMap,
+        source_replacements: IndexMap<String, String>,
+    ) -> Self {
+        ParseCssResultSourceMap::Parcel {
+            source_map,
+            source_replacements,
+        }
     }
 
     pub fn new_swc(
@@ -985,11 +1025,14 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
     #[turbo_tasks::function]
     fn generate_source_map(&self) -> Vc<OptionSourceMap> {
         match self {
-            ParseCssResultSourceMap::Parcel { source_map } => {
+            ParseCssResultSourceMap::Parcel {
+                source_map,
+                source_replacements,
+            } => {
                 let mut builder = SourceMapBuilder::new(None);
 
                 for src in source_map.get_sources() {
-                    builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
+                    builder.add_source(source_replacements.get(src).unwrap_or(src));
                 }
 
                 for (idx, content) in source_map.get_sources_content().iter().enumerate() {

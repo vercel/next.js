@@ -52,8 +52,8 @@ pub fn analyze_references(
     let mut visitor =
         ModuleReferencesVisitor::new(source, origin, import_context, &mut references, &mut urls);
     match stylesheet {
-        StyleSheetLike::LightningCss(ss) => {
-            ss.visit(&mut visitor).unwrap();
+        StyleSheetLike::LightningCss { stylesheet, .. } => {
+            stylesheet.visit(&mut visitor).unwrap();
         }
         StyleSheetLike::Swc { stylesheet, .. } => {
             stylesheet.visit_mut_with(&mut visitor);

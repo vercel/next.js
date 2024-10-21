@@ -10,7 +10,7 @@ use turbo_tasks_env::{CommandLineProcessEnv, ProcessEnv};
 use turbo_tasks_fetch::{fetch, HttpResponseBody};
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, DiskFileSystem, File, FileContent, FileSystem,
-    FileSystemPath,
+    FileSystemPath, UriScheme,
 };
 use turbopack::evaluate_context::node_evaluate_asset_context;
 use turbopack_core::{
@@ -637,6 +637,7 @@ async fn get_mock_stylesheet(
 ) -> Result<Option<Vc<RcStr>>> {
     let response_path = Path::new(&mocked_responses_path);
     let mock_fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
+        UriScheme::Custom("test".into()).cell(),
         "mock".into(),
         response_path
             .parent()

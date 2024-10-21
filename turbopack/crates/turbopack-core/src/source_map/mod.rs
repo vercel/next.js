@@ -359,17 +359,16 @@ impl SourceMap {
         ) -> Result<(Arc<str>, Arc<str>)> {
             Ok(
                 if let Some(path) = *origin.parent().try_join((&*source_request).into()).await? {
-                    let path_str = path.to_string().await?;
-                    let source = format!("{SOURCE_MAP_PREFIX}{}", path_str);
+                    let source = &*path.uri().await?;
                     let source_content = if let Some(source_content) = source_content {
                         source_content
                     } else if let FileContent::Content(file) = &*path.read().await? {
                         let text = file.content().to_str()?;
                         text.to_string().into()
                     } else {
-                        format!("unable to read source {path_str}").into()
+                        format!("unable to read source {source}").into()
                     };
-                    (source.into(), source_content)
+                    (source.to_string().into(), source_content)
                 } else {
                     let origin_str = origin.to_string().await?;
                     static INVALID_REGEX: Lazy<Regex> =
