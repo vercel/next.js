@@ -1,7 +1,7 @@
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, RcStr, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, RcStr, Vc};
+use turbopack_core::module::Modules;
 
 use crate::paths::ServerPath;
 
@@ -75,6 +75,7 @@ pub trait Endpoint {
     fn write_to_disk(self: Vc<Self>) -> Vc<WrittenEndpoint>;
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
     fn client_changed(self: Vc<Self>) -> Vc<Completion>;
+    fn root_modules(self: Vc<Self>) -> Vc<Modules>;
 }
 
 #[turbo_tasks::value(shared)]
@@ -95,4 +96,4 @@ pub enum WrittenEndpoint {
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
 #[turbo_tasks::value(transparent)]
-pub struct Routes(IndexMap<RcStr, Route>);
+pub struct Routes(FxIndexMap<RcStr, Route>);

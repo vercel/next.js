@@ -52,12 +52,12 @@ impl FileSystem for ServerFileSystem {
         _fs_path: Vc<FileSystemPath>,
         _target: Vc<LinkContent>,
     ) -> Result<Vc<Completion>> {
-        bail!("Writing is not possible to the marker filesystem for the  server")
+        bail!("Writing is not possible to the marker filesystem for the server")
     }
 
     #[turbo_tasks::function]
     fn metadata(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<FileMeta>> {
-        bail!("Reading is not possible from the marker filesystem for the  server")
+        bail!("Reading is not possible from the marker filesystem for the server")
     }
 }
 

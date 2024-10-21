@@ -20,11 +20,15 @@ use swc_core::{
     },
 };
 
-use crate::transforms::{
-    cjs_finder::contains_cjs,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::next_font_loaders,
-    react_server_components,
+use crate::{
+    linter::linter,
+    transforms::{
+        cjs_finder::contains_cjs,
+        dynamic::{next_dynamic, NextDynamicMode},
+        fonts::next_font_loaders,
+        lint_codemod_comments::lint_codemod_comments,
+        react_server_components,
+    },
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -111,6 +115,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub debug_function_name: bool,
+
+    #[serde(default)]
+    pub lint_codemod_comments: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -132,7 +139,7 @@ where
         if let Some(config) = &opts.relay {
             Either::Left(swc_relay::relay(
                 Arc::new(config.clone()),
-                file.name.clone(),
+                (*file.name).clone(),
                 std::env::current_dir().unwrap(),
                 opts.pages_dir.clone(),
                 None,
@@ -160,7 +167,7 @@ where
     let styled_jsx = if let Some(config) = opts.styled_jsx.to_option() {
         Either::Left(styled_jsx::visitor::styled_jsx(
             cm.clone(),
-            file.name.clone(),
+            (*file.name).clone(),
             styled_jsx::visitor::Config {
                 use_lightningcss: config.use_lightningcss,
                 browsers: target_browsers,
@@ -266,7 +273,7 @@ where
                 if !config.enabled.unwrap_or(false) {
                     return None;
                 }
-                if let FileName::Real(path) = &file.name {
+                if let FileName::Real(path) = &*file.name {
                     path.to_str().map(|_| {
                         Either::Left(swc_emotion::EmotionTransformer::new(
                             config.clone(),
@@ -307,7 +314,11 @@ where
             crate::transforms::debug_fn_name::debug_fn_name(),
             opts.debug_function_name
         ),
-        as_folder(crate::transforms::pure::pure_magic(comments)),
+        as_folder(crate::transforms::pure::pure_magic(comments.clone())),
+        Optional::new(
+            linter(lint_codemod_comments(comments)),
+            opts.lint_codemod_comments
+        ),
     )
 }
 

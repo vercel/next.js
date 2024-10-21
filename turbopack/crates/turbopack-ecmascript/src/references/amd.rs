@@ -20,7 +20,7 @@ use turbopack_core::{
     reference::ModuleReference,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
-use turbopack_resolve::ecmascript::{cjs_resolve, try_to_severity};
+use turbopack_resolve::ecmascript::cjs_resolve;
 
 use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
@@ -64,7 +64,7 @@ impl ModuleReference for AmdDefineAssetReference {
             self.origin,
             self.request,
             Some(self.issue_source),
-            try_to_severity(self.in_try),
+            self.in_try,
         )
     }
 }
@@ -159,7 +159,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                                 self.origin,
                                 *request,
                                 Some(self.issue_source),
-                                try_to_severity(self.in_try),
+                                self.in_try,
                             ),
                             Value::new(ChunkItem),
                         )
@@ -189,7 +189,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
             }),
         );
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 
@@ -244,7 +244,7 @@ fn transform_amd_factory(
                 args: deps,
                 callee: Callee::Expr(Box::new(Expr::Ident(f.clone()))),
                 span: DUMMY_SP,
-                type_args: None,
+                ..Default::default()
             });
             *callee = Callee::Expr(quote_expr!(
                 "($f1, r = typeof $f2 !== \"function\" ? $f3 : $call_f) => r !== undefined && \
@@ -268,8 +268,7 @@ fn transform_amd_factory(
                 expr: Box::new(Expr::Call(CallExpr {
                     args: deps,
                     callee: Callee::Expr(factory),
-                    span: DUMMY_SP,
-                    type_args: None,
+                    ..Default::default()
                 })),
                 spread: None,
             });

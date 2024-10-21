@@ -1,8 +1,9 @@
-export default function ModalPage({
-  params: { id },
+export default async function ModalPage({
+  params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = await params
   return (
     <dialog id="non-intercepted-slot" open>
       <h1>Modal for No Interception Page</h1>

@@ -41,7 +41,7 @@ function stringifySourceInfo(source: SourceInfo): string {
 type ExternalRequire = (id: ModuleId) => Exports | EsmNamespaceObject;
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
-interface TurbopackNodeBuildContext extends TurbopackBaseContext {
+interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
   R: ResolvePathFromModule;
   x: ExternalRequire;
   y: ExternalImport;
@@ -57,7 +57,7 @@ const fs = require("fs/promises");
 const vm = require("vm");
 
 const moduleFactories: ModuleFactories = Object.create(null);
-const moduleCache: ModuleCache = Object.create(null);
+const moduleCache: ModuleCache<ModuleWithDirection> = Object.create(null);
 
 /**
  * Returns an absolute path to the given module's id.
@@ -136,6 +136,10 @@ async function loadChunkAsync(
   try {
     const contents = await fs.readFile(resolved, "utf-8");
 
+    const localRequire = (id: string) => {
+      let resolvedId = require.resolve(id, {paths: [path.dirname(resolved)]});
+      return require(resolvedId);
+    }
     const module = {
       exports: {},
     };
@@ -144,7 +148,7 @@ async function loadChunkAsync(
         contents +
         "\n})",
       resolved
-    )(module, module.exports, require, path.dirname(resolved), resolved);
+    )(module, module.exports, localRequire, path.dirname(resolved), resolved);
 
     const chunkModules: ModuleFactories = module.exports;
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
@@ -177,7 +181,11 @@ function loadWebAssemblyModule(chunkPath: ChunkPath) {
   return compileWebAssemblyFromPath(resolved);
 }
 
-function instantiateModule(id: ModuleId, source: SourceInfo): Module {
+function getWorkerBlobURL(_chunks: ChunkPath[]): string {
+  throw new Error("Worker blobs are not implemented yet for Node.js");
+}
+
+function instantiateModule(id: ModuleId, source: SourceInfo): ModuleWithDirection {
   const moduleFactory = moduleFactories[id];
   if (typeof moduleFactory !== "function") {
     // This can happen if modules incorrectly handle HMR disposes/updates,
@@ -213,7 +221,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       invariant(source, (source) => `Unknown source type: ${source?.type}`);
   }
 
-  const module: Module = {
+  const module: ModuleWithDirection = {
     exports: {},
     error: undefined,
     loaded: false,
@@ -250,7 +258,9 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       P: resolveAbsolutePath,
       U: relativeURL,
       R: createResolvePathFromModule(r),
-      __dirname: module.id.replace(/(^|\/)\/+$/, ""),
+      b: getWorkerBlobURL,
+      z: requireStub,
+      __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
     });
   } catch (error) {
     module.error = error as any;
@@ -269,10 +279,11 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
  */
+// @ts-ignore
 function getOrInstantiateModuleFromParent(
   id: ModuleId,
-  sourceModule: Module
-): Module {
+  sourceModule: ModuleWithDirection
+): ModuleWithDirection {
   const module = moduleCache[id];
 
   if (sourceModule.children.indexOf(id) === -1) {
@@ -306,6 +317,7 @@ function instantiateRuntimeModule(
 /**
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
  */
+// @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(
   moduleId: ModuleId,
   chunkPath: ChunkPath

@@ -1,2 +1,2 @@
 export type StackFrame = any;
-export const parse: any;
+export function parse(stackString: string): StackFrame[];

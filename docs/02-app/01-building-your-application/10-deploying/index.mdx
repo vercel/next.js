@@ -31,6 +31,8 @@ You can self-host Next.js in three different ways:
 - [A Docker container](#docker-image)
 - [A static export](#static-html-export)
 
+> **🎥 Watch:** Learn more about self-hosting Next.js → [YouTube (45 minutes)](https://www.youtube.com/watch?v=sIVL4JMqRfc).
+
 ### Node.js Server
 
 Next.js can be deployed to any hosting provider that supports Node.js. Ensure your `package.json` has the `"build"` and `"start"` scripts:
@@ -98,20 +100,45 @@ Next.js can support both build time and runtime environment variables.
 
 **By default, environment variables are only available on the server**. To expose an environment variable to the browser, it must be prefixed with `NEXT_PUBLIC_`. However, these public environment variables will be inlined into the JavaScript bundle during `next build`.
 
-To read runtime environment variables, we recommend using `getServerSideProps` or [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration). With the App Router, we can safely read environment variables on the server during dynamic rendering. This allows you to use a singular Docker image that can be promoted through multiple environments with different values.
+<PagesOnly>
 
-```jsx
-import { unstable_noStore as noStore } from 'next/cache';
+To read runtime environment variables, we recommend using `getServerSideProps` or [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration).
 
-export default function Component() {
-  noStore();
-  // cookies(), headers(), and other dynamic functions
-  // will also opt into dynamic rendering, making
+</PagesOnly>
+
+<AppOnly>
+
+You safely read environment variables on the server during dynamic rendering.
+
+```tsx filename="app/page.ts" switcher
+import { connection } from 'next/server'
+
+export default async function Component() {
+  await connection()
+  // cookies, headers, and other Dynamic APIs
+  // will also opt into dynamic rendering, meaning
   // this env variable is evaluated at runtime
   const value = process.env.MY_VALUE
-  ...
+  // ...
 }
 ```
+
+```jsx filename="app/page.js" switcher
+import { connection } from 'next/server'
+
+export default async function Component() {
+  await connection()
+  // cookies, headers, and other Dynamic APIs
+  // will also opt into dynamic rendering, meaning
+  // this env variable is evaluated at runtime
+  const value = process.env.MY_VALUE
+  // ...
+}
+```
+
+</AppOnly>
+
+This allows you to use a singular Docker image that can be promoted through multiple environments with different values.
 
 > **Good to know:**
 >
@@ -122,7 +149,7 @@ export default function Component() {
 
 Next.js can cache responses, generated static pages, build outputs, and other static assets like images, fonts, and scripts.
 
-Caching and revalidating pages (using Incremental Static Regeneration (ISR) or newer functions in the App Router) use the **same shared cache**. By default, this cache is stored to the filesystem (on disk) on your Next.js server. **This works automatically when self-hosting** using both the Pages and App Router.
+Caching and revalidating pages (with [Incremental Static Regeneration](/docs/app/building-your-application/data-fetching/incremental-static-regeneration)) use the **same shared cache**. By default, this cache is stored to the filesystem (on disk) on your Next.js server. **This works automatically when self-hosting** using both the Pages and App Router.
 
 You can configure the Next.js cache location if you want to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application.
 
@@ -175,11 +202,13 @@ module.exports = class CacheHandler {
     })
   }
 
-  async revalidateTag(tag) {
+  async revalidateTag(tags) {
+    // tags is either a string or an array of strings
+    tags = [tags].flat()
     // Iterate over all entries in the cache
     for (let [key, value] of cache) {
       // If the value's tags include the specified tag, delete this entry
-      if (value.tags.includes(tag)) {
+      if (value.tags.some((tag) => tags.include(tag))) {
         cache.delete(key)
       }
     }
@@ -246,7 +275,7 @@ module.exports = {
 
 ### Partial Prerendering
 
-[Partial Prendering (experimental)](/docs/app/building-your-application/rendering/partial-prerendering) works by default with Next.js and is not a CDN feature. This includes deployment as a Node.js server (through `next start`) and when used with a Docker container.
+[Partial Prerendering (experimental)](/docs/app/building-your-application/rendering/partial-prerendering) works by default with Next.js and is not a CDN feature. This includes deployment as a Node.js server (through `next start`) and when used with a Docker container.
 
 ### Usage with CDNs
 

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{Completion, RcStr, ValueToString, Vc};
+use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
@@ -26,21 +26,21 @@ pub struct PagesStructureItem {
 #[turbo_tasks::value_impl]
 impl PagesStructureItem {
     #[turbo_tasks::function]
-    async fn new(
+    fn new(
         base_path: Vc<FileSystemPath>,
         extensions: Vc<Vec<RcStr>>,
         fallback_path: Option<Vc<FileSystemPath>>,
         next_router_path: Vc<FileSystemPath>,
         original_path: Vc<FileSystemPath>,
-    ) -> Result<Vc<Self>> {
-        Ok(PagesStructureItem {
+    ) -> Vc<Self> {
+        PagesStructureItem {
             base_path,
             extensions,
             fallback_path,
             next_router_path,
             original_path,
         }
-        .cell())
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -58,15 +58,6 @@ impl PagesStructureItem {
             Ok(self.base_path)
         }
     }
-
-    /// Returns a completion that changes when any route in the whole tree
-    /// changes.
-    #[turbo_tasks::function]
-    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        let this = self.await?;
-        this.next_router_path.await?;
-        Ok(Completion::new())
-    }
 }
 
 /// A (sub)directory in the pages directory with all analyzed routes and
@@ -82,29 +73,6 @@ pub struct PagesStructure {
 
 #[turbo_tasks::value_impl]
 impl PagesStructure {
-    /// Returns a completion that changes when any route in the whole tree
-    /// changes.
-    #[turbo_tasks::function]
-    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        let PagesStructure {
-            ref app,
-            ref document,
-            ref error,
-            ref api,
-            ref pages,
-        } = &*self.await?;
-        app.routes_changed().await?;
-        document.routes_changed().await?;
-        error.routes_changed().await?;
-        if let Some(api) = api {
-            api.routes_changed().await?;
-        }
-        if let Some(pages) = pages {
-            pages.routes_changed().await?;
-        }
-        Ok(Completion::new())
-    }
-
     #[turbo_tasks::function]
     pub fn app(&self) -> Vc<PagesStructureItem> {
         self.app
@@ -131,30 +99,11 @@ pub struct PagesDirectoryStructure {
 
 #[turbo_tasks::value_impl]
 impl PagesDirectoryStructure {
-    /// Returns the router path of this directory.
-    #[turbo_tasks::function]
-    pub async fn next_router_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.next_router_path)
-    }
-
     /// Returns the path to the directory of this structure in the project file
     /// system.
     #[turbo_tasks::function]
-    pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.project_path)
-    }
-
-    /// Returns a completion that changes when any route in the whole tree
-    /// changes.
-    #[turbo_tasks::function]
-    pub async fn routes_changed(self: Vc<Self>) -> Result<Vc<Completion>> {
-        for item in self.await?.items.iter() {
-            item.routes_changed().await?;
-        }
-        for child in self.await?.children.iter() {
-            child.routes_changed().await?;
-        }
-        Ok(Completion::new())
+    pub fn project_path(&self) -> Vc<FileSystemPath> {
+        self.project_path
     }
 }
 
@@ -168,33 +117,29 @@ pub async fn find_pages_structure(
     let pages_root = project_root
         .join("pages".into())
         .realpath()
-        .resolve()
+        .to_resolved()
         .await?;
-    let pages_root = Vc::<FileSystemPathOption>::cell(
-        if *pages_root.get_type().await? == FileSystemEntryType::Directory {
-            Some(pages_root)
+    let pages_root = if *pages_root.get_type().await? == FileSystemEntryType::Directory {
+        Some(pages_root)
+    } else {
+        let src_pages_root = project_root
+            .join("src/pages".into())
+            .realpath()
+            .to_resolved()
+            .await?;
+        if *src_pages_root.get_type().await? == FileSystemEntryType::Directory {
+            Some(src_pages_root)
         } else {
-            let src_pages_root = project_root
-                .join("src/pages".into())
-                .realpath()
-                .resolve()
-                .await?;
-            if *src_pages_root.get_type().await? == FileSystemEntryType::Directory {
-                Some(src_pages_root)
-            } else {
-                // If neither pages nor src/pages exists, we still want to generate
-                // the pages structure, but with no pages and default values for
-                // _app, _document and _error.
-                None
-            }
-        },
-    )
-    .resolve()
-    .await?;
+            // If neither pages nor src/pages exists, we still want to generate
+            // the pages structure, but with no pages and default values for
+            // _app, _document and _error.
+            None
+        }
+    };
 
     Ok(get_pages_structure_for_root_directory(
         project_root,
-        pages_root,
+        Vc::cell(pages_root),
         next_router_root,
         page_extensions,
     ))
@@ -253,7 +198,7 @@ async fn get_pages_structure_for_root_directory(
                     DirectoryEntry::Directory(dir_project_path) => match name.as_str() {
                         "api" => {
                             api_directory = Some(get_pages_structure_for_directory(
-                                dir_project_path,
+                                *dir_project_path,
                                 next_router_path.join(name.clone()),
                                 1,
                                 page_extensions,
@@ -263,7 +208,7 @@ async fn get_pages_structure_for_root_directory(
                             children.push((
                                 name,
                                 get_pages_structure_for_directory(
-                                    dir_project_path,
+                                    *dir_project_path,
                                     next_router_path.join(name.clone()),
                                     1,
                                     page_extensions,
@@ -282,7 +227,7 @@ async fn get_pages_structure_for_root_directory(
 
         Some(
             PagesDirectoryStructure {
-                project_path: *project_path,
+                project_path: **project_path,
                 next_router_path,
                 items: items.into_iter().map(|(_, v)| v).collect(),
                 children: children.into_iter().map(|(_, v)| v).collect(),
@@ -294,7 +239,7 @@ async fn get_pages_structure_for_root_directory(
     };
 
     let pages_path = if let Some(project_path) = *project_path {
-        project_path
+        *project_path
     } else {
         project_root.join("pages".into())
     };
@@ -389,7 +334,7 @@ async fn get_pages_structure_for_directory(
                         children.push((
                             name,
                             get_pages_structure_for_directory(
-                                *dir_project_path,
+                                **dir_project_path,
                                 next_router_path.join(name.clone()),
                                 position + 1,
                                 page_extensions,

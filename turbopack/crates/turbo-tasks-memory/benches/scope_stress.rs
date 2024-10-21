@@ -1,6 +1,6 @@
 use anyhow::Result;
 use criterion::{BenchmarkId, Criterion};
-use turbo_tasks::{Completion, TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{Completion, ReadConsistency, TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_memory::MemoryBackend;
 
 use super::register;
@@ -49,7 +49,8 @@ pub fn scope_stress(c: &mut Criterion) {
                                         rectangle(a, b).strongly_consistent().await?;
                                         Ok::<Vc<()>, _>(Default::default())
                                     });
-                                    tt.wait_task_completion(task, false).await
+                                    tt.wait_task_completion(task, ReadConsistency::Eventual)
+                                        .await
                                 }
                             })
                             .try_join()

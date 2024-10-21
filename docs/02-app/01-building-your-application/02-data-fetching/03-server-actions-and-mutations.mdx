@@ -32,7 +32,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 export default function Page() {
   // Server Action
   async function create() {
@@ -46,7 +46,7 @@ export default function Page() {
 
 ### Client Components
 
-To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
+To call a Server Action in a Client Component, create a new file and add the `"use server"` directive at the top of it. All exported functions within the file will be marked as Server Actions that can be reused in both Client and Server Components:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -66,7 +66,7 @@ export async function create() {}
 import { create } from '@/app/actions'
 
 export function Button() {
-  return <Button onClick={create} />
+  return <button onClick={() => create()}>Create</button>
 }
 ```
 
@@ -76,7 +76,7 @@ export function Button() {
 import { create } from '@/app/actions'
 
 export function Button() {
-  return <Button onClick={create} />
+  return <button onClick={() => create()}>Create</button>
 }
 ```
 
@@ -100,7 +100,7 @@ export default function ClientComponent({
 }
 ```
 
-```jsx filename="app/client-component.jsx" switcher
+```jsx filename="app/client-component.js" switcher
 'use client'
 
 export default function ClientComponent({ updateItemAction }) {
@@ -154,7 +154,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/invoices/page.jsx" switcher
+```jsx filename="app/invoices/page.js" switcher
 export default function Page() {
   async function createInvoice(formData) {
     'use server'
@@ -262,7 +262,7 @@ export function Entry() {
 }
 ```
 
-```jsx filename="app/entry.jsx" switcher
+```jsx filename="app/entry.js" switcher
 'use client'
 
 export function Entry() {
@@ -288,7 +288,7 @@ This will trigger the submission of the nearest `<form>` ancestor, which will in
 
 ### Server-side form validation
 
-We recommend using HTML validation like `required` and `type="email"` for basic client-side form validation.
+You can use the HTML attributes like `required` and `type="email"` for basic client-side form validation.
 
 For more advanced server-side validation, you can use a library like [zod](https://zod.dev/) to validate the form fields before mutating the data:
 
@@ -346,10 +346,10 @@ export default async function createsUser(formData) {
 }
 ```
 
-Once the fields have been validated on the server, you can return a serializable object in your action and use the React [`useActionState`](https://react.dev/reference/react/useActionState) hook to show a message to the user.
+Once the fields have been validated on the server, you can return a serializable object in your action and use the React `useFormState` hook to show a message to the user.
 
-- By passing the action to `useActionState`, the action's function signature changes to receive a new `prevState` or `initialState` parameter as its first argument.
-- `useActionState` is a React hook and therefore must be used in a Client Component.
+- By passing the action to `useFormState`, the action's function signature changes to receive a new `prevState` or `initialState` parameter as its first argument.
+- `useFormState` is a React hook and therefore must be used in a Client Component.
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -385,12 +385,12 @@ export async function createUser(prevState, formData) {
 }
 ```
 
-Then, you can pass your action to the `useActionState` hook and use the returned `state` to display an error message.
+Then, you can pass your action to the `useFormState` hook and use the returned `state` to display an error message.
 
 ```tsx filename="app/ui/signup.tsx" highlight={11,18-20} switcher
 'use client'
 
-import { useActionState } from 'react'
+import { useFormState } from 'react'
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -398,7 +398,7 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction] = useActionState(createUser, initialState)
+  const [state, formAction] = useFormState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -415,7 +415,7 @@ export function Signup() {
 ```jsx filename="app/ui/signup.js" highlight={11,18-20} switcher
 'use client'
 
-import { useActionState } from 'react'
+import { useFormState } from 'react'
 import { createUser } from '@/app/actions'
 
 const initialState = {
@@ -423,7 +423,7 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction] = useActionState(createUser, initialState)
+  const [state, formAction] = useFormState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -439,72 +439,50 @@ export function Signup() {
 
 > **Good to know:**
 >
-> - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
-> - In earlier React Canary versions, this API was part of React DOM and called `useFormState`.
+> - These examples use React's `useFormState` hook, which is bundled with the Next.js App Router. If you are using React 19, use `useActionState` instead. See the [React docs](https://react.dev/reference/react/useActionState) for more information.
 
 ### Pending states
 
-The [`useActionState`](https://react.dev/reference/react/useActionState) hook exposes a `pending` state that can be used to show a loading indicator while the action is being executed.
+> - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
 
-```tsx filename="app/submit-button.tsx" highlight={11,21-23} switcher
+The [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook exposes a `pending` boolean that can be used to show a loading indicator while the action is being executed.
+
+```tsx filename="app/submit-button.tsx" highlight={6} switcher
 'use client'
 
-import { useActionState } from 'react'
-import { createUser } from '@/app/actions'
+import { useFormStatus } from 'react-dom'
 
-const initialState = {
-  message: '',
-}
-
-export function Signup() {
-  const [state, formAction, pending] = useActionState(createUser, initialState)
+export function SubmitButton() {
+  const { pending } = useFormStatus()
 
   return (
-    <form action={formAction}>
-      <label htmlFor="email">Email</label>
-      <input type="text" id="email" name="email" required />
-      {/* ... */}
-      <p aria-live="polite" className="sr-only">
-        {state?.message}
-      </p>
-      <button aria-disabled={pending} type="submit">
-        {pending ? 'Submitting...' : 'Sign up'}
-      </button>
-    </form>
+    <button disabled={pending} type="submit">
+      Sign Up
+    </button>
   )
 }
 ```
 
-```jsx filename="app/submit-button.jsx" highlight={11,21-23} switcher
+```jsx filename="app/submit-button.js" highlight={6} switcher
 'use client'
 
-import { useActionState } from 'react'
-import { createUser } from '@/app/actions'
+import { useFormStatus } from 'react-dom'
 
-const initialState = {
-  message: '',
-}
-
-export function Signup() {
-  const [state, formAction, pending] = useActionState(createUser, initialState)
+export function SubmitButton() {
+  const { pending } = useFormStatus()
 
   return (
-    <form action={formAction}>
-      <label htmlFor="email">Email</label>
-      <input type="text" id="email" name="email" required />
-      {/* ... */}
-      <p aria-live="polite" className="sr-only">
-        {state?.message}
-      </p>
-      <button aria-disabled={pending} type="submit">
-        {pending ? 'Submitting...' : 'Sign up'}
-      </button>
-    </form>
+    <button disabled={pending} type="submit">
+      Sign Up
+    </button>
   )
 }
 ```
 
-> **Good to know:** Alternatively, you can also use the [`useFormStatus`](https://react.dev/reference/react-dom/hooks/useFormStatus) hook to show a pending state for a specific form.
+> **Good to know:**
+>
+> - In React 19, `useFormStatus` includes additional keys on the returned object, like data, method, and action. If you are not using React 19, only the `pending` key is available.
+> - In React 19, `useActionState` also includes a `pending` key on the returned state.
 
 ### Optimistic updates
 
@@ -546,7 +524,7 @@ export function Thread({ messages }: { messages: Message[] }) {
 }
 ```
 
-```jsx filename="app/page.jsx" switcher
+```jsx filename="app/page.js" switcher
 'use client'
 
 import { useOptimistic } from 'react'
@@ -738,7 +716,7 @@ export async function createTodo(prevState, formData) {
 
 > **Good to know:**
 >
-> - Aside from throwing the error, you can also return an object to be handled by `useActionState`. See [Server-side validation and error handling](#server-side-form-validation).
+> - Aside from throwing the error, you can also return an object to be handled by `useFormState`. See [Server-side validation and error handling](#server-side-form-validation).
 
 ### Revalidating data
 
@@ -860,14 +838,16 @@ You can `get`, `set`, and `delete` cookies inside a Server Action using the [`co
 import { cookies } from 'next/headers'
 
 export async function exampleAction() {
+  const cookieStore = await cookies()
+
   // Get cookie
-  const value = cookies().get('name')?.value
+  cookieStore.get('name')?.value
 
   // Set cookie
-  cookies().set('name', 'Delba')
+  cookieStore.set('name', 'Delba')
 
   // Delete cookie
-  cookies().delete('name')
+  cookieStore.delete('name')
 }
 ```
 
@@ -878,13 +858,16 @@ import { cookies } from 'next/headers'
 
 export async function exampleAction() {
   // Get cookie
-  const value = cookies().get('name')?.value
+  const cookieStore = await cookies()
+
+  // Get cookie
+  cookieStore.get('name')?.value
 
   // Set cookie
-  cookies().set('name', 'Delba')
+  cookieStore.set('name', 'Delba')
 
   // Delete cookie
-  cookies().delete('name')
+  cookieStore.delete('name')
 }
 ```
 
@@ -892,9 +875,37 @@ See [additional examples](/docs/app/api-reference/functions/cookies#deleting-coo
 
 ## Security
 
+By default, when a Server Action is created and exported, it creates a public HTTP endpoint
+and should be treated with the same security assumptions and authorization checks. This means, even if a Server Action or utility function is not imported elsewhere in your code, it’s still a publicly accessible.
+
+To improve security, Next.js has the following built-in features:
+
+- **Secure action IDs:** Next.js creates encrypted, non-deterministic IDs to allow the client to reference and call the Server Action. These IDs are periodically recalculated between builds for enhanced security.
+- **Dead code elimination:** Unused Server Actions (referenced by their IDs) are removed from client bundle to avoid public access by third-party.
+
+> **Good to know**:
+>
+> The IDs are created during compilation and are cached for a maximum of 14 days. They will be regenerated when a new build is initiated or when the build cache is invalidated.
+> This security improvement reduces the risk in cases where an authentication layer is missing. However, you should still treat Server Actions like public HTTP endpoints.
+
+```jsx
+// app/actions.js
+'use server'
+
+// This action **is** used in our application, so Next.js
+// will create a secure ID to allow the client to reference
+// and call the Server Action.
+export async function updateUserAction(formData) {}
+
+// This action **is not** used in our application, so Next.js
+// will automatically remove this code during `next build`
+// and will not create a public endpoint.
+export async function deleteUserAction(formData) {}
+```
+
 ### Authentication and authorization
 
-You should treat Server Actions as you would public-facing API endpoints, and ensure that the user is authorized to perform the action. For example:
+You should ensure that the user is authorized to perform the action. For example:
 
 ```tsx filename="app/actions.ts"
 'use server'
@@ -996,7 +1007,7 @@ Learn more about [Security and Server Actions](https://nextjs.org/blog/security-
 
 ## Additional resources
 
-For more information on Server Actions, check out the following React docs:
+For more information, check out the following React docs:
 
 - [Server Actions](https://react.dev/reference/rsc/server-actions)
 - [`"use server"`](https://react.dev/reference/react/use-server)

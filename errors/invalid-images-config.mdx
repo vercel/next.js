@@ -37,6 +37,8 @@ module.exports = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     // sets the Content-Disposition header ('inline' or 'attachment')
     contentDispositionType: 'attachment',
+    // limit of 25 objects
+    localPatterns: [],
     // limit of 50 objects
     remotePatterns: [],
     // when true, every image will be unoptimized

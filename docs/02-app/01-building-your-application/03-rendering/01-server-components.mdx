@@ -62,15 +62,11 @@ There are three subsets of server rendering: Static, Dynamic, and Streaming.
 
 ### Static Rendering (Default)
 
-{/* Static Rendering Diagram */}
-
-With Static Rendering, routes are rendered at **build time**, or in the background after [data revalidation](/docs/app/building-your-application/data-fetching/caching-and-revalidating#revalidating-data). The result is cached and can be pushed to a [Content Delivery Network (CDN)](https://developer.mozilla.org/docs/Glossary/CDN). This optimization allows you to share the result of the rendering work between users and server requests.
+With Static Rendering, routes are rendered at **build time**, or in the background after [data revalidation](/docs/app/building-your-application/data-fetching/incremental-static-regeneration). The result is cached and can be pushed to a [Content Delivery Network (CDN)](https://developer.mozilla.org/docs/Glossary/CDN). This optimization allows you to share the result of the rendering work between users and server requests.
 
 Static rendering is useful when a route has data that is not personalized to the user and can be known at build time, such as a static blog post or a product page.
 
 ### Dynamic Rendering
-
-{/* Dynamic Rendering Diagram */}
 
 With Dynamic Rendering, routes are rendered for each user at **request time**.
 
@@ -86,30 +82,30 @@ Dynamic rendering is useful when a route has data that is personalized to the us
 
 #### Switching to Dynamic Rendering
 
-During rendering, if a [dynamic function](#dynamic-functions) or [uncached data request](/docs/app/building-your-application/data-fetching/caching-and-revalidating) is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how dynamic functions and data caching affect whether a route is statically or dynamically rendered:
+During rendering, if a [Dynamic API](#dynamic-apis) or uncached data request is discovered, Next.js will switch to dynamically rendering the whole route. This table summarizes how Dynamic APIs and data caching affect whether a route is statically or dynamically rendered:
 
-| Dynamic Functions | Data       | Route                |
-| ----------------- | ---------- | -------------------- |
-| No                | Cached     | Statically Rendered  |
-| Yes               | Cached     | Dynamically Rendered |
-| No                | Not Cached | Dynamically Rendered |
-| Yes               | Not Cached | Dynamically Rendered |
+| Dynamic APIs | Data       | Route                |
+| ------------ | ---------- | -------------------- |
+| No           | Cached     | Statically Rendered  |
+| Yes          | Cached     | Dynamically Rendered |
+| No           | Not Cached | Dynamically Rendered |
+| Yes          | Not Cached | Dynamically Rendered |
 
 In the table above, for a route to be fully static, all data must be cached. However, you can have a dynamically rendered route that uses both cached and uncached data fetches.
 
-As a developer, you do not need to choose between static and dynamic rendering as Next.js will automatically choose the best rendering strategy for each route based on the features and APIs used. Instead, you choose when to [cache or revalidate specific data](/docs/app/building-your-application/data-fetching/caching-and-revalidating), and you may choose to [stream](#streaming) parts of your UI.
+As a developer, you do not need to choose between static and dynamic rendering as Next.js will automatically choose the best rendering strategy for each route based on the features and APIs used. Instead, you choose when to [cache](/docs/app/building-your-application/data-fetching/fetching) or [revalidate specific data](/docs/app/building-your-application/data-fetching/incremental-static-regeneration), and you may choose to [stream](#streaming) parts of your UI.
 
-#### Dynamic Functions
+### Dynamic APIs
 
-Dynamic functions rely on information that can only be known at request time such as a user's cookies, current requests headers, or the URL's search params. In Next.js, these dynamic APIs are:
+Dynamic APIs rely on information that can only be known at request time (and not ahead of time during prerendering). Using any of these APIs signals the developer's intention and will opt the whole route into dynamic rendering at the request time. These APIs include:
 
-- [`cookies()`](/docs/app/api-reference/functions/cookies)
-- [`headers()`](/docs/app/api-reference/functions/headers)
-- [`unstable_noStore()`](/docs/app/api-reference/functions/unstable_noStore)
-- [`unstable_after()`](/docs/app/api-reference/functions/unstable_after):
+- [`cookies`](/docs/app/api-reference/functions/cookies)
+- [`headers`](/docs/app/api-reference/functions/headers)
+- [`connection`](/docs/app/api-reference/functions/connection)
+- [`draftMode`](/docs/app/api-reference/functions/draft-mode)
 - [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional)
-
-Using any of these functions will opt the whole route into dynamic rendering at request time.
+- [`unstable_noStore`](/docs/app/api-reference/functions/unstable_noStore)
+- [`unstable_after`](/docs/app/api-reference/functions/unstable_after)
 
 ### Streaming
 

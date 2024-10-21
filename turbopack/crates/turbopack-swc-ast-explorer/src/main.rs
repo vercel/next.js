@@ -28,7 +28,7 @@ fn main() -> Result<()> {
     stdin().read_line(&mut contents)?;
 
     let sm = Arc::new(SourceMap::default());
-    let file = sm.new_source_file(FileName::Anon, contents);
+    let file = sm.new_source_file(FileName::Anon.into(), contents);
     let target = EsVersion::latest();
     let syntax = Syntax::Typescript(TsSyntax {
         tsx: true,

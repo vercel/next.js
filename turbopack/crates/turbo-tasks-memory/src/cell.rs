@@ -23,7 +23,7 @@ pub(crate) enum CellState {
     ///
     /// Assigning a value will transition to the Value state.
     /// Reading this cell will,
-    /// - transition to the Computing state if the task is is progress
+    /// - transition to the Computing state if the task is progress
     /// - return an error if the task is already done.
     #[default]
     Empty,

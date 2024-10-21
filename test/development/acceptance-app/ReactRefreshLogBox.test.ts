@@ -5,6 +5,7 @@ import {
   check,
   describeVariants as describe,
   expandCallStack,
+  getRedboxCallStackCollapsed,
   retry,
 } from 'next-test-utils'
 import path from 'path'
@@ -218,7 +219,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     await session.assertHasRedbox()
 
-    console.log({ isTurbopack })
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (isTurbopack) {
       expect(source).toEqual(outdent`
@@ -852,7 +852,17 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       const stackFrames = await Promise.all(
         stackFrameElements.map((f) => f.innerText())
       )
-      expect(stackFrames).toEqual([])
+      expect(stackFrames).toEqual(
+        // TODO: Show useful stack
+        [
+          // Internal frames of React.
+          // Feel free to adjust until we show useful stacks.
+          '',
+          '',
+          '',
+          '',
+        ]
+      )
     } finally {
       await cleanup()
     }
@@ -909,12 +919,26 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
                 Page
                 app/page.js (5:6)
               `,
+              // TODO: Show useful stack
+              // Internal frames of React.
+              // Feel free to adjust until we show useful stacks.
+              '',
+              '',
+              '',
+              '',
             ]
           : [
               outdent`
                 Page
                 app/page.js (5:5)
               `,
+              // TODO: Show useful stack
+              // Internal frames of React.
+              // Feel free to adjust until we show useful stacks.
+              '',
+              '',
+              '',
+              '',
             ]
       )
     } finally {
@@ -957,7 +981,17 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       const stackFrames = await Promise.all(
         stackFrameElements.map((f) => f.innerText())
       )
-      expect(stackFrames).toEqual([])
+      expect(stackFrames).toEqual(
+        // TODO: Show useful stack
+        [
+          // Internal frames of React.
+          // Feel free to adjust until we show useful stacks.
+          '',
+          '',
+          '',
+          '',
+        ]
+      )
     } finally {
       await cleanup()
     }
@@ -1111,4 +1145,166 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       await cleanup()
     })
   }
+
+  test('Should show error location for server actions in client component', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/actions.ts',
+          `"use server";
+
+export async function serverAction(a) {
+  throw new Error("server action was here");
+}`,
+        ],
+        [
+          'app/page.js',
+          `"use client";
+import { serverAction } from "./actions";
+
+export default function Home() {
+  return (
+    <>
+      <form action={serverAction}>
+        <button id="trigger-action">Submit</button>
+      </form>
+    </>
+  );
+}`,
+        ],
+      ])
+    )
+
+    await browser.elementByCss('#trigger-action').click()
+
+    // Wait for patch to apply and new error to show.
+    await session.assertHasRedbox()
+    await retry(async () => {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "app/actions.ts (4:9) @ serverAction
+
+          2 |
+          3 | export async function serverAction(a) {
+        > 4 |   throw new Error("server action was here");
+            |         ^
+          5 | }"
+      `)
+    })
+
+    await cleanup()
+  })
+
+  test('Should show error location for server actions in server component', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/actions.ts',
+          `"use server";
+
+export async function serverAction(a) {
+  throw new Error("server action was here");
+}`,
+        ],
+        [
+          'app/page.js',
+          `import { serverAction } from "./actions";
+
+export default function Home() {
+  return (
+    <>
+      <form action={serverAction}>
+        <button id="trigger-action">Submit</button>
+      </form>
+    </>
+  );
+}`,
+        ],
+      ])
+    )
+
+    await browser.elementByCss('#trigger-action').click()
+
+    // Wait for patch to apply and new error to show.
+    await session.assertHasRedbox()
+    await retry(async () => {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "app/actions.ts (4:9) @ serverAction
+
+          2 |
+          3 | export async function serverAction(a) {
+        > 4 |   throw new Error("server action was here");
+            |         ^
+          5 | }"
+      `)
+    })
+
+    await cleanup()
+  })
+
+  test('Should collapse bundler internal stack frames', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/utils.ts',
+          `throw new Error('utils error')
+export function foo(){}
+          `,
+        ],
+        [
+          'app/page.js',
+          `"use client";
+import { foo } from "./utils";
+
+export default function Home() {
+  foo();
+  return "hello";
+}`,
+        ],
+      ])
+    )
+
+    await session.assertHasRedbox()
+
+    let stack = next.normalizeTestDirContent(
+      await getRedboxCallStackCollapsed(browser)
+    )
+    if (isTurbopack) {
+      expect(stack).toMatchInlineSnapshot(`
+        "app/utils.ts (1:7) @ [project]/app/utils.ts [app-client] (ecmascript)
+        ---
+        Next.js
+        ---
+        [project]/app/page.js [app-client] (ecmascript)
+        app/page.js (2:1)
+        ---
+        Next.js
+        ---
+        React"
+      `)
+    } else {
+      expect(stack).toMatchInlineSnapshot(`
+        "app/utils.ts (1:7) @ eval
+        ---
+        (app-pages-browser)/./app/utils.ts
+        file://TEST_DIR/.next/static/chunks/app/page.js (39:1)
+        ---
+        Next.js
+        ---
+        eval
+        (app-pages-browser)/./app/page.js
+        ---
+        (app-pages-browser)/./app/page.js
+        file://TEST_DIR/.next/static/chunks/app/page.js (28:1)
+        ---
+        Next.js
+        ---
+        React"
+      `)
+    }
+
+    await cleanup()
+  })
 })

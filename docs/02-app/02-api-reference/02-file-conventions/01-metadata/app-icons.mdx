@@ -59,13 +59,13 @@ Add an `apple-icon.(jpg|jpeg|png)` image file.
 />
 ```
 
-> **Good to know**
+> **Good to know**:
 >
 > - You can set multiple icons by adding a number suffix to the file name. For example, `icon1.png`, `icon2.png`, etc. Numbered files will sort lexically.
 > - Favicons can only be set in the root `/app` segment. If you need more granularity, you can use [`icon`](#icon).
 > - The appropriate `<link>` tags and attributes such as `rel`, `href`, `type`, and `sizes` are determined by the icon type and metadata of the evaluated file.
->   - For example, a 32 by 32px `.png` file will have `type="image/png"` and `sizes="32x32"` attributes.
-> - `sizes="any"` is added to `favicon.ico` output to [avoid a browser bug](https://evilmartians.com/chronicles/how-to-favicon-in-2021-six-files-that-fit-most-needs) where an `.ico` icon is favored over `.svg`.
+> - For example, a 32 by 32px `.png` file will have `type="image/png"` and `sizes="32x32"` attributes.
+> - `sizes="any"` is added to icons when the extension is `.svg` or the image size of the file is not determined. More details in this [favicon handbook](https://evilmartians.com/chronicles/how-to-favicon-in-2021-six-files-that-fit-most-needs).
 
 ## Generate icons using code (.js, .ts, .tsx)
 
@@ -164,12 +164,12 @@ export default function Icon() {
 <link rel="icon" href="/icon?<generated>" type="image/png" sizes="32x32" />
 ```
 
-> **Good to know**
+> **Good to know**:
 >
-> - By default, generated icons are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) or uncached data.
+> - By default, generated icons are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-apis) or uncached data.
 > - You can generate multiple icons in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
 > - You cannot generate a `favicon` icon. Use [`icon`](#icon) or a [favicon.ico](#favicon) file instead.
-> - App icons are special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
+> - App icons are special Route Handlers that is cached by default unless it uses a [Dynamic API](/docs/app/building-your-application/caching#dynamic-apis) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
 
 ### Props
 

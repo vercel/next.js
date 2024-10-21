@@ -65,6 +65,7 @@ impl CodeGenerateable for Unreachable {
                         *stmt = Stmt::Block(BlockStmt {
                             span: stmt.span(),
                             stmts: replacement,
+                            ..Default::default()
                         });
                     }),
                 ]
@@ -123,7 +124,7 @@ impl CodeGenerateable for Unreachable {
             }
         };
 
-        Ok(CodeGeneration { visitors }.cell())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 
@@ -132,13 +133,14 @@ struct ExtractDeclarations<'a> {
     in_nested_block_scope: bool,
 }
 
-impl<'a> VisitMut for ExtractDeclarations<'a> {
+impl VisitMut for ExtractDeclarations<'_> {
     fn visit_mut_var_decl(&mut self, decl: &mut VarDecl) {
         let VarDecl {
             span,
             kind,
             declare,
             decls,
+            ctxt,
         } = decl;
         if self.in_nested_block_scope && !matches!(kind, VarDeclKind::Var) {
             return;
@@ -167,6 +169,7 @@ impl<'a> VisitMut for ExtractDeclarations<'a> {
             span: *span,
             kind: *kind,
             declare: *declare,
+            ctxt: *ctxt,
             decls,
         }))));
     }
@@ -219,6 +222,7 @@ impl<'a> VisitMut for ExtractDeclarations<'a> {
                 definite: false,
             }],
             kind: VarDeclKind::Let,
+            ..Default::default()
         }))));
     }
 

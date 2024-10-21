@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use crate::{
@@ -22,10 +22,9 @@ impl AfterResolvePluginCondition {
     }
 
     #[turbo_tasks::function]
-    pub async fn matches(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
-        let this = self.await?;
-        let root = this.root.await?;
-        let glob = this.glob.await?;
+    pub async fn matches(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
+        let root = self.root.await?;
+        let glob = self.glob.await?;
 
         let path = fs_path.await?;
 
@@ -42,19 +41,19 @@ impl AfterResolvePluginCondition {
 /// A condition which determines if the hooks of a resolve plugin gets called.
 #[turbo_tasks::value]
 pub enum BeforeResolvePluginCondition {
-    Request(Vc<Glob>),
-    Modules(Vc<Vec<RcStr>>),
+    Request(ResolvedVc<Glob>),
+    Modules(ResolvedVc<Vec<RcStr>>),
 }
 
 #[turbo_tasks::value_impl]
 impl BeforeResolvePluginCondition {
     #[turbo_tasks::function]
-    pub fn from_modules(modules: Vc<Vec<RcStr>>) -> Vc<Self> {
+    pub fn from_modules(modules: ResolvedVc<Vec<RcStr>>) -> Vc<Self> {
         BeforeResolvePluginCondition::Modules(modules).cell()
     }
 
     #[turbo_tasks::function]
-    pub fn from_request_glob(glob: Vc<Glob>) -> Vc<Self> {
+    pub fn from_request_glob(glob: ResolvedVc<Glob>) -> Vc<Self> {
         BeforeResolvePluginCondition::Request(glob).cell()
     }
 }

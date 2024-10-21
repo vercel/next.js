@@ -226,9 +226,8 @@ fn get_named_parametrized_route(
             } else {
                 None
             };
-            let param_matches = Regex::new(r"\[((?:\[.*\])|.+)\]")
-                .unwrap()
-                .captures(segment);
+            static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
+            let param_matches = RE.captures(segment);
             if let Some(matches) = param_matches {
                 return get_safe_key_from_segment(
                     get_safe_route_key,
@@ -246,10 +245,11 @@ fn get_named_parametrized_route(
 
 /// This function extends `getRouteRegex` generating also a named regexp where
 /// each group is named along with a routeKeys object that indexes the assigned
-/// named group with its corresponding key. When the routeKeys need to be
-/// prefixed to uniquely identify internally the "prefixRouteKey" arg should
-/// be "true" currently this is only the case when creating the routes-manifest
-/// during the build
+/// named group with its corresponding key.
+///
+/// When the routeKeys need to be prefixed to uniquely identify internally the
+/// "prefixRouteKey" arg should be "true" currently this is only the case when
+/// creating the routes-manifest during the build
 pub fn get_named_route_regex(normalized_route: &str) -> NamedRouteRegex {
     let (parameterized_route, route_keys) = get_named_parametrized_route(normalized_route, false);
     let regex = get_route_regex(normalized_route);

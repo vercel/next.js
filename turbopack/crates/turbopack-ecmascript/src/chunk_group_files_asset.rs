@@ -1,12 +1,11 @@
 use anyhow::Result;
-use indexmap::IndexSet;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         availability_info::AvailabilityInfo, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingContext, ChunkingContextExt, EvaluatableAssets,
+        ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
     },
     ident::AssetIdent,
     introspect::{
@@ -26,7 +25,6 @@ use crate::{
         EcmascriptChunkType, EcmascriptExports,
     },
     utils::StringifyJs,
-    EcmascriptModuleAsset,
 };
 
 #[turbo_tasks::function]
@@ -125,18 +123,17 @@ struct ChunkGroupFilesChunkItem {
 #[turbo_tasks::value_impl]
 impl ChunkGroupFilesChunkItem {
     #[turbo_tasks::function]
-    async fn chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let inner = this.inner.await?;
+    async fn chunks(&self) -> Result<Vc<OutputAssets>> {
+        let inner = self.inner.await?;
         let chunks = if let Some(ecma) =
-            Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(inner.module).await?
+            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(inner.module).await?
         {
             inner.chunking_context.evaluated_chunk_group_assets(
                 inner.module.ident(),
                 inner
                     .runtime_entries
                     .unwrap_or_else(EvaluatableAssets::empty)
-                    .with_entry(Vc::upcast(ecma)),
+                    .with_entry(ecma),
                 Value::new(AvailabilityInfo::Root),
             )
         } else {
@@ -216,7 +213,7 @@ impl ChunkItem for ChunkGroupFilesChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(self.chunking_context)
     }
 
@@ -251,12 +248,12 @@ impl Introspectable for ChunkGroupFilesAsset {
     }
 
     #[turbo_tasks::function]
-    async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = IndexSet::new();
+    fn children(&self) -> Vc<IntrospectableChildren> {
+        let mut children = FxIndexSet::default();
         children.insert((
             Vc::cell("inner asset".into()),
-            IntrospectableModule::new(Vc::upcast(self.await?.module)),
+            IntrospectableModule::new(Vc::upcast(self.module)),
         ));
-        Ok(Vc::cell(children))
+        Vc::cell(children)
     }
 }

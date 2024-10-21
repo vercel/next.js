@@ -35,7 +35,7 @@ impl Task for ParseTask {
                 None
             };
             let fm =
-                c.cm.new_source_file(self.filename.clone(), self.src.clone());
+                c.cm.new_source_file(self.filename.clone().into(), self.src.clone());
             let program = try_with_handler(
                 c.cm.clone(),
                 swc_core::base::HandlerOpts {

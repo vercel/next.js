@@ -54,6 +54,7 @@ impl EcmascriptChunkItemContent {
                     refresh,
                     externals,
                     async_module,
+                    stub_require: true,
                     ..Default::default()
                 }
             } else {
@@ -67,7 +68,6 @@ impl EcmascriptChunkItemContent {
                     // These things are not available in ESM
                     module: true,
                     exports: true,
-                    require: true,
                     this: true,
                     ..Default::default()
                 }
@@ -78,8 +78,7 @@ impl EcmascriptChunkItemContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_factory(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
+    pub async fn module_factory(&self) -> Result<Vc<Code>> {
         let mut args = vec![
             "r: __turbopack_require__",
             "f: __turbopack_module_context__",
@@ -94,67 +93,71 @@ impl EcmascriptChunkItemContent {
             "P: __turbopack_resolve_absolute_path__",
             "U: __turbopack_relative_url__",
             "R: __turbopack_resolve_module_id_path__",
+            "b: __turbopack_worker_blob_url__",
             "g: global",
             // HACK
             "__dirname",
         ];
-        if this.options.async_module.is_some() {
+        if self.options.async_module.is_some() {
             args.push("a: __turbopack_async_module__");
         }
-        if this.options.externals {
+        if self.options.externals {
             args.push("x: __turbopack_external_require__");
             args.push("y: __turbopack_external_import__");
         }
-        if this.options.refresh {
+        if self.options.refresh {
             args.push("k: __turbopack_refresh__");
         }
-        if this.options.module || this.options.refresh {
+        if self.options.module || self.options.refresh {
             args.push("m: module");
         }
-        if this.options.exports {
+        if self.options.exports {
             args.push("e: exports");
         }
-        if this.options.require {
+        if self.options.stub_require {
+            args.push("z: require");
+        } else {
             args.push("t: require");
         }
-        if this.options.wasm {
+        if self.options.wasm {
             args.push("w: __turbopack_wasm__");
             args.push("u: __turbopack_wasm_module__");
         }
         let mut code = CodeBuilder::default();
         let args = FormatIter(|| args.iter().copied().intersperse(", "));
-        if this.options.this {
-            writeln!(code, "(function({{ {} }}) {{ !function() {{", args,)?;
+        if self.options.this {
+            code += "(function(__turbopack_context__) {\n";
         } else {
-            writeln!(code, "(({{ {} }}) => (() => {{", args,)?;
+            code += "((__turbopack_context__) => {\n";
         }
-        if this.options.strict {
+        if self.options.strict {
             code += "\"use strict\";\n\n";
         } else {
             code += "\n";
         }
+        writeln!(code, "var {{ {} }} = __turbopack_context__;", args)?;
 
-        if this.options.async_module.is_some() {
+        if self.options.async_module.is_some() {
             code += "__turbopack_async_module__(async (__turbopack_handle_async_dependencies__, \
                      __turbopack_async_result__) => { try {\n";
+        } else {
+            code += "{\n";
         }
 
-        code.push_source(&this.inner_code, this.source_map);
+        code.push_source(&self.inner_code, self.source_map);
 
-        if let Some(opts) = &this.options.async_module {
+        if let Some(opts) = &self.options.async_module {
             write!(
                 code,
                 "__turbopack_async_result__();\n}} catch(e) {{ __turbopack_async_result__(e); }} \
                  }}, {});",
                 opts.has_top_level_await
             )?;
+        } else {
+            code += "}";
         }
 
-        if this.options.this {
-            code += "\n}.call(this) })";
-        } else {
-            code += "\n})())";
-        }
+        code += "})";
         Ok(code.build().cell())
     }
 }
@@ -172,9 +175,9 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module factory should include an `exports`
     /// argument.
     pub exports: bool,
-    /// Whether this chunk item's module factory should include a `require`
-    /// argument.
-    pub require: bool,
+    /// Whether this chunk item's module factory should include an argument for the real `require`,
+    /// or just a throwing stub (for ESM)
+    pub stub_require: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
     pub externals: bool,
@@ -261,9 +264,3 @@ async fn module_factory_with_code_generation_issue(
         },
     )
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkItemsChunk(Vec<Vc<Box<dyn EcmascriptChunkItem>>>);
-
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkItems(pub(super) Vec<Vc<Box<dyn EcmascriptChunkItem>>>);

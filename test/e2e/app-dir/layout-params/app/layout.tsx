@@ -1,19 +1,19 @@
 import React from 'react'
 import ShowParams from './show-params'
 
-export default function Layout({
+export default async function Layout({
   children,
   params,
 }: {
   children: React.ReactNode
-  params: {}
+  params: Promise<{}>
 }) {
   return (
     <html>
       <head></head>
       <body>
         <div>
-          <ShowParams prefix="root" params={params} />
+          <ShowParams prefix="root" params={await params} />
           {children}
         </div>
       </body>

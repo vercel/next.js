@@ -27,7 +27,7 @@ static BOLD_WEIGHT: f64 = 700.0;
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallbacks(
-    context: Vc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     options_vc: Vc<NextFontLocalOptions>,
 ) -> Result<Vc<FontFallbacks>> {
     let options = &*options_vc.await?;
@@ -41,7 +41,7 @@ pub(super) async fn get_font_fallbacks(
                 scoped_font_family,
                 local_font_family: Vc::cell("Arial".into()),
                 adjustment: Some(
-                    get_font_adjustment(context, options_vc, &DEFAULT_SANS_SERIF_FONT).await?,
+                    get_font_adjustment(lookup_path, options_vc, &DEFAULT_SANS_SERIF_FONT).await?,
                 ),
             })
             .into(),
@@ -51,7 +51,7 @@ pub(super) async fn get_font_fallbacks(
                 scoped_font_family,
                 local_font_family: Vc::cell("Times New Roman".into()),
                 adjustment: Some(
-                    get_font_adjustment(context, options_vc, &DEFAULT_SERIF_FONT).await?,
+                    get_font_adjustment(lookup_path, options_vc, &DEFAULT_SERIF_FONT).await?,
                 ),
             })
             .into(),
@@ -67,13 +67,16 @@ pub(super) async fn get_font_fallbacks(
 }
 
 async fn get_font_adjustment(
-    context: Vc<FileSystemPath>,
+    lookup_path: Vc<FileSystemPath>,
     options: Vc<NextFontLocalOptions>,
     fallback_font: &DefaultFallbackFont,
 ) -> Result<FontAdjustment> {
     let options = &*options.await?;
     let main_descriptor = pick_font_for_fallback_generation(&options.fonts)?;
-    let font_file = &*context.join(main_descriptor.path.clone()).read().await?;
+    let font_file = &*lookup_path
+        .join(main_descriptor.path.clone())
+        .read()
+        .await?;
     let font_file_rope = match font_file {
         FileContent::NotFound => bail!(FontError::FontFileNotFound(main_descriptor.path.clone())),
         FileContent::Content(file) => file.content(),

@@ -1,22 +1,22 @@
 /* eslint-disable import/no-extraneous-dependencies */
+import retry from 'async-retry'
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
-import retry from 'async-retry'
-import { red, green, cyan } from 'picocolors'
+import { cyan, green, red } from 'picocolors'
 import type { RepoInfo } from './helpers/examples'
 import {
   downloadAndExtractExample,
   downloadAndExtractRepo,
-  getRepoInfo,
   existsInRepo,
+  getRepoInfo,
   hasRepo,
 } from './helpers/examples'
+import type { PackageManager } from './helpers/get-pkg-manager'
 import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
-import type { PackageManager } from './helpers/get-pkg-manager'
 
 import type { TemplateMode, TemplateType } from './templates'
 import { getTemplateFile, installTemplate } from './templates'
@@ -37,6 +37,7 @@ export async function createApp({
   skipInstall,
   empty,
   turbo,
+  disableGit,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -51,6 +52,7 @@ export async function createApp({
   skipInstall: boolean
   empty: boolean
   turbo: boolean
+  disableGit?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
@@ -235,7 +237,10 @@ export async function createApp({
     })
   }
 
-  if (tryGitInit(root)) {
+  if (disableGit) {
+    console.log('Skipping git initialization.')
+    console.log()
+  } else if (tryGitInit(root)) {
     console.log('Initialized a git repository.')
     console.log()
   }

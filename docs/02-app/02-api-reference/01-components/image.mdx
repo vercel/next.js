@@ -89,17 +89,21 @@ Must be one of the following:
 - A [statically imported](/docs/app/building-your-application/optimizing/images#local-images) image file
 - A path string. This can be either an absolute external URL, or an internal path depending on the [loader](#loader) prop.
 
-When using an external URL, you must add it to [remotePatterns](#remotepatterns) in `next.config.js`.
+When using the default [loader](#loader), also consider the following for source images:
+
+- When src is an external URL, you must also configure [remotePatterns](#remotepatterns)
+- When src is [animated](#animated-images) or not a known format (JPEG, PNG, WebP, AVIF, GIF, TIFF) the image will be served as-is
+- When src is SVG format, it will be blocked unless [`unoptimized`](#unoptimized)` or [`dangerouslyAllowSVG`](#dangerouslyallowsvg) is enabled
 
 ### `width`
 
-The `width` property represents the _intrisic_ image width in pixels.
+The `width` property represents the _intrinsic_ image width in pixels. This property is used to infer the correct aspect ratio of the image and avoid layout shift during loading. It does not determine the rendered size of the image, which is controlled by CSS, similar to the `width` attribute in the HTML `<img>` tag.
 
 Required, except for [statically imported images](/docs/app/building-your-application/optimizing/images#local-images) or images with the [`fill` property](#fill).
 
 ### `height`
 
-The `height` property represents the _intrisic_ image height in pixels.
+The `height` property represents the _intrinsic_ image height in pixels. This property is used to infer the correct aspect ratio of the image and avoid layout shift during loading. It does not determine the rendered size of the image, which is controlled by CSS, similar to the `height` attribute in the HTML `<img>` tag.
 
 Required, except for [statically imported images](/docs/app/building-your-application/optimizing/images#local-images) or images with the [`fill` property](#fill).
 
@@ -260,7 +264,7 @@ priority={false} // {false} | {true}
 ```
 
 When true, the image will be considered high priority and
-[preload](https://web.dev/preload-responsive-images/). Lazy loading is automatically disabled for images using `priority`.
+[preload](https://web.dev/preload-responsive-images/). Lazy loading is automatically disabled for images using `priority`. If the [`loading`](#loading) property is also used and set to `lazy`, the `priority` property can't be used. The [`loading`](#loading) property is only meant for advanced use cases. Remove `loading` when `priority` is needed.
 
 You should use the `priority` property on any image detected as the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element. It may be appropriate to have multiple priority images, as different images may be the LCP element for different viewport sizes.
 
@@ -373,8 +377,6 @@ A callback function that is invoked if the image fails to load.
 
 ### `loading`
 
-> **Recommendation**: This property is only meant for advanced use cases. Switching an image to load with `eager` will normally **hurt performance**. We recommend using the [`priority`](#priority) property instead, which will eagerly preload the image.
-
 ```js
 loading = 'lazy' // {lazy} | {eager}
 ```
@@ -467,17 +469,47 @@ For example, when upgrading an existing website from `<img>` to `<Image>`, you m
 />
 ```
 
+### decoding
+
+A hint to the browser indicating if it should wait for the image to be decoded before presenting other content updates or not. Defaults to `async`.
+
+Possible values are the following:
+
+- `async` - Asynchronously decode the image and allow other content to be rendered before it completes.
+- `sync` - Synchronously decode the image for atomic presentation with other content.
+- `auto` - No preference for the decoding mode; the browser decides what's best.
+
+Learn more about the [`decoding` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#decoding).
+
 ### Other Props
 
 Other properties on the `<Image />` component will be passed to the underlying
 `img` element with the exception of the following:
 
 - `srcSet`. Use [Device Sizes](#devicesizes) instead.
-- `decoding`. It is always `"async"`.
 
 ## Configuration Options
 
 In addition to props, you can configure the Image Component in `next.config.js`. The following options are available:
+
+## `localPatterns`
+
+You can optionally configure `localPatterns` in your `next.config.js` file in order to allow specific paths to be optimized and block all others paths.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/images/**',
+        search: '',
+      },
+    ],
+  },
+}
+```
+
+> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `/assets/images/` and must not have a query string. Attempting to optimize any other path will respond with 400 Bad Request.
 
 ### `remotePatterns`
 
@@ -492,15 +524,16 @@ module.exports = {
         hostname: 'example.com',
         port: '',
         pathname: '/account123/**',
+        search: '',
       },
     ],
   },
 }
 ```
 
-> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://example.com/account123/` and must not have a query string. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
 
-Below is another example of the `remotePatterns` property in the `next.config.js` file:
+Below is an example of the `remotePatterns` property in the `next.config.js` file using a wildcard pattern in the `hostname`:
 
 ```js filename="next.config.js"
 module.exports = {
@@ -510,13 +543,14 @@ module.exports = {
         protocol: 'https',
         hostname: '**.example.com',
         port: '',
+        search: '',
       },
     ],
   },
 }
 ```
 
-> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol, port, or unmatched hostname will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. It cannot have a port or query string. Any other protocol or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -525,7 +559,25 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 
 The `**` syntax does not work in the middle of the pattern.
 
-> **Good to know**: When omitting `protocol`, `port` or `pathname`, then the wildcard `**` is implied. This is not recommended because it may allow malicious actors to optimize urls you did not intend.
+> **Good to know**: When omitting `protocol`, `port`, `pathname`, or `search` then the wildcard `**` is implied. This is not recommended because it may allow malicious actors to optimize urls you did not intend.
+
+Below is an example of the `remotePatterns` property in the `next.config.js` file using `search`:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'assets.example.com',
+        search: '?v=1727111025337',
+      },
+    ],
+  },
+}
+```
+
+> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://assets.example.com` and must have the exact query string `?v=1727111025337`. Any other protocol or query string will respond with 400 Bad Request.
 
 ### `domains`
 
@@ -630,9 +682,9 @@ module.exports = {
 
 ### `formats`
 
-The default [Image Optimization API](#loader) will automatically detect the browser's supported image formats via the request's `Accept` header.
+The default [Image Optimization API](#loader) will automatically detect the browser's supported image formats via the request's `Accept` header in order to determine the best output format.
 
-If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), the Image Optimization API will fallback to the original image's format.
+If the `Accept` header matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), the Image Optimization API will fallback to the original image's format.
 
 If no configuration is provided, the default below is used.
 
@@ -644,7 +696,7 @@ module.exports = {
 }
 ```
 
-You can enable AVIF support with the following configuration.
+You can enable AVIF support and still fallback to WebP with the following configuration.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -656,7 +708,7 @@ module.exports = {
 
 > **Good to know**:
 >
-> - AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> - AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
 > - If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
 
 ## Caching Behavior
@@ -1022,7 +1074,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `v15.0.0`  | `decoding` prop added. `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `v14.2.0`  | `overrideSrc` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v14.1.0`  | `getImageProps()` is stable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `v14.0.0`  | `onLoadingComplete` prop and `domains` config deprecated.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |

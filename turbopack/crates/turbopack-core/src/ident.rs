@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_tasks::{RcStr, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash64Hasher};
 
@@ -15,13 +15,13 @@ pub struct AssetIdent {
     /// The query string of the asset (e.g. `?foo=bar`)
     pub query: Vc<RcStr>,
     /// The fragment of the asset (e.g. `#foo`)
-    pub fragment: Option<Vc<RcStr>>,
+    pub fragment: Option<ResolvedVc<RcStr>>,
     /// The assets that are nested in this asset
     pub assets: Vec<(Vc<RcStr>, Vc<AssetIdent>)>,
     /// The modifiers of this asset (e.g. `client chunks`)
     pub modifiers: Vec<Vc<RcStr>>,
     /// The part of the asset that is a (ECMAScript) module
-    pub part: Option<Vc<ModulePart>>,
+    pub part: Option<ResolvedVc<ModulePart>>,
     /// The asset layer the asset was created from.
     pub layer: Option<Vc<RcStr>>,
 }
@@ -54,7 +54,7 @@ impl ValueToString for AssetIdent {
 
         let query = self.query.await?;
         if !query.is_empty() {
-            write!(s, "?{}", &*query)?;
+            write!(s, "{}", &*query)?;
         }
 
         if let Some(fragment) = &self.fragment {
@@ -96,7 +96,12 @@ impl ValueToString for AssetIdent {
         }
 
         if let Some(part) = self.part {
-            write!(s, " <{}>", part.to_string().await?)?;
+            let part = part.to_string().await?;
+            // facade is not included in ident as switching between facade and non-facade shouldn't
+            // change the ident
+            if part.as_str() != "facade" {
+                write!(s, " <{}>", part)?;
+            }
         }
 
         Ok(Vc::cell(s.into()))
@@ -139,7 +144,7 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
-    pub fn with_part(&self, part: Vc<ModulePart>) -> Vc<Self> {
+    pub fn with_part(&self, part: ResolvedVc<ModulePart>) -> Vc<Self> {
         let mut this = self.clone();
         this.part = Some(part);
         Self::new(Value::new(this))

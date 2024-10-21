@@ -25,7 +25,7 @@ Recognizing situations where middleware may not be the optimal approach is just 
 - Complex Data Fetching and Manipulation: Middleware is not designed for direct data fetching or manipulation, this should be done within Route Handlers or server-side utilities instead.
 - Heavy Computational Tasks: Middleware should be lightweight and respond quickly or it can cause delays in page load. Heavy computational tasks or long-running processes should be done within dedicated Route Handlers.
 - Extensive Session Management: While Middleware can manage basic session tasks, extensive session management should be managed by dedicated authentication services or within Route Handlers.
-- Direct Database Operations: Performing direct database operations within Middleware is not recommended. Database interactions should done within Route Handlers or server-side utilities.
+- Direct Database Operations: Performing direct database operations within Middleware is not recommended. Database interactions should be done within Route Handlers or server-side utilities.
 
 ## Convention
 
@@ -110,9 +110,9 @@ export const config = {
      * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
+     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
   ],
 }
 ```
@@ -127,10 +127,11 @@ export const config = {
      * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
+     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
      */
     {
-      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      source:
+        '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },
@@ -138,7 +139,8 @@ export const config = {
     },
 
     {
-      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      source:
+        '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
       has: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },
@@ -146,7 +148,8 @@ export const config = {
     },
 
     {
-      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      source:
+        '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
       has: [{ type: 'header', key: 'x-present' }],
       missing: [{ type: 'header', key: 'x-missing', value: 'prefetch' }],
     },
@@ -570,7 +573,7 @@ export default async function middleware(req) {
 
 ## Runtime
 
-Middleware currently only supports the [Edge runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes). The Node.js runtime can not be used.
+Middleware currently only supports APIs compatible with the [Edge runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes). APIs exclusive to Node.js are [unsupported](/docs/app/api-reference/edge#unsupported-apis).
 
 ## Version History
 

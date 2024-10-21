@@ -7,7 +7,7 @@ use turbopack::{
 use turbopack_core::{
     context::ProcessResult,
     file_source::FileSource,
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     source::Source,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
@@ -46,47 +46,59 @@ impl Transition for NextEcmascriptClientReferenceTransition {
     async fn process(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
-        _reference_type: Value<ReferenceType>,
+        module_asset_context: Vc<ModuleAssetContext>,
+        reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
-        let context = self.process_context(context);
+        let part = match &*reference_type {
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
+                part,
+            )) => Some(*part),
+            _ => None,
+        };
+
+        let module_asset_context = self.process_context(module_asset_context);
 
         let this = self.await?;
 
-        let ident = source.ident().await?;
-        let ident_path = ident.path.await?;
+        let ident = match part {
+            Some(part) => source.ident().with_part(part),
+            None => source.ident(),
+        };
+        let ident_ref = ident.await?;
+        let ident_path = ident_ref.path.await?;
         let client_source = if ident_path.path.contains("next/dist/esm/") {
-            let path = ident.path.root().join(
+            let path = ident_ref.path.root().join(
                 ident_path
                     .path
                     .replace("next/dist/esm/", "next/dist/")
                     .into(),
             );
-            Vc::upcast(FileSource::new_with_query(path, ident.query))
+            Vc::upcast(FileSource::new_with_query(path, ident_ref.query))
         } else {
             source
         };
-        let client_module = this
-            .client_transition
-            .process(
-                client_source,
-                context,
-                Value::new(ReferenceType::Entry(
-                    EntryReferenceSubType::AppClientComponent,
-                )),
-            )
-            .module();
+        let client_module = this.client_transition.process(
+            client_source,
+            module_asset_context,
+            Value::new(ReferenceType::Entry(
+                EntryReferenceSubType::AppClientComponent,
+            )),
+        );
+        let ProcessResult::Module(client_module) = *client_module.await? else {
+            return Ok(ProcessResult::Ignore.cell());
+        };
 
-        let ssr_module = this
-            .ssr_transition
-            .process(
-                source,
-                context,
-                Value::new(ReferenceType::Entry(
-                    EntryReferenceSubType::AppClientComponent,
-                )),
-            )
-            .module();
+        let ssr_module = this.ssr_transition.process(
+            source,
+            module_asset_context,
+            Value::new(ReferenceType::Entry(
+                EntryReferenceSubType::AppClientComponent,
+            )),
+        );
+
+        let ProcessResult::Module(ssr_module) = *ssr_module.await? else {
+            return Ok(ProcessResult::Ignore.cell());
+        };
 
         let Some(client_module) =
             Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
@@ -102,18 +114,18 @@ impl Transition for NextEcmascriptClientReferenceTransition {
 
         // TODO(alexkirsz) This is necessary to remove the transition currently set on
         // the context.
-        let context = context.await?;
+        let module_asset_context = module_asset_context.await?;
         let server_context = ModuleAssetContext::new(
-            context.transitions,
-            context.compile_time_info,
-            context.module_options_context,
-            context.resolve_options_context,
-            context.layer,
+            module_asset_context.transitions,
+            module_asset_context.compile_time_info,
+            module_asset_context.module_options_context,
+            module_asset_context.resolve_options_context,
+            module_asset_context.layer,
         );
 
         Ok(
             ProcessResult::Module(Vc::upcast(EcmascriptClientReferenceProxyModule::new(
-                source.ident(),
+                ident,
                 Vc::upcast(server_context),
                 client_module,
                 ssr_module,

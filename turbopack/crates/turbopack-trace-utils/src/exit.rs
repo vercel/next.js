@@ -145,6 +145,7 @@ impl ExitReceiver {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
     use std::{
         future::Future,
         pin::Pin,

@@ -1,5 +1,5 @@
-export default function Page({ params }) {
-  return <div id="dynamic-gsp-content">{'slug:' + params.slug}</div>
+export default async function Page({ params }) {
+  return <div id="dynamic-gsp-content">{'slug:' + (await params).slug}</div>
 }
 
 export function generateStaticParams() {

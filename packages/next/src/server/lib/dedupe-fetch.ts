@@ -3,8 +3,6 @@
  */
 import * as React from 'react'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- url is the cache key
-const getCacheEntries = React.cache((url: string): Array<any> => [])
 const simpleCacheKey = '["GET",[],null,"follow",null,null,null,null]' // generateCacheKey(new Request('https://blank'));
 
 function generateCacheKey(request: Request): string {
@@ -27,6 +25,9 @@ function generateCacheKey(request: Request): string {
 }
 
 export function createDedupeFetch(originalFetch: typeof fetch) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- url is the cache key
+  const getCacheEntries = React.cache((url: string): Array<any> => [])
+
   return function dedupeFetch(
     resource: URL | RequestInfo,
     options?: RequestInit

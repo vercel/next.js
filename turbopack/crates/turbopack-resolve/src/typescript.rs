@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, Value, ValueDefault, Vc};
+use turbo_tasks::{fxindexset, RcStr, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -53,6 +53,13 @@ pub async fn read_tsconfigs(
     let mut configs = Vec::new();
     let resolve_options = json_only(resolve_options);
     loop {
+        // tsc ignores empty config files.
+        if let FileContent::Content(file) = &*data.await? {
+            if file.content().is_empty() {
+                break;
+            }
+        }
+
         let parsed_data = data.parse_json_with_comments();
         match &*parsed_data.await? {
             FileJsonContent::Unparseable(e) => {
@@ -261,7 +268,7 @@ pub async fn tsconfig_resolve_options(
                 let mut context_dir = source.ident().path().parent();
                 if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str() {
                     if let Some(new_context) = *context_dir.try_join(base_url.into()).await? {
-                        context_dir = new_context;
+                        context_dir = *new_context;
                     }
                 };
                 for (key, value) in paths.iter() {
@@ -328,7 +335,7 @@ pub async fn tsconfig_resolve_options(
     .unwrap_or_default();
 
     Ok(TsConfigResolveOptions {
-        base_url,
+        base_url: base_url.as_deref().copied(),
         import_map,
         is_module_resolution_nodenext,
     }
@@ -350,9 +357,14 @@ pub async fn apply_tsconfig_resolve_options(
     if let Some(base_url) = tsconfig_resolve_options.base_url {
         // We want to resolve in `compilerOptions.baseUrl` first, then in other
         // locations as a fallback.
-        resolve_options
-            .modules
-            .insert(0, ResolveModules::Path(base_url));
+        resolve_options.modules.insert(
+            0,
+            ResolveModules::Path {
+                dir: base_url,
+                // tsconfig basepath doesn't apply to json requests
+                excluded_extensions: Vc::cell(fxindexset![".json".into()]),
+            },
+        );
     }
     if let Some(tsconfig_import_map) = tsconfig_resolve_options.import_map {
         resolve_options.import_map = Some(
@@ -410,7 +422,7 @@ pub async fn type_resolve(
             request,
             options,
         );
-        if !*result1.is_unresolveable().await? {
+        if !*result1.is_unresolvable().await? {
             result1
         } else {
             resolve(
@@ -443,7 +455,7 @@ pub async fn type_resolve(
         origin.origin_path(),
         request,
         options,
-        IssueSeverity::Error.cell(),
+        false,
         None,
     )
     .await
@@ -506,11 +518,8 @@ impl Issue for TsConfigIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(
-            StyledString::Text("An issue occurred while parsing a tsconfig.json file.".into())
-                .cell(),
-        )
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("An issue occurred while parsing a tsconfig.json file.".into()).cell()
     }
 
     #[turbo_tasks::function]

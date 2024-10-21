@@ -31,6 +31,8 @@ export function findSourcePackage({
       return 'react'
     } else if (nextInternalsRe.test(file)) {
       return 'next'
+    } else if (file.startsWith('[turbopack]/')) {
+      return 'next'
     }
   }
 
@@ -86,4 +88,8 @@ export function json(res: ServerResponse, data: any) {
   res
     .setHeader('Content-Type', 'application/json')
     .end(Buffer.from(JSON.stringify(data)))
+}
+
+export function jsonString(res: ServerResponse, data: string) {
+  res.setHeader('Content-Type', 'application/json').end(Buffer.from(data))
 }

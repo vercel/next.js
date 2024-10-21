@@ -110,9 +110,7 @@ bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-bytes = (arguments[0] | ???*0*)
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+bytes = (arguments[0] | new FreeVar(Array)(msg["length"]))
 
 bytesToWords = (...) => output
 

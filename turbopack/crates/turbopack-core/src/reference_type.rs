@@ -1,22 +1,22 @@
 use std::fmt::Display;
 
 use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Vc};
 
 use crate::{module::Module, resolve::ModulePart};
 
 /// Named references to inner assets. Modules can used them to allow to
 /// per-module aliases of some requests to already created module assets.
+///
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(IndexMap<RcStr, Vc<Box<dyn Module>>>);
+pub struct InnerAssets(FxIndexMap<RcStr, Vc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexMap::new())
+        Vc::cell(FxIndexMap::default())
     }
 }
 
@@ -193,6 +193,16 @@ pub enum TypeScriptReferenceSubType {
     Undefined,
 }
 
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Debug, Clone, Hash)]
+pub enum WorkerReferenceSubType {
+    WebWorker,
+    SharedWorker,
+    ServiceWorker,
+    Custom(u8),
+    Undefined,
+}
+
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -219,6 +229,7 @@ pub enum ReferenceType {
     Css(CssReferenceSubType),
     Url(UrlReferenceSubType),
     TypeScript(TypeScriptReferenceSubType),
+    Worker(WorkerReferenceSubType),
     Entry(EntryReferenceSubType),
     Runtime,
     Internal(Vc<InnerAssets>),
@@ -238,6 +249,7 @@ impl Display for ReferenceType {
             ReferenceType::Css(_) => "css",
             ReferenceType::Url(_) => "url",
             ReferenceType::TypeScript(_) => "typescript",
+            ReferenceType::Worker(_) => "worker",
             ReferenceType::Entry(_) => "entry",
             ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
@@ -277,6 +289,10 @@ impl ReferenceType {
             ReferenceType::TypeScript(sub_type) => {
                 matches!(other, ReferenceType::TypeScript(_))
                     && matches!(sub_type, TypeScriptReferenceSubType::Undefined)
+            }
+            ReferenceType::Worker(sub_type) => {
+                matches!(other, ReferenceType::Worker(_))
+                    && matches!(sub_type, WorkerReferenceSubType::Undefined)
             }
             ReferenceType::Entry(sub_type) => {
                 matches!(other, ReferenceType::Entry(_))

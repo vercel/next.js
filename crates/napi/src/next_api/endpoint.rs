@@ -7,8 +7,12 @@ use next_api::{
     route::{Endpoint, WrittenEndpoint},
 };
 use tracing::Instrument;
-use turbo_tasks::{Completion, ReadRef, Vc};
-use turbopack_core::{diagnostics::PlainDiagnostic, error::PrettyPrintError, issue::PlainIssue};
+use turbo_tasks::{Completion, ReadRef, Vc, VcValueType};
+use turbopack_core::{
+    diagnostics::PlainDiagnostic,
+    error::PrettyPrintError,
+    issue::{IssueSeverity, PlainIssue},
+};
 
 use super::utils::{
     get_diagnostics, get_issues, subscribe, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult,
@@ -45,27 +49,31 @@ pub struct NapiWrittenEndpoint {
     pub config: NapiEndpointConfig,
 }
 
-impl From<WrittenEndpoint> for NapiWrittenEndpoint {
-    fn from(written_endpoint: WrittenEndpoint) -> Self {
+impl From<Option<WrittenEndpoint>> for NapiWrittenEndpoint {
+    fn from(written_endpoint: Option<WrittenEndpoint>) -> Self {
         match written_endpoint {
-            WrittenEndpoint::NodeJs {
+            Some(WrittenEndpoint::NodeJs {
                 server_entry_path,
                 server_paths,
                 client_paths,
-            } => Self {
+            }) => Self {
                 r#type: "nodejs".to_string(),
                 entry_path: Some(server_entry_path),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
-            WrittenEndpoint::Edge {
+            Some(WrittenEndpoint::Edge {
                 server_paths,
                 client_paths,
-            } => Self {
+            }) => Self {
                 r#type: "edge".to_string(),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
+                ..Default::default()
+            },
+            None => Self {
+                r#type: "none".to_string(),
                 ..Default::default()
             },
         }
@@ -88,9 +96,31 @@ impl Deref for ExternalEndpoint {
     }
 }
 
+// Await the source and return fatal issues if there are any, otherwise
+// propagate any actual error results.
+async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
+    source: Vc<R>,
+) -> Result<(
+    Option<ReadRef<R>>,
+    Arc<Vec<ReadRef<PlainIssue>>>,
+    Arc<Vec<ReadRef<PlainDiagnostic>>>,
+)> {
+    let result = source.strongly_consistent().await;
+    let issues = get_issues(source).await?;
+    let diagnostics = get_diagnostics(source).await?;
+
+    let result = if result.is_err() && issues.iter().any(|i| i.severity <= IssueSeverity::Error) {
+        None
+    } else {
+        Some(result?)
+    };
+
+    Ok((result, issues, diagnostics))
+}
+
 #[turbo_tasks::value(serialization = "none")]
 struct WrittenEndpointWithIssues {
-    written: ReadRef<WrittenEndpoint>,
+    written: Option<ReadRef<WrittenEndpoint>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
 }
@@ -100,9 +130,8 @@ async fn get_written_endpoint_with_issues(
     endpoint: Vc<Box<dyn Endpoint>>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
     let write_to_disk = endpoint.write_to_disk();
-    let written = write_to_disk.strongly_consistent().await?;
-    let issues = get_issues(write_to_disk).await?;
-    let diagnostics = get_diagnostics(write_to_disk).await?;
+    let (written, issues, diagnostics) =
+        strongly_consistent_catch_collectables(write_to_disk).await?;
     Ok(WrittenEndpointWithIssues {
         written,
         issues,
@@ -132,7 +161,7 @@ pub async fn endpoint_write_to_disk(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(TurbopackResult {
-        result: NapiWrittenEndpoint::from(written.clone_value()),
+        result: NapiWrittenEndpoint::from(written.map(|v| v.clone_value())),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })
@@ -178,15 +207,18 @@ pub fn endpoint_server_changed_subscribe(
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 struct EndpointIssuesAndDiags {
-    changed: ReadRef<Completion>,
+    changed: Option<ReadRef<Completion>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
 }
 
 impl PartialEq for EndpointIssuesAndDiags {
     fn eq(&self, other: &Self) -> bool {
-        ReadRef::ptr_eq(&self.changed, &other.changed)
-            && self.issues == other.issues
+        (match (&self.changed, &other.changed) {
+            (Some(a), Some(b)) => ReadRef::ptr_eq(a, b),
+            (None, None) => true,
+            (None, Some(_)) | (Some(_), None) => false,
+        }) && self.issues == other.issues
             && self.diagnostics == other.diagnostics
     }
 }
@@ -199,11 +231,10 @@ async fn subscribe_issues_and_diags(
     should_include_issues: bool,
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
     let changed = endpoint.server_changed();
-    let changed_value = changed.strongly_consistent().await?;
 
     if should_include_issues {
-        let issues = get_issues(changed).await?;
-        let diagnostics = get_diagnostics(changed).await?;
+        let (changed_value, issues, diagnostics) =
+            strongly_consistent_catch_collectables(changed).await?;
         Ok(EndpointIssuesAndDiags {
             changed: changed_value,
             issues,
@@ -211,8 +242,9 @@ async fn subscribe_issues_and_diags(
         }
         .cell())
     } else {
+        let changed_value = changed.strongly_consistent().await?;
         Ok(EndpointIssuesAndDiags {
-            changed: changed_value,
+            changed: Some(changed_value),
             issues: Arc::new(vec![]),
             diagnostics: Arc::new(vec![]),
         }

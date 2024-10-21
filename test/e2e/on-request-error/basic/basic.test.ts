@@ -18,12 +18,10 @@ describe('on-request-error - basic', () => {
     errorMessage,
     url,
     renderSource,
-    isMiddleware = false,
   }: {
     errorMessage: string
     url: string
     renderSource: string | undefined
-    isMiddleware?: boolean
   }) {
     // Assert the instrumentation is called
     await retry(async () => {
@@ -33,6 +31,7 @@ describe('on-request-error - basic', () => {
       expect(recordLogLines).toEqual(
         expect.arrayContaining([expect.stringContaining(errorMessage)])
       )
+      // TODO: remove custom duration in case we increase the default.
     }, 5000)
 
     const json = await getOutputLogJson(next, outputLogPath)
@@ -40,14 +39,8 @@ describe('on-request-error - basic', () => {
 
     const { payload } = record
     const { request } = payload
-    if (isMiddleware) {
-      // For middleware, the URL is absolute url with host
-      expect(request.url).toMatch(/^http:\/\//)
-      expect(request.url).toMatch(url)
-    } else {
-      expect(request.url).toBe(url)
-    }
 
+    expect(request.path).toBe(url)
     expect(record).toMatchObject({
       count: 1,
       payload: {
@@ -164,7 +157,6 @@ describe('on-request-error - basic', () => {
       await validateErrorRecord({
         errorMessage: 'middleware-error',
         url: '/middleware-error',
-        isMiddleware: true,
         renderSource: undefined,
       })
     })

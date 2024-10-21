@@ -60,7 +60,7 @@
                 Member,
             ),
         ],
-        span: 39..63#0,
+        span: 39..63,
         in_try: false,
     },
     Member {
@@ -113,7 +113,7 @@
                 Member,
             ),
         ],
-        span: 50..62#0,
+        span: 50..62,
         in_try: false,
     },
     FreeVar {
@@ -165,7 +165,7 @@
                 Ident,
             ),
         ],
-        span: 50..56#1,
+        span: 50..56,
         in_try: false,
     },
     Member {
@@ -215,7 +215,7 @@
                 Member,
             ),
         ],
-        span: 100..116#0,
+        span: 100..116,
         in_try: false,
     },
     Member {
@@ -268,7 +268,7 @@
                 Member,
             ),
         ],
-        span: 103..115#0,
+        span: 103..115,
         in_try: false,
     },
     FreeVar {
@@ -320,7 +320,7 @@
                 Ident,
             ),
         ],
-        span: 103..109#1,
+        span: 103..109,
         in_try: false,
     },
     Member {
@@ -364,7 +364,7 @@
                 Member,
             ),
         ],
-        span: 129..134#0,
+        span: 129..134,
         in_try: false,
     },
     Member {
@@ -408,7 +408,7 @@
                 Member,
             ),
         ],
-        span: 147..152#0,
+        span: 147..152,
         in_try: false,
     },
 ]

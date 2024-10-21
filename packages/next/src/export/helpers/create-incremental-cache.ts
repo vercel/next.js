@@ -1,28 +1,28 @@
-import type { NextEnabledDirectories } from '../../server/base-server'
-
 import path from 'path'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
-import { hasNextSupport } from '../../telemetry/ci-info'
+import { hasNextSupport } from '../../server/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 
 export async function createIncrementalCache({
   cacheHandler,
+  dynamicIO,
   cacheMaxMemorySize,
   fetchCacheKeyPrefix,
   distDir,
   dir,
-  enabledDirectories,
   flushToDisk,
+  cacheHandlers,
 }: {
+  dynamicIO: boolean
   cacheHandler?: string
   cacheMaxMemorySize?: number
   fetchCacheKeyPrefix?: string
   distDir: string
   dir: string
-  enabledDirectories: NextEnabledDirectories
   flushToDisk?: boolean
+  cacheHandlers?: Record<string, string | undefined>
 }) {
   // Custom cache handler overrides.
   let CacheHandler: any
@@ -34,10 +34,25 @@ export async function createIncrementalCache({
     )
   }
 
+  if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
+    ;(globalThis as any).__nextCacheHandlers = {}
+
+    for (const key of Object.keys(cacheHandlers)) {
+      if (cacheHandlers[key]) {
+        ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
+          await import(formatDynamicImportPath(dir, cacheHandlers[key])).then(
+            (mod) => mod.default || mod
+          )
+        )
+      }
+    }
+  }
+
   const incrementalCache = new IncrementalCache({
     dev: false,
     requestHeaders: {},
     flushToDisk,
+    dynamicIO,
     fetchCache: true,
     maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
@@ -53,8 +68,6 @@ export async function createIncrementalCache({
       notFoundRoutes: [],
     }),
     fs: nodeFs,
-    pagesDir: enabledDirectories.pages,
-    appDir: enabledDirectories.app,
     serverDistDir: path.join(distDir, 'server'),
     CurCacheHandler: CacheHandler,
     minimalMode: hasNextSupport,

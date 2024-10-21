@@ -25,6 +25,10 @@ Next.js will evaluate the file and automatically add the appropriate tags to you
 | [`opengraph-image.alt`](#opengraph-imagealttxt) | `.txt`                          |
 | [`twitter-image.alt`](#twitter-imagealttxt)     | `.txt`                          |
 
+> **Good to know**:
+>
+> The `twitter-image` file size must not exceed [5MB](https://developer.x.com/en/docs/x-for-websites/cards/overview/summary), and the `opengraph-image` file size must not exceed [8MB](https://developers.facebook.com/docs/sharing/webmasters/images). If the image file size exceeds these limits, the build will fail.
+
 ### `opengraph-image`
 
 Add an `opengraph-image.(jpg|jpeg|png|gif)` image file to any route segment.
@@ -82,11 +86,11 @@ Generate a route segment's shared image by creating an `opengraph-image` or `twi
 | `opengraph-image` | `.js`, `.ts`, `.tsx` |
 | `twitter-image`   | `.js`, `.ts`, `.tsx` |
 
-> **Good to know**
+> **Good to know**:
 >
-> - By default, generated images are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) or uncached data.
+> - By default, generated images are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-apis) or uncached data.
 > - You can generate multiple Images in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
-> - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that is cached by default unless it uses a [dynamic function](/docs/app/building-your-application/caching#dynamic-functions) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
+> - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that is cached by default unless it uses a [Dynamic API](/docs/app/building-your-application/caching#dynamic-apis) or [dynamic config](/docs/app/building-your-application/caching#segment-config-options) option.
 
 The easiest way to generate an image is to use the [ImageResponse](/docs/app/api-reference/functions/image-response) API from `next/og`.
 

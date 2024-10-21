@@ -5,14 +5,19 @@ import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
+// Determine if the whole module is client action, 'use server' in nested closure in the client module
+function isActionClientLayerModule(mod: { resource: string; buildInfo?: any }) {
+  const rscInfo = mod.buildInfo.rsc
+  return !!(rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.client)
+}
+
 export function isClientComponentEntryModule(mod: {
   resource: string
   buildInfo?: any
 }) {
   const rscInfo = mod.buildInfo.rsc
   const hasClientDirective = rscInfo?.isClientRef
-  const isActionLayerEntry =
-    rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.client
+  const isActionLayerEntry = isActionClientLayerModule(mod)
   return (
     hasClientDirective || isActionLayerEntry || imageRegex.test(mod.resource)
   )
@@ -39,16 +44,20 @@ export function isCSSMod(mod: {
   )
 }
 
-export function getActions(mod: {
+export function getActionsFromBuildInfo(mod: {
   resource: string
   buildInfo?: any
 }): undefined | string[] {
   return mod.buildInfo?.rsc?.actions
 }
 
-export function generateActionId(filePath: string, exportName: string) {
+export function generateActionId(
+  hashSalt: string,
+  filePath: string,
+  exportName: string
+) {
   return createHash('sha1')
-    .update(filePath + ':' + exportName)
+    .update(hashSalt + filePath + ':' + exportName)
     .digest('hex')
 }
 

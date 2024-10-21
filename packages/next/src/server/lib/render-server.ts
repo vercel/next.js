@@ -20,13 +20,9 @@ let initializations: Record<
 > = {}
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
-let requireCacheHotReloader:
-  | undefined
-  | typeof import('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
 
 if (process.env.NODE_ENV !== 'production') {
   sandboxContext = require('../web/sandbox/context')
-  requireCacheHotReloader = require('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
 }
 
 export function clearAllModuleContexts() {
@@ -35,16 +31,6 @@ export function clearAllModuleContexts() {
 
 export function clearModuleContext(target: string) {
   return sandboxContext?.clearModuleContext(target)
-}
-
-export function deleteAppClientCache() {
-  return requireCacheHotReloader?.deleteAppClientCache()
-}
-
-export function deleteCache(filePaths: string[]) {
-  for (const filePath of filePaths) {
-    requireCacheHotReloader?.deleteCache(filePath)
-  }
 }
 
 export async function getServerField(

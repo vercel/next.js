@@ -67,7 +67,7 @@ impl<'a> StackFrame<'a> {
     }
 }
 
-impl<'a> Display for StackFrame<'a> {
+impl Display for StackFrame<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.get_pos() {
             Some((l, c)) => match &self.name.as_deref() {
@@ -102,12 +102,7 @@ pub enum TraceResult {
 #[turbo_tasks::value_impl]
 impl SourceMapTrace {
     #[turbo_tasks::function]
-    pub async fn new(
-        map: Vc<SourceMap>,
-        line: usize,
-        column: usize,
-        name: Option<RcStr>,
-    ) -> Vc<Self> {
+    pub fn new(map: Vc<SourceMap>, line: usize, column: usize, name: Option<RcStr>) -> Vc<Self> {
         SourceMapTrace {
             map,
             line,
@@ -128,12 +123,10 @@ impl SourceMapTrace {
     /// the individual sections of the JS file's map without the
     /// serialization.
     #[turbo_tasks::function]
-    pub async fn trace(self: Vc<Self>) -> Result<Vc<TraceResult>> {
-        let this = self.await?;
-
-        let token = this
+    pub async fn trace(&self) -> Result<Vc<TraceResult>> {
+        let token = self
             .map
-            .lookup_token(this.line.saturating_sub(1), this.column.saturating_sub(1))
+            .lookup_token(self.line.saturating_sub(1), self.column.saturating_sub(1))
             .await?;
         let result = match &*token {
             Token::Original(t) => TraceResult::Found(StackFrame {
@@ -143,7 +136,7 @@ impl SourceMapTrace {
                 name: t
                     .name
                     .clone()
-                    .or_else(|| this.name.clone())
+                    .or_else(|| self.name.clone())
                     .map(|v| v.into_owned())
                     .map(Cow::Owned),
             }),

@@ -1,4 +1,3 @@
-use indexmap::IndexSet;
 use turbo_tasks::Vc;
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
@@ -16,6 +15,10 @@ pub trait Module: Asset {
     fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         ModuleReferences::empty()
     }
+
+    fn additional_layers_modules(self: Vc<Self>) -> Vc<Modules> {
+        Vc::cell(vec![])
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -31,17 +34,3 @@ impl Modules {
         Vc::cell(Vec::new())
     }
 }
-
-/// A set of [Module]s
-#[turbo_tasks::value(transparent)]
-pub struct ModulesSet(IndexSet<Vc<Box<dyn Module>>>);
-
-#[turbo_tasks::value_impl]
-impl ModulesSet {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexSet::new())
-    }
-}
-
-// TODO All Vc::try_resolve_downcast::<Box<dyn Module>> calls should be removed

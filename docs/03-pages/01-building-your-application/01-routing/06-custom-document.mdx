@@ -39,7 +39,7 @@ export default function Document() {
 }
 ```
 
-> **Good to know**
+> **Good to know**:
 >
 > - `_document` is only rendered on the server, so event handlers like `onClick` cannot be used in this file.
 > - `<Html>`, `<Head />`, `<Main />` and `<NextScript />` are required for the page to be properly rendered.
@@ -141,7 +141,7 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-> **Good to know**
+> **Good to know**:
 >
 > - `getInitialProps` in `_document` is not called during client-side transitions.
 > - The `ctx` object for `_document` is equivalent to the one received in [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props#context-object), with the addition of `renderPage`.

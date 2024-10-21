@@ -28,10 +28,8 @@ impl CssChunkSourceMapAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(
-            self.chunk.path().append(".map".into()),
-        ))
+    fn ident(&self) -> Vc<AssetIdent> {
+        AssetIdent::from_path(self.chunk.path().append(".map".into()))
     }
 }
 

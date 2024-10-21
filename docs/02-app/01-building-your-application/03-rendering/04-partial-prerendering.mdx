@@ -33,16 +33,27 @@ To prevent creating many HTTP requests for each dynamic component, PPR is able t
 
 In Next.js 15, you can incrementally adopt Partial Prerendering in [layouts](/docs/app/building-your-application/routing/layouts-and-templates) and [pages](/docs/app/building-your-application/routing/pages) by setting the [`ppr`](/docs/app/api-reference/next-config-js/ppr) option in `next.config.js` to `incremental`, and exporting the `experimental_ppr` [route config option](/docs/app/api-reference/file-conventions/route-segment-config) at the top of the file:
 
-```js filename="next.config.ts"
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    ppr: 'incremental'
-  }
+    ppr: 'incremental',
+  },
 }
 
 export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    ppr: 'incremental',
+  },
+}
+
+module.exports = nextConfig
 ```
 
 ```tsx filename="app/page.tsx" switcher
@@ -91,7 +102,20 @@ export default function Page() {
 
 For version 14, you can enable it by adding the [`ppr`](/docs/app/api-reference/next-config-js/ppr) option to your `next.config.js` file. This will apply to all routes in your application:
 
-```js filename="next.config.js"
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    ppr: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
     ppr: true,
@@ -103,15 +127,15 @@ module.exports = nextConfig
 
 ## Dynamic Components
 
-When creating the prender for your route during `next build`, Next.js requires that dynamic functions are wrapped with React Suspense. The `fallback` is then included in the prerender.
+When creating the prerender for your route during `next build`, Next.js requires that Dynamic APIs are wrapped with React Suspense. The `fallback` is then included in the prerender.
 
-For example, using functions like `cookies()` or `headers()`:
+For example, using functions like `cookies` or `headers`:
 
 ```jsx filename="app/user.js" switcher
 import { cookies } from 'next/headers'
 
-export function User() {
-  const session = cookies().get('session')?.value
+export async function User() {
+  const session = (await cookies()).get('session')?.value
   return '...'
 }
 ```
@@ -119,8 +143,8 @@ export function User() {
 ```tsx filename="app/user.tsx" switcher
 import { cookies } from 'next/headers'
 
-export function User() {
-  const session = cookies().get('session')?.value
+export async function User() {
+  const session = (await cookies()).get('session')?.value
   return '...'
 }
 ```
@@ -200,17 +224,21 @@ export default function Page({ searchParams }) {
 Inside of the table component, accessing the value from `searchParams` will make the component run dynamically:
 
 ```tsx filename="app/table.tsx" switcher
-export function Table({ searchParams }: { searchParams: { sort: string } }) {
-  const sort = searchParams.sort === 'true'
+export async function Table({
+  searchParams,
+}: {
+  searchParams: Promise<{ sort: string }>
+}) {
+  const sort = (await searchParams).sort === 'true'
   return '...'
 }
 ```
 
 ```jsx filename="app/table.js" switcher
-export function Table({ searchParams }: {
-  searchParams: { sort: string }
+export async function Table({ searchParams }: {
+  searchParams: Promise<{ sort: string }>
 }) {
-  const sort = searchParams.sort === 'true';
+  const sort = (await searchParams).sort === 'true';
   return '...'
 }
 ```

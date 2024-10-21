@@ -8,6 +8,8 @@ export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
 export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
+export const RSC_SEGMENTS_DIR_SUFFIX = '.segments'
+export const RSC_SEGMENT_SUFFIX = '.segment.rsc'
 export const RSC_SUFFIX = '.rsc'
 export const ACTION_SUFFIX = '.action'
 export const NEXT_DATA_SUFFIX = '.json'
@@ -20,6 +22,8 @@ export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
 
+export const NEXT_RESUME_HEADER = 'next-resume'
+
 // if these change make sure we update the related
 // documentation as well
 export const NEXT_CACHE_TAG_MAX_ITEMS = 64
@@ -29,6 +33,11 @@ export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
 
 // in seconds
 export const CACHE_ONE_YEAR = 31536000
+
+// in seconds, represents revalidate=false. I.e. never revaliate.
+// We use this value since it can be represented as a V8 SMI for optimal performance.
+// It can also be serialized as JSON if it ever leaks accidentally as an actual value.
+export const INFINITE_CACHE = 0xfffffffe
 
 // Patterns to detect middleware files
 export const MIDDLEWARE_FILENAME = 'middleware'
@@ -46,6 +55,7 @@ export const APP_DIR_ALIAS = 'private-next-app-dir'
 export const RSC_MOD_REF_PROXY_ALIAS = 'private-next-rsc-mod-ref-proxy'
 export const RSC_ACTION_VALIDATE_ALIAS = 'private-next-rsc-action-validate'
 export const RSC_ACTION_PROXY_ALIAS = 'private-next-rsc-server-reference'
+export const RSC_CACHE_WRAPPER_ALIAS = 'private-next-rsc-cache-wrapper'
 export const RSC_ACTION_ENCRYPTION_ALIAS = 'private-next-rsc-action-encryption'
 export const RSC_ACTION_CLIENT_WRAPPER_ALIAS =
   'private-next-rsc-action-client-wrapper'
@@ -167,6 +177,13 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
       WEBPACK_LAYERS_NAMES.shared,
       WEBPACK_LAYERS_NAMES.instrument,
+    ],
+    appPages: [
+      // app router pages and layouts
+      WEBPACK_LAYERS_NAMES.reactServerComponents,
+      WEBPACK_LAYERS_NAMES.serverSideRendering,
+      WEBPACK_LAYERS_NAMES.appPagesBrowser,
+      WEBPACK_LAYERS_NAMES.actionBrowser,
     ],
   },
 }

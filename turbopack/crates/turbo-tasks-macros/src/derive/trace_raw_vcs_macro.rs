@@ -6,7 +6,7 @@ use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
 
 use super::FieldAttributes;
 
-fn filter_field(field: &Field) -> bool {
+pub fn filter_field(field: &Field) -> bool {
     !FieldAttributes::from(field.attrs.as_slice()).trace_ignore
 }
 

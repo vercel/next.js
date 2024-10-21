@@ -41,9 +41,18 @@ function runTests({ isDev }) {
         `)
       }
     } else {
-      expect(stripAnsi(stderr)).toContain(
-        'Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.'
-      )
+      const output = stripAnsi(stderr)
+      if (process.env.TURBOPACK) {
+        expect(output).toContain(
+          `./test/integration/next-image-new/invalid-image-import/public/invalid.svg
+Processing image failed
+Failed to parse svg source code for image dimensions`
+        )
+      } else {
+        expect(output).toContain(
+          'Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.'
+        )
+      }
     }
   })
 }

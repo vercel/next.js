@@ -6,14 +6,9 @@ import { nextTestSetup, FileRef } from 'e2e-utils'
 import type { Response } from 'node-fetch'
 
 describe('app-dir with middleware', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should filter correctly after middleware rewrite', async () => {
     const browser = await next.browser('/start')
@@ -179,8 +174,10 @@ describe('app-dir with middleware', () => {
 
     await browser.elementById('submit-server-action').click()
 
-    await retry(() => {
-      expect(next.cliOutput).toMatch(/\[Cookie From Action\]: \d+\.\d+/)
+    await retry(async () => {
+      expect(await browser.elementById('action-result').text()).toMatch(
+        /Action Result: \d+\.\d+/
+      )
     })
 
     // ensure that we still can't read the secure cookie
@@ -210,8 +207,10 @@ describe('app-dir with middleware', () => {
 
     await browser.elementById('submit-server-action').click()
 
-    await retry(() => {
-      expect(next.cliOutput).toMatch(/\[Cookie From Action\]: \d+\.\d+/)
+    await retry(async () => {
+      expect(await browser.elementById('action-result').text()).toMatch(
+        /Action Result: \d+\.\d+/
+      )
     })
 
     await browser.deleteCookies()
@@ -219,7 +218,7 @@ describe('app-dir with middleware', () => {
 })
 
 describe('app dir - middleware without pages dir', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       app: new FileRef(path.join(__dirname, 'app')),
       'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
@@ -235,12 +234,7 @@ describe('app dir - middleware without pages dir', () => {
       }
     `,
     },
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // eslint-disable-next-line jest/no-identical-title
   it('Updates headers', async () => {
@@ -251,7 +245,7 @@ describe('app dir - middleware without pages dir', () => {
 })
 
 describe('app dir - middleware with middleware in src dir', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       'src/app': new FileRef(path.join(__dirname, 'app')),
       'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
@@ -260,19 +254,14 @@ describe('app dir - middleware with middleware in src dir', () => {
       import { cookies } from 'next/headers'
 
       export async function middleware(request) {
-        const cookie = cookies().get('test-cookie')
+        const cookie = (await cookies()).get('test-cookie')
         return NextResponse.json({ cookie })
       }
     `,
     },
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
-
-  it('works without crashing when using requestAsyncStorage', async () => {
+  it('works without crashing when using RequestStore', async () => {
     const browser = await next.browser('/')
     await browser.addCookie({
       name: 'test-cookie',

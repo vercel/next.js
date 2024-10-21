@@ -2,15 +2,14 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, quote_spanned};
 use syn::{
-    parse_macro_input, parse_quote, spanned::Spanned, ExprPath, ItemTrait, TraitItem,
-    TraitItemMethod,
+    parse_macro_input, parse_quote, spanned::Spanned, ItemTrait, TraitItem, TraitItemMethod,
 };
 use turbo_tasks_macros_shared::{
     get_trait_default_impl_function_id_ident, get_trait_default_impl_function_ident,
     get_trait_type_id_ident, get_trait_type_ident, ValueTraitArguments,
 };
 
-use crate::func::{DefinitionContext, NativeFn, TurboFn};
+use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let ValueTraitArguments { debug, resolved } = parse_macro_input!(args as ValueTraitArguments);
@@ -85,7 +84,14 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
         let ident = &sig.ident;
 
-        let Some(turbo_fn) = TurboFn::new(sig, DefinitionContext::ValueTrait) else {
+        // Value trait method declarations don't have `#[turbo_tasks::function]`
+        // annotations on them, though their `impl`s do. It may make sense to require it
+        // in the future when defining a default implementation.
+        let Some(turbo_fn) = TurboFn::new(
+            sig,
+            DefinitionContext::ValueTrait,
+            FunctionArguments::default(),
+        ) else {
             return quote! {
                 // An error occurred while parsing the function signature.
             }
@@ -99,20 +105,23 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             #turbo_signature #dynamic_block
         });
 
-        let default = if let Some(block) = default {
-            // TODO(alexkirsz) These should go into their own utilities.
-            let inline_function_ident: Ident =
-                Ident::new(&format!("{}_inline", ident), ident.span());
+        let default = if let Some(default) = default {
+            let inline_function_ident = turbo_fn.inline_ident();
             let inline_extension_trait_ident =
                 Ident::new(&format!("{}_{}_inline", trait_ident, ident), ident.span());
-            let inline_function_path: ExprPath = parse_quote! { <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident };
-            let mut inline_signature = sig.clone();
-            inline_signature.ident = inline_function_ident;
+            let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
 
             let native_function = NativeFn::new(
                 &format!("{trait_ident}::{ident}"),
-                &inline_function_path,
+                &parse_quote! {
+                    <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
+                },
                 turbo_fn.is_method(),
+                // `inline_cells` is currently unsupported here because:
+                // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
+                //   argument.
+                // - This only makes sense when a default implementation is present.
+                false,
             );
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
@@ -126,7 +135,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             });
 
             trait_methods.push(quote! {
-                trait_type.register_default_trait_method::<(#(#arg_types),*)>(stringify!(#ident).into(), *#native_function_id_ident);
+                trait_type.register_default_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into(), *#native_function_id_ident);
             });
 
             native_functions.push(quote! {
@@ -152,7 +161,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     const #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
 
                     #(#attrs)*
-                    #inline_signature #block
+                    #inline_signature #inline_block
                 }
 
                 #[doc(hidden)]
@@ -164,7 +173,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             Some(turbo_fn.static_block(&native_function_id_ident))
         } else {
             trait_methods.push(quote! {
-                trait_type.register_trait_method::<(#(#arg_types),*)>(stringify!(#ident).into());
+                trait_type.register_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into());
             });
             None
         };

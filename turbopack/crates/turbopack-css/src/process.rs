@@ -4,7 +4,6 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, Pattern, Segment},
     dependencies::{Dependency, ImportDependency, Location, SourceRange},
@@ -27,17 +26,20 @@ use swc_core::{
             ForgivingRelativeSelector, PseudoClassSelectorChildren, PseudoElementSelectorChildren,
             RelativeSelector, SubclassSelector, TypeSelector, UrlValue,
         },
-        codegen::{writer::basic::BasicCssWriter, CodeGenerator},
+        codegen::{
+            writer::basic::{BasicCssWriter, BasicCssWriterConfig},
+            CodeGenerator,
+        },
         modules::{CssClassName, TransformConfig},
         visit::{VisitMut, VisitMutWith, VisitWith},
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::ChunkingContext,
+    chunk::{ChunkingContext, MinifyType},
     issue::{
         Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
         StyledString,
@@ -88,7 +90,7 @@ impl PartialEq for StyleSheetLike<'_, '_> {
 
 pub type CssOutput = (ToCssResult, Option<ParseCssResultSourceMap>);
 
-impl<'i, 'o> StyleSheetLike<'i, 'o> {
+impl StyleSheetLike<'_, '_> {
     pub fn to_static(
         &self,
         options: ParserOptions<'static, 'static>,
@@ -111,6 +113,7 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
         &self,
         cm: Arc<swc_core::common::SourceMap>,
         code: &str,
+        minify_type: MinifyType,
         enable_srcmap: bool,
         remove_imports: bool,
         handle_nesting: bool,
@@ -123,17 +126,19 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
                     None
                 };
 
+                let targets = if handle_nesting {
+                    Targets {
+                        include: Features::Nesting,
+                        ..Default::default()
+                    }
+                } else {
+                    Default::default()
+                };
+
                 let result = ss.to_css(PrinterOptions {
-                    minify: false,
+                    minify: matches!(minify_type, MinifyType::Minify),
                     source_map: srcmap.as_mut(),
-                    targets: if handle_nesting {
-                        Targets {
-                            include: Features::Nesting,
-                            ..Default::default()
-                        }
-                    } else {
-                        Default::default()
-                    },
+                    targets,
                     analyze_dependencies: None,
                     ..Default::default()
                 })?;
@@ -158,7 +163,7 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
                 // We always analyze dependencies, but remove them only if remove_imports is
                 // true
                 let mut deps = vec![];
-                stylesheet.visit_mut_with(&mut SwcDepColllector {
+                stylesheet.visit_mut_with(&mut SwcDepCollector {
                     deps: &mut deps,
                     remove_imports,
                 });
@@ -247,8 +252,21 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
                 let mut srcmap = if enable_srcmap { Some(vec![]) } else { None };
 
                 let mut code_gen = CodeGenerator::new(
-                    BasicCssWriter::new(&mut code_string, srcmap.as_mut(), Default::default()),
-                    Default::default(),
+                    BasicCssWriter::new(
+                        &mut code_string,
+                        srcmap.as_mut(),
+                        if matches!(minify_type, MinifyType::Minify) {
+                            BasicCssWriterConfig {
+                                indent_width: 0,
+                                ..Default::default()
+                            }
+                        } else {
+                            Default::default()
+                        },
+                    ),
+                    swc_core::css::codegen::CodegenConfig {
+                        minify: matches!(minify_type, MinifyType::Minify),
+                    },
                 );
 
                 code_gen.emit(&stylesheet)?;
@@ -309,7 +327,7 @@ pub enum CssWithPlaceholderResult {
         url_references: Vc<UnresolvedUrlReferences>,
 
         #[turbo_tasks(trace_ignore)]
-        exports: Option<IndexMap<String, CssModuleExport>>,
+        exports: Option<FxIndexMap<String, CssModuleExport>>,
 
         #[turbo_tasks(trace_ignore)]
         placeholders: HashMap<String, Url<'static>>,
@@ -360,10 +378,11 @@ pub async fn process_css_with_placeholder(
                 _ => bail!("this case should be filtered out while parsing"),
             };
 
-            let (result, _) = stylesheet.to_css(cm.clone(), &code, false, false, false)?;
+            let (result, _) =
+                stylesheet.to_css(cm.clone(), &code, MinifyType::NoMinify, false, false, false)?;
 
             let exports = result.exports.map(|exports| {
-                let mut exports = exports.into_iter().collect::<IndexMap<_, _>>();
+                let mut exports = exports.into_iter().collect::<FxIndexMap<_, _>>();
 
                 exports.sort_keys();
 
@@ -389,6 +408,7 @@ pub async fn process_css_with_placeholder(
 pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
+    minify_type: MinifyType,
 ) -> Result<Vc<FinalCssResult>> {
     let result = result.await?;
     match &*result {
@@ -427,7 +447,8 @@ pub async fn finalize_css(
                 FileContent::Content(v) => v.content().to_str()?,
                 _ => bail!("this case should be filtered out while parsing"),
             };
-            let (result, srcmap) = stylesheet.to_css(cm.clone(), &code, true, true, true)?;
+            let (result, srcmap) =
+                stylesheet.to_css(cm.clone(), &code, minify_type, true, true, true)?;
 
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
@@ -453,6 +474,7 @@ pub trait ProcessCss: ParseCss {
     async fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        minify_type: MinifyType,
     ) -> Result<Vc<FinalCssResult>>;
 }
 
@@ -574,6 +596,7 @@ async fn process_content(
                         match err.kind {
                             lightningcss::error::ParserError::UnexpectedToken(_)
                             | lightningcss::error::ParserError::UnexpectedImportRule
+                            | lightningcss::error::ParserError::SelectorError(..)
                             | lightningcss::error::ParserError::EndOfInput => {
                                 let source = err.loc.as_ref().map(|loc| {
                                     let pos = SourcePos {
@@ -586,7 +609,7 @@ async fn process_content(
                                 ParsingIssue {
                                     file: fs_path_vc,
                                     msg: Vc::cell(err.to_string().into()),
-                                    source: Vc::cell(source),
+                                    source,
                                 }
                                 .cell()
                                 .emit();
@@ -609,11 +632,10 @@ async fn process_content(
                         };
                         IssueSource::from_line_col(source, pos, pos)
                     });
-
                     ParsingIssue {
                         file: fs_path_vc,
                         msg: Vc::cell(e.to_string().into()),
-                        source: Vc::cell(source),
+                        source,
                     }
                     .cell()
                     .emit();
@@ -634,7 +656,7 @@ async fn process_content(
             )),
         );
 
-        let fm = cm.new_source_file(FileName::Custom(filename.to_string()), code.clone());
+        let fm = cm.new_source_file(FileName::Custom(filename.to_string()).into(), code.clone());
         let mut errors = vec![];
 
         let ss = swc_core::css::parser::parse_file(
@@ -683,7 +705,7 @@ async fn process_content(
                     .get(0)
                     .context("Must include basename preceding .")?
                     .as_str();
-                // Truncate this as u32 so it's formated as 8-character hex in the suffic below
+                // Truncate this as u32 so it's formatted as 8-character hex in the suffix below
                 let path_hash = turbo_tasks_hash::hash_xxh3_hash64(filename) as u32;
 
                 Some(SwcCssModuleMode {
@@ -738,11 +760,11 @@ impl CssError {
                 ParsingIssue {
                     file,
                     msg: Vc::cell(CSS_MODULE_ERROR.into()),
-                    source: Vc::cell(Some(IssueSource::from_swc_offsets(
+                    source: Some(IssueSource::from_swc_offsets(
                         source,
                         span.lo.0 as _,
                         span.hi.0 as _,
-                    ))),
+                    )),
                 }
                 .cell()
                 .emit();
@@ -751,7 +773,7 @@ impl CssError {
                 ParsingIssue {
                     file,
                     msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into()),
-                    source: Vc::cell(None),
+                    source: None,
                 }
                 .cell()
                 .emit();
@@ -763,7 +785,7 @@ impl CssError {
 const CSS_MODULE_ERROR: &str =
     "Selector is not pure (pure selectors must contain at least one local class or id)";
 
-/// We only vist top-level selectors.
+/// We only visit top-level selectors.
 impl swc_core::css::visit::Visit for CssValidator {
     fn visit_complex_selector(&mut self, n: &ComplexSelector) {
         fn is_complex_not_pure(sel: &ComplexSelector) -> bool {
@@ -867,7 +889,7 @@ impl swc_core::css::visit::Visit for CssValidator {
     fn visit_simple_block(&mut self, _: &swc_core::css::ast::SimpleBlock) {}
 }
 
-/// We only vist top-level selectors.
+/// We only visit top-level selectors.
 impl lightningcss::visitor::Visitor<'_> for CssValidator {
     type Error = ();
 
@@ -1008,12 +1030,12 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
     }
 }
 
-struct SwcDepColllector<'a> {
+struct SwcDepCollector<'a> {
     deps: &'a mut Vec<Dependency>,
     remove_imports: bool,
 }
 
-impl VisitMut for SwcDepColllector<'_> {
+impl VisitMut for SwcDepCollector<'_> {
     fn visit_mut_rules(&mut self, n: &mut Vec<swc_core::css::ast::Rule>) {
         n.visit_mut_children_with(self);
 
@@ -1073,7 +1095,7 @@ impl TransformConfig for ModuleTransformConfig {
 struct ParsingIssue {
     msg: Vc<RcStr>,
     file: Vc<FileSystemPath>,
-    source: Vc<OptionIssueSource>,
+    source: Option<Vc<IssueSource>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -1095,7 +1117,7 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        self.source
+        Vc::cell(self.source.map(|s| s.resolve_source_map(self.file)))
     }
 
     #[turbo_tasks::function]
@@ -1144,7 +1166,10 @@ mod tests {
     fn lint_swc(code: &str) -> Vec<CssError> {
         let cm = swc_core::common::SourceMap::new(FilePathMapping::empty());
 
-        let fm = cm.new_source_file(FileName::Custom("test.css".to_string()), code.to_string());
+        let fm = cm.new_source_file(
+            FileName::Custom("test.css".to_string()).into(),
+            code.to_string(),
+        );
 
         let ss: Stylesheet = swc_core::css::parser::parse_file(
             &fm,

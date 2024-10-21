@@ -7,6 +7,7 @@ import cheerio from 'cheerio'
 // on experimental flags. For example, as a first step we could all the common
 // gates like this one into a single module.
 const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -230,6 +231,24 @@ describe('app dir - rsc basics', () => {
     expect(html).toContain('dynamic data!')
   })
 
+  // TODO: TLA in client references are currently broken with Webpack on Edge
+  describe.each(process.env.TURBOPACK ? ['node', 'edge'] : ['node'])(
+    'client references with TLA (%s)',
+    (runtime) => {
+      let url = `/async-client${runtime === 'edge' ? '/edge' : ''}`
+
+      it('should support TLA in sync client reference imports', async () => {
+        const html = await next.render(url + '/sync')
+        expect(html).toContain('client async')
+      })
+
+      it('should support TLA in lazy client reference', async () => {
+        const html = await next.render(url + '/lazy')
+        expect(html).toContain('client async')
+      })
+    }
+  )
+
   if (isPPREnabledByDefault) {
     // TODO: Figure out why this test is flaky when PPR is enabled
   } else {
@@ -388,7 +407,7 @@ describe('app dir - rsc basics', () => {
         const hasRCScript = /\$RC=function/.test(chunk)
         if (hasRCScript) results.push('refresh-script')
 
-        const isFallbackResolved = chunk.includes('fallback')
+        const isFallbackResolved = chunk.includes('$test-fallback-sentinel')
         if (isFallbackResolved) results.push('fallback')
       })
 
@@ -486,8 +505,7 @@ describe('app dir - rsc basics', () => {
   const bundledReactVersionPattern =
     process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-rc-'
 
-  // TODO: (React 19) During Beta, bundled and installed version match.
-  it.skip('should not use bundled react for pages with app', async () => {
+  it('should not use bundled react for pages with app', async () => {
     const ssrPaths = ['/pages-react', '/edge-pages-react']
     const promises = ssrPaths.map(async (pathname) => {
       const resPages$ = await next.render$(pathname)
@@ -498,7 +516,14 @@ describe('app dir - rsc basics', () => {
       ]
 
       ssrPagesReactVersions.forEach((version) => {
-        expect(version).not.toMatch(bundledReactVersionPattern)
+        if (isReact18 || isPPREnabledByDefault) {
+          expect(version).not.toMatch(bundledReactVersionPattern)
+        } else {
+          // TODO: Pages router only supports React 19 that is bundled
+          // Once we run with React 19 stable, this branch should be removed in
+          // favor of unconditional `not.toMatch`
+          expect(version).toMatch(bundledReactVersionPattern)
+        }
       })
     })
     await Promise.all(promises)
@@ -507,7 +532,6 @@ describe('app dir - rsc basics', () => {
     const ssrAppReactVersions = [
       await resApp$('#react').text(),
       await resApp$('#react-dom').text(),
-      await resApp$('#react-dom-server').text(),
     ]
 
     ssrAppReactVersions.forEach((version) =>
@@ -532,43 +556,90 @@ describe('app dir - rsc basics', () => {
       ]
     `)
 
-    browserPagesReactVersions.forEach((version) =>
-      expect(version).not.toMatch(bundledReactVersionPattern)
-    )
-    browserEdgePagesReactVersions.forEach((version) =>
-      expect(version).not.toMatch(bundledReactVersionPattern)
-    )
+    browserPagesReactVersions.forEach((version) => {
+      if (isReact18 || isPPREnabledByDefault) {
+        expect(version).not.toMatch(bundledReactVersionPattern)
+      } else {
+        // TODO: Pages router only supports React 19 that is bundled
+        // Once we run with React 19 stable, this branch should be removed in
+        // favor of unconditional `not.toMatch`
+        expect(version).toMatch(bundledReactVersionPattern)
+      }
+    })
+    browserEdgePagesReactVersions.forEach((version) => {
+      if (isReact18 || isPPREnabledByDefault) {
+        expect(version).not.toMatch(bundledReactVersionPattern)
+      } else {
+        // TODO: Pages router only supports React 19 that is bundled
+        // Once we run with React 19 stable, this branch should be removed in
+        // favor of unconditional `not.toMatch`
+        expect(version).toMatch(bundledReactVersionPattern)
+      }
+    })
   })
 
   it('should use canary react for app', async () => {
     const resPages$ = await next.render$('/app-react')
-    const ssrPagesReactVersions = [
-      await resPages$('#react').text(),
-      await resPages$('#react-dom').text(),
-      await resPages$('#react-dom-server').text(),
-      await resPages$('#client-react').text(),
-      await resPages$('#client-react-dom').text(),
-      await resPages$('#client-react-dom-server').text(),
+    const [
+      ssrReact,
+      ssrReactDOM,
+      ssrClientReact,
+      ssrClientReactDOM,
+      ssrClientReactDOMServer,
+    ] = [
+      resPages$('#react').text(),
+      resPages$('#react-dom').text(),
+      resPages$('#client-react').text(),
+      resPages$('#client-react-dom').text(),
+      resPages$('#client-react-dom-server').text(),
     ]
-
-    ssrPagesReactVersions.forEach((version) => {
-      expect(version).toMatch(bundledReactVersionPattern)
+    expect({
+      ssrReact,
+      ssrReactDOM,
+      ssrClientReact,
+      ssrClientReactDOM,
+      ssrClientReactDOMServer,
+    }).toEqual({
+      ssrReact: expect.stringMatching(bundledReactVersionPattern),
+      ssrReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      ssrClientReact: expect.stringMatching(bundledReactVersionPattern),
+      ssrClientReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      ssrClientReactDOMServer: expect.stringMatching(
+        bundledReactVersionPattern
+      ),
     })
 
     const browser = await next.browser('/app-react')
-    const browserAppReactVersions = await browser.eval(`
+    const [
+      browserReact,
+      browserReactDOM,
+      browserClientReact,
+      browserClientReactDOM,
+      browserClientReactDOMServer,
+    ] = await browser.eval(`
       [
         document.querySelector('#react').innerText,
         document.querySelector('#react-dom').innerText,
-        document.querySelector('#react-dom-server').innerText,
         document.querySelector('#client-react').innerText,
         document.querySelector('#client-react-dom').innerText,
         document.querySelector('#client-react-dom-server').innerText,
       ]
     `)
-    browserAppReactVersions.forEach((version) =>
-      expect(version).toMatch(bundledReactVersionPattern)
-    )
+    expect({
+      browserReact,
+      browserReactDOM,
+      browserClientReact,
+      browserClientReactDOM,
+      browserClientReactDOMServer,
+    }).toEqual({
+      browserReact: expect.stringMatching(bundledReactVersionPattern),
+      browserReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      browserClientReact: expect.stringMatching(bundledReactVersionPattern),
+      browserClientReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      browserClientReactDOMServer: expect.stringMatching(
+        bundledReactVersionPattern
+      ),
+    })
   })
 
   it('should be able to call legacy react-dom/server APIs in client components', async () => {
@@ -653,37 +724,68 @@ describe('app dir - rsc basics', () => {
               ${flag}: true
             }
           }
-          `
-        )
+          `,
+          async () => {
+            await next.start()
+            const resPages$ = await next.render$('/app-react')
+            const [
+              ssrReact,
+              ssrReactDOM,
+              ssrClientReact,
+              ssrClientReactDOM,
+              ssrClientReactDOMServer,
+            ] = [
+              resPages$('#react').text(),
+              resPages$('#react-dom').text(),
+              resPages$('#client-react').text(),
+              resPages$('#client-react-dom').text(),
+              resPages$('#client-react-dom-server').text(),
+            ]
+            expect({
+              ssrReact,
+              ssrReactDOM,
+              ssrClientReact,
+              ssrClientReactDOM,
+              ssrClientReactDOMServer,
+            }).toEqual({
+              ssrReact: expect.stringMatching('-experimental-'),
+              ssrReactDOM: expect.stringMatching('-experimental-'),
+              ssrClientReact: expect.stringMatching('-experimental-'),
+              ssrClientReactDOM: expect.stringMatching('-experimental-'),
+              ssrClientReactDOMServer: expect.stringMatching('-experimental-'),
+            })
 
-        await next.start()
-        const resPages$ = await next.render$('/app-react')
-        const ssrPagesReactVersions = [
-          await resPages$('#react').text(),
-          await resPages$('#react-dom').text(),
-          await resPages$('#react-dom-server').text(),
-          await resPages$('#client-react').text(),
-          await resPages$('#client-react-dom').text(),
-          await resPages$('#client-react-dom-server').text(),
-        ]
-
-        ssrPagesReactVersions.forEach((version) => {
-          expect(version).toMatch('-experimental-')
-        })
-
-        const browser = await next.browser('/app-react')
-        const browserAppReactVersions = await browser.eval(`
-          [
-            document.querySelector('#react').innerText,
-            document.querySelector('#react-dom').innerText,
-            document.querySelector('#react-dom-server').innerText,
-            document.querySelector('#client-react').innerText,
-            document.querySelector('#client-react-dom').innerText,
-            document.querySelector('#client-react-dom-server').innerText,
-          ]
-        `)
-        browserAppReactVersions.forEach((version) =>
-          expect(version).toMatch('-experimental-')
+            const browser = await next.browser('/app-react')
+            const [
+              browserReact,
+              browserReactDOM,
+              browserClientReact,
+              browserClientReactDOM,
+              browserClientReactDOMServer,
+            ] = await browser.eval(`
+              [
+                document.querySelector('#react').innerText,
+                document.querySelector('#react-dom').innerText,
+                document.querySelector('#client-react').innerText,
+                document.querySelector('#client-react-dom').innerText,
+                document.querySelector('#client-react-dom-server').innerText,
+              ]
+            `)
+            expect({
+              browserReact,
+              browserReactDOM,
+              browserClientReact,
+              browserClientReactDOM,
+              browserClientReactDOMServer,
+            }).toEqual({
+              browserReact: expect.stringMatching('-experimental-'),
+              browserReactDOM: expect.stringMatching('-experimental-'),
+              browserClientReact: expect.stringMatching('-experimental-'),
+              browserClientReactDOM: expect.stringMatching('-experimental-'),
+              browserClientReactDOMServer:
+                expect.stringMatching('-experimental-'),
+            })
+          }
         )
       }
     )

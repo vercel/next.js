@@ -57,6 +57,9 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source)
+        Vc::cell(
+            self.source
+                .map(|s| s.resolve_source_map(self.source_ident.path())),
+        )
     }
 }

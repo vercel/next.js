@@ -65,6 +65,15 @@ impl TraceFile {
             Self::Unloaded => unreachable!(),
         }
     }
+
+    fn size(&mut self) -> io::Result<u64> {
+        match self {
+            Self::Raw(file) => file.metadata().map(|m| m.len()),
+            Self::Zstd(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
+            Self::Gz(decoder) => decoder.get_mut().get_ref().metadata().map(|m| m.len()),
+            Self::Unloaded => unreachable!(),
+        }
+    }
 }
 
 pub struct TraceReader {
@@ -79,8 +88,13 @@ impl TraceReader {
     }
 
     pub fn run(&mut self) {
+        let mut file_warning_printed = false;
         loop {
-            self.try_read();
+            let read_success = self.try_read();
+            if !file_warning_printed && !read_success {
+                println!("Unable to read trace file at {:?}, waiting...", self.path);
+                file_warning_printed = true;
+            }
             thread::sleep(Duration::from_millis(500));
         }
     }
@@ -184,6 +198,9 @@ impl TraceReader {
                                 let new_mbs = current_read / (97 * 1024 * 1024);
                                 if old_mbs != new_mbs {
                                     let pos = file.stream_position().unwrap_or(current_read);
+                                    if pos > *total {
+                                        *total = file.size().unwrap_or(pos);
+                                    }
                                     *total = (*total).max(pos);
                                     let percentage = pos * 100 / *total;
                                     let read = pos / (1024 * 1024);
@@ -247,25 +264,23 @@ impl TraceReader {
                 println!("Initial read completed ({} MB)", total / (1024 * 1024));
             }
         }
-        thread::sleep(Duration::from_millis(100));
-        let Ok(end) = file.seek(SeekFrom::End(0)) else {
-            return Some(true);
-        };
-        // No more data to read, sleep for a while to wait for more data
-        if end < pos {
-            // new file
-            return Some(true);
-        } else if end != pos {
-            // Seek to the same position. This will fail when the file was
-            // truncated.
-            let Ok(new_pos) = file.seek(SeekFrom::Start(pos)) else {
+        loop {
+            // No more data to read, sleep for a while to wait for more data
+            thread::sleep(Duration::from_millis(100));
+            let Ok(mut real_file) = File::open(&self.path) else {
                 return Some(true);
             };
-            if new_pos != pos {
+            let Ok(end) = real_file.seek(SeekFrom::End(0)) else {
                 return Some(true);
+            };
+            if end < pos {
+                // new file
+                return Some(true);
+            } else if end != pos {
+                // file has more data
+                return None;
             }
         }
-        None
     }
 
     fn wait_for_new_file(&self, file: &mut TraceFile) {

@@ -37,6 +37,8 @@ const nextConfig = {
 export default nextConfig
 ```
 
+> **Good to know**: `next.config` with the `.cjs`, `.cts`, or `.mts` extensions are currently **not** supported.
+
 ## Configuration as a Function
 
 You can also use a function:
@@ -96,6 +98,8 @@ module.exports = (phase, { defaultConfig }) => {
 ```
 
 ## TypeScript
+
+> This feature is available from Next.js canary.
 
 If you are using TypeScript in your project, you can use [`next.config.ts`](/docs/app/building-your-application/configuring/typescript#type-checking-nextconfigts) to use TypeScript in your configuration:
 

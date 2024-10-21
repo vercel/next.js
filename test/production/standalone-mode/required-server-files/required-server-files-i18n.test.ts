@@ -348,12 +348,16 @@ describe('required server files i18n', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
-        'x-now-route-matches': '1=second&nxtPslug=second',
-      },
-    })
+    const html3 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?nxtPslug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
+        },
+      }
+    )
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 

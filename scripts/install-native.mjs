@@ -50,7 +50,6 @@ import fsp from 'fs/promises'
         '@next/swc-linux-x64-gnu': 'canary',
         '@next/swc-linux-x64-musl': 'canary',
         '@next/swc-win32-arm64-msvc': 'canary',
-        '@next/swc-win32-ia32-msvc': 'canary',
         '@next/swc-win32-x64-msvc': 'canary',
       },
       packageManager,

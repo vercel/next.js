@@ -122,17 +122,17 @@ impl Asset for CachedExternalModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for CachedExternalModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
+    fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn ChunkItem>>> {
-        Ok(Vc::upcast(
+    ) -> Vc<Box<dyn ChunkItem>> {
+        Vc::upcast(
             CachedExternalModuleChunkItem {
                 module: self,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -227,20 +227,52 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn content_with_async_module_info(
+    fn content_with_async_module_info(
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<EcmascriptChunkItemContent>> {
+    ) -> Vc<EcmascriptChunkItemContent> {
         let async_module_options = self
             .module
             .get_async_module()
             .module_options(async_module_info);
 
-        Ok(EcmascriptChunkItemContent::new(
+        EcmascriptChunkItemContent::new(
             self.module.content(),
             self.chunking_context,
             EcmascriptOptions::default().cell(),
             async_module_options,
-        ))
+        )
+    }
+}
+
+/// A module that only has an ident and no content nor references.
+///
+/// It is used to include a module's ident in the module graph before the module
+/// itself is resolved, as is the case with NextServerComponentModule's
+/// "client modules" and "client modules ssr".
+#[turbo_tasks::value]
+pub struct IncludeIdentModule {
+    ident: Vc<AssetIdent>,
+}
+
+#[turbo_tasks::value_impl]
+impl IncludeIdentModule {
+    #[turbo_tasks::function]
+    pub fn new(ident: Vc<AssetIdent>) -> Vc<Self> {
+        Self { ident }.cell()
+    }
+}
+
+impl Asset for IncludeIdentModule {
+    fn content(self: Vc<Self>) -> Vc<AssetContent> {
+        todo!("IncludeIdentModule doesn't implement content()")
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Module for IncludeIdentModule {
+    #[turbo_tasks::function]
+    fn ident(&self) -> Vc<AssetIdent> {
+        self.ident
     }
 }

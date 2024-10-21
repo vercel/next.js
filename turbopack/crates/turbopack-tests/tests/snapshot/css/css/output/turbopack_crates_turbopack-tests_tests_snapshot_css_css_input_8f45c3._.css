@@ -1,0 +1,23 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.css [test] (css) */
+.foo-style{color:green}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css, ) */
+.imported{color:#0ff}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css, layer(layer) print) */
+@layer layer {
+@media print {
+.imported{color:#0ff}
+}
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.css [test] (css) */
+.style{color:#ff0}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css) */
+.style-module__CEkn7G__foo-module-style{color:#00f}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css [test] (css) */
+.style-module__Iu_hLa__module-style{color:#f0f}.style-module__Iu_hLa__module-style>h1,.style-module__Iu_hLa__module-style+.style-module__Iu_hLa__inner{background:purple}.style-module__Iu_hLa__composed-module-style{color:green;}.style-module__Iu_hLa__another-composed-module-style{color:#ff0;}
+
+/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_css_input_8f45c3._.css.map*/

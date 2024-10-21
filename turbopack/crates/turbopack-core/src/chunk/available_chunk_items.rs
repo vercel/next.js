@@ -1,9 +1,8 @@
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
-    Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, Vc,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -18,7 +17,7 @@ pub struct AvailableChunkItemInfo {
 pub struct OptionAvailableChunkItemInfo(Option<AvailableChunkItemInfo>);
 
 #[turbo_tasks::value(transparent)]
-pub struct AvailableChunkItemInfoMap(IndexMap<Vc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>);
+pub struct AvailableChunkItemInfoMap(FxIndexMap<Vc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>);
 
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching
@@ -65,15 +64,14 @@ impl AvailableChunkItems {
     }
 
     #[turbo_tasks::function]
-    pub async fn hash(self: Vc<Self>) -> Result<Vc<u64>> {
-        let this = self.await?;
+    pub async fn hash(&self) -> Result<Vc<u64>> {
         let mut hasher = Xxh3Hash64Hasher::new();
-        if let Some(parent) = this.parent {
+        if let Some(parent) = self.parent {
             hasher.write_value(parent.hash().await?);
         } else {
             hasher.write_value(0u64);
         }
-        let item_idents = this
+        let item_idents = self
             .chunk_items
             .await?
             .iter()
@@ -88,14 +86,13 @@ impl AvailableChunkItems {
 
     #[turbo_tasks::function]
     pub async fn get(
-        self: Vc<Self>,
+        &self,
         chunk_item: Vc<Box<dyn ChunkItem>>,
     ) -> Result<Vc<OptionAvailableChunkItemInfo>> {
-        let this = self.await?;
-        if let Some(&info) = this.chunk_items.await?.get(&chunk_item) {
+        if let Some(&info) = self.chunk_items.await?.get(&chunk_item) {
             return Ok(Vc::cell(Some(info)));
         };
-        if let Some(parent) = this.parent {
+        if let Some(parent) = self.parent {
             return Ok(parent.get(chunk_item));
         }
         Ok(Vc::cell(None))

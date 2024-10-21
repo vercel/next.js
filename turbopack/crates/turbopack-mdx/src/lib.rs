@@ -1,5 +1,6 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
 use mdxjs::{compile, MdxParseOptions, Options};
@@ -134,10 +135,9 @@ impl Asset for MdxTransformedAsset {
 #[turbo_tasks::value_impl]
 impl MdxTransformedAsset {
     #[turbo_tasks::function]
-    async fn process(self: Vc<Self>) -> Result<Vc<MdxTransformResult>> {
-        let this = self.await?;
-        let content = this.source.content().await?;
-        let transform_options = this.options.await?;
+    async fn process(&self) -> Result<Vc<MdxTransformResult>> {
+        let content = self.source.content().await?;
+        let transform_options = self.options.await?;
 
         let AssetContent::File(file) = &*content else {
             anyhow::bail!("Unexpected mdx asset content");
@@ -175,7 +175,7 @@ impl MdxTransformedAsset {
                 .jsx_import_source
                 .clone()
                 .map(RcStr::into_owned),
-            filepath: Some(this.source.ident().path().await?.to_string()),
+            filepath: Some(self.source.ident().path().await?.to_string()),
             ..Default::default()
         };
 
@@ -187,7 +187,7 @@ impl MdxTransformedAsset {
             }
             .cell()),
             Err(err) => {
-                let loc = Vc::cell(err.place.map(|p| {
+                let loc = err.place.map(|p| {
                     let (start, end) = match *p {
                         // markdown's positions are 1-indexed, SourcePos is 0-indexed.
                         // Both end positions point to the first character after the range
@@ -210,11 +210,11 @@ impl MdxTransformedAsset {
                         }
                     };
 
-                    IssueSource::from_line_col(this.source, start, end)
-                }));
+                    IssueSource::from_line_col(self.source, start, end)
+                });
 
                 MdxIssue {
-                    path: this.source.ident().path(),
+                    path: self.source.ident().path(),
                     loc,
                     reason: err.reason,
                     mdx_rule_id: *err.rule_id,
@@ -241,7 +241,7 @@ struct MdxTransformResult {
 struct MdxIssue {
     /// Place of message.
     path: Vc<FileSystemPath>,
-    loc: Vc<OptionIssueSource>,
+    loc: Option<Vc<IssueSource>>,
     /// Reason for message (should use markdown).
     reason: String,
     /// Category of message.
@@ -259,7 +259,7 @@ impl Issue for MdxIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        self.loc
+        Vc::cell(self.loc.map(|s| s.resolve_source_map(self.path)))
     }
 
     #[turbo_tasks::function]

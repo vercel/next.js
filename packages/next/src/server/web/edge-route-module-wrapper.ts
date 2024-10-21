@@ -16,8 +16,11 @@ import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystrin
 import type { RequestLifecycleOpts } from '../base-server'
 import { CloseController, trackStreamConsumed } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
+import type { NextConfigComplete } from '../config-shared'
 
-type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
+export interface WrapOptions {
+  nextConfig: NextConfigComplete
+}
 
 /**
  * EdgeRouteModuleWrapper is a wrapper around a route module.
@@ -33,7 +36,10 @@ export class EdgeRouteModuleWrapper {
    *
    * @param routeModule the route module to wrap
    */
-  private constructor(private readonly routeModule: AppRouteRouteModule) {
+  private constructor(
+    private readonly routeModule: AppRouteRouteModule,
+    private readonly nextConfig: NextConfigComplete
+  ) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
     this.matcher = new RouteMatcher(routeModule.definition)
   }
@@ -47,18 +53,14 @@ export class EdgeRouteModuleWrapper {
    *                override the ones passed from the runtime
    * @returns a function that can be used as a handler for the edge runtime
    */
-  public static wrap(
-    routeModule: AppRouteRouteModule,
-    options: WrapOptions = {}
-  ) {
+  public static wrap(routeModule: AppRouteRouteModule, options: WrapOptions) {
     // Create the module wrapper.
-    const wrapper = new EdgeRouteModuleWrapper(routeModule)
+    const wrapper = new EdgeRouteModuleWrapper(routeModule, options.nextConfig)
 
     // Return the wrapping function.
     return (opts: AdapterOptions) => {
       return adapter({
         ...opts,
-        ...options,
         IncrementalCache,
         // Bind the handler method to the wrapper so it still has context.
         handler: wrapper.handler.bind(wrapper),
@@ -115,7 +117,10 @@ export class EdgeRouteModuleWrapper {
           : undefined,
         experimental: {
           after: isAfterEnabled,
+          dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
         },
+        buildId: '', // TODO: Populate this properly.
+        cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
       },
     }
 

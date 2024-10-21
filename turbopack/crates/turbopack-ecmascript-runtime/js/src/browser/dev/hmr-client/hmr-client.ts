@@ -1,7 +1,7 @@
 /// <reference path="../../../shared/runtime-types.d.ts" />
-/// <reference path="../runtime/base/globals.d.ts" />
-/// <reference path="../runtime/base/protocol.d.ts" />
-/// <reference path="../runtime/base/extensions.d.ts" />
+/// <reference path="../../runtime/base/dev-globals.d.ts" />
+/// <reference path="../../runtime/base/dev-protocol.d.ts" />
+/// <reference path="../../runtime/base/dev-extensions.ts" />
 
 import {
   addMessageListener as turboSocketAddMessageListener,

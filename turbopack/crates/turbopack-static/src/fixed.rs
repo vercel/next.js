@@ -1,4 +1,3 @@
-use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -31,8 +30,8 @@ impl FixedStaticAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for FixedStaticAsset {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(AssetIdent::from_path(self.output_path))
+    fn ident(&self) -> Vc<AssetIdent> {
+        AssetIdent::from_path(self.output_path)
     }
 }
 

@@ -1,6 +1,4 @@
-use anyhow::Result;
-use indexmap::indexmap;
-use turbo_tasks::{TaskInput, Value, Vc};
+use turbo_tasks::{fxindexmap, TaskInput, Value, Vc};
 use turbopack::{module_options::CustomModuleType, ModuleAssetContext};
 use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
@@ -39,10 +37,10 @@ impl StructuredImageModuleType {
     pub(crate) async fn create_module(
         source: Vc<Box<dyn Source>>,
         blur_placeholder_mode: BlurPlaceholderMode,
-        context: Vc<ModuleAssetContext>,
-    ) -> Result<Vc<Box<dyn Module>>> {
-        let static_asset = StaticModuleAsset::new(source, Vc::upcast(context));
-        let module = context
+        module_asset_context: Vc<ModuleAssetContext>,
+    ) -> Vc<Box<dyn Module>> {
+        let static_asset = StaticModuleAsset::new(source, Vc::upcast(module_asset_context));
+        module_asset_context
             .process(
                 Vc::upcast(
                     StructuredImageFileSource {
@@ -51,12 +49,11 @@ impl StructuredImageModuleType {
                     }
                     .cell(),
                 ),
-                Value::new(ReferenceType::Internal(Vc::cell(indexmap!(
+                Value::new(ReferenceType::Internal(Vc::cell(fxindexmap!(
                     "IMAGE".into() => Vc::upcast(static_asset)
                 )))),
             )
-            .module();
-        Ok(module)
+            .module()
     }
 
     #[turbo_tasks::function]
@@ -73,9 +70,13 @@ impl CustomModuleType for StructuredImageModuleType {
     fn create_module(
         &self,
         source: Vc<Box<dyn Source>>,
-        context: Vc<ModuleAssetContext>,
+        module_asset_context: Vc<ModuleAssetContext>,
         _part: Option<Vc<ModulePart>>,
     ) -> Vc<Box<dyn Module>> {
-        StructuredImageModuleType::create_module(source, self.blur_placeholder_mode, context)
+        StructuredImageModuleType::create_module(
+            source,
+            self.blur_placeholder_mode,
+            module_asset_context,
+        )
     }
 }

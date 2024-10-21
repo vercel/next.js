@@ -66,9 +66,8 @@ pub enum ExecutionEnvironment {
 #[turbo_tasks::value_impl]
 impl Environment {
     #[turbo_tasks::function]
-    pub async fn compile_target(self: Vc<Self>) -> Result<Vc<CompileTarget>> {
-        let this = self.await?;
-        Ok(match this.execution {
+    pub async fn compile_target(&self) -> Result<Vc<CompileTarget>> {
+        Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
             ExecutionEnvironment::Browser(_) => CompileTarget::unknown(),
@@ -78,9 +77,8 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn runtime_versions(self: Vc<Self>) -> Result<Vc<RuntimeVersions>> {
-        let this = self.await?;
-        Ok(match this.execution {
+    pub async fn runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
+        Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
             | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.runtime_versions(),
             ExecutionEnvironment::Browser(browser_env) => {
@@ -95,61 +93,57 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn node_externals(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
-        Ok(match this.execution {
+    pub fn node_externals(&self) -> Vc<bool> {
+        match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
             ExecutionEnvironment::Browser(_) => Vc::cell(false),
             ExecutionEnvironment::EdgeWorker(_) => Vc::cell(false),
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub async fn supports_esm_externals(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
-        Ok(match this.execution {
+    pub fn supports_esm_externals(&self) -> Vc<bool> {
+        match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
             ExecutionEnvironment::Browser(_) => Vc::cell(false),
             ExecutionEnvironment::EdgeWorker(_) => Vc::cell(false),
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub async fn supports_commonjs_externals(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
-        Ok(match this.execution {
+    pub fn supports_commonjs_externals(&self) -> Vc<bool> {
+        match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
             ExecutionEnvironment::Browser(_) => Vc::cell(false),
             ExecutionEnvironment::EdgeWorker(_) => Vc::cell(true),
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub async fn supports_wasm(self: Vc<Self>) -> Result<Vc<bool>> {
-        let this = self.await?;
-        Ok(match this.execution {
+    pub fn supports_wasm(&self) -> Vc<bool> {
+        match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
             ExecutionEnvironment::Browser(_) => Vc::cell(false),
             ExecutionEnvironment::EdgeWorker(_) => Vc::cell(false),
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_extensions(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
-        let env = self.await?;
-        Ok(match env.execution {
+    pub fn resolve_extensions(&self) -> Vc<Vec<RcStr>> {
+        let env = self;
+        match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(vec![".js".into(), ".node".into(), ".json".into()])
             }
@@ -157,13 +151,13 @@ impl Environment {
                 Vc::<Vec<RcStr>>::default()
             }
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_node_modules(self: Vc<Self>) -> Result<Vc<bool>> {
-        let env = self.await?;
-        Ok(match env.execution {
+    pub fn resolve_node_modules(&self) -> Vc<bool> {
+        let env = self;
+        match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(true)
             }
@@ -171,13 +165,13 @@ impl Environment {
                 Vc::cell(false)
             }
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub async fn resolve_conditions(self: Vc<Self>) -> Result<Vc<Vec<RcStr>>> {
-        let env = self.await?;
-        Ok(match env.execution {
+    pub fn resolve_conditions(&self) -> Vc<Vec<RcStr>> {
+        let env = self;
+        match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(..) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Vc::cell(vec!["node".into()])
             }
@@ -186,12 +180,12 @@ impl Environment {
                 Vc::cell(vec!["edge-light".into(), "worker".into()])
             }
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub async fn cwd(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
-        let env = self.await?;
+    pub async fn cwd(&self) -> Result<Vc<Option<RcStr>>> {
+        let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
             | ExecutionEnvironment::NodeJsLambda(env) => env.await?.cwd,
@@ -200,29 +194,29 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn rendering(self: Vc<Self>) -> Result<Vc<Rendering>> {
-        let env = self.await?;
-        Ok(match env.execution {
+    pub fn rendering(&self) -> Vc<Rendering> {
+        let env = self;
+        match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
                 Rendering::Server.cell()
             }
             ExecutionEnvironment::EdgeWorker(_) => Rendering::Server.cell(),
             ExecutionEnvironment::Browser(_) => Rendering::Client.cell(),
             _ => Rendering::None.cell(),
-        })
+        }
     }
 
     #[turbo_tasks::function]
-    pub async fn chunk_loading(self: Vc<Self>) -> Result<Vc<ChunkLoading>> {
-        let env = self.await?;
-        Ok(match env.execution {
+    pub fn chunk_loading(&self) -> Vc<ChunkLoading> {
+        let env = self;
+        match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
                 ChunkLoading::NodeJs.cell()
             }
             ExecutionEnvironment::EdgeWorker(_) => ChunkLoading::Edge.cell(),
             ExecutionEnvironment::Browser(_) => ChunkLoading::Dom.cell(),
             ExecutionEnvironment::Custom(_) => todo!(),
-        })
+        }
     }
 }
 
@@ -251,8 +245,8 @@ impl Default for NodeJsEnvironment {
 #[turbo_tasks::value_impl]
 impl NodeJsEnvironment {
     #[turbo_tasks::function]
-    pub async fn runtime_versions(self: Vc<Self>) -> Result<Vc<RuntimeVersions>> {
-        let str = match *self.await?.node_version.await? {
+    pub async fn runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
+        let str = match *self.node_version.await? {
             NodeJsVersion::Current(process_env) => get_current_nodejs_version(process_env),
             NodeJsVersion::Static(version) => version,
         }
@@ -299,7 +293,8 @@ pub struct BrowserEnvironment {
 #[turbo_tasks::value(shared)]
 pub struct EdgeWorkerEnvironment {}
 
-#[turbo_tasks::value(transparent)]
+// TODO preset_env_base::Version implements Serialize/Deserialize incorrectly
+#[turbo_tasks::value(transparent, serialization = "none")]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
 #[turbo_tasks::function]

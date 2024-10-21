@@ -1,14 +1,10 @@
 use anyhow::{bail, Context, Result};
-use swc_core::{
-    common::DUMMY_SP,
-    ecma::ast::{Expr, Ident},
-    quote,
-};
+use swc_core::{common::DUMMY_SP, ecma::ast::Ident, quote};
 use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption, ModuleId,
+        ChunkingTypeOption,
     },
     reference::ModuleReference,
     resolve::{ModulePart, ModuleResolveResult},
@@ -20,8 +16,8 @@ use super::{
 use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGenerateable, CodeGeneration},
-    create_visitor,
-    references::esm::base::{insert_hoisted_stmt, ReferencedAsset},
+    references::esm::base::ReferencedAsset,
+    utils::module_id_to_lit,
 };
 
 /// A reference to the [EcmascriptModuleLocalsModule] variant of an original
@@ -112,8 +108,6 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let mut visitors = Vec::new();
-
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
         let ident = referenced_asset
@@ -129,18 +123,13 @@ impl CodeGenerateable for EcmascriptModulePartReference {
             .id()
             .await?;
 
-        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-            let stmt = quote!(
+        Ok(CodeGeneration::hoisted_stmt(
+            ident.clone().into(),
+            quote!(
                 "var $name = __turbopack_import__($id);" as Stmt,
-                name = Ident::new(ident.clone().into(), DUMMY_SP),
-                id: Expr = Expr::Lit(match &*id {
-                    ModuleId::String(s) => s.as_str().into(),
-                    ModuleId::Number(n) => (*n as f64).into(),
-                })
-            );
-            insert_hoisted_stmt(program, stmt);
-        }));
-
-        Ok(CodeGeneration { visitors }.into())
+                name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                id: Expr = module_id_to_lit(&id),
+            ),
+        ))
     }
 }

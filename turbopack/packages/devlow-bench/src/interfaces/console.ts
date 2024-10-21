@@ -1,7 +1,9 @@
+import picocolors from "picocolors";
 import { Interface } from "../index.js";
-import { bgCyan, bold, magenta, red, underline } from "picocolors";
 import { formatUnit } from "../units.js";
 import { formatVariant } from "../utils.js";
+
+const { bgCyan, bold, magenta, red, underline } = picocolors;
 
 export default function createInterface(): Interface {
   const iface: Interface = {

@@ -4,14 +4,13 @@ pub mod source_map;
 use std::fmt::Write;
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
+        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
+        ChunkType, ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -35,9 +34,6 @@ pub struct CssChunk {
     pub chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub content: Vc<CssChunkContent>,
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct CssChunks(Vec<Vc<CssChunk>>);
 
 #[turbo_tasks::value_impl]
 impl CssChunk {
@@ -66,7 +62,7 @@ impl CssChunk {
 
         let mut code = CodeBuilder::default();
         let mut body = CodeBuilder::default();
-        let mut external_imports = IndexSet::new();
+        let mut external_imports = FxIndexSet::default();
         for css_item in &this.content.await?.chunk_items {
             let id = &*css_item.id().await?;
 
@@ -232,12 +228,10 @@ fn chunk_item_key() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
-    async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
-        let this = self.await?;
-
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut assets = Vec::new();
 
-        let CssChunkContent { chunk_items, .. } = &*this.content.await?;
+        let CssChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
             let path = chunk_item.asset_ident().path().resolve().await?;
             Some((path, path.await?))
@@ -283,7 +277,7 @@ impl OutputAsset for CssChunk {
             layer: None,
         };
 
-        Ok(AssetIdent::from_path(this.chunking_context.chunk_path(
+        Ok(AssetIdent::from_path(self.chunking_context.chunk_path(
             AssetIdent::new(Value::new(ident)),
             ".css".into(),
         )))
@@ -351,9 +345,6 @@ impl CssChunkContext {
 // TODO: remove
 #[turbo_tasks::value_trait]
 pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
-
-#[turbo_tasks::value(transparent)]
-pub struct CssChunkPlaceables(Vec<Vc<Box<dyn CssChunkPlaceable>>>);
 
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
@@ -448,6 +439,11 @@ impl ValueToString for CssChunkType {
 #[turbo_tasks::value_impl]
 impl ChunkType for CssChunkType {
     #[turbo_tasks::function]
+    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
+    }
+
+    #[turbo_tasks::function]
     async fn chunk(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -486,12 +482,9 @@ impl ChunkType for CssChunkType {
         else {
             bail!("Chunk item is not an css chunk item but reporting chunk type css");
         };
-        Ok(Vc::cell(
-            chunk_item
-                .content()
-                .await
-                .map_or(0, |content| content.inner_code.len()),
-        ))
+        Ok(Vc::cell(chunk_item.content().await.map_or(0, |content| {
+            round_chunk_item_size(content.inner_code.len())
+        })))
     }
 }
 

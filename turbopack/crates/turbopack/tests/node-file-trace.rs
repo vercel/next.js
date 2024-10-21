@@ -1,11 +1,12 @@
 #![allow(clippy::items_after_test_module)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 mod helpers;
 #[cfg(feature = "bench_against_node_nft")]
 use std::time::Instant;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     env::temp_dir,
     fmt::Display,
     fs::{
@@ -420,7 +421,7 @@ fn node_file_trace<B: Backend + 'static>(
 
                 let source = FileSource::new(input);
                 let module_asset_context = ModuleAssetContext::new(
-                    Vc::cell(HashMap::new()),
+                    Default::default(),
                     // TODO It's easy to make a mistake here as this should match the config in the
                     // binary. TODO These test cases should move into the
                     // `node-file-trace` crate and use the same config.

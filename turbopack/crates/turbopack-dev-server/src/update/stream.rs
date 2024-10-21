@@ -164,7 +164,7 @@ async fn compute_update_stream(
     from: Vc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
     sender: TransientInstance<Sender<Result<ReadRef<UpdateStreamItem>>>>,
-) -> Result<Vc<()>> {
+) -> Vc<()> {
     let item = get_update_stream_item(resource, from, get_content)
         .strongly_consistent()
         .await;
@@ -172,7 +172,7 @@ async fn compute_update_stream(
     // Send update. Ignore channel closed error.
     let _ = sender.send(item).await;
 
-    Ok(Default::default())
+    Default::default()
 }
 
 pub(super) struct UpdateStream(
@@ -234,7 +234,7 @@ impl UpdateStream {
                                     Some(item)
                                 }
                                 // Do not propagate empty updates.
-                                Update::None => {
+                                Update::None | Update::Missing => {
                                     if has_issues || issues_changed {
                                         Some(item)
                                     } else {

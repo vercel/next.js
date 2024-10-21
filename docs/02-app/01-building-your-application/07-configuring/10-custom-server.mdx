@@ -40,27 +40,27 @@ app.prepare().then(() => {
 ```
 
 ```js filename="server.js" switcher
-import { createServer } from "http";
-import { parse } from "url";
-import next from "next";
+import { createServer } from 'http'
+import { parse } from 'url'
+import next from 'next'
 
-const port = parseInt(process.env.PORT || "3000", 10);
-const dev = process.env.NODE_ENV !== "production";
-const app = next({ dev });
-const handle = app.getRequestHandler();
+const port = parseInt(process.env.PORT || '3000', 10)
+const dev = process.env.NODE_ENV !== 'production'
+const app = next({ dev })
+const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
   createServer((req, res) => {
-    const parsedUrl = parse(req.url!, true);
-    handle(req, res, parsedUrl);
-  }).listen(port);
+    const parsedUrl = parse(req.url, true)
+    handle(req, res, parsedUrl)
+  }).listen(port)
 
   console.log(
     `> Server listening at http://localhost:${port} as ${
-      dev ? "development" : process.env.NODE_ENV
-    }`,
-  );
-});
+      dev ? 'development' : process.env.NODE_ENV
+    }`
+  )
+})
 ```
 
 > `server.js` does not run through the Next.js Compiler or bundling process. Make sure the syntax and source code this file requires are compatible with the current Node.js version you are using. [View an example](https://github.com/vercel/next.js/tree/canary/examples/custom-server).
@@ -97,6 +97,7 @@ The above `next` import is a function that receives an object with the following
 | `hostname`     | `String`           | (_Optional_) The hostname the server is running behind                              |
 | `port`         | `Number`           | (_Optional_) The port the server is running behind                                  |
 | `httpServer`   | `node:http#Server` | (_Optional_) The HTTP Server that Next.js is running behind                         |
+| `turbo`        | `Boolean`          | (_Optional_) Enable Turbopack                                                       |
 
 The returned `app` can then be used to let Next.js handle requests as required.
 

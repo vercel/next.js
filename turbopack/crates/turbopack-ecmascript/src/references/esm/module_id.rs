@@ -1,10 +1,10 @@
 use anyhow::Result;
-use swc_core::{ecma::ast::Expr, quote};
+use swc_core::quote;
 use turbo_tasks::{RcStr, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext,
-        ChunkingTypeOption, ModuleId,
+        ChunkingTypeOption,
     },
     reference::ModuleReference,
     resolve::ModuleResolveResult,
@@ -15,6 +15,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
+    utils::module_id_to_lit,
 };
 
 #[turbo_tasks::value]
@@ -72,10 +73,7 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
                 .as_chunk_item(Vc::upcast(chunking_context))
                 .id()
                 .await?;
-            let id = Expr::Lit(match &*id {
-                ModuleId::String(s) => s.as_str().into(),
-                ModuleId::Number(n) => (*n as f64).into(),
-            });
+            let id = module_id_to_lit(&id);
             visitors.push(
                 create_visitor!(self.ast_path.await?, visit_mut_expr(expr: &mut Expr) {
                     *expr = id.clone()
@@ -92,6 +90,6 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
             );
         }
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

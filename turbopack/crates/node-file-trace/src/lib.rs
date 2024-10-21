@@ -1,10 +1,11 @@
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 mod nft_json;
 
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::BTreeSet,
     env::current_dir,
     future::Future,
     path::{Path, PathBuf},
@@ -22,13 +23,12 @@ use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::mpsc::channel;
 use turbo_tasks::{
-    backend::Backend, util::FormatDuration, RcStr, TaskId, TransientInstance, TransientValue,
-    TurboTasks, UpdateInfo, Value, Vc,
+    backend::Backend, util::FormatDuration, RcStr, ReadConsistency, TaskId, TransientInstance,
+    TransientValue, TurboTasks, UpdateInfo, Value, Vc,
 };
 use turbo_tasks_fs::{
     glob::Glob, DirectoryEntry, DiskFileSystem, FileSystem, FileSystemPath, ReadGlobResult,
 };
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_asset, emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset,
     ModuleAssetContext,
@@ -177,7 +177,7 @@ fn default_output_directory() -> String {
 }
 
 impl Args {
-    fn common(&self) -> &CommonArgs {
+    pub fn common(&self) -> &CommonArgs {
         match self {
             Args::Print { common, .. }
             | Args::Annotate { common, .. }
@@ -190,9 +190,9 @@ impl Args {
 async fn create_fs(name: &str, root: &str, watch: bool) -> Result<Vc<Box<dyn FileSystem>>> {
     let fs = DiskFileSystem::new(name.into(), root.into(), vec![]);
     if watch {
-        fs.await?.start_watching()?;
+        fs.await?.start_watching(None).await?;
     } else {
-        fs.await?.invalidate();
+        fs.await?.invalidate_with_reason();
     }
     Ok(Vc::upcast(fs))
 }
@@ -205,7 +205,7 @@ async fn add_glob_results(
     let result = result.await?;
     for entry in result.results.values() {
         if let DirectoryEntry::File(path) = entry {
-            let source = Vc::upcast(FileSource::new(*path));
+            let source = Vc::upcast(FileSource::new(**path));
             let module = asset_context
                 .process(
                     source,
@@ -224,7 +224,7 @@ async fn add_glob_results(
             Box::pin(add_glob_results(asset_context, result, list))
         }
         // Boxing for async recursion
-        recurse(asset_context, *result, list).await?;
+        recurse(asset_context, **result, list).await?;
     }
     Ok(())
 }
@@ -310,78 +310,16 @@ fn process_input(dir: &Path, context_directory: &str, input: &[String]) -> Resul
         .collect()
 }
 
-pub async fn start(
+pub async fn start<B: Backend>(
     args: Arc<Args>,
-    turbo_tasks: Option<&Arc<TurboTasks<MemoryBackend>>>,
+    turbo_tasks: Arc<TurboTasks<B>>,
     module_options: Option<ModuleOptionsContext>,
     resolve_options: Option<ResolveOptionsContext>,
 ) -> Result<Vec<RcStr>> {
     register();
-    let &CommonArgs {
-        memory_limit,
-        #[cfg(feature = "persistent_cache")]
-            cache: CacheArgs {
-            ref cache,
-            ref cache_fully,
-        },
-        ..
-    } = args.common();
-    #[cfg(feature = "persistent_cache")]
-    if let Some(cache) = cache {
-        use tokio::time::timeout;
-        use turbo_tasks_memory::MemoryBackendWithPersistedGraph;
-        use turbo_tasks_rocksdb::RocksDbPersistedGraph;
-
-        run(
-            &args,
-            || {
-                let start = Instant::now();
-                let backend = MemoryBackendWithPersistedGraph::new(
-                    RocksDbPersistedGraph::new(cache).unwrap(),
-                );
-                let tt = TurboTasks::new(backend);
-                let elapsed = start.elapsed();
-                println!("restored cache {}", FormatDuration(elapsed));
-                tt
-            },
-            |tt, _, duration| async move {
-                let mut start = Instant::now();
-                if *cache_fully {
-                    tt.wait_background_done().await;
-                    tt.stop_and_wait().await;
-                    let elapsed = start.elapsed();
-                    println!("flushed cache {}", FormatDuration(elapsed));
-                } else {
-                    let background_timeout =
-                        std::cmp::max(duration / 5, Duration::from_millis(100));
-                    let timed_out = timeout(background_timeout, tt.wait_background_done())
-                        .await
-                        .is_err();
-                    tt.stop_and_wait().await;
-                    let elapsed = start.elapsed();
-                    if timed_out {
-                        println!("flushed cache partially {}", FormatDuration(elapsed));
-                    } else {
-                        println!("flushed cache completely {}", FormatDuration(elapsed));
-                    }
-                }
-                start = Instant::now();
-                drop(tt);
-                let elapsed = start.elapsed();
-                println!("writing cache {}", FormatDuration(elapsed));
-            },
-        )
-        .await;
-        return;
-    }
-
     run(
-        args.clone(),
-        || {
-            turbo_tasks.cloned().unwrap_or_else(|| {
-                TurboTasks::new(MemoryBackend::new(memory_limit.unwrap_or(usize::MAX)))
-            })
-        },
+        args,
+        turbo_tasks,
         |_, _, _| async move {},
         module_options,
         resolve_options,
@@ -391,7 +329,7 @@ pub async fn start(
 
 async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     args: Arc<Args>,
-    create_tt: impl Fn() -> Arc<TurboTasks<B>>,
+    tt: Arc<TurboTasks<B>>,
     final_finish: impl FnOnce(Arc<TurboTasks<B>>, TaskId, Duration) -> F,
     module_options: Option<ModuleOptionsContext>,
     resolve_options: Option<ResolveOptionsContext>,
@@ -407,7 +345,10 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
     let start = Instant::now();
     let finish = |tt: Arc<TurboTasks<B>>, root_task: TaskId| async move {
         if watch {
-            if let Err(e) = tt.wait_task_completion(root_task, true).await {
+            if let Err(e) = tt
+                .wait_task_completion(root_task, ReadConsistency::Strong)
+                .await
+            {
                 println!("{}", e);
             }
             let UpdateInfo {
@@ -431,7 +372,9 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
                 println!("updated {} tasks in {}", tasks, FormatDuration(duration));
             }
         } else {
-            let result = tt.wait_task_completion(root_task, true).await;
+            let result = tt
+                .wait_task_completion(root_task, ReadConsistency::Strong)
+                .await;
             let dur = start.elapsed();
             let UpdateInfo {
                 duration, tasks, ..
@@ -454,7 +397,6 @@ async fn run<B: Backend + 'static, F: Future<Output = ()>>(
         matches!(&*args, Args::Annotate { .. }) || matches!(&*args, Args::Print { .. });
     let (sender, mut receiver) = channel(1);
     let dir = current_dir().unwrap();
-    let tt = create_tt();
     let module_options = TransientInstance::new(module_options.unwrap_or_default());
     let resolve_options = TransientInstance::new(resolve_options.unwrap_or_default());
     let log_options = TransientInstance::new(LogOptions {
@@ -627,7 +569,7 @@ async fn create_module_asset(
     process_cwd: Option<RcStr>,
     module_options: TransientInstance<ModuleOptionsContext>,
     resolve_options: TransientInstance<ResolveOptionsContext>,
-) -> Result<Vc<ModuleAssetContext>> {
+) -> Vc<ModuleAssetContext> {
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment {
             cwd: Vc::cell(process_cwd),
@@ -661,13 +603,13 @@ async fn create_module_asset(
         );
     }
 
-    Ok(ModuleAssetContext::new(
-        Vc::cell(HashMap::new()),
+    ModuleAssetContext::new(
+        Default::default(),
         compile_time_info,
         ModuleOptionsContext::clone(&*module_options).cell(),
         resolve_options.cell(),
         Vc::cell("node_file_trace".into()),
-    ))
+    )
 }
 
 fn register() {

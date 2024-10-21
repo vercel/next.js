@@ -1,14 +1,16 @@
 #![feature(trivial_bounds)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use std::{
-    collections::HashMap,
     env::current_dir,
     time::{Duration, Instant},
 };
 
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
-use turbo_tasks::{util::FormatDuration, RcStr, TurboTasks, UpdateInfo, Value, Vc};
+use turbo_tasks::{
+    util::FormatDuration, RcStr, ReadConsistency, TurboTasks, UpdateInfo, Value, Vc,
+};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{emit_with_completion, rebase::RebasedAsset, register};
@@ -32,7 +34,7 @@ async fn main() -> Result<()> {
         Box::pin(async {
             let root: RcStr = current_dir().unwrap().to_str().unwrap().into();
             let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), root, vec![]);
-            disk_fs.await?.start_watching()?;
+            disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
@@ -42,7 +44,7 @@ async fn main() -> Result<()> {
 
             let source = FileSource::new(entry);
             let module_asset_context = turbopack::ModuleAssetContext::new(
-                Vc::cell(HashMap::new()),
+                Default::default(),
                 CompileTimeInfo::new(Environment::new(Value::new(
                     ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
                 ))),
@@ -72,7 +74,9 @@ async fn main() -> Result<()> {
     spawn({
         let tt = tt.clone();
         async move {
-            tt.wait_task_completion(task, true).await.unwrap();
+            tt.wait_task_completion(task, ReadConsistency::Strong)
+                .await
+                .unwrap();
             println!("done in {}", FormatDuration(start.elapsed()));
 
             loop {

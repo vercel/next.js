@@ -317,9 +317,14 @@ description#111 = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-descriptions = ???*0*
-- *0* unknown new expression
+descriptions = new ???*0*(???*1*)
+- *0* FreeVar(Array)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
+- *1* ???*2*["length"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
 
 details = (
   | {"line": 1, "column": 1}
@@ -785,13 +790,9 @@ peg$SyntaxError = (...) => undefined
 
 peg$anyExpectation = (...) => {"type": "any"}
 
-peg$buildSimpleError = (...) => ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+peg$buildSimpleError = (...) => new peg$SyntaxError(message, null, null, location)
 
-peg$buildStructuredError = (...) => ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+peg$buildStructuredError = (...) => new peg$SyntaxError(peg$SyntaxError["buildMessage"](expected, found), expected, found, location)
 
 peg$c0 = (...) => {"type": "sql", "body": body}
 

@@ -9,7 +9,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.16.2
-  TURBO_VERSION: 2.0.9
+  TURBO_VERSION: 2.1.2
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
@@ -106,16 +106,23 @@ jobs:
       fail-fast: false
       matrix:
         exclude:
-          # Exclude slow builds for automated previews
-          # These are rarely needed for the standard preview usage (e.g. Front sync)
+          # only build the binaries we run automated tests against
+          # linux GNU x64
           - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'i686-pc-windows-msvc' }}
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-apple-darwin' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-pc-windows-msvc' }}
           - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-gnu' }}
+          - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-musl' }}
           - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-pc-windows-msvc' }}
+          - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-unknown-linux-musl' }}
+          - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-apple-darwin' }}
+
         settings:
           - host:
               - 'self-hosted'
@@ -159,19 +166,6 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
               turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
-
-          - host:
-              - 'self-hosted'
-              - 'windows'
-              - 'x64'
-
-            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
-            # TODO: we should add the relevant envs later to to switch to strict mode
-            build: |
-              corepack enable
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target i686-pc-windows-msvc
-            target: 'i686-pc-windows-msvc'
 
           - host:
               - 'self-hosted'
@@ -603,7 +597,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: next-swc-binaries
+          pattern: next-swc-binaries-*
           merge-multiple: true
           path: packages/next-swc/native
 

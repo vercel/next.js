@@ -1,11 +1,12 @@
 use std::{
     borrow::Borrow,
-    collections::{hash_map::RandomState, HashMap},
+    collections::HashMap,
     fmt::{Debug, Formatter},
-    hash::{BuildHasher, Hash},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     marker::PhantomData,
 };
 
+use rustc_hash::FxHasher;
 use serde::{
     de::{MapAccess, Visitor},
     ser::SerializeMap,
@@ -16,7 +17,7 @@ use smallvec::SmallVec;
 use crate::{MAX_LIST_SIZE, MIN_HASH_SIZE};
 
 #[derive(Clone)]
-pub enum AutoMap<K, V, H = RandomState, const I: usize = 0> {
+pub enum AutoMap<K, V, H = BuildHasherDefault<FxHasher>, const I: usize = 0> {
     List(SmallVec<[(K, V); I]>),
     Map(Box<HashMap<K, V, H>>),
 }
@@ -33,7 +34,7 @@ impl<K: Debug, V: Debug, H, const I: usize> Debug for AutoMap<K, V, H, I> {
     }
 }
 
-impl<K, V> AutoMap<K, V, RandomState, 0> {
+impl<K, V> AutoMap<K, V, BuildHasherDefault<FxHasher>, 0> {
     /// see [HashMap::new](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.new)
     pub const fn new() -> Self {
         AutoMap::List(SmallVec::new_const())
@@ -409,7 +410,7 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
     }
 }
 
-impl<'a, K, V> Clone for Iter<'a, K, V> {
+impl<K, V> Clone for Iter<'_, K, V> {
     fn clone(&self) -> Self {
         match self {
             Iter::List(iter) => Iter::List(iter.clone()),
@@ -546,6 +547,14 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher + Default + 'a, const I: usize> Entry<'
             Entry::Vacant(entry) => entry.insert(default()),
         }
     }
+
+    /// see [HashMap::Entry::or_insert](https://doc.rust-lang.org/std/collections/hash_map/enum.Entry.html#method.or_insert)
+    pub fn or_insert(self, default: V) -> &'a mut V {
+        match self {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(entry) => entry.insert(default),
+        }
+    }
 }
 
 impl<'a, K: Eq + Hash, V: Default, H: BuildHasher + Default + 'a, const I: usize>
@@ -589,7 +598,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher, const I: usize> OccupiedEntry<'a, K, V
     }
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntry<'a, K, V, H, I> {
+impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedEntry<'_, K, V, H, I> {
     /// see [HashMap::OccupiedEntry::remove](https://doc.rust-lang.org/std/collections/hash_map/enum.OccupiedEntry.html#method.remove)
     pub fn remove(self) -> V {
         match self {
@@ -662,9 +671,7 @@ impl<'a, K: Eq + Hash, V, H: BuildHasher, const I: usize> OccupiedRawEntry<'a, K
     }
 }
 
-impl<'a, K: Eq + Hash, V, H: BuildHasher + Default, const I: usize>
-    OccupiedRawEntry<'a, K, V, H, I>
-{
+impl<K: Eq + Hash, V, H: BuildHasher + Default, const I: usize> OccupiedRawEntry<'_, K, V, H, I> {
     /// see [HashMap::OccupiedEntry::remove](https://doc.rust-lang.org/std/collections/hash_map/enum.OccupiedEntry.html#method.remove)
     pub fn remove(self) -> V {
         match self {

@@ -5,9 +5,9 @@ import type { Rule } from 'eslint'
  * Process a Next.js root directory glob.
  */
 const processRootDir = (rootDir: string): string[] => {
-  // Ensures we only match folders.
-  if (!rootDir.endsWith('/')) rootDir += '/'
-  return globSync(rootDir)
+  return globSync(rootDir.replace(/\\/g, '/'), {
+    onlyDirectories: true,
+  })
 }
 
 /**

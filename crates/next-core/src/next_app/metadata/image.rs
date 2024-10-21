@@ -19,7 +19,6 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     utils::StringifyJs,
-    EcmascriptModuleAsset,
 };
 
 use crate::next_app::AppPage;
@@ -83,7 +82,7 @@ pub async fn dynamic_image_metadata_source(
             const imageModule = {{ {exported_fields_excluding_default} }}
 
             export default async function (props) {{
-                const {{ __metadata_id__: _, ...params }} = props.params
+                const {{ __metadata_id__: _, ...params }} = await props.params
                 const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment})
 
                 const {{ generateImageMetadata }} = imageModule
@@ -132,7 +131,7 @@ pub async fn dynamic_image_metadata_source(
 #[turbo_tasks::function]
 async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<RcStr>>> {
     let Some(ecmascript_asset) =
-        Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
     else {
         return Ok(Default::default());
     };

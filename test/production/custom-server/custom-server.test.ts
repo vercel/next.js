@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 describe('custom server', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -28,7 +30,11 @@ describe('custom server', () => {
 
     it('should render pages with installed react', async () => {
       const $ = await next.render$(`/2`)
-      expect($('body').text()).toMatch(/pages: 19.0.0/)
+      if (isReact18) {
+        expect($('body').text()).toMatch(/pages: 18\.\d+\.\d+\{/)
+      } else {
+        expect($('body').text()).toMatch(/pages: 19.0.0/)
+      }
     })
   })
 })

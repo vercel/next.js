@@ -5,6 +5,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import escapeRegex from 'escape-string-regexp'
 import {
   check,
+  retry,
   fetchViaHTTP,
   getBrowserBodyText,
   getRedboxHeader,
@@ -669,6 +670,21 @@ const runTests = (isDev = false, isDeploy = false) => {
     expect(curRandom).toBe(initialRandom + '')
   })
 
+  it('should not trigger an error when a data request is cancelled due to another navigation', async () => {
+    const browser = await webdriver(next.url, ' /')
+
+    await browser.elementByCss("[href='/redirect-page']").click()
+
+    // redirect-page will redirect to /normal
+    await retry(async () => {
+      expect(await getBrowserBodyText(browser)).toInclude('a normal page')
+    })
+
+    // there should not be any console errors
+    const logs = await browser.log()
+    expect(logs.filter((log) => log.source === 'error').length).toBe(0)
+  })
+
   it('should dedupe server data requests', async () => {
     const browser = await webdriver(next.url, '/')
     await waitFor(2000)
@@ -851,6 +867,7 @@ describe('getServerSideProps', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(appDir, 'pages')),
+        public: new FileRef(join(appDir, 'public')),
         'world.txt': new FileRef(join(appDir, 'world.txt')),
         'next.config.js': new FileRef(join(appDir, 'next.config.js')),
       },

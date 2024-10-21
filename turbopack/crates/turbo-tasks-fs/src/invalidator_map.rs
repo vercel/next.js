@@ -12,12 +12,18 @@ pub struct InvalidatorMap {
     map: Mutex<HashMap<String, HashSet<Invalidator>>>,
 }
 
-impl InvalidatorMap {
-    pub fn new() -> Self {
+impl Default for InvalidatorMap {
+    fn default() -> Self {
         Self {
             queue: ConcurrentQueue::unbounded(),
             map: Default::default(),
         }
+    }
+}
+
+impl InvalidatorMap {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn lock(&self) -> LockResult<MutexGuard<'_, HashMap<String, HashSet<Invalidator>>>> {
@@ -69,18 +75,5 @@ impl<'de> Deserialize<'de> for InvalidatorMap {
         }
 
         deserializer.deserialize_newtype_struct("InvalidatorMap", V)
-    }
-}
-
-impl Drop for InvalidatorMap {
-    fn drop(&mut self) {
-        while let Ok((_, value)) = self.queue.pop() {
-            value.invalidate();
-        }
-        for (_, invalidators) in self.map.lock().unwrap().drain() {
-            for invalidator in invalidators {
-                invalidator.invalidate();
-            }
-        }
     }
 }

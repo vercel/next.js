@@ -1,11 +1,10 @@
 #!/usr/bin/env node
 
-const { exec } = require('./pack-util.cjs')
+const { NEXT_DIR, exec } = require('./pack-util.cjs')
 const fs = require('fs')
 const path = require('path')
 
-const CWD = process.cwd()
-const TARBALLS = `${CWD}/tarballs`
+const TARBALLS = `${NEXT_DIR}/tarballs`
 
 const PROJECT_DIR = path.resolve(process.argv[2])
 

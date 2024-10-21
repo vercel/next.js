@@ -1,13 +1,42 @@
-use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
 
+#[macro_export]
+macro_rules! definable_name_map_pattern_internal {
+    ($name:ident) => {
+        [stringify!($name).into()]
+    };
+    ($name:ident typeof) => {
+        [stringify!($name).into(), $crate::compile_time_info::DefineableNameSegment::TypeOf]
+    };
+    // Entry point for non-recursive calls
+    ($name:ident . $($more:ident).+ typeof) => {
+        $crate::definable_name_map_pattern_internal!($($more).+ typeof, [stringify!($name).into()])
+    };
+    ($name:ident . $($more:ident).+) => {
+        $crate::definable_name_map_pattern_internal!($($more).+, [stringify!($name).into()])
+    };
+    // Pop first ident and push to end of array: (id, ..., [...]) => (..., [..., id])
+    ($name:ident, [$($array:expr),+]) => {
+        [$($array),+, stringify!($name).into()]
+    };
+    ($name:ident . $($more:ident).+, [$($array:expr),+]) => {
+        $crate::definable_name_map_pattern_internal!($($more).+, [$($array),+, stringify!($name).into()])
+    };
+    ($name:ident typeof, [$($array:expr),+]) => {
+        [$($array),+, stringify!($name).into(), $crate::compile_time_info::DefineableNameSegment::TypeOf]
+    };
+    ($name:ident . $($more:ident).+ typeof, [$($array:expr),+]) => {
+        $crate::definable_name_map_pattern_internal!($($more).+ typeof, [$($array),+, stringify!($name).into()])
+    };
+}
+
 // TODO stringify split map collect could be optimized with a marco
 #[macro_export]
 macro_rules! definable_name_map_internal {
+    // Allow spreading a map: free_var_references!(..xy.into_iter(), FOO = "bar")
     ($map:ident, .. $value:expr) => {
         for (key, value) in $value {
             $map.insert(
@@ -16,45 +45,40 @@ macro_rules! definable_name_map_internal {
             );
         }
     };
-    ($map:ident, $($name:ident).+ = $value:expr) => {
+    ($map:ident, .. $value:expr, $($more:tt)+) => {
+        $crate::definable_name_map_internal!($map, .. $value);
+        $crate::definable_name_map_internal!($map, $($more)+);
+    };
+    // Base case: a single entry
+    ($map:ident, typeof $($name:ident).+ = $value:expr $(,)?) => {
         $map.insert(
-            $crate::definable_name_map_internal!($($name).+).into(),
+            $crate::definable_name_map_pattern_internal!($($name).+ typeof).into(),
             $value.into()
         );
     };
-    ($map:ident, $($name:ident).+ = $value:expr,) => {
+    ($map:ident, $($name:ident).+ = $value:expr $(,)?) => {
         $map.insert(
-            $crate::definable_name_map_internal!($($name).+).into(),
+            $crate::definable_name_map_pattern_internal!($($name).+).into(),
             $value.into()
         );
+    };
+    // Recursion: split off first entry
+    ($map:ident, typeof $($name:ident).+ = $value:expr, $($more:tt)+) => {
+        $crate::definable_name_map_internal!($map, typeof $($name).+ = $value);
+        $crate::definable_name_map_internal!($map, $($more)+);
     };
     ($map:ident, $($name:ident).+ = $value:expr, $($more:tt)+) => {
         $crate::definable_name_map_internal!($map, $($name).+ = $value);
         $crate::definable_name_map_internal!($map, $($more)+);
     };
-    ($map:ident, .. $value:expr, $($more:tt)+) => {
-        $crate::definable_name_map_internal!($map, .. $value);
-        $crate::definable_name_map_internal!($map, $($more)+);
-    };
-    ($name:ident) => {
-        [stringify!($name).into()]
-    };
-    ($name:ident . $($more:ident).+) => {
-        $crate::definable_name_map_internal!($($more).+, [stringify!($name).into()])
-    };
-    ($name:ident, [$($array:expr),+]) => {
-        [$($array),+, stringify!($name).into()]
-    };
-    ($name:ident . $($more:ident).+, [$($array:expr),+]) => {
-        $crate::definable_name_map_internal!($($more).+, [$($array),+, stringify!($name).into()])
-    };
+
 }
 
 #[macro_export]
 macro_rules! compile_time_defines {
     ($($more:tt)+) => {
         {
-            let mut map = $crate::__private::IndexMap::new();
+            let mut map = $crate::__private::FxIndexMap::default();
             $crate::definable_name_map_internal!(map, $($more)+);
             $crate::compile_time_info::CompileTimeDefines(map)
         }
@@ -65,7 +89,7 @@ macro_rules! compile_time_defines {
 macro_rules! free_var_references {
     ($($more:tt)+) => {
         {
-            let mut map = $crate::__private::IndexMap::new();
+            let mut map = $crate::__private::FxIndexMap::default();
             $crate::definable_name_map_internal!(map, $($more)+);
             $crate::compile_time_info::FreeVarReferences(map)
         }
@@ -112,13 +136,44 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
     }
 }
 
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Debug, Clone, Hash)]
+pub enum DefineableNameSegment {
+    Name(RcStr),
+    TypeOf,
+}
+
+impl From<RcStr> for DefineableNameSegment {
+    fn from(value: RcStr) -> Self {
+        DefineableNameSegment::Name(value)
+    }
+}
+
+impl From<&str> for DefineableNameSegment {
+    fn from(value: &str) -> Self {
+        DefineableNameSegment::Name(value.into())
+    }
+}
+
+impl From<String> for DefineableNameSegment {
+    fn from(value: String) -> Self {
+        DefineableNameSegment::Name(value.into())
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct CompileTimeDefines(pub IndexMap<Vec<RcStr>, CompileTimeDefineValue>);
+pub struct CompileTimeDefines(pub FxIndexMap<Vec<DefineableNameSegment>, CompileTimeDefineValue>);
+
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
+pub struct CompileTimeDefinesIndividual(
+    pub FxIndexMap<Vec<DefineableNameSegment>, Vc<CompileTimeDefineValue>>,
+);
 
 impl IntoIterator for CompileTimeDefines {
-    type Item = (Vec<RcStr>, CompileTimeDefineValue);
-    type IntoIter = indexmap::map::IntoIter<Vec<RcStr>, CompileTimeDefineValue>;
+    type Item = (Vec<DefineableNameSegment>, CompileTimeDefineValue);
+    type IntoIter = indexmap::map::IntoIter<Vec<DefineableNameSegment>, CompileTimeDefineValue>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -129,7 +184,17 @@ impl IntoIterator for CompileTimeDefines {
 impl CompileTimeDefines {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexMap::new())
+        Vc::cell(FxIndexMap::default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn individual(&self) -> Vc<CompileTimeDefinesIndividual> {
+        Vc::cell(
+            self.0
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone().cell()))
+                .collect(),
+        )
     }
 }
 
@@ -171,13 +236,29 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct FreeVarReferences(pub IndexMap<Vec<RcStr>, FreeVarReference>);
+pub struct FreeVarReferences(pub FxIndexMap<Vec<DefineableNameSegment>, FreeVarReference>);
+
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
+pub struct FreeVarReferencesIndividual(
+    pub FxIndexMap<Vec<DefineableNameSegment>, Vc<FreeVarReference>>,
+);
 
 #[turbo_tasks::value_impl]
 impl FreeVarReferences {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexMap::new())
+        Vc::cell(FxIndexMap::default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn individual(&self) -> Vc<FreeVarReferencesIndividual> {
+        Vc::cell(
+            self.0
+                .iter()
+                .map(|(key, value)| (key.clone(), value.clone().cell()))
+                .collect(),
+        )
     }
 }
 
@@ -212,8 +293,8 @@ impl CompileTimeInfo {
     }
 
     #[turbo_tasks::function]
-    pub async fn environment(self: Vc<Self>) -> Result<Vc<Environment>> {
-        Ok(self.await?.environment)
+    pub fn environment(&self) -> Vc<Environment> {
+        self.environment
     }
 }
 
@@ -246,5 +327,69 @@ impl CompileTimeInfoBuilder {
 
     pub fn cell(self) -> Vc<CompileTimeInfo> {
         self.build().cell()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use turbo_tasks::FxIndexMap;
+
+    use crate::compile_time_info::{DefineableNameSegment, FreeVarReference, FreeVarReferences};
+
+    #[test]
+    fn macro_parser() {
+        assert_eq!(
+            free_var_references!(
+                FOO = "bar",
+                FOO = false,
+                Buffer = FreeVarReference::EcmaScriptModule {
+                    request: "node:buffer".into(),
+                    lookup_path: None,
+                    export: Some("Buffer".into()),
+                },
+            ),
+            FreeVarReferences(FxIndexMap::from_iter(vec![
+                (vec!["FOO".into()], FreeVarReference::Value("bar".into())),
+                (vec!["FOO".into()], FreeVarReference::Value(false.into())),
+                (
+                    vec!["Buffer".into()],
+                    FreeVarReference::EcmaScriptModule {
+                        request: "node:buffer".into(),
+                        lookup_path: None,
+                        export: Some("Buffer".into()),
+                    }
+                ),
+            ]))
+        );
+    }
+
+    #[test]
+    fn macro_parser_typeof() {
+        assert_eq!(
+            free_var_references!(
+                typeof x = "a",
+                typeof x.y = "b",
+                typeof x.y.z = "c"
+            ),
+            FreeVarReferences(FxIndexMap::from_iter(vec![
+                (
+                    vec!["x".into(), DefineableNameSegment::TypeOf],
+                    FreeVarReference::Value("a".into())
+                ),
+                (
+                    vec!["x".into(), "y".into(), DefineableNameSegment::TypeOf],
+                    FreeVarReference::Value("b".into())
+                ),
+                (
+                    vec![
+                        "x".into(),
+                        "y".into(),
+                        "z".into(),
+                        DefineableNameSegment::TypeOf
+                    ],
+                    FreeVarReference::Value("c".into())
+                )
+            ]))
+        );
     }
 }

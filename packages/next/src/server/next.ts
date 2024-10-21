@@ -169,7 +169,8 @@ export class NextServer {
   ): Promise<Server> {
     let ServerImplementation: typeof Server
     if (options.dev) {
-      ServerImplementation = require('./dev/next-dev-server').default
+      ServerImplementation = require('./dev/next-dev-server')
+        .default as typeof import('./dev/next-dev-server').default
     } else {
       ServerImplementation = await getServerImpl()
     }
@@ -350,7 +351,14 @@ class NextCustomServer extends NextServer {
 }
 
 // This file is used for when users run `require('next')`
-function createServer(options: NextServerOptions): NextServer {
+function createServer(
+  options: NextServerOptions & {
+    turbo?: boolean
+  }
+): NextServer {
+  if (options && options.turbo) {
+    process.env.TURBOPACK = '1'
+  }
   // The package is used as a TypeScript plugin.
   if (
     options &&

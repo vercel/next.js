@@ -188,22 +188,12 @@ pub async fn is_marked_as_side_effect_free(
     Ok(Vc::cell(false))
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkPlaceables(Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>);
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceables {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
-        Vc::cell(Vec::new())
-    }
-}
-
 #[turbo_tasks::value(shared)]
 pub enum EcmascriptExports {
     EsmExports(Vc<EsmExports>),
     DynamicNamespace,
     CommonJs,
+    EmptyCommonJs,
     Value,
     None,
 }

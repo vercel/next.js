@@ -12,7 +12,7 @@ use swc_core::{
 };
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect};
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
@@ -28,24 +28,20 @@ pub async fn get_next_pages_transforms_rule(
         NextJsStripPageExports { export_filter },
     ) as _));
     Ok(ModuleRule::new(
-        ModuleRuleCondition::all(vec![
-            ModuleRuleCondition::all(vec![
-                ModuleRuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
-                ModuleRuleCondition::not(ModuleRuleCondition::ResourcePathInExactDirectory(
+        RuleCondition::all(vec![
+            RuleCondition::all(vec![
+                RuleCondition::ResourcePathInExactDirectory(pages_dir.await?),
+                RuleCondition::not(RuleCondition::ResourcePathInExactDirectory(
                     pages_dir.join("api".into()).await?,
                 )),
-                ModuleRuleCondition::not(ModuleRuleCondition::any(vec![
+                RuleCondition::not(RuleCondition::any(vec![
                     // TODO(alexkirsz): Possibly ignore _app as well?
-                    ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.js".into()).await?,
-                    ),
-                    ModuleRuleCondition::ResourcePathEquals(
+                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.js".into()).await?),
+                    RuleCondition::ResourcePathEquals(
                         pages_dir.join("_document.jsx".into()).await?,
                     ),
-                    ModuleRuleCondition::ResourcePathEquals(
-                        pages_dir.join("_document.ts".into()).await?,
-                    ),
-                    ModuleRuleCondition::ResourcePathEquals(
+                    RuleCondition::ResourcePathEquals(pages_dir.join("_document.ts".into()).await?),
+                    RuleCondition::ResourcePathEquals(
                         pages_dir.join("_document.tsx".into()).await?,
                     ),
                 ])),

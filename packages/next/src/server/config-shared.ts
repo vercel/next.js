@@ -10,9 +10,10 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
-import type { SwrDelta } from './lib/revalidate'
+import type { ExpireTime } from './lib/revalidate'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
+import { INFINITE_CACHE } from '../lib/constants'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -153,6 +154,31 @@ export interface ExperimentalTurboOptions {
    * A target memory limit for turbo, in bytes.
    */
   memoryLimit?: number
+
+  /**
+   * Enable persistent caching for the turbopack dev server and build.
+   * Need to provide the expected level of stability, otherwise it will fail.
+   * Currently stability level: 1
+   */
+  unstablePersistentCaching?: number | false
+
+  /**
+   * Enable tree shaking for the turbopack dev server and build.
+   */
+  treeShaking?: boolean
+
+  /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  moduleIdStrategy?: 'named' | 'deterministic'
+
+  /**
+   * This is the repo root usually and only files above this
+   * directory can be resolved by turbopack.
+   */
+  root?: string
 }
 
 export interface WebpackConfigContext {
@@ -211,6 +237,13 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  cacheHandlers?: {
+    default?: string
+    remote?: string
+    static?: string
+    [handlerName: string]: string | undefined
+  }
+  multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
   flyingShuttle?: { mode?: 'full' | 'store-only' }
   prerenderEarlyExit?: boolean
@@ -232,6 +265,19 @@ export interface ExperimentalConfig {
     dynamic?: number
     static?: number
   }
+  cacheLife?: {
+    [profile: string]: {
+      // How long the client can cache a value without checking with the server.
+      stale?: number
+      // How frequently you want the cache to refresh on the server.
+      // Stale values may be served while revalidating.
+      revalidate?: number
+      // In the worst case scenario, where you haven't had traffic in a while,
+      // how stale can a value be until you prefer deopting to dynamic.
+      // Must be longer than revalidate.
+      expire?: number
+    }
+  }
   // decimal for percent for possible false positives
   // e.g. 0.01 for 10% potential false matches lower
   // percent increases size of the filter
@@ -242,9 +288,9 @@ export interface ExperimentalConfig {
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
   /**
-   * @deprecated use config.swrDelta instead
+   * @deprecated use config.expireTime instead
    */
-  swrDelta?: SwrDelta
+  expireTime?: ExpireTime
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
@@ -292,8 +338,6 @@ export interface ExperimentalConfig {
   sri?: {
     algorithm?: SubresourceIntegrityAlgorithm
   }
-  adjustFontFallbacks?: boolean
-  adjustFontFallbacksWithSizeAdjust?: boolean
 
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
@@ -402,11 +446,6 @@ export interface ExperimentalConfig {
   webpackMemoryOptimizations?: boolean
 
   /**
-   *
-   */
-  instrumentationHook?: boolean
-
-  /**
    * The array of the meta tags to the client injected by tracing propagation data.
    */
   clientTraceMetadata?: string[]
@@ -506,15 +545,38 @@ export interface ExperimentalConfig {
   staticGenerationRetryCount?: number
 
   /**
+   * The amount of pages to export per worker during static generation.
+   */
+  staticGenerationMaxConcurrency?: number
+
+  /**
+   * The minimum number of pages to be chunked into each export worker.
+   */
+  staticGenerationMinPagesPerWorker?: number
+
+  /**
    * Allows previously fetched data to be re-used when editing server components.
    */
   serverComponentsHmrCache?: boolean
+
+  /**
+   * When enabled will cause IO in App Router to be excluded from prerenders
+   * unless explicitly cached.
+   */
+  dynamicIO?: boolean
 }
 
 export type ExportPathMap = {
   [path: string]: {
     page: string
     query?: NextParsedUrlQuery
+
+    /**
+     * The parameters that are currently unknown.
+     *
+     * @internal
+     */
+    _fallbackRouteParams?: readonly string[]
 
     /**
      * @internal
@@ -530,6 +592,16 @@ export type ExportPathMap = {
      * @internal
      */
     _isRoutePPREnabled?: boolean
+
+    /**
+     * When true, it indicates that this page is being rendered in an attempt to
+     * discover if the page will be safe to generate with PPR. This is only
+     * enabled when the app has `experimental.dynamicIO` enabled but does not
+     * have `experimental.ppr` enabled.
+     *
+     * @internal
+     */
+    _isProspectiveRender?: boolean
   }
 }
 
@@ -729,8 +801,11 @@ export interface NextConfig extends Record<string, any> {
    */
   basePath?: string
 
-  /** @see [Customizing sass options](https://nextjs.org/docs/basic-features/built-in-css-support#customizing-sass-options) */
-  sassOptions?: { [key: string]: any }
+  /** @see [Customizing sass options](https://nextjs.org/docs/app/api-reference/next-config-js/sassOptions) */
+  sassOptions?: {
+    implementation?: string
+    [key: string]: any
+  }
 
   /**
    * Enable browser source map generation during the production build
@@ -738,15 +813,6 @@ export interface NextConfig extends Record<string, any> {
    * @see [Source Maps](https://nextjs.org/docs/advanced-features/source-maps)
    */
   productionBrowserSourceMaps?: boolean
-
-  /**
-   * By default, Next.js will automatically inline font CSS at build time
-   *
-   * @default true
-   * @since version 10.2
-   * @see [Font Optimization](https://nextjs.org/docs/basic-features/font-optimization)
-   */
-  optimizeFonts?: boolean
 
   /**
    * Enable react profiling in production
@@ -873,7 +939,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * period (in seconds) where the server allow to serve stale cache
    */
-  swrDelta?: SwrDelta
+  expireTime?: ExpireTime
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -909,6 +975,10 @@ export interface NextConfig extends Record<string, any> {
    * were not detected on a per-page basis.
    */
   outputFileTracingIncludes?: Record<string, string[]>
+
+  watchOptions?: {
+    pollIntervalMs?: number
+  }
 }
 
 export const defaultConfig: NextConfig = {
@@ -924,7 +994,7 @@ export const defaultConfig: NextConfig = {
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
-  cacheHandler: undefined,
+  cacheHandler: process.env.NEXT_CACHE_HANDLER_PATH,
   // default to 50MB limit
   cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
@@ -952,7 +1022,6 @@ export const defaultConfig: NextConfig = {
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
-  optimizeFonts: true,
   excludeDefaultMomentLocales: true,
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -963,12 +1032,55 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
-  swrDelta: undefined,
+  expireTime: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    cacheLife: {
+      default: {
+        stale: undefined, // defaults to staleTimes.static
+        revalidate: 60 * 15, // 15 minutes
+        expire: INFINITE_CACHE,
+      },
+      seconds: {
+        stale: undefined, // defaults to staleTimes.dynamic
+        revalidate: 1, // 1 second
+        expire: 1, // 1 minute
+      },
+      minutes: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60, // 1 minute
+        expire: 60 * 60, // 1 hour
+      },
+      hours: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60, // 1 hour
+        expire: 60 * 60 * 24, // 1 day
+      },
+      days: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24, // 1 day
+        expire: 60 * 60 * 24 * 7, // 1 week
+      },
+      weeks: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24 * 7, // 1 week
+        expire: 60 * 60 * 24 * 30, // 1 month
+      },
+      max: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24 * 30, // 1 month
+        expire: INFINITE_CACHE, // Unbounded.
+      },
+    },
+    cacheHandlers: {
+      default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
+      remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
+      static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
+    },
+    multiZoneDraftMode: false,
     appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
     flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
       ? {
@@ -1013,13 +1125,10 @@ export const defaultConfig: NextConfig = {
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    adjustFontFallbacks: false,
-    adjustFontFallbacksWithSizeAdjust: false,
     turbo: undefined,
     turbotrace: undefined,
     typedRoutes: false,
     typedEnv: false,
-    instrumentationHook: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
     parallelServerBuildTraces: false,
@@ -1045,6 +1154,9 @@ export const defaultConfig: NextConfig = {
     after: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
+    staticGenerationMaxConcurrency: 8,
+    staticGenerationMinPagesPerWorker: 25,
+    dynamicIO: false,
   },
   bundlePagesRouterDependencies: false,
 }

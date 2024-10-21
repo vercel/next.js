@@ -55,7 +55,8 @@ pub fn generate_register() {
     if examples_dir.exists() {
         for item in read_dir(examples_dir).unwrap() {
             let item = item.unwrap();
-            if item.file_type().unwrap().is_file() {
+            let file_type = &item.file_type().unwrap();
+            if file_type.is_file() || file_type.is_symlink() {
                 let name = item.file_name();
                 let name = name.to_string_lossy();
                 if name.ends_with(".rs") {
@@ -68,7 +69,8 @@ pub fn generate_register() {
     if tests_dir.exists() {
         for item in read_dir(tests_dir).unwrap() {
             let item = item.unwrap();
-            if item.file_type().unwrap().is_file() {
+            let file_type = &item.file_type().unwrap();
+            if file_type.is_file() || file_type.is_symlink() {
                 let name = item.file_name();
                 let name = name.to_string_lossy();
                 if name.ends_with(".rs") {
@@ -80,7 +82,7 @@ pub fn generate_register() {
 
     if benches_dir.exists() {
         let bench_mod = benches_dir.join("mod.rs");
-        if bench_mod.is_file() {
+        if bench_mod.is_file() || bench_mod.is_symlink() {
             let name = bench_mod.file_name().unwrap();
             let name = name.to_string_lossy();
             if name.ends_with(".rs") {
@@ -226,7 +228,7 @@ struct RegisterContext<'a> {
     values: &'a mut HashMap<ValueKey, ValueEntry>,
 }
 
-impl<'a> RegisterContext<'a> {
+impl RegisterContext<'_> {
     fn process_item(&mut self, item: &Item) -> Result<()> {
         match item {
             Item::Enum(enum_item) => self.process_enum(enum_item),
@@ -435,7 +437,7 @@ impl<'a> RegisterContext<'a> {
     }
 }
 
-impl<'a> RegisterContext<'a> {
+impl RegisterContext<'_> {
     fn get_global_name(&self, parts: &[&Ident]) -> String {
         format!(
             "r##\"{}{}::{}\"##",

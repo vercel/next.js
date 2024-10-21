@@ -31,7 +31,7 @@ pub struct WrappedGetContentSourceContent {
 #[turbo_tasks::value_impl]
 impl WrappedGetContentSourceContent {
     #[turbo_tasks::function]
-    pub async fn new(
+    pub fn new(
         inner: Vc<Box<dyn GetContentSourceContent>>,
         processor: Vc<Box<dyn ContentSourceProcessor>>,
     ) -> Vc<Self> {

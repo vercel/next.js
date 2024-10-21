@@ -4,6 +4,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './internal/container/Errors'
 import type { ComponentStackFrame } from './internal/helpers/parse-component-stack'
+import type { DebugInfo } from './types'
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -20,6 +21,7 @@ export interface OverlayState {
   versionInfo: VersionInfo
   notFound: boolean
   staticIndicator: boolean
+  debugInfo: DebugInfo | undefined
 }
 
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
@@ -30,6 +32,7 @@ export const ACTION_REFRESH = 'fast-refresh'
 export const ACTION_VERSION_INFO = 'version-info'
 export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
+export const ACTION_DEBUG_INFO = 'debug-info'
 
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR
@@ -63,6 +66,11 @@ export interface UnhandledRejectionAction {
   frames: StackFrame[]
 }
 
+export interface DebugInfoAction {
+  type: typeof ACTION_DEBUG_INFO
+  debugInfo: any
+}
+
 interface VersionInfoAction {
   type: typeof ACTION_VERSION_INFO
   versionInfo: VersionInfo
@@ -77,6 +85,7 @@ export type BusEvent =
   | UnhandledRejectionAction
   | VersionInfoAction
   | StaticIndicatorAction
+  | DebugInfoAction
 
 function pushErrorFilterDuplicates(
   errors: SupportedErrorEvent[],
@@ -100,11 +109,15 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
   refreshState: { type: 'idle' },
   rootLayoutMissingTags: [],
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
+  debugInfo: undefined,
 }
 
 export function useErrorOverlayReducer() {
   return useReducer((_state: OverlayState, action: BusEvent): OverlayState => {
     switch (action.type) {
+      case ACTION_DEBUG_INFO: {
+        return { ..._state, debugInfo: action.debugInfo }
+      }
       case ACTION_STATIC_INDICATOR: {
         return { ..._state, staticIndicator: action.staticIndicator }
       }

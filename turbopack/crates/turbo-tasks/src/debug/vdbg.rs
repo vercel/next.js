@@ -33,7 +33,7 @@ macro_rules! vdbg {
         {
             use $crate::debug::ValueDebugFormat;
             let depth = $depth;
-            $crate::macro_helpers::spawn_detached(async move {
+            $crate::macro_helpers::spawn_detached_for_testing(async move {
                 $crate::vdbg!(__expand depth ; [ $($valstr $valowned)* ] []);
                 Ok(())
             });

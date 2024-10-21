@@ -9,6 +9,12 @@ async function nextBabelLoader(
   inputSourceMap: object | null | undefined
 ) {
   const filename = this.resourcePath
+
+  // Ensure `.d.ts` are not processed.
+  if (filename.endsWith('.d.ts')) {
+    return [inputSource, inputSourceMap]
+  }
+
   const target = this.target
   const loaderOptions: any = parentTrace
     .traceChild('get-options')

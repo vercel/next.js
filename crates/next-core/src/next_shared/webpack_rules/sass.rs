@@ -50,7 +50,7 @@ pub async fn maybe_add_sass_loader(
             options: take(
                 serde_json::json!({
                     //https://github.com/vercel/turbo/blob/d527eb54be384a4658243304cecd547d09c05c6b/crates/turbopack-node/src/transforms/webpack.rs#L191
-                    "sourceMap": false
+                    "sourceMap": true
                 })
                 .as_object_mut()
                 .unwrap(),

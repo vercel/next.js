@@ -467,7 +467,7 @@ describe('app-custom-routes', () => {
       })
     })
 
-    describe('cookies().has()', () => {
+    describe('(await cookies()).has()', () => {
       it('gets the correct values', async () => {
         const res = await next.fetch(basePath + '/hooks/cookies/has')
 

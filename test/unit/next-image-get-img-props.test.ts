@@ -37,6 +37,30 @@ describe('getImageProps()', () => {
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
+
+  it('should have correct type for props', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 100,
+      height: 200,
+    })
+
+    expect(props.alt).toBeString()
+    expect(props.id).toBeString()
+    expect(props.loading).toBeString()
+
+    expect(props.width).toBeNumber()
+    expect(props.height).toBeNumber()
+
+    expect(props.decoding).toBeString()
+    expect(props.style).toBeObject()
+    expect(props.style.color).toBeString()
+    expect(props.src).toBeString()
+    expect(props.srcSet).toBeString()
+  })
+
   it('should handle priority', async () => {
     const { props } = getImageProps({
       alt: 'a nice desc',
@@ -300,6 +324,29 @@ describe('getImageProps()', () => {
         '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
       ],
       ['src', '/override.png'],
+    ])
+  })
+  it('should handle decoding=sync', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.png',
+      decoding: 'sync',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'sync'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
 })

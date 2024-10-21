@@ -8,7 +8,7 @@ use turbopack_core::{
     reference_type::ReferenceType,
 };
 
-use crate::EcmascriptModuleAsset;
+use crate::EcmascriptAnalyzable;
 
 /// Static ECMAScript file code, to be used as part of some code.
 ///
@@ -17,7 +17,7 @@ use crate::EcmascriptModuleAsset;
 #[turbo_tasks::value]
 pub struct StaticEcmascriptCode {
     asset_context: Vc<Box<dyn AssetContext>>,
-    asset: Vc<EcmascriptModuleAsset>,
+    asset: Vc<Box<dyn EcmascriptAnalyzable>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -34,7 +34,7 @@ impl StaticEcmascriptCode {
                 Value::new(ReferenceType::Runtime),
             )
             .module();
-        let Some(asset) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await?
+        let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptAnalyzable>>(module).await?
         else {
             bail!("asset is not an Ecmascript module")
         };
@@ -47,9 +47,8 @@ impl StaticEcmascriptCode {
     /// Computes the contents of the asset and pushes it to
     /// the code builder, including the source map if available.
     #[turbo_tasks::function]
-    pub async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
-        let this = self.await?;
-        let runtime_base_content = this.asset.module_content_without_analysis().await?;
+    pub async fn code(&self) -> Result<Vc<Code>> {
+        let runtime_base_content = self.asset.module_content_without_analysis().await?;
         let mut code = CodeBuilder::default();
         code.push_source(
             &runtime_base_content.inner_code,

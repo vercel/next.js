@@ -1,8 +1,7 @@
 use std::iter::once;
 
 use anyhow::{bail, Result};
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
@@ -14,14 +13,16 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
+    chunk::module_id_strategies::ModuleIdStrategy,
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
+        FreeVarReferences,
     },
     condition::ContextCondition,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
     free_var_references,
 };
-use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
+use turbopack_ecmascript::references::esm::UrlRewriteBehavior;
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
 };
@@ -45,7 +46,6 @@ use crate::{
     next_import_map::get_next_server_import_map,
     next_server::resolve::ExternalPredicate,
     next_shared::{
-        next_js_special_exports,
         resolve::{
             get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
@@ -180,8 +180,7 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::Only(Vc::cell(external_packages)).cell(),
-        // app-ssr can't have esm externals as that would make the module async on the server only
-        *next_config.import_externals().await? && !matches!(ty, ServerContextType::AppSSR { .. }),
+        *next_config.import_externals().await?,
     );
 
     let mut custom_conditions = vec![mode.await?.condition().to_string().into()];
@@ -255,6 +254,7 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::Instrumentation { .. } => {
             vec![
                 Vc::upcast(next_node_shared_runtime_plugin),
+                Vc::upcast(server_external_packages_plugin),
                 Vc::upcast(next_external_plugin),
             ]
         }
@@ -311,12 +311,16 @@ pub async fn get_server_resolve_options_context(
     .cell())
 }
 
-fn defines(define_env: &IndexMap<RcStr, RcStr>) -> CompileTimeDefines {
-    let mut defines = IndexMap::new();
+fn defines(define_env: &FxIndexMap<RcStr, RcStr>) -> CompileTimeDefines {
+    let mut defines = FxIndexMap::default();
 
     for (k, v) in define_env {
         defines
-            .entry(k.split('.').map(|s| s.into()).collect::<Vec<RcStr>>())
+            .entry(
+                k.split('.')
+                    .map(|s| DefineableNameSegment::Name(s.into()))
+                    .collect::<Vec<_>>(),
+            )
             .or_insert_with(|| {
                 let val = serde_json::from_str(v);
                 match val {
@@ -341,7 +345,7 @@ async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 }
 
 #[turbo_tasks::function]
-pub async fn get_server_compile_time_info(
+pub fn get_server_compile_time_info(
     process_env: Vc<Box<dyn ProcessEnv>>,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
@@ -493,7 +497,6 @@ pub async fn get_server_module_options_context(
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
-        special_exports: Some(next_js_special_exports()),
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         ..Default::default()
     };
@@ -893,20 +896,6 @@ pub async fn get_server_module_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
-    ModuleOptionsContext {
-        ecmascript: EcmascriptOptionsContext {
-            enable_typescript_transform: Some(Default::default()),
-            esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Full),
-            ..Default::default()
-        },
-        tree_shaking_mode: Some(TreeShakingMode::ModuleFragments),
-        ..Default::default()
-    }
-    .cell()
-}
-
-#[turbo_tasks::function]
 pub fn get_server_runtime_entries(
     _ty: Value<ServerContextType>,
     _mode: Vc<NextMode>,
@@ -923,6 +912,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<RcStr>>,
     environment: Vc<Environment>,
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -939,6 +929,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     )
     .asset_prefix(asset_prefix)
     .minify_type(next_mode.minify_type())
+    .module_id_strategy(module_id_strategy)
     .build())
 }
 
@@ -948,6 +939,7 @@ pub async fn get_server_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     environment: Vc<Environment>,
+    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -963,5 +955,6 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .minify_type(next_mode.minify_type())
+    .module_id_strategy(module_id_strategy)
     .build())
 }

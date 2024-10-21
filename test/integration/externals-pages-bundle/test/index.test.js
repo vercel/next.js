@@ -27,10 +27,8 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
             allBundles += output
           }
 
-          // we don't know the name of the minified `__turbopack_external_require__`, so we just check the arguments.
-          expect(allBundles).not.toContain(
-            '"[externals]/ [external] (external-package, cjs)"'
-          )
+          // we don't know the name of the minified `__turbopack_external_require__`, so we just check the content.
+          expect(allBundles).toContain('"external-package content"')
         } else {
           const output = await fs.readFile(
             join(appDir, '.next/server/pages/index.js'),
@@ -53,9 +51,9 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
             allBundles += output
           }
 
-          // we don't know the name of the minified `__turbopack_external_require__`, so we just check the arguments.
-          expect(allBundles).toContain(
-            '"[externals]/ [external] (opted-out-external-package, cjs)"'
+          // we don't know the name of the minified `__turbopack_external_require__`, so we just check the content.
+          expect(allBundles).not.toContain(
+            '"opted-out-external-package content"'
           )
         } else {
           const output = await fs.readFile(

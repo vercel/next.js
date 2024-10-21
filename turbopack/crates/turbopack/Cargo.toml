@@ -18,7 +18,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-async-recursion = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 lazy_static = { workspace = true }
 regex = { workspace = true }

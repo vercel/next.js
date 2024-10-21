@@ -1,10 +1,15 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
+import { execSync } from 'child_process'
 import { getPageFromPath } from '../entries'
+import originalDebug from 'next/dist/compiled/debug'
 import { Sema } from 'next/dist/compiled/async-sema'
 import { generateShuttleManifest, type ShuttleManifest } from './store-shuttle'
 import type { NextConfigComplete } from '../../server/config-shared'
+import { updateIncrementalBuildMetrics } from '../../diagnostics/build-diagnostics'
+
+const debug = originalDebug('next:build:flying-shuttle')
 
 export interface DetectedEntriesResult {
   app: string[]
@@ -47,6 +52,11 @@ export async function hasShuttle(
   }
   let foundShuttleManifest: ShuttleManifest
 
+  async function pruneCache() {
+    await fs.promises.rm(shuttleDir, { force: true, recursive: true })
+    await fs.promises.mkdir(shuttleDir, { recursive: true })
+  }
+
   try {
     foundShuttleManifest = JSON.parse(
       await fs.promises.readFile(
@@ -58,9 +68,13 @@ export async function hasShuttle(
   } catch (err: unknown) {
     _hasShuttle = false
     console.log(`Failed to read shuttle manifest`)
+    // prune potentially corrupted cache
+    await pruneCache()
     return _hasShuttle
   }
-  const currentShuttleManifest = JSON.parse(generateShuttleManifest(config))
+  const currentShuttleManifest = JSON.parse(
+    generateShuttleManifest(config)
+  ) as ShuttleManifest
 
   if (currentShuttleManifest.nextVersion !== foundShuttleManifest.nextVersion) {
     // we don't allow using shuttle from differing Next.js version
@@ -80,6 +94,21 @@ export async function hasShuttle(
     )
   }
 
+  if (_hasShuttle) {
+    let currentGitSha = ''
+
+    try {
+      currentGitSha = execSync('git rev-parse HEAD').toString().trim()
+    } catch (_) {}
+
+    await updateIncrementalBuildMetrics({
+      currentGitSha,
+      shuttleGitSha: currentShuttleManifest.gitSha,
+    })
+  } else {
+    // prune mis-matching cache
+    await pruneCache()
+  }
   return _hasShuttle
 }
 
@@ -150,6 +179,7 @@ export async function detectChangedEntries({
 
   const hashSema = new Sema(16)
   let globalEntryChanged = false
+  const changedDependencies: Record<string, string> = {}
 
   async function detectChange({
     normalizedEntry,
@@ -206,7 +236,8 @@ export async function detectChangedEntries({
                 const curHash = await computeHash(absoluteFile)
 
                 if (prevHash !== curHash) {
-                  console.log('detected change on', {
+                  changedDependencies[normalizedEntry] = file
+                  debug('detected change on', {
                     prevHash,
                     curHash,
                     file,
@@ -227,7 +258,10 @@ export async function detectChangedEntries({
           console.error('missing trace data', traceFile, normalizedEntry)
         }
       } catch (err) {
-        console.error(`Failed to detect change for ${entry}`, err)
+        console.error(
+          `Failed to detect change for ${entry} ${normalizedEntry}`,
+          err
+        )
       }
     }
 
@@ -261,9 +295,14 @@ export async function detectChangedEntries({
   }
 
   for (const entry of appPaths || []) {
-    const normalizedEntry = getPageFromPath(entry, pageExtensions)
+    let normalizedEntry = getPageFromPath(entry, pageExtensions)
+
+    if (normalizedEntry === '/not-found') {
+      normalizedEntry = '/_not-found/page'
+    }
     await detectChange({ entry, normalizedEntry, type: 'app' })
   }
+  await updateIncrementalBuildMetrics({ changedDependencies })
 
   return {
     changed: changedEntries,

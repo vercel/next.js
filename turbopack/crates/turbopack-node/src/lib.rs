@@ -1,16 +1,16 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 #![feature(extract_if)]
 
 use std::{collections::HashMap, iter::once, thread::available_parallelism};
 
 use anyhow::{bail, Result};
-use indexmap::IndexSet;
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    Completion, Completions, RcStr, TryJoinIterExt, ValueToString, Vc,
+    Completion, Completions, FxIndexSet, RcStr, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
@@ -18,7 +18,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAssets},
     module::Module,
-    output::{OutputAsset, OutputAssetsSet},
+    output::{OutputAsset, OutputAssets, OutputAssetsSet},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
 };
@@ -171,8 +171,8 @@ async fn separate_assets(
         .completed()?
         .into_inner();
 
-    let mut internal_assets = IndexSet::new();
-    let mut external_asset_entrypoints = IndexSet::new();
+    let mut internal_assets = FxIndexSet::default();
+    let mut external_asset_entrypoints = FxIndexSet::default();
 
     for item in graph.into_reverse_topological() {
         match item {
@@ -257,16 +257,17 @@ pub async fn get_renderer_pool(
 
 /// Converts a module graph into node.js executable assets
 #[turbo_tasks::function]
-pub async fn get_intermediate_asset(
+pub fn get_intermediate_asset(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     main_entry: Vc<Box<dyn Module>>,
     other_entries: Vc<EvaluatableAssets>,
-) -> Result<Vc<Box<dyn OutputAsset>>> {
-    Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
+) -> Vc<Box<dyn OutputAsset>> {
+    Vc::upcast(chunking_context.root_entry_chunk_group_asset(
         chunking_context.chunk_path(main_entry.ident(), ".js".into()),
         main_entry,
+        OutputAssets::empty(),
         other_entries,
-    )))
+    ))
 }
 
 #[derive(Clone, Debug)]

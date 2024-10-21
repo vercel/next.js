@@ -69,7 +69,7 @@ export type ImageProps = Omit<
   lazyRoot?: string
 }
 
-export type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
+export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
   loading: LoadingValue
   width: number | undefined
   height: number | undefined
@@ -111,6 +111,7 @@ function isStaticImageData(
 
 function isStaticImport(src: string | StaticImport): src is StaticImport {
   return (
+    !!src &&
     typeof src === 'object' &&
     (isStaticRequire(src as StaticImport) ||
       isStaticImageData(src as StaticImport))
@@ -254,6 +255,7 @@ export function getImgProps(
     placeholder = 'empty',
     blurDataURL,
     fetchPriority,
+    decoding = 'async',
     layout,
     objectFit,
     objectPosition,
@@ -684,7 +686,7 @@ export function getImgProps(
     fetchPriority,
     width: widthInt,
     height: heightInt,
-    decoding: 'async',
+    decoding,
     className,
     style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,

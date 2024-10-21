@@ -17,7 +17,7 @@ async fn get_referenced_output_assets(
     Ok(parent.references().await?.clone_value().into_iter())
 }
 
-async fn get_referenced_modules(
+pub async fn get_referenced_modules(
     parent: Vc<Box<dyn Module>>,
 ) -> Result<impl Iterator<Item = Vc<Box<dyn Module>>> + Send> {
     Ok(primary_referenced_modules(parent)

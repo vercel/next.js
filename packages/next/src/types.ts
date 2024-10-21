@@ -18,6 +18,7 @@ import type {
   NextApiRequest,
   NextApiHandler,
 } from './shared/lib/utils'
+import type { GetStaticPathsFallback } from './lib/fallback'
 
 import type { NextApiRequestCookies } from './server/api-utils'
 
@@ -220,7 +221,7 @@ export type GetStaticPathsResult<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
 > = {
   paths: Array<string | { params: Params; locale?: string }>
-  fallback: boolean | 'blocking'
+  fallback: GetStaticPathsFallback
 }
 
 /**

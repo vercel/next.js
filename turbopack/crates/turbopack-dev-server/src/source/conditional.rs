@@ -12,6 +12,7 @@ use crate::source::{ContentSourceContent, ContentSources};
 /// Combines two [ContentSource]s like the [CombinedContentSource], but only
 /// allows to serve from the second source when the first source has
 /// successfully served something once.
+///
 /// This is a laziness optimization when the content of the second source can
 /// only be reached via references from the first source.
 ///
@@ -108,15 +109,15 @@ impl Introspectable for ConditionalContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn details(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
+    fn details(&self) -> Vc<RcStr> {
+        Vc::cell(
             if *self.activated.get() {
                 "activated"
             } else {
                 "not activated"
             }
             .into(),
-        ))
+        )
     }
 
     #[turbo_tasks::function]

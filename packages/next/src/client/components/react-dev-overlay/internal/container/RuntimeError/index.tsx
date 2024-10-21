@@ -1,10 +1,9 @@
 import * as React from 'react'
 import { CodeFrame } from '../../components/CodeFrame'
-import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
 import { noop as css } from '../../helpers/noop-template'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
-import { CopyButton } from '../../components/copy-button'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
@@ -76,16 +75,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>
-          <h2>
-            Call Stack
-            {error.error.stack && (
-              <CopyButton
-                actionLabel="Copy error stack"
-                successLabel="Copied"
-                content={error.error.stack}
-              />
-            )}
-          </h2>
+          <h2>Call Stack</h2>
 
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
@@ -123,8 +113,8 @@ export const styles = css`
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-nextjs-data-runtime-error-copy-stack],
-  [data-nextjs-data-runtime-error-copy-stack]:focus:not(:focus-visible) {
+  [data-nextjs-data-runtime-error-copy-button],
+  [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
     position: relative;
     margin-left: var(--size-gap);
     padding: 0;
@@ -132,24 +122,24 @@ export const styles = css`
     background: none;
     outline: none;
   }
-  [data-nextjs-data-runtime-error-copy-stack] > svg {
+  [data-nextjs-data-runtime-error-copy-button] > svg {
     vertical-align: middle;
   }
-  .nextjs-data-runtime-error-copy-stack {
+  .nextjs-data-runtime-error-copy-button {
     color: inherit;
   }
-  .nextjs-data-runtime-error-copy-stack--initial:hover {
+  .nextjs-data-runtime-error-copy-button--initial:hover {
     cursor: pointer;
   }
-  .nextjs-data-runtime-error-copy-stack[aria-disabled='true'] {
+  .nextjs-data-runtime-error-copy-button[aria-disabled='true'] {
     opacity: 0.3;
     cursor: not-allowed;
   }
-  .nextjs-data-runtime-error-copy-stack--error,
-  .nextjs-data-runtime-error-copy-stack--error:hover {
+  .nextjs-data-runtime-error-copy-button--error,
+  .nextjs-data-runtime-error-copy-button--error:hover {
     color: var(--color-ansi-red);
   }
-  .nextjs-data-runtime-error-copy-stack--success {
+  .nextjs-data-runtime-error-copy-button--success {
     color: var(--color-ansi-green);
   }
 

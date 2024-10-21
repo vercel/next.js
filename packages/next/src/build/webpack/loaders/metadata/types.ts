@@ -1,9 +1,7 @@
 // TODO-APP: check if this can be narrowed.
-export type ComponentModule = () => any
-export type ModuleReference = [
-  componentModule: ComponentModule,
-  filePath: string,
-]
+export type ModuleGetter = () => any
+
+export type ModuleTuple = [getModule: ModuleGetter, filePath: string]
 
 // Contain the collecting image module paths
 export type CollectingMetadata = {
@@ -16,10 +14,10 @@ export type CollectingMetadata = {
 
 // Contain the collecting evaluated image module
 export type CollectedMetadata = {
-  icon: ComponentModule[]
-  apple: ComponentModule[]
-  twitter: ComponentModule[] | null
-  openGraph: ComponentModule[] | null
+  icon: ModuleGetter[]
+  apple: ModuleGetter[]
+  twitter: ModuleGetter[] | null
+  openGraph: ModuleGetter[] | null
   manifest?: string
 }
 

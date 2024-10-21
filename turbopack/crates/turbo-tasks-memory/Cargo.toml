@@ -48,17 +48,7 @@ turbo-tasks-build = { workspace = true }
 
 [features]
 track_unfinished = []
-track_wait_dependencies = []
-unsafe_once_map = []
-log_running_tasks = []
-log_scheduled_tasks = []
-log_activate_tasks = []
-log_connect_tasks = []
-report_expensive = []
-print_scope_updates = []
 print_task_invalidation = []
-inline_add_to_scope = []
-inline_remove_from_scope = []
 default = []
 
 [[bench]]

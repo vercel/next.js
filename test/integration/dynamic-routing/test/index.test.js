@@ -1513,7 +1513,8 @@ function runTests({ dev }) {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
           didPostponeHeader: 'x-nextjs-postponed',
-          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
+          varyHeader:
+            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch',
           prefetchHeader: 'Next-Router-Prefetch',
           prefetchSuffix: '.prefetch.rsc',
           suffix: '.rsc',
@@ -1542,7 +1543,9 @@ function runTests({ dev }) {
         '/d/[id]': 'pages/d/[id].html',
         '/dash/[hello-world]': 'pages/dash/[hello-world].html',
         '/': 'pages/index.html',
-        '/index/[...slug]': 'pages/index/[...slug].html',
+        '/index/[...slug]': process.env.TURBOPACK
+          ? 'pages/index/index/[...slug].html'
+          : 'pages/index/[...slug].html',
         '/on-mount/[post]': 'pages/on-mount/[post].html',
         '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
         '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',

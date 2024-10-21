@@ -9,37 +9,18 @@ use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
 use turbopack_wasm::source::WebAssemblySourceType;
 
-use super::{CustomModuleType, ModuleRuleCondition};
+use super::{match_mode::MatchMode, CustomModuleType, RuleCondition};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
 pub struct ModuleRule {
-    condition: ModuleRuleCondition,
+    condition: RuleCondition,
     effects: Vec<ModuleRuleEffect>,
     match_mode: MatchMode,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
-enum MatchMode {
-    // Match all but internal references.
-    NonInternal,
-    // Only match internal references.
-    Internal,
-    // Match both internal and non-internal references.
-    All,
-}
-
-impl MatchMode {
-    fn matches(&self, reference_type: &ReferenceType) -> bool {
-        matches!(
-            (self, reference_type.is_internal()),
-            (MatchMode::All, _) | (MatchMode::NonInternal, false) | (MatchMode::Internal, true)
-        )
-    }
-}
-
 impl ModuleRule {
     /// Creates a new module rule. Will not match internal references.
-    pub fn new(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
         ModuleRule {
             condition,
             effects,
@@ -47,8 +28,8 @@ impl ModuleRule {
         }
     }
 
-    /// Creates a new module rule. Will only matches internal references.
-    pub fn new_internal(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    /// Creates a new module rule. Will only match internal references.
+    pub fn new_internal(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
         ModuleRule {
             condition,
             effects,
@@ -56,8 +37,8 @@ impl ModuleRule {
         }
     }
 
-    /// Creates a new module rule. Will only matches internal references.
-    pub fn new_all(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    /// Creates a new module rule. Will match all references.
+    pub fn new_all(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
         ModuleRule {
             condition,
             effects,

@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -14,38 +13,38 @@ use turbopack_core::{
 use turbopack_ecmascript::utils::StringifyJs;
 
 #[turbo_tasks::function]
-pub async fn route_bootstrap(
+pub fn route_bootstrap(
     asset: Vc<Box<dyn Module>>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     base_path: Vc<FileSystemPath>,
     bootstrap_asset: Vc<Box<dyn Source>>,
     config: Vc<BootstrapConfig>,
-) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
-    Ok(bootstrap(
+) -> Vc<Box<dyn EvaluatableAsset>> {
+    bootstrap(
         asset,
-        context,
+        asset_context,
         base_path,
         bootstrap_asset,
-        Vc::cell(IndexMap::new()),
+        Vc::cell(FxIndexMap::default()),
         config,
-    ))
+    )
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct BootstrapConfig(IndexMap<String, String>);
+pub struct BootstrapConfig(FxIndexMap<String, String>);
 
 #[turbo_tasks::value_impl]
 impl BootstrapConfig {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexMap::new())
+        Vc::cell(FxIndexMap::default())
     }
 }
 
 #[turbo_tasks::function]
 pub async fn bootstrap(
     asset: Vc<Box<dyn Module>>,
-    context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     base_path: Vc<FileSystemPath>,
     bootstrap_asset: Vc<Box<dyn Source>>,
     inner_assets: Vc<InnerAssets>,
@@ -75,7 +74,7 @@ pub async fn bootstrap(
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
 
-    let config_asset = context
+    let config_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
                 asset.ident().path().join("bootstrap-config.ts".into()),
@@ -98,7 +97,7 @@ pub async fn bootstrap(
     inner_assets.insert("ENTRY".into(), asset);
     inner_assets.insert("BOOTSTRAP_CONFIG".into(), config_asset);
 
-    let asset = context
+    let asset = asset_context
         .process(
             bootstrap_asset,
             Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),

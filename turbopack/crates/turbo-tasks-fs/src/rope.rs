@@ -14,14 +14,16 @@ use anyhow::{Context, Result};
 use bytes::{Buf, Bytes};
 use futures::Stream;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_bytes::ByteBuf;
 use tokio::io::{AsyncRead, ReadBuf};
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 use RopeElem::{Local, Shared};
 
 static EMPTY_BUF: &[u8] = &[];
 
-/// A Rope provides an efficient structure for sharing bytes/strings between
-/// multiple sources. Cloning a Rope is extremely cheap (Arc and usize), and
+/// An efficient structure for sharing bytes/strings between multiple sources.
+///
+/// Cloning a Rope is extremely cheap (Arc and usize), and
 /// sharing the contents of one Rope can be done by just cloning an Arc.
 ///
 /// Ropes are immutable, in order to construct one see [RopeBuilder].
@@ -342,16 +344,31 @@ impl Serialize for Rope {
     /// possible owner of a individual "shared" data doesn't make sense).
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;
-        let s = self.to_str().map_err(Error::custom)?;
-        serializer.serialize_str(&s)
+        let bytes = self.to_bytes().map_err(Error::custom)?;
+        match bytes {
+            Cow::Borrowed(b) => serde_bytes::Bytes::new(b).serialize(serializer),
+            Cow::Owned(b) => ByteBuf::from(b).serialize(serializer),
+        }
     }
 }
 
 impl<'de> Deserialize<'de> for Rope {
     /// Deserializes strings into a contiguous, immutable Rope.
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let bytes = <Vec<u8>>::deserialize(deserializer)?;
+        let bytes = ByteBuf::deserialize(deserializer)?.into_vec();
         Ok(Rope::from(bytes))
+    }
+}
+
+pub mod ser_as_string {
+    use serde::{ser::Error, Serializer};
+
+    use super::Rope;
+
+    /// Serializes a Rope into a string.
+    pub fn serialize<S: Serializer>(rope: &Rope, serializer: S) -> Result<S::Ok, S::Error> {
+        let s = rope.to_str().map_err(Error::custom)?;
+        serializer.serialize_str(&s)
     }
 }
 

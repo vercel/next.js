@@ -39,7 +39,7 @@
                 Ident,
             ),
         ],
-        span: 11..18#1,
+        span: 11..18,
         in_try: false,
     },
     Call {
@@ -84,8 +84,9 @@
                 Call,
             ),
         ],
-        span: 11..25#0,
+        span: 11..25,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -127,7 +128,7 @@
                 Ident,
             ),
         ],
-        span: 79..86#1,
+        span: 79..86,
         in_try: false,
     },
     Call {
@@ -172,8 +173,9 @@
                 Call,
             ),
         ],
-        span: 79..94#0,
+        span: 79..94,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -225,7 +227,7 @@
                 Member,
             ),
         ],
-        span: 115..124#0,
+        span: 115..124,
         in_try: false,
     },
     MemberCall {
@@ -289,8 +291,9 @@
                 Call,
             ),
         ],
-        span: 115..138#0,
+        span: 115..138,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -342,7 +345,7 @@
                 Member,
             ),
         ],
-        span: 158..167#0,
+        span: 158..167,
         in_try: false,
     },
     MemberCall {
@@ -406,8 +409,9 @@
                 Call,
             ),
         ],
-        span: 158..182#0,
+        span: 158..182,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -459,7 +463,7 @@
                 Member,
             ),
         ],
-        span: 202..211#0,
+        span: 202..211,
         in_try: false,
     },
     MemberCall {
@@ -523,8 +527,9 @@
                 Call,
             ),
         ],
-        span: 202..226#0,
+        span: 202..226,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -576,7 +581,7 @@
                 Member,
             ),
         ],
-        span: 246..255#0,
+        span: 246..255,
         in_try: false,
     },
     MemberCall {
@@ -640,8 +645,9 @@
                 Call,
             ),
         ],
-        span: 246..271#0,
+        span: 246..271,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -693,7 +699,7 @@
                 Member,
             ),
         ],
-        span: 291..300#0,
+        span: 291..300,
         in_try: false,
     },
     FreeVar {
@@ -738,7 +744,7 @@
                 Ident,
             ),
         ],
-        span: 328..334#1,
+        span: 328..334,
         in_try: false,
     },
     MemberCall {
@@ -843,7 +849,8 @@
                 Call,
             ),
         ],
-        span: 291..348#0,
+        span: 291..348,
         in_try: false,
+        new: false,
     },
 ]

@@ -4,8 +4,8 @@ use swc_core::{
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
-            CallExpr, Callee, Decl, Expr, Id, Ident, Lit, MemberExpr, MemberProp, Module,
-            ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            CallExpr, Callee, Decl, Expr, Id, Ident, IdentName, Lit, MemberExpr, MemberProp,
+            Module, ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::{Atom, JsWord},
         utils::{prepend_stmts, private_ident, ExprFactory, IdentRenamer},
@@ -114,18 +114,19 @@ impl VisitMut for CjsOptimizer {
                                                 span: DUMMY_SP,
                                                 callee: Ident::new(
                                                     "require".into(),
-                                                    DUMMY_SP.with_ctxt(self.unresolved_ctxt),
+                                                    DUMMY_SP,
+                                                    self.unresolved_ctxt,
                                                 )
                                                 .as_callee(),
                                                 args: vec![Expr::Lit(Lit::Str(
                                                     renamed.clone().into(),
                                                 ))
                                                 .as_arg()],
-                                                type_args: None,
+                                                ..Default::default()
                                             })),
-                                            prop: MemberProp::Ident(Ident::new(
+                                            prop: MemberProp::Ident(IdentName::new(
                                                 prop.sym.clone(),
-                                                DUMMY_SP.with_ctxt(self.unresolved_ctxt),
+                                                DUMMY_SP,
                                             )),
                                         }))),
                                         definite: false,
@@ -142,8 +143,8 @@ impl VisitMut for CjsOptimizer {
                                             Box::new(VarDecl {
                                                 span: DUMMY_SP,
                                                 kind: VarDeclKind::Const,
-                                                declare: false,
                                                 decls: vec![var],
+                                                ..Default::default()
                                             }),
                                         )));
                                     }
@@ -212,7 +213,7 @@ impl VisitMut for CjsOptimizer {
         })) = n.init.as_deref()
         {
             if let Expr::Ident(ident) = &**callee {
-                if ident.span.ctxt == self.unresolved_ctxt && ident.sym == *"require" {
+                if ident.ctxt == self.unresolved_ctxt && ident.sym == *"require" {
                     if let Some(arg) = args.first() {
                         if let Expr::Lit(Lit::Str(v)) = &*arg.expr {
                             // TODO: Config

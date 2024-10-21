@@ -2,15 +2,9 @@
 import 'server-only'
 
 /* eslint-disable import/no-extraneous-dependencies */
-import {
-  renderToReadableStream,
-  decodeReply,
-} from 'react-server-dom-webpack/server.edge'
+import { renderToReadableStream } from 'react-server-dom-webpack/server.edge'
 /* eslint-disable import/no-extraneous-dependencies */
-import {
-  createFromReadableStream,
-  encodeReply,
-} from 'react-server-dom-webpack/client.edge'
+import { createFromReadableStream } from 'react-server-dom-webpack/client.edge'
 
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import {
@@ -22,6 +16,8 @@ import {
   getServerModuleMap,
   stringToUint8Array,
 } from './encryption-utils'
+
+const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
@@ -94,6 +90,8 @@ export async function decryptActionBoundArgs(
   actionId: string,
   encrypted: Promise<string>
 ) {
+  const clientReferenceManifestSingleton = getClientReferenceManifestSingleton()
+
   // Decrypt the serialized string with the action id as the salt.
   const decryped = await decodeActionBoundArg(actionId, await encrypted)
 
@@ -106,23 +104,18 @@ export async function decryptActionBoundArgs(
       },
     }),
     {
-      ssrManifest: {
-        // TODO: We can't use the client reference manifest to resolve the modules
-        // on the server side - instead they need to be recovered as the module
-        // references (proxies) again.
-        // For now, we'll just use an empty module map.
-        moduleLoading: {},
-        moduleMap: {},
+      serverConsumerManifest: {
+        // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
+        // to be added to the current execution. Instead, we'll wait for any ClientReference
+        // to be emitted which themselves will handle the preloading.
+        moduleLoading: null,
+        moduleMap: isEdgeRuntime
+          ? clientReferenceManifestSingleton.edgeRscModuleMapping
+          : clientReferenceManifestSingleton.rscModuleMapping,
+        serverModuleMap: getServerModuleMap(),
       },
     }
   )
 
-  // This extra step ensures that the server references are recovered.
-  const serverModuleMap = getServerModuleMap()
-  const transformed = await decodeReply(
-    await encodeReply(deserialized),
-    serverModuleMap
-  )
-
-  return transformed
+  return deserialized
 }

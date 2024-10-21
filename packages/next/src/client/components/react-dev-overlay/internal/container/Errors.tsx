@@ -5,6 +5,7 @@ import {
   type UnhandledErrorAction,
   type UnhandledRejectionAction,
 } from '../../shared'
+import type { DebugInfo } from '../../types'
 import {
   Dialog,
   DialogBody,
@@ -14,8 +15,8 @@ import {
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
-import { getErrorByType } from '../helpers/getErrorByType'
-import type { ReadyRuntimeError } from '../helpers/getErrorByType'
+import { getErrorByType } from '../helpers/get-error-by-type'
+import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
@@ -28,6 +29,9 @@ import {
   type HydrationErrorState,
   getHydrationWarningType,
 } from '../helpers/hydration-error-info'
+import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
+import { CopyButton } from '../components/copy-button'
+import { ConsoleError } from '../helpers/console-error'
 
 export type SupportedErrorEvent = {
   id: number
@@ -39,6 +43,7 @@ export type ErrorsProps = {
   initialDisplayState: DisplayState
   versionInfo?: VersionInfo
   hasStaticIndicator?: boolean
+  debugInfo?: DebugInfo
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -47,6 +52,26 @@ type DisplayState = 'minimized' | 'fullscreen' | 'hidden'
 
 function isNextjsLink(text: string): boolean {
   return text.startsWith('https://nextjs.org')
+}
+
+function ErrorDescription({
+  error,
+  hydrationWarning,
+}: {
+  error: Error
+  hydrationWarning: string | null
+}) {
+  const isFromConsoleError = error instanceof ConsoleError
+  // If there's hydration warning or console error, skip displaying the error name
+  return (
+    <>
+      {isFromConsoleError || hydrationWarning ? '' : error.name + ': '}
+      <HotlinkedText
+        text={hydrationWarning || error.message}
+        matcher={isNextjsLink}
+      />
+    </>
+  )
 }
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
@@ -71,6 +96,7 @@ export function Errors({
   initialDisplayState,
   versionInfo,
   hasStaticIndicator,
+  debugInfo,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -231,6 +257,7 @@ export function Errors({
   const isServerError = ['server', 'edge-server'].includes(
     getErrorSource(error) || ''
   )
+  const isFromConsoleError = error instanceof ConsoleError
 
   const errorDetails: HydrationErrorState = (error as any).details || {}
   const notes = errorDetails.notes || ''
@@ -273,18 +300,39 @@ export function Errors({
               </small>
               <VersionStalenessInfo versionInfo={versionInfo} />
             </LeftRightDialogHeader>
-            <h1 id="nextjs__container_errors_label">
-              {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
-            </h1>
+
+            <div className="nextjs__container_errors__error_title">
+              <h1
+                id="nextjs__container_errors_label"
+                className="nextjs__container_errors_label"
+              >
+                {isServerError
+                  ? 'Server Error'
+                  : isFromConsoleError
+                    ? 'Console Error'
+                    : 'Unhandled Runtime Error'}
+              </h1>
+              <span>
+                <CopyButton
+                  data-nextjs-data-runtime-error-copy-stack
+                  actionLabel="Copy error stack"
+                  successLabel="Copied"
+                  content={error.stack || ''}
+                  disabled={!error.stack}
+                />
+
+                <NodejsInspectorCopyButton
+                  devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
+                />
+              </span>
+            </div>
             <p
               id="nextjs__container_errors_desc"
               className="nextjs__container_errors_desc"
             >
-              {/* If there's hydration warning, skip displaying the error name */}
-              {hydrationWarning ? '' : error.name + ': '}
-              <HotlinkedText
-                text={hydrationWarning || error.message}
-                matcher={isNextjsLink}
+              <ErrorDescription
+                error={error}
+                hydrationWarning={hydrationWarning}
               />
             </p>
             {notes ? (
@@ -296,6 +344,14 @@ export function Errors({
                   {notes}
                 </p>
               </>
+            ) : null}
+            {hydrationWarning ? (
+              <p
+                id="nextjs__container_errors__link"
+                className="nextjs__container_errors__link"
+              >
+                <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
+              </p>
             ) : null}
 
             {hydrationWarning &&
@@ -364,6 +420,12 @@ export const styles = css`
     color: var(--color-text-color-red-1);
     background-color: var(--color-text-background-red-1);
   }
+  p.nextjs__container_errors__link {
+    margin: var(--size-gap-double) auto;
+    color: var(--color-text-color-red-1);
+    font-weight: 600;
+    font-size: 15px;
+  }
   p.nextjs__container_errors__notes {
     margin: var(--size-gap-double) auto;
     color: var(--color-stack-notes);
@@ -423,5 +485,26 @@ export const styles = css`
     position: absolute;
     top: 0;
     right: 0;
+  }
+  .nextjs__container_errors_inspect_copy_button {
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--color-ansi-bright-white);
+    font-size: 1.5rem;
+    padding: 0;
+    margin: 0;
+    margin-left: var(--size-gap);
+    transition: opacity 0.25s ease;
+  }
+  .nextjs__container_errors__error_title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nextjs-data-runtime-error-inspect-link,
+  .nextjs-data-runtime-error-inspect-link:hover {
+    margin: 0 8px;
+    color: inherit;
   }
 `

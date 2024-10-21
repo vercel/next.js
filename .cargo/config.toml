@@ -2,6 +2,9 @@
 CARGO_WORKSPACE_DIR = { value = "", relative = true }
 TURBO_PNPM_WORKSPACE_DIR = { value = "", relative = true }
 
+[alias]
+xtask = "run --package xtask --"
+
 [build]
 rustflags = [
   "--cfg",

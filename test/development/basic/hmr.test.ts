@@ -35,25 +35,6 @@ describe.each([
   })
   afterAll(() => next.destroy())
 
-  it('should show hydration error correctly', async () => {
-    const browser = await webdriver(next.url, basePath + '/hydration-error', {
-      pushErrorAsConsoleLog: true,
-    })
-    await retry(async () => {
-      const logs = await browser.log()
-      expect(logs).toEqual(
-        expect.arrayContaining([
-          {
-            message: expect.stringContaining(
-              'https://react.dev/link/hydration-mismatch'
-            ),
-            source: 'error',
-          },
-        ])
-      )
-    })
-  })
-
   it('should have correct router.isReady for auto-export page', async () => {
     let browser = await webdriver(next.url, basePath + '/auto-export-is-ready')
 
@@ -1205,5 +1186,30 @@ describe.each([
     } finally {
       await next.patchFile(pageName, originalContent)
     }
+  })
+
+  it('should reload the page when the server restarts', async () => {
+    const browser = await webdriver(next.url, basePath + '/hmr/about', {
+      headless: false,
+    })
+    await check(() => getBrowserBodyText(browser), /This is the about page/)
+
+    await next.destroy()
+
+    let reloadPromise = new Promise((resolve) => {
+      browser.on('request', (req) => {
+        if (req.url().endsWith('/hmr/about')) {
+          resolve(req.url())
+        }
+      })
+    })
+
+    next = await createNext({
+      files: join(__dirname, 'hmr'),
+      nextConfig,
+      forcedPort: next.appPort,
+    })
+
+    await reloadPromise
   })
 })

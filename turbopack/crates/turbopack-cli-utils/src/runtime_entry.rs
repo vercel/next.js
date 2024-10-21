@@ -4,7 +4,6 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
     context::AssetContext,
-    issue::IssueSeverity,
     module::Module,
     resolve::{origin::PlainResolveOrigin, parse::Request},
     source::Source,
@@ -37,7 +36,7 @@ impl RuntimeEntry {
             Vc::upcast(PlainResolveOrigin::new(asset_context, path)),
             request,
             None,
-            IssueSeverity::Error.cell(),
+            false,
         )
         .resolve()
         .await?
@@ -69,12 +68,12 @@ pub struct RuntimeEntries(Vec<Vc<RuntimeEntry>>);
 impl RuntimeEntries {
     #[turbo_tasks::function]
     pub async fn resolve_entries(
-        self: Vc<Self>,
+        &self,
         asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<EvaluatableAssets>> {
         let mut runtime_entries = Vec::new();
 
-        for reference in &self.await? {
+        for reference in &self.0 {
             let resolved_entries = reference.resolve_entry(asset_context).await?;
             runtime_entries.extend(&resolved_entries);
         }

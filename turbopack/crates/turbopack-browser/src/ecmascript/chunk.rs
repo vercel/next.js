@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexSet;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext, OutputChunk, OutputChunkRuntimeInfo},
@@ -16,7 +15,7 @@ use crate::{ecmascript::content::EcmascriptDevChunkContent, BrowserChunkingConte
 
 /// Development Ecmascript chunk.
 #[turbo_tasks::value(shared)]
-pub(crate) struct EcmascriptDevChunk {
+pub struct EcmascriptDevChunk {
     chunking_context: Vc<BrowserChunkingContext>,
     chunk: Vc<EcmascriptChunk>,
 }
@@ -40,8 +39,8 @@ impl EcmascriptDevChunk {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptDevChunk {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell("Ecmascript Dev Chunk".into()))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("Ecmascript Dev Chunk".into())
     }
 }
 
@@ -73,6 +72,11 @@ impl EcmascriptDevChunk {
             this.chunk.chunk_content(),
         ))
     }
+
+    #[turbo_tasks::function]
+    pub fn chunk(&self) -> Result<Vc<Box<dyn Chunk>>> {
+        Ok(Vc::upcast(self.chunk))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -81,6 +85,11 @@ impl OutputAsset for EcmascriptDevChunk {
     fn ident(&self) -> Vc<AssetIdent> {
         let ident = self.chunk.ident().with_modifier(modifier());
         AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".into()))
+    }
+
+    #[turbo_tasks::function]
+    fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
+        self.own_content().content().len()
     }
 
     #[turbo_tasks::function]
@@ -159,7 +168,7 @@ impl Introspectable for EcmascriptDevChunk {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = IndexSet::new();
+        let mut children = FxIndexSet::default();
         let chunk = Vc::upcast::<Box<dyn Introspectable>>(self.chunk)
             .resolve()
             .await?;

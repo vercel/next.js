@@ -1,7 +1,8 @@
 import type { FileInfo, API, ImportDeclaration } from 'jscodeshift'
+import { createParserFromPath } from '../lib/parser'
 
-export default function transformer(file: FileInfo, api: API) {
-  const j = api.jscodeshift
+export default function transformer(file: FileInfo, _api: API) {
+  const j = createParserFromPath(file.path)
   const root = j(file.source)
 
   // Find the import declaration for 'next/dynamic'
@@ -15,7 +16,7 @@ export default function transformer(file: FileInfo, api: API) {
     const dynamicImportName = importDecl.specifiers?.[0]?.local?.name
 
     if (!dynamicImportName) {
-      return root.toSource()
+      return file.source
     }
     // Find call expressions where the callee is the imported 'dynamic'
     root

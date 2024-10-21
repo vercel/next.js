@@ -4,8 +4,10 @@ use std::{
 };
 
 use anyhow::Result;
-use indexmap::{indexset, IndexMap, IndexSet};
-use turbo_tasks::{Completion, RcStr, State, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{
+    fxindexset, Completion, FxIndexMap, FxIndexSet, RcStr, State, TryJoinIterExt, Value,
+    ValueToString, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
@@ -20,7 +22,7 @@ use super::{
 };
 
 #[turbo_tasks::value(transparent)]
-struct OutputAssetsMap(IndexMap<RcStr, Vc<Box<dyn OutputAsset>>>);
+struct OutputAssetsMap(FxIndexMap<RcStr, Vc<Box<dyn OutputAsset>>>);
 
 type ExpandedState = State<HashSet<RcStr>>;
 
@@ -41,7 +43,7 @@ impl AssetGraphContentSource {
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: Vc::cell(indexset! { root_asset }),
+            root_assets: Vc::cell(fxindexset! { root_asset }),
             expanded: None,
         })
     }
@@ -55,7 +57,7 @@ impl AssetGraphContentSource {
     ) -> Vc<Self> {
         Self::cell(AssetGraphContentSource {
             root_path,
-            root_assets: Vc::cell(indexset! { root_asset }),
+            root_assets: Vc::cell(fxindexset! { root_asset }),
             expanded: Some(State::new(HashSet::new())),
         })
     }
@@ -88,13 +90,12 @@ impl AssetGraphContentSource {
     }
 
     #[turbo_tasks::function]
-    async fn all_assets_map(self: Vc<Self>) -> Result<Vc<OutputAssetsMap>> {
-        let this = self.await?;
+    async fn all_assets_map(&self) -> Result<Vc<OutputAssetsMap>> {
         Ok(Vc::cell(
             expand(
-                &*this.root_assets.await?,
-                &*this.root_path.await?,
-                this.expanded.as_ref(),
+                &*self.root_assets.await?,
+                &*self.root_path.await?,
+                self.expanded.as_ref(),
             )
             .await?,
         ))
@@ -102,11 +103,11 @@ impl AssetGraphContentSource {
 }
 
 async fn expand(
-    root_assets: &IndexSet<Vc<Box<dyn OutputAsset>>>,
+    root_assets: &FxIndexSet<Vc<Box<dyn OutputAsset>>>,
     root_path: &FileSystemPath,
     expanded: Option<&ExpandedState>,
-) -> Result<IndexMap<RcStr, Vc<Box<dyn OutputAsset>>>> {
-    let mut map = IndexMap::new();
+) -> Result<FxIndexMap<RcStr, Vc<Box<dyn OutputAsset>>>> {
+    let mut map = FxIndexMap::default();
     let mut assets = Vec::new();
     let mut queue = VecDeque::with_capacity(32);
     let mut assets_set = HashSet::new();

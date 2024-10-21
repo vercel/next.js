@@ -4,11 +4,11 @@ use turbo_tasks::{RcStr, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     ident::AssetIdent,
-    module::Module,
+    module::{Module, Modules},
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
-/// An [EcmascriptClientReferenceModule] is a marker module, used by the
+/// A marker module used by the
 /// [super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule] to
 /// indicate which client reference should appear in the client reference manifest.
 #[turbo_tasks::value]
@@ -54,6 +54,13 @@ impl Module for EcmascriptClientReferenceModule {
     fn ident(&self) -> Vc<AssetIdent> {
         self.server_ident
             .with_modifier(ecmascript_client_reference_modifier())
+    }
+
+    #[turbo_tasks::function]
+    fn additional_layers_modules(&self) -> Vc<Modules> {
+        let client_module = Vc::upcast(self.client_module);
+        let ssr_module = Vc::upcast(self.ssr_module);
+        Vc::cell(vec![client_module, ssr_module])
     }
 }
 

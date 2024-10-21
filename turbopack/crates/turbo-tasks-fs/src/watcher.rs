@@ -12,8 +12,9 @@ use std::{
 use anyhow::Result;
 use notify::{
     event::{MetadataKind, ModifyKind, RenameMode},
-    Config, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
+    Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
 };
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use tracing::instrument;
@@ -26,10 +27,24 @@ use crate::{
     path_to_key,
 };
 
+enum DiskWatcherInternal {
+    Recommended(RecommendedWatcher),
+    Polling(PollWatcher),
+}
+
+impl DiskWatcherInternal {
+    fn watch(&mut self, path: &Path, recursive_mode: RecursiveMode) -> notify::Result<()> {
+        match self {
+            DiskWatcherInternal::Recommended(watcher) => watcher.watch(path, recursive_mode),
+            DiskWatcherInternal::Polling(watcher) => watcher.watch(path, recursive_mode),
+        }
+    }
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub(crate) struct DiskWatcher {
     #[serde(skip)]
-    watcher: Mutex<Option<RecommendedWatcher>>,
+    watcher: Mutex<Option<DiskWatcherInternal>>,
 
     /// Array of paths that should not notify invalidations.
     /// `notify` currently doesn't support unwatching subpaths from the root,
@@ -76,7 +91,7 @@ impl DiskWatcher {
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     fn start_watching_dir(
         &self,
-        watcher: &mut std::sync::MutexGuard<Option<RecommendedWatcher>>,
+        watcher: &mut std::sync::MutexGuard<Option<DiskWatcherInternal>>,
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
@@ -128,6 +143,7 @@ impl DiskWatcher {
         invalidation_lock: Arc<RwLock<()>>,
         invalidator_map: Arc<InvalidatorMap>,
         dir_invalidator_map: Arc<InvalidatorMap>,
+        poll_interval: Option<Duration>,
     ) -> Result<()> {
         let mut watcher_guard = self.watcher.lock().unwrap();
         if watcher_guard.is_some() {
@@ -138,7 +154,16 @@ impl DiskWatcher {
         let (tx, rx) = channel();
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
-        let mut watcher = RecommendedWatcher::new(tx, Config::default())?;
+        let config = Config::default();
+
+        let mut watcher = if let Some(poll_interval) = poll_interval {
+            let config = config.with_poll_interval(poll_interval);
+
+            DiskWatcherInternal::Polling(PollWatcher::new(tx, config)?)
+        } else {
+            DiskWatcherInternal::Recommended(RecommendedWatcher::new(tx, Config::default())?)
+        };
+
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
         #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -153,15 +178,41 @@ impl DiskWatcher {
 
         // We need to invalidate all reads that happened before watching
         // Best is to start_watching before starting to read
-        for invalidator in take(&mut *invalidator_map.lock().unwrap())
-            .into_iter()
-            .chain(take(&mut *dir_invalidator_map.lock().unwrap()).into_iter())
-            .flat_map(|(_, invalidators)| invalidators.into_iter())
         {
+            let _span = tracing::info_span!("invalidate filesystem").entered();
+            let span = tracing::Span::current();
+            let invalidator_map = take(&mut *invalidator_map.lock().unwrap());
+            let dir_invalidator_map = take(&mut *dir_invalidator_map.lock().unwrap());
+            let iter = invalidator_map
+                .into_par_iter()
+                .chain(dir_invalidator_map.into_par_iter());
+            let handle = tokio::runtime::Handle::current();
             if report_invalidation_reason.is_some() {
-                invalidator.invalidate_with_reason(WatchStart { name: name.clone() })
+                iter.flat_map(|(path, invalidators)| {
+                    let _span = span.clone().entered();
+                    let reason = WatchStart {
+                        name: name.clone(),
+                        path: path.into(),
+                    };
+                    invalidators
+                        .into_par_iter()
+                        .map(move |i| (reason.clone(), i))
+                })
+                .for_each(|(reason, invalidator)| {
+                    let _span = span.clone().entered();
+                    let _guard = handle.enter();
+                    invalidator.invalidate_with_reason(reason)
+                });
             } else {
-                invalidator.invalidate();
+                iter.flat_map(|(_, invalidators)| {
+                    let _span = span.clone().entered();
+                    invalidators.into_par_iter().map(move |i| i)
+                })
+                .for_each(|invalidator| {
+                    let _span = span.clone().entered();
+                    let _guard = handle.enter();
+                    invalidator.invalidate()
+                });
             }
         }
 

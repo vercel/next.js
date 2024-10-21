@@ -44,8 +44,9 @@
                 Call,
             ),
         ],
-        span: 295..305#0,
+        span: 295..305,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -185,8 +186,9 @@
                 Call,
             ),
         ],
-        span: 77..81#0,
+        span: 77..81,
         in_try: false,
+        new: false,
     },
     Call {
         func: Call(
@@ -245,8 +247,9 @@
                 Call,
             ),
         ],
-        span: 77..84#0,
+        span: 77..84,
         in_try: false,
+        new: false,
     },
     Conditional {
         condition: Binary(
@@ -438,8 +441,9 @@
                                 Call,
                             ),
                         ],
-                        span: 159..167#0,
+                        span: 159..167,
                         in_try: false,
+                        new: false,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -558,7 +562,7 @@
                 Test,
             ),
         ],
-        span: 105..176#0,
+        span: 105..176,
         in_try: false,
     },
     Unreachable {
@@ -638,8 +642,9 @@
                 Call,
             ),
         ],
-        span: 190..194#0,
+        span: 190..194,
         in_try: false,
+        new: false,
     },
     Call {
         func: Variable(
@@ -695,8 +700,9 @@
                 Call,
             ),
         ],
-        span: 271..281#0,
+        span: 271..281,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

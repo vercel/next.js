@@ -82,7 +82,10 @@ export default function connect(mode: 'webpack' | 'turbopack') {
       processMessage(payload)
     } catch (err: any) {
       console.warn(
-        '[HMR] Invalid message: ' + payload + '\n' + (err?.stack ?? '')
+        '[HMR] Invalid message: ' +
+          JSON.stringify(payload) +
+          '\n' +
+          (err?.stack ?? '')
       )
     }
   })
@@ -335,6 +338,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       for (const listener of turbopackMessageListeners) {
         listener({
           type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+          data: obj.data,
         })
       }
       break

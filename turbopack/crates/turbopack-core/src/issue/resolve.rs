@@ -64,16 +64,24 @@ impl Issue for ResolvingIssue {
         if let Some(error_message) = &self.error_message {
             writeln!(description, "{error_message}")?;
         }
+        let request_value = self.request.await?;
+        let request_parts = match &*request_value {
+            Request::Alternatives { requests } => requests.as_slice(),
+            _ => &[self.request],
+        };
+
         if let Some(import_map) = &self.resolve_options.await?.import_map {
-            match lookup_import_map(*import_map, self.file_path, self.request).await {
-                Ok(None) => {}
-                Ok(Some(str)) => writeln!(description, "Import map: {}", str)?,
-                Err(err) => {
-                    writeln!(
-                        description,
-                        "Error while looking up import map: {}",
-                        PrettyPrintError(&err)
-                    )?;
+            for request in request_parts {
+                match lookup_import_map(*import_map, self.file_path, *request).await {
+                    Ok(None) => {}
+                    Ok(Some(str)) => writeln!(description, "Import map: {}", str)?,
+                    Err(err) => {
+                        writeln!(
+                            description,
+                            "Error while looking up import map: {}",
+                            PrettyPrintError(&err)
+                        )?;
+                    }
                 }
             }
         }
@@ -111,7 +119,7 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source)
+        Vc::cell(self.source.map(|s| s.resolve_source_map(self.file_path)))
     }
 
     // TODO add sub_issue for a description of resolve_options

@@ -1,9 +1,9 @@
 #![feature(async_closure)]
 #![feature(min_specialization)]
-#![feature(option_get_or_insert_default)]
 #![feature(type_alias_impl_trait)]
 #![feature(assert_matches)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 #![feature(iter_intersperse)]
 
 pub mod asset;
@@ -49,7 +49,7 @@ pub const SOURCE_MAP_PREFIX: &str = "turbopack://";
 
 #[doc(hidden)]
 pub mod __private {
-    pub use indexmap::IndexMap;
+    pub use turbo_tasks::FxIndexMap;
 }
 
 pub fn register() {

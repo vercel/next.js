@@ -41,7 +41,7 @@ export default function Page({ params }) {
 
 See the [generateStaticParams()](#generating-static-params) page to learn how to generate the params for the segment.
 
-> **Good to know**: Dynamic Segments are equivalent to [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes) in the `pages` directory.
+> **Good to know**: Dynamic Segments are equivalent to [Dynamic Routes](/docs/pages/building-your-application/routing/dynamic-routes) in the `pages` directory.
 
 ## Generating Static Params
 
@@ -95,7 +95,7 @@ The difference between **catch-all** and **optional catch-all** segments is that
 
 | Route                          | Example URL   | `params`                    |
 | ------------------------------ | ------------- | --------------------------- |
-| `app/shop/[[...slug]]/page.js` | `/shop`       | `{}`                        |
+| `app/shop/[[...slug]]/page.js` | `/shop`       | `{ slug: undefined }`       |
 | `app/shop/[[...slug]]/page.js` | `/shop/a`     | `{ slug: ['a'] }`           |
 | `app/shop/[[...slug]]/page.js` | `/shop/a/b`   | `{ slug: ['a', 'b'] }`      |
 | `app/shop/[[...slug]]/page.js` | `/shop/a/b/c` | `{ slug: ['a', 'b', 'c'] }` |

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, future::Future, sync::Arc};
+use std::{future::Future, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use swc_core::{
@@ -119,13 +119,13 @@ impl GenerateSourceMap for ParseResultSourceMap {
             None
         };
         let input_map = if let Some(map) = original_src_map.as_ref() {
-            map.as_regular_source_map().map(Cow::into_owned)
+            map.as_regular_source_map()
         } else {
             None
         };
         let map = self.files_map.build_source_map_with_config(
             &self.mappings,
-            input_map,
+            input_map.as_deref(),
             InlineSourcesContentConfig {},
         );
         Ok(Vc::cell(Some(SourceMap::new_regular(map).cell())))
@@ -206,7 +206,7 @@ async fn parse_internal(
             FileContent::Content(file) => match file.content().to_str() {
                 Ok(string) => {
                     let transforms = &*transforms.await?;
-                    match parse_content(
+                    match parse_file_content(
                         string.into_owned(),
                         fs_path_vc,
                         fs_path,
@@ -246,7 +246,7 @@ async fn parse_internal(
     })
 }
 
-async fn parse_content(
+async fn parse_file_content(
     string: String,
     fs_path_vc: Vc<FileSystemPath>,
     fs_path: &FileSystemPath,
@@ -275,11 +275,11 @@ async fn parse_content(
     let parser_handler = Handler::with_emitter(true, false, emitter.clone());
     let globals = Arc::new(Globals::new());
     let globals_ref = &globals;
-    let helpers = GLOBALS.set(globals_ref, || Helpers::new(true));
+
     let mut result = WrapFuture::new(
         async {
             let file_name = FileName::Custom(ident.to_string());
-            let fm = source_map.new_source_file(file_name.clone(), string);
+            let fm = source_map.new_source_file(file_name.clone().into(), string);
 
             let comments = SwcComments::default();
 
@@ -433,6 +433,7 @@ async fn parse_content(
                 &parsed_program,
                 unresolved_mark,
                 top_level_mark,
+                Some(&comments),
                 Some(source),
             );
 
@@ -448,7 +449,7 @@ async fn parse_content(
         },
         |f, cx| {
             GLOBALS.set(globals_ref, || {
-                HANDLER.set(&handler, || HELPERS.set(&helpers, || f.poll(cx)))
+                HANDLER.set(&handler, || HELPERS.set(&Helpers::new(true), || f.poll(cx)))
             })
         },
     )
