@@ -13,7 +13,6 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use futures::join;
-use indexmap::IndexSet;
 use owo_colors::{OwoColorize, Style};
 use parking_lot::Mutex;
 use serde::{de::DeserializeOwned, Serialize};
@@ -28,7 +27,7 @@ use tokio::{
     sync::{OwnedSemaphorePermit, Semaphore},
     time::{sleep, timeout},
 };
-use turbo_tasks::{duration_span, RcStr, Vc};
+use turbo_tasks::{duration_span, FxIndexSet, RcStr, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, FileSystemPath};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -119,7 +118,7 @@ struct OutputEntry {
     stack_trace: Option<Arc<[u8]>>,
 }
 
-type SharedOutputSet = Arc<Mutex<IndexSet<(OutputEntry, u32)>>>;
+type SharedOutputSet = Arc<Mutex<FxIndexSet<(OutputEntry, u32)>>>;
 
 static GLOBAL_OUTPUT_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 static MARKER: &[u8] = b"TURBOPACK_OUTPUT_";
@@ -737,8 +736,8 @@ impl NodeJsPool {
             concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
             bootup_semaphore: Arc::new(Semaphore::new(1)),
             idle_process_semaphore: Arc::new(Semaphore::new(0)),
-            shared_stdout: Arc::new(Mutex::new(IndexSet::new())),
-            shared_stderr: Arc::new(Mutex::new(IndexSet::new())),
+            shared_stdout: Arc::new(Mutex::new(FxIndexSet::default())),
+            shared_stderr: Arc::new(Mutex::new(FxIndexSet::default())),
             debug,
             stats: Default::default(),
         }

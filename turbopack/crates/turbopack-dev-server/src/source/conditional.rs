@@ -12,6 +12,7 @@ use crate::source::{ContentSourceContent, ContentSources};
 /// Combines two [ContentSource]s like the [CombinedContentSource], but only
 /// allows to serve from the second source when the first source has
 /// successfully served something once.
+///
 /// This is a laziness optimization when the content of the second source can
 /// only be reached via references from the first source.
 ///

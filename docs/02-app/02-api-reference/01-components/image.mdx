@@ -260,7 +260,7 @@ priority={false} // {false} | {true}
 ```
 
 When true, the image will be considered high priority and
-[preload](https://web.dev/preload-responsive-images/). Lazy loading is automatically disabled for images using `priority`.
+[preload](https://web.dev/preload-responsive-images/). Lazy loading is automatically disabled for images using `priority`. If the [`loading`](#loading) property is also used and set to `lazy`, the `priority` property can't be used. The [`loading`](#loading) property is only meant for advanced use cases. Remove `loading` when `priority` is needed.
 
 You should use the `priority` property on any image detected as the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element. It may be appropriate to have multiple priority images, as different images may be the LCP element for different viewport sizes.
 
@@ -477,7 +477,7 @@ Possible values are the following:
 - `sync` - Synchronously decode the image for atomic presentation with other content.
 - `auto` - No preference for the decoding mode; the browser decides what's best.
 
-Learn more about the [`decoding` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#loading).
+Learn more about the [`decoding` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#decoding).
 
 ### Other Props
 
@@ -489,6 +489,25 @@ Other properties on the `<Image />` component will be passed to the underlying
 ## Configuration Options
 
 In addition to props, you can configure the Image Component in `next.config.js`. The following options are available:
+
+## `localPatterns`
+
+You can optionally configure `localPatterns` in your `next.config.js` file in order to allow specific paths to be optimized and block all others paths.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/images/**',
+        search: '',
+      },
+    ],
+  },
+}
+```
+
+> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `/assets/images/` and must not have a query string. Attempting to optimize any other path will respond with 400 Bad Request.
 
 ### `remotePatterns`
 

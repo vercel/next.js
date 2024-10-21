@@ -88,7 +88,7 @@ async function nextMetadataImageLoader(
     }
 
     export default async function (props) {
-      const { __metadata_id__: _, ...params } = props.params
+      const { __metadata_id__: _, ...params } = await props.params
       const imageUrl = fillMetadataSegment(${JSON.stringify(
         pathnamePrefix
       )}, params, ${JSON.stringify(pageSegment)})

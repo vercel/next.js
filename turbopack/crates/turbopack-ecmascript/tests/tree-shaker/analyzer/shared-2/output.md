@@ -132,8 +132,6 @@ graph TD
     Item4 --> Item1;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item5 --> Item2;
-    Item5 --> Item3;
     Item6 --> Item4;
     Item7 --> Item6;
     Item7 --> Item4;
@@ -167,8 +165,6 @@ graph TD
     Item4 --> Item1;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item5 --> Item2;
-    Item5 --> Item3;
     Item6 --> Item4;
     Item7 --> Item6;
     Item7 --> Item4;
@@ -202,8 +198,6 @@ graph TD
     Item4 --> Item1;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item5 --> Item2;
-    Item5 --> Item3;
     Item6 --> Item4;
     Item7 --> Item6;
     Item7 --> Item4;
@@ -211,61 +205,53 @@ graph TD
     Item9 --> Item1;
     Item10 --> Item6;
     Item11 --> Item7;
-    Item8 --> Item2;
-    Item8 --> Item3;
-    Item8 --> Item4;
     Item8 --> Item5;
 ```
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(0, VarDeclarator(0))]"];
-    N1["Items: [ItemId(1, Normal)]"];
-    N2["Items: [ItemId(2, VarDeclarator(0))]"];
-    N3["Items: [ItemId(3, VarDeclarator(0))]"];
-    N4["Items: [ItemId(5, VarDeclarator(0))]"];
-    N5["Items: [ItemId(Export((&quot;a&quot;, #2), &quot;a&quot;))]"];
-    N6["Items: [ItemId(6, VarDeclarator(0))]"];
-    N7["Items: [ItemId(Export((&quot;b&quot;, #2), &quot;b&quot;))]"];
+    N0["Items: [ItemId(ModuleEvaluation)]"];
+    N1["Items: [ItemId(Export((&quot;a&quot;, #2), &quot;a&quot;))]"];
+    N2["Items: [ItemId(Export((&quot;b&quot;, #2), &quot;b&quot;))]"];
+    N3["Items: [ItemId(Export((&quot;order&quot;, #2), &quot;order&quot;))]"];
+    N4["Items: [ItemId(0, VarDeclarator(0))]"];
+    N5["Items: [ItemId(1, Normal)]"];
+    N6["Items: [ItemId(2, VarDeclarator(0))]"];
+    N7["Items: [ItemId(3, VarDeclarator(0))]"];
     N8["Items: [ItemId(4, Normal)]"];
-    N9["Items: [ItemId(ModuleEvaluation)]"];
-    N10["Items: [ItemId(Export((&quot;order&quot;, #2), &quot;order&quot;))]"];
-    N1 --> N0;
-    N2 --> N1;
-    N3 --> N2;
-    N3 --> N1;
-    N3 --> N0;
-    N8 --> N3;
-    N8 --> N0;
-    N8 --> N1;
-    N8 --> N2;
-    N4 --> N3;
-    N6 --> N4;
-    N6 --> N3;
-    N10 --> N8;
-    N10 --> N0;
+    N9["Items: [ItemId(5, VarDeclarator(0))]"];
+    N10["Items: [ItemId(6, VarDeclarator(0))]"];
     N5 --> N4;
+    N6 --> N5;
     N7 --> N6;
-    N9 --> N1;
-    N9 --> N2;
-    N9 --> N3;
-    N9 --> N8;
+    N7 --> N5;
+    N7 --> N4;
+    N8 --> N7;
+    N8 --> N4;
+    N9 --> N7;
+    N10 --> N9;
+    N10 --> N7;
+    N3 --> N8;
+    N3 --> N4;
+    N1 --> N9;
+    N2 --> N10;
+    N0 --> N8;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 9,
+    ModuleEvaluation: 0,
     Export(
         "order",
-    ): 10,
+    ): 3,
     Exports: 11,
     Export(
         "b",
-    ): 7,
+    ): 2,
     Export(
         "a",
-    ): 5,
+    ): 1,
 }
 ```
 
@@ -273,168 +259,126 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-const order = [];
-export { order as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 1
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-order.push("a");
-
-```
-## Part 2
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-const random = Math.random();
-export { random as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { b as random } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-const shared = {
-    random,
-    effect: order.push("b")
-};
-export { shared as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import { c as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-const a = {
-    shared,
-    a: "aaaaaaaaaaa"
-};
-export { a as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 5
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { d as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-export { a };
-
-```
-## Part 6
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import { c as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-const b = {
-    shared,
-    b: "bbbbbbbbbbb"
-};
-export { b as e } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 7
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import { e as b } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-export { b };
-
-```
-## Part 8
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-order.push("c");
-
-```
-## Part 9
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 "module evaluation";
 
 ```
-## Part 10
+## Part 1
 ```js
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -9
+};
+export { a };
+
+```
+## Part 2
+```js
+import { b as b } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -10
+};
+export { b };
+
+```
+## Part 3
+```js
+import { c as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 export { order };
+
+```
+## Part 4
+```js
+const order = [];
+export { order as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 5
+```js
+import { c as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
+};
+order.push("a");
+
+```
+## Part 6
+```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
+const random = Math.random();
+export { random as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 7
+```js
+import { d as random } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -6
+};
+import { c as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
+const shared = {
+    random,
+    effect: order.push("b")
+};
+export { shared as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 8
+```js
+import { c as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
+order.push("c");
+
+```
+## Part 9
+```js
+import { e as shared } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -7
+};
+const a = {
+    shared,
+    a: "aaaaaaaaaaa"
+};
+export { a as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 10
+```js
+import { e as shared } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -7
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 9
+};
+const b = {
+    shared,
+    b: "bbbbbbbbbbb"
+};
+export { b as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 11
@@ -452,15 +396,6 @@ export { order } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
@@ -471,17 +406,17 @@ import "__TURBOPACK_PART__" assert {
 
 ```
 {
-    ModuleEvaluation: 9,
+    ModuleEvaluation: 0,
     Export(
         "order",
-    ): 10,
+    ): 3,
     Exports: 11,
     Export(
         "b",
-    ): 7,
+    ): 2,
     Export(
         "a",
-    ): 5,
+    ): 1,
 }
 ```
 
@@ -489,168 +424,126 @@ import "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-const order = [];
-export { order as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 1
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-order.push("a");
-
-```
-## Part 2
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-const random = Math.random();
-export { random as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { b as random } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-const shared = {
-    random,
-    effect: order.push("b")
-};
-export { shared as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import { c as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-const a = {
-    shared,
-    a: "aaaaaaaaaaa"
-};
-export { a as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 5
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { d as a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-export { a };
-
-```
-## Part 6
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import { c as shared } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-const b = {
-    shared,
-    b: "bbbbbbbbbbb"
-};
-export { b as e } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 7
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-import { e as b } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 6
-};
-export { b };
-
-```
-## Part 8
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-order.push("c");
-
-```
-## Part 9
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
 "module evaluation";
 
 ```
-## Part 10
+## Part 1
 ```js
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -9
+};
+export { a };
+
+```
+## Part 2
+```js
+import { b as b } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -10
+};
+export { b };
+
+```
+## Part 3
+```js
+import { c as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as order } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 export { order };
+
+```
+## Part 4
+```js
+const order = [];
+export { order as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 5
+```js
+import { c as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
+};
+order.push("a");
+
+```
+## Part 6
+```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
+const random = Math.random();
+export { random as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 7
+```js
+import { d as random } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -6
+};
+import { c as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
+const shared = {
+    random,
+    effect: order.push("b")
+};
+export { shared as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 8
+```js
+import { c as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
+order.push("c");
+
+```
+## Part 9
+```js
+import { e as shared } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -7
+};
+const a = {
+    shared,
+    a: "aaaaaaaaaaa"
+};
+export { a as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+
+```
+## Part 10
+```js
+import { e as shared } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -7
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 9
+};
+const b = {
+    shared,
+    b: "bbbbbbbbbbb"
+};
+export { b as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 11
@@ -668,15 +561,6 @@ export { order } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 8
 };

@@ -1,5 +1,4 @@
-use indexmap::indexmap;
-use turbo_tasks::{TaskInput, Value, Vc};
+use turbo_tasks::{fxindexmap, TaskInput, Value, Vc};
 use turbopack::{module_options::CustomModuleType, ModuleAssetContext};
 use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
@@ -50,7 +49,7 @@ impl StructuredImageModuleType {
                     }
                     .cell(),
                 ),
-                Value::new(ReferenceType::Internal(Vc::cell(indexmap!(
+                Value::new(ReferenceType::Internal(Vc::cell(fxindexmap!(
                     "IMAGE".into() => Vc::upcast(static_asset)
                 )))),
             )

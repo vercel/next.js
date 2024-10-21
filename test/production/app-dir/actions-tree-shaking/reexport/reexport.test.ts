@@ -36,7 +36,8 @@ import { retry } from 'next-test-utils'
           rsc: process.env.TURBOPACK ? 1 : 3,
         },
         'app/named-reexport/client/page': {
-          'action-browser': 3,
+          // Turbopack supports tree-shaking these re-exports
+          'action-browser': process.env.TURBOPACK ? 1 : 3,
         },
       })
     })

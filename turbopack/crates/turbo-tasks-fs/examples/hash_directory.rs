@@ -1,3 +1,4 @@
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![feature(trivial_bounds)]
 
 use std::{
@@ -31,7 +32,7 @@ async fn main() -> Result<()> {
         Box::pin(async {
             let root = current_dir().unwrap().to_str().unwrap().into();
             let disk_fs = DiskFileSystem::new("project".into(), root, vec![]);
-            disk_fs.await?.start_watching()?;
+            disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
@@ -76,12 +77,12 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
             for entry in entries.values() {
                 match entry {
                     DirectoryEntry::File(path) => {
-                        let name = filename(*path).await?;
-                        hashes.insert(name, hash_file(*path).await?.clone_value());
+                        let name = filename(**path).await?;
+                        hashes.insert(name, hash_file(**path).await?.clone_value());
                     }
                     DirectoryEntry::Directory(path) => {
-                        let name = filename(*path).await?;
-                        hashes.insert(name, hash_directory(*path).await?.clone_value());
+                        let name = filename(**path).await?;
+                        hashes.insert(name, hash_directory(**path).await?.clone_value());
                     }
                     _ => {}
                 }

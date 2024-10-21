@@ -61,7 +61,7 @@ pub struct MutexMapGuard<'a, K: Eq + Hash> {
     key: Option<K>,
 }
 
-impl<'a, K: Eq + Hash> Drop for MutexMapGuard<'a, K> {
+impl<K: Eq + Hash> Drop for MutexMapGuard<'_, K> {
     fn drop(&mut self) {
         if let Some(key) = self.key.take() {
             let mut map = self.map.map.lock();
@@ -94,7 +94,7 @@ impl<K> Serialize for MutexMap<K> {
 impl<'de, K> Deserialize<'de> for MutexMap<K> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         struct Visitor<K>(PhantomData<MutexMap<K>>);
-        impl<'de, K> serde::de::Visitor<'de> for Visitor<K> {
+        impl<K> serde::de::Visitor<'_> for Visitor<K> {
             type Value = MutexMap<K>;
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a unit")

@@ -56,11 +56,11 @@ async fn get_routes_from_directory(dir: Vc<FileSystemPath>) -> Result<Vc<RouteTr
                 Some(RouteTree::new_route(
                     vec![BaseSegment::Static(name.clone())],
                     RouteType::Exact,
-                    Vc::upcast(StaticAssetsContentSourceItem::new(*path)),
+                    Vc::upcast(StaticAssetsContentSourceItem::new(**path)),
                 ))
             }
             DirectoryEntry::Directory(path) => Some(
-                get_routes_from_directory(*path)
+                get_routes_from_directory(**path)
                     .with_prepended_base(vec![BaseSegment::Static(name.clone())]),
             ),
             _ => None,
@@ -121,12 +121,12 @@ impl Introspectable for StaticAssetsContentSource {
             .map(|(name, entry)| {
                 let child = match entry {
                     DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
-                        IntrospectableSource::new(Vc::upcast(FileSource::new(*path)))
+                        IntrospectableSource::new(Vc::upcast(FileSource::new(**path)))
                     }
                     DirectoryEntry::Directory(path) => {
                         Vc::upcast(StaticAssetsContentSource::with_prefix(
                             Vc::cell(format!("{}{name}/", &*prefix).into()),
-                            *path,
+                            **path,
                         ))
                     }
                     DirectoryEntry::Other(_) => todo!("what's DirectoryContent::Other?"),

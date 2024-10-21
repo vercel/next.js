@@ -1,8 +1,8 @@
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  abortAndThrowOnSynchronousDynamicDataAccess,
+  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   postponeWithTracking,
   trackDynamicDataInDynamicRender,
@@ -10,16 +10,19 @@ import {
 } from '../app-render/dynamic-rendering'
 
 import {
-  isDynamicIOPrerender,
-  prerenderAsyncStorage,
-  type PrerenderStore,
-} from '../app-render/prerender-async-storage.external'
+  workUnitAsyncStorage,
+  type PrerenderStoreLegacy,
+  type PrerenderStorePPR,
+  type PrerenderStoreModern,
+} from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
 import {
   describeStringPropertyAccess,
   describeHasCheckingStringProperty,
   throwWithStaticGenerationBailoutErrorWithDynamicError,
+  wellKnownProperties,
 } from './utils'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
@@ -52,17 +55,15 @@ export type SearchParams = { [key: string]: string | string[] | undefined }
 export type UnsafeUnwrappedSearchParams<P> =
   P extends Promise<infer U> ? Omit<U, 'then' | 'status' | 'value'> : never
 
-export function createPrerenderSearchParamsFromClient(
-  staticGenerationStore: StaticGenerationStore
-) {
-  return createPrerenderSearchParams(staticGenerationStore)
+export function createPrerenderSearchParamsFromClient(workStore: WorkStore) {
+  return createPrerenderSearchParams(workStore)
 }
 
 export function createRenderSearchParamsFromClient(
   underlyingSearchParams: SearchParams,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ) {
-  return createRenderSearchParams(underlyingSearchParams, staticGenerationStore)
+  return createRenderSearchParams(underlyingSearchParams, workStore)
 }
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
@@ -71,34 +72,30 @@ export const createServerSearchParamsForMetadata =
 
 export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ): Promise<SearchParams> {
-  if (staticGenerationStore.isStaticGeneration) {
-    return createPrerenderSearchParams(staticGenerationStore)
+  if (workStore.isStaticGeneration) {
+    return createPrerenderSearchParams(workStore)
   } else {
-    return createRenderSearchParams(
-      underlyingSearchParams,
-      staticGenerationStore
-    )
+    return createRenderSearchParams(underlyingSearchParams, workStore)
   }
 }
 
 export function createPrerenderSearchParamsForClientPage(
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ): Promise<SearchParams> {
-  if (staticGenerationStore.forceStatic) {
+  if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
     return Promise.resolve({})
   }
 
-  const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
-    if (isDynamicIOPrerender(prerenderStore)) {
-      // We're prerendering in a mode that aborts (dynamicIO) and should stall
-      // the promise to ensure the RSC side is considered dynamic
-      return makeHangingPromise()
-    }
+  const prerenderStore = workUnitAsyncStorage.getStore()
+  if (prerenderStore && prerenderStore.type === 'prerender') {
+    // dynamicIO Prerender
+    // We're prerendering in a mode that aborts (dynamicIO) and should stall
+    // the promise to ensure the RSC side is considered dynamic
+    return makeHangingPromise(prerenderStore.renderSignal, '`searchParams`')
   }
   // We're prerendering in a mode that does not aborts. We resolve the promise without
   // any tracking because we're just transporting a value from server to client where the tracking
@@ -107,52 +104,52 @@ export function createPrerenderSearchParamsForClientPage(
 }
 
 function createPrerenderSearchParams(
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ): Promise<SearchParams> {
-  if (staticGenerationStore.forceStatic) {
+  if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
     return Promise.resolve({})
   }
 
-  const prerenderStore = prerenderAsyncStorage.getStore()
-  if (prerenderStore) {
-    if (prerenderStore.controller || prerenderStore.cacheSignal) {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    if (workUnitStore.type === 'prerender') {
       // We are in a dynamicIO (PPR or otherwise) prerender
-      return makeAbortingExoticSearchParams(
-        staticGenerationStore.route,
-        prerenderStore
-      )
+      return makeAbortingExoticSearchParams(workStore.route, workUnitStore)
+    } else if (
+      workUnitStore.type === 'prerender-legacy' ||
+      workUnitStore.type === 'prerender-ppr'
+    ) {
+      // We are in a legacy static generation and need to interrupt the prerender
+      // when search params are accessed.
+      return makeErroringExoticSearchParams(workStore, workUnitStore)
     }
   }
-
-  // We are in a legacy static generation and need to interrupt the prerender
-  // when search params are accessed.
-  return makeErroringExoticSearchParams(staticGenerationStore, prerenderStore)
+  throw new InvariantError(
+    'createPrerenderSearchParams called without a prerenderStore in scope. This is a bug in Next.js'
+  )
 }
 
 function createRenderSearchParams(
   underlyingSearchParams: SearchParams,
-  staticGenerationStore: StaticGenerationStore
+  workStore: WorkStore
 ): Promise<SearchParams> {
-  if (staticGenerationStore.forceStatic) {
+  if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
     return Promise.resolve({})
   } else {
     if (
       process.env.NODE_ENV === 'development' &&
-      !staticGenerationStore.isPrefetchRequest
+      !workStore.isPrefetchRequest
     ) {
       return makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
         underlyingSearchParams,
-        staticGenerationStore
+        workStore
       )
     } else {
-      return makeUntrackedExoticSearchParams(
-        underlyingSearchParams,
-        staticGenerationStore
-      )
+      return makeUntrackedExoticSearchParams(underlyingSearchParams, workStore)
     }
   }
 }
@@ -162,14 +159,17 @@ const CachedSearchParams = new WeakMap<CacheLifetime, Promise<SearchParams>>()
 
 function makeAbortingExoticSearchParams(
   route: string,
-  prerenderStore: PrerenderStore
+  prerenderStore: PrerenderStoreModern
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(prerenderStore)
   if (cachedSearchParams) {
     return cachedSearchParams
   }
 
-  const promise = makeHangingPromise<SearchParams>()
+  const promise = makeHangingPromise<SearchParams>(
+    prerenderStore.renderSignal,
+    '`searchParams`'
+  )
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
@@ -222,9 +222,11 @@ function makeAbortingExoticSearchParams(
               'searchParams',
               prop
             )
-            abortAndThrowOnSynchronousDynamicDataAccess(
+            const error = createSyncSearchParamsError(route, expression)
+            abortAndThrowOnSynchronousRequestDataAccess(
               route,
               expression,
+              error,
               prerenderStore
             )
           }
@@ -242,9 +244,11 @@ function makeAbortingExoticSearchParams(
           'searchParams',
           prop
         )
-        abortAndThrowOnSynchronousDynamicDataAccess(
+        const error = createSyncSearchParamsError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
           route,
           expression,
+          error,
           prerenderStore
         )
       }
@@ -253,9 +257,11 @@ function makeAbortingExoticSearchParams(
     ownKeys() {
       const expression =
         '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
-      abortAndThrowOnSynchronousDynamicDataAccess(
+      const error = createSyncSearchParamsError(route, expression)
+      abortAndThrowOnSynchronousRequestDataAccess(
         route,
         expression,
+        error,
         prerenderStore
       )
     },
@@ -266,10 +272,10 @@ function makeAbortingExoticSearchParams(
 }
 
 function makeErroringExoticSearchParams(
-  staticGenerationStore: StaticGenerationStore,
-  prerenderStore: undefined | PrerenderStore
+  workStore: WorkStore,
+  prerenderStore: PrerenderStoreLegacy | PrerenderStorePPR
 ): Promise<SearchParams> {
-  const cachedSearchParams = CachedSearchParams.get(staticGenerationStore)
+  const cachedSearchParams = CachedSearchParams.get(workStore)
   if (cachedSearchParams) {
     return cachedSearchParams
   }
@@ -315,38 +321,50 @@ function makeErroringExoticSearchParams(
         case 'then': {
           const expression =
             '`await searchParams`, `searchParams.then`, or similar'
-          if (staticGenerationStore.dynamicShouldError) {
+          if (workStore.dynamicShouldError) {
             throwWithStaticGenerationBailoutErrorWithDynamicError(
-              staticGenerationStore.route,
+              workStore.route,
               expression
             )
-          } else if (prerenderStore) {
+          } else if (prerenderStore.type === 'prerender-ppr') {
+            // PPR Prerender (no dynamicIO)
             postponeWithTracking(
-              staticGenerationStore.route,
+              workStore.route,
               expression,
               prerenderStore.dynamicTracking
             )
           } else {
-            throwToInterruptStaticGeneration(expression, staticGenerationStore)
+            // Legacy Prerender
+            throwToInterruptStaticGeneration(
+              expression,
+              workStore,
+              prerenderStore
+            )
           }
           return
         }
         case 'status': {
           const expression =
             '`use(searchParams)`, `searchParams.status`, or similar'
-          if (staticGenerationStore.dynamicShouldError) {
+          if (workStore.dynamicShouldError) {
             throwWithStaticGenerationBailoutErrorWithDynamicError(
-              staticGenerationStore.route,
+              workStore.route,
               expression
             )
-          } else if (prerenderStore) {
+          } else if (prerenderStore.type === 'prerender-ppr') {
+            // PPR Prerender (no dynamicIO)
             postponeWithTracking(
-              staticGenerationStore.route,
+              workStore.route,
               expression,
               prerenderStore.dynamicTracking
             )
           } else {
-            throwToInterruptStaticGeneration(expression, staticGenerationStore)
+            // Legacy Prerender
+            throwToInterruptStaticGeneration(
+              expression,
+              workStore,
+              prerenderStore
+            )
           }
           return
         }
@@ -356,21 +374,24 @@ function makeErroringExoticSearchParams(
               'searchParams',
               prop
             )
-            if (staticGenerationStore.dynamicShouldError) {
+            if (workStore.dynamicShouldError) {
               throwWithStaticGenerationBailoutErrorWithDynamicError(
-                staticGenerationStore.route,
+                workStore.route,
                 expression
               )
-            } else if (prerenderStore) {
+            } else if (prerenderStore.type === 'prerender-ppr') {
+              // PPR Prerender (no dynamicIO)
               postponeWithTracking(
-                staticGenerationStore.route,
+                workStore.route,
                 expression,
                 prerenderStore.dynamicTracking
               )
             } else {
+              // Legacy Prerender
               throwToInterruptStaticGeneration(
                 expression,
-                staticGenerationStore
+                workStore,
+                prerenderStore
               )
             }
           }
@@ -388,19 +409,25 @@ function makeErroringExoticSearchParams(
           'searchParams',
           prop
         )
-        if (staticGenerationStore.dynamicShouldError) {
+        if (workStore.dynamicShouldError) {
           throwWithStaticGenerationBailoutErrorWithDynamicError(
-            staticGenerationStore.route,
+            workStore.route,
             expression
           )
-        } else if (prerenderStore) {
+        } else if (prerenderStore.type === 'prerender-ppr') {
+          // PPR Prerender (no dynamicIO)
           postponeWithTracking(
-            staticGenerationStore.route,
+            workStore.route,
             expression,
             prerenderStore.dynamicTracking
           )
         } else {
-          throwToInterruptStaticGeneration(expression, staticGenerationStore)
+          // Legacy Prerender
+          throwToInterruptStaticGeneration(
+            expression,
+            workStore,
+            prerenderStore
+          )
         }
         return false
       }
@@ -409,30 +436,32 @@ function makeErroringExoticSearchParams(
     ownKeys() {
       const expression =
         '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
-      if (staticGenerationStore.dynamicShouldError) {
+      if (workStore.dynamicShouldError) {
         throwWithStaticGenerationBailoutErrorWithDynamicError(
-          staticGenerationStore.route,
+          workStore.route,
           expression
         )
-      } else if (prerenderStore) {
+      } else if (prerenderStore.type === 'prerender-ppr') {
+        // PPR Prerender (no dynamicIO)
         postponeWithTracking(
-          staticGenerationStore.route,
+          workStore.route,
           expression,
           prerenderStore.dynamicTracking
         )
       } else {
-        throwToInterruptStaticGeneration(expression, staticGenerationStore)
+        // Legacy Prerender
+        throwToInterruptStaticGeneration(expression, workStore, prerenderStore)
       }
     },
   })
 
-  CachedSearchParams.set(staticGenerationStore, proxiedPromise)
+  CachedSearchParams.set(workStore, proxiedPromise)
   return proxiedPromise
 }
 
 function makeUntrackedExoticSearchParams(
   underlyingSearchParams: SearchParams,
-  store: StaticGenerationStore
+  store: WorkStore
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
   if (cachedSearchParams) {
@@ -477,7 +506,8 @@ function makeUntrackedExoticSearchParams(
       default: {
         Object.defineProperty(promise, prop, {
           get() {
-            trackDynamicDataInDynamicRender(store)
+            const workUnitStore = workUnitAsyncStorage.getStore()
+            trackDynamicDataInDynamicRender(store, workUnitStore)
             return underlyingSearchParams[prop]
           },
           set(value) {
@@ -499,7 +529,7 @@ function makeUntrackedExoticSearchParams(
 
 function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
   underlyingSearchParams: SearchParams,
-  store: StaticGenerationStore
+  store: WorkStore
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
   if (cachedSearchParams) {
@@ -526,7 +556,8 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
             expression
           )
         }
-        trackDynamicDataInDynamicRender(store)
+        const workUnitStore = workUnitAsyncStorage.getStore()
+        trackDynamicDataInDynamicRender(store, workUnitStore)
       }
       return ReflectAdapter.get(target, prop, receiver)
     },
@@ -567,52 +598,26 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
   })
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
-    switch (prop) {
-      // Object prototype
-      case 'hasOwnProperty':
-      case 'isPrototypeOf':
-      case 'propertyIsEnumerable':
-      case 'toString':
-      case 'valueOf':
-      case 'toLocaleString':
-
-      // Promise prototype
-      // fallthrough
-      case 'then':
-      case 'catch':
-      case 'finally':
-
-      // React Promise extension
-      // fallthrough
-      case 'status':
-
-      // Common tested properties
-      // fallthrough
-      case 'toJSON':
-      case '$$typeof':
-      case '__esModule': {
-        // These properties cannot be shadowed because they need to be the
-        // true underlying value for Promises to work correctly at runtime
-        unproxiedProperties.push(prop)
-        break
-      }
-      default: {
-        proxiedProperties.add(prop)
-        Object.defineProperty(promise, prop, {
-          get() {
-            return proxiedUnderlying[prop]
-          },
-          set(newValue) {
-            Object.defineProperty(promise, prop, {
-              value: newValue,
-              writable: true,
-              enumerable: true,
-            })
-          },
-          enumerable: true,
-          configurable: true,
-        })
-      }
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+      unproxiedProperties.push(prop)
+    } else {
+      proxiedProperties.add(prop)
+      Object.defineProperty(promise, prop, {
+        get() {
+          return proxiedUnderlying[prop]
+        },
+        set(newValue) {
+          Object.defineProperty(promise, prop, {
+            value: newValue,
+            writable: true,
+            enumerable: true,
+          })
+        },
+        enumerable: true,
+        configurable: true,
+      })
     }
   })
 
@@ -620,10 +625,11 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
     get(target, prop, receiver) {
       if (typeof prop === 'string') {
         if (
-          // We are accessing a property that was proxied to the promise instance
-          proxiedProperties.has(prop) ||
-          // We are accessing a property that doesn't exist on the promise nor the underlying
-          Reflect.has(target, prop) === false
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
         ) {
           const expression = describeStringPropertyAccess('searchParams', prop)
           warnForSyncAccess(store.route, expression)
@@ -639,11 +645,19 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
     },
     has(target, prop) {
       if (typeof prop === 'string') {
-        const expression = describeHasCheckingStringProperty(
-          'searchParams',
-          prop
-        )
-        warnForSyncAccess(store.route, expression)
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
+          const expression = describeHasCheckingStringProperty(
+            'searchParams',
+            prop
+          )
+          warnForSyncAccess(store.route, expression)
+        }
       }
       return Reflect.has(target, prop)
     },
@@ -657,30 +671,45 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
   return proxiedPromise
 }
 
-function warnForSyncAccess(route: undefined | string, expression: string) {
-  const prefix = route ? ` In route ${route} a ` : 'A '
-  console.error(
-    `${prefix}searchParam property was accessed directly with ${expression}. \`searchParams\` is now a Promise and should be awaited before accessing properties of the underlying searchParams object. In this version of Next.js direct access to searchParam properties is still supported to facilitate migration but in a future version you will be required to await \`searchParams\`. If this use is inside an async function await it. If this use is inside a synchronous function then convert the function to async or await it from outside this function and pass the result in.`
-  )
-}
+const noop = () => {}
 
-function warnForEnumeration(
-  route: undefined | string,
-  missingProperties: Array<string>
-) {
-  const prefix = route ? ` In route ${route} ` : ''
-  if (missingProperties.length) {
-    const describedMissingProperties =
-      describeListOfPropertyNames(missingProperties)
-    console.error(
-      `${prefix}searchParams are being enumerated incompletely with \`{...searchParams}\`, \`Object.keys(searchParams)\`, or similar. The following properties were not copied: ${describedMissingProperties}. \`searchParams\` is now a Promise, however in the current version of Next.js direct access to the underlying searchParams object is still supported to facilitate migration to the new type. search parameter names that conflict with Promise properties cannot be accessed directly and must be accessed by first awaiting the \`searchParams\` promise.`
-    )
-  } else {
-    console.error(
-      `${prefix}searchParams are being enumerated with \`{...searchParams}\`, \`Object.keys(searchParams)\`, or similar. \`searchParams\` is now a Promise, however in the current version of Next.js direct access to the underlying searchParams object is still supported to facilitate migration to the new type. You should update your code to await \`searchParams\` before accessing its properties.`
-    )
-  }
-}
+const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
+      route: undefined | string,
+      expression: string
+    ) {
+      const prefix = route ? ` In route ${route} a ` : 'A '
+      return new Error(
+        `${prefix}searchParam property was accessed directly with ${expression}. ` +
+          `\`searchParams\` should be awaited before accessing properties. ` +
+          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+      )
+    })
+
+const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+  ? noop
+  : createDedupedByCallsiteServerErrorLoggerDev(function getEnumerationMessage(
+      route: undefined | string,
+      missingProperties: Array<string>
+    ) {
+      const prefix = route ? ` In route ${route} ` : ''
+      if (missingProperties.length) {
+        const describedMissingProperties =
+          describeListOfPropertyNames(missingProperties)
+        return new Error(
+          `${prefix}searchParams are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
+            `\`searchParams\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      } else {
+        return new Error(
+          `${prefix}searchParams are being enumerated. ` +
+            `\`searchParams\` should be awaited before accessing its properties. ` +
+            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+        )
+      }
+    })
 
 function describeListOfPropertyNames(properties: Array<string>) {
   switch (properties.length) {
@@ -701,4 +730,10 @@ function describeListOfPropertyNames(properties: Array<string>) {
       return description
     }
   }
+}
+
+function createSyncSearchParamsError(route: string, expression: string) {
+  return new Error(
+    `Route "${route}" used ${expression}. \`searchParams\` is now a Promise and should be \`awaited\` before accessing search param values. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-params`
+  )
 }

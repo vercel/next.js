@@ -1,8 +1,8 @@
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 
 /** Run a callback, and execute any *new* revalidations added during its runtime. */
 export async function withExecuteRevalidates<T>(
-  store: StaticGenerationStore | undefined,
+  store: WorkStore | undefined,
   callback: () => Promise<T>
 ): Promise<T> {
   if (!store) {
@@ -25,14 +25,12 @@ export async function withExecuteRevalidates<T>(
 
 type RevalidationState = Required<
   Pick<
-    StaticGenerationStore,
+    WorkStore,
     'revalidatedTags' | 'pendingRevalidates' | 'pendingRevalidateWrites'
   >
 >
 
-function cloneRevalidationState(
-  store: StaticGenerationStore
-): RevalidationState {
+function cloneRevalidationState(store: WorkStore): RevalidationState {
   return {
     revalidatedTags: store.revalidatedTags ? [...store.revalidatedTags] : [],
     pendingRevalidates: { ...store.pendingRevalidates },
@@ -62,7 +60,7 @@ function diffRevalidationState(
 }
 
 async function executeRevalidates(
-  staticGenerationStore: StaticGenerationStore,
+  workStore: WorkStore,
   {
     revalidatedTags,
     pendingRevalidates,
@@ -70,7 +68,7 @@ async function executeRevalidates(
   }: RevalidationState
 ) {
   return Promise.all([
-    staticGenerationStore.incrementalCache?.revalidateTag(revalidatedTags),
+    workStore.incrementalCache?.revalidateTag(revalidatedTags),
     ...Object.values(pendingRevalidates),
     ...pendingRevalidateWrites,
   ])

@@ -1,10 +1,9 @@
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
-use indexmap::IndexSet;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    RcStr, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, RcStr, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -147,7 +146,7 @@ pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<Modules>> {
     let references_set = module.references().await?;
-    let mut modules = IndexSet::new();
+    let mut modules = FxIndexSet::default();
     let resolve_results = references_set
         .iter()
         .map(|r| r.resolve_reference())
@@ -161,7 +160,7 @@ pub async fn referenced_modules_and_affecting_sources(
                 .map(|source| Vc::upcast(RawModule::new(source))),
         );
     }
-    let mut resolved_modules = IndexSet::new();
+    let mut resolved_modules = FxIndexSet::default();
     for module in modules {
         resolved_modules.insert(module.resolve().await?);
     }

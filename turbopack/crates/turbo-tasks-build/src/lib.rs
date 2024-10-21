@@ -228,7 +228,7 @@ struct RegisterContext<'a> {
     values: &'a mut HashMap<ValueKey, ValueEntry>,
 }
 
-impl<'a> RegisterContext<'a> {
+impl RegisterContext<'_> {
     fn process_item(&mut self, item: &Item) -> Result<()> {
         match item {
             Item::Enum(enum_item) => self.process_enum(enum_item),
@@ -437,7 +437,7 @@ impl<'a> RegisterContext<'a> {
     }
 }
 
-impl<'a> RegisterContext<'a> {
+impl RegisterContext<'_> {
     fn get_global_name(&self, parts: &[&Ident]) -> String {
         format!(
             "r##\"{}{}::{}\"##",

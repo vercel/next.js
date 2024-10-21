@@ -31,6 +31,8 @@ You can self-host Next.js in three different ways:
 - [A Docker container](#docker-image)
 - [A static export](#static-html-export)
 
+> **🎥 Watch:** Learn more about self-hosting Next.js → [YouTube (45 minutes)](https://www.youtube.com/watch?v=sIVL4JMqRfc).
+
 ### Node.js Server
 
 Next.js can be deployed to any hosting provider that supports Node.js. Ensure your `package.json` has the `"build"` and `"start"` scripts:
@@ -98,20 +100,45 @@ Next.js can support both build time and runtime environment variables.
 
 **By default, environment variables are only available on the server**. To expose an environment variable to the browser, it must be prefixed with `NEXT_PUBLIC_`. However, these public environment variables will be inlined into the JavaScript bundle during `next build`.
 
-To read runtime environment variables, we recommend using `getServerSideProps` or [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration). With the App Router, we can safely read environment variables on the server during dynamic rendering. This allows you to use a singular Docker image that can be promoted through multiple environments with different values.
+<PagesOnly>
 
-```jsx
-import { unstable_noStore as noStore } from 'next/cache';
+To read runtime environment variables, we recommend using `getServerSideProps` or [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration).
 
-export default function Component() {
-  noStore();
-  // cookies(), headers(), and other dynamic functions
-  // will also opt into dynamic rendering, making
+</PagesOnly>
+
+<AppOnly>
+
+You safely read environment variables on the server during dynamic rendering.
+
+```tsx filename="app/page.ts" switcher
+import { connection } from 'next/server'
+
+export default async function Component() {
+  await connection()
+  // cookies, headers, and other Dynamic APIs
+  // will also opt into dynamic rendering, meaning
   // this env variable is evaluated at runtime
   const value = process.env.MY_VALUE
-  ...
+  // ...
 }
 ```
+
+```jsx filename="app/page.js" switcher
+import { connection } from 'next/server'
+
+export default async function Component() {
+  await connection()
+  // cookies, headers, and other Dynamic APIs
+  // will also opt into dynamic rendering, meaning
+  // this env variable is evaluated at runtime
+  const value = process.env.MY_VALUE
+  // ...
+}
+```
+
+</AppOnly>
+
+This allows you to use a singular Docker image that can be promoted through multiple environments with different values.
 
 > **Good to know:**
 >

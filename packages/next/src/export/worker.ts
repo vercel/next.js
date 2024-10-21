@@ -29,7 +29,7 @@ import { createRequestResponseMocks } from '../server/lib/mock-request'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { hasNextSupport } from '../server/ci-info'
 import { exportAppRoute } from './routes/app-route'
-import { exportAppPage } from './routes/app-page'
+import { exportAppPage, prospectiveRenderAppPage } from './routes/app-page'
 import { exportPagesPage } from './routes/pages'
 import { getParams } from './helpers/get-params'
 import { createIncrementalCache } from './helpers/create-incremental-cache'
@@ -46,7 +46,8 @@ import {
   type FallbackRouteParams,
 } from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { runWithCacheScope } from '../server/async-storage/cache-scope'
+import { runWithCacheScope } from '../server/async-storage/cache-scope.external'
+import type { AppRouteRouteModule } from '../server/route-modules/app-route/module.compiled'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -102,230 +103,232 @@ async function exportPageImpl(
     // the renderOpts.
     _isRoutePPREnabled: isRoutePPREnabled,
 
+    // If this is a prospective render, we don't actually want to persist the
+    // result, we just want to use it to error the build if there's a problem.
+    _isProspectiveRender: isProspectiveRender = false,
+
     // Pull the original query out.
     query: originalQuery = {},
   } = pathMap
 
-  try {
-    const fallbackRouteParams: FallbackRouteParams | null =
-      getFallbackRouteParams(_fallbackRouteParams)
+  const fallbackRouteParams: FallbackRouteParams | null =
+    getFallbackRouteParams(_fallbackRouteParams)
 
-    let query = { ...originalQuery }
-    const pathname = normalizeAppPath(page)
-    const isDynamic = isDynamicRoute(page)
-    const outDir = isAppDir ? join(distDir, 'server/app') : input.outDir
+  let query = { ...originalQuery }
+  const pathname = normalizeAppPath(page)
+  const isDynamic = isDynamicRoute(page)
+  const outDir = isAppDir ? join(distDir, 'server/app') : input.outDir
 
-    const filePath = normalizePagePath(path)
-    const ampPath = `${filePath}.amp`
-    let renderAmpPath = ampPath
+  const filePath = normalizePagePath(path)
+  const ampPath = `${filePath}.amp`
+  let renderAmpPath = ampPath
 
-    let updatedPath = query.__nextSsgPath || path
-    delete query.__nextSsgPath
+  let updatedPath = query.__nextSsgPath || path
+  delete query.__nextSsgPath
 
-    let locale = query.__nextLocale || input.renderOpts.locale
-    delete query.__nextLocale
+  let locale = query.__nextLocale || input.renderOpts.locale
+  delete query.__nextLocale
 
-    if (input.renderOpts.locale) {
-      const localePathResult = normalizeLocalePath(
-        path,
-        input.renderOpts.locales
-      )
+  if (input.renderOpts.locale) {
+    const localePathResult = normalizeLocalePath(path, input.renderOpts.locales)
 
-      if (localePathResult.detectedLocale) {
-        updatedPath = localePathResult.pathname
-        locale = localePathResult.detectedLocale
+    if (localePathResult.detectedLocale) {
+      updatedPath = localePathResult.pathname
+      locale = localePathResult.detectedLocale
 
-        if (locale === input.renderOpts.defaultLocale) {
-          renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
-        }
+      if (locale === input.renderOpts.defaultLocale) {
+        renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
       }
     }
+  }
 
-    // We need to show a warning if they try to provide query values
-    // for an auto-exported page since they won't be available
-    const hasOrigQueryValues = Object.keys(originalQuery).length > 0
+  // We need to show a warning if they try to provide query values
+  // for an auto-exported page since they won't be available
+  const hasOrigQueryValues = Object.keys(originalQuery).length > 0
 
-    // Check if the page is a specified dynamic route
-    const { pathname: nonLocalizedPath } = normalizeLocalePath(
-      path,
-      input.renderOpts.locales
-    )
+  // Check if the page is a specified dynamic route
+  const { pathname: nonLocalizedPath } = normalizeLocalePath(
+    path,
+    input.renderOpts.locales
+  )
 
-    let params: Params | undefined
+  let params: Params | undefined
 
-    if (isDynamic && page !== nonLocalizedPath) {
-      const normalizedPage = isAppDir ? normalizeAppPath(page) : page
+  if (isDynamic && page !== nonLocalizedPath) {
+    const normalizedPage = isAppDir ? normalizeAppPath(page) : page
 
-      params = getParams(normalizedPage, updatedPath)
-      if (params) {
-        query = {
-          ...query,
-          ...params,
-        }
+    params = getParams(normalizedPage, updatedPath)
+    if (params) {
+      query = {
+        ...query,
+        ...params,
       }
     }
+  }
 
-    const { req, res } = createRequestResponseMocks({ url: updatedPath })
+  const { req, res } = createRequestResponseMocks({ url: updatedPath })
 
-    // If this is a status code page, then set the response code.
-    for (const statusCode of [404, 500]) {
-      if (
-        [
-          `/${statusCode}`,
-          `/${statusCode}.html`,
-          `/${statusCode}/index.html`,
-        ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
-      ) {
-        res.statusCode = statusCode
-      }
-    }
-
-    // Ensure that the URL has a trailing slash if it's configured.
-    if (trailingSlash && !req.url?.endsWith('/')) {
-      req.url += '/'
-    }
-
+  // If this is a status code page, then set the response code.
+  for (const statusCode of [404, 500]) {
     if (
-      locale &&
-      buildExport &&
-      input.renderOpts.domainLocales &&
-      input.renderOpts.domainLocales.some(
-        (dl) =>
-          dl.defaultLocale === locale || dl.locales?.includes(locale || '')
-      )
+      [
+        `/${statusCode}`,
+        `/${statusCode}.html`,
+        `/${statusCode}/index.html`,
+      ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
     ) {
-      addRequestMeta(req, 'isLocaleDomain', true)
+      res.statusCode = statusCode
     }
+  }
 
-    envConfig.setConfig({
-      serverRuntimeConfig,
-      publicRuntimeConfig: input.renderOpts.runtimeConfig,
-    })
+  // Ensure that the URL has a trailing slash if it's configured.
+  if (trailingSlash && !req.url?.endsWith('/')) {
+    req.url += '/'
+  }
 
-    const getHtmlFilename = (p: string) =>
-      subFolders ? `${p}${sep}index.html` : `${p}.html`
+  if (
+    locale &&
+    buildExport &&
+    input.renderOpts.domainLocales &&
+    input.renderOpts.domainLocales.some(
+      (dl) => dl.defaultLocale === locale || dl.locales?.includes(locale || '')
+    )
+  ) {
+    addRequestMeta(req, 'isLocaleDomain', true)
+  }
 
-    let htmlFilename = getHtmlFilename(filePath)
+  envConfig.setConfig({
+    serverRuntimeConfig,
+    publicRuntimeConfig: input.renderOpts.runtimeConfig,
+  })
 
-    // dynamic routes can provide invalid extensions e.g. /blog/[...slug] returns an
-    // extension of `.slug]`
-    const pageExt = isDynamic || isAppDir ? '' : extname(page)
-    const pathExt = isDynamic || isAppDir ? '' : extname(path)
+  const getHtmlFilename = (p: string) =>
+    subFolders ? `${p}${sep}index.html` : `${p}.html`
 
-    // force output 404.html for backwards compat
-    if (path === '/404.html') {
-      htmlFilename = path
-    }
-    // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
-    else if (pageExt !== pathExt && pathExt !== '') {
-      const isBuiltinPaths = ['/500', '/404'].some(
-        (p) => p === path || p === path + '.html'
-      )
-      // If the ssg path has .html extension, and it's not builtin paths, use it directly
-      // Otherwise, use that as the filename instead
-      const isHtmlExtPath = !isBuiltinPaths && path.endsWith('.html')
-      htmlFilename = isHtmlExtPath ? getHtmlFilename(path) : path
-    } else if (path === '/') {
-      // If the path is the root, just use index.html
-      htmlFilename = 'index.html'
-    }
+  let htmlFilename = getHtmlFilename(filePath)
 
-    const baseDir = join(outDir, dirname(htmlFilename))
-    let htmlFilepath = join(outDir, htmlFilename)
+  // dynamic routes can provide invalid extensions e.g. /blog/[...slug] returns an
+  // extension of `.slug]`
+  const pageExt = isDynamic || isAppDir ? '' : extname(page)
+  const pathExt = isDynamic || isAppDir ? '' : extname(path)
 
-    await fs.mkdir(baseDir, { recursive: true })
+  // force output 404.html for backwards compat
+  if (path === '/404.html') {
+    htmlFilename = path
+  }
+  // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
+  else if (pageExt !== pathExt && pathExt !== '') {
+    const isBuiltinPaths = ['/500', '/404'].some(
+      (p) => p === path || p === path + '.html'
+    )
+    // If the ssg path has .html extension, and it's not builtin paths, use it directly
+    // Otherwise, use that as the filename instead
+    const isHtmlExtPath = !isBuiltinPaths && path.endsWith('.html')
+    htmlFilename = isHtmlExtPath ? getHtmlFilename(path) : path
+  } else if (path === '/') {
+    // If the path is the root, just use index.html
+    htmlFilename = 'index.html'
+  }
 
-    // Handle App Routes.
-    if (isAppDir && isAppRouteRoute(page)) {
-      return await exportAppRoute(
-        req,
-        res,
-        params,
-        page,
-        input.renderOpts.incrementalCache,
-        distDir,
-        htmlFilepath,
-        fileWriter,
-        input.renderOpts.experimental,
-        input.renderOpts.buildId
-      )
-    }
+  const baseDir = join(outDir, dirname(htmlFilename))
+  let htmlFilepath = join(outDir, htmlFilename)
 
-    const components = await loadComponents({
-      distDir,
-      page,
-      isAppPath: isAppDir,
-    })
+  await fs.mkdir(baseDir, { recursive: true })
 
-    const renderOpts: WorkerRenderOpts = {
-      ...components,
-      ...input.renderOpts,
-      ampPath: renderAmpPath,
+  const components = await loadComponents({
+    distDir,
+    page,
+    isAppPath: isAppDir,
+  })
+
+  // Handle App Routes.
+  if (isAppDir && isAppRouteRoute(page)) {
+    return exportAppRoute(
+      req,
+      res,
       params,
-      optimizeCss,
-      disableOptimizedLoading,
-      locale,
-      supportsDynamicResponse: false,
-      experimental: {
-        ...input.renderOpts.experimental,
-        isRoutePPREnabled,
-      },
-      waitUntil: undefined,
-      onClose: undefined,
-    }
+      page,
+      components.routeModule as AppRouteRouteModule,
+      input.renderOpts.incrementalCache,
+      input.renderOpts.cacheLifeProfiles,
+      htmlFilepath,
+      fileWriter,
+      input.renderOpts.experimental,
+      input.renderOpts.buildId
+    )
+  }
 
-    if (hasNextSupport) {
-      renderOpts.isRevalidate = true
-    }
+  const renderOpts: WorkerRenderOpts = {
+    ...components,
+    ...input.renderOpts,
+    ampPath: renderAmpPath,
+    params,
+    optimizeCss,
+    disableOptimizedLoading,
+    locale,
+    supportsDynamicResponse: false,
+    experimental: {
+      ...input.renderOpts.experimental,
+      isRoutePPREnabled,
+    },
+  }
 
-    // Handle App Pages
-    if (isAppDir) {
-      return await exportAppPage(
+  if (hasNextSupport) {
+    renderOpts.isRevalidate = true
+  }
+
+  // Handle App Pages
+  if (isAppDir) {
+    // If this is a prospective render, don't return any metrics or revalidate
+    // timings as we aren't persisting this render (it was only to error).
+    if (isProspectiveRender) {
+      return prospectiveRenderAppPage(
         req,
         res,
         page,
-        path,
         pathname,
         query,
         fallbackRouteParams,
-        renderOpts,
-        htmlFilepath,
-        debugOutput,
-        isDynamicError,
-        fileWriter
+        renderOpts
       )
     }
 
-    return await exportPagesPage(
+    return exportAppPage(
       req,
       res,
-      path,
       page,
+      path,
+      pathname,
       query,
-      htmlFilepath,
-      htmlFilename,
-      ampPath,
-      subFolders,
-      outDir,
-      ampValidatorPath,
-      pagesDataDir,
-      buildExport,
-      isDynamic,
-      hasOrigQueryValues,
+      fallbackRouteParams,
       renderOpts,
-      components,
+      htmlFilepath,
+      debugOutput,
+      isDynamicError,
       fileWriter
     )
-  } catch (err) {
-    console.error(
-      `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n`
-    )
-    if (!isBailoutToCSRError(err)) {
-      console.error(isError(err) && err.stack ? err.stack : err)
-    }
-
-    return { error: true }
   }
+
+  return exportPagesPage(
+    req,
+    res,
+    path,
+    page,
+    query,
+    htmlFilepath,
+    htmlFilename,
+    ampPath,
+    subFolders,
+    outDir,
+    ampValidatorPath,
+    pagesDataDir,
+    buildExport,
+    isDynamic,
+    hasOrigQueryValues,
+    renderOpts,
+    components,
+    fileWriter
+  )
 }
 
 export async function exportPages(
@@ -358,6 +361,7 @@ export async function exportPages(
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
+    cacheHandlers: nextConfig.experimental.cacheHandlers,
   })
 
   renderOpts.incrementalCache = incrementalCache
@@ -513,20 +517,34 @@ async function exportPage(
   const start = Date.now()
 
   const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
+
   // Export the page.
-  const result = await exportPageSpan.traceAsyncFn(() =>
-    turborepoTraceAccess(
-      () => exportPageImpl(input, baseFileWriter),
-      turborepoAccessTraceResult
+  let result: ExportRouteResult | undefined
+  try {
+    result = await exportPageSpan.traceAsyncFn(() =>
+      turborepoTraceAccess(
+        () => exportPageImpl(input, baseFileWriter),
+        turborepoAccessTraceResult
+      )
     )
-  )
 
-  // If there was no result, then we can exit early.
-  if (!result) return
+    // If there was no result, then we can exit early.
+    if (!result) return
 
-  // If there was an error, then we can exit early.
-  if ('error' in result) {
-    return { error: result.error, duration: Date.now() - start, files: [] }
+    // If there was an error, then we can exit early.
+    if ('error' in result) {
+      return { error: result.error, duration: Date.now() - start, files: [] }
+    }
+  } catch (err) {
+    console.error(
+      `\nError occurred prerendering page "${input.path}". Read more: https://nextjs.org/docs/messages/prerender-error\n`
+    )
+
+    if (!isBailoutToCSRError(err)) {
+      console.error(isError(err) && err.stack ? err.stack : err)
+    }
+
+    return { error: true, duration: Date.now() - start, files: [] }
   }
 
   // Notify the parent process that we processed a page (used by the progress activity indicator)

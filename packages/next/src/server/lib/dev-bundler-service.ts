@@ -2,7 +2,7 @@ import type { IncomingMessage } from 'http'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { WorkerRequestHandler } from './types'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from './lru-cache'
 import { createRequestResponseMocks } from './mock-request'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
 
@@ -11,25 +11,19 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
  * bundler while in development.
  */
 export class DevBundlerService {
-  // can't leverage LRU type directly here as it
-  // isn't a direct dependency
-  public appIsrManifestInner: {
-    get(key: string): number | false
-    set(key: string, value: number | false): void
-    del(key: string): void
-    keys(): string[]
-  }
+  public appIsrManifestInner: InstanceType<typeof LRUCache>
 
   constructor(
     private readonly bundler: DevBundler,
     private readonly handler: WorkerRequestHandler
   ) {
-    this.appIsrManifestInner = new LRUCache({
-      max: 8_000,
-      length() {
+    this.appIsrManifestInner = new LRUCache(
+      8_000,
+
+      function length() {
         return 16
-      },
-    }) as any
+      }
+    ) as any
   }
 
   public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (
@@ -92,19 +86,17 @@ export class DevBundlerService {
   }
 
   public get appIsrManifest() {
-    const serializableManifest: Record<string, false | number> = {}
+    const serializableManifest: Record<string, boolean> = {}
 
     for (const key of this.appIsrManifestInner.keys() as string[]) {
-      serializableManifest[key] = this.appIsrManifestInner.get(key) as
-        | false
-        | number
+      serializableManifest[key] = this.appIsrManifestInner.get(key) as boolean
     }
     return serializableManifest
   }
 
-  public setAppIsrStatus(key: string, value: false | number | null) {
+  public setAppIsrStatus(key: string, value: boolean | null) {
     if (value === null) {
-      this.appIsrManifestInner.del(key)
+      this.appIsrManifestInner.remove(key)
     } else {
       this.appIsrManifestInner.set(key, value)
     }

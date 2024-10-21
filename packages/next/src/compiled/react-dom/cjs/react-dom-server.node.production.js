@@ -14,6 +14,7 @@ var util = require("util"),
   async_hooks = require("async_hooks"),
   React = require("next/dist/compiled/react"),
   ReactDOM = require("next/dist/compiled/react-dom"),
+  stream = require("stream"),
   REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_PORTAL_TYPE = Symbol.for("react.portal"),
   REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
@@ -314,12 +315,231 @@ var importMapScriptStart = stringToPrecomputedChunk(
     '<script type="importmap">'
   ),
   importMapScriptEnd = stringToPrecomputedChunk("\x3c/script>");
+function createRenderState(
+  resumableState,
+  nonce,
+  externalRuntimeConfig,
+  importMap,
+  onHeaders,
+  maxHeadersLength
+) {
+  var inlineScriptWithNonce =
+      void 0 === nonce
+        ? startInlineScript
+        : stringToPrecomputedChunk(
+            '<script nonce="' + escapeTextForBrowser(nonce) + '">'
+          ),
+    idPrefix = resumableState.idPrefix;
+  externalRuntimeConfig = [];
+  var bootstrapScriptContent = resumableState.bootstrapScriptContent,
+    bootstrapScripts = resumableState.bootstrapScripts,
+    bootstrapModules = resumableState.bootstrapModules;
+  void 0 !== bootstrapScriptContent &&
+    externalRuntimeConfig.push(
+      inlineScriptWithNonce,
+      ("" + bootstrapScriptContent).replace(scriptRegex, scriptReplacer),
+      endInlineScript
+    );
+  bootstrapScriptContent = [];
+  void 0 !== importMap &&
+    (bootstrapScriptContent.push(importMapScriptStart),
+    bootstrapScriptContent.push(
+      ("" + JSON.stringify(importMap)).replace(scriptRegex, scriptReplacer)
+    ),
+    bootstrapScriptContent.push(importMapScriptEnd));
+  importMap = onHeaders
+    ? {
+        preconnects: "",
+        fontPreloads: "",
+        highImagePreloads: "",
+        remainingCapacity:
+          2 + ("number" === typeof maxHeadersLength ? maxHeadersLength : 2e3)
+      }
+    : null;
+  onHeaders = {
+    placeholderPrefix: stringToPrecomputedChunk(idPrefix + "P:"),
+    segmentPrefix: stringToPrecomputedChunk(idPrefix + "S:"),
+    boundaryPrefix: stringToPrecomputedChunk(idPrefix + "B:"),
+    startInlineScript: inlineScriptWithNonce,
+    htmlChunks: null,
+    headChunks: null,
+    externalRuntimeScript: null,
+    bootstrapChunks: externalRuntimeConfig,
+    importMapChunks: bootstrapScriptContent,
+    onHeaders: onHeaders,
+    headers: importMap,
+    resets: {
+      font: {},
+      dns: {},
+      connect: { default: {}, anonymous: {}, credentials: {} },
+      image: {},
+      style: {}
+    },
+    charsetChunks: [],
+    viewportChunks: [],
+    hoistableChunks: [],
+    preconnects: new Set(),
+    fontPreloads: new Set(),
+    highImagePreloads: new Set(),
+    styles: new Map(),
+    bootstrapScripts: new Set(),
+    scripts: new Set(),
+    bulkPreloads: new Set(),
+    preloads: {
+      images: new Map(),
+      stylesheets: new Map(),
+      scripts: new Map(),
+      moduleScripts: new Map()
+    },
+    nonce: nonce,
+    hoistableState: null,
+    stylesToHoist: !1
+  };
+  if (void 0 !== bootstrapScripts)
+    for (importMap = 0; importMap < bootstrapScripts.length; importMap++) {
+      var scriptConfig = bootstrapScripts[importMap];
+      idPrefix = inlineScriptWithNonce = void 0;
+      bootstrapScriptContent = {
+        rel: "preload",
+        as: "script",
+        fetchPriority: "low",
+        nonce: nonce
+      };
+      "string" === typeof scriptConfig
+        ? (bootstrapScriptContent.href = maxHeadersLength = scriptConfig)
+        : ((bootstrapScriptContent.href = maxHeadersLength = scriptConfig.src),
+          (bootstrapScriptContent.integrity = idPrefix =
+            "string" === typeof scriptConfig.integrity
+              ? scriptConfig.integrity
+              : void 0),
+          (bootstrapScriptContent.crossOrigin = inlineScriptWithNonce =
+            "string" === typeof scriptConfig || null == scriptConfig.crossOrigin
+              ? void 0
+              : "use-credentials" === scriptConfig.crossOrigin
+                ? "use-credentials"
+                : ""));
+      scriptConfig = resumableState;
+      var href = maxHeadersLength;
+      scriptConfig.scriptResources[href] = null;
+      scriptConfig.moduleScriptResources[href] = null;
+      scriptConfig = [];
+      pushLinkImpl(scriptConfig, bootstrapScriptContent);
+      onHeaders.bootstrapScripts.add(scriptConfig);
+      externalRuntimeConfig.push(
+        startScriptSrc,
+        escapeTextForBrowser(maxHeadersLength)
+      );
+      nonce &&
+        externalRuntimeConfig.push(scriptNonce, escapeTextForBrowser(nonce));
+      "string" === typeof idPrefix &&
+        externalRuntimeConfig.push(
+          scriptIntegirty,
+          escapeTextForBrowser(idPrefix)
+        );
+      "string" === typeof inlineScriptWithNonce &&
+        externalRuntimeConfig.push(
+          scriptCrossOrigin,
+          escapeTextForBrowser(inlineScriptWithNonce)
+        );
+      externalRuntimeConfig.push(endAsyncScript);
+    }
+  if (void 0 !== bootstrapModules)
+    for (
+      bootstrapScripts = 0;
+      bootstrapScripts < bootstrapModules.length;
+      bootstrapScripts++
+    )
+      (bootstrapScriptContent = bootstrapModules[bootstrapScripts]),
+        (inlineScriptWithNonce = maxHeadersLength = void 0),
+        (idPrefix = {
+          rel: "modulepreload",
+          fetchPriority: "low",
+          nonce: nonce
+        }),
+        "string" === typeof bootstrapScriptContent
+          ? (idPrefix.href = importMap = bootstrapScriptContent)
+          : ((idPrefix.href = importMap = bootstrapScriptContent.src),
+            (idPrefix.integrity = inlineScriptWithNonce =
+              "string" === typeof bootstrapScriptContent.integrity
+                ? bootstrapScriptContent.integrity
+                : void 0),
+            (idPrefix.crossOrigin = maxHeadersLength =
+              "string" === typeof bootstrapScriptContent ||
+              null == bootstrapScriptContent.crossOrigin
+                ? void 0
+                : "use-credentials" === bootstrapScriptContent.crossOrigin
+                  ? "use-credentials"
+                  : "")),
+        (bootstrapScriptContent = resumableState),
+        (scriptConfig = importMap),
+        (bootstrapScriptContent.scriptResources[scriptConfig] = null),
+        (bootstrapScriptContent.moduleScriptResources[scriptConfig] = null),
+        (bootstrapScriptContent = []),
+        pushLinkImpl(bootstrapScriptContent, idPrefix),
+        onHeaders.bootstrapScripts.add(bootstrapScriptContent),
+        externalRuntimeConfig.push(
+          startModuleSrc,
+          escapeTextForBrowser(importMap)
+        ),
+        nonce &&
+          externalRuntimeConfig.push(scriptNonce, escapeTextForBrowser(nonce)),
+        "string" === typeof inlineScriptWithNonce &&
+          externalRuntimeConfig.push(
+            scriptIntegirty,
+            escapeTextForBrowser(inlineScriptWithNonce)
+          ),
+        "string" === typeof maxHeadersLength &&
+          externalRuntimeConfig.push(
+            scriptCrossOrigin,
+            escapeTextForBrowser(maxHeadersLength)
+          ),
+        externalRuntimeConfig.push(endAsyncScript);
+  return onHeaders;
+}
+function createResumableState(
+  identifierPrefix,
+  externalRuntimeConfig,
+  bootstrapScriptContent,
+  bootstrapScripts,
+  bootstrapModules
+) {
+  return {
+    idPrefix: void 0 === identifierPrefix ? "" : identifierPrefix,
+    nextFormID: 0,
+    streamingFormat: 0,
+    bootstrapScriptContent: bootstrapScriptContent,
+    bootstrapScripts: bootstrapScripts,
+    bootstrapModules: bootstrapModules,
+    instructions: 0,
+    hasBody: !1,
+    hasHtml: !1,
+    unknownResources: {},
+    dnsResources: {},
+    connectResources: { default: {}, anonymous: {}, credentials: {} },
+    imageResources: {},
+    styleResources: {},
+    scriptResources: {},
+    moduleUnknownResources: {},
+    moduleScriptResources: {}
+  };
+}
 function createFormatContext(insertionMode, selectedValue, tagScope) {
   return {
     insertionMode: insertionMode,
     selectedValue: selectedValue,
     tagScope: tagScope
   };
+}
+function createRootFormatContext(namespaceURI) {
+  return createFormatContext(
+    "http://www.w3.org/2000/svg" === namespaceURI
+      ? 3
+      : "http://www.w3.org/1998/Math/MathML" === namespaceURI
+        ? 4
+        : 0,
+    null,
+    0
+  );
 }
 function getChildFormatContext(parentContext, type, props) {
   switch (type) {
@@ -3330,62 +3550,64 @@ function describeNativeComponentFrame(fn, construct) {
   reentry = !0;
   var previousPrepareStackTrace = Error.prepareStackTrace;
   Error.prepareStackTrace = void 0;
-  var RunInRootFrame = {
-    DetermineComponentFrameRoot: function () {
-      try {
-        if (construct) {
-          var Fake = function () {
-            throw Error();
-          };
-          Object.defineProperty(Fake.prototype, "props", {
-            set: function () {
+  try {
+    var RunInRootFrame = {
+      DetermineComponentFrameRoot: function () {
+        try {
+          if (construct) {
+            var Fake = function () {
               throw Error();
+            };
+            Object.defineProperty(Fake.prototype, "props", {
+              set: function () {
+                throw Error();
+              }
+            });
+            if ("object" === typeof Reflect && Reflect.construct) {
+              try {
+                Reflect.construct(Fake, []);
+              } catch (x) {
+                var control = x;
+              }
+              Reflect.construct(fn, [], Fake);
+            } else {
+              try {
+                Fake.call();
+              } catch (x$24) {
+                control = x$24;
+              }
+              fn.call(Fake.prototype);
             }
-          });
-          if ("object" === typeof Reflect && Reflect.construct) {
-            try {
-              Reflect.construct(Fake, []);
-            } catch (x) {
-              var control = x;
-            }
-            Reflect.construct(fn, [], Fake);
           } else {
             try {
-              Fake.call();
-            } catch (x$24) {
-              control = x$24;
+              throw Error();
+            } catch (x$25) {
+              control = x$25;
             }
-            fn.call(Fake.prototype);
+            (Fake = fn()) &&
+              "function" === typeof Fake.catch &&
+              Fake.catch(function () {});
           }
-        } else {
-          try {
-            throw Error();
-          } catch (x$25) {
-            control = x$25;
-          }
-          (Fake = fn()) &&
-            "function" === typeof Fake.catch &&
-            Fake.catch(function () {});
+        } catch (sample) {
+          if (sample && control && "string" === typeof sample.stack)
+            return [sample.stack, control.stack];
         }
-      } catch (sample) {
-        if (sample && control && "string" === typeof sample.stack)
-          return [sample.stack, control.stack];
+        return [null, null];
       }
-      return [null, null];
-    }
-  };
-  RunInRootFrame.DetermineComponentFrameRoot.displayName =
-    "DetermineComponentFrameRoot";
-  var namePropDescriptor = Object.getOwnPropertyDescriptor(
-    RunInRootFrame.DetermineComponentFrameRoot,
-    "name"
-  );
-  namePropDescriptor &&
-    namePropDescriptor.configurable &&
-    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, "name", {
-      value: "DetermineComponentFrameRoot"
-    });
-  try {
+    };
+    RunInRootFrame.DetermineComponentFrameRoot.displayName =
+      "DetermineComponentFrameRoot";
+    var namePropDescriptor = Object.getOwnPropertyDescriptor(
+      RunInRootFrame.DetermineComponentFrameRoot,
+      "name"
+    );
+    namePropDescriptor &&
+      namePropDescriptor.configurable &&
+      Object.defineProperty(
+        RunInRootFrame.DetermineComponentFrameRoot,
+        "name",
+        { value: "DetermineComponentFrameRoot" }
+      );
     var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
       sampleStack = _RunInRootFrame$Deter[0],
       controlStack = _RunInRootFrame$Deter[1];
@@ -3565,6 +3787,96 @@ function RequestInstance(
   this.onShellError = void 0 === onShellError ? noop : onShellError;
   this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
   this.formState = void 0 === formState ? null : formState;
+}
+function createRequest(
+  children,
+  resumableState,
+  renderState,
+  rootFormatContext,
+  progressiveChunkSize,
+  onError,
+  onAllReady,
+  onShellReady,
+  onShellError,
+  onFatalError,
+  onPostpone,
+  formState
+) {
+  resumableState = new RequestInstance(
+    resumableState,
+    renderState,
+    rootFormatContext,
+    progressiveChunkSize,
+    onError,
+    onAllReady,
+    onShellReady,
+    onShellError,
+    onFatalError,
+    onPostpone,
+    formState
+  );
+  renderState = createPendingSegment(
+    resumableState,
+    0,
+    null,
+    rootFormatContext,
+    !1,
+    !1
+  );
+  renderState.parentFlushed = !0;
+  children = createRenderTask(
+    resumableState,
+    null,
+    children,
+    -1,
+    null,
+    renderState,
+    null,
+    resumableState.abortableTasks,
+    null,
+    rootFormatContext,
+    null,
+    emptyTreeContext,
+    null,
+    !1
+  );
+  pushComponentStack(children);
+  resumableState.pingedTasks.push(children);
+  return resumableState;
+}
+function createPrerenderRequest(
+  children,
+  resumableState,
+  renderState,
+  rootFormatContext,
+  progressiveChunkSize,
+  onError,
+  onAllReady,
+  onShellReady,
+  onShellError,
+  onFatalError,
+  onPostpone
+) {
+  children = createRequest(
+    children,
+    resumableState,
+    renderState,
+    rootFormatContext,
+    progressiveChunkSize,
+    onError,
+    onAllReady,
+    onShellReady,
+    onShellError,
+    onFatalError,
+    onPostpone,
+    void 0
+  );
+  children.trackedPostpones = {
+    workingMap: new Map(),
+    rootNodes: [],
+    rootSlots: null
+  };
+  return children;
 }
 var currentRequest = null;
 function resolveRequest() {
@@ -5622,16 +5934,16 @@ function abort(request, reason) {
     logRecoverableError(request, error$53, {}), fatalError(request, error$53);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_759 = React.version;
-if (
-  "19.0.0-rc-2d16326d-20240930" !==
-  isomorphicReactPackageVersion$jscomp$inline_759
-)
-  throw Error(
-    'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-      (isomorphicReactPackageVersion$jscomp$inline_759 +
-        "\n  - react-dom:  19.0.0-rc-2d16326d-20240930\nLearn more: https://react.dev/warnings/version-mismatch")
-  );
+function ensureCorrectIsomorphicReactVersion() {
+  var isomorphicReactPackageVersion = React.version;
+  if ("19.0.0-rc-65a56d0e-20241020" !== isomorphicReactPackageVersion)
+    throw Error(
+      'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
+        (isomorphicReactPackageVersion +
+          "\n  - react-dom:  19.0.0-rc-65a56d0e-20241020\nLearn more: https://react.dev/warnings/version-mismatch")
+    );
+}
+ensureCorrectIsomorphicReactVersion();
 function createDrainHandler(destination, request) {
   return function () {
     return startFlowing(request, destination);
@@ -5644,217 +5956,25 @@ function createCancelHandler(request, reason) {
   };
 }
 function createRequestImpl(children, options) {
-  var JSCompiler_inline_result = options ? options.identifierPrefix : void 0;
-  JSCompiler_inline_result = {
-    idPrefix:
-      void 0 === JSCompiler_inline_result ? "" : JSCompiler_inline_result,
-    nextFormID: 0,
-    streamingFormat: 0,
-    bootstrapScriptContent: options ? options.bootstrapScriptContent : void 0,
-    bootstrapScripts: options ? options.bootstrapScripts : void 0,
-    bootstrapModules: options ? options.bootstrapModules : void 0,
-    instructions: 0,
-    hasBody: !1,
-    hasHtml: !1,
-    unknownResources: {},
-    dnsResources: {},
-    connectResources: { default: {}, anonymous: {}, credentials: {} },
-    imageResources: {},
-    styleResources: {},
-    scriptResources: {},
-    moduleUnknownResources: {},
-    moduleScriptResources: {}
-  };
-  var nonce = options ? options.nonce : void 0,
-    importMap = options ? options.importMap : void 0,
-    onHeaders = options ? options.onHeaders : void 0,
-    maxHeadersLength = options ? options.maxHeadersLength : void 0,
-    inlineScriptWithNonce =
-      void 0 === nonce
-        ? startInlineScript
-        : stringToPrecomputedChunk(
-            '<script nonce="' + escapeTextForBrowser(nonce) + '">'
-          ),
-    idPrefix = JSCompiler_inline_result.idPrefix,
-    bootstrapChunks = [],
-    bootstrapScriptContent = JSCompiler_inline_result.bootstrapScriptContent,
-    bootstrapScripts = JSCompiler_inline_result.bootstrapScripts,
-    bootstrapModules = JSCompiler_inline_result.bootstrapModules;
-  void 0 !== bootstrapScriptContent &&
-    bootstrapChunks.push(
-      inlineScriptWithNonce,
-      ("" + bootstrapScriptContent).replace(scriptRegex, scriptReplacer),
-      endInlineScript
-    );
-  bootstrapScriptContent = [];
-  void 0 !== importMap &&
-    (bootstrapScriptContent.push(importMapScriptStart),
-    bootstrapScriptContent.push(
-      ("" + JSON.stringify(importMap)).replace(scriptRegex, scriptReplacer)
-    ),
-    bootstrapScriptContent.push(importMapScriptEnd));
-  importMap = onHeaders
-    ? {
-        preconnects: "",
-        fontPreloads: "",
-        highImagePreloads: "",
-        remainingCapacity:
-          2 + ("number" === typeof maxHeadersLength ? maxHeadersLength : 2e3)
-      }
-    : null;
-  onHeaders = {
-    placeholderPrefix: stringToPrecomputedChunk(idPrefix + "P:"),
-    segmentPrefix: stringToPrecomputedChunk(idPrefix + "S:"),
-    boundaryPrefix: stringToPrecomputedChunk(idPrefix + "B:"),
-    startInlineScript: inlineScriptWithNonce,
-    htmlChunks: null,
-    headChunks: null,
-    externalRuntimeScript: null,
-    bootstrapChunks: bootstrapChunks,
-    importMapChunks: bootstrapScriptContent,
-    onHeaders: onHeaders,
-    headers: importMap,
-    resets: {
-      font: {},
-      dns: {},
-      connect: { default: {}, anonymous: {}, credentials: {} },
-      image: {},
-      style: {}
-    },
-    charsetChunks: [],
-    viewportChunks: [],
-    hoistableChunks: [],
-    preconnects: new Set(),
-    fontPreloads: new Set(),
-    highImagePreloads: new Set(),
-    styles: new Map(),
-    bootstrapScripts: new Set(),
-    scripts: new Set(),
-    bulkPreloads: new Set(),
-    preloads: {
-      images: new Map(),
-      stylesheets: new Map(),
-      scripts: new Map(),
-      moduleScripts: new Map()
-    },
-    nonce: nonce,
-    hoistableState: null,
-    stylesToHoist: !1
-  };
-  if (void 0 !== bootstrapScripts)
-    for (
-      inlineScriptWithNonce = 0;
-      inlineScriptWithNonce < bootstrapScripts.length;
-      inlineScriptWithNonce++
-    ) {
-      var scriptConfig = bootstrapScripts[inlineScriptWithNonce];
-      maxHeadersLength = importMap = void 0;
-      bootstrapScriptContent = {
-        rel: "preload",
-        as: "script",
-        fetchPriority: "low",
-        nonce: nonce
-      };
-      "string" === typeof scriptConfig
-        ? (bootstrapScriptContent.href = idPrefix = scriptConfig)
-        : ((bootstrapScriptContent.href = idPrefix = scriptConfig.src),
-          (bootstrapScriptContent.integrity = maxHeadersLength =
-            "string" === typeof scriptConfig.integrity
-              ? scriptConfig.integrity
-              : void 0),
-          (bootstrapScriptContent.crossOrigin = importMap =
-            "string" === typeof scriptConfig || null == scriptConfig.crossOrigin
-              ? void 0
-              : "use-credentials" === scriptConfig.crossOrigin
-                ? "use-credentials"
-                : ""));
-      scriptConfig = JSCompiler_inline_result;
-      var href = idPrefix;
-      scriptConfig.scriptResources[href] = null;
-      scriptConfig.moduleScriptResources[href] = null;
-      scriptConfig = [];
-      pushLinkImpl(scriptConfig, bootstrapScriptContent);
-      onHeaders.bootstrapScripts.add(scriptConfig);
-      bootstrapChunks.push(startScriptSrc, escapeTextForBrowser(idPrefix));
-      nonce && bootstrapChunks.push(scriptNonce, escapeTextForBrowser(nonce));
-      "string" === typeof maxHeadersLength &&
-        bootstrapChunks.push(
-          scriptIntegirty,
-          escapeTextForBrowser(maxHeadersLength)
-        );
-      "string" === typeof importMap &&
-        bootstrapChunks.push(
-          scriptCrossOrigin,
-          escapeTextForBrowser(importMap)
-        );
-      bootstrapChunks.push(endAsyncScript);
-    }
-  if (void 0 !== bootstrapModules)
-    for (
-      bootstrapScripts = 0;
-      bootstrapScripts < bootstrapModules.length;
-      bootstrapScripts++
-    )
-      (bootstrapScriptContent = bootstrapModules[bootstrapScripts]),
-        (importMap = idPrefix = void 0),
-        (maxHeadersLength = {
-          rel: "modulepreload",
-          fetchPriority: "low",
-          nonce: nonce
-        }),
-        "string" === typeof bootstrapScriptContent
-          ? (maxHeadersLength.href = inlineScriptWithNonce =
-              bootstrapScriptContent)
-          : ((maxHeadersLength.href = inlineScriptWithNonce =
-              bootstrapScriptContent.src),
-            (maxHeadersLength.integrity = importMap =
-              "string" === typeof bootstrapScriptContent.integrity
-                ? bootstrapScriptContent.integrity
-                : void 0),
-            (maxHeadersLength.crossOrigin = idPrefix =
-              "string" === typeof bootstrapScriptContent ||
-              null == bootstrapScriptContent.crossOrigin
-                ? void 0
-                : "use-credentials" === bootstrapScriptContent.crossOrigin
-                  ? "use-credentials"
-                  : "")),
-        (bootstrapScriptContent = JSCompiler_inline_result),
-        (scriptConfig = inlineScriptWithNonce),
-        (bootstrapScriptContent.scriptResources[scriptConfig] = null),
-        (bootstrapScriptContent.moduleScriptResources[scriptConfig] = null),
-        (bootstrapScriptContent = []),
-        pushLinkImpl(bootstrapScriptContent, maxHeadersLength),
-        onHeaders.bootstrapScripts.add(bootstrapScriptContent),
-        bootstrapChunks.push(
-          startModuleSrc,
-          escapeTextForBrowser(inlineScriptWithNonce)
-        ),
-        nonce && bootstrapChunks.push(scriptNonce, escapeTextForBrowser(nonce)),
-        "string" === typeof importMap &&
-          bootstrapChunks.push(
-            scriptIntegirty,
-            escapeTextForBrowser(importMap)
-          ),
-        "string" === typeof idPrefix &&
-          bootstrapChunks.push(
-            scriptCrossOrigin,
-            escapeTextForBrowser(idPrefix)
-          ),
-        bootstrapChunks.push(endAsyncScript);
-  nonce = options ? options.namespaceURI : void 0;
-  nonce = createFormatContext(
-    "http://www.w3.org/2000/svg" === nonce
-      ? 3
-      : "http://www.w3.org/1998/Math/MathML" === nonce
-        ? 4
-        : 0,
-    null,
-    0
+  var resumableState = createResumableState(
+    options ? options.identifierPrefix : void 0,
+    options ? options.unstable_externalRuntimeSrc : void 0,
+    options ? options.bootstrapScriptContent : void 0,
+    options ? options.bootstrapScripts : void 0,
+    options ? options.bootstrapModules : void 0
   );
-  options = new RequestInstance(
-    JSCompiler_inline_result,
-    onHeaders,
-    nonce,
+  return createRequest(
+    children,
+    resumableState,
+    createRenderState(
+      resumableState,
+      options ? options.nonce : void 0,
+      options ? options.unstable_externalRuntimeSrc : void 0,
+      options ? options.importMap : void 0,
+      options ? options.onHeaders : void 0,
+      options ? options.maxHeadersLength : void 0
+    ),
+    createRootFormatContext(options ? options.namespaceURI : void 0),
     options ? options.progressiveChunkSize : void 0,
     options ? options.onError : void 0,
     options ? options.onAllReady : void 0,
@@ -5864,35 +5984,72 @@ function createRequestImpl(children, options) {
     options ? options.onPostpone : void 0,
     options ? options.formState : void 0
   );
-  JSCompiler_inline_result = createPendingSegment(
-    options,
-    0,
-    null,
-    nonce,
-    !1,
-    !1
-  );
-  JSCompiler_inline_result.parentFlushed = !0;
-  children = createRenderTask(
-    options,
-    null,
-    children,
-    -1,
-    null,
-    JSCompiler_inline_result,
-    null,
-    options.abortableTasks,
-    null,
-    nonce,
-    null,
-    emptyTreeContext,
-    null,
-    !1
-  );
-  pushComponentStack(children);
-  options.pingedTasks.push(children);
-  return options;
 }
+ensureCorrectIsomorphicReactVersion();
+function createFakeWritable(readable) {
+  return {
+    write: function (chunk) {
+      return readable.push(chunk);
+    },
+    end: function () {
+      readable.push(null);
+    },
+    destroy: function (error) {
+      readable.destroy(error);
+    }
+  };
+}
+exports.prerenderToNodeStream = function (children, options) {
+  return new Promise(function (resolve, reject) {
+    var resumableState = createResumableState(
+        options ? options.identifierPrefix : void 0,
+        options ? options.unstable_externalRuntimeSrc : void 0,
+        options ? options.bootstrapScriptContent : void 0,
+        options ? options.bootstrapScripts : void 0,
+        options ? options.bootstrapModules : void 0
+      ),
+      request = createPrerenderRequest(
+        children,
+        resumableState,
+        createRenderState(
+          resumableState,
+          void 0,
+          options ? options.unstable_externalRuntimeSrc : void 0,
+          options ? options.importMap : void 0,
+          options ? options.onHeaders : void 0,
+          options ? options.maxHeadersLength : void 0
+        ),
+        createRootFormatContext(options ? options.namespaceURI : void 0),
+        options ? options.progressiveChunkSize : void 0,
+        options ? options.onError : void 0,
+        function () {
+          var readable = new stream.Readable({
+              read: function () {
+                startFlowing(request, writable);
+              }
+            }),
+            writable = createFakeWritable(readable);
+          resolve({ prelude: readable });
+        },
+        void 0,
+        void 0,
+        reject,
+        options ? options.onPostpone : void 0
+      );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
+};
 exports.renderToPipeableStream = function (children, options) {
   var request = createRequestImpl(children, options),
     hasStartedFlowing = !1;
@@ -5932,4 +6089,4 @@ exports.renderToPipeableStream = function (children, options) {
     }
   };
 };
-exports.version = "19.0.0-rc-2d16326d-20240930";
+exports.version = "19.0.0-rc-65a56d0e-20241020";

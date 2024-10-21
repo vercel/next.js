@@ -343,7 +343,6 @@ pub enum InfoMessage {
 
 #[derive(Debug, Clone, TaskInput, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-
 pub struct WebpackResolveOptions {
     alias_fields: Option<Vec<RcStr>>,
     condition_names: Option<Vec<RcStr>>,
@@ -704,7 +703,7 @@ async fn dir_dependency(glob: Vc<ReadGlobResult>) -> Result<Vc<Completion>> {
     let glob = glob.await?;
     glob.inner
         .values()
-        .map(|&inner| dir_dependency(inner))
+        .map(|&inner| dir_dependency(*inner))
         .try_join()
         .await?;
     shallow.await?;
