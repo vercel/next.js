@@ -185,6 +185,9 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_PPR': checkIsAppPPREnabled(config.experimental.ppr),
     'process.env.__NEXT_DYNAMIC_IO': !!config.experimental.dynamicIO,
+    'process.env.__NEXT_REACT_OWNER_STACK': Boolean(
+      config.experimental.reactOwnerStack
+    ),
     'process.env.__NEXT_AFTER': config.experimental.after ?? false,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
