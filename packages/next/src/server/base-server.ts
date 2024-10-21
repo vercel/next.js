@@ -1834,6 +1834,21 @@ export default abstract class Server<
     })
   }
 
+  private static decode(key: string) {
+    return key
+      .split('/')
+      .map((seg) => {
+        try {
+          seg = escapePathDelimiters(decodeURIComponent(seg), true)
+        } catch (_) {
+          // An improperly encoded URL was provided
+          throw new DecodeError('failed to decode param')
+        }
+        return seg
+      })
+      .join('/')
+  }
+
   private async renderImpl(
     req: ServerRequest,
     res: ServerResponse,
@@ -2365,18 +2380,7 @@ export default abstract class Server<
 
       // TODO: investigate adding this handling for non-SSG pages so
       // non-ascii names work there also
-      ssgCacheKey = ssgCacheKey
-        .split('/')
-        .map((seg) => {
-          try {
-            seg = escapePathDelimiters(decodeURIComponent(seg), true)
-          } catch (_) {
-            // An improperly encoded URL was provided
-            throw new DecodeError('failed to decode param')
-          }
-          return seg
-        })
-        .join('/')
+      ssgCacheKey = Server.decode(ssgCacheKey)
 
       // ensure /index and / is normalized to one key
       ssgCacheKey =
@@ -2888,8 +2892,10 @@ export default abstract class Server<
       //
       // We use the `resolvedUrlPathname` for the development case when this
       // is an app path since it doesn't include locale information.
-      let staticPathKey =
-        ssgCacheKey ?? (opts.dev && isAppPath ? resolvedUrlPathname : null)
+      let staticPathKey = ssgCacheKey
+      if (!staticPathKey && opts.dev && isAppPath) {
+        staticPathKey = Server.decode(resolvedUrlPathname)
+      }
       if (staticPathKey && query.amp) {
         staticPathKey = staticPathKey.replace(/\.amp$/, '')
       }
