@@ -11,28 +11,34 @@ export function patchConsoleError() {
   }
 
   window.console.error = (...args: any[]) => {
-    const maybeError = getPotentialErrorFromLogArgs(...args)
+    let maybeError: unknown
+    let isReplayed: boolean = false
+
+    if (process.env.NODE_ENV !== 'production') {
+      const replayedError = matchReplayedError(...args)
+      if (replayedError) {
+        maybeError = replayedError
+        isReplayed = true
+      } else {
+        // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
+        maybeError = args[1]
+      }
+    } else {
+      maybeError = args[0]
+    }
 
     if (!isNextRouterError(maybeError)) {
       if (process.env.NODE_ENV !== 'production') {
-        handleClientError(maybeError, args)
+        handleClientError(
+          // replayed errors have their own complex format string that should be used,
+          // but if we pass the error directly, `handleClientError` will ignore it
+          isReplayed ? undefined : maybeError,
+          args
+        )
       }
 
       originConsoleError.apply(window.console, args)
     }
-  }
-}
-
-function getPotentialErrorFromLogArgs(...args: unknown[]): unknown {
-  if (process.env.NODE_ENV !== 'production') {
-    const replayedError = matchReplayedError(...args)
-    if (replayedError) {
-      return replayedError
-    }
-    // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
-    return args[1]
-  } else {
-    return args[0]
   }
 }
 
