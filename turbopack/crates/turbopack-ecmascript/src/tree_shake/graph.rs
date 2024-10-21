@@ -497,18 +497,59 @@ impl DepGraph {
 
                 let dep_item_ids = groups.graph_ix.get_index(dep as usize).unwrap();
 
-                // Optimization & workaround for `ImportBinding` fragments.
-                // Instead of importing the import binding fragment, we import the original module.
-                // In this way, we can preserve the import statement so that the other code analysis
-                // can work.
-                let original_import_source = if dep_item_ids.len() == 1 {
+                if dep_item_ids.len() == 1 {
                     let dep_item_id = &dep_item_ids[0];
                     let dep_item_data = data.get(dep_item_id).unwrap();
 
-                    dep_item_data.binding_source.clone()
-                } else {
-                    None
-                };
+                    if let Some((module_specifier, import_specifier)) =
+                        &dep_item_data.binding_source
+                    {
+                        // Preserve the order of the side effects by importing the
+                        // side-effect-import fragment first.
+
+                        if let Some(import_dep) = importer.get(module_specifier) {
+                            if *import_dep != ix as u32 {
+                                part_deps
+                                    .entry(ix as u32)
+                                    .or_default()
+                                    .push(PartId::Internal(*import_dep, true));
+
+                                chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                    ImportDecl {
+                                        span: DUMMY_SP,
+                                        specifiers: vec![],
+                                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                                        type_only: false,
+                                        with: Some(Box::new(create_turbopack_part_id_assert(
+                                            PartId::Internal(*import_dep, true),
+                                        ))),
+                                        phase: Default::default(),
+                                    },
+                                )));
+                            }
+                        }
+
+                        let specifiers = vec![import_specifier.clone()];
+
+                        part_deps_done.insert(dep);
+
+                        chunk
+                            .body
+                            .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                span: DUMMY_SP,
+                                specifiers,
+                                src: Box::new(Str {
+                                    span: DUMMY_SP,
+                                    value: module_specifier.clone(),
+                                    raw: None,
+                                }),
+                                type_only: false,
+                                with: None,
+                                phase: Default::default(),
+                            })));
+                        continue;
+                    }
+                }
 
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
