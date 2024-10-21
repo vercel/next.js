@@ -51,6 +51,14 @@ struct VarState {
     last_writes: Vec<ItemId>,
     /// The module items that might read that variable.
     last_reads: Vec<ItemId>,
+
+    last_op: Option<VarOp>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum VarOp {
+    Read,
+    Write,
 }
 
 fn get_var<'a>(map: &'a FxHashMap<Id, VarState>, id: &Id) -> Cow<'a, VarState> {
