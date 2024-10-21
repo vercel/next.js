@@ -319,6 +319,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         largePageDataBytes: z.number().optional(),
         linkNoTouchStart: z.boolean().optional(),
         manualClientBasePath: z.boolean().optional(),
+        hardNavigate404: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
         multiZoneDraftMode: z.boolean().optional(),
         cssChunking: z.enum(['strict', 'loose']).optional(),
