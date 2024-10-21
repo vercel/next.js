@@ -34,6 +34,9 @@ export default function createSpinner(
 
     const logHandle = (method: any, args: any[]) => {
       origStop()
+      // Enter a new line before logging new message, to avoid
+      // the new message shows up right after the spinner in the saem line.
+      console.log()
       method(...args)
       spinner!.start()
     }
