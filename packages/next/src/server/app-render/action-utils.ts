@@ -24,6 +24,10 @@ export function createServerModuleMap({
           ][id].workers[normalizeWorkerPageName(pageName)],
           name: id,
           chunks: [],
+          // Because of how next-flight-action-entry-loader creates the action
+          // entry modules, we know that these become async. So we set the flag
+          // accordingly.
+          async: true,
         }
       },
     }

@@ -21,17 +21,12 @@ function nextFlightActionEntryLoader(this: any) {
 
   return `
 ${individualActions
-  .map(([_, path]) => {
-    // This import ensures that the module is always bundled even if there's no
-    // explicit import in the codebase, to avoid the action being DCE'd.
-    return `import(/* webpackMode: "eager" */ ${JSON.stringify(path)});`
-  })
-  .join('\n')}
-
-${individualActions
   .map(([id, path, name]) => {
     // Re-export the same functions from the original module path as action IDs.
-    return `export { ${name} as "${id}" } from ${JSON.stringify(path)}`
+    return `
+    const { ${name}: _${id} } = await import(${JSON.stringify(path)});
+    export { _${id} as "${id}" };
+`
   })
   .join('\n')}
 `

@@ -928,6 +928,13 @@ export class FlightClientEntryPlugin {
           }
 
           compilation.hooks.succeedEntry.call(dependency, options, module)
+
+          compilation.moduleGraph
+            .getExportsInfo(module)
+            .setUsedInUnknownWay(
+              this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
+            )
+
           return resolve(module)
         }
       )
