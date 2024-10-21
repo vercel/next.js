@@ -352,23 +352,6 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   turbo?: ExperimentalTurboOptions
-  turbotrace?: {
-    logLevel?:
-      | 'bug'
-      | 'fatal'
-      | 'error'
-      | 'warning'
-      | 'hint'
-      | 'note'
-      | 'suggestions'
-      | 'info'
-    logDetail?: boolean
-    logAll?: boolean
-    contextDirectory?: string
-    processCwd?: string
-    /** in `MB` */
-    memoryLimit?: number
-  }
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -1126,7 +1109,6 @@ export const defaultConfig: NextConfig = {
     amp: undefined,
     urlImports: undefined,
     turbo: undefined,
-    turbotrace: undefined,
     typedRoutes: false,
     typedEnv: false,
     clientTraceMetadata: undefined,

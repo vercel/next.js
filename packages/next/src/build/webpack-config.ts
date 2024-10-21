@@ -1824,7 +1824,6 @@ export default async function getBaseWebpackConfig(
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
-            turbotrace: config.experimental.turbotrace,
             optOutBundlingPackages,
             traceIgnores: [],
             flyingShuttle: Boolean(flyingShuttle),
@@ -1965,7 +1964,6 @@ export default async function getBaseWebpackConfig(
               ['swcRemoveConsole', !!config.compiler?.removeConsole],
               ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
               ['swcEmotion', !!config.compiler?.emotion],
-              ['turbotrace', !!config.experimental.turbotrace],
               ['transpilePackages', !!config.transpilePackages],
               [
                 'skipMiddlewareUrlNormalize',
