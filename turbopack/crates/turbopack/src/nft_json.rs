@@ -17,6 +17,7 @@ pub struct NftJsonAsset {
     only_externals: bool,
     output_fs: Vc<DiskFileSystem>,
     project_fs: Vc<DiskFileSystem>,
+    client_fs: Vc<Box<dyn FileSystem>>,
     additional_assets: Vec<Vc<Box<dyn OutputAsset>>>,
 }
 
@@ -29,6 +30,7 @@ impl NftJsonAsset {
         only_externals: bool,
         output_fs: Vc<DiskFileSystem>,
         project_fs: Vc<DiskFileSystem>,
+        client_fs: Vc<Box<dyn FileSystem>>,
         additional_assets: Vec<Vc<Box<dyn OutputAsset>>>,
     ) -> Vc<Self> {
         NftJsonAsset {
@@ -37,6 +39,7 @@ impl NftJsonAsset {
             only_externals,
             output_fs,
             project_fs,
+            client_fs,
             additional_assets,
         }
         .cell()
@@ -67,6 +70,15 @@ impl NftJsonAsset {
     }
 
     #[turbo_tasks::function]
+    async fn ident_in_client_fs(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self
+            .await?
+            .client_fs
+            .root()
+            .join(self.ident().path().parent().await?.path.clone()))
+    }
+
+    #[turbo_tasks::function]
     async fn get_output_specifier(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
@@ -75,6 +87,7 @@ impl NftJsonAsset {
         let path_fs = path.fs().resolve().await?;
         let path_ref = path.await?;
         let nft_folder = self.ident().path().parent().await?;
+
         if path_fs == Vc::upcast(this.output_fs.resolve().await?) {
             // e.g. a referenced chunk
             return Ok(Vc::cell(Some(
@@ -86,6 +99,15 @@ impl NftJsonAsset {
                     .await?
                     .get_relative_path_to(&path_ref)
                     .unwrap(),
+            )));
+        } else if path_fs == Vc::upcast(this.client_fs.resolve().await?) {
+            return Ok(Vc::cell(Some(
+                self.ident_in_client_fs()
+                    .await?
+                    .get_relative_path_to(&path_ref)
+                    .unwrap()
+                    .replace("/_next/", "/.next/")
+                    .into(),
             )));
         }
 

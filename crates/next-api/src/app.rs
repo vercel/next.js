@@ -1334,6 +1334,7 @@ impl AppEndpoint {
                         true,
                         this.app_project.project().output_fs(),
                         this.app_project.project().project_fs(),
+                        this.app_project.project().client_fs(),
                         client_reference_manifest.iter().copied().collect(),
                     )));
                 }

@@ -890,6 +890,7 @@ impl PageEndpoint {
                         true,
                         this.pages_project.project().output_fs(),
                         this.pages_project.project().project_fs(),
+                        this.pages_project.project().client_fs(),
                         vec![],
                     ))))
                 } else {
