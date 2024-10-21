@@ -632,9 +632,10 @@ foobarCopy += "Unused";
 import { d as foobar } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -8
 };
-import { f as upper } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import { upper } from "module";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };
@@ -888,9 +889,10 @@ foobarCopy += "Unused";
 import { d as foobar } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -8
 };
-import { f as upper } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -7
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
 };
+import { upper } from "module";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 13
 };

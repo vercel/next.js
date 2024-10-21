@@ -14,7 +14,7 @@ use swc_core::{
             ExportNamedSpecifier, ExportSpecifier, Expr, ExprStmt, FnDecl, Id, Ident, IdentName,
             ImportDecl, ImportNamedSpecifier, ImportSpecifier, ImportStarAsSpecifier, KeyValueProp,
             Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
-            PropName, PropOrSpread, Stmt, VarDecl, VarDeclKind, VarDeclarator,
+            PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
         },
         atoms::JsWord,
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
@@ -105,6 +105,12 @@ pub(crate) struct ItemData {
     pub content: ModuleItem,
 
     pub export: Option<JsWord>,
+
+    /// This value denotes the module specifier of the [ImportDecl] that declares this
+    /// [ItemId].
+    ///
+    /// Used to optimize `ImportBinding`.
+    pub binding_source: Option<(Str, ImportSpecifier)>,
 }
 
 impl fmt::Debug for ItemData {
@@ -136,6 +142,7 @@ impl Default for ItemData {
             content: ModuleItem::dummy(),
             pure: Default::default(),
             export: Default::default(),
+            binding_source: Default::default(),
         }
     }
 }
@@ -486,6 +493,64 @@ impl DepGraph {
                     continue;
                 }
 
+                part_deps_done.insert(dep);
+
+                let dep_item_ids = groups.graph_ix.get_index(dep as usize).unwrap();
+
+                // Optimization & workaround for `ImportBinding` fragments.
+                // Instead of importing the import binding fragment, we import the original module.
+                // In this way, we can preserve the import statement so that the other code analysis
+                // can work.
+                if dep_item_ids.len() == 1 {
+                    let dep_item_id = &dep_item_ids[0];
+                    let dep_item_data = data.get(dep_item_id).unwrap();
+
+                    if let Some((module_specifier, import_specifier)) =
+                        &dep_item_data.binding_source
+                    {
+                        // Preserve the order of the side effects by importing the
+                        // side-effect-import fragment first.
+
+                        if let Some(import_dep) = importer.get(&module_specifier.value) {
+                            if *import_dep != ix as u32 {
+                                part_deps
+                                    .entry(ix as u32)
+                                    .or_default()
+                                    .push(PartId::Internal(*import_dep, true));
+
+                                chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
+                                    ImportDecl {
+                                        span: DUMMY_SP,
+                                        specifiers: vec![],
+                                        src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                                        type_only: false,
+                                        with: Some(Box::new(create_turbopack_part_id_assert(
+                                            PartId::Internal(*import_dep, true),
+                                        ))),
+                                        phase: Default::default(),
+                                    },
+                                )));
+                            }
+                        }
+
+                        let specifiers = vec![import_specifier.clone()];
+
+                        part_deps_done.insert(dep);
+
+                        chunk
+                            .body
+                            .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                                span: DUMMY_SP,
+                                specifiers,
+                                src: Box::new(module_specifier.clone()),
+                                type_only: false,
+                                with: None,
+                                phase: Default::default(),
+                            })));
+                        continue;
+                    }
+                }
+
                 let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                     span: DUMMY_SP,
                     local: var.clone().into(),
@@ -495,8 +560,6 @@ impl DepGraph {
                     ))),
                     is_type_only: false,
                 })];
-
-                part_deps_done.insert(dep);
 
                 part_deps
                     .entry(ix as u32)
@@ -1037,6 +1100,7 @@ impl DepGraph {
                                     specifiers: vec![s.clone()],
                                     ..item.clone()
                                 })),
+                                binding_source: Some((*item.src.clone(), s.clone())),
                                 ..Default::default()
                             },
                         );

@@ -1225,12 +1225,14 @@ export { getProperError as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 9
 ```js
-import { d as parseStackTrace } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -6
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
 };
-import { e as getProperError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
 };
+import { getProperError } from "./error";
 function structuredError(e) {
     e = getProperError(e);
     return {
@@ -1249,9 +1251,10 @@ export { structuredError as b } from "__TURBOPACK_VAR__" assert {
 import { b as structuredError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -9
 };
-import { c as createConnection } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
+import { createConnection } from "node:net";
 function createIpc(port) {
     const socket = createConnection(port, "127.0.0.1");
     const packetQueue = [];
@@ -1973,12 +1976,14 @@ export { getProperError as e } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 9
 ```js
-import { d as parseStackTrace } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -6
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
 };
-import { e as getProperError } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -8
+import { parse as parseStackTrace } from "../compiled/stacktrace-parser";
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
 };
+import { getProperError } from "./error";
 function structuredError(e) {
     e = getProperError(e);
     return {
@@ -1997,9 +2002,10 @@ export { structuredError as b } from "__TURBOPACK_VAR__" assert {
 import { b as structuredError } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -9
 };
-import { c as createConnection } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
+import { createConnection } from "node:net";
 function createIpc(port) {
     const socket = createConnection(port, "127.0.0.1");
     const packetQueue = [];
