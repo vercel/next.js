@@ -584,6 +584,22 @@ impl DepGraph {
                     }
                 }
 
+                // Do not store export * in internal part fragments.
+                if let ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export)) = &data[g].content {
+                    // Preserve side effects of import caused by export *
+                    chunk
+                        .body
+                        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                            span: export.span,
+                            specifiers: Default::default(),
+                            src: export.src.clone(),
+                            type_only: false,
+                            with: export.with.clone(),
+                            phase: Default::default(),
+                        })));
+                    continue;
+                }
+
                 chunk.body.push(data[g].content.clone());
             }
 
