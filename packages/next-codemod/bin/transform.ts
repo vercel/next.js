@@ -79,6 +79,25 @@ export async function runTransform(
     transformer = res.transformer
   }
 
+  if (transformer === 'next-request-geo-ip') {
+    const { isAppDeployedToVercel } = await prompts(
+      {
+        type: 'confirm',
+        name: 'isAppDeployedToVercel',
+        message:
+          'Is your app deployed to Vercel? (Required to apply the selected codemod)',
+        initial: true,
+      },
+      { onCancel }
+    )
+    if (!isAppDeployedToVercel) {
+      console.log(
+        'Skipping codemod "next-request-geo-ip" as your app is not deployed to Vercel.'
+      )
+      return
+    }
+  }
+
   const filesExpanded = expandFilePathsIfNeeded([directory])
 
   if (!filesExpanded.length) {
