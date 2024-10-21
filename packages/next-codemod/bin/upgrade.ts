@@ -23,7 +23,6 @@ const optionalNextjsPackages = [
   '@next/codemod',
   '@next/env',
   '@next/eslint-plugin-next',
-  '@next/font',
   '@next/mdx',
   '@next/plugin-storybook',
   '@next/polyfill-module',
