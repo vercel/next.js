@@ -498,6 +498,10 @@ impl DepGraph {
 
                 let dep_item_ids = groups.graph_ix.get_index(dep as usize).unwrap();
 
+                // Optimization & workaround for `ImportBinding` fragments.
+                // Instead of importing the import binding fragment, we import the original module.
+                // In this way, we can preserve the import statement so that the other code analysis
+                // can work.
                 if dep_item_ids.len() == 1 {
                     let dep_item_id = &dep_item_ids[0];
                     let dep_item_data = data.get(dep_item_id).unwrap();
