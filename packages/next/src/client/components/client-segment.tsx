@@ -38,10 +38,16 @@ export function ClientSegmentRoot({
       )
     }
 
-    const { createParamsFromClient } =
+    const { createPrerenderParamsFromClient } =
       require('../../server/request/params') as typeof import('../../server/request/params')
-    clientParams = createParamsFromClient(params, store)
 
+    if (store.isStaticGeneration) {
+      clientParams = createPrerenderParamsFromClient(params, store)
+    } else {
+      const { createRenderParamsFromClient } =
+        require('../../server/request/params') as typeof import('../../server/request/params')
+      clientParams = createRenderParamsFromClient(params, store)
+    }
     return <Component {...slots} params={clientParams} />
   } else {
     const { createRenderParamsFromClient } =

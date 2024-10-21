@@ -40,13 +40,27 @@ export function ClientPageRoot({
       )
     }
 
-    const { createSearchParamsFromClient } =
-      require('../../server/request/search-params') as typeof import('../../server/request/search-params')
-    clientSearchParams = createSearchParamsFromClient(searchParams, store)
+    if (store.isStaticGeneration) {
+      // We are in a prerender context
+      const { createPrerenderSearchParamsFromClient } =
+        require('../../server/request/search-params') as typeof import('../../server/request/search-params')
+      clientSearchParams = createPrerenderSearchParamsFromClient(store)
 
-    const { createParamsFromClient } =
-      require('../../server/request/params') as typeof import('../../server/request/params')
-    clientParams = createParamsFromClient(params, store)
+      const { createPrerenderParamsFromClient } =
+        require('../../server/request/params') as typeof import('../../server/request/params')
+
+      clientParams = createPrerenderParamsFromClient(params, store)
+    } else {
+      const { createRenderSearchParamsFromClient } =
+        require('../../server/request/search-params') as typeof import('../../server/request/search-params')
+      clientSearchParams = createRenderSearchParamsFromClient(
+        searchParams,
+        store
+      )
+      const { createRenderParamsFromClient } =
+        require('../../server/request/params') as typeof import('../../server/request/params')
+      clientParams = createRenderParamsFromClient(params, store)
+    }
 
     return <Component params={clientParams} searchParams={clientSearchParams} />
   } else {
