@@ -20,29 +20,20 @@ function nextFlightActionEntryLoader(this: any) {
     .flat()
 
   return `
-const actions = {
+${individualActions
+  .map(([_, path]) => {
+    // This import ensures that the module is always bundled even if there's no
+    // explicit import in the codebase, to avoid the action being DCE'd.
+    return `import(/* webpackMode: "eager" */ ${JSON.stringify(path)});`
+  })
+  .join('\n')}
+
 ${individualActions
   .map(([id, path, name]) => {
-    return `'${id}': () => import(/* webpackMode: "eager" */ ${JSON.stringify(
-      path
-    )}).then(mod => mod[${JSON.stringify(name)}]),`
+    // Re-export the same functions from the original module path as action IDs.
+    return `export { ${name} as "${id}" } from ${JSON.stringify(path)}`
   })
   .join('\n')}
-}
-
-async function endpoint(id, ...args) {
-  const action = await actions[id]()
-  return action.apply(null, args)
-}
-
-// Using CJS to avoid this to be tree-shaken away due to unused exports.
-module.exports = {
-${individualActions
-  .map(([id]) => {
-    return `  '${id}': endpoint.bind(null, '${id}'),`
-  })
-  .join('\n')}
-}
 `
 }
 
