@@ -513,12 +513,10 @@ async function suggestCodemods(
 async function suggestReactCodemods(): Promise<boolean> {
   const { runReactCodemod } = await prompts(
     {
-      type: 'toggle',
+      type: 'confirm',
       name: 'runReactCodemod',
       message: 'Would you like to run the React 19 upgrade codemod?',
       initial: true,
-      active: 'Yes',
-      inactive: 'No',
     },
     { onCancel }
   )
@@ -529,12 +527,10 @@ async function suggestReactCodemods(): Promise<boolean> {
 async function suggestReactTypesCodemods(): Promise<boolean> {
   const { runReactTypesCodemod } = await prompts(
     {
-      type: 'toggle',
+      type: 'confirm',
       name: 'runReactTypesCodemod',
       message: 'Would you like to run the React 19 Types upgrade codemod?',
       initial: true,
-      active: 'Yes',
-      inactive: 'No',
     },
     { onCancel }
   )
