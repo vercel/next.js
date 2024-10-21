@@ -14,7 +14,7 @@ error - [resolve] [project]/turbopack/crates/turbopack-tests/tests/execution/tur
   
   
   | It was not possible to find the requested file.
-  | Parsed request as written in source code: relative "./not-existing-file"
+  | Parsed request as written in source code: relative './not-existing-file'
   | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/comptime/input/index.js
   | Type of request: commonjs request
   |
