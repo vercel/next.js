@@ -1,6 +1,7 @@
 import execa from 'execa'
 import globby from 'globby'
 import prompts from 'prompts'
+import stripAnsi from 'strip-ansi'
 import { join } from 'node:path'
 import { installPackages, uninstallPackage } from '../lib/handle-package'
 import {
@@ -193,8 +194,17 @@ export async function runTransform(
   // With ANSI color codes, it will be "\x1B[39m\x1B[32m0 ok".
   // Without, it will be "0 ok".
   const targetOkLine = lastThreeLineBreaks.split('\n').at(-3)
-  const hasChanges =
-    targetOkLine.includes('ok') && !targetOkLine.includes('0 ok')
+
+  if (!targetOkLine.endsWith('ok')) {
+    throw new Error(
+      `Failed to parse the successful transformation count "${targetOkLine}". This is a bug in the codemod tool.`
+    )
+  }
+
+  const stripped = stripAnsi(targetOkLine)
+  // "N ok" -> "N"
+  const parsedNum = parseInt(stripped.split(' ')[0], 10)
+  const hasChanges = parsedNum > 0
 
   if (!dry && transformer === 'built-in-next-font' && hasChanges) {
     const { uninstallNextFont } = await prompts(
