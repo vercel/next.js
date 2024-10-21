@@ -38,6 +38,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
+    _isProspectiveRender: z.boolean().optional(),
   })
 )
 
@@ -279,6 +280,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             })
           )
           .optional(),
+        cacheHandlers: z.record(z.string(), z.string().optional()).optional(),
         clientRouterFilter: z.boolean().optional(),
         clientRouterFilterRedirects: z.boolean().optional(),
         clientRouterFilterAllowedRate: z.number().optional(),

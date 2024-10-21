@@ -10,6 +10,9 @@ const nextConfig = {
         revalidate: 100,
       },
     },
+    cacheHandlers: {
+      custom: require.resolve('next/dist/server/lib/cache-handlers/default'),
+    },
   },
 }
 
