@@ -89,11 +89,11 @@ Must be one of the following:
 - A [statically imported](/docs/app/building-your-application/optimizing/images#local-images) image file
 - A path string. This can be either an absolute external URL, or an internal path depending on the [loader](#loader) prop.
 
-Source images from external URLs must be configured in [remotePatterns](#remotepatterns) when using the default [loader](#loader).
+When using the default [loader](#loader), also consider the following for source images:
 
-The source image format must be JPEG, PNG, WebP, AVIF, GIF, SVG, or TIFF when using the default [loader](#loader).
-
-Note that [animated](#animated-images) will be bypassed and SVG will be blocked unless [`dangerouslyAllowSVG`](#dangerouslyallowsvg) is enabled.
+- When src is an external URL, you must also configure [remotePatterns](#remotepatterns)
+- When src is [animated](#animated-images) or not a known format (JPEG, PNG, WebP, AVIF, GIF, TIFF) the image will be served as-is
+- When src is SVG format, it will be blocked unless [`unoptimized`](#unoptimized)` or [`dangerouslyAllowSVG`](#dangerouslyallowsvg) is enabled
 
 ### `width`
 
