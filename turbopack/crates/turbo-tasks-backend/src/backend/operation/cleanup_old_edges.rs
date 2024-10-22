@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::TaskId;
+use turbo_tasks::{TaskId, ValueTypeId};
 
 use crate::{
     backend::{
@@ -10,10 +10,10 @@ use crate::{
                 get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
                 AggregationUpdateQueue,
             },
-            invalidate::make_task_dirty,
-            AggregatedDataUpdate, ExecuteContext, Operation,
+            invalidate::{make_task_dirty, TaskDirtyCause},
+            AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
         },
-        storage::update_count,
+        storage::{update, update_count},
         TaskDataCategory,
     },
     data::{CachedDataItemKey, CellRef, CollectibleRef, CollectiblesRef},
@@ -41,11 +41,11 @@ pub enum OutdatedEdge {
     CellDependency(CellRef),
     OutputDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
-    RemovedCellDependent(TaskId),
+    RemovedCellDependent(TaskId, ValueTypeId),
 }
 
 impl CleanupOldEdgesOperation {
-    pub fn run(task_id: TaskId, outdated: Vec<OutdatedEdge>, ctx: &mut ExecuteContext<'_>) {
+    pub fn run(task_id: TaskId, outdated: Vec<OutdatedEdge>, ctx: &mut impl ExecuteContext) {
         let queue = AggregationUpdateQueue::new();
         CleanupOldEdgesOperation::RemoveEdges {
             task_id,
@@ -57,7 +57,7 @@ impl CleanupOldEdgesOperation {
 }
 
 impl Operation for CleanupOldEdgesOperation {
-    fn execute(mut self, ctx: &mut ExecuteContext<'_>) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -82,14 +82,20 @@ impl Operation for CleanupOldEdgesOperation {
                                 for &child_id in children.iter() {
                                     task.remove(&CachedDataItemKey::Child { task: child_id });
                                 }
+                                let remove_children_count = u32::try_from(children.len()).unwrap();
+                                update!(task, ChildrenCount, |count: Option<u32>| {
+                                    // If this underflows, we messed up counting somewhere
+                                    let count = count.unwrap_or_default() - remove_children_count;
+                                    (count != 0).then_some(count)
+                                });
                                 if is_aggregating_node(get_aggregation_number(&task)) {
-                                    queue.push(AggregationUpdateJob::InnerLostFollowers {
-                                        upper_ids: vec![task_id],
+                                    queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
+                                        upper_id: task_id,
                                         lost_follower_ids: children,
                                     });
                                 } else {
                                     let upper_ids = get_uppers(&task);
-                                    queue.push(AggregationUpdateJob::InnerLostFollowers {
+                                    queue.push(AggregationUpdateJob::InnerOfUppersLostFollowers {
                                         upper_ids,
                                         lost_follower_ids: children,
                                     });
@@ -171,8 +177,13 @@ impl Operation for CleanupOldEdgesOperation {
                                     });
                                 }
                             }
-                            OutdatedEdge::RemovedCellDependent(task_id) => {
-                                make_task_dirty(task_id, queue, ctx);
+                            OutdatedEdge::RemovedCellDependent(task_id, value_type) => {
+                                make_task_dirty(
+                                    task_id,
+                                    TaskDirtyCause::CellRemoved { value_type },
+                                    queue,
+                                    ctx,
+                                );
                             }
                         }
                     }

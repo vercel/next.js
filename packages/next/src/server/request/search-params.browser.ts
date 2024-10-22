@@ -4,6 +4,7 @@ import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   describeStringPropertyAccess,
   describeHasCheckingStringProperty,
+  wellKnownProperties,
 } from './utils'
 
 export function createRenderSearchParamsFromClient(
@@ -29,56 +30,61 @@ function makeUntrackedExoticSearchParamsWithDevWarnings(
     return cachedSearchParams
   }
 
+  const proxiedProperties = new Set<string>()
+  const unproxiedProperties: Array<string> = []
+
   const promise = Promise.resolve(underlyingSearchParams)
-  Object.defineProperties(promise, {
-    status: {
-      value: 'fulfilled',
-    },
-    value: {
-      value: underlyingSearchParams,
-    },
-  })
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
-    if (Reflect.has(promise, prop)) {
-      // We can't assign a value over a property on the promise. The only way to
-      // access this is if you await the promise and recover the underlying searchParams object.
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+      unproxiedProperties.push(prop)
     } else {
-      Object.defineProperty(promise, prop, {
-        value: underlyingSearchParams[prop],
-        writable: false,
-        enumerable: true,
-      })
+      proxiedProperties.add(prop)
+      ;(promise as any)[prop] = underlyingSearchParams[prop]
     }
   })
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
-      if (Reflect.has(target, prop)) {
-        return ReflectAdapter.get(target, prop, receiver)
-      } else if (typeof prop === 'symbol') {
-        return undefined
-      } else {
-        const expression = describeStringPropertyAccess('searchParams', prop)
-        warnForSyncAccess(expression)
-        return underlyingSearchParams[prop]
+      if (typeof prop === 'string') {
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
+          const expression = describeStringPropertyAccess('searchParams', prop)
+          warnForSyncAccess(expression)
+        }
       }
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return Reflect.set(target, prop, value, receiver)
     },
     has(target, prop) {
-      if (Reflect.has(target, prop)) {
-        return true
-      } else if (typeof prop === 'symbol') {
-        // searchParams never has symbol properties containing searchParam data
-        // and we didn't match above so we just return false here.
-        return false
-      } else {
-        const expression = describeHasCheckingStringProperty(
-          'searchParams',
-          prop
-        )
-        warnForSyncAccess(expression)
-        return Reflect.has(underlyingSearchParams, prop)
+      if (typeof prop === 'string') {
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
+          const expression = describeHasCheckingStringProperty(
+            'searchParams',
+            prop
+          )
+          warnForSyncAccess(expression)
+        }
       }
+      return Reflect.has(target, prop)
     },
     ownKeys(target) {
       warnForSyncSpread()
@@ -93,26 +99,23 @@ function makeUntrackedExoticSearchParamsWithDevWarnings(
 function makeUntrackedExoticSearchParams(
   underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
+  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+  if (cachedSearchParams) {
+    return cachedSearchParams
+  }
+
+  // We don't use makeResolvedReactPromise here because searchParams
+  // supports copying with spread and we don't want to unnecessarily
+  // instrument the promise with spreadable properties of ReactPromise.
   const promise = Promise.resolve(underlyingSearchParams)
-  Object.defineProperties(promise, {
-    status: {
-      value: 'fulfilled',
-    },
-    value: {
-      value: underlyingSearchParams,
-    },
-  })
+  CachedSearchParams.set(underlyingSearchParams, promise)
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
-    if (Reflect.has(promise, prop)) {
-      // We can't assign a value over a property on the promise. The only way to
-      // access this is if you await the promise and recover the underlying searchParams object.
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
     } else {
-      Object.defineProperty(promise, prop, {
-        value: underlyingSearchParams[prop],
-        writable: false,
-        enumerable: true,
-      })
+      ;(promise as any)[prop] = underlyingSearchParams[prop]
     }
   })
 

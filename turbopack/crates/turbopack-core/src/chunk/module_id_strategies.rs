@@ -1,6 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, RcStr, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use super::ModuleId;
@@ -30,11 +29,11 @@ impl ModuleIdStrategy for DevModuleIdStrategy {
 
 #[turbo_tasks::value]
 pub struct GlobalModuleIdStrategy {
-    module_id_map: IndexMap<RcStr, ModuleId>,
+    module_id_map: FxIndexMap<RcStr, ModuleId>,
 }
 
 impl GlobalModuleIdStrategy {
-    pub async fn new(module_id_map: IndexMap<RcStr, ModuleId>) -> Result<Vc<Self>> {
+    pub async fn new(module_id_map: FxIndexMap<RcStr, ModuleId>) -> Result<Vc<Self>> {
         Ok(GlobalModuleIdStrategy { module_id_map }.cell())
     }
 }

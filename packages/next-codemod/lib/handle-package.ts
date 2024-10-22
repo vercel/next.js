@@ -76,6 +76,8 @@ export function installPackages(
     dev?: boolean
   } = {}
 ) {
+  if (packageToInstall.length === 0) return
+
   const {
     packageManager = getPkgManager(process.cwd()),
     silent = false,
@@ -103,4 +105,32 @@ export function installPackages(
       { cause: error }
     )
   }
+}
+
+export function runInstallation(packageManager: PackageManager) {
+  try {
+    execa.sync(packageManager, ['install'], {
+      stdio: 'inherit',
+      shell: true,
+    })
+  } catch (error) {
+    throw new Error('Failed to install dependencies', { cause: error })
+  }
+}
+
+export function addPackageDependency(
+  packageJson: Record<string, any>,
+  name: string,
+  version: string,
+  dev: boolean
+): void {
+  if (dev) {
+    packageJson.devDependencies = packageJson.devDependencies || {}
+  } else {
+    packageJson.dependencies = packageJson.dependencies || {}
+  }
+
+  const deps = dev ? packageJson.devDependencies : packageJson.dependencies
+
+  deps[name] = version
 }

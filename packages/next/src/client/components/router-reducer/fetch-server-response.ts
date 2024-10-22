@@ -24,6 +24,7 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_ROUTER_STALE_TIME_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
@@ -48,6 +49,7 @@ export type FetchServerResponseResult = {
   couldBeIntercepted: boolean
   prerendered: boolean
   postponed: boolean
+  staleTime: number
 }
 
 function urlToUrlWithoutFlightMarker(url: string): URL {
@@ -74,6 +76,7 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
     couldBeIntercepted: false,
     prerendered: false,
     postponed: false,
+    staleTime: -1,
   }
 }
 
@@ -177,6 +180,9 @@ export async function fetchServerResponse(
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
+    const staleTimeHeader = res.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
+    const staleTime =
+      staleTimeHeader !== null ? parseInt(staleTimeHeader, 10) : -1
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
@@ -222,6 +228,7 @@ export async function fetchServerResponse(
       couldBeIntercepted: interception,
       prerendered: response.S,
       postponed,
+      staleTime,
     }
   } catch (err) {
     console.error(
@@ -237,6 +244,7 @@ export async function fetchServerResponse(
       couldBeIntercepted: false,
       prerendered: false,
       postponed: false,
+      staleTime: -1,
     }
   }
 }

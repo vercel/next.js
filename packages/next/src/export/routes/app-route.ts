@@ -40,6 +40,11 @@ export async function exportAppRoute(
   page: string,
   module: AppRouteRouteModule,
   incrementalCache: IncrementalCache | undefined,
+  cacheLifeProfiles:
+    | undefined
+    | {
+        [profile: string]: import('../../server/use-cache/cache-life').CacheLife
+      },
   htmlFilepath: string,
   fileWriter: FileWriter,
   experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>,
@@ -79,6 +84,7 @@ export async function exportAppRoute(
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,
       onAfterTaskError: afterRunner.context.onTaskError,
+      cacheLifeProfiles,
       buildId,
     },
   }

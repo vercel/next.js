@@ -41,6 +41,7 @@ import { getProxiedPluginState } from '../../build-context'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
+import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 
 interface Options {
   dev: boolean
@@ -54,7 +55,11 @@ const PLUGIN_NAME = 'FlightClientEntryPlugin'
 type Actions = {
   [actionId: string]: {
     workers: {
-      [name: string]: string | number
+      [name: string]:
+        | { moduleId: string | number; async: boolean }
+        // TODO: This is legacy for Turbopack, and needs to be changed to the
+        // object above.
+        | string
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry.
     layer: {
@@ -78,15 +83,15 @@ const pluginState = getProxiedPluginState({
   actionModServerId: {} as Record<
     string,
     {
-      server?: string | number
-      client?: string | number
+      server?: { moduleId: string | number; async: boolean }
+      client?: { moduleId: string | number; async: boolean }
     }
   >,
   actionModEdgeServerId: {} as Record<
     string,
     {
-      server?: string | number
-      client?: string | number
+      server?: { moduleId: string | number; async: boolean }
+      client?: { moduleId: string | number; async: boolean }
     }
   >,
 
@@ -394,16 +399,18 @@ export class FlightClientEntryPlugin {
         addClientEntryAndSSRModulesList.push(injected)
       }
 
-      // Create internal app
-      addClientEntryAndSSRModulesList.push(
-        this.injectClientEntryAndSSRModules({
-          compiler,
-          compilation,
-          entryName: name,
-          clientImports: { ...internalClientComponentEntryImports },
-          bundlePath: APP_CLIENT_INTERNALS,
-        })
-      )
+      if (!isAppRouteRoute(name)) {
+        // Create internal app
+        addClientEntryAndSSRModulesList.push(
+          this.injectClientEntryAndSSRModules({
+            compiler,
+            compilation,
+            entryName: name,
+            clientImports: { ...internalClientComponentEntryImports },
+            bundlePath: APP_CLIENT_INTERNALS,
+          })
+        )
+      }
 
       if (actionEntryImports.size > 0) {
         if (!actionMapsPerEntry[name]) {
@@ -876,7 +883,11 @@ export class FlightClientEntryPlugin {
             layer: {},
           }
         }
-        currentCompilerServerActions[id].workers[bundlePath] = ''
+        currentCompilerServerActions[id].workers[bundlePath] = {
+          moduleId: '', // TODO: What's the meaning of this?
+          async: false,
+        }
+
         currentCompilerServerActions[id].layer[bundlePath] = fromClient
           ? WEBPACK_LAYERS.actionBrowser
           : WEBPACK_LAYERS.reactServerComponents
@@ -925,6 +936,13 @@ export class FlightClientEntryPlugin {
           }
 
           compilation.hooks.succeedEntry.call(dependency, options, module)
+
+          compilation.moduleGraph
+            .getExportsInfo(module)
+            .setUsedInUnknownWay(
+              this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
+            )
+
           return resolve(module)
         }
       )
@@ -955,7 +973,10 @@ export class FlightClientEntryPlugin {
         if (!mapping[chunkGroup.name]) {
           mapping[chunkGroup.name] = {}
         }
-        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = modId
+        mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = {
+          moduleId: modId,
+          async: compilation.moduleGraph.isAsync(mod),
+        }
       }
     })
 

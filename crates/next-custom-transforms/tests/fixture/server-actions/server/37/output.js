@@ -4,6 +4,10 @@ import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "3128060c414d59f8552e4788b846c0d2b7f74743", async function fn() {
     return 'foo';
 });
+Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+    "value": "fn",
+    "writable": false
+});
 var fn = registerServerReference($$RSC_SERVER_CACHE_0, "3128060c414d59f8552e4788b846c0d2b7f74743", null);
 async function Component() {
     const data = await fn();
