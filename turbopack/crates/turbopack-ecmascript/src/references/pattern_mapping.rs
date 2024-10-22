@@ -29,8 +29,8 @@ use crate::{references::util::throw_module_not_found_error_expr, utils::module_i
 pub(crate) enum SinglePatternMapping {
     /// Invalid request.
     Invalid,
-    /// Unresolveable request.
-    Unresolveable(String),
+    /// Unresolvable request.
+    Unresolvable(String),
     /// Ignored request.
     Ignored,
     /// Constant request that always maps to the same module.
@@ -90,7 +90,7 @@ impl SinglePatternMapping {
                     arg: Expr = key_expr.into_owned()
                 )
             }
-            Self::Unresolveable(request) => throw_module_not_found_expr(request),
+            Self::Unresolvable(request) => throw_module_not_found_expr(request),
             Self::Ignored => {
                 quote!("undefined" as Expr)
             }
@@ -102,7 +102,7 @@ impl SinglePatternMapping {
     pub fn create_require(&self, key_expr: Cow<'_, Expr>) -> Expr {
         match self {
             Self::Invalid => self.create_id(key_expr),
-            Self::Unresolveable(request) => throw_module_not_found_expr(request),
+            Self::Unresolvable(request) => throw_module_not_found_expr(request),
             Self::Ignored => {
                 quote!("{}" as Expr)
             }
@@ -148,7 +148,7 @@ impl SinglePatternMapping {
                     ..Default::default()
                 })
             }
-            Self::Unresolveable(_) => self.create_id(key_expr),
+            Self::Unresolvable(_) => self.create_id(key_expr),
             Self::External(_, ExternalType::EcmaScriptModule) => {
                 if import_externals {
                     Expr::Call(CallExpr {
@@ -386,7 +386,7 @@ impl PatternMapping {
         let resolve_type = resolve_type.into_value();
         let result = resolve_result.await?;
         match result.primary.len() {
-            0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolveable(
+            0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolvable(
                 request_to_string(request).await?.to_string(),
             ))
             .cell()),

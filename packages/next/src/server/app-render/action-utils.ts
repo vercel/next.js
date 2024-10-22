@@ -18,13 +18,18 @@ export function createServerModuleMap({
     {},
     {
       get: (_, id: string) => {
-        return {
-          id: serverActionsManifest[
+        const workerEntry =
+          serverActionsManifest[
             process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ][id].workers[normalizeWorkerPageName(pageName)],
-          name: id,
-          chunks: [],
+          ][id].workers[normalizeWorkerPageName(pageName)]
+
+        if (typeof workerEntry === 'string') {
+          return { id: workerEntry, name: id, chunks: [] }
         }
+
+        const { moduleId, async } = workerEntry
+
+        return { id: moduleId, name: id, chunks: [], async }
       },
     }
   )

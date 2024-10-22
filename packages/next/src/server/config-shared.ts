@@ -237,6 +237,12 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  cacheHandlers?: {
+    default?: string
+    remote?: string
+    static?: string
+    [handlerName: string]: string | undefined
+  }
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
   flyingShuttle?: { mode?: 'full' | 'store-only' }
@@ -586,6 +592,16 @@ export type ExportPathMap = {
      * @internal
      */
     _isRoutePPREnabled?: boolean
+
+    /**
+     * When true, it indicates that this page is being rendered in an attempt to
+     * discover if the page will be safe to generate with PPR. This is only
+     * enabled when the app has `experimental.dynamicIO` enabled but does not
+     * have `experimental.ppr` enabled.
+     *
+     * @internal
+     */
+    _isProspectiveRender?: boolean
   }
 }
 
@@ -1058,6 +1074,11 @@ export const defaultConfig: NextConfig = {
         revalidate: 60 * 60 * 24 * 30, // 1 month
         expire: INFINITE_CACHE, // Unbounded.
       },
+    },
+    cacheHandlers: {
+      default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
+      remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
+      static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
     },
     multiZoneDraftMode: false,
     appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
