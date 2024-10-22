@@ -225,7 +225,7 @@ describe('create-next-app --app (App Router)', () => {
     })
   })
 
-  it('should enable turbopack dev with --turbo flag', async () => {
+  it('should enable turbopack dev with --turbopack flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'app-turbo'
       const { exitCode } = await run(
