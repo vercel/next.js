@@ -102,11 +102,9 @@ impl ValueToString for AssetIdent {
                     s.push_str(", ");
                 }
                 let part = part.to_string().await?;
-                // facade is not included in ident as switching between facade and non-facade
-                // shouldn't change the ident
-                if part.as_str() != "facade" {
-                    write!(s, " <{}>", part)?;
-                }
+                // Note: facade should be included in ident because the asset type is not
+                // exactly the same.
+                write!(s, "<{}>", part)?;
             }
             s.push(')');
         }
