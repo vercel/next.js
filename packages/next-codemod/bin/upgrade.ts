@@ -71,12 +71,14 @@ function endMessage() {
   )
 }
 
+const cwd = process.cwd()
+
 export async function runUpgrade(
   revision: string | undefined,
   options: { verbose: boolean }
 ): Promise<void> {
   const { verbose } = options
-  const appPackageJsonPath = path.resolve(process.cwd(), 'package.json')
+  const appPackageJsonPath = path.resolve(cwd, 'package.json')
   let appPackageJson = JSON.parse(fs.readFileSync(appPackageJsonPath, 'utf8'))
 
   let targetNextPackageJson: {
@@ -125,8 +127,8 @@ export async function runUpgrade(
   console.log(`  - Next.js: v${installedNextVersion}`)
   let shouldStayOnReact18 = false
 
-  const usesAppDir = isUsingAppDir(process.cwd())
-  const usesPagesDir = isUsingPagesDir(process.cwd())
+  const usesAppDir = isUsingAppDir(cwd)
+  const usesPagesDir = isUsingPagesDir(cwd)
 
   const isPureAppRouter = usesAppDir && !usesPagesDir
   const isMixedApp = usesPagesDir && usesAppDir
@@ -182,7 +184,7 @@ export async function runUpgrade(
     installedNextVersion,
     targetNextVersion
   )
-  const packageManager: PackageManager = getPkgManager(process.cwd())
+  const packageManager: PackageManager = getPkgManager(cwd)
 
   let shouldRunReactCodemods = false
   let shouldRunReactTypesCodemods = false
@@ -320,7 +322,7 @@ export async function runUpgrade(
   runInstallation(packageManager)
 
   for (const codemod of codemods) {
-    await runTransform(codemod, process.cwd(), { force: true, verbose })
+    await runTransform(codemod, cwd, { force: true, verbose })
   }
 
   // To reduce user-side burden of selecting which codemods to run as it needs additional
@@ -354,12 +356,12 @@ function getInstalledNextVersion(): string {
   try {
     return require(
       require.resolve('next/package.json', {
-        paths: [process.cwd()],
+        paths: [cwd],
       })
     ).version
   } catch (error) {
     throw new BadInput(
-      `Failed to get the installed Next.js version at "${process.cwd()}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
+      `Failed to get the installed Next.js version at "${cwd}".\nIf you're using a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
@@ -371,12 +373,12 @@ function getInstalledReactVersion(): string {
   try {
     return require(
       require.resolve('react/package.json', {
-        paths: [process.cwd()],
+        paths: [cwd],
       })
     ).version
   } catch (error) {
     throw new BadInput(
-      `Failed to detect the installed React version in "${process.cwd()}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
+      `Failed to detect the installed React version in "${cwd}".\nIf you're working in a monorepo, please run this command from the Next.js app directory.`,
       {
         cause: error,
       }
