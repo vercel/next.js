@@ -29,7 +29,9 @@ export default async function Page() {
 
 async function CookiesReadingComponent() {
   await new Promise((r) => process.nextTick(r))
-  const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+  const _token = ((await cookies()) as unknown as UnsafeUnwrappedCookies).get(
+    'token'
+  )
   return <div>this component read the `token` cookie synchronously</div>
 }
 

@@ -1,7 +1,8 @@
 import { nanoid } from 'nanoid'
 import ClientComponent from './component'
 
-export default function Page({ searchParams }) {
+export default async function Page(props) {
+  const searchParams = await props.searchParams
   return (
     <>
       <ClientComponent searchParams={searchParams} />

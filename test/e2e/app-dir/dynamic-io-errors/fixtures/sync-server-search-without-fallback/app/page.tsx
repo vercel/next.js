@@ -16,7 +16,9 @@ export default async function Page(props: {
       </p>
       <Suspense fallback={<Fallback />}>
         <IndirectionOne>
-          <SearchParamsReadingComponent searchParams={props.searchParams} />
+          <SearchParamsReadingComponent
+            searchParams={await props.searchParams}
+          />
         </IndirectionOne>
       </Suspense>
       <IndirectionTwo>

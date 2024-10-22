@@ -2,7 +2,8 @@ import { Suspense, unstable_postpone as postpone } from 'react'
 import { Optimistic } from '../../../components/optimistic'
 import { ServerHtml } from '../../../components/server-html'
 
-export default ({ searchParams }) => {
+export default async (props) => {
+  const searchParams = await props.searchParams
   return (
     <>
       <ServerHtml />
