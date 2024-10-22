@@ -113,7 +113,7 @@ export async function createOriginalStackFrame({
   rootDirectory: string
   frame: StackFrame
   errorMessage?: string
-}): Promise<OriginalStackFrameResponse | undefined> {
+}): Promise<OriginalStackFrameResponse | null> {
   const { lineNumber, column } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (async () => {
@@ -136,7 +136,7 @@ export async function createOriginalStackFrame({
   })()
 
   if (!result?.sourcePosition.source) {
-    return undefined
+    return null
   }
 
   const { sourcePosition, sourceContent } = result
