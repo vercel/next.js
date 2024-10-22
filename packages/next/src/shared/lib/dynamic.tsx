@@ -79,7 +79,7 @@ export function noSSR<P = {}>(
 export default function dynamic<P = {}>(
   dynamicOptions: DynamicOptions<P> | Loader<P>,
   options?: DynamicOptions<P>
-): React.ComponentType<P> {
+): React.FunctionComponent<P> {
   let loadableFn = Loadable as LoadableFn<P>
 
   let loadableOptions: LoadableOptions<P> = {
