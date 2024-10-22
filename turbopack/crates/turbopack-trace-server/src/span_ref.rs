@@ -278,8 +278,10 @@ impl<'a> SpanRef<'a> {
                         let duration = end - start;
                         if duration != 0 {
                             store.set_max_self_time_lookup(*end);
-                            let concurrent_time =
-                                store.self_time_tree.lookup_range_count(*start, *end);
+                            let concurrent_time = store
+                                .self_time_tree
+                                .as_ref()
+                                .map_or(duration, |tree| tree.lookup_range_count(*start, *end));
                             return Some(duration * duration / concurrent_time);
                         }
                     }
