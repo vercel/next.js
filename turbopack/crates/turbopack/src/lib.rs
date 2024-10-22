@@ -334,8 +334,8 @@ pub struct ModuleAssetContext {
     pub resolve_options_context: Vc<ResolveOptionsContext>,
     pub layer: Vc<RcStr>,
     transition: Option<ResolvedVc<Box<dyn Transition>>>,
-    /// Whether to replace external resolutions with CachedExternalModules. Used by
-    /// enable_externals_tracing to handle transitive external dependencies.
+    /// Whether to replace external resolutions with CachedExternalModules. Used with
+    /// ModuleOptionsContext.enable_tracing to handle transitive external dependencies.
     replace_externals: bool,
 }
 
@@ -771,10 +771,7 @@ impl AssetContext for ModuleAssetContext {
                                 typ,
                                 module: match source {
                                     Some(source)
-                                        if self
-                                            .module_options_context()
-                                            .await?
-                                            .enable_externals_tracing =>
+                                        if self.module_options_context().await?.enable_tracing =>
                                     {
                                         match &*externals_tracing_module_context()
                                             .process(source, reference_type)

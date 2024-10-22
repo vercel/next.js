@@ -124,9 +124,9 @@ pub struct ModuleOptionsContext {
     pub side_effect_free_packages: Vec<RcStr>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
-    /// Generate (non-emitted) output assets for externals, to facilitate generating a list of all
-    /// external files that will be required at runtime.
-    pub enable_externals_tracing: bool,
+    /// Generate (non-emitted) output assets for static assets and externals, to facilitate
+    /// generating a list of all non-bundled files that will be required at runtime.
+    pub enable_tracing: bool,
 
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,
