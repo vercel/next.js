@@ -1834,6 +1834,13 @@ export default abstract class Server<
     })
   }
 
+  // we only encode path delimiters for path segments from
+  // getStaticPaths so we need to attempt decoding the URL
+  // to match against and only escape the path delimiters
+  // this allows non-ascii values to be handled e.g. Japanese characters
+
+  // TODO: investigate adding this handling for non-SSG pages so
+  // non-ascii names work there also
   private static decode(key: string) {
     return key
       .split('/')
@@ -2373,13 +2380,6 @@ export default abstract class Server<
     }
 
     if (ssgCacheKey) {
-      // we only encode path delimiters for path segments from
-      // getStaticPaths so we need to attempt decoding the URL
-      // to match against and only escape the path delimiters
-      // this allows non-ascii values to be handled e.g. Japanese characters
-
-      // TODO: investigate adding this handling for non-SSG pages so
-      // non-ascii names work there also
       ssgCacheKey = Server.decode(ssgCacheKey)
 
       // ensure /index and / is normalized to one key
