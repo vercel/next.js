@@ -794,6 +794,9 @@ importers:
 
   packages/eslint-config-next:
     dependencies:
+      '@babel/eslint-parser':
+        specifier: 7.24.5
+        version: 7.24.5(@babel/core@7.22.5)(eslint@9.12.0)
       '@next/eslint-plugin-next':
         specifier: 15.0.1-canary.1
         version: link:../eslint-plugin-next
@@ -1897,6 +1900,13 @@ packages:
     peerDependencies:
       '@babel/core': 7.22.5
       eslint: ^7.5.0 || ^8.0.0
+
+  '@babel/eslint-parser@7.24.5':
+    resolution: {integrity: sha512-gsUcqS/fPlgAw1kOtpss7uhY6E9SFFANQ6EFX5GTvzUwaV0+sGaZWk6xq22MOdeT9wfxyokW3ceCUvOiRtZciQ==}
+    engines: {node: ^10.13.0 || ^12.13.0 || >=14.0.0}
+    peerDependencies:
+      '@babel/core': 7.22.5
+      eslint: ^7.5.0 || ^8.0.0 || ^9.0.0
 
   '@babel/generator@7.18.0':
     resolution: {integrity: sha512-81YO9gGx6voPXlvYdZBliFXAZU8vZ9AZ6z+CjlmcnaeOcYSFbMTpdeDUO9xD9dh/68Vq03I8ZspfUTPfitcDHg==}
@@ -12679,6 +12689,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -15442,6 +15453,14 @@ snapshots:
       - supports-color
 
   '@babel/eslint-parser@7.22.5(@babel/core@7.22.5)(eslint@9.12.0)':
+    dependencies:
+      '@babel/core': 7.22.5
+      '@nicolo-ribaudo/eslint-scope-5-internals': 5.1.1-v1
+      eslint: 9.12.0
+      eslint-visitor-keys: 2.1.0
+      semver: 6.3.1
+
+  '@babel/eslint-parser@7.24.5(@babel/core@7.22.5)(eslint@9.12.0)':
     dependencies:
       '@babel/core': 7.22.5
       '@nicolo-ribaudo/eslint-scope-5-internals': 5.1.1-v1

@@ -105,8 +105,8 @@ describe('Next Build', () => {
         })
 
         try {
-          const eslintrcJsonPath = join(next.testDir, '.eslintrc.json')
-          await fs.writeFile(eslintrcJsonPath, '')
+          const eslintConfigPath = join(next.testDir, 'eslint.config.mjs')
+          await fs.writeFile(eslintConfigPath, '')
 
           const nextBuildCommand = await next.build()
           const buildOutput = nextBuildCommand.cliOutput
@@ -126,7 +126,7 @@ describe('Next Build', () => {
           const eslintConfigAfterSetupJSON = execSync(
             // TODO(jiwon): remove `ESLINT_USE_FLAT_CONFIG=false` when we create the config for ESLint 9.
             // https://eslint.org/docs/latest/use/migrate-to-9.0.0#-new-default-config-format-eslintconfigjs
-            `ESLINT_USE_FLAT_CONFIG=false pnpm eslint --print-config pages/index.js`,
+            `pnpm eslint --print-config pages/index.js`,
             {
               cwd: next.testDir,
               encoding: 'utf8',
@@ -269,8 +269,8 @@ describe('Next Build', () => {
         })
 
         try {
-          const eslintrcJsonPath = join(next.testDir, '.eslintrc.json')
-          await fs.writeFile(eslintrcJsonPath, '')
+          const eslintConfigPath = join(next.testDir, 'eslint.config.mjs')
+          await fs.writeFile(eslintConfigPath, '')
 
           const nextBuildCommand = await next.build()
           const buildOutput = nextBuildCommand.cliOutput
