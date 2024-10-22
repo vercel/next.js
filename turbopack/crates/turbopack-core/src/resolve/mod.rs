@@ -2006,41 +2006,41 @@ async fn resolve_relative_request(
 
     if options_value.enable_typescript_with_output_extension {
         new_path.replace_final_constants(&|c: &RcStr| -> Option<Pattern> {
-            let result = match c.rsplit_once(".") {
-                Some((base, "js")) => Some((
+            let (base, replacement) = match c.rsplit_once(".") {
+                Some((base, "js")) => (
                     base,
                     vec![
                         Pattern::Constant(".ts".into()),
                         Pattern::Constant(".tsx".into()),
                         Pattern::Constant(".js".into()),
                     ],
-                )),
-                Some((base, "mjs")) => Some((
+                ),
+                Some((base, "mjs")) => (
                     base,
                     vec![
                         Pattern::Constant(".mts".into()),
-                        Pattern::Constant(".js".into()),
+                        Pattern::Constant(".mjs".into()),
                     ],
-                )),
-                Some((base, "cjs")) => Some((
+                ),
+                Some((base, "cjs")) => (
                     base,
                     vec![
                         Pattern::Constant(".cts".into()),
-                        Pattern::Constant(".js".into()),
+                        Pattern::Constant(".cjs".into()),
                     ],
-                )),
-                _ => None,
-            };
-            result.map(|(base, replacement)| {
-                if base.is_empty() {
-                    Pattern::Alternatives(replacement)
-                } else {
-                    Pattern::Concatenation(vec![
-                        Pattern::Constant(base.into()),
-                        Pattern::Alternatives(replacement),
-                    ])
+                ),
+                _ => {
+                    return None;
                 }
-            })
+            };
+            if base.is_empty() {
+                Some(Pattern::Alternatives(replacement))
+            } else {
+                Some(Pattern::Concatenation(vec![
+                    Pattern::Constant(base.into()),
+                    Pattern::Alternatives(replacement),
+                ]))
+            }
         });
         new_path.normalize();
     }
