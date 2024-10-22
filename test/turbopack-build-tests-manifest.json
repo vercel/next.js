@@ -16576,8 +16576,7 @@
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files-app.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files app router should not fail caching",
         "required server files app router should not send cache tags in minimal mode for SSR",
         "required server files app router should not send invalid soft tags to cache handler",
@@ -16585,13 +16584,13 @@
         "required server files app router should properly handle prerender for bot request",
         "required server files app router should send cache tags in minimal mode for ISR"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files-i18n.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files i18n should bubble error correctly for API page",
         "required server files i18n should bubble error correctly for gip page",
         "required server files i18n should bubble error correctly for gsp page",
@@ -16622,13 +16621,13 @@
         "required server files i18n should set correct SWR headers with notFound gsp",
         "required server files i18n should set correct SWR headers with notFound gssp"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files-ppr.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files app router middleware rewrite should work with a dynamic path",
         "required server files app router middleware rewrite should work with a dynamic path (with Next-Resume)",
         "required server files app router middleware rewrite should work with a dynamic path (without Next-Resume)",
@@ -16648,13 +16647,13 @@
         "required server files app router should still render when postponed is corrupted without Next-Resume",
         "required server files app router should handle revalidating the fallback page"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files `cacheHandler` should have correct path",
         "required server files `cacheMaxMemorySize` should be disabled by setting to 0",
         "required server files `compress` should be `false` in nextEnv",
@@ -16708,6 +16707,7 @@
         "required server files should warn when \"next\" is imported directly",
         "required server files without minimalMode, with wasm should run middleware correctly"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
