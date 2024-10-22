@@ -2019,14 +2019,14 @@ async fn resolve_relative_request(
                     base,
                     vec![
                         Pattern::Constant(".mts".into()),
-                        Pattern::Constant(".js".into()),
+                        Pattern::Constant(".mjs".into()),
                     ],
                 ),
                 Some((base, "cjs")) => (
                     base,
                     vec![
                         Pattern::Constant(".cts".into()),
-                        Pattern::Constant(".js".into()),
+                        Pattern::Constant(".cjs".into()),
                     ],
                 ),
                 _ => {
