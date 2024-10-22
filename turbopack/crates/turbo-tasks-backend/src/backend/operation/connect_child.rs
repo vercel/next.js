@@ -125,6 +125,8 @@ impl ConnectChildOperation {
                 }
             }
 
+            #[cfg(feature = "trace_aggregation_update")]
+            let _span = tracing::trace_span!("connect_child").entered();
             ConnectChildOperation::UpdateAggregation {
                 aggregation_update: queue,
             }

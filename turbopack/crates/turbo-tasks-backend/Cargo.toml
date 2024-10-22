@@ -15,6 +15,7 @@ workspace = true
 [features]
 default = []
 verify_serialization = []
+trace_aggregation_update = []
 
 [dependencies]
 anyhow = { workspace = true }
