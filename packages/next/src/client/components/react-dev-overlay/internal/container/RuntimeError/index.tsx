@@ -149,6 +149,7 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font);
+    color: #666;
   }
   [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
     color: #666;
