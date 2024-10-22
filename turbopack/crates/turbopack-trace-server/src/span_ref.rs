@@ -317,23 +317,46 @@ impl<'a> SpanRef<'a> {
         self.extra()
             .graph
             .get_or_init(|| {
-                let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
-                    FxIndexMap::default();
-                let mut queue = VecDeque::with_capacity(8);
-                for child in self.children() {
-                    let name = child.group_name();
-                    let (list, recursive_list) = map.entry(name).or_default();
-                    list.push(child.index());
-                    queue.push_back(child);
-                    while let Some(child) = queue.pop_front() {
-                        for nested_child in child.children() {
+                struct Entry<'a> {
+                    span: SpanRef<'a>,
+                    recursive: Vec<SpanIndex>,
+                }
+                let entries = self
+                    .children_par()
+                    .map(|span| {
+                        let name = span.group_name();
+                        let mut recursive = Vec::new();
+                        let mut queue = VecDeque::with_capacity(0);
+                        for nested_child in span.children() {
                             let nested_name = nested_child.group_name();
                             if name == nested_name {
-                                recursive_list.push(nested_child.index());
+                                recursive.push(nested_child.index());
                                 queue.push_back(nested_child);
                             }
                         }
-                    }
+                        while let Some(child) = queue.pop_front() {
+                            for nested_child in child.children() {
+                                let nested_name = nested_child.group_name();
+                                if name == nested_name {
+                                    recursive.push(nested_child.index());
+                                    queue.push_back(nested_child);
+                                }
+                            }
+                        }
+                        Entry { span, recursive }
+                    })
+                    .collect_vec_list();
+                let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
+                    FxIndexMap::default();
+                for Entry {
+                    span,
+                    mut recursive,
+                } in entries.into_iter().flatten()
+                {
+                    let name = span.group_name();
+                    let (list, recursive_list) = map.entry(name).or_default();
+                    list.push(span.index());
+                    recursive_list.append(&mut recursive);
                 }
                 event_map_to_list(map)
             })
